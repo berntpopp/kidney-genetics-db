@@ -43,6 +43,14 @@ This project is **under active development** - see `PLAN.md` for implementation 
 
 Modernizes the established [kidney-genetics](https://github.com/halbritter-lab/kidney-genetics) R pipeline with improved performance, web interface, and API access for the research community.
 
+## Project Structure
+
+- `PLAN.md` - Complete technical implementation plan
+- `plan/` - Schema definitions, examples, and planning artifacts (separate from implementation)
+- `backend/` - FastAPI application (to be implemented)
+- `frontend/` - Vue.js application (to be implemented) 
+- `pipeline/` - Data processing pipeline (to be implemented)
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file.

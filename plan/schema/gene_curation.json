@@ -1,0 +1,374 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://kidney-genetics-db.org/schema/gene_curation.json", 
+  "title": "Kidney Gene Curation Record",
+  "description": "A comprehensive, scientifically rigorous record for a single gene, aggregating multiple gene-disease assertions with full provenance tracking and GenCC compatibility.",
+  "type": "object",
+  "properties": {
+    "hgnc_id": {
+      "type": "string", 
+      "pattern": "^HGNC:[0-9]+$",
+      "description": "HGNC ID, e.g., 'HGNC:9008'"
+    },
+    "approved_symbol": {
+      "type": "string",
+      "description": "Current approved gene symbol from HGNC"
+    },
+    "aliases": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Previous symbols, aliases, and synonyms for searchability"
+    },
+    "genomic_coordinates": {
+      "type": "object",
+      "description": "Genomic location with full source provenance",
+      "properties": {
+        "hg19": {"type": "string", "description": "e.g., 'chr16:2152226-2153213'"},
+        "hg38": {"type": "string"},
+        "source": {"type": "string", "description": "e.g., 'HGNC', 'Ensembl'"},
+        "version": {"type": "string", "description": "e.g., 'GRCh38.p13'"},
+        "date_accessed": {"type": "string", "format": "date"}
+      },
+      "additionalProperties": true
+    },
+    "assertions": {
+      "type": "array",
+      "description": "An array of gene-disease-mode of inheritance assertions, each supported by evidence. This is the core scientific content.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "disease": {
+            "type": "object",
+            "properties": {
+              "mondo_id": {"type": "string", "description": "MONDO ID for disease grouping, e.g., 'MONDO:0009180'"},
+              "mondo_label": {"type": "string", "description": "MONDO disease name"},
+              "submitted_disease_ids": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Original disease terms from sources, e.g., ['OMIM:173900', 'HP:0000003']"
+              }
+            },
+            "required": ["mondo_id", "mondo_label"]
+          },
+          "mode_of_inheritance": {
+            "type": "string", 
+            "description": "HPO term, e.g., 'HP:0000006' (Autosomal dominant)"
+          },
+          "mode_of_inheritance_label": {
+            "type": "string",
+            "description": "Human-readable inheritance pattern"
+          },
+          "classification": {
+            "type": "string",
+            "enum": ["Definitive", "Strong", "Moderate", "Limited", "Disputed", "Refuted", "No Known Disease Relationship", "Animal Model Only"],
+            "description": "Final GenCC-compatible classification calculated by our pipeline"
+          },
+          "assertion_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date when this classification was determined"
+          },
+          "assertion_criteria": {
+            "type": "string",
+            "format": "uri", 
+            "description": "URL to our curation framework documentation"
+          },
+          "evidence": {
+            "type": "array",
+            "description": "All source evidence supporting this assertion. Generic structure accommodates any source type.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_name": {
+                  "type": "string",
+                  "description": "Origin of evidence",
+                  "examples": ["PanelApp UK", "ClinGen", "PMID", "Centogene", "Blueprint Genetics"]
+                },
+                "source_id": {
+                  "type": "string", 
+                  "description": "Unique identifier within the source, e.g., panel ID, PMID number"
+                },
+                "source_version": {
+                  "type": "string",
+                  "description": "Version/date of source, e.g., 'v1.3', '2024-07-31'"
+                },
+                "source_category": {
+                  "type": "string",
+                  "enum": ["Expert Panel", "Literature", "Diagnostic Panel", "Ontology", "Text Mining", "Database"],
+                  "description": "High-level categorization"
+                },
+                "classification": {
+                  "type": "string",
+                  "description": "Original classification from source, e.g., 'Green', 'Pathogenic', 'High confidence'"
+                },
+                "submitted_disease": {
+                  "type": "string",
+                  "description": "Disease term as provided by this source"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "Direct link to source evidence"
+                },
+                "date_accessed": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "When our pipeline collected this evidence"
+                },
+                "additional_metadata": {
+                  "type": "object",
+                  "description": "Source-specific additional data",
+                  "additionalProperties": true
+                }
+              },
+              "required": ["source_name", "source_id", "source_category", "classification", "date_accessed"],
+              "additionalProperties": true
+            }
+          },
+          "evidence_summary": {
+            "type": "string",
+            "description": "Human-readable summary of supporting evidence"
+          },
+          "pmids": {
+            "type": "array",
+            "items": {"type": "string", "pattern": "^[0-9]+$"},
+            "description": "PubMed IDs supporting this assertion"
+          }
+        },
+        "required": ["disease", "classification", "assertion_date", "evidence"],
+        "additionalProperties": true
+      }
+    },
+    "ancillary_data": {
+      "type": "object",
+      "description": "Additional gene-level data with COMPLETE provenance tracking. Every value is traceable to its source and version.",
+      "properties": {
+        "constraint_metrics": {
+          "type": "array",
+          "description": "Multiple constraint metric sources with full provenance",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": {"type": "string", "description": "e.g., 'gnomAD'"},
+              "version": {"type": "string", "description": "e.g., 'v2.1.1', 'v4.0'"},
+              "date_accessed": {"type": "string", "format": "date"},
+              "transcript_id": {"type": "string", "description": "Specific transcript analyzed"},
+              "pli": {"type": ["number", "null"]},
+              "oe_lof": {"type": ["number", "null"]},
+              "oe_lof_ci_upper": {"type": ["number", "null"]},
+              "mis_z": {"type": ["number", "null"]},
+              "syn_z": {"type": ["number", "null"]}
+            },
+            "required": ["source", "version", "date_accessed"],
+            "additionalProperties": true
+          }
+        },
+        "expression_data": {
+          "type": "array",
+          "description": "Expression data from multiple sources with full provenance",
+          "items": {
+            "type": "object", 
+            "properties": {
+              "source": {"type": "string", "examples": ["GTEx", "Descartes", "HPA"]},
+              "version": {"type": "string", "description": "e.g., 'v8', 'v1.2'"},
+              "date_accessed": {"type": "string", "format": "date"},
+              "measurements": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "tissue": {"type": "string", "examples": ["Kidney - Cortex", "Glomerulus"]},
+                    "value": {"type": "number"},
+                    "unit": {"type": "string", "examples": ["TPM", "FPKM"]},
+                    "percentile": {"type": "number", "minimum": 0, "maximum": 100},
+                    "sample_size": {"type": "integer"}
+                  },
+                  "required": ["tissue", "value", "unit"]
+                }
+              }
+            },
+            "required": ["source", "version", "date_accessed", "measurements"],
+            "additionalProperties": true
+          }
+        },
+        "protein_interactions": {
+          "type": "array",
+          "description": "Protein interaction networks with source tracking",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": {"type": "string", "examples": ["STRING", "BioGRID", "IntAct"]},
+              "version": {"type": "string", "description": "e.g., 'v12.0'"},
+              "date_accessed": {"type": "string", "format": "date"},
+              "interactions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "interactor_hgnc_id": {"type": "string", "pattern": "^HGNC:[0-9]+$"},
+                    "interactor_symbol": {"type": "string"},
+                    "confidence_score": {"type": "number", "minimum": 0, "maximum": 1},
+                    "interaction_type": {"type": "string", "examples": ["physical", "functional"]},
+                    "evidence_types": {
+                      "type": "array", 
+                      "items": {"type": "string"},
+                      "examples": [["co-expression", "experimental"], ["text-mining"]]
+                    }
+                  },
+                  "required": ["interactor_hgnc_id", "interactor_symbol", "confidence_score"]
+                }
+              }
+            },
+            "required": ["source", "version", "date_accessed", "interactions"],
+            "additionalProperties": true
+          }
+        },
+        "mouse_phenotypes": {
+          "type": "array",
+          "description": "Mouse phenotype data with source versioning",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": {"type": "string", "examples": ["MGI", "IMPC"]},
+              "version": {"type": "string", "description": "Database version"},
+              "date_accessed": {"type": "string", "format": "date"},
+              "phenotypes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "mpo_id": {"type": "string", "pattern": "^MP:[0-9]+$"},
+                    "phenotype_name": {"type": "string"},
+                    "allele_symbol": {"type": "string"},
+                    "zygosity": {"type": "string", "enum": ["homozygous", "heterozygous", "hemizygous"]},
+                    "genetic_background": {"type": "string"}
+                  },
+                  "required": ["mpo_id", "phenotype_name"]
+                }
+              }
+            },
+            "required": ["source", "date_accessed", "phenotypes"],
+            "additionalProperties": true
+          }
+        },
+        "pathway_annotations": {
+          "type": "array",
+          "description": "Pathway and functional annotations with provenance",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": {"type": "string", "examples": ["KEGG", "Reactome", "GO"]},
+              "version": {"type": "string"},
+              "date_accessed": {"type": "string", "format": "date"},
+              "annotations": {
+                "type": "array",
+                "items": {
+                  "type": "object", 
+                  "properties": {
+                    "pathway_id": {"type": "string"},
+                    "pathway_name": {"type": "string"},
+                    "category": {"type": "string", "examples": ["Biological Process", "Molecular Function", "Cellular Component"]},
+                    "evidence_code": {"type": "string", "examples": ["IEA", "TAS", "IMP"]}
+                  }
+                }
+              }
+            },
+            "required": ["source", "date_accessed", "annotations"],
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "curation_workflow": {
+      "type": "object",
+      "description": "Complete audit trail of manual review and sign-off process. Essential for scientific rigor.",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["Automated", "In Primary Review", "In Secondary Review", "Approved", "Rejected", "On Hold"],
+          "default": "Automated",
+          "description": "Current workflow state"
+        },
+        "primary_curator": {
+          "type": "string",
+          "description": "Email of primary curator (if assigned)"
+        },
+        "secondary_curator": {
+          "type": "string", 
+          "description": "Email of secondary reviewer (if assigned)"
+        },
+        "review_log": {
+          "type": "array",
+          "description": "Complete chronological log of all review actions",
+          "items": {
+            "type": "object",
+            "properties": {
+              "timestamp": {"type": "string", "format": "date-time"},
+              "user_email": {"type": "string", "format": "email"},
+              "user_name": {"type": "string"},
+              "action": {"type": "string", "examples": ["status_change", "comment_added", "classification_modified"]},
+              "previous_status": {"type": "string"},
+              "new_status": {"type": "string"},  
+              "comment": {"type": "string"},
+              "changes_made": {
+                "type": "object",
+                "description": "Specific fields modified in this review",
+                "additionalProperties": true
+              }
+            },
+            "required": ["timestamp", "user_email", "action"]
+          }
+        },
+        "flags": {
+          "type": "object",
+          "description": "Automated quality control flags requiring curator attention",
+          "properties": {
+            "conflicting_evidence": {"type": "boolean"},
+            "insufficient_evidence": {"type": "boolean"},
+            "outdated_sources": {"type": "boolean"},
+            "missing_literature": {"type": "boolean"},
+            "classification_discrepancy": {"type": "boolean"}
+          }
+        }
+      },
+      "required": ["status"],
+      "additionalProperties": true
+    },
+    "version_details": {
+      "type": "object",
+      "description": "Version tracking and metadata",
+      "properties": {
+        "version": {"type": "integer", "minimum": 1},
+        "created_date": {"type": "string", "format": "date-time"},
+        "last_updated": {"type": "string", "format": "date-time"},
+        "last_evidence_refresh": {"type": "string", "format": "date-time"},
+        "pipeline_version": {"type": "string", "description": "Version of pipeline that generated this data"},
+        "schema_version": {"type": "string", "description": "Version of this JSON schema used"}
+      },
+      "required": ["version", "last_updated"],
+      "additionalProperties": true
+    },
+    "external_submissions": {
+      "type": "object",
+      "description": "Track submissions to external databases for broader impact",
+      "properties": {
+        "gencc": {
+          "type": "object",
+          "properties": {
+            "submitted": {"type": "boolean"},
+            "submission_date": {"type": "string", "format": "date"},
+            "submission_id": {"type": "string"},
+            "status": {"type": "string", "examples": ["pending", "accepted", "rejected"]}
+          }
+        },
+        "clinvar": {"type": "object", "properties": {"submitted": {"type": "boolean"}}},
+        "omim": {"type": "object", "properties": {"submitted": {"type": "boolean"}}}
+      },
+      "additionalProperties": true
+    }
+  },
+  "required": ["hgnc_id", "approved_symbol", "assertions", "version_details"],
+  "additionalProperties": true,
+  "$comment": "This schema prioritizes scientific rigor through complete provenance tracking, flexible evidence structures, and comprehensive curation workflow management. Every data point is traceable to its source and version."
+}

@@ -1,0 +1,505 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://kidney-genetics-db.org/schema/enhanced_gene_curation.json",
+  "title": "Enhanced Kidney Gene Curation Schema",
+  "description": "Improved schema incorporating Gene Curator's hybrid design principles while maintaining GenCC compatibility and complete provenance tracking.",
+  "type": "object",
+  
+  "properties": {
+    "hgnc_id": {
+      "type": "string",
+      "pattern": "^HGNC:[0-9]+$",
+      "description": "HGNC ID, e.g., 'HGNC:9008'"
+    },
+    "approved_symbol": {
+      "type": "string",
+      "description": "Current approved gene symbol from HGNC"
+    },
+    "aliases": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Previous symbols, aliases, and synonyms"
+    },
+    
+    "core_metrics": {
+      "type": "object",
+      "description": "Key metrics stored as relational columns for fast queries (mirrors Gene Curator approach)",
+      "properties": {
+        "total_evidence_score": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Calculated total evidence score across all sources"
+        },
+        "highest_confidence_classification": {
+          "type": "string",
+          "enum": ["Definitive", "Strong", "Moderate", "Limited", "Disputed", "Refuted", "No Known Disease Relationship", "Animal Model Only"],
+          "description": "Highest confidence GenCC classification across all assertions"
+        },
+        "evidence_source_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of evidence sources"
+        },
+        "expert_panel_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of expert panel sources (ClinGen, PanelApp, etc.)"
+        },
+        "literature_source_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of literature sources"
+        },
+        "last_evidence_update": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When evidence was last refreshed"
+        }
+      },
+      "required": ["total_evidence_score", "highest_confidence_classification", "evidence_source_count"]
+    },
+    
+    "versioning": {
+      "type": "object",
+      "description": "Content addressability and immutable versioning (from Gene Curator)",
+      "properties": {
+        "record_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA-256 hash of canonical content for integrity verification"
+        },
+        "previous_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Hash of previous version, creating immutable chain"
+        },
+        "version_number": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Sequential version number"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "schema_version": {
+          "type": "string",
+          "description": "Version of this schema used",
+          "default": "v2.0.0"
+        }
+      },
+      "required": ["record_hash", "version_number", "created_at", "updated_at"]
+    },
+    
+    "assertions": {
+      "type": "array",
+      "description": "Gene-disease-inheritance assertions with comprehensive evidence",
+      "items": {
+        "type": "object",
+        "properties": {
+          "assertion_id": {
+            "type": "string",
+            "description": "Unique identifier for this assertion"
+          },
+          "disease": {
+            "type": "object",
+            "properties": {
+              "mondo_id": {"type": "string", "pattern": "^MONDO:[0-9]+$"},
+              "mondo_label": {"type": "string"},
+              "submitted_disease_ids": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Original disease terms from various sources"
+              }
+            },
+            "required": ["mondo_id", "mondo_label"]
+          },
+          "mode_of_inheritance": {
+            "type": "string",
+            "description": "HPO term, e.g., 'HP:0000006'"
+          },
+          "mode_of_inheritance_label": {
+            "type": "string",
+            "description": "Human-readable inheritance pattern"
+          },
+          
+          "classification_details": {
+            "type": "object",
+            "description": "Classification with scoring breakdown",
+            "properties": {
+              "final_classification": {
+                "type": "string",
+                "enum": ["Definitive", "Strong", "Moderate", "Limited", "Disputed", "Refuted", "No Known Disease Relationship", "Animal Model Only"]
+              },
+              "confidence_score": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Calculated confidence score (0-100)"
+              },
+              "evidence_strength_breakdown": {
+                "type": "object",
+                "properties": {
+                  "expert_panel_weight": {"type": "number"},
+                  "literature_weight": {"type": "number"},
+                  "diagnostic_panel_weight": {"type": "number"},
+                  "constraint_evidence_weight": {"type": "number"}
+                }
+              },
+              "classification_rationale": {
+                "type": "string",
+                "description": "Auto-generated explanation of classification logic"
+              }
+            },
+            "required": ["final_classification", "confidence_score"]
+          },
+          
+          "assertion_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date when classification was determined"
+          },
+          "assertion_criteria": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to curation framework used"
+          },
+          
+          "evidence": {
+            "type": "array",
+            "description": "All evidence supporting this assertion with enhanced metadata",
+            "items": {
+              "type": "object",
+              "properties": {
+                "evidence_id": {
+                  "type": "string",
+                  "description": "Unique identifier for evidence item"
+                },
+                "source_name": {
+                  "type": "string",
+                  "examples": ["PanelApp UK", "ClinGen", "PMID", "Blueprint Genetics", "Centogene"]
+                },
+                "source_id": {
+                  "type": "string",
+                  "description": "ID within source system"
+                },
+                "source_version": {
+                  "type": "string",
+                  "description": "Version of source when accessed"
+                },
+                "source_category": {
+                  "type": "string",
+                  "enum": ["Expert Panel", "Literature", "Diagnostic Panel", "Ontology", "Text Mining", "Database", "Constraint Evidence"]
+                },
+                "classification": {
+                  "type": "string",
+                  "description": "Original classification from source"
+                },
+                "submitted_disease": {
+                  "type": "string",
+                  "description": "Disease term as provided by source"
+                },
+                "confidence_level": {
+                  "type": "string",
+                  "enum": ["High", "Medium", "Low", "Unknown"],
+                  "description": "Assessed confidence in this evidence"
+                },
+                "weight_in_scoring": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Contribution to overall score (0-1)"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "Direct link to evidence"
+                },
+                "date_accessed": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "additional_metadata": {
+                  "type": "object",
+                  "description": "Source-specific data",
+                  "additionalProperties": true
+                }
+              },
+              "required": ["evidence_id", "source_name", "source_id", "source_category", "classification", "date_accessed"]
+            }
+          },
+          
+          "evidence_summary": {
+            "type": "string",
+            "description": "Human-readable summary of evidence"
+          },
+          "pmids": {
+            "type": "array",
+            "items": {"type": "string", "pattern": "^[0-9]+$"}
+          }
+        },
+        "required": ["assertion_id", "disease", "classification_details", "assertion_date", "evidence"]
+      }
+    },
+    
+    "ancillary_data": {
+      "type": "object",
+      "description": "Supporting data with complete provenance tracking",
+      "properties": {
+        "constraint_metrics": {
+          "type": "array",
+          "description": "Constraint scores with full provenance",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": {"type": "string"},
+              "version": {"type": "string"},
+              "date_accessed": {"type": "string", "format": "date"},
+              "transcript_id": {"type": "string"},
+              "metrics": {
+                "type": "object",
+                "properties": {
+                  "pli": {"type": ["number", "null"]},
+                  "oe_lof": {"type": ["number", "null"]},
+                  "oe_lof_ci_upper": {"type": ["number", "null"]},
+                  "mis_z": {"type": ["number", "null"]},
+                  "syn_z": {"type": ["number", "null"]}
+                }
+              },
+              "contribution_to_score": {
+                "type": "number",
+                "description": "How this data influenced classification"
+              }
+            },
+            "required": ["source", "version", "date_accessed", "metrics"]
+          }
+        },
+        
+        "expression_data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": {"type": "string"},
+              "version": {"type": "string"},
+              "date_accessed": {"type": "string", "format": "date"},
+              "measurements": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "tissue": {"type": "string"},
+                    "value": {"type": "number"},
+                    "unit": {"type": "string"},
+                    "percentile": {"type": "number", "minimum": 0, "maximum": 100},
+                    "sample_size": {"type": "integer"},
+                    "significance": {
+                      "type": "string",
+                      "enum": ["High", "Medium", "Low"],
+                      "description": "Biological significance for kidney disease"
+                    }
+                  }
+                }
+              }
+            },
+            "required": ["source", "version", "date_accessed", "measurements"]
+          }
+        },
+        
+        "protein_interactions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": {"type": "string"},
+              "version": {"type": "string"},
+              "date_accessed": {"type": "string", "format": "date"},
+              "interactions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "interactor_hgnc_id": {"type": "string"},
+                    "interactor_symbol": {"type": "string"},
+                    "confidence_score": {"type": "number"},
+                    "interaction_type": {"type": "string"},
+                    "evidence_types": {"type": "array", "items": {"type": "string"}},
+                    "kidney_relevance": {
+                      "type": "string",
+                      "enum": ["High", "Medium", "Low", "Unknown"],
+                      "description": "Relevance to kidney function/disease"
+                    }
+                  }
+                }
+              }
+            },
+            "required": ["source", "version", "date_accessed", "interactions"]
+          }
+        },
+        
+        "phenotype_data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": {"type": "string"},
+              "version": {"type": "string"},
+              "date_accessed": {"type": "string", "format": "date"},
+              "phenotypes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "phenotype_id": {"type": "string"},
+                    "phenotype_name": {"type": "string"},
+                    "frequency": {"type": "string"},
+                    "kidney_specific": {"type": "boolean"},
+                    "hpo_mapping": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "curation_workflow": {
+      "type": "object",
+      "description": "Enhanced professional workflow with detailed audit trail",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["Automated", "In_Primary_Review", "In_Secondary_Review", "Expert_Review", "Approved", "Rejected", "Published"],
+          "description": "Current workflow state"
+        },
+        "workflow_metadata": {
+          "type": "object",
+          "properties": {
+            "primary_curator": {"type": "string"},
+            "secondary_curator": {"type": "string"},
+            "expert_reviewer": {"type": "string"},
+            "institution": {"type": "string"},
+            "curation_guidelines_version": {"type": "string"},
+            "estimated_completion": {"type": "string", "format": "date"}
+          }
+        },
+        
+        "review_log": {
+          "type": "array",
+          "description": "Complete chronological audit trail",
+          "items": {
+            "type": "object",
+            "properties": {
+              "log_id": {"type": "string"},
+              "timestamp": {"type": "string", "format": "date-time"},
+              "user_email": {"type": "string", "format": "email"},
+              "user_name": {"type": "string"},
+              "user_institution": {"type": "string"},
+              "action": {
+                "type": "string",
+                "enum": ["created", "updated", "status_changed", "evidence_added", "classification_changed", "approved", "rejected", "published"]
+              },
+              "previous_state": {"type": "object"},
+              "new_state": {"type": "object"},
+              "comment": {"type": "string"},
+              "changes_summary": {
+                "type": "object",
+                "properties": {
+                  "evidence_changes": {"type": "integer"},
+                  "classification_change": {"type": "boolean"},
+                  "score_change": {"type": "number"},
+                  "fields_modified": {"type": "array", "items": {"type": "string"}}
+                }
+              },
+              "digital_signature": {
+                "type": "string",
+                "description": "Cryptographic signature for audit integrity"
+              }
+            },
+            "required": ["log_id", "timestamp", "user_email", "action"]
+          }
+        },
+        
+        "quality_control": {
+          "type": "object",
+          "properties": {
+            "automated_flags": {
+              "type": "object",
+              "properties": {
+                "conflicting_evidence": {"type": "boolean"},
+                "insufficient_evidence": {"type": "boolean"},
+                "outdated_sources": {"type": "boolean"},
+                "classification_discrepancy": {"type": "boolean"},
+                "gencc_compliance": {"type": "boolean"},
+                "provenance_complete": {"type": "boolean"}
+              }
+            },
+            "validation_checks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "check_name": {"type": "string"},
+                  "status": {"type": "string", "enum": ["passed", "failed", "warning"]},
+                  "message": {"type": "string"},
+                  "timestamp": {"type": "string", "format": "date-time"}
+                }
+              }
+            },
+            "confidence_metrics": {
+              "type": "object",
+              "properties": {
+                "overall_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                "evidence_consistency": {"type": "number", "minimum": 0, "maximum": 1},
+                "source_reliability": {"type": "number", "minimum": 0, "maximum": 1},
+                "temporal_relevance": {"type": "number", "minimum": 0, "maximum": 1}
+              }
+            }
+          }
+        },
+        
+        "external_submissions": {
+          "type": "object",
+          "properties": {
+            "gencc": {
+              "type": "object",
+              "properties": {
+                "submitted": {"type": "boolean"},
+                "submission_date": {"type": "string", "format": "date"},
+                "submission_id": {"type": "string"},
+                "status": {"type": "string", "enum": ["pending", "accepted", "rejected", "revision_requested"]},
+                "reviewer_comments": {"type": "string"}
+              }
+            },
+            "clinvar": {
+              "type": "object",
+              "properties": {
+                "submitted": {"type": "boolean"},
+                "submission_date": {"type": "string", "format": "date"}
+              }
+            },
+            "publication": {
+              "type": "object",
+              "properties": {
+                "manuscript_submitted": {"type": "boolean"},
+                "journal": {"type": "string"},
+                "doi": {"type": "string"}
+              }
+            }
+          }
+        }
+      },
+      "required": ["status", "review_log", "quality_control"]
+    }
+  },
+  
+  "required": ["hgnc_id", "approved_symbol", "core_metrics", "versioning", "assertions", "curation_workflow"],
+  "additionalProperties": true,
+  
+  "$comment": "Enhanced schema incorporating Gene Curator's hybrid design principles: core metrics as fast-query relational data, detailed evidence in structured JSONB, complete provenance tracking, immutable versioning, and professional curation workflow."
+}

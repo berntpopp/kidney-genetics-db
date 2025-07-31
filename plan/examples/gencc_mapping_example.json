@@ -1,0 +1,125 @@
+{
+  "title": "GenCC Mapping Example",
+  "description": "Example showing how our kidney gene curation maps to GenCC submission format",
+  
+  "our_internal_format": {
+    "hgnc_id": "HGNC:9008",
+    "approved_symbol": "PKD1",
+    "evidence_sources": [
+      {
+        "id": "panelapp-uk-234",
+        "source_name": "PanelApp UK",
+        "source_category": "Expert Panel",
+        "date_accessed": "2024-05-15",
+        "original_classification": "Green",
+        "details": {
+          "panel_name": "Polycystic kidney disease",
+          "panel_id": "uk-234",
+          "evidence_level": "Green"
+        }
+      },
+      {
+        "id": "pmid-35325889",
+        "source_name": "Literature Review",
+        "source_category": "Literature",
+        "date_accessed": "2024-05-15",
+        "original_classification": "Pathogenic",
+        "details": {
+          "publication_id": "PMID:35325889",
+          "reported_gene_symbol": "PKD1"
+        }
+      }
+    ],
+    "disease_associations": [
+      {
+        "disease_id": "MONDO:0009180",
+        "disease_name": "Polycystic kidney disease 1",
+        "submitted_disease_id": "OMIM:173900",
+        "mode_of_inheritance": "HP:0000006",
+        "mode_of_inheritance_label": "Autosomal dominant",
+        "clinical_validity": "Definitive",
+        "assertion_date": "2024-05-15",
+        "assertion_criteria": "https://kidney-genetics-db.org/curation-criteria",
+        "supporting_evidence_ids": ["panelapp-uk-234", "pmid-35325889"],
+        "evidence_summary": "Multiple independent publications and expert panel classifications support definitive role in PKD1",
+        "pmids": ["35325889", "12345678"],
+        "allelic_requirement": "Monoallelic",
+        "disease_mechanism": "Loss of function"
+      }
+    ],
+    "curation_metadata": {
+      "curation_status": "Expert Curated",
+      "curation_version": 3,
+      "last_updated": "2024-05-15T10:30:00Z",
+      "external_submissions": {
+        "gencc_submitted": true,
+        "gencc_submission_date": "2024-05-15"
+      }
+    }
+  },
+
+  "gencc_submission_format": {
+    "comment": "This is what gets submitted to GenCC database",
+    "gene_id": "HGNC:9008",
+    "gene_symbol": "PKD1", 
+    "disease_id": "MONDO:0009180",
+    "disease_label": "Polycystic kidney disease 1",
+    "submitted_as_disease_id": "OMIM:173900",
+    "mode_of_inheritance_id": "HP:0000006",
+    "mode_of_inheritance_label": "Autosomal dominant",
+    "classification_id": "gencc_curation_001",
+    "classification_label": "Definitive",
+    "assertion_date": "2024-05-15",
+    "submitter_id": "kidney_genetics_db",
+    "submitter_label": "Kidney Genetics Database",
+    "assertion_criteria": "https://kidney-genetics-db.org/curation-criteria",
+    "public_report_url": "https://kidney-genetics-db.org/genes/PKD1",
+    "pmids": "35325889;12345678",
+    "comments": "Comprehensive curation from kidney-focused genomics pipeline"
+  },
+
+  "mapping_rules": {
+    "description": "How our internal schema maps to GenCC submission requirements",
+    "mappings": [
+      {
+        "gencc_field": "gene_id",
+        "our_field": "hgnc_id",
+        "validation": "Must match pattern ^HGNC:[0-9]+$"
+      },
+      {
+        "gencc_field": "classification_label", 
+        "our_field": "disease_associations[].clinical_validity",
+        "allowed_values": ["Definitive", "Strong", "Moderate", "Limited", "Disputed Evidence", "Refuted Evidence", "No Known Disease Relationship", "Animal Model Only"]
+      },
+      {
+        "gencc_field": "disease_id",
+        "our_field": "disease_associations[].disease_id", 
+        "note": "Prefers MONDO IDs, accepts OMIM/Orphanet"
+      },
+      {
+        "gencc_field": "submitted_as_disease_id",
+        "our_field": "disease_associations[].submitted_disease_id",
+        "note": "Original disease ID if different from standardized"
+      },
+      {
+        "gencc_field": "mode_of_inheritance_id",
+        "our_field": "disease_associations[].mode_of_inheritance",
+        "note": "Must use HPO terms"
+      },
+      {
+        "gencc_field": "assertion_date",
+        "our_field": "disease_associations[].assertion_date",
+        "validation": "Date when gene-disease validity was evaluated"
+      }
+    ]
+  },
+
+  "benefits": [
+    "Direct contribution to international gene curation efforts",
+    "Standardized terminology enables cross-database comparisons", 
+    "Our kidney-specific curations become globally accessible",
+    "Integration with ClinGen, OMIM, and other major resources",
+    "Validation against established curation frameworks",
+    "Enhanced credibility through GenCC membership pathway"
+  ]
+}

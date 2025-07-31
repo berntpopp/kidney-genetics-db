@@ -1,0 +1,471 @@
+{
+  "title": "Enhanced Schema Example - PKD1 Gene with Hybrid Architecture",
+  "description": "Complete example demonstrating the enhanced schema incorporating Gene Curator's hybrid design principles while maintaining GenCC compatibility and kidney-specific focus",
+  
+  "enhanced_gene_record": {
+    "hgnc_id": "HGNC:9008",
+    "approved_symbol": "PKD1",
+    "aliases": ["PKD", "APKD1", "NPKD1"],
+    
+    "core_metrics": {
+      "total_evidence_score": 87.5,
+      "highest_confidence_classification": "Definitive", 
+      "evidence_source_count": 6,
+      "expert_panel_count": 3,
+      "literature_source_count": 2,
+      "last_evidence_update": "2024-07-31T14:30:00Z"
+    },
+    
+    "versioning": {
+      "record_hash": "sha256:a1b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef1234567890",
+      "previous_hash": "sha256:0987654321fedcba0987654321fedcba0987654321fedcba0987654321fedcba",
+      "version_number": 3,
+      "created_at": "2024-07-30T10:00:00Z",
+      "updated_at": "2024-07-31T14:30:00Z",
+      "schema_version": "v2.0.0"
+    },
+    
+    "assertions": [
+      {
+        "assertion_id": "PKD1-MONDO_0009180-AD-001",
+        "disease": {
+          "mondo_id": "MONDO:0009180",
+          "mondo_label": "Polycystic kidney disease 1",
+          "submitted_disease_ids": ["OMIM:173900", "HP:0000003", "ORPHA:730"]
+        },
+        "mode_of_inheritance": "HP:0000006",
+        "mode_of_inheritance_label": "Autosomal dominant",
+        
+        "classification_details": {
+          "final_classification": "Definitive",
+          "confidence_score": 95.2,
+          "evidence_strength_breakdown": {
+            "expert_panel_weight": 45.0,
+            "literature_weight": 32.5,
+            "diagnostic_panel_weight": 15.0,
+            "constraint_evidence_weight": 2.7
+          },
+          "classification_rationale": "Multiple independent expert panels (ClinGen, PanelApp UK, PanelApp Australia) provide definitive evidence. Extensive literature support with >50 publications. High constraint metrics (pLI=0.999) support loss-of-function mechanism. Commercial diagnostic panels universally include this gene."
+        },
+        
+        "assertion_date": "2024-07-31",
+        "assertion_criteria": "https://kidney-genetics-db.org/curation-criteria-v2",
+        
+        "evidence": [
+          {
+            "evidence_id": "PKD1-CLINGEN-001",
+            "source_name": "ClinGen",
+            "source_id": "CLINGEN_000456",
+            "source_version": "2024-Q2",
+            "source_category": "Expert Panel",
+            "classification": "Definitive",
+            "submitted_disease": "Polycystic kidney disease 1",
+            "confidence_level": "High",
+            "weight_in_scoring": 0.95,
+            "url": "https://search.clinicalgenome.org/kb/gene/HGNC:9008",
+            "date_accessed": "2024-07-31",
+            "additional_metadata": {
+              "expert_panel": "Kidney Disease Expert Panel",
+              "assertion_method": "ClinGen Gene Curation SOP v11.0",
+              "review_date": "2024-07-15",
+              "genetic_evidence_score": 12.0,
+              "experimental_evidence_score": 4.0
+            }
+          },
+          {
+            "evidence_id": "PKD1-PANELAPP-UK-001",
+            "source_name": "PanelApp UK",
+            "source_id": "Panel_137_Gene_PKD1",
+            "source_version": "v1.3", 
+            "source_category": "Expert Panel",
+            "classification": "Green",
+            "submitted_disease": "Polycystic kidney disease",
+            "confidence_level": "High",
+            "weight_in_scoring": 0.90,
+            "url": "https://panelapp.genomicsengland.co.uk/panels/137/",
+            "date_accessed": "2024-07-31",
+            "additional_metadata": {
+              "panel_name": "Cystic kidney disease",
+              "evidence_level": "Expert Review Green",
+              "curator_count": 8,
+              "last_reviewed": "2024-06-15"
+            }
+          },
+          {
+            "evidence_id": "PKD1-LITERATURE-001",
+            "source_name": "PMID",
+            "source_id": "35325889",
+            "source_version": "2022",
+            "source_category": "Literature",
+            "classification": "Pathogenic",
+            "submitted_disease": "ADPKD",
+            "confidence_level": "High",
+            "weight_in_scoring": 0.85,
+            "url": "https://pubmed.ncbi.nlm.nih.gov/35325889/",
+            "date_accessed": "2024-07-31",
+            "additional_metadata": {
+              "publication_title": "Molecular mechanisms in polycystic kidney disease",
+              "journal": "Nature Reviews Nephrology",
+              "impact_factor": 28.1,
+              "study_type": "Review",
+              "patient_count": null,
+              "evidence_type": "Comprehensive review"
+            }
+          },
+          {
+            "evidence_id": "PKD1-BLUEPRINT-001",
+            "source_name": "Blueprint Genetics",
+            "source_id": "PKD_comprehensive_v3.1",
+            "source_version": "2024-07",
+            "source_category": "Diagnostic Panel",
+            "classification": "Included",
+            "submitted_disease": "Polycystic kidney disease comprehensive panel",
+            "confidence_level": "Medium",
+            "weight_in_scoring": 0.60,
+            "url": "https://blueprintgenetics.com/tests/panels/nephrology/",
+            "date_accessed": "2024-07-31",
+            "additional_metadata": {
+              "panel_type": "Comprehensive",
+              "clinical_indication": "Polycystic kidney disease",
+              "tier": "Tier 1 - Primary gene"
+            }
+          },
+          {
+            "evidence_id": "PKD1-CONSTRAINT-001",
+            "source_name": "gnomAD",
+            "source_id": "ENST00000262304",
+            "source_version": "v2.1.1",
+            "source_category": "Constraint Evidence",
+            "classification": "Highly Constrained",
+            "submitted_disease": "Loss-of-function constraint",
+            "confidence_level": "High",
+            "weight_in_scoring": 0.30,
+            "url": "https://gnomad.broadinstitute.org/gene/ENSG00000008710",
+            "date_accessed": "2024-07-31",
+            "additional_metadata": {
+              "transcript_id": "ENST00000262304",
+              "pli": 0.999,
+              "oe_lof": 0.04,
+              "lof_z": 8.23,
+              "constraint_interpretation": "Extremely intolerant to loss-of-function variation"
+            }
+          },
+          {
+            "evidence_id": "PKD1-OMIM-001",
+            "source_name": "OMIM",
+            "source_id": "601313",
+            "source_version": "2024-07-31",
+            "source_category": "Database",
+            "classification": "Associated",
+            "submitted_disease": "Polycystic kidney disease 1",
+            "confidence_level": "Medium",
+            "weight_in_scoring": 0.25,
+            "url": "https://omim.org/entry/601313",
+            "date_accessed": "2024-07-31",
+            "additional_metadata": {
+              "mim_number": "601313",
+              "phenotype_mim": "173900",
+              "inheritance": "Autosomal dominant",
+              "clinical_synopsis": "Available"
+            }
+          }
+        ],
+        
+        "evidence_summary": "PKD1 shows definitive evidence for association with polycystic kidney disease 1 through multiple independent sources. ClinGen Expert Panel provides definitive classification (genetic evidence: 12.0, experimental: 4.0). PanelApp UK Expert Review assigns Green status. Extensive literature support includes comprehensive reviews in high-impact journals. The gene shows extreme constraint against loss-of-function variation (pLI=0.999), supporting the pathogenic mechanism. All major diagnostic laboratories include PKD1 in polycystic kidney disease panels.",
+        
+        "pmids": ["35325889", "34567890", "23456789", "12345678"]
+      }
+    ],
+    
+    "ancillary_data": {
+      "constraint_metrics": [
+        {
+          "source": "gnomAD",
+          "version": "v2.1.1",
+          "date_accessed": "2024-07-31",
+          "transcript_id": "ENST00000262304",
+          "metrics": {
+            "pli": 0.999,
+            "oe_lof": 0.04,
+            "oe_lof_ci_upper": 0.12,
+            "mis_z": 5.89,
+            "syn_z": 0.23
+          },
+          "contribution_to_score": 2.7
+        },
+        {
+          "source": "gnomAD", 
+          "version": "v4.0",
+          "date_accessed": "2024-07-31",
+          "transcript_id": "ENST00000262304",
+          "metrics": {
+            "pli": 0.998,
+            "oe_lof": 0.05,
+            "oe_lof_ci_upper": 0.14,
+            "mis_z": 6.12,
+            "syn_z": 0.31
+          },
+          "contribution_to_score": 2.5
+        }
+      ],
+      
+      "expression_data": [
+        {
+          "source": "GTEx",
+          "version": "v8",
+          "date_accessed": "2024-07-31",
+          "measurements": [
+            {
+              "tissue": "Kidney - Cortex",
+              "value": 45.2,
+              "unit": "TPM",
+              "percentile": 85.3,
+              "sample_size": 73,
+              "significance": "High"
+            },
+            {
+              "tissue": "Kidney - Medulla",
+              "value": 38.7,
+              "unit": "TPM", 
+              "percentile": 82.1,
+              "sample_size": 4,
+              "significance": "High"
+            }
+          ]
+        }
+      ],
+      
+      "protein_interactions": [
+        {
+          "source": "STRING",
+          "version": "v12.0",
+          "date_accessed": "2024-07-31",
+          "interactions": [
+            {
+              "interactor_hgnc_id": "HGNC:9009",
+              "interactor_symbol": "PKD2",
+              "confidence_score": 0.95,
+              "interaction_type": "physical",
+              "evidence_types": ["experimental", "co-expression", "text-mining"],
+              "kidney_relevance": "High"
+            },
+            {
+              "interactor_hgnc_id": "HGNC:12345",
+              "interactor_symbol": "PKHD1",
+              "confidence_score": 0.72,
+              "interaction_type": "functional",
+              "evidence_types": ["co-expression", "pathway"],
+              "kidney_relevance": "High"
+            }
+          ]
+        }
+      ],
+      
+      "phenotype_data": [
+        {
+          "source": "HPO",
+          "version": "2024-07",
+          "date_accessed": "2024-07-31",
+          "phenotypes": [
+            {
+              "phenotype_id": "HP:0000003",
+              "phenotype_name": "Multicystic kidney dysplasia",
+              "frequency": "Very frequent (99-80%)",
+              "kidney_specific": true,
+              "hpo_mapping": "HP:0000003"
+            },
+            {
+              "phenotype_id": "HP:0001407", 
+              "phenotype_name": "Hepatic cysts",
+              "frequency": "Frequent (79-30%)",
+              "kidney_specific": false,
+              "hpo_mapping": "HP:0001407"
+            }
+          ]
+        }
+      ]
+    },
+    
+    "curation_workflow": {
+      "status": "Approved",
+      "workflow_metadata": {
+        "primary_curator": "curator1@institution.edu",
+        "secondary_curator": "senior_curator@institution.edu",
+        "expert_reviewer": "expert@nephrology.org",
+        "institution": "Kidney Genetics Research Institute",
+        "curation_guidelines_version": "v2.1.0",
+        "estimated_completion": "2024-08-01"
+      },
+      
+      "review_log": [
+        {
+          "log_id": "log_001",
+          "timestamp": "2024-07-30T10:00:00Z",
+          "user_email": "pipeline@kidney-genetics-db.org",
+          "user_name": "Automated Pipeline",
+          "user_institution": "System",
+          "action": "created",
+          "previous_state": {},
+          "new_state": {"status": "Automated"},
+          "comment": "Automated curation created with enhanced scoring engine. Multiple expert panel sources detected.",
+          "changes_summary": {
+            "evidence_changes": 6,
+            "classification_change": false,
+            "score_change": 87.5,
+            "fields_modified": ["core_metrics", "assertions", "ancillary_data"]
+          },
+          "digital_signature": "sig_abc123def456"
+        },
+        {
+          "log_id": "log_002",
+          "timestamp": "2024-07-30T14:30:00Z",
+          "user_email": "curator1@institution.edu",
+          "user_name": "Dr. Alice Johnson",
+          "user_institution": "Kidney Genetics Research Institute",
+          "action": "status_changed",
+          "previous_state": {"status": "Automated"},
+          "new_state": {"status": "In_Primary_Review"},
+          "comment": "Assigned for primary review. Evidence comprehensive, includes multiple expert panels and constraint data.",
+          "changes_summary": {
+            "evidence_changes": 0,
+            "classification_change": false,
+            "score_change": 0,
+            "fields_modified": ["workflow_status"]
+          },
+          "digital_signature": "sig_def789ghi012"
+        },
+        {
+          "log_id": "log_003",
+          "timestamp": "2024-07-31T09:15:00Z",
+          "user_email": "curator1@institution.edu",
+          "user_name": "Dr. Alice Johnson",
+          "user_institution": "Kidney Genetics Research Institute",
+          "action": "updated",
+          "previous_state": {"evidence_summary": "Original summary..."},
+          "new_state": {"evidence_summary": "Enhanced summary..."},
+          "comment": "Enhanced evidence summary to better reflect constraint metrics contribution. Added clinical significance context.",
+          "changes_summary": {
+            "evidence_changes": 0,
+            "classification_change": false,
+            "score_change": 0,
+            "fields_modified": ["evidence_summary", "pmids"]
+          },
+          "digital_signature": "sig_ghi345jkl678"
+        },
+        {
+          "log_id": "log_004",
+          "timestamp": "2024-07-31T14:30:00Z",
+          "user_email": "senior_curator@institution.edu",
+          "user_name": "Dr. Robert Chen",
+          "user_institution": "Kidney Genetics Research Institute",
+          "action": "approved",
+          "previous_state": {"status": "In_Secondary_Review"},
+          "new_state": {"status": "Approved"},
+          "comment": "Secondary review completed. Evidence is comprehensive and classification appropriate. Approved for publication and external submission.",
+          "changes_summary": {
+            "evidence_changes": 0,
+            "classification_change": false,
+            "score_change": 0,
+            "fields_modified": ["workflow_status", "external_submissions"]
+          },
+          "digital_signature": "sig_jkl901mno234"
+        }
+      ],
+      
+      "quality_control": {
+        "automated_flags": {
+          "conflicting_evidence": false,
+          "insufficient_evidence": false,
+          "outdated_sources": false,
+          "classification_discrepancy": false,
+          "gencc_compliance": true,
+          "provenance_complete": true
+        },
+        "validation_checks": [
+          {
+            "check_name": "evidence_source_diversity",
+            "status": "passed",
+            "message": "Evidence includes multiple source categories: 3 expert panels, 2 literature, 1 diagnostic panel",
+            "timestamp": "2024-07-31T14:30:00Z"
+          },
+          {
+            "check_name": "gencc_format_compliance",
+            "status": "passed",
+            "message": "All required GenCC fields present and properly formatted",
+            "timestamp": "2024-07-31T14:30:00Z"
+          },
+          {
+            "check_name": "provenance_completeness",
+            "status": "passed",
+            "message": "All data points include source, version, and access date",
+            "timestamp": "2024-07-31T14:30:00Z"
+          }
+        ],
+        "confidence_metrics": {
+          "overall_confidence": 0.952,
+          "evidence_consistency": 0.98,
+          "source_reliability": 0.91,
+          "temporal_relevance": 0.96
+        }
+      },
+      
+      "external_submissions": {
+        "gencc": {
+          "submitted": true,
+          "submission_date": "2024-08-01",
+          "submission_id": "GCC-PKD1-20240801",
+          "status": "accepted",
+          "reviewer_comments": "Excellent evidence compilation. Classification appropriate."
+        },
+        "clinvar": {
+          "submitted": false,
+          "submission_date": null
+        },
+        "publication": {
+          "manuscript_submitted": false,
+          "journal": null,
+          "doi": null
+        }
+      }
+    }
+  },
+
+  "key_enhancements_demonstrated": {
+    "hybrid_architecture": {
+      "description": "Core metrics as relational data enable fast queries while preserving detailed evidence in JSONB",
+      "benefits": [
+        "10-100x faster queries on common filters",
+        "Efficient sorting and aggregation",
+        "Maintained flexibility for complex evidence"
+      ]
+    },
+    
+    "content_addressability": {
+      "description": "SHA-256 hashes create tamper-evident, version-linked records",
+      "benefits": [
+        "Data integrity verification",
+        "Immutable audit trail",
+        "Version chain navigation"
+      ]
+    },
+    
+    "enhanced_workflow": {
+      "description": "Professional curation workflow with comprehensive audit logging",
+      "benefits": [
+        "Complete accountability trail",
+        "Digital signatures for integrity",
+        "Automated quality control",
+        "Confidence metrics"
+      ]
+    },
+    
+    "weighted_scoring": {
+      "description": "Evidence sources contribute proportionally to overall confidence score",
+      "benefits": [
+        "Quantitative assessment of evidence strength",
+        "Transparent scoring methodology",
+        "Consistent classification logic"
+      ]
+    }
+  }
+}
