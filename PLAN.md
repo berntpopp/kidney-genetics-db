@@ -159,6 +159,7 @@ See [Hybrid Development Guide](plan/HYBRID-DEVELOPMENT.md) for more options.
 
 Detailed implementation plans are available in the `plan/` directory:
 
+- [**Implementation TODO**](TODO.md) - Phased implementation checklist
 - [Development Guide](plan/DEVELOPMENT.md) - Setup and development workflow
 - [Hybrid Development](plan/HYBRID-DEVELOPMENT.md) - Flexible Docker/local development modes
 - [Data Source Architecture](plan/DATA-SOURCE-ARCHITECTURE.md) - Smart source integration strategy
