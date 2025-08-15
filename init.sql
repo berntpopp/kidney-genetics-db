@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     hashed_password VARCHAR(255) NOT NULL,
     is_admin BOOLEAN DEFAULT false,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Genes master table
@@ -31,7 +32,10 @@ CREATE TABLE IF NOT EXISTS gene_evidence (
     source_detail VARCHAR(255),
     evidence_data JSONB NOT NULL,
     evidence_date DATE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    -- Add index for common queries
+    CONSTRAINT gene_evidence_source_idx UNIQUE (gene_id, source_name, source_detail)
 );
 
 -- Final curated gene list
@@ -78,18 +82,26 @@ CREATE INDEX IF NOT EXISTS idx_evidence_gene ON gene_evidence(gene_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_source ON gene_evidence(source_name);
 CREATE INDEX IF NOT EXISTS idx_curations_score ON gene_curations(evidence_score DESC);
 CREATE INDEX IF NOT EXISTS idx_curations_gene ON gene_curations(gene_id);
+CREATE INDEX IF NOT EXISTS idx_evidence_data ON gene_evidence USING GIN(evidence_data);
+
+-- Create updated_at trigger function
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Add triggers for updated_at
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_genes_updated_at BEFORE UPDATE ON genes
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert default admin user (password: admin123 - change in production!)
--- bcrypt hash of 'admin123'
+-- Using Python's passlib bcrypt hash
 INSERT INTO users (email, hashed_password, is_admin) 
 VALUES ('admin@kidney-genetics.org', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY.MuU6YE/R5tIa', true)
 ON CONFLICT (email) DO NOTHING;
-
--- Sample data for testing (optional - remove in production)
-INSERT INTO genes (hgnc_id, approved_symbol, aliases)
-VALUES 
-    ('HGNC:9008', 'PKD1', ARRAY['PBP', 'Pc-1', 'TRPP1']),
-    ('HGNC:9009', 'PKD2', ARRAY['PKD4', 'TRPP2', 'PC2']),
-    ('HGNC:7989', 'NPHS1', ARRAY['CNF', 'NPHN']),
-    ('HGNC:13349', 'NPHS2', ARRAY['PDCN', 'SRN1'])
-ON CONFLICT (hgnc_id) DO NOTHING;

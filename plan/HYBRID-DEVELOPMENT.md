@@ -30,8 +30,9 @@ Database/Redis in Docker, FastAPI and Vue.js run locally for fastest iteration.
 docker-compose -f docker-compose.services.yml up -d
 
 # Run FastAPI locally (in backend/)
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uv venv
+uv pip install -e ".[dev]"
+uv run uvicorn app.main:app --reload --port 8000
 
 # Run Vue locally (in frontend/)
 npm install

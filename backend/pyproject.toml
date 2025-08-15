@@ -1,0 +1,146 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[project]
+name = "kidney-genetics-db"
+version = "0.1.0"
+description = "Modern web platform for curating and exploring kidney disease-related genes"
+authors = [
+    {name = "Kidney Genetics Team", email = "team@kidney-genetics.org"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+keywords = ["genetics", "kidney", "fastapi", "bioinformatics", "genomics"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Healthcare Industry",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: FastAPI",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+
+dependencies = [
+    # Core Framework
+    "fastapi>=0.104.0,<0.111.0",
+    "uvicorn[standard]>=0.24.0,<0.28.0",
+    "pydantic[email]>=2.0,<3.0",
+    "pydantic-settings>=2.0.0,<3.0.0",
+    
+    # Database
+    "sqlalchemy>=2.0,<3.0",
+    "alembic>=1.12,<2.0",
+    "asyncpg>=0.29.0,<1.0",
+    "psycopg2-binary>=2.9,<3.0",
+    
+    # Authentication & Security
+    "python-jose[cryptography]>=3.3.0,<4.0.0",
+    "passlib[bcrypt]>=1.7.4,<2.0.0",
+    "python-multipart>=0.0.5,<0.0.10",
+    
+    # HTTP Client
+    "httpx>=0.25.0,<0.26.0",
+    "aiofiles>=23.0.0,<24.0.0",
+    
+    # Data Processing
+    "pandas>=2.1.0,<3.0.0",
+    "openpyxl>=3.1.0,<4.0.0",
+    "beautifulsoup4>=4.12.0,<5.0.0",
+    
+    # Utilities
+    "python-dotenv>=1.0.0,<2.0.0",
+    "python-dateutil>=2.8.0,<3.0.0",
+    "pytz>=2023.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.1.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "httpx>=0.25.0",
+]
+
+test = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "httpx>=0.25.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/kidney-genetics/kidney-genetics-db"
+Documentation = "https://github.com/kidney-genetics/kidney-genetics-db/blob/main/docs/"
+Repository = "https://github.com/kidney-genetics/kidney-genetics-db.git"
+"Bug Tracker" = "https://github.com/kidney-genetics/kidney-genetics-db/issues"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+fix = true
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function calls in argument defaults
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+include = '\.pyi?$'
+extend-exclude = '''
+^/tests/data/
+'''
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+exclude = [
+    "alembic/",
+    "tests/",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-ra -q --strict-markers"
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "*/tests/*",
+    "*/alembic/*",
+    "*/__init__.py",
+]

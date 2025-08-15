@@ -51,15 +51,20 @@ curl -X POST http://localhost:8000/api/pipeline/run \
 ### Backend Development
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+# Using uv (modern Python package manager)
+uv venv  # Creates .venv
+uv pip install -e ".[dev]"
 
-# Run migrations
-alembic upgrade head
+# Run migrations (no activation needed with uv)
+uv run alembic upgrade head
 
-# Start development server
-uvicorn app.main:app --reload --port 8000
+# Start development server (no activation needed with uv)
+uv run uvicorn app.main:app --reload --port 8000
+
+# Code quality
+ruff check .
+ruff format .
+mypy app/
 ```
 
 ### Frontend Development
