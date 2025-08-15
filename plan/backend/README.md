@@ -1,78 +1,57 @@
-# Backend Implementation Plan
+# Backend Implementation Plan (Lean FastAPI)
 
 ## Overview
 
-FastAPI-based backend implementing the enhanced GenCC-compatible schema with hybrid relational + JSONB architecture. This backend will serve as the core API for our kidney genetics curation platform.
+Lean FastAPI backend for kidney genetics database, serving data from 5 core sources with simple CRUD operations and pipeline management.
 
 ## Architecture
 
 ### Technology Stack
 - **Framework**: FastAPI with Pydantic v2
-- **Database**: PostgreSQL 15+ with hybrid relational + JSONB design
-- **ORM**: SQLAlchemy 2.0+ with async support
-- **Authentication**: JWT with FastAPI Security
-- **Background Tasks**: Celery with Redis
-- **Validation**: Pydantic models auto-generated from JSON Schema
-- **Testing**: pytest with async support
+- **Database**: PostgreSQL 14+ with JSONB for flexibility
+- **ORM**: SQLAlchemy 2.0
+- **Authentication**: Simple JWT for admin operations
+- **Pipeline**: Direct Python port of R scripts
+- **Testing**: pytest
 
 ### Project Structure
 ```
 backend/
 ├── app/
 │   ├── api/
-│   │   ├── v1/
-│   │   │   ├── endpoints/
-│   │   │   │   ├── genes.py              # Gene CRUD operations
-│   │   │   │   ├── curations.py          # Curation management
-│   │   │   │   ├── workflow.py           # Curation workflow endpoints
-│   │   │   │   ├── search.py             # Advanced search endpoints
-│   │   │   │   └── export.py             # Data export endpoints
-│   │   │   └── router.py
-│   │   └── dependencies.py               # Common dependencies
+│   │   ├── endpoints/
+│   │   │   ├── genes.py         # Gene list and search
+│   │   │   ├── pipeline.py      # Trigger pipeline runs
+│   │   │   ├── auth.py          # Simple JWT auth
+│   │   │   └── export.py        # CSV/JSON export
+│   │   └── deps.py              # Common dependencies
 │   ├── core/
-│   │   ├── config.py                     # Settings management
-│   │   ├── security.py                   # JWT and auth
-│   │   ├── database.py                   # Database connection
-│   │   └── scoring/
-│   │       ├── engine.py                 # Evidence scoring engine
-│   │       ├── gencc_mapper.py          # GenCC compatibility
-│   │       └── confidence_calculator.py  # Confidence metrics
+│   │   ├── config.py            # Settings with Pydantic
+│   │   ├── security.py          # Password hashing, JWT
+│   │   └── database.py          # Database connection
 │   ├── models/
-│   │   ├── base.py                       # Base SQLAlchemy model
-│   │   ├── gene.py                       # Gene model
-│   │   ├── curation.py                   # Curation model (hybrid)
-│   │   └── user.py                       # User model
+│   │   ├── gene.py              # SQLAlchemy models
+│   │   ├── evidence.py
+│   │   └── user.py
 │   ├── schemas/
-│   │   ├── gene.py                       # Gene Pydantic schemas
-│   │   ├── curation.py                   # Curation schemas
-│   │   └── generated/                    # Auto-generated from JSON Schema
-│   │       └── gene_curation.py
+│   │   ├── gene.py              # Pydantic schemas
+│   │   └── auth.py
 │   ├── crud/
-│   │   ├── base.py                       # Base CRUD operations
-│   │   ├── gene.py                       # Gene operations
-│   │   └── curation.py                   # Curation operations
-│   ├── services/
-│   │   ├── workflow_manager.py           # Curation workflow logic
-│   │   ├── gencc_exporter.py            # GenCC submission service
-│   │   └── audit_logger.py               # Audit trail management
-│   └── main.py                           # FastAPI app setup
-├── alembic/                              # Database migrations
-│   ├── versions/
-│   ├── env.py
-│   └── alembic.ini
-├── scripts/
-│   ├── generate_schemas.py               # Auto-generate Pydantic from JSON Schema
-│   ├── seed_database.py                  # Development data seeding
-│   └── migrate_csv_data.py               # Legacy data migration
-├── tests/
-│   ├── conftest.py
-│   ├── test_api/
-│   ├── test_models/
-│   ├── test_services/
-│   └── test_scoring/
+│   │   └── gene.py              # Database operations
+│   ├── pipeline/
+│   │   ├── sources/
+│   │   │   ├── panelapp.py      # Port from R
+│   │   │   ├── literature.py    # Excel processing
+│   │   │   ├── diagnostic.py    # Web scraping (from custom-panel)
+│   │   │   ├── hpo.py           # HPO API
+│   │   │   └── pubtator.py     # PubTator API
+│   │   ├── merge.py             # Merge logic from A_MergeAnalysesSources.R
+│   │   └── annotate.py          # HGNC, ClinVar, GTEx annotations
+│   └── main.py                  # FastAPI app
+├── alembic/                     # Database migrations
 ├── requirements.txt
-├── pyproject.toml
-└── Dockerfile
+├── Dockerfile
+└── .env.example
 ```
 
 ## Key Implementation Details
