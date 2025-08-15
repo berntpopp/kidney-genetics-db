@@ -97,6 +97,7 @@ kidney-genetics-db/
 
 ## Quick Start
 
+### Option 1: Full Docker (Simple)
 ```bash
 # 1. Clone repository
 git clone <repo-url>
@@ -104,17 +105,33 @@ cd kidney-genetics-db
 
 # 2. Setup environment
 cp .env.example .env
-# Edit .env with your configuration
 
-# 3. Start services
+# 3. Start everything
 docker-compose up -d
 
 # 4. Access services
 # Frontend: http://localhost:3000
 # Backend API: http://localhost:8000
-# API Docs: http://localhost:8000/docs
 # Database: localhost:5432
 ```
+
+### Option 2: Hybrid Mode (Recommended for Development)
+```bash
+# 1. Start database only
+docker-compose -f docker-compose.services.yml up -d
+
+# 2. Run backend locally (Terminal 1)
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+
+# 3. Run frontend locally (Terminal 2)
+cd frontend
+npm install
+npm run dev
+```
+
+See [Hybrid Development Guide](plan/HYBRID-DEVELOPMENT.md) for more options.
 
 ## Key Technologies
 
@@ -142,6 +159,7 @@ docker-compose up -d
 Detailed implementation plans are available in the `plan/` directory:
 
 - [Development Guide](plan/DEVELOPMENT.md) - Setup and development workflow
+- [Hybrid Development](plan/HYBRID-DEVELOPMENT.md) - Flexible Docker/local development modes
 - [Database Plan](plan/database/README.md) - Schema and migration strategy
 - [Backend Plan](plan/backend/README.md) - FastAPI implementation details
 - [Frontend Plan](plan/frontend/README.md) - Vue.js application structure
