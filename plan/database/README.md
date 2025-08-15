@@ -127,10 +127,11 @@ def run_migrations_online():
 
 ## Data Flow
 
-1. **Pipeline imports data** → `gene_evidence` table
-2. **Merge process** → Aggregates evidence → `gene_curations` table  
-3. **API reads** → `gene_curations` for display
-4. **Updates** → Replace data in `gene_curations`
+1. **Pipeline fetches from original sources** → Fresh computation each run
+2. **Sources processed** → Data stored in `gene_evidence` table
+3. **Merge process** → Aggregates evidence → `gene_curations` table  
+4. **API reads** → `gene_curations` for display
+5. **No CSV migration** → All data recomputed from scratch
 
 ## Key Queries
 

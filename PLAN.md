@@ -34,13 +34,14 @@ Modernization of the R-based kidney-genetics pipeline into a lean, scalable web 
 - Basic FastAPI skeleton
 
 ### Phase 2: Data Pipeline
-- Port 5 data sources from R to Python:
-  - **PanelApp**: API integration (UK & Australia)
-  - **Literature**: Excel file processing
-  - **Diagnostic Panels**: Web scraping (using custom-panel patterns)
-  - **HPO**: Phenotype ontology API
-  - **PubTator**: Literature mining API
-- Merge and annotation logic
+- Port R scripts to Python (complete rewrite):
+  - **PanelApp**: Direct API integration (stable)
+  - **HPO**: Direct API integration (stable)
+  - **PubTator**: Direct API integration (stable)
+  - **Diagnostic Panels**: Separate scraping service with API ingestion
+  - **Literature**: Manual upload API endpoint
+- Recompute all gene data from original sources
+- Implement merge and annotation logic in Python
 
 ### Phase 3: API Development
 - Gene CRUD endpoints
@@ -55,8 +56,8 @@ Modernization of the R-based kidney-genetics pipeline into a lean, scalable web 
 - Export functionality
 
 ### Phase 5: Testing & Deployment
-- Data migration from existing CSVs
-- Validation against R outputs
+- Recompute all gene data from sources (no CSV migration)
+- Validate new computations against R outputs
 - Docker production setup
 
 ## Project Structure
@@ -160,16 +161,18 @@ Detailed implementation plans are available in the `plan/` directory:
 
 - [Development Guide](plan/DEVELOPMENT.md) - Setup and development workflow
 - [Hybrid Development](plan/HYBRID-DEVELOPMENT.md) - Flexible Docker/local development modes
+- [Data Source Architecture](plan/DATA-SOURCE-ARCHITECTURE.md) - Smart source integration strategy
 - [Database Plan](plan/database/README.md) - Schema and migration strategy
 - [Backend Plan](plan/backend/README.md) - FastAPI implementation details
 - [Frontend Plan](plan/frontend/README.md) - Vue.js application structure
 
 ## Success Metrics
 
-- ✅ All 3,000+ genes migrated successfully
-- ✅ 5 core data sources integrated
+- ✅ All gene data recomputed from original sources
+- ✅ 5 core data sources integrated and automated
 - ✅ <200ms API response times
 - ✅ CSV/JSON export compatibility
+- ✅ Results validated against R pipeline outputs
 - ✅ Docker-based deployment
 
 ## Contact
