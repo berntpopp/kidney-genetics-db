@@ -118,12 +118,12 @@ const itemsPerPage = ref(25)
 const search = ref('')
 const minScore = ref(null)
 
-// Table headers
+// Table headers - enable sorting for relevant columns
 const headers = [
-  { title: 'Symbol', key: 'approved_symbol', sortable: false },
-  { title: 'HGNC ID', key: 'hgnc_id', sortable: false },
-  { title: 'Evidence Count', key: 'evidence_count', sortable: false },
-  { title: 'Score', key: 'evidence_score', sortable: false },
+  { title: 'Symbol', key: 'approved_symbol', sortable: true },
+  { title: 'HGNC ID', key: 'hgnc_id', sortable: true },
+  { title: 'Evidence Count', key: 'evidence_count', sortable: true },
+  { title: 'Score', key: 'evidence_score', sortable: true },
   { title: 'Sources', key: 'sources', sortable: false },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
 ]

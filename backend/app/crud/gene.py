@@ -31,8 +31,10 @@ class CRUDGene:
         limit: int = 100,
         search: str | None = None,
         min_score: float | None = None,
+        sort_by: str | None = None,
+        sort_desc: bool = False,
     ) -> list[Gene]:
-        """Get multiple genes with filtering"""
+        """Get multiple genes with filtering and sorting"""
         query = db.query(Gene).options(joinedload(Gene.curation))
 
         # Search filter
@@ -44,10 +46,31 @@ class CRUDGene:
 
         # Score filter (requires join with curation)
         if min_score is not None:
-            query = query.join(GeneCuration).filter(GeneCuration.evidence_score >= min_score)
+            query = query.outerjoin(GeneCuration).filter(GeneCuration.evidence_score >= min_score)
+        else:
+            # Still need to join for sorting by curation fields
+            query = query.outerjoin(GeneCuration)
 
-        # Order by symbol
-        query = query.order_by(Gene.approved_symbol)
+        # Sorting
+        if sort_by:
+            if sort_by == "approved_symbol":
+                order_col = Gene.approved_symbol
+            elif sort_by == "hgnc_id":
+                order_col = Gene.hgnc_id
+            elif sort_by == "evidence_count":
+                order_col = GeneCuration.evidence_count
+            elif sort_by == "evidence_score":
+                order_col = GeneCuration.evidence_score
+            else:
+                order_col = Gene.approved_symbol
+            
+            if sort_desc:
+                query = query.order_by(order_col.desc().nullslast())
+            else:
+                query = query.order_by(order_col.asc().nullsfirst())
+        else:
+            # Default ordering
+            query = query.order_by(Gene.approved_symbol)
 
         return query.offset(skip).limit(limit).all()
 

@@ -20,12 +20,17 @@ def get_genes(
     limit: int = Query(100, ge=1, le=1000, description="Number of items to return"),
     search: str | None = Query(None, description="Search term for gene symbol or HGNC ID"),
     min_score: float | None = Query(None, ge=0, le=100, description="Minimum evidence score"),
+    sort_by: str | None = Query(None, description="Field to sort by"),
+    sort_desc: bool = Query(False, description="Sort in descending order"),
     db: Session = Depends(get_db),
 ) -> GeneList:
     """
-    Get list of genes with optional filtering
+    Get list of genes with optional filtering and sorting
     """
-    genes = gene_crud.get_multi(db, skip=skip, limit=limit, search=search, min_score=min_score)
+    genes = gene_crud.get_multi(
+        db, skip=skip, limit=limit, search=search, min_score=min_score,
+        sort_by=sort_by, sort_desc=sort_desc
+    )
 
     total = gene_crud.count(db, search=search, min_score=min_score)
 

@@ -153,7 +153,7 @@ class EvidenceAggregator:
                 )
 
         return {
-            "evidence_count": len(evidence_records),
+            "evidence_count": len(evidence_records),  # Number of evidence sources
             "source_count": len({e.source_name for e in evidence_records}),
             "panelapp_panels": panelapp_panels[:50],  # Limit arrays
             "hpo_terms": hpo_terms[:50],
