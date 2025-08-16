@@ -121,17 +121,17 @@ class PanelAppClient:
             True if panel is kidney-related
         """
         import re
-        
+
         # Use regex filter from kidney-genetics-v1 config
         # Pattern: ((?=.*[Kk]idney)|(?=.*[Rr]enal)|(?=.*[Nn]ephro))(^((?!adrenal).)*$)
         # This matches panels with kidney/renal/nephro but excludes "adrenal"
         pattern = r'((?=.*[Kk]idney)|(?=.*[Rr]enal)|(?=.*[Nn]ephro))(^((?!adrenal).)*$)'
-        
+
         # Check panel name
         name = panel.get("name", "")
         if re.match(pattern, name):
             return True
-            
+
         # Also check relevant disorders
         relevant_conditions = panel.get("relevant_disorders", [])
         for condition in relevant_conditions:

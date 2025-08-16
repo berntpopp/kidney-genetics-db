@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.gene import PipelineRun
 from app.pipeline.aggregate import update_all_curations
+from app.pipeline.sources.clingen import update_clingen_data
+from app.pipeline.sources.gencc import update_gencc_data
 from app.pipeline.sources.hpo import update_hpo_data
 from app.pipeline.sources.panelapp import update_all_panelapp
 from app.pipeline.sources.pubtator import update_pubtator_data
@@ -35,7 +37,7 @@ def cli():
 @cli.command()
 @click.option(
     "--source",
-    type=click.Choice(["all", "panelapp", "hpo", "pubtator"]),
+    type=click.Choice(["all", "panelapp", "hpo", "pubtator", "clingen", "gencc"]),
     default="all",
     help="Which data source to update",
 )
@@ -71,6 +73,16 @@ def update(source: str):
         if source in ["all", "pubtator"]:
             logger.info("Updating PubTator data...")
             stats = update_pubtator_data(db)
+            all_stats.append(stats)
+
+        if source in ["all", "clingen"]:
+            logger.info("Updating ClinGen data...")
+            stats = update_clingen_data(db)
+            all_stats.append(stats)
+
+        if source in ["all", "gencc"]:
+            logger.info("Updating GenCC data...")
+            stats = update_gencc_data(db)
             all_stats.append(stats)
 
         # Always update curations after source updates

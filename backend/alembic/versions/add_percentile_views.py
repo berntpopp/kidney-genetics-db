@@ -1,16 +1,15 @@
 """Add views for automatic percentile calculation
 
 Revision ID: add_percentile_views
-Revises: 
+Revises:
 Create Date: 2025-08-16
 
 This creates database views that automatically calculate percentiles
 using PostgreSQL window functions, matching kidney-genetics-v1's
 normalize_percentile() function.
 """
-from alembic import op
-import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers
 revision = 'add_percentile_views'
@@ -25,7 +24,7 @@ def upgrade():
         CREATE OR REPLACE VIEW gene_evidence_with_percentiles AS
         WITH source_counts AS (
             -- Extract counts from JSONB based on source type
-            SELECT 
+            SELECT
                 ge.id,
                 ge.gene_id,
                 ge.source_name,
@@ -34,43 +33,43 @@ def upgrade():
                 ge.evidence_date,
                 ge.created_at,
                 ge.updated_at,
-                CASE 
-                    WHEN ge.source_name = 'PanelApp' THEN 
+                CASE
+                    WHEN ge.source_name = 'PanelApp' THEN
                         jsonb_array_length(COALESCE(ge.evidence_data->'panels', '[]'::jsonb))
-                    WHEN ge.source_name = 'PubTator' THEN 
-                        COALESCE((ge.evidence_data->>'publication_count')::int, 
+                    WHEN ge.source_name = 'PubTator' THEN
+                        COALESCE((ge.evidence_data->>'publication_count')::int,
                                 jsonb_array_length(COALESCE(ge.evidence_data->'pmids', '[]'::jsonb)))
-                    WHEN ge.source_name = 'HPO' THEN 
+                    WHEN ge.source_name = 'HPO' THEN
                         jsonb_array_length(COALESCE(ge.evidence_data->'phenotypes', '[]'::jsonb)) +
                         jsonb_array_length(COALESCE(ge.evidence_data->'disease_associations', '[]'::jsonb))
-                    WHEN ge.source_name = 'Literature' THEN 
+                    WHEN ge.source_name = 'Literature' THEN
                         jsonb_array_length(COALESCE(ge.evidence_data->'references', '[]'::jsonb))
-                    ELSE 
+                    ELSE
                         jsonb_array_length(COALESCE(ge.evidence_data->'items', '[]'::jsonb))
                 END AS source_count
             FROM gene_evidence ge
         )
-        SELECT 
+        SELECT
             sc.*,
             -- Calculate percentile using PERCENT_RANK() which matches R's rank(ties.method="average")/n()
             PERCENT_RANK() OVER (
-                PARTITION BY sc.source_name 
+                PARTITION BY sc.source_name
                 ORDER BY sc.source_count
             ) AS source_count_percentile
         FROM source_counts sc;
     """)
-    
+
     # Create view for aggregated gene scores (sum of percentiles)
     op.execute("""
         CREATE OR REPLACE VIEW gene_scores AS
         WITH percentiles AS (
-            SELECT 
+            SELECT
                 gene_id,
                 source_name,
                 source_count_percentile
             FROM gene_evidence_with_percentiles
         )
-        SELECT 
+        SELECT
             g.id AS gene_id,
             g.approved_symbol,
             g.hgnc_id,
@@ -79,20 +78,20 @@ def upgrade():
             COALESCE(SUM(p.source_count_percentile), 0) AS total_score,
             -- Store individual source percentiles as JSONB
             jsonb_object_agg(
-                p.source_name, 
+                p.source_name,
                 p.source_count_percentile
             ) FILTER (WHERE p.source_name IS NOT NULL) AS source_percentiles
         FROM genes g
         LEFT JOIN percentiles p ON g.id = p.gene_id
         GROUP BY g.id, g.approved_symbol, g.hgnc_id;
     """)
-    
+
     # Create index on the view's gene_id for performance
     op.execute("""
-        CREATE INDEX IF NOT EXISTS idx_gene_evidence_gene_id_source 
+        CREATE INDEX IF NOT EXISTS idx_gene_evidence_gene_id_source
         ON gene_evidence(gene_id, source_name);
     """)
-    
+
     print("Created views for automatic percentile calculation")
 
 

@@ -33,7 +33,7 @@ class PubTatorClient:
         # pubtator_search_query: ("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)
         self.kidney_query = '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)'
         self.cache = PubTatorCache()
-        
+
         # Configuration for processing
         self.max_pages_per_run = int(os.getenv("PUBTATOR_MAX_PAGES", "100"))  # Limit for testing
         self.use_cache = os.getenv("PUBTATOR_USE_CACHE", "true").lower() == "true"
@@ -86,7 +86,7 @@ class PubTatorClient:
             if cached_data:
                 logger.info(f"Using cached data for query: {query[:50]}...")
                 return cached_data
-        
+
         gene_annotations = {}
         all_pmids = []
 
@@ -103,13 +103,13 @@ class PubTatorClient:
                 logger.info(f"PubTator search has {total_pages} total pages")
         except Exception as e:
             logger.error(f"Error getting total pages: {e}")
-        
+
         # Determine how many pages to actually process
         if max_pages is None:
             max_pages = min(self.max_pages_per_run, total_pages)  # Use configured limit
         else:
             max_pages = min(max_pages, total_pages)
-        
+
         logger.info(f"Will process {max_pages} pages (configured limit: {self.max_pages_per_run})")
 
         # Step 1: Search for PMIDs using PubTator3 search API (all pages)

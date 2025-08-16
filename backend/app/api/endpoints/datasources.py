@@ -2,7 +2,6 @@
 Data source API endpoints
 """
 
-from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -10,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.models.gene import GeneEvidence, PipelineRun
+from app.models.gene import PipelineRun
 from app.schemas.datasource import DataSource, DataSourceList, DataSourceStats
 
 router = APIRouter()
@@ -42,6 +41,18 @@ DATA_SOURCE_CONFIG = {
         "url": None,
         "documentation_url": None,
     },
+    "ClinGen": {
+        "display_name": "ClinGen",
+        "description": "Expert-curated gene-disease validity assessments from 5 kidney specialist panels",
+        "url": "https://clinicalgenome.org/",
+        "documentation_url": "https://clinicalgenome.org/docs/gene-disease-validity/",
+    },
+    "GenCC": {
+        "display_name": "GenCC",
+        "description": "Harmonized gene-disease relationships from 40+ submitters worldwide",
+        "url": "https://thegencc.org/",
+        "documentation_url": "https://thegencc.org/faq.html",
+    },
     "Diagnostic": {
         "display_name": "Diagnostic Panels",
         "description": "Commercial diagnostic kidney gene panels",
@@ -57,11 +68,11 @@ def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     Get information about all data sources and their current status
     """
     sources = []
-    
+
     # Get statistics for each source from the database
     result = db.execute(
         text("""
-            SELECT 
+            SELECT
                 source_name,
                 COUNT(DISTINCT gene_id) as gene_count,
                 COUNT(*) as evidence_count,
@@ -71,7 +82,7 @@ def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             ORDER BY source_name
         """)
     ).fetchall()
-    
+
     # Create a mapping of source stats
     source_stats = {}
     for row in result:
@@ -80,7 +91,7 @@ def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             "evidence_count": row[2],
             "last_updated": row[3],
         }
-    
+
     # Get additional metadata for specific sources
     panelapp_metadata = db.execute(
         text("""
@@ -92,10 +103,10 @@ def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             ) panels
         """)
     ).scalar()
-    
+
     pubtator_metadata = db.execute(
         text("""
-            SELECT 
+            SELECT
                 SUM((evidence_data->>'publication_count')::int) as total_publications,
                 (SELECT COUNT(DISTINCT pmid) FROM (
                     SELECT jsonb_array_elements_text(evidence_data->'pmids') as pmid
@@ -106,7 +117,7 @@ def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             WHERE source_name = 'PubTator'
         """)
     ).fetchone()
-    
+
     # Build data source list
     for source_name, config in DATA_SOURCE_CONFIG.items():
         if source_name in source_stats:
@@ -117,17 +128,17 @@ def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
                 last_updated=source_stats[source_name]["last_updated"],
                 metadata={},
             )
-            
+
             # Add source-specific metadata
             if source_name == "PanelApp" and panelapp_metadata:
                 stats.metadata["panel_count"] = panelapp_metadata or 0
                 stats.metadata["regions"] = ["UK", "Australia"]
-                
+
             elif source_name == "PubTator" and pubtator_metadata:
                 stats.metadata["total_publications"] = pubtator_metadata[0] or 0
                 stats.metadata["unique_pmids"] = pubtator_metadata[1] or 0
                 stats.metadata["search_query"] = '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)'
-            
+
             status = "active"
         else:
             # Source is configured but has no data
@@ -138,7 +149,7 @@ def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
                 status = "pending"  # Not yet implemented
             else:
                 status = "inactive"
-        
+
         sources.append(
             DataSource(
                 name=source_name,
@@ -150,7 +161,7 @@ def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
                 documentation_url=config["documentation_url"],
             )
         )
-    
+
     # Get last pipeline run
     last_run = (
         db.query(PipelineRun)
@@ -158,10 +169,10 @@ def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         .order_by(PipelineRun.completed_at.desc())
         .first()
     )
-    
+
     # Count active sources
     active_count = len([s for s in sources if s.status == "active"])
-    
+
     return DataSourceList(
         sources=sources,
         total_active=active_count,
@@ -178,13 +189,13 @@ def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dict[str,
     # Get basic config
     if source_name not in DATA_SOURCE_CONFIG:
         return {"error": f"Unknown data source: {source_name}"}
-    
+
     config = DATA_SOURCE_CONFIG[source_name]
-    
+
     # Get statistics
     stats = db.execute(
         text("""
-            SELECT 
+            SELECT
                 COUNT(DISTINCT gene_id) as gene_count,
                 COUNT(*) as evidence_count,
                 MAX(updated_at) as last_updated
@@ -193,18 +204,18 @@ def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dict[str,
         """),
         {"source_name": source_name}
     ).fetchone()
-    
+
     if stats and stats[0] > 0:
         # Get top genes for this source
         top_genes = db.execute(
             text("""
-                SELECT 
+                SELECT
                     g.approved_symbol,
                     gep.source_count_percentile,
-                    CASE 
-                        WHEN ge.source_name = 'PanelApp' THEN 
+                    CASE
+                        WHEN ge.source_name = 'PanelApp' THEN
                             jsonb_array_length(COALESCE(ge.evidence_data->'panels', '[]'::jsonb))
-                        WHEN ge.source_name = 'PubTator' THEN 
+                        WHEN ge.source_name = 'PubTator' THEN
                             COALESCE((ge.evidence_data->>'publication_count')::int, 0)
                         ELSE 0
                     END as count
@@ -217,7 +228,7 @@ def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dict[str,
             """),
             {"source_name": source_name}
         ).fetchall()
-        
+
         return {
             "name": source_name,
             "display_name": config["display_name"],

@@ -42,7 +42,7 @@ def get_genes(
     for gene_data in genes:
         # Get evidence sources from database
         evidence = gene_crud.get_evidence(db, gene_data["id"])
-        sources = list(set(e.source_name for e in evidence))
+        sources = list({e.source_name for e in evidence})
 
         items.append(
             Gene(
@@ -72,10 +72,10 @@ def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
 
     # Get score from view
     score_data = gene_crud.get_gene_score(db, gene.id)  # type: ignore[arg-type]
-    
+
     # Get evidence sources
     evidence = gene_crud.get_evidence(db, gene.id)  # type: ignore[arg-type]
-    sources = list(set(e.source_name for e in evidence))
+    sources = list({e.source_name for e in evidence})
 
     # Build response
     result = {
