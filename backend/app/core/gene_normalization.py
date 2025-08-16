@@ -2,435 +2,374 @@
 Central gene normalization module using HGNC API
 
 This module ensures all genes are properly normalized to HGNC standards
-before entering the database. Unresolved genes go to a staging table
-for manual review.
+before entering the database. Uses efficient batch processing and comprehensive
+fallback strategies based on proven patterns from custom-panel and kidney-genetics-v1.
 """
 
 import logging
 import re
-import time
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Dict, List, Optional
 
-import httpx
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.core.hgnc_client import HGNCClient
+from app.crud import gene_crud, gene_staging
 
 logger = logging.getLogger(__name__)
 
+# Global HGNC client instance with optimized settings
+_hgnc_client = None
 
-class GeneNormalizer:
-    """Central gene normalization using HGNC API"""
-    
-    def __init__(self):
-        """Initialize HGNC normalizer"""
-        self.base_url = "https://rest.genenames.org"
-        self.client = httpx.Client(
-            timeout=30.0,
-            headers={"Accept": "application/json"}
+
+def get_hgnc_client() -> HGNCClient:
+    """Get or create HGNC client instance"""
+    global _hgnc_client
+    if _hgnc_client is None:
+        _hgnc_client = HGNCClient(
+            timeout=30,
+            max_retries=3,
+            retry_delay=1.0,
+            batch_size=100,  # Optimal batch size based on URL length limits
+            max_workers=4,   # Conservative parallel processing
         )
-        self.cache = {}  # In-memory cache for session
-        
-    def normalize_gene_symbol(self, 
-                            gene_text: str, 
-                            source_name: str,
-                            original_data: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Normalize gene symbol using HGNC API with detailed logging
-        
-        Args:
-            gene_text: Raw gene text from data source
-            source_name: Name of data source (PubTator, ClinGen, etc.)
-            original_data: Original data context for logging
-            
-        Returns:
-            Dictionary with normalization results:
-            {
-                "success": bool,
-                "approved_symbol": str | None,
-                "hgnc_id": str | None,
-                "aliases": list[str],
-                "normalization_log": dict,
-                "requires_manual_review": bool
-            }
-        """
-        
-        # Initialize result
-        result = {
-            "success": False,
-            "approved_symbol": None,
-            "hgnc_id": None,
-            "aliases": [],
-            "normalization_log": {
-                "original_text": gene_text,
-                "source": source_name,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "steps": [],
-                "hgnc_api_called": False,
-                "cache_hit": False
-            },
-            "requires_manual_review": False
-        }
-        
-        if not gene_text:
-            result["normalization_log"]["steps"].append("Empty gene text provided")
-            result["requires_manual_review"] = True
-            return result
-            
-        # Step 1: Basic text cleaning
-        cleaned_text = self._clean_gene_text(gene_text)
-        result["normalization_log"]["steps"].append(f"Cleaned text: '{gene_text}' -> '{cleaned_text}'")
-        
-        if not cleaned_text:
-            result["normalization_log"]["steps"].append("Gene text became empty after cleaning")
-            result["requires_manual_review"] = True
-            return result
-            
-        # Step 2: Check cache first
-        cache_key = cleaned_text.upper()
-        if cache_key in self.cache:
-            result["normalization_log"]["cache_hit"] = True
-            result["normalization_log"]["steps"].append("Found in cache")
-            cached_result = self.cache[cache_key]
-            result.update(cached_result)
-            return result
-            
-        # Step 3: Try HGNC API lookup
-        hgnc_result = self._lookup_hgnc_api(cleaned_text)
-        result["normalization_log"]["hgnc_api_called"] = True
-        
-        if hgnc_result["success"]:
-            result["success"] = True
-            result["approved_symbol"] = hgnc_result["symbol"]
-            result["hgnc_id"] = hgnc_result["hgnc_id"]
-            result["aliases"] = hgnc_result.get("aliases", [])
-            result["normalization_log"]["steps"].append(
-                f"HGNC API success: {hgnc_result['symbol']} ({hgnc_result['hgnc_id']})"
-            )
-            
-            # Cache successful result
-            cache_data = {
-                "success": True,
-                "approved_symbol": result["approved_symbol"],
-                "hgnc_id": result["hgnc_id"],
-                "aliases": result["aliases"]
-            }
-            self.cache[cache_key] = cache_data
-            
-        else:
-            result["normalization_log"]["steps"].append(f"HGNC API failed: {hgnc_result['error']}")
-            
-            # Step 4: Try fuzzy matching strategies
-            fuzzy_result = self._try_fuzzy_matching(cleaned_text)
-            if fuzzy_result["success"]:
-                result["success"] = True
-                result["approved_symbol"] = fuzzy_result["symbol"]
-                result["hgnc_id"] = fuzzy_result["hgnc_id"]
-                result["aliases"] = fuzzy_result.get("aliases", [])
-                result["normalization_log"]["steps"].append(
-                    f"Fuzzy matching success: {fuzzy_result['symbol']} ({fuzzy_result['hgnc_id']})"
-                )
-                
-                # Cache fuzzy result
-                cache_data = {
-                    "success": True,
-                    "approved_symbol": result["approved_symbol"],
-                    "hgnc_id": result["hgnc_id"],
-                    "aliases": result["aliases"]
-                }
-                self.cache[cache_key] = cache_data
-            else:
-                result["normalization_log"]["steps"].append("Fuzzy matching failed")
-                result["requires_manual_review"] = True
-                
-        return result
-        
-    def _clean_gene_text(self, gene_text: str) -> str:
-        """Clean and standardize gene text"""
-        if not gene_text:
-            return ""
-            
-        # Convert to uppercase
-        cleaned = gene_text.upper().strip()
-        
-        # Remove common prefixes/suffixes
-        patterns_to_remove = [
-            r'\bHUMAN\b',
-            r'\bPROTEIN\b',
-            r'\bGENE\b',
-            r'\(.*?\)',  # Remove parentheses and content
-            r'\[.*?\]',  # Remove brackets and content
-        ]
-        
-        for pattern in patterns_to_remove:
-            cleaned = re.sub(pattern, '', cleaned)
-            
-        # Clean up whitespace
-        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
-        
-        # Remove trailing numbers/punctuation that aren't part of gene names
-        cleaned = re.sub(r'[^\w\-]+$', '', cleaned)
-        
-        # Basic validation - gene symbols should start with letter
-        if cleaned and not cleaned[0].isalpha():
-            return ""
-            
-        return cleaned
-        
-    def _lookup_hgnc_api(self, gene_symbol: str) -> dict[str, Any]:
-        """Lookup gene using HGNC REST API"""
-        try:
-            # Try exact symbol match first
-            response = self.client.get(
-                f"{self.base_url}/fetch/symbol/{gene_symbol}",
-                timeout=10.0
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("response", {}).get("docs"):
-                    doc = data["response"]["docs"][0]
-                    return {
-                        "success": True,
-                        "symbol": doc.get("symbol", ""),
-                        "hgnc_id": doc.get("hgnc_id", ""),
-                        "aliases": doc.get("alias_symbol", [])
-                    }
-                    
-            # Try previous symbols/aliases
-            response = self.client.get(
-                f"{self.base_url}/fetch/prev_symbol/{gene_symbol}",
-                timeout=10.0
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("response", {}).get("docs"):
-                    doc = data["response"]["docs"][0]
-                    return {
-                        "success": True,
-                        "symbol": doc.get("symbol", ""),
-                        "hgnc_id": doc.get("hgnc_id", ""),
-                        "aliases": doc.get("alias_symbol", [])
-                    }
-                    
-            # Try alias symbols
-            response = self.client.get(
-                f"{self.base_url}/fetch/alias_symbol/{gene_symbol}",
-                timeout=10.0
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("response", {}).get("docs"):
-                    doc = data["response"]["docs"][0]
-                    return {
-                        "success": True,
-                        "symbol": doc.get("symbol", ""),
-                        "hgnc_id": doc.get("hgnc_id", ""),
-                        "aliases": doc.get("alias_symbol", [])
-                    }
-                    
-            return {"success": False, "error": "No matches found in HGNC"}
-            
-        except Exception as e:
-            logger.error(f"HGNC API error for '{gene_symbol}': {e}")
-            return {"success": False, "error": str(e)}
-            
-    def _try_fuzzy_matching(self, gene_symbol: str) -> dict[str, Any]:
-        """Try various fuzzy matching strategies"""
-        
-        # Strategy 1: Remove hyphens/underscores
-        if '-' in gene_symbol or '_' in gene_symbol:
-            clean_symbol = re.sub(r'[-_]', '', gene_symbol)
-            result = self._lookup_hgnc_api(clean_symbol)
-            if result["success"]:
-                return result
-                
-        # Strategy 2: Add/remove common suffixes
-        suffixes_to_try = ['', '1', 'A', 'B', 'C']
-        for suffix in suffixes_to_try:
-            if gene_symbol.endswith(suffix) and len(suffix) > 0:
-                # Try without suffix
-                test_symbol = gene_symbol[:-len(suffix)]
-                if test_symbol:
-                    result = self._lookup_hgnc_api(test_symbol)
-                    if result["success"]:
-                        return result
-            else:
-                # Try with suffix
-                test_symbol = gene_symbol + suffix
-                result = self._lookup_hgnc_api(test_symbol)
-                if result["success"]:
-                    return result
-                    
-        # Strategy 3: Search by wildcards (limited to avoid too many results)
-        if len(gene_symbol) >= 3:
-            try:
-                response = self.client.get(
-                    f"{self.base_url}/search/symbol/{gene_symbol}*",
-                    timeout=10.0
-                )
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    docs = data.get("response", {}).get("docs", [])
-                    # Only accept if we get exactly one match to avoid ambiguity
-                    if len(docs) == 1:
-                        doc = docs[0]
-                        return {
-                            "success": True,
-                            "symbol": doc.get("symbol", ""),
-                            "hgnc_id": doc.get("hgnc_id", ""),
-                            "aliases": doc.get("alias_symbol", [])
-                        }
-                        
-            except Exception as e:
-                logger.debug(f"Fuzzy search error for '{gene_symbol}': {e}")
-                
-        return {"success": False, "error": "No fuzzy matches found"}
-        
-    def close(self):
-        """Close HTTP client"""
-        self.client.close()
+    return _hgnc_client
 
 
-def normalize_gene_for_database(db: Session, 
-                              gene_text: str, 
-                              source_name: str,
-                              original_data: dict[str, Any] | None = None) -> dict[str, Any]:
+def clean_gene_text(gene_text: str) -> str:
     """
-    Central function to normalize genes before database insertion
+    Clean and preprocess gene text for HGNC lookup.
     
-    This function should be called by ALL data sources before creating genes.
-    It ensures proper HGNC normalization and handles staging for manual review.
+    Args:
+        gene_text: Raw gene text from data source
+        
+    Returns:
+        Cleaned gene symbol
+    """
+    if not gene_text:
+        return ""
+        
+    # Remove extra whitespace and convert to uppercase
+    cleaned = gene_text.strip().upper()
+    
+    # Remove common prefixes/suffixes that interfere with HGNC lookup
+    cleaned = re.sub(r'^(GENE:|SYMBOL:|PROTEIN:)', '', cleaned)
+    cleaned = re.sub(r'(GENE|PROTEIN|_HUMAN)$', '', cleaned)
+    
+    # Remove common separators and special characters
+    cleaned = re.sub(r'[;,|/\\].*$', '', cleaned)  # Take only first part
+    cleaned = re.sub(r'\s*\([^)]*\)', '', cleaned)  # Remove parenthetical content
+    cleaned = re.sub(r'[^\w-]', '', cleaned)  # Keep only alphanumeric and hyphens
+    
+    return cleaned.strip()
+
+
+def is_likely_gene_symbol(gene_text: str) -> bool:
+    """
+    Check if text is likely a valid gene symbol.
+    
+    Args:
+        gene_text: Cleaned gene text
+        
+    Returns:
+        True if likely a gene symbol
+    """
+    if not gene_text or len(gene_text) < 2:
+        return False
+        
+    # Skip common non-gene terms
+    excluded_terms = {
+        'UNKNOWN', 'NONE', 'NULL', 'NA', 'GENE', 'PROTEIN', 'CHROMOSOME',
+        'COMPLEX', 'FAMILY', 'GROUP', 'CLUSTER', 'REGION', 'LOCUS',
+        'ELEMENT', 'SEQUENCE', 'FRAGMENT', 'PARTIAL', 'PUTATIVE'
+    }
+    
+    if gene_text in excluded_terms:
+        return False
+        
+    # Skip if too long (likely description rather than symbol)
+    if len(gene_text) > 20:
+        return False
+        
+    # Skip if contains only numbers
+    if gene_text.isdigit():
+        return False
+        
+    return True
+
+
+def normalize_gene_for_database(
+    db: Session,
+    gene_text: str,
+    source_name: str,
+    original_data: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """
+    Normalize a single gene for database insertion.
     
     Args:
         db: Database session
         gene_text: Raw gene text from data source
-        source_name: Name of data source
-        original_data: Original context data for logging
+        source_name: Name of data source (PubTator, ClinGen, etc.)
+        original_data: Original data context for staging
         
     Returns:
-        Dictionary with normalization results and database actions taken
+        Dictionary with normalization results:
+        {
+            "status": "normalized" | "requires_manual_review" | "error",
+            "approved_symbol": str | None,
+            "hgnc_id": str | None,
+            "staging_id": int | None,  # If requires manual review
+            "error": str | None
+        }
     """
-    from app.crud.gene_staging import staging_crud, log_crud
-    
-    start_time = datetime.now(timezone.utc)
-    normalizer = GeneNormalizer()
-    
     try:
-        # Normalize the gene
-        result = normalizer.normalize_gene_symbol(gene_text, source_name, original_data)
-        processing_time = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
+        # Clean the input
+        cleaned_text = clean_gene_text(gene_text)
         
-        # Count API calls made from normalization log
-        api_calls = 1 if result["normalization_log"].get("hgnc_api_called", False) else 0
-        
-        if result["success"]:
-            # Gene successfully normalized
-            logger.info(f"Successfully normalized '{gene_text}' -> {result['approved_symbol']} ({result['hgnc_id']})")
-            
-            # Log successful normalization
-            log_crud.create_log_entry(
-                db=db,
-                original_text=gene_text,
-                source_name=source_name,
-                success=True,
-                normalization_log=result["normalization_log"],
-                approved_symbol=result["approved_symbol"],
-                hgnc_id=result["hgnc_id"],
-                api_calls_made=api_calls,
-                processing_time_ms=processing_time
+        if not is_likely_gene_symbol(cleaned_text):
+            logger.debug(f"Skipping non-gene text: '{gene_text}' -> '{cleaned_text}'")
+            return _create_staging_record(
+                db, gene_text, source_name, original_data,
+                reason="Not a valid gene symbol format"
             )
-            
+        
+        # Check if gene already exists in database
+        existing_gene = gene_crud.get_by_symbol(db, cleaned_text)
+        if existing_gene and existing_gene.hgnc_id:
+            logger.debug(f"Gene '{cleaned_text}' already exists with HGNC ID: {existing_gene.hgnc_id}")
             return {
                 "status": "normalized",
-                "approved_symbol": result["approved_symbol"],
-                "hgnc_id": result["hgnc_id"],
-                "aliases": result["aliases"],
-                "normalization_log": result["normalization_log"]
+                "approved_symbol": existing_gene.approved_symbol,
+                "hgnc_id": existing_gene.hgnc_id,
+                "staging_id": None,
+                "error": None
             }
+        
+        # Use HGNC client for normalization
+        hgnc_client = get_hgnc_client()
+        standardization_result = hgnc_client.standardize_symbols([cleaned_text])
+        
+        if cleaned_text in standardization_result:
+            result = standardization_result[cleaned_text]
+            approved_symbol = result.get("approved_symbol")
+            hgnc_id = result.get("hgnc_id")
             
-        elif result["requires_manual_review"]:
-            # Gene needs manual review - add to staging table
-            logger.warning(f"Gene '{gene_text}' from {source_name} requires manual review")
-            
-            # Create staging record
-            staging_record = staging_crud.create_staging_record(
-                db=db,
-                original_text=gene_text,
-                source_name=source_name,
-                normalization_log=result["normalization_log"],
-                original_data=original_data
-            )
-            
-            # Log failed normalization
-            log_crud.create_log_entry(
-                db=db,
-                original_text=gene_text,
-                source_name=source_name,
-                success=False,
-                normalization_log=result["normalization_log"],
-                staging_id=staging_record.id,
-                api_calls_made=api_calls,
-                processing_time_ms=processing_time
-            )
-            
-            return {
-                "status": "requires_manual_review",
-                "original_text": gene_text,
-                "normalization_log": result["normalization_log"],
-                "staging_id": staging_record.id
-            }
-            
-        else:
-            # Unexpected state
-            logger.error(f"Unexpected normalization state for '{gene_text}': {result}")
-            
-            # Log error
-            log_crud.create_log_entry(
-                db=db,
-                original_text=gene_text,
-                source_name=source_name,
-                success=False,
-                normalization_log=result["normalization_log"],
-                api_calls_made=api_calls,
-                processing_time_ms=processing_time
-            )
-            
-            return {
-                "status": "error",
-                "error": "Unexpected normalization state",
-                "normalization_log": result["normalization_log"]
-            }
-            
+            if approved_symbol and hgnc_id:
+                logger.debug(f"Successfully normalized '{gene_text}' -> '{approved_symbol}' ({hgnc_id})")
+                return {
+                    "status": "normalized",
+                    "approved_symbol": approved_symbol,
+                    "hgnc_id": hgnc_id,
+                    "staging_id": None,
+                    "error": None
+                }
+        
+        # Normalization failed - create staging record
+        logger.info(f"Gene '{gene_text}' requires manual review - HGNC lookup failed")
+        return _create_staging_record(
+            db, gene_text, source_name, original_data,
+            reason="HGNC lookup failed - no HGNC ID found"
+        )
+        
     except Exception as e:
         logger.error(f"Error normalizing gene '{gene_text}': {e}")
-        processing_time = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
-        
-        # Log error
-        try:
-            log_crud.create_log_entry(
-                db=db,
-                original_text=gene_text,
-                source_name=source_name,
-                success=False,
-                normalization_log={"error": str(e), "steps": []},
-                processing_time_ms=processing_time
-            )
-        except:
-            pass  # Don't fail if logging fails
-            
         return {
             "status": "error",
+            "approved_symbol": None,
+            "hgnc_id": None,
+            "staging_id": None,
             "error": str(e)
         }
-    finally:
-        normalizer.close()
 
 
-# Rate limiting for HGNC API calls
-def rate_limit_hgnc_calls():
-    """Rate limit HGNC API calls to be respectful"""
-    time.sleep(0.1)  # 100ms delay between calls
+def normalize_genes_batch(
+    db: Session,
+    gene_texts: List[str],
+    source_name: str,
+    original_data_list: Optional[List[Dict[str, Any]]] = None
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Normalize multiple genes efficiently using batch processing.
+    
+    Args:
+        db: Database session
+        gene_texts: List of raw gene texts
+        source_name: Name of data source
+        original_data_list: List of original data contexts (same length as gene_texts)
+        
+    Returns:
+        Dictionary mapping original gene_text to normalization results
+    """
+    if not gene_texts:
+        return {}
+        
+    logger.info(f"Batch normalizing {len(gene_texts)} genes from {source_name}")
+    
+    # Clean and filter gene texts
+    cleaned_genes = []
+    gene_mapping = {}  # Maps cleaned -> original
+    
+    for i, gene_text in enumerate(gene_texts):
+        cleaned = clean_gene_text(gene_text)
+        if is_likely_gene_symbol(cleaned):
+            cleaned_genes.append(cleaned)
+            gene_mapping[cleaned] = {
+                "original": gene_text,
+                "index": i,
+                "original_data": original_data_list[i] if original_data_list else None
+            }
+    
+    logger.info(f"After cleaning: {len(cleaned_genes)} valid gene symbols to normalize")
+    
+    if not cleaned_genes:
+        return {}
+    
+    # Check existing genes in database first
+    existing_genes = {}
+    for cleaned in cleaned_genes:
+        existing_gene = gene_crud.get_by_symbol(db, cleaned)
+        if existing_gene and existing_gene.hgnc_id:
+            existing_genes[cleaned] = {
+                "approved_symbol": existing_gene.approved_symbol,
+                "hgnc_id": existing_gene.hgnc_id
+            }
+    
+    # Get genes that need HGNC lookup
+    genes_to_lookup = [g for g in cleaned_genes if g not in existing_genes]
+    logger.info(f"Found {len(existing_genes)} existing genes, {len(genes_to_lookup)} need HGNC lookup")
+    
+    # Batch HGNC lookup for remaining genes
+    hgnc_results = {}
+    if genes_to_lookup:
+        hgnc_client = get_hgnc_client()
+        hgnc_results = hgnc_client.standardize_symbols_parallel(genes_to_lookup)
+    
+    # Compile final results
+    results = {}
+    
+    for cleaned in cleaned_genes:
+        mapping = gene_mapping[cleaned]
+        original_text = mapping["original"]
+        original_data = mapping["original_data"]
+        
+        if cleaned in existing_genes:
+            # Use existing gene data
+            gene_data = existing_genes[cleaned]
+            results[original_text] = {
+                "status": "normalized",
+                "approved_symbol": gene_data["approved_symbol"],
+                "hgnc_id": gene_data["hgnc_id"],
+                "staging_id": None,
+                "error": None
+            }
+        elif cleaned in hgnc_results:
+            # Use HGNC lookup result
+            hgnc_result = hgnc_results[cleaned]
+            approved_symbol = hgnc_result.get("approved_symbol")
+            hgnc_id = hgnc_result.get("hgnc_id")
+            
+            if approved_symbol and hgnc_id:
+                results[original_text] = {
+                    "status": "normalized",
+                    "approved_symbol": approved_symbol,
+                    "hgnc_id": hgnc_id,
+                    "staging_id": None,
+                    "error": None
+                }
+            else:
+                # Failed normalization - create staging record
+                results[original_text] = _create_staging_record(
+                    db, original_text, source_name, original_data,
+                    reason="HGNC batch lookup failed - no HGNC ID found"
+                )
+        else:
+            # Shouldn't happen, but handle gracefully
+            results[original_text] = _create_staging_record(
+                db, original_text, source_name, original_data,
+                reason="Unexpected error in batch processing"
+            )
+    
+    # Log summary
+    normalized_count = sum(1 for r in results.values() if r["status"] == "normalized")
+    staging_count = sum(1 for r in results.values() if r["status"] == "requires_manual_review")
+    error_count = sum(1 for r in results.values() if r["status"] == "error")
+    
+    logger.info(
+        f"Batch normalization complete: {normalized_count} normalized, "
+        f"{staging_count} staged for review, {error_count} errors"
+    )
+    
+    return results
+
+
+def _create_staging_record(
+    db: Session,
+    gene_text: str,
+    source_name: str,
+    original_data: Optional[Dict[str, Any]],
+    reason: str
+) -> Dict[str, Any]:
+    """Create a staging record for manual review"""
+    try:
+        staging_record = gene_staging.create_staging_record(
+            db=db,
+            original_text=gene_text,
+            source_name=source_name,
+            original_data=original_data or {},
+            normalization_log={"failure_reason": reason, "attempts": 1}
+        )
+        
+        logger.debug(f"Created staging record {staging_record.id} for gene '{gene_text}'")
+        
+        return {
+            "status": "requires_manual_review",
+            "approved_symbol": None,
+            "hgnc_id": None,
+            "staging_id": staging_record.id,
+            "error": None
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to create staging record for '{gene_text}': {e}")
+        return {
+            "status": "error",
+            "approved_symbol": None,
+            "hgnc_id": None,
+            "staging_id": None,
+            "error": f"Staging creation failed: {e}"
+        }
+
+
+def get_normalization_stats(db: Session) -> Dict[str, Any]:
+    """Get statistics about gene normalization"""
+    try:
+        # Gene statistics
+        total_genes = gene_crud.count(db)
+        genes_with_hgnc = gene_crud.count(db)  # TODO: Implement proper HGNC count
+        
+        # Staging statistics
+        staging_stats = gene_staging.get_staging_stats(db)
+        
+        return {
+            "total_genes": total_genes,
+            "genes_with_hgnc_id": genes_with_hgnc,
+            "genes_without_hgnc_id": total_genes - genes_with_hgnc,
+            "normalization_coverage": (genes_with_hgnc / total_genes * 100) if total_genes > 0 else 0,
+            "staging_records": {
+                "pending": staging_stats.get("pending", 0),
+                "approved": staging_stats.get("approved", 0),
+                "rejected": staging_stats.get("rejected", 0),
+                "total": staging_stats.get("total", 0)
+            },
+            "hgnc_cache_info": get_hgnc_client().get_cache_info()
+        }
+    except Exception as e:
+        logger.error(f"Error getting normalization stats: {e}")
+        return {"error": str(e)}
+
+
+def clear_normalization_cache():
+    """Clear HGNC client cache"""
+    get_hgnc_client().clear_cache()
+    logger.info("HGNC normalization cache cleared")
