@@ -14,6 +14,7 @@ from app.api.endpoints import datasources, gene_staging, genes, progress
 from app.core.background_tasks import task_manager
 from app.core.config import settings
 from app.core.database import engine, get_db
+from app.core.startup import run_startup_tasks
 from app.models import Base
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,11 @@ Base.metadata.create_all(bind=engine)
 async def lifespan(app: FastAPI):
     """Manage application lifecycle - start/stop background tasks"""
     # Startup
+    logger.info("Starting application...")
+
+    # Run startup tasks (register data sources, etc.)
+    run_startup_tasks()
+
     logger.info("Starting background task manager...")
 
     # Set up broadcast callback for WebSocket updates

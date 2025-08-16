@@ -10,57 +10,12 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.background_tasks import task_manager
+from app.core.datasource_config import DATA_SOURCE_CONFIG, get_auto_update_sources
 from app.models.gene import PipelineRun
 from app.schemas.datasource import DataSource, DataSourceList, DataSourceStats
 
 router = APIRouter()
 
-
-# Data source configurations
-DATA_SOURCE_CONFIG = {
-    "PanelApp": {
-        "display_name": "PanelApp",
-        "description": "Expert-curated gene panels from UK Genomics England and Australian Genomics",
-        "url": "https://panelapp.genomicsengland.co.uk/",
-        "documentation_url": "https://panelapp.genomicsengland.co.uk/api/docs/",
-    },
-    "PubTator": {
-        "display_name": "PubTator3",
-        "description": "Automated literature mining for kidney disease genes from PubMed",
-        "url": "https://www.ncbi.nlm.nih.gov/research/pubtator3/",
-        "documentation_url": "https://www.ncbi.nlm.nih.gov/research/pubtator3/api",
-    },
-    "HPO": {
-        "display_name": "HPO",
-        "description": "Human Phenotype Ontology - Gene-phenotype associations (pending OMIM fix)",
-        "url": "https://hpo.jax.org/",
-        "documentation_url": "https://hpo.jax.org/app/data/annotations",
-    },
-    "Literature": {
-        "display_name": "Literature",
-        "description": "Curated literature references",
-        "url": None,
-        "documentation_url": None,
-    },
-    "ClinGen": {
-        "display_name": "ClinGen",
-        "description": "Expert-curated gene-disease validity assessments from 5 kidney specialist panels",
-        "url": "https://clinicalgenome.org/",
-        "documentation_url": "https://clinicalgenome.org/docs/gene-disease-validity/",
-    },
-    "GenCC": {
-        "display_name": "GenCC",
-        "description": "Harmonized gene-disease relationships from 40+ submitters worldwide",
-        "url": "https://thegencc.org/",
-        "documentation_url": "https://thegencc.org/faq.html",
-    },
-    "Diagnostic": {
-        "display_name": "Diagnostic Panels",
-        "description": "Commercial diagnostic kidney gene panels",
-        "url": None,
-        "documentation_url": None,
-    },
-}
 
 
 @router.get("/", response_model=DataSourceList)
@@ -282,10 +237,10 @@ async def update_datasource(source_name: str, db: Session = Depends(get_db)) -> 
 @router.post("/update-all")
 async def update_all_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
-    Trigger updates for all available data sources
+    Trigger updates for all available data sources that support auto-update
     """
     try:
-        sources = ["PubTator", "PanelApp", "ClinGen", "GenCC"]
+        sources = get_auto_update_sources()
         for source_name in sources:
             await task_manager.run_source(source_name)
 

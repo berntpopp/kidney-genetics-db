@@ -3,7 +3,7 @@ CRUD operations for genes
 """
 
 from sqlalchemy import func, or_, text
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.models.gene import Gene, GeneCuration, GeneEvidence
 from app.schemas.gene import GeneCreate, GeneUpdate
@@ -28,55 +28,6 @@ class CRUDGene:
         """Get gene by HGNC ID"""
         return db.query(Gene).filter(Gene.hgnc_id == hgnc_id).first()
 
-    def get_multi(
-        self,
-        db: Session,
-        skip: int = 0,
-        limit: int = 100,
-        search: str | None = None,
-        min_score: float | None = None,
-        sort_by: str | None = None,
-        sort_desc: bool = False,
-    ) -> list[Gene]:
-        """Get multiple genes with filtering and sorting"""
-        query = db.query(Gene).options(joinedload(Gene.curation))
-
-        # Search filter
-        if search:
-            search_filter = f"%{search}%"
-            query = query.filter(
-                or_(Gene.approved_symbol.ilike(search_filter), Gene.hgnc_id.ilike(search_filter))
-            )
-
-        # Score filter (requires join with curation)
-        if min_score is not None:
-            query = query.outerjoin(GeneCuration).filter(GeneCuration.evidence_score >= min_score)
-        else:
-            # Still need to join for sorting by curation fields
-            query = query.outerjoin(GeneCuration)
-
-        # Sorting
-        if sort_by:
-            if sort_by == "approved_symbol":
-                order_col = Gene.approved_symbol
-            elif sort_by == "hgnc_id":
-                order_col = Gene.hgnc_id
-            elif sort_by == "evidence_count":
-                order_col = GeneCuration.evidence_count
-            elif sort_by == "evidence_score":
-                order_col = GeneCuration.evidence_score
-            else:
-                order_col = Gene.approved_symbol
-
-            if sort_desc:
-                query = query.order_by(order_col.desc().nullslast())
-            else:
-                query = query.order_by(order_col.asc().nullsfirst())
-        else:
-            # Default ordering
-            query = query.order_by(Gene.approved_symbol)
-
-        return query.offset(skip).limit(limit).all()
 
     def count(self, db: Session, search: str | None = None, min_score: float | None = None) -> int:
         """Count genes with filtering using gene_scores view for percentage scores"""
@@ -242,9 +193,10 @@ class CRUDGene:
     def create_pipeline_run(self, db: Session) -> int:
         """Create a new pipeline run record and return its ID (for test compatibility)"""
         # This is a simplified implementation for test compatibility
-        from app.models.gene import PipelineRun
         from datetime import datetime, timezone
-        
+
+        from app.models.gene import PipelineRun
+
         run = PipelineRun(
             status="running",
             started_at=datetime.now(timezone.utc),
@@ -261,7 +213,7 @@ class CRUDGene:
         existing = self.get_by_symbol(db, symbol)
         if existing:
             return existing.id
-        
+
         # Create new gene
         from app.schemas.gene import GeneCreate
         gene_data = GeneCreate(
@@ -274,9 +226,10 @@ class CRUDGene:
 
     def create_gene_evidence(self, db: Session, gene_id: int, source_name: str, evidence_data: dict) -> int:
         """Create gene evidence record and return its ID (for test compatibility)"""
-        from app.models.gene import GeneEvidence
         from datetime import datetime, timezone
-        
+
+        from app.models.gene import GeneEvidence
+
         evidence = GeneEvidence(
             gene_id=gene_id,
             source_name=source_name,
