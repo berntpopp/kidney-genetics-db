@@ -71,3 +71,7 @@ coverage/
 tmp/
 temp/
 .temp/
+
+# Cache directories
+.cache/
+backend/.cache/

@@ -23,12 +23,11 @@ class EvidenceAggregator:
         self.db = db
         # Evidence source weights (configurable)
         self.source_weights = {
-            "PanelApp_UK": 1.0,  # High confidence - expert curated
-            "PanelApp_AU": 0.9,  # High confidence - expert curated
+            "PanelApp": 1.0,  # High confidence - expert curated (combines UK and AU)
             "HPO": 0.8,  # Good - phenotype associations
             "PubTator": 0.6,  # Moderate - literature mining
+            "DiagnosticPanels": 0.9,  # High - clinical use
             "Literature": 1.0,  # High - manual curation
-            "Diagnostic": 0.9,  # High - clinical use
         }
 
         # Evidence type scoring factors
@@ -59,7 +58,7 @@ class EvidenceAggregator:
             evidence_data = evidence.evidence_data or {}
 
             # Score based on evidence type
-            if evidence.source_name in ["PanelApp_UK", "PanelApp_AU"]:
+            if evidence.source_name == "PanelApp":
                 # Score based on number of panels
                 panel_count = len(evidence_data.get("panels", []))
                 score = panel_count * self.scoring_factors["panel_count"]
@@ -83,6 +82,13 @@ class EvidenceAggregator:
                 score = min(pub_count * self.scoring_factors["publication_count"], 20)
                 total_score += score * source_weight
                 max_possible += 20 * source_weight
+
+            elif evidence.source_name == "DiagnosticPanels":
+                # Score based on number of diagnostic panels
+                panel_count = evidence_data.get("panel_count", 0)
+                score = panel_count * self.scoring_factors["panel_count"]
+                total_score += min(score, 40) * source_weight  # Cap at 40
+                max_possible += 40 * source_weight
 
         # Normalize to 0-100 scale
         if max_possible > 0:
@@ -132,9 +138,9 @@ class EvidenceAggregator:
         for evidence in evidence_records:
             data = evidence.evidence_data or {}
 
-            if evidence.source_name in ["PanelApp_UK", "PanelApp_AU"]:
+            if evidence.source_name == "PanelApp":
                 for panel in data.get("panels", []):
-                    panel_str = f"{panel.get('name')} ({evidence.source_name})"
+                    panel_str = f"{panel.get('name')} ({panel.get('source', 'UK')})"
                     if panel_str not in panelapp_panels:
                         panelapp_panels.append(panel_str)
 
@@ -153,6 +159,11 @@ class EvidenceAggregator:
                 pubtator_pmids.extend(
                     [str(pmid) for pmid in pmids if str(pmid) not in pubtator_pmids]
                 )
+
+            elif evidence.source_name == "DiagnosticPanels":
+                for panel in data.get("panels", []):
+                    if panel not in diagnostic_panels:
+                        diagnostic_panels.append(panel)
 
         return {
             "evidence_count": len(evidence_records),

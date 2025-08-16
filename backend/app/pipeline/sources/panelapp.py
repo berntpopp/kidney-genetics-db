@@ -141,28 +141,22 @@ class PanelAppClient:
         self.client.close()
 
 
-def update_panelapp_data(db: Session, source: str = "uk") -> dict[str, Any]:
-    """Update database with PanelApp data
+def update_panelapp_data(db: Session) -> dict[str, Any]:
+    """Update database with PanelApp data from both UK and Australia
 
     Args:
         db: Database session
-        source: Which PanelApp instance to use ("uk" or "au")
 
     Returns:
         Statistics about the update
     """
-    # Select API endpoint
-    if source == "uk":
-        base_url = settings.PANELAPP_UK_URL
-        source_name = "PanelApp_UK"
-    else:
-        base_url = settings.PANELAPP_AU_URL
-        source_name = "PanelApp_AU"
+    # Will fetch from both UK and Australia sources
+    source_name = "PanelApp"  # Combined source name
 
-    client = PanelAppClient(base_url, source_name)
     stats = {
         "source": source_name,
-        "panels_found": 0,
+        "panels_found_uk": 0,
+        "panels_found_au": 0,
         "genes_processed": 0,
         "genes_created": 0,
         "evidence_created": 0,
@@ -170,21 +164,45 @@ def update_panelapp_data(db: Session, source: str = "uk") -> dict[str, Any]:
         "started_at": datetime.now(timezone.utc).isoformat(),
     }
 
+    all_panels = []
+
     try:
-        # Search for kidney-related panels
-        logger.info(f"Searching for kidney panels in {source_name}")
-        panels = client.search_panels(settings.KIDNEY_FILTER_TERMS)
-        stats["panels_found"] = len(panels)
-        logger.info(f"Found {len(panels)} kidney-related panels")
+        # Search UK PanelApp
+        uk_client = PanelAppClient(settings.PANELAPP_UK_URL, "UK")
+        logger.info("Searching for kidney panels in PanelApp UK")
+        uk_panels = uk_client.search_panels(settings.KIDNEY_FILTER_TERMS)
+        stats["panels_found_uk"] = len(uk_panels)
+        logger.info(f"Found {len(uk_panels)} kidney-related panels in UK")
+
+        for panel in uk_panels:
+            panel["source"] = "UK"
+            all_panels.append(panel)
+
+        # Try Australian PanelApp (may be down)
+        try:
+            au_client = PanelAppClient(settings.PANELAPP_AU_URL, "AU")
+            logger.info("Searching for kidney panels in PanelApp Australia")
+            au_panels = au_client.search_panels(settings.KIDNEY_FILTER_TERMS)
+            stats["panels_found_au"] = len(au_panels)
+            logger.info(f"Found {len(au_panels)} kidney-related panels in Australia")
+
+            for panel in au_panels:
+                panel["source"] = "AU"
+                all_panels.append(panel)
+        except Exception as e:
+            logger.warning(f"PanelApp Australia unavailable: {e}")
+            stats["panels_found_au"] = 0
 
         # Process each panel
         gene_data_map = {}  # symbol -> gene data
-        for panel in panels:
+        for panel in all_panels:
             panel_id = panel["id"]
             panel_name = panel["name"]
-            logger.info(f"Processing panel: {panel_name} (ID: {panel_id})")
+            panel_source = panel.get("source", "UK")
+            logger.info(f"Processing panel: {panel_name} (ID: {panel_id}, Source: {panel_source})")
 
-            # Get genes from panel
+            # Get genes from panel using appropriate client
+            client = uk_client if panel_source == "UK" else au_client
             genes = client.get_panel_genes(panel_id)
             for gene_info in genes:
                 symbol = gene_info["symbol"]
@@ -207,6 +225,7 @@ def update_panelapp_data(db: Session, source: str = "uk") -> dict[str, Any]:
                         "name": panel_name,
                         "version": gene_info["panel_version"],
                         "confidence": gene_info["confidence_level"],
+                        "source": panel_source,
                     }
                 )
 
@@ -291,7 +310,9 @@ def update_panelapp_data(db: Session, source: str = "uk") -> dict[str, Any]:
                 stats["errors"] += 1
 
     finally:
-        client.close()
+        uk_client.close()
+        if 'au_client' in locals():
+            au_client.close()
 
     stats["completed_at"] = datetime.now(timezone.utc).isoformat()
     stats["duration"] = (
@@ -299,32 +320,23 @@ def update_panelapp_data(db: Session, source: str = "uk") -> dict[str, Any]:
     ).total_seconds()
 
     logger.info(
-        f"PanelApp update complete: {stats['genes_processed']} genes, "
+        f"PanelApp update complete: UK={stats['panels_found_uk']} panels, "
+        f"AU={stats['panels_found_au']} panels, {stats['genes_processed']} genes, "
         f"{stats['genes_created']} created, {stats['evidence_created']} evidence records"
     )
 
     return stats
 
 
-def update_all_panelapp(db: Session) -> list[dict[str, Any]]:
-    """Update data from all PanelApp sources
+def update_all_panelapp(db: Session) -> dict[str, Any]:
+    """Update data from all PanelApp sources (UK and Australia combined)
 
     Args:
         db: Database session
 
     Returns:
-        List of statistics for each source
+        Statistics for the combined update
     """
-    results = []
-
-    # Update UK PanelApp
-    logger.info("Updating PanelApp UK data")
-    uk_stats = update_panelapp_data(db, "uk")
-    results.append(uk_stats)
-
-    # Update Australian PanelApp
-    logger.info("Updating PanelApp Australia data")
-    au_stats = update_panelapp_data(db, "au")
-    results.append(au_stats)
-
-    return results
+    logger.info("Updating PanelApp data (UK and Australia combined)")
+    stats = update_panelapp_data(db)
+    return stats
