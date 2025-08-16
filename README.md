@@ -24,32 +24,61 @@ A comprehensive database of ~3,000 kidney disease-associated genes aggregated fr
 ## Quick Start
 
 ```bash
-# Development setup
-docker-compose up -d
-docker-compose exec api python -m pipeline.init_db
-docker-compose exec api python -m pipeline.run_update
+# 1. Start database
+docker-compose -f docker-compose.services.yml up -d
 
-# API usage
-curl "http://localhost:8000/api/v1/genes/?limit=20"
-curl "http://localhost:8000/api/v1/genes/HGNC:5"
+# 2. Install backend dependencies
+cd backend
+pip install uv
+uv pip install -e .
 
-# Web interface
-open http://localhost:3000
+# 3. Run migrations & import data
+uv run alembic upgrade head
+uv run python -m app.pipeline.run update --source panelapp
+
+# 4. Start backend
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 5. In new terminal, start frontend
+cd frontend
+npm install
+npm run dev
+```
+
+**Access:**
+- Frontend: http://localhost:5173
+- API Docs: http://localhost:8000/docs
+- Database: 318 kidney-related genes from PanelApp
+
+## Requirements
+
+- Python 3.10+
+- Node.js 18+
+- Docker (for PostgreSQL)
+
+## Project Structure
+
+- `backend/` - FastAPI application with data pipeline
+- `frontend/` - Vue.js/Vuetify web interface
+- `plan/` - Architecture documentation and schemas
+- `docker-compose.services.yml` - PostgreSQL database setup
+
+## Development
+
+```bash
+# Backend linting
+cd backend && uv run ruff check . --fix
+
+# Frontend linting  
+cd frontend && npm run lint && npm run format
 ```
 
 ## Status
 
-This project is **under active development** - see `PLAN.md` for implementation roadmap and current status.
+✅ **Phases 0-4 Complete**: Database, API, PanelApp integration, and Vue.js frontend functional.  
+🔄 **Phase 5 In Progress**: Adding HPO and PubTator data sources.
 
-Modernizes the established [kidney-genetics](https://github.com/halbritter-lab/kidney-genetics) R pipeline with improved performance, web interface, and API access for the research community.
-
-## Project Structure
-
-- `PLAN.md` - Complete technical implementation plan
-- `plan/` - Schema definitions, examples, and planning artifacts (separate from implementation)
-- `backend/` - FastAPI application (to be implemented)
-- `frontend/` - Vue.js application (to be implemented) 
-- `pipeline/` - Data processing pipeline (to be implemented)
+See `TODO.md` for detailed progress and `PLAN.md` for architecture.
 
 ## License
 

@@ -1,50 +1,58 @@
 """
 Pydantic schemas for genes
 """
-from typing import Optional, List, Dict, Any
+
 from datetime import datetime
-from pydantic import BaseModel, Field
+from typing import Any
+
+from pydantic import BaseModel
 
 
 class GeneBase(BaseModel):
     """Base gene schema"""
-    hgnc_id: Optional[str] = None
+
+    hgnc_id: str | None = None
     approved_symbol: str
-    aliases: Optional[List[str]] = []
+    aliases: list[str] | None = []
 
 
 class GeneCreate(GeneBase):
     """Schema for creating a gene"""
+
     pass
 
 
 class GeneUpdate(BaseModel):
     """Schema for updating a gene"""
-    hgnc_id: Optional[str] = None
-    approved_symbol: Optional[str] = None
-    aliases: Optional[List[str]] = None
+
+    hgnc_id: str | None = None
+    approved_symbol: str | None = None
+    aliases: list[str] | None = None
 
 
 class GeneInDB(GeneBase):
     """Gene schema with database fields"""
+
     id: int
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class Gene(GeneInDB):
     """Gene schema for API responses"""
-    evidence_count: Optional[int] = 0
-    evidence_score: Optional[float] = None
-    sources: Optional[List[str]] = []
+
+    evidence_count: int | None = 0
+    evidence_score: float | None = None
+    sources: list[str] | None = []
 
 
 class GeneList(BaseModel):
     """Response for gene list endpoint"""
-    items: List[Gene]
+
+    items: list[Gene]
     total: int
     page: int = 1
     per_page: int = 100
@@ -52,23 +60,25 @@ class GeneList(BaseModel):
 
 class GeneEvidenceCreate(BaseModel):
     """Schema for creating gene evidence"""
+
     gene_id: int
     source_name: str
-    source_detail: Optional[str] = None
-    evidence_data: Dict[str, Any]
-    evidence_date: Optional[datetime] = None
+    source_detail: str | None = None
+    evidence_data: dict[str, Any]
+    evidence_date: datetime | None = None
 
 
 class GeneCurationSummary(BaseModel):
     """Summary of gene curation"""
+
     gene_id: int
     gene_symbol: str
     evidence_count: int = 0
     source_count: int = 0
-    evidence_score: Optional[float] = None
-    classification: Optional[str] = None
-    panelapp_panels: List[str] = []
-    hpo_terms: List[str] = []
-    
+    evidence_score: float | None = None
+    classification: str | None = None
+    panelapp_panels: list[str] = []
+    hpo_terms: list[str] = []
+
     class Config:
         from_attributes = True
