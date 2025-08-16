@@ -77,11 +77,11 @@
 
       <template #[`item.evidence_score`]="{ item }">
         <v-chip
-          v-if="item.evidence_score"
+          v-if="item.evidence_score !== null && item.evidence_score !== undefined"
           :color="getScoreColor(item.evidence_score)"
           variant="flat"
         >
-          {{ item.evidence_score?.toFixed(1) }}
+          {{ item.evidence_score.toFixed(1) }}
         </v-chip>
         <span v-else class="text-grey">-</span>
       </template>

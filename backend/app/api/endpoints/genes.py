@@ -19,55 +19,41 @@ def get_genes(
     skip: int = Query(0, ge=0, description="Number of items to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Number of items to return"),
     search: str | None = Query(None, description="Search term for gene symbol or HGNC ID"),
-    min_score: float | None = Query(None, ge=0, le=100, description="Minimum evidence score"),
+    min_score: float | None = Query(None, ge=0, le=100, description="Minimum evidence score (0-100)"),
     sort_by: str | None = Query(None, description="Field to sort by"),
     sort_desc: bool = Query(False, description="Sort in descending order"),
     db: Session = Depends(get_db),
 ) -> GeneList:
     """
-    Get list of genes with optional filtering and sorting
+    Get list of genes with optional filtering and sorting.
+    Scores are percentages (0-100) calculated from percentiles across all active sources.
     """
-    genes = gene_crud.get_multi(
+    # Use the new method that gets data from the gene_scores view
+    genes = gene_crud.get_multi_with_scores(
         db, skip=skip, limit=limit, search=search, min_score=min_score,
         sort_by=sort_by, sort_desc=sort_desc
     )
 
+    # Get total count for pagination
     total = gene_crud.count(db, search=search, min_score=min_score)
 
     # Transform to response schema
     items = []
-    for gene in genes:
-        evidence_count = 0
-        evidence_score = None
-        sources = []
-
-        # Add curation data if exists
-        if gene.curation:
-            evidence_count = gene.curation.evidence_count or 0
-            evidence_score = gene.curation.evidence_score
-
-            # Collect sources
-            if gene.curation.panelapp_panels:
-                sources.append("PanelApp")
-            if gene.curation.hpo_terms:
-                sources.append("HPO")
-            if gene.curation.pubtator_pmids:
-                sources.append("PubTator")
-            if gene.curation.literature_refs:
-                sources.append("Literature")
-            if gene.curation.diagnostic_panels:
-                sources.append("Diagnostic")
+    for gene_data in genes:
+        # Get evidence sources from database
+        evidence = gene_crud.get_evidence(db, gene_data["id"])
+        sources = list(set(e.source_name for e in evidence))
 
         items.append(
             Gene(
-                id=gene.id,  # type: ignore[arg-type]
-                hgnc_id=gene.hgnc_id,  # type: ignore[arg-type]
-                approved_symbol=gene.approved_symbol,  # type: ignore[arg-type]
-                aliases=gene.aliases or [],  # type: ignore[arg-type]
-                created_at=gene.created_at,  # type: ignore[arg-type]
-                updated_at=gene.updated_at,  # type: ignore[arg-type]
-                evidence_count=evidence_count,
-                evidence_score=evidence_score,
+                id=gene_data["id"],  # type: ignore[arg-type]
+                hgnc_id=gene_data["hgnc_id"],  # type: ignore[arg-type]
+                approved_symbol=gene_data["approved_symbol"],  # type: ignore[arg-type]
+                aliases=gene_data["aliases"],  # type: ignore[arg-type]
+                created_at=gene_data["created_at"],  # type: ignore[arg-type]
+                updated_at=gene_data["updated_at"],  # type: ignore[arg-type]
+                evidence_count=gene_data["evidence_count"],
+                evidence_score=gene_data["percentage_score"],  # Use percentage score (0-100)
                 sources=sources,
             )
         )
@@ -78,11 +64,18 @@ def get_genes(
 @router.get("/{gene_symbol}", response_model=Gene)
 def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
-    Get gene by symbol
+    Get gene by symbol with percentage score (0-100)
     """
     gene = gene_crud.get_by_symbol(db, gene_symbol)
     if not gene:
         raise HTTPException(status_code=404, detail=f"Gene '{gene_symbol}' not found")
+
+    # Get score from view
+    score_data = gene_crud.get_gene_score(db, gene.id)  # type: ignore[arg-type]
+    
+    # Get evidence sources
+    evidence = gene_crud.get_evidence(db, gene.id)  # type: ignore[arg-type]
+    sources = list(set(e.source_name for e in evidence))
 
     # Build response
     result = {
@@ -92,29 +85,10 @@ def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
         "aliases": gene.aliases or [],
         "created_at": gene.created_at,
         "updated_at": gene.updated_at,
-        "evidence_count": 0,
-        "evidence_score": None,
-        "sources": [],
+        "evidence_count": score_data["evidence_count"] if score_data else 0,
+        "evidence_score": score_data["percentage_score"] if score_data else None,
+        "sources": sources,
     }
-
-    # Add curation data
-    curation = gene_crud.get_curation(db, gene.id)  # type: ignore[arg-type]
-    if curation:
-        result["evidence_count"] = curation.evidence_count or 0
-        result["evidence_score"] = curation.evidence_score
-
-        sources = []
-        if curation.panelapp_panels:
-            sources.append("PanelApp")
-        if curation.hpo_terms:
-            sources.append("HPO")
-        if curation.pubtator_pmids:
-            sources.append("PubTator")
-        if curation.literature_refs:
-            sources.append("Literature")
-        if curation.diagnostic_panels:
-            sources.append("Diagnostic")
-        result["sources"] = sources
 
     return result
 
