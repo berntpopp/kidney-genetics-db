@@ -6,13 +6,14 @@ before entering the database. Uses efficient batch processing and comprehensive
 fallback strategies based on proven patterns from custom-panel and kidney-genetics-v1.
 """
 
+import asyncio
 import logging
 import re
 from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.core.hgnc_client import HGNCClient
+from app.core.hgnc_client_cached import HGNCClientCached, get_hgnc_client_cached
 from app.crud import gene_crud, gene_staging
 
 logger = logging.getLogger(__name__)
@@ -21,17 +22,11 @@ logger = logging.getLogger(__name__)
 _hgnc_client = None
 
 
-def get_hgnc_client() -> HGNCClient:
-    """Get or create HGNC client instance"""
+def get_hgnc_client() -> HGNCClientCached:
+    """Get or create cached HGNC client instance"""
     global _hgnc_client
     if _hgnc_client is None:
-        _hgnc_client = HGNCClient(
-            timeout=30,
-            max_retries=3,
-            retry_delay=1.0,
-            batch_size=100,  # Optimal batch size based on URL length limits
-            max_workers=4,   # Conservative parallel processing
-        )
+        _hgnc_client = get_hgnc_client_cached()
     return _hgnc_client
 
 
@@ -147,7 +142,7 @@ def normalize_gene_for_database(
 
         # Use HGNC client for normalization
         hgnc_client = get_hgnc_client()
-        standardization_result = hgnc_client.standardize_symbols([cleaned_text])
+        standardization_result = asyncio.run(hgnc_client.standardize_symbols_batch([cleaned_text]))
 
         if cleaned_text in standardization_result:
             result = standardization_result[cleaned_text]
@@ -242,7 +237,7 @@ def normalize_genes_batch(
     hgnc_results = {}
     if genes_to_lookup:
         hgnc_client = get_hgnc_client()
-        hgnc_results = hgnc_client.standardize_symbols_parallel(genes_to_lookup)
+        hgnc_results = asyncio.run(hgnc_client.standardize_symbols_parallel(genes_to_lookup))
 
     # Compile final results
     results = {}
@@ -361,7 +356,7 @@ def get_normalization_stats(db: Session) -> dict[str, Any]:
                 "rejected": staging_stats.get("rejected", 0),
                 "total": staging_stats.get("total", 0)
             },
-            "hgnc_cache_info": get_hgnc_client().get_cache_info()
+            "hgnc_cache_info": asyncio.run(get_hgnc_client().get_cache_stats())
         }
     except Exception as e:
         logger.error(f"Error getting normalization stats: {e}")
@@ -370,5 +365,5 @@ def get_normalization_stats(db: Session) -> dict[str, Any]:
 
 def clear_normalization_cache():
     """Clear HGNC client cache"""
-    get_hgnc_client().clear_cache()
+    asyncio.run(get_hgnc_client().clear_cache())
     logger.info("HGNC normalization cache cleared")

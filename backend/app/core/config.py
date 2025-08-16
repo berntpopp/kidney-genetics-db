@@ -40,6 +40,27 @@ class Settings(BaseSettings):
     PUBTATOR_API_URL: str = "https://www.ncbi.nlm.nih.gov/research/pubtator-api"
     HGNC_API_URL: str = "http://rest.genenames.org"
 
+    # Cache System Configuration
+    CACHE_ENABLED: bool = True
+    CACHE_DEFAULT_TTL: int = 3600  # 1 hour default TTL
+    CACHE_MAX_MEMORY_SIZE: int = 1000  # Maximum entries in memory cache
+    CACHE_CLEANUP_INTERVAL: int = 3600  # Cleanup expired entries every hour
+    CACHE_REDIS_URL: str | None = None  # Optional Redis URL for future use
+
+    # Per-source TTL configuration (in seconds)
+    CACHE_TTL_HGNC: int = 86400  # 24 hours - stable reference data
+    CACHE_TTL_PUBTATOR: int = 604800  # 7 days - literature updates periodically
+    CACHE_TTL_GENCC: int = 43200  # 12 hours - regular submission updates
+    CACHE_TTL_PANELAPP: int = 21600  # 6 hours - moderate update frequency
+    CACHE_TTL_HPO: int = 604800  # 7 days - stable ontology releases
+    CACHE_TTL_CLINGEN: int = 86400  # 24 hours - stable classification data
+
+    # HTTP Cache settings
+    HTTP_CACHE_ENABLED: bool = True
+    HTTP_CACHE_DIR: str = ".cache/http"
+    HTTP_CACHE_MAX_SIZE_MB: int = 500  # Maximum cache size in MB
+    HTTP_CACHE_TTL_DEFAULT: int = 3600  # Default HTTP cache TTL
+
     # Background Tasks
     AUTO_UPDATE_ENABLED: bool = True
 

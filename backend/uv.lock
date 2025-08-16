@@ -222,6 +222,15 @@ wheels = [
 ]
 
 [[package]]
+name = "cachetools"
+version = "5.5.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/81/3747dad6b14fa2cf53fcf10548cf5aea6913e96fab41a3c198676f8948a5/cachetools-5.5.2.tar.gz", hash = "sha256:1a661caa9175d26759571b2e19580f9d6393969e5dfca11fdb1f947a23e640d4", size = 28380, upload-time = "2025-02-20T21:01:19.524Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/72/76/20fa66124dbe6be5cafeb312ece67de6b61dd91a0247d1ea13db4ebb33c2/cachetools-5.5.2-py3-none-any.whl", hash = "sha256:d26a22bcc62eb95c3beabd9f1ee5e820d3d2704fe2967cbe350e20c8ffcd3f0a", size = 10080, upload-time = "2025-02-20T21:01:16.647Z" },
+]
+
+[[package]]
 name = "certifi"
 version = "2025.8.3"
 source = { registry = "https://pypi.org/simple" }
@@ -639,6 +648,18 @@ wheels = [
 ]
 
 [[package]]
+name = "hishel"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/10/b9/d7328c8507e45e27784e9c1f440c2b900ae1e60a980480d869b6c0b2553c/hishel-0.1.1.tar.gz", hash = "sha256:1f6421b78cc23fc43c610f651b7848c9b8eee2d29551d64a2ab0d45b319b6559", size = 35615, upload-time = "2024-11-02T09:04:22.801Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cb/e9/93174034316943513a372e1b92d9ee2394973a63d2a99d6ca6432511eca3/hishel-0.1.1-py3-none-any.whl", hash = "sha256:5b51acc340303faeef2f5cfc1658acb1db1fdc3e3ad76406265a485f9707c5d6", size = 41852, upload-time = "2024-11-02T09:04:21.265Z" },
+]
+
+[[package]]
 name = "httpcore"
 version = "1.0.9"
 source = { registry = "https://pypi.org/simple" }
@@ -730,8 +751,10 @@ dependencies = [
     { name = "alembic" },
     { name = "asyncpg" },
     { name = "beautifulsoup4" },
+    { name = "cachetools" },
     { name = "click" },
     { name = "fastapi" },
+    { name = "hishel" },
     { name = "httpx" },
     { name = "openpyxl" },
     { name = "pandas" },
@@ -773,8 +796,10 @@ requires-dist = [
     { name = "asyncpg", specifier = ">=0.29.0,<1.0" },
     { name = "beautifulsoup4", specifier = ">=4.12.0,<5.0.0" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
+    { name = "cachetools", specifier = ">=5.3.0,<6.0.0" },
     { name = "click", specifier = ">=8.1.0,<9.0.0" },
     { name = "fastapi", specifier = ">=0.104.0,<0.111.0" },
+    { name = "hishel", specifier = ">=0.0.24,<1.0.0" },
     { name = "httpx", specifier = ">=0.25.0,<0.26.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.25.0" },
     { name = "httpx", marker = "extra == 'test'", specifier = ">=0.25.0" },
