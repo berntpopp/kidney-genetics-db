@@ -35,10 +35,10 @@ Modernization of the R-based kidney-genetics pipeline into a lean, scalable web 
 
 ### Phase 2: Data Pipeline
 - Port R scripts to Python (complete rewrite):
-  - **PanelApp**: Direct API integration (stable)
-  - **HPO**: Direct API integration (stable)
-  - **PubTator**: Direct API integration (stable)
-  - **Diagnostic Panels**: Separate scraping service with API ingestion
+  - **PanelApp**: Direct API integration from both UK and Australia endpoints (combined into single source)
+  - **HPO**: Direct API integration + file downloads (phenotype.hpoa + OMIM genemap2)
+  - **PubTator**: Direct API integration (needs fix - API has changed)
+  - **Diagnostic Panels**: Separate scraping service with API ingestion (not just data copy)
   - **Literature**: Manual upload API endpoint
 - Recompute all gene data from original sources
 - Implement merge and annotation logic in Python
@@ -144,9 +144,9 @@ See [Hybrid Development Guide](plan/HYBRID-DEVELOPMENT.md) for more options.
 
 ## Data Sources
 
-1. **PanelApp** - Gene panels from Genomics England and Australia
+1. **PanelApp** - Combined gene panels from UK Genomics England and Australian Genomics (single source, panels tagged by origin)
 2. **Literature** - Manual curation from research papers
-3. **Diagnostic Panels** - Commercial panel data (Blueprint Genetics, etc.)
+3. **Diagnostic Panels** - Commercial panel data (Blueprint Genetics, etc.) - requires web scraping
 4. **HPO** - Human Phenotype Ontology associations
 5. **PubTator** - Automated literature mining
 
