@@ -282,23 +282,49 @@ def update_pubtator_data(db: Session) -> dict[str, Any]:
 
             stats["genes_processed"] += 1
 
-            # Get or create gene
-            gene = gene_crud.get_by_symbol(db, symbol)
-            if not gene:
-                # Create new gene
-                try:
-                    gene_create = GeneCreate(
-                        approved_symbol=symbol,
-                        hgnc_id=None,  # Would need HGNC lookup
-                        aliases=[],
-                    )
-                    gene = gene_crud.create(db, gene_create)
-                    stats["genes_created"] += 1
-                    logger.info(f"Created new gene from PubTator: {symbol}")
-                except Exception as e:
-                    logger.error(f"Error creating gene {symbol}: {e}")
-                    stats["errors"] += 1
-                    continue
+            # Use central normalization system
+            from app.core.gene_normalization import normalize_gene_for_database
+            
+            normalization_result = normalize_gene_for_database(
+                db=db,
+                gene_text=symbol,
+                source_name="PubTator",
+                original_data={
+                    "pmids": pmid_list[:10],  # Sample of PMIDs for context
+                    "publication_count": len(pmid_list),
+                    "total_mentions": data["mentions"]
+                }
+            )
+            
+            if normalization_result["status"] == "normalized":
+                # Gene successfully normalized - get or create
+                gene = gene_crud.get_by_symbol(db, normalization_result["approved_symbol"])
+                if not gene:
+                    # Create new gene with proper HGNC data
+                    try:
+                        gene_create = GeneCreate(
+                            approved_symbol=normalization_result["approved_symbol"],
+                            hgnc_id=normalization_result["hgnc_id"],
+                            aliases=normalization_result["aliases"],
+                        )
+                        gene = gene_crud.create(db, gene_create)
+                        stats["genes_created"] += 1
+                        logger.info(f"Created normalized gene: {normalization_result['approved_symbol']} ({normalization_result['hgnc_id']})")
+                    except Exception as e:
+                        logger.error(f"Error creating normalized gene {normalization_result['approved_symbol']}: {e}")
+                        stats["errors"] += 1
+                        continue
+                        
+            elif normalization_result["status"] == "requires_manual_review":
+                # Gene sent to staging for manual review - skip for now
+                logger.info(f"Gene '{symbol}' sent to staging (ID: {normalization_result['staging_id']}) for manual review")
+                continue
+                
+            else:
+                # Normalization error - skip gene
+                logger.error(f"Failed to normalize gene '{symbol}': {normalization_result.get('error', 'Unknown error')}")
+                stats["errors"] += 1
+                continue
 
             # Create or update evidence
             try:
