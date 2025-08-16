@@ -27,18 +27,18 @@ class PubTatorClient:
         """Initialize PubTator client"""
         self.base_url = settings.PUBTATOR_API_URL
         self.client = httpx.Client(timeout=60.0)
-        self.kidney_queries = [
-            "kidney disease",
-            "renal disease",
-            "nephropathy",
-            "glomerulonephritis",
-            "nephrotic syndrome",
-            "chronic kidney disease",
-            "polycystic kidney",
-            "renal failure",
-            "nephritis",
-            "proteinuria",
-        ]
+        # Use comprehensive query like kidney-genetics-v1
+        # This matches the approach in the R implementation which uses a single comprehensive query
+        self.kidney_query = (
+            "(kidney disease OR renal disease OR nephropathy OR glomerulonephritis OR "
+            "nephrotic syndrome OR chronic kidney disease OR polycystic kidney OR "
+            "renal failure OR nephritis OR proteinuria OR CAKUT OR "
+            "congenital anomalies kidney urinary tract OR tubulopathy OR "
+            "glomerulopathy OR ciliopathy kidney OR Alport syndrome OR "
+            "focal segmental glomerulosclerosis OR FSGS OR "
+            "IgA nephropathy OR membranous nephropathy OR "
+            "tubulointerstitial kidney disease OR nephrolithiasis OR kidney stones)"
+        )
 
     def search_publications(self, query: str, max_results: int = 100) -> list[str]:
         """Search PubMed for kidney-related publications
@@ -229,36 +229,18 @@ def update_pubtator_data(db: Session) -> dict[str, Any]:
     }
 
     try:
-        # Aggregate gene mentions from all queries
-        all_gene_data = {}  # symbol -> aggregated data
+        # Use single comprehensive query like kidney-genetics-v1
+        logger.info(f"Searching PubTator with comprehensive kidney disease query")
+        all_gene_data = client.get_annotations_by_search(client.kidney_query, max_pages=10)
+        stats["queries_processed"] = 1
+        
+        logger.info(f"Found {len(all_gene_data)} unique genes from PubTator search")
 
-        for query in client.kidney_queries:
-            logger.info(f"Searching PubTator for: {query}")
-            gene_annotations = client.get_annotations_by_search(query, max_pages=3)
-            stats["queries_processed"] += 1
-
-            # Merge with existing data
-            for symbol, data in gene_annotations.items():
-                if symbol not in all_gene_data:
-                    all_gene_data[symbol] = {
-                        "pmids": set(),
-                        "mentions": 0,
-                        "ncbi_gene_ids": set(),
-                    }
-
-                all_gene_data[symbol]["pmids"].update(data["pmids"])
-                all_gene_data[symbol]["mentions"] += data["mentions"]
-                all_gene_data[symbol]["ncbi_gene_ids"].update(data.get("ncbi_gene_ids", []))
-
-            logger.debug(f"Found {len(gene_annotations)} genes for query: {query}")
-
-        logger.info(f"Found {len(all_gene_data)} unique genes across all queries")
-
-        # Store in database (only genes with multiple mentions)
+        # Store in database (only genes with at least 3 publications, like kidney-genetics-v1)
         for symbol, data in all_gene_data.items():
-            # Skip if only mentioned in one paper
+            # Skip if mentioned in less than 3 papers (matching R implementation threshold)
             pmid_list = list(data["pmids"])
-            if len(pmid_list) < 2:
+            if len(pmid_list) < 3:
                 continue
 
             stats["genes_processed"] += 1
