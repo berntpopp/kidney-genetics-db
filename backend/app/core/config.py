@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     # External APIs
     PANELAPP_UK_URL: str = "https://panelapp.genomicsengland.co.uk/api/v1"
-    PANELAPP_AU_URL: str = "https://panelapp.agha.umccr.org/api/v1"
+    PANELAPP_AU_URL: str = "https://panelapp-aus.org/api/v1"
     HPO_API_URL: str = "https://ontology.jax.org/api"
     PUBTATOR_API_URL: str = "https://www.ncbi.nlm.nih.gov/research/pubtator-api"
     HGNC_API_URL: str = "http://rest.genenames.org"

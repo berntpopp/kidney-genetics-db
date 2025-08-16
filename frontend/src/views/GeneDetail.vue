@@ -101,8 +101,10 @@
                     :key="panel.id"
                     size="small"
                     class="ma-1"
+                    :color="panel.source === 'AU' ? 'green' : 'blue'"
+                    variant="outlined"
                   >
-                    {{ panel.name }} (v{{ panel.version }})
+                    {{ panel.name }} ({{ panel.source }}, v{{ panel.version }})
                   </v-chip>
                 </div>
 

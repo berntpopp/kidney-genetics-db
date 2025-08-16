@@ -83,16 +83,19 @@ class PubTatorClient:
             Dictionary mapping gene symbols to annotation data
         """
         gene_annotations = {}
+        all_pmids = []
 
+        # Step 1: Search for PMIDs using PubTator3 search API
         for page in range(1, max_pages + 1):
             try:
-                # Use search endpoint like the R implementation
+                # Use PubTator3 search endpoint
                 response = self.client.get(
-                    f"{self.base_url}/publications/search",
-                    params={"q": query, "page": page},
+                    "https://www.ncbi.nlm.nih.gov/research/pubtator3-api/search/",
+                    params={"text": query, "page": page},
                 )
 
                 if response.status_code != 200:
+                    logger.warning(f"PubTator3 search returned status {response.status_code}")
                     break
 
                 data = response.json()
@@ -101,40 +104,71 @@ class PubTatorClient:
                 if not results:
                     break
 
-                # Process each publication
+                # Collect PMIDs from search results
                 for result in results:
                     pmid = result.get("pmid")
-                    passages = result.get("passages", [])
+                    if pmid:
+                        all_pmids.append(str(pmid))
 
-                    for passage in passages:
-                        annotations = passage.get("annotations", [])
-
-                        for ann in annotations:
-                            if ann.get("infons", {}).get("type") == "Gene":
-                                gene_text = ann.get("text", "")
-                                gene_id = ann.get("infons", {}).get("identifier")
-
-                                if gene_text:
-                                    symbol = self.normalize_gene_symbol(gene_text)
-                                    if symbol:
-                                        if symbol not in gene_annotations:
-                                            gene_annotations[symbol] = {
-                                                "pmids": set(),
-                                                "mentions": 0,
-                                                "ncbi_gene_ids": set(),
-                                            }
-
-                                        gene_annotations[symbol]["pmids"].add(str(pmid))
-                                        gene_annotations[symbol]["mentions"] += 1
-                                        if gene_id:
-                                            gene_annotations[symbol]["ncbi_gene_ids"].add(gene_id)
+                logger.info(f"Found {len(results)} results on page {page} for query: {query}")
 
                 # Rate limiting
                 time.sleep(0.3)
 
             except Exception as e:
-                logger.error(f"Error fetching PubTator search page {page}: {e}")
+                logger.error(f"Error fetching PubTator3 search page {page}: {e}")
                 break
+
+        # Step 2: Get annotations for collected PMIDs (in batches)
+        if all_pmids:
+            batch_size = 100
+            for i in range(0, len(all_pmids), batch_size):
+                batch_pmids = all_pmids[i : i + batch_size]
+                pmids_str = ",".join(batch_pmids)
+
+                try:
+                    # Use PubTator3 export API to get annotations
+                    response = self.client.get(
+                        "https://www.ncbi.nlm.nih.gov/research/pubtator3-api/publications/export/biocjson",
+                        params={"pmids": pmids_str, "concepts": "gene"},
+                    )
+
+                    if response.status_code == 200:
+                        data = response.json()
+                        articles = data.get("PubTator3", [])
+
+                        for article in articles:
+                            pmid = article.get("pmid")
+                            passages = article.get("passages", [])
+
+                            for passage in passages:
+                                annotations = passage.get("annotations", [])
+
+                                for ann in annotations:
+                                    if ann.get("infons", {}).get("type") == "Gene":
+                                        gene_text = ann.get("text", "")
+                                        gene_id = ann.get("infons", {}).get("identifier")
+
+                                        if gene_text:
+                                            symbol = self.normalize_gene_symbol(gene_text)
+                                            if symbol:
+                                                if symbol not in gene_annotations:
+                                                    gene_annotations[symbol] = {
+                                                        "pmids": set(),
+                                                        "mentions": 0,
+                                                        "ncbi_gene_ids": set(),
+                                                    }
+
+                                                gene_annotations[symbol]["pmids"].add(str(pmid))
+                                                gene_annotations[symbol]["mentions"] += 1
+                                                if gene_id:
+                                                    gene_annotations[symbol]["ncbi_gene_ids"].add(gene_id)
+
+                    # Rate limiting
+                    time.sleep(0.5)
+
+                except Exception as e:
+                    logger.error(f"Error fetching PubTator3 annotations for batch: {e}")
 
         # Convert sets to lists
         for gene_data in gene_annotations.values():
