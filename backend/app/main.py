@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from app.api.endpoints import genes
+from app.api.endpoints import datasources, genes
 from app.core.config import settings
 from app.core.database import engine, get_db
 from app.models import Base
@@ -35,6 +35,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(genes.router, prefix="/api/genes", tags=["genes"])
+app.include_router(datasources.router, prefix="/api/datasources", tags=["datasources"])
 
 
 @app.get("/")
