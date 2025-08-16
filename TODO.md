@@ -4,13 +4,31 @@
 - ✅ **Phase 0**: Project Foundation - Complete
 - ✅ **Phase 1**: Database & Models - Complete  
 - ✅ **Phase 2**: Basic API - Complete
-- ✅ **Phase 3**: First Data Source (PanelApp) - Complete (318 genes imported!)
-- ✅ **Phase 4**: Minimal Frontend - Complete (Vue.js app running!)
-- ✅ **Phase 5**: Complete Stable Pipeline - Complete (Aggregation working!)
+- ✅ **Phase 3**: First Data Source (PanelApp) - Complete (407 genes from UK+AU combined!)
+- ✅ **Phase 4**: Minimal Frontend - Complete (Vue.js app with sorting!)
+- ✅ **Phase 5**: Complete Stable Pipeline - Complete (PanelApp + PubTator working!)
 - ⏳ **Phase 6**: API & Frontend Enhancement
-- ⏳ **Phase 7**: Ingestion API & Brittle Sources
+- ⏳ **Phase 7**: Ingestion API & Brittle Sources (Diagnostic panels need scraping)
 - ⏳ **Phase 8**: Testing & Validation
 - ⏳ **Phase 9**: Production Preparation
+
+## Current Status (2025-08-16)
+### Working Features
+- **PanelApp Integration**: 407 genes from combined UK (19 panels) and Australian (12 panels) sources
+- **PubTator3 Integration**: 22 genes from literature mining using comprehensive kidney query
+- **Evidence Aggregation**: 429 genes total, with PKD1/PKD2 having evidence from multiple sources
+- **Frontend**: Full table with sorting, search, filtering by score
+- **API**: RESTful endpoints with pagination, sorting, and filtering
+
+### Known Issues
+- **HPO**: Needs valid OMIM genemap2.txt download link (API key required)
+- **Diagnostic Panels**: Need web scraping implementation (Blueprint, Natera, etc.)
+
+### Data Statistics
+- Total genes: 429
+- PanelApp only: 405 genes
+- PubTator only: 22 genes  
+- Both sources: 2 genes (PKD1, PKD2)
 
 ## Overview
 Logical implementation phases for building the kidney-genetics-db system. Each phase produces working software that can be tested and validated.
@@ -146,21 +164,27 @@ Logical implementation phases for building the kidney-genetics-db system. Each p
 
 - [x] HPO integration
   - [x] Create `app/pipeline/sources/hpo.py`
-  - [x] Query HPO API for kidney phenotypes (API issues - needs URL fix)
-  - [x] Extract associated genes
-  - [x] Store in database
+  - [x] Implement file download approach (phenotype.hpoa)
+  - [x] Parse OMIM disease-gene associations
+  - [x] Store in database (4 genes added, needs OMIM fix)
 
 - [x] PubTator integration  
   - [x] Create `app/pipeline/sources/pubtator.py`
-  - [x] Query PubTator for kidney-related publications (found 218 papers)
-  - [x] Extract gene mentions (API returned empty annotations)
-  - [x] Store with PMIDs
+  - [x] Migrate to PubTator3 API with search endpoint
+  - [x] Use comprehensive kidney disease query
+  - [x] Store with PMIDs (22 genes with 3+ publications)
 
 - [x] Merge logic
   - [x] Create `app/pipeline/aggregate.py`
   - [x] Aggregate evidence by gene
   - [x] Calculate evidence scores (working!)
-  - [x] Update `gene_curations` table (318 curations created)
+  - [x] Update `gene_curations` table (429 curations)
+
+- [x] Frontend improvements
+  - [x] Enable table sorting (all columns)
+  - [x] Fix v-slot directive issues
+  - [x] Show panel source differentiation (UK/AU)
+  - [x] Display correct evidence counts
 
 - [ ] Annotation pipeline
   - [ ] HGNC standardization
