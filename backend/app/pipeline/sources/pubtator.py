@@ -27,18 +27,9 @@ class PubTatorClient:
         """Initialize PubTator client"""
         self.base_url = settings.PUBTATOR_API_URL
         self.client = httpx.Client(timeout=60.0)
-        # Use comprehensive query like kidney-genetics-v1
-        # This matches the approach in the R implementation which uses a single comprehensive query
-        self.kidney_query = (
-            "(kidney disease OR renal disease OR nephropathy OR glomerulonephritis OR "
-            "nephrotic syndrome OR chronic kidney disease OR polycystic kidney OR "
-            "renal failure OR nephritis OR proteinuria OR CAKUT OR "
-            "congenital anomalies kidney urinary tract OR tubulopathy OR "
-            "glomerulopathy OR ciliopathy kidney OR Alport syndrome OR "
-            "focal segmental glomerulosclerosis OR FSGS OR "
-            "IgA nephropathy OR membranous nephropathy OR "
-            "tubulointerstitial kidney disease OR nephrolithiasis OR kidney stones)"
-        )
+        # Use exact query from kidney-genetics-v1 config
+        # pubtator_search_query: ("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)
+        self.kidney_query = '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)'
 
     def search_publications(self, query: str, max_results: int = 100) -> list[str]:
         """Search PubMed for kidney-related publications

@@ -112,7 +112,7 @@ class PanelAppClient:
             return []
 
     def _is_kidney_related(self, panel: dict[str, Any]) -> bool:
-        """Check if panel is kidney-related
+        """Check if panel is kidney-related using regex filter from kidney-genetics-v1
 
         Args:
             panel: Panel data
@@ -120,19 +120,23 @@ class PanelAppClient:
         Returns:
             True if panel is kidney-related
         """
-        name = panel.get("name", "").lower()
+        import re
+        
+        # Use regex filter from kidney-genetics-v1 config
+        # Pattern: ((?=.*[Kk]idney)|(?=.*[Rr]enal)|(?=.*[Nn]ephro))(^((?!adrenal).)*$)
+        # This matches panels with kidney/renal/nephro but excludes "adrenal"
+        pattern = r'((?=.*[Kk]idney)|(?=.*[Rr]enal)|(?=.*[Nn]ephro))(^((?!adrenal).)*$)'
+        
+        # Check panel name
+        name = panel.get("name", "")
+        if re.match(pattern, name):
+            return True
+            
+        # Also check relevant disorders
         relevant_conditions = panel.get("relevant_disorders", [])
-
-        # Check name
-        for term in settings.KIDNEY_FILTER_TERMS:
-            if term.lower() in name:
-                return True
-
-        # Check relevant disorders
         for condition in relevant_conditions:
-            for term in settings.KIDNEY_FILTER_TERMS:
-                if term.lower() in condition.lower():
-                    return True
+            if re.match(pattern, condition):
+                return True
 
         return False
 
