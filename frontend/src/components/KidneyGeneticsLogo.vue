@@ -14,19 +14,13 @@
     @click="$emit('click', $event)"
     :style="{ width: computedSize + 'px', height: computedSize + 'px' }"
   >
-    <!-- Full logo with stacked icons -->
-    <div v-if="variant === 'full'" class="logo-stack">
+    <!-- Simple nephrology logo -->
+    <div v-if="variant === 'full'" class="logo-single">
       <img 
         :src="nephrologyIcon" 
         alt="Nephrology"
         class="nephrology-icon"
-        :style="iconStyle"
-      />
-      <img 
-        :src="geneticsIcon" 
-        alt="Genetics" 
-        class="genetics-icon"
-        :style="iconStyle"
+        :style="{ ...iconStyle, width: '100%', height: '100%' }"
       />
     </div>
 
@@ -147,6 +141,7 @@ const isDark = computed(() => {
   return theme.current.value.dark
 })
 
+
 const iconStyle = computed(() => ({
   width: '50%',
   height: '50%',
@@ -159,10 +154,10 @@ const iconStyle = computed(() => ({
 
 const ariaLabel = computed(() => {
   const variants = {
-    full: 'Kidney Genetics Database logo with nephrology and genetics icons',
+    full: 'Kidney Genetics Database logo',
     icon: 'Kidney Genetics Database icon',
     dna: 'DNA helix icon',
-    kidneys: 'Nephrology icon'
+    kidneys: 'Nephrology kidneys icon'
   }
   return variants[props.variant]
 })
@@ -185,6 +180,7 @@ const ariaLabel = computed(() => {
   height: 100%;
   gap: 4px;
 }
+
 
 .logo-single {
   display: flex;

@@ -11,7 +11,7 @@
       <div class="d-flex align-center">
         <KidneyGeneticsLogo 
           :size="40" 
-          variant="icon"
+          variant="kidneys"
           :animated="false"
           interactive
           @click="$router.push('/')"
@@ -121,7 +121,7 @@
             <div class="d-flex align-center justify-center justify-md-start">
               <KidneyGeneticsLogo 
                 :size="32" 
-                variant="icon"
+                variant="kidneys"
                 :animated="false"
                 monochrome
                 class="mr-2 opacity-60"

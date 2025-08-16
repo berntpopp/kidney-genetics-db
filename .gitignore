@@ -75,3 +75,6 @@ temp/
 # Cache directories
 .cache/
 backend/.cache/
+
+# playwright
+.playwright-mcp/

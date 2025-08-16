@@ -1,13 +1,13 @@
 <template>
   <div>
     <!-- Enhanced Search and Filter Bar -->
-    <v-card elevation="0" class="search-card mb-6" rounded="lg">
-      <v-card-text class="pa-6">
-        <div class="d-flex align-center justify-space-between mb-4">
+    <v-card elevation="0" class="search-card mb-4" rounded="lg">
+      <v-card-text class="pa-4">
+        <div class="d-flex align-center justify-space-between mb-3">
           <div>
-            <h2 class="text-h5 font-weight-medium mb-1">Gene Browser</h2>
-            <p class="text-body-2 text-medium-emphasis">
-              Search and filter {{ totalItems.toLocaleString() }} curated kidney disease genes
+            <h2 class="text-h6 font-weight-medium mb-1">Search & Filter</h2>
+            <p class="text-caption text-medium-emphasis">
+              Explore {{ totalItems.toLocaleString() }} curated kidney disease genes
             </p>
           </div>
           <div class="d-flex ga-2">
@@ -36,60 +36,42 @@
         </div>
 
         <!-- Primary Search -->
-        <v-row class="mb-4">
+        <v-row class="mb-3">
           <v-col cols="12" md="8">
             <v-text-field
               v-model="search"
               prepend-inner-icon="mdi-magnify"
-              label="Search by gene symbol, HGNC ID, or description"
+              label="Search genes"
               placeholder="e.g. PKD1, HGNC:9008, polycystic kidney"
               clearable
-              hide-details="auto"
+              hide-details
               variant="outlined"
-              density="comfortable"
+              density="compact"
               @input="debouncedSearch"
               class="search-field"
             >
-              <template #append-inner>
-                <v-tooltip location="bottom">
-                  <template #activator="{ props }">
-                    <v-icon 
-                      icon="mdi-help-circle-outline" 
-                      size="small"
-                      v-bind="props"
-                      class="text-medium-emphasis"
-                    />
-                  </template>
-                  <div class="pa-2" style="max-width: 300px;">
-                    <strong>Search Tips:</strong><br>
-                    • Gene symbols: PKD1, NPHP1<br>
-                    • HGNC IDs: HGNC:9008<br>
-                    • Keywords: polycystic, nephronophthisis<br>
-                    • Use quotes for exact phrases
-                  </div>
-                </v-tooltip>
-              </template>
             </v-text-field>
           </v-col>
           <v-col cols="12" md="4">
             <v-range-slider
               v-model="scoreRange"
-              label="Evidence Score Range"
+              label="Score Range"
               :min="0"
               :max="100"
               :step="5"
-              thumb-label="always"
-              hide-details="auto"
+              thumb-label
+              hide-details
               @end="debouncedSearch"
               color="primary"
+              density="compact"
             >
               <template #prepend>
-                <v-chip size="small" variant="tonal">
+                <v-chip size="x-small" variant="tonal">
                   {{ scoreRange[0] }}
                 </v-chip>
               </template>
               <template #append>
-                <v-chip size="small" variant="tonal">
+                <v-chip size="x-small" variant="tonal">
                   {{ scoreRange[1] }}
                 </v-chip>
               </template>
@@ -100,7 +82,7 @@
         <!-- Advanced Filters -->
         <v-expand-transition>
           <div v-if="showAdvancedFilters">
-            <v-divider class="mb-4" />
+            <v-divider class="mb-3" />
             <v-row>
               <v-col cols="12" md="4">
                 <v-select
@@ -110,9 +92,9 @@
                   multiple
                   chips
                   closable-chips
-                  hide-details="auto"
+                  hide-details
                   variant="outlined"
-                  density="comfortable"
+                  density="compact"
                   @update:model-value="debouncedSearch"
                 >
                   <template #selection="{ item, index }">
@@ -139,9 +121,9 @@
                   label="Min Evidence Count"
                   type="number"
                   min="0"
-                  hide-details="auto"
+                  hide-details
                   variant="outlined"
-                  density="comfortable"
+                  density="compact"
                   @input="debouncedSearch"
                   clearable
                 />
@@ -151,14 +133,14 @@
                   v-model="sortOption"
                   :items="sortOptions"
                   label="Sort by"
-                  hide-details="auto"
+                  hide-details
                   variant="outlined"
-                  density="comfortable"
+                  density="compact"
                   @update:model-value="applySorting"
                 />
               </v-col>
             </v-row>
-            <v-row class="mt-2">
+            <v-row class="mt-1">
               <v-col cols="12">
                 <div class="d-flex justify-space-between align-center">
                   <div class="d-flex ga-2">
@@ -166,18 +148,18 @@
                       v-if="hasActiveFilters"
                       color="primary"
                       variant="tonal"
-                      size="small"
+                      size="x-small"
                       prepend-icon="mdi-filter"
                     >
-                      {{ activeFilterCount }} filters active
+                      {{ activeFilterCount }} active
                     </v-chip>
                     <v-btn
                       v-if="hasActiveFilters"
                       variant="text"
-                      size="small"
+                      size="x-small"
                       @click="clearAllFilters"
                     >
-                      Clear all
+                      Clear
                     </v-btn>
                   </div>
                   <v-select
@@ -187,7 +169,7 @@
                     hide-details
                     variant="outlined"
                     density="compact"
-                    style="width: 120px;"
+                    style="width: 100px;"
                     @update:model-value="loadGenes"
                   />
                 </div>
@@ -198,33 +180,57 @@
       </v-card-text>
     </v-card>
 
-    <!-- Results Summary -->
-    <div class="d-flex align-center justify-space-between mb-4">
-      <div class="text-body-2 text-medium-emphasis">
-        <span v-if="!loading">
-          Showing {{ ((page - 1) * itemsPerPage + 1).toLocaleString() }}–{{ 
-            Math.min(page * itemsPerPage, totalItems).toLocaleString() 
-          }} of {{ totalItems.toLocaleString() }} genes
-        </span>
-        <span v-else>Loading...</span>
+    <!-- Results Summary with Pagination -->
+    <div class="d-flex align-center justify-space-between mb-3">
+      <div class="d-flex align-center ga-3">
+        <div class="text-body-2 text-medium-emphasis">
+          <span v-if="!loading">
+            {{ ((page - 1) * itemsPerPage + 1).toLocaleString() }}–{{ 
+              Math.min(page * itemsPerPage, totalItems).toLocaleString() 
+            }} of {{ totalItems.toLocaleString() }}
+          </span>
+          <span v-else>Loading...</span>
+        </div>
+        <div class="d-flex ga-1">
+          <v-chip
+            v-if="search"
+            size="x-small"
+            variant="tonal"
+            prepend-icon="mdi-magnify"
+          >
+            "{{ search }}"
+          </v-chip>
+          <v-chip
+            v-if="scoreRange[0] > 0 || scoreRange[1] < 100"
+            size="x-small"
+            variant="tonal"
+            prepend-icon="mdi-chart-line"
+          >
+            {{ scoreRange[0] }}–{{ scoreRange[1] }}
+          </v-chip>
+        </div>
       </div>
-      <div class="d-flex ga-2">
-        <v-chip
-          v-if="search"
+      
+      <!-- Top Pagination Controls -->
+      <div class="d-flex align-center ga-2">
+        <v-select
+          v-model="itemsPerPage"
+          :items="[10, 25, 50, 100]"
+          label="Per page"
+          hide-details
+          variant="outlined"
+          density="compact"
+          style="width: 100px;"
+          @update:model-value="loadGenes"
+        />
+        <v-pagination
+          v-model="page"
+          :length="pageCount"
+          :total-visible="5"
           size="small"
-          variant="tonal"
-          prepend-icon="mdi-magnify"
-        >
-          "{{ search }}"
-        </v-chip>
-        <v-chip
-          v-if="scoreRange[0] > 0 || scoreRange[1] < 100"
-          size="small"
-          variant="tonal"
-          prepend-icon="mdi-chart-line"
-        >
-          Score: {{ scoreRange[0] }}–{{ scoreRange[1] }}
-        </v-chip>
+          @update:model-value="loadGenes"
+          density="compact"
+        />
       </div>
     </div>
 
@@ -238,6 +244,7 @@
         :items-per-page="itemsPerPage"
         :page="page"
         class="gene-table"
+        density="compact"
         hover
         @update:options="updateOptions"
         :no-data-text="noDataText"
@@ -281,43 +288,52 @@
           <div class="d-flex align-center">
             <v-chip
               :color="getEvidenceCountColor(item.evidence_count)"
-              size="small"
+              size="x-small"
               variant="tonal"
+              class="font-weight-medium"
             >
               {{ item.evidence_count }}
             </v-chip>
             <v-progress-linear
               :model-value="getEvidenceStrength(item.evidence_count)"
               :color="getEvidenceCountColor(item.evidence_count)"
-              height="3"
+              height="2"
               class="ml-2"
-              style="width: 40px;"
+              style="width: 32px;"
             />
           </div>
         </template>
 
         <!-- Enhanced Evidence Score -->
         <template #[`item.evidence_score`]="{ item }">
-          <div v-if="item.evidence_score !== null && item.evidence_score !== undefined">
-            <v-chip
-              :color="getScoreColor(item.evidence_score)"
-              variant="flat"
-              size="default"
-              class="font-weight-bold"
-            >
-              <v-icon 
-                :icon="getScoreIcon(item.evidence_score)" 
-                size="small" 
-                start 
-              />
-              {{ item.evidence_score.toFixed(1) }}
-            </v-chip>
-            <div class="text-caption text-center mt-1 text-medium-emphasis">
-              {{ getScoreLabel(item.evidence_score) }}
-            </div>
+          <div v-if="item.evidence_score !== null && item.evidence_score !== undefined" class="text-center">
+            <v-tooltip location="bottom">
+              <template #activator="{ props }">
+                <v-chip
+                  :color="getScoreColor(item.evidence_score)"
+                  variant="flat"
+                  size="small"
+                  class="font-weight-medium"
+                  v-bind="props"
+                >
+                  <v-icon 
+                    :icon="getScoreIcon(item.evidence_score)" 
+                    size="small" 
+                    start 
+                  />
+                  {{ item.evidence_score.toFixed(1) }}
+                </v-chip>
+              </template>
+              <div class="pa-2">
+                <strong>Classification:</strong> {{ getScoreLabel(item.evidence_score) }}<br>
+                <span class="text-caption">
+                  Evidence strength based on curated data sources
+                </span>
+              </div>
+            </v-tooltip>
           </div>
           <div v-else class="text-center">
-            <v-chip color="grey" variant="tonal" size="small">
+            <v-chip color="grey" variant="tonal" size="x-small">
               N/A
             </v-chip>
           </div>
@@ -329,9 +345,10 @@
             <v-chip
               v-for="source in item.sources?.slice(0, 3)"
               :key="source"
-              size="small"
+              size="x-small"
               :color="getSourceColor(source)"
               variant="tonal"
+              class="font-weight-medium"
             >
               <v-icon 
                 :icon="getSourceIcon(source)" 
@@ -343,7 +360,7 @@
             <v-menu v-if="item.sources?.length > 3" location="bottom">
               <template #activator="{ props }">
                 <v-chip
-                  size="small"
+                  size="x-small"
                   variant="outlined"
                   v-bind="props"
                 >
@@ -356,7 +373,7 @@
                   :key="source"
                 >
                   <v-chip
-                    size="small"
+                    size="x-small"
                     :color="getSourceColor(source)"
                     variant="tonal"
                   >
@@ -368,46 +385,6 @@
           </div>
         </template>
 
-        <!-- Enhanced Actions -->
-        <template #[`item.actions`]="{ item }">
-          <div class="d-flex ga-1">
-            <v-btn
-              icon="mdi-eye"
-              size="small"
-              variant="text"
-              :to="`/genes/${item.approved_symbol}`"
-              title="View details"
-            />
-            <v-menu location="bottom">
-              <template #activator="{ props }">
-                <v-btn
-                  icon="mdi-dots-vertical"
-                  size="small"
-                  variant="text"
-                  v-bind="props"
-                  title="More actions"
-                />
-              </template>
-              <v-list density="compact">
-                <v-list-item
-                  prepend-icon="mdi-open-in-new"
-                  title="External Links"
-                  @click="showExternalLinks(item)"
-                />
-                <v-list-item
-                  prepend-icon="mdi-bookmark-outline"
-                  title="Add to Favorites"
-                  @click="addToFavorites(item)"
-                />
-                <v-list-item
-                  prepend-icon="mdi-share-variant"
-                  title="Share Gene"
-                  @click="shareGene(item)"
-                />
-              </v-list>
-            </v-menu>
-          </div>
-        </template>
 
         <!-- Loading State -->
         <template #loading>
@@ -419,40 +396,11 @@
           />
         </template>
 
-        <!-- Custom Bottom with Enhanced Pagination -->
+        <!-- Simplified Bottom -->
         <template #bottom>
-          <div class="pa-4">
-            <div class="d-flex justify-space-between align-center">
-              <div class="text-body-2 text-medium-emphasis">
-                Page {{ page }} of {{ pageCount }}
-              </div>
-              <v-pagination
-                v-model="page"
-                :length="pageCount"
-                :total-visible="5"
-                size="small"
-                @update:model-value="loadGenes"
-              />
-              <div class="d-flex ga-2">
-                <v-btn
-                  variant="text"
-                  prepend-icon="mdi-chevron-left"
-                  size="small"
-                  :disabled="page <= 1"
-                  @click="page--; loadGenes()"
-                >
-                  Previous
-                </v-btn>
-                <v-btn
-                  variant="text"
-                  append-icon="mdi-chevron-right"
-                  size="small"
-                  :disabled="page >= pageCount"
-                  @click="page++; loadGenes()"
-                >
-                  Next
-                </v-btn>
-              </div>
+          <div class="pa-2 text-center">
+            <div class="text-caption text-medium-emphasis">
+              Page {{ page }} of {{ pageCount }}
             </div>
           </div>
         </template>
@@ -487,7 +435,7 @@ const genes = ref([])
 const loading = ref(false)
 const totalItems = ref(0)
 const page = ref(1)
-const itemsPerPage = ref(25)
+const itemsPerPage = ref(10)
 const search = ref('')
 const scoreRange = ref([0, 100])
 const selectedSources = ref([])
@@ -536,7 +484,8 @@ const headers = [
     title: 'Evidence Score', 
     key: 'evidence_score', 
     sortable: true,
-    width: '140px'
+    width: '140px',
+    align: 'center'
   },
   { 
     title: 'Data Sources', 
@@ -544,17 +493,15 @@ const headers = [
     sortable: false,
     width: '200px'
   },
-  { 
-    title: 'Actions', 
-    key: 'actions', 
-    sortable: false, 
-    align: 'center',
-    width: '100px'
-  }
 ]
 
 // Computed
 const pageCount = computed(() => Math.ceil(totalItems.value / itemsPerPage.value))
+
+const maxEvidenceCount = computed(() => {
+  if (genes.value.length === 0) return 4 // fallback to API max
+  return Math.max(...genes.value.map(gene => gene.evidence_count || 0))
+})
 
 const hasActiveFilters = computed(() => {
   return search.value || 
@@ -705,7 +652,8 @@ const getEvidenceCountColor = count => {
 }
 
 const getEvidenceStrength = count => {
-  return Math.min((count / 20) * 100, 100)
+  const max = maxEvidenceCount.value
+  return max > 0 ? Math.min((count / max) * 100, 100) : 0
 }
 
 // Action methods
@@ -748,7 +696,8 @@ onMounted(() => {
 
 .gene-table :deep(.v-data-table__td) {
   border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
-  padding: 12px 16px;
+  padding: 8px 12px;
+  height: 48px;
 }
 
 .gene-table :deep(.v-data-table__tr:hover) {
