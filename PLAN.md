@@ -165,7 +165,7 @@ See [Hybrid Development Guide](plan/HYBRID-DEVELOPMENT.md) for more options.
 Detailed implementation plans are available in the `plan/` directory:
 
 - [**Implementation TODO**](TODO.md) - Phased implementation checklist
-- [**ClinGen & GenCC Plan**](CLINGEN-GENCC-PLAN.md) - Expert curation sources implementation (3-week plan)
+- [**ClinGen & GenCC Implementation**](plan/CLINGEN-GENCC-IMPLEMENTATION.md) - Expert curation sources (5 ClinGen affiliates, GenCC harmonized data)
 - [Development Guide](plan/DEVELOPMENT.md) - Setup and development workflow
 - [Hybrid Development](plan/HYBRID-DEVELOPMENT.md) - Flexible Docker/local development modes
 - [Data Source Architecture](plan/DATA-SOURCE-ARCHITECTURE.md) - Smart source integration strategy

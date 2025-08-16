@@ -192,37 +192,37 @@ WHERE source_name = 'GenCC';
 
 ## Implementation Steps
 
-### Week 1: ClinGen Integration
-1. **Day 1-2**: Implement ClinGen API client
-   - Test API endpoints
-   - Identify kidney-specific data
-   - Implement caching
+### ClinGen Integration
+1. **Implement ClinGen API client**
+   - Test API endpoints for all 5 kidney affiliates
+   - Implement data fetching and parsing
+   - Add caching system for API responses
 
-2. **Day 3-4**: Process and filter data
-   - Filter for kidney diseases
-   - Transform to evidence format
-   - Store in database
+2. **Process and filter data**
+   - Filter for kidney diseases using keywords
+   - Transform classifications to evidence format
+   - Store in gene_evidence table with JSONB
 
-3. **Day 5**: Testing and validation
-   - Verify data quality
-   - Check scoring integration
-   - Update statistics
+3. **Testing and validation**
+   - Verify data quality and gene counts
+   - Check scoring integration with existing sources
+   - Update datasources API
 
-### Week 2: GenCC Integration
-1. **Day 1-2**: Implement GenCC downloader
-   - Excel file parsing
-   - Caching mechanism
-   - Error handling
+### GenCC Integration
+1. **Implement GenCC downloader**
+   - Excel file download and parsing
+   - Handle large file processing
+   - Add caching mechanism with TTL
 
-2. **Day 3-4**: Process and merge
-   - Filter kidney diseases
-   - Handle duplicates with ClinGen
-   - Store evidence
+2. **Process and merge**
+   - Filter kidney diseases using keywords
+   - Handle potential duplicates with ClinGen data
+   - Store evidence with proper classification mapping
 
-3. **Day 5**: Integration testing
-   - Test full pipeline
-   - Verify percentile calculations
-   - Update documentation
+3. **Integration testing**
+   - Test full pipeline with all sources
+   - Verify percentile calculations scale correctly
+   - Validate frontend displays new sources
 
 ## Expected Outcomes
 
@@ -296,11 +296,10 @@ def test_classification_scoring():
 - Leverage current caching system
 - Reuse percentile scoring
 
-## Timeline
-- **Week 1**: ClinGen implementation
-- **Week 2**: GenCC implementation  
-- **Week 3**: Testing and refinement
-- **Total**: 3 weeks to production
+## Implementation Priority
+- **Phase 1**: ClinGen implementation (highest quality expert curation)
+- **Phase 2**: GenCC implementation (broader harmonized data)
+- **Phase 3**: Testing and integration with existing pipeline
 
 ## Success Metrics
 - ✅ Both sources integrated and running

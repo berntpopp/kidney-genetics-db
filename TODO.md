@@ -243,7 +243,7 @@ Logical implementation phases for building the kidney-genetics-db system. Each p
   - [ ] Validate ~125 new gene validity assessments
   - [ ] Update frontend to display new sources
 
-**Timeline**: 3 weeks total (see [CLINGEN-GENCC-PLAN.md](CLINGEN-GENCC-PLAN.md) for details)
+**Reference**: See [plan/CLINGEN-GENCC-IMPLEMENTATION.md](plan/CLINGEN-GENCC-IMPLEMENTATION.md) for detailed specifications
 
 ## Phase 6: API & Frontend Enhancement
 *Goal: Full-featured user interface*
