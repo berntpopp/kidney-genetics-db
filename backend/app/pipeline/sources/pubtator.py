@@ -5,6 +5,7 @@ Fetches kidney disease-related gene mentions from biomedical literature
 """
 
 import logging
+import os
 import time
 from datetime import date, datetime, timezone
 from typing import Any
@@ -15,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.crud.gene import gene_crud
 from app.models.gene import GeneEvidence
+from app.pipeline.sources.pubtator_cache import PubTatorCache
 from app.schemas.gene import GeneCreate
 
 logger = logging.getLogger(__name__)
@@ -30,6 +32,11 @@ class PubTatorClient:
         # Use exact query from kidney-genetics-v1 config
         # pubtator_search_query: ("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)
         self.kidney_query = '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)'
+        self.cache = PubTatorCache()
+        
+        # Configuration for processing
+        self.max_pages_per_run = int(os.getenv("PUBTATOR_MAX_PAGES", "100"))  # Limit for testing
+        self.use_cache = os.getenv("PUBTATOR_USE_CACHE", "true").lower() == "true"
 
     def search_publications(self, query: str, max_results: int = 100) -> list[str]:
         """Search PubMed for kidney-related publications
@@ -63,20 +70,49 @@ class PubTatorClient:
             logger.error(f"Error searching PubMed for query '{query}': {e}")
             return []
 
-    def get_annotations_by_search(self, query: str, max_pages: int = 5) -> dict[str, Any]:
-        """Get PubTator annotations by searching
+    def get_annotations_by_search(self, query: str, max_pages: int | None = None) -> dict[str, Any]:
+        """Get PubTator annotations by searching with caching support
 
         Args:
             query: Search query
-            max_pages: Maximum number of pages to fetch
+            max_pages: Maximum number of pages to fetch (None = use configured limit)
 
         Returns:
             Dictionary mapping gene symbols to annotation data
         """
+        # Check cache first
+        if self.use_cache:
+            cached_data = self.cache.get_cached_data(query)
+            if cached_data:
+                logger.info(f"Using cached data for query: {query[:50]}...")
+                return cached_data
+        
         gene_annotations = {}
         all_pmids = []
 
-        # Step 1: Search for PMIDs using PubTator3 search API
+        # Get total pages first
+        total_pages = 1
+        try:
+            response = self.client.get(
+                "https://www.ncbi.nlm.nih.gov/research/pubtator3-api/search/",
+                params={"text": query, "page": 1},
+            )
+            if response.status_code == 200:
+                data = response.json()
+                total_pages = data.get("total_pages", 1)
+                logger.info(f"PubTator search has {total_pages} total pages")
+        except Exception as e:
+            logger.error(f"Error getting total pages: {e}")
+        
+        # Determine how many pages to actually process
+        if max_pages is None:
+            max_pages = min(self.max_pages_per_run, total_pages)  # Use configured limit
+        else:
+            max_pages = min(max_pages, total_pages)
+        
+        logger.info(f"Will process {max_pages} pages (configured limit: {self.max_pages_per_run})")
+
+        # Step 1: Search for PMIDs using PubTator3 search API (all pages)
         for page in range(1, max_pages + 1):
             try:
                 # Use PubTator3 search endpoint
@@ -101,7 +137,9 @@ class PubTatorClient:
                     if pmid:
                         all_pmids.append(str(pmid))
 
-                logger.info(f"Found {len(results)} results on page {page} for query: {query}")
+                # Log progress every 10 pages
+                if page % 10 == 0 or page == 1:
+                    logger.info(f"Processing page {page}/{max_pages}: found {len(all_pmids)} PMIDs so far")
 
                 # Rate limiting
                 time.sleep(0.3)
@@ -166,6 +204,13 @@ class PubTatorClient:
             gene_data["pmids"] = list(gene_data["pmids"])
             gene_data["ncbi_gene_ids"] = list(gene_data["ncbi_gene_ids"])
 
+        # Cache the results if enabled
+        if self.use_cache and gene_annotations:
+            # Mark as complete if we processed all available pages
+            is_complete = (max_pages >= total_pages) if 'total_pages' in locals() else False
+            self.cache.save_cache(query, gene_annotations, complete=is_complete)
+            logger.info(f"Cached {len(gene_annotations)} genes for future use")
+
         return gene_annotations
 
     def normalize_gene_symbol(self, gene_text: str) -> str | None:
@@ -221,8 +266,9 @@ def update_pubtator_data(db: Session) -> dict[str, Any]:
 
     try:
         # Use single comprehensive query like kidney-genetics-v1
+        # Get ALL pages like the R implementation does (no max_pages limit)
         logger.info("Searching PubTator with comprehensive kidney disease query")
-        all_gene_data = client.get_annotations_by_search(client.kidney_query, max_pages=10)
+        all_gene_data = client.get_annotations_by_search(client.kidney_query)  # No max_pages = get all
         stats["queries_processed"] = 1
 
         logger.info(f"Found {len(all_gene_data)} unique genes from PubTator search")
