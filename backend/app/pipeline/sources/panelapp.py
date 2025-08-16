@@ -252,6 +252,10 @@ def update_panelapp_data(db: Session) -> dict[str, Any]:
 
             # Get or create gene
             gene = gene_crud.get_by_symbol(db, symbol)
+            if not gene and data["hgnc_id"]:
+                # Try to find by HGNC ID first
+                gene = gene_crud.get_by_hgnc_id(db, data["hgnc_id"])
+                
             if not gene:
                 # Create new gene
                 try:
@@ -266,6 +270,7 @@ def update_panelapp_data(db: Session) -> dict[str, Any]:
                 except Exception as e:
                     logger.error(f"Error creating gene {symbol}: {e}")
                     stats["errors"] += 1
+                    db.rollback()  # Rollback on error
                     continue
 
             # Create or update evidence

@@ -140,14 +140,32 @@ def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[s
         elif evidence.source_name == "ClinVar":
             clinvar_data.update(evidence_data)
 
+    # Remove duplicates for simple lists
+    unique_literature_refs = list(set(literature_refs)) if literature_refs else []
+    unique_hpo_terms = list(set(hpo_terms)) if hpo_terms else []
+    unique_pubtator_pmids = list(set(pubtator_pmids)) if pubtator_pmids else []
+    
+    # For panels (list of dicts), convert to strings for storage
+    # Format: "PanelName (ID:version)"
+    unique_panels = []
+    seen_panels = set()
+    for panel in panelapp_panels:
+        if isinstance(panel, dict):
+            panel_str = f"{panel.get('name', 'Unknown')} (ID:{panel.get('id', '?')} v{panel.get('version', '?')})"
+        else:
+            panel_str = str(panel)
+        if panel_str not in seen_panels:
+            seen_panels.add(panel_str)
+            unique_panels.append(panel_str)
+    
     return {
         "evidence_count": evidence_count,
         "source_count": source_count,
-        "panelapp_panels": list(set(panelapp_panels)),  # Remove duplicates
-        "literature_refs": list(set(literature_refs)),
+        "panelapp_panels": unique_panels,
+        "literature_refs": unique_literature_refs,
         "diagnostic_panels": diagnostic_panels,
-        "hpo_terms": list(set(hpo_terms)),
-        "pubtator_pmids": list(set(pubtator_pmids)),
+        "hpo_terms": unique_hpo_terms,
+        "pubtator_pmids": unique_pubtator_pmids,
         "omim_data": omim_data,
         "clinvar_data": clinvar_data,
         # NOTE: evidence_score is calculated by PostgreSQL views, not here

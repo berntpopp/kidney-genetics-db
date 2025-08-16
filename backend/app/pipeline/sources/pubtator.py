@@ -5,7 +5,6 @@ Fetches kidney disease-related gene mentions from biomedical literature
 """
 
 import logging
-import os
 import time
 from datetime import date, datetime, timezone
 from typing import Any
@@ -19,7 +18,13 @@ from app.models.gene import GeneEvidence
 from app.pipeline.sources.pubtator_cache import PubTatorCache
 from app.schemas.gene import GeneCreate
 
+# Configure structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class PubTatorClient:
@@ -29,14 +34,13 @@ class PubTatorClient:
         """Initialize PubTator client"""
         self.base_url = settings.PUBTATOR_API_URL
         self.client = httpx.Client(timeout=60.0)
-        # Use exact query from kidney-genetics-v1 config
-        # pubtator_search_query: ("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)
-        self.kidney_query = '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)'
+        # Use configuration from central settings
+        self.kidney_query = settings.PUBTATOR_SEARCH_QUERY
         self.cache = PubTatorCache()
 
         # Configuration for processing
-        self.max_pages_per_run = int(os.getenv("PUBTATOR_MAX_PAGES", "100"))  # Limit for testing
-        self.use_cache = os.getenv("PUBTATOR_USE_CACHE", "true").lower() == "true"
+        self.max_pages_per_run = settings.PUBTATOR_MAX_PAGES
+        self.use_cache = settings.PUBTATOR_USE_CACHE
 
     def search_publications(self, query: str, max_results: int = 100) -> list[str]:
         """Search PubMed for kidney-related publications
@@ -58,7 +62,7 @@ class PubTatorClient:
                     "retmax": max_results,
                     "retmode": "json",
                     "sort": "relevance",
-                    "mindate": "2015",  # Focus on recent literature
+                    "mindate": settings.PUBTATOR_MIN_DATE,
                 },
             )
 
@@ -70,7 +74,7 @@ class PubTatorClient:
             logger.error(f"Error searching PubMed for query '{query}': {e}")
             return []
 
-    def get_annotations_by_search(self, query: str, max_pages: int | None = None) -> dict[str, Any]:
+    def get_annotations_by_search(self, query: str, max_pages: int | None = None, tracker=None) -> dict[str, Any]:
         """Get PubTator annotations by searching with caching support
 
         Args:
@@ -140,9 +144,11 @@ class PubTatorClient:
                 # Log progress every 10 pages
                 if page % 10 == 0 or page == 1:
                     logger.info(f"Processing page {page}/{max_pages}: found {len(all_pmids)} PMIDs so far")
+                    if tracker:
+                        tracker.update(current_page=page, operation=f"Fetching page {page}/{max_pages}")
 
                 # Rate limiting
-                time.sleep(0.3)
+                time.sleep(settings.PUBTATOR_RATE_LIMIT_DELAY)
 
             except Exception as e:
                 logger.error(f"Error fetching PubTator3 search page {page}: {e}")
@@ -150,10 +156,18 @@ class PubTatorClient:
 
         # Step 2: Get annotations for collected PMIDs (in batches)
         if all_pmids:
-            batch_size = 100
-            for i in range(0, len(all_pmids), batch_size):
+            batch_size = settings.PUBTATOR_BATCH_SIZE
+            total_batches = (len(all_pmids) + batch_size - 1) // batch_size
+            logger.info(f"Processing {len(all_pmids)} PMIDs in {total_batches} batches of {batch_size}")
+            
+            for batch_num, i in enumerate(range(0, len(all_pmids), batch_size), 1):
                 batch_pmids = all_pmids[i : i + batch_size]
                 pmids_str = ",".join(batch_pmids)
+                
+                if batch_num % 5 == 0 or batch_num == 1:
+                    logger.info(f"Processing annotation batch {batch_num}/{total_batches}")
+                    if tracker:
+                        tracker.update(operation=f"Processing annotations batch {batch_num}/{total_batches}")
 
                 try:
                     # Use PubTator3 export API to get annotations
@@ -194,7 +208,7 @@ class PubTatorClient:
                                                     gene_annotations[symbol]["ncbi_gene_ids"].add(gene_id)
 
                     # Rate limiting
-                    time.sleep(0.5)
+                    time.sleep(settings.PUBTATOR_RATE_LIMIT_DELAY * 1.5)  # Slightly longer for batch requests
 
                 except Exception as e:
                     logger.error(f"Error fetching PubTator3 annotations for batch: {e}")
@@ -241,18 +255,22 @@ class PubTatorClient:
         self.client.close()
 
 
-def update_pubtator_data(db: Session) -> dict[str, Any]:
-    # NOTE: PubTator API endpoints have changed. The search endpoint returns 404.
-    # Need to investigate current PubTator3 API documentation for correct endpoints.
-    # The R implementation uses older PubTator v2 endpoints that may be deprecated.
+def update_pubtator_data(db: Session, tracker=None) -> dict[str, Any]:
     """Update database with PubTator literature mining data
 
     Args:
         db: Database session
+        tracker: Optional progress tracker (created if not provided)
 
     Returns:
         Statistics about the update
     """
+    from app.core.progress_tracker import ProgressTracker
+    
+    # Initialize progress tracker if not provided
+    if tracker is None:
+        tracker = ProgressTracker(db, "PubTator")
+    
     client = PubTatorClient()
     stats = {
         "source": "PubTator",
@@ -260,64 +278,136 @@ def update_pubtator_data(db: Session) -> dict[str, Any]:
         "genes_processed": 0,
         "genes_created": 0,
         "evidence_created": 0,
+        "evidence_updated": 0,
         "errors": 0,
         "started_at": datetime.now(timezone.utc).isoformat(),
     }
 
     try:
+        # Start tracking
+        tracker.start("Initializing PubTator search")
+        
         # Use single comprehensive query like kidney-genetics-v1
-        # Get ALL pages like the R implementation does (no max_pages limit)
-        logger.info("Searching PubTator with comprehensive kidney disease query")
-        all_gene_data = client.get_annotations_by_search(client.kidney_query)  # No max_pages = get all
+        # Get configured number of pages from settings
+        max_pages = settings.PUBTATOR_MAX_PAGES
+        logger.info(f"Searching PubTator with comprehensive kidney disease query for {max_pages} pages")
+        tracker.update(operation="Fetching PubTator data", total_pages=max_pages, current_page=0)
+        
+        all_gene_data = client.get_annotations_by_search(client.kidney_query, max_pages=max_pages, tracker=tracker)
         stats["queries_processed"] = 1
 
+        if not all_gene_data:
+            logger.warning("No gene data found from PubTator search")
+            tracker.complete("No data found")
+            return stats
+
         logger.info(f"Found {len(all_gene_data)} unique genes from PubTator search")
-
-        # Store in database (only genes with at least 3 publications, like kidney-genetics-v1)
-        for symbol, data in all_gene_data.items():
-            # Skip if mentioned in less than 3 papers (matching R implementation threshold)
-            pmid_list = list(data["pmids"])
-            if len(pmid_list) < 3:
+        
+        # Filter genes by minimum publication threshold
+        filtered_genes = {symbol: data for symbol, data in all_gene_data.items() 
+                         if len(data.get("pmids", [])) >= settings.PUBTATOR_MIN_PUBLICATIONS}
+        logger.info(f"Filtered to {len(filtered_genes)} genes with >= {settings.PUBTATOR_MIN_PUBLICATIONS} publications")
+        
+        # Batch normalize all genes first for efficiency
+        logger.info(f"Starting batch normalization of {len(filtered_genes)} genes")
+        tracker.update(
+            total_items=len(filtered_genes),
+            current_item=0,
+            operation=f"Batch normalizing {len(filtered_genes)} genes via HGNC"
+        )
+        
+        # Use batch normalization for efficiency
+        from app.core.gene_normalization import normalize_genes_batch
+        
+        # Prepare data for batch normalization
+        gene_symbols = list(filtered_genes.keys())
+        original_data_list = [
+            {
+                "pmids": list(data["pmids"])[:10],  # Sample of PMIDs
+                "publication_count": len(data["pmids"]),
+                "total_mentions": data["mentions"]
+            }
+            for data in filtered_genes.values()
+        ]
+        
+        # Batch normalize genes in smaller batches to avoid API issues
+        batch_size = 20  # Smaller batch size for reliability
+        normalization_results = {}
+        
+        for i in range(0, len(gene_symbols), batch_size):
+            batch_symbols = gene_symbols[i:i+batch_size]
+            batch_data = original_data_list[i:i+batch_size]
+            
+            logger.info(f"Normalizing batch {i//batch_size + 1}/{(len(gene_symbols) + batch_size - 1)//batch_size} ({len(batch_symbols)} genes)")
+            
+            try:
+                batch_results = normalize_genes_batch(
+                    db=db,
+                    gene_texts=batch_symbols,
+                    source_name="PubTator",
+                    original_data_list=batch_data
+                )
+                normalization_results.update(batch_results)
+            except Exception as e:
+                logger.error(f"Error normalizing batch: {e}")
+                # Continue with next batch even if one fails
                 continue
-
+        
+        logger.info(f"Batch normalization complete. Processing {len(normalization_results)} results")
+        tracker.update(operation=f"Storing {len(normalization_results)} genes in database")
+        
+        # Process normalization results and store in database
+        processed_count = 0
+        for symbol, data in filtered_genes.items():
+            processed_count += 1
+            pmid_list = list(data["pmids"])
+            
+            # Update progress every 10 genes
+            if processed_count % 10 == 0 or processed_count == 1:
+                logger.info(f"Storing gene {processed_count}/{len(filtered_genes)}: {symbol}")
+                tracker.update(
+                    current_item=processed_count,
+                    operation=f"Storing gene {symbol} ({processed_count}/{len(filtered_genes)})"
+                )
+            
             stats["genes_processed"] += 1
-
-            # Use central normalization system
-            from app.core.gene_normalization import normalize_gene_for_database
             
-            normalization_result = normalize_gene_for_database(
-                db=db,
-                gene_text=symbol,
-                source_name="PubTator",
-                original_data={
-                    "pmids": pmid_list[:10],  # Sample of PMIDs for context
-                    "publication_count": len(pmid_list),
-                    "total_mentions": data["mentions"]
-                }
-            )
+            # Get normalization result for this gene
+            normalization_result = normalization_results.get(symbol, {})
             
-            if normalization_result["status"] == "normalized":
+            if not normalization_result:
+                logger.warning(f"No normalization result for gene '{symbol}'")
+                stats["errors"] += 1
+                continue
+                
+            if normalization_result.get("status") == "normalized":
                 # Gene successfully normalized - get or create
+                # Check by both symbol and HGNC ID to avoid duplicates
                 gene = gene_crud.get_by_symbol(db, normalization_result["approved_symbol"])
+                if not gene and normalization_result.get("hgnc_id"):
+                    gene = gene_crud.get_by_hgnc_id(db, normalization_result["hgnc_id"])
+                    
                 if not gene:
                     # Create new gene with proper HGNC data
                     try:
                         gene_create = GeneCreate(
                             approved_symbol=normalization_result["approved_symbol"],
                             hgnc_id=normalization_result["hgnc_id"],
-                            aliases=normalization_result["aliases"],
+                            aliases=normalization_result.get("aliases", []),
                         )
                         gene = gene_crud.create(db, gene_create)
                         stats["genes_created"] += 1
-                        logger.info(f"Created normalized gene: {normalization_result['approved_symbol']} ({normalization_result['hgnc_id']})")
+                        tracker.update(items_added=1)
+                        logger.debug(f"Created normalized gene: {normalization_result['approved_symbol']} ({normalization_result['hgnc_id']})")
                     except Exception as e:
                         logger.error(f"Error creating normalized gene {normalization_result['approved_symbol']}: {e}")
                         stats["errors"] += 1
+                        tracker.update(items_failed=1)
                         continue
                         
-            elif normalization_result["status"] == "requires_manual_review":
+            elif normalization_result.get("status") == "requires_manual_review":
                 # Gene sent to staging for manual review - skip for now
-                logger.info(f"Gene '{symbol}' sent to staging (ID: {normalization_result['staging_id']}) for manual review")
+                logger.info(f"Gene '{symbol}' sent to staging (ID: {normalization_result.get('staging_id')}) for manual review")
                 continue
                 
             else:
@@ -351,6 +441,8 @@ def update_pubtator_data(db: Session) -> dict[str, Any]:
                     existing.evidence_data = evidence_data
                     existing.evidence_date = date.today()
                     db.add(existing)
+                    stats["evidence_updated"] += 1
+                    tracker.update(items_updated=1)
                 else:
                     # Create new evidence
                     evidence = GeneEvidence(
@@ -362,15 +454,24 @@ def update_pubtator_data(db: Session) -> dict[str, Any]:
                     )
                     db.add(evidence)
                     stats["evidence_created"] += 1
+                    tracker.update(items_added=1)
 
                 db.commit()
-                logger.debug(f"Saved PubTator evidence for gene: {symbol}")
 
             except Exception as e:
                 logger.error(f"Error saving PubTator evidence for gene {symbol}: {e}")
                 db.rollback()
                 stats["errors"] += 1
+                tracker.update(items_failed=1)
 
+        # Complete tracking
+        tracker.complete(f"Processed {stats['genes_processed']} genes successfully")
+        
+    except Exception as e:
+        logger.error(f"PubTator update failed: {e}")
+        tracker.error(str(e))
+        stats["errors"] += 1
+        
     finally:
         client.close()
 
@@ -380,8 +481,11 @@ def update_pubtator_data(db: Session) -> dict[str, Any]:
     ).total_seconds()
 
     logger.info(
-        f"PubTator update complete: {stats['genes_processed']} genes, "
-        f"{stats['genes_created']} created, {stats['evidence_created']} evidence records"
+        f"PubTator update complete: {stats['genes_processed']} genes processed, "
+        f"{stats['genes_created']} new genes created, "
+        f"{stats['evidence_created']} new evidence records, "
+        f"{stats['evidence_updated']} updated evidence records, "
+        f"Duration: {stats.get('duration', 0):.1f}s"
     )
 
     return stats

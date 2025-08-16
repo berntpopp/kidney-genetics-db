@@ -3,25 +3,56 @@ Kidney Genetics Database API
 Main FastAPI application
 """
 
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from app.api.endpoints import datasources, genes, gene_staging
+from app.api.endpoints import datasources, genes, gene_staging, progress
 from app.core.config import settings
 from app.core.database import engine, get_db
+from app.core.background_tasks import task_manager
 from app.models import Base
+
+logger = logging.getLogger(__name__)
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifecycle - start/stop background tasks"""
+    # Startup
+    logger.info("Starting background task manager...")
+    
+    # Set up broadcast callback for WebSocket updates
+    from app.api.endpoints.progress import get_connection_manager
+    manager = get_connection_manager()
+    task_manager.set_broadcast_callback(manager.broadcast)
+    
+    # Start auto-updates for data sources
+    if settings.AUTO_UPDATE_ENABLED:
+        await task_manager.start_auto_updates()
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down background task manager...")
+    await task_manager.shutdown()
+
+
 # Create FastAPI app
 app = FastAPI(
     title=settings.APP_NAME,
-    description="API for kidney disease gene curation",
+    description="API for kidney disease gene curation with real-time progress tracking",
     version=settings.APP_VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -37,6 +68,7 @@ app.add_middleware(
 app.include_router(genes.router, prefix="/api/genes", tags=["genes"])
 app.include_router(datasources.router, prefix="/api/datasources", tags=["datasources"])
 app.include_router(gene_staging.router, prefix="/api/staging", tags=["gene-staging"])
+app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
 
 
 @app.get("/")
