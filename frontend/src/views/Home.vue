@@ -98,21 +98,16 @@ import { geneApi } from '../api/genes'
 
 const stats = ref([
   { title: 'Total Genes', value: 0, color: 'primary' },
-  { title: 'Data Sources', value: 5, color: 'secondary' },
+  { title: 'Data Sources', value: 3, color: 'secondary' },
   { title: 'Gene Panels', value: 19, color: 'info' },
   { title: 'Last Update', value: 'Today', color: 'success' }
 ])
 
 const dataSources = ref([
   {
-    name: 'PanelApp UK',
-    description: 'Gene panels from Genomics England',
+    name: 'PanelApp',
+    description: 'Expert-curated gene panels from UK Genomics England and Australian Genomics',
     status: 'active'
-  },
-  {
-    name: 'PanelApp Australia',
-    description: 'Gene panels from Australian Genomics',
-    status: 'pending'
   },
   {
     name: 'HPO',
@@ -122,11 +117,6 @@ const dataSources = ref([
   {
     name: 'PubTator',
     description: 'Automated literature mining',
-    status: 'pending'
-  },
-  {
-    name: 'Literature',
-    description: 'Manual curation from research papers',
     status: 'pending'
   }
 ])

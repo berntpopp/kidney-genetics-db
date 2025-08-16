@@ -170,8 +170,7 @@ const getSourceColor = source => {
     PanelApp: 'primary',
     HPO: 'secondary',
     PubTator: 'info',
-    Literature: 'success',
-    Diagnostic: 'warning'
+    Literature: 'success'
   }
   return colors[source] || 'grey'
 }
