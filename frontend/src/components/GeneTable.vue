@@ -132,14 +132,16 @@ const headers = [
 const pageCount = computed(() => Math.ceil(totalItems.value / itemsPerPage.value))
 
 // Methods
-const loadGenes = async () => {
+const loadGenes = async (sortBy = null, sortDesc = false) => {
   loading.value = true
   try {
     const response = await geneApi.getGenes({
       page: page.value,
       perPage: itemsPerPage.value,
       search: search.value,
-      minScore: minScore.value
+      minScore: minScore.value,
+      sortBy: sortBy,
+      sortDesc: sortDesc
     })
     genes.value = response.items
     totalItems.value = response.total
@@ -153,7 +155,14 @@ const loadGenes = async () => {
 const updateOptions = options => {
   page.value = options.page
   itemsPerPage.value = options.itemsPerPage
-  loadGenes()
+  // Handle sorting
+  if (options.sortBy && options.sortBy.length > 0) {
+    const sortField = options.sortBy[0].key
+    const sortOrder = options.sortBy[0].order === 'desc'
+    loadGenes(sortField, sortOrder)
+  } else {
+    loadGenes()
+  }
 }
 
 let searchTimeout
