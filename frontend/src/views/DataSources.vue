@@ -15,45 +15,30 @@
           </v-card-title>
           <v-card-text>
             <v-list>
-              <v-list-item
-                v-for="source in dataSources"
-                :key="source.name"
-                class="mb-2"
-              >
-                <template v-slot:prepend>
+              <v-list-item v-for="source in dataSources" :key="source.name" class="mb-2">
+                <template #prepend>
                   <v-icon :color="getStatusColor(source.status)">
                     {{ getSourceIcon(source.type) }}
                   </v-icon>
                 </template>
-                
+
                 <v-list-item-title class="font-weight-bold">
                   {{ source.name }}
                 </v-list-item-title>
-                
+
                 <v-list-item-subtitle>
                   {{ source.description }}
-                  <v-chip
-                    v-if="source.url"
-                    size="x-small"
-                    class="ml-2"
-                    variant="outlined"
-                  >
+                  <v-chip v-if="source.url" size="x-small" class="ml-2" variant="outlined">
                     {{ source.url }}
                   </v-chip>
                 </v-list-item-subtitle>
 
-                <template v-slot:append>
+                <template #append>
                   <div class="text-right">
-                    <v-chip
-                      :color="getStatusColor(source.status)"
-                      size="small"
-                      class="mr-2"
-                    >
+                    <v-chip :color="getStatusColor(source.status)" size="small" class="mr-2">
                       {{ source.status }}
                     </v-chip>
-                    <div class="text-caption mt-1">
-                      Last update: {{ source.lastUpdate }}
-                    </div>
+                    <div class="text-caption mt-1">Last update: {{ source.lastUpdate }}</div>
                     <div class="text-caption">
                       {{ source.stats.panels || source.stats.companies || 0 }} sources,
                       {{ source.stats.genes }} genes
@@ -75,12 +60,7 @@
             Update Pipeline
           </v-card-title>
           <v-card-text>
-            <v-btn
-              color="primary"
-              @click="updateAllSources"
-              :loading="updating"
-              block
-            >
+            <v-btn color="primary" :loading="updating" block @click="updateAllSources">
               <v-icon left>mdi-refresh</v-icon>
               Update All Sources
             </v-btn>
@@ -92,8 +72,8 @@
               size="small"
               variant="outlined"
               class="mr-2 mb-2"
-              @click="updateSource(source)"
               :loading="updatingSource === source"
+              @click="updateSource(source)"
             >
               {{ source }}
             </v-btn>
@@ -111,25 +91,25 @@
             <v-list density="compact">
               <v-list-item>
                 <v-list-item-title>Total Genes</v-list-item-title>
-                <template v-slot:append>
+                <template #append>
                   <span class="font-weight-bold">{{ totalStats.genes }}</span>
                 </template>
               </v-list-item>
               <v-list-item>
                 <v-list-item-title>Evidence Records</v-list-item-title>
-                <template v-slot:append>
+                <template #append>
                   <span class="font-weight-bold">{{ totalStats.evidence }}</span>
                 </template>
               </v-list-item>
               <v-list-item>
                 <v-list-item-title>Active Sources</v-list-item-title>
-                <template v-slot:append>
+                <template #append>
                   <span class="font-weight-bold">{{ totalStats.sources }}</span>
                 </template>
               </v-list-item>
               <v-list-item>
                 <v-list-item-title>Last Pipeline Run</v-list-item-title>
-                <template v-slot:append>
+                <template #append>
                   <span class="text-caption">{{ lastPipelineRun }}</span>
                 </template>
               </v-list-item>
@@ -183,7 +163,7 @@ const totalStats = computed(() => {
   const activeSourceCount = dataSources.value.filter(s => s.status !== 'Inactive').length
   const totalGenes = dataSources.value.reduce((sum, s) => sum + s.stats.genes, 0)
   const totalEvidence = dataSources.value.reduce((sum, s) => sum + s.stats.genes, 0) // Simplified
-  
+
   return {
     genes: totalGenes,
     evidence: totalEvidence,
@@ -191,21 +171,29 @@ const totalStats = computed(() => {
   }
 })
 
-const getStatusColor = (status) => {
+const getStatusColor = status => {
   switch (status) {
-    case 'Active': return 'success'
-    case 'Partial': return 'warning'
-    case 'Inactive': return 'error'
-    default: return 'grey'
+    case 'Active':
+      return 'success'
+    case 'Partial':
+      return 'warning'
+    case 'Inactive':
+      return 'error'
+    default:
+      return 'grey'
   }
 }
 
-const getSourceIcon = (type) => {
+const getSourceIcon = type => {
   switch (type) {
-    case 'API': return 'mdi-api'
-    case 'Manual': return 'mdi-file-document'
-    case 'API/Files': return 'mdi-file-sync'
-    default: return 'mdi-database'
+    case 'API':
+      return 'mdi-api'
+    case 'Manual':
+      return 'mdi-file-document'
+    case 'API/Files':
+      return 'mdi-file-sync'
+    default:
+      return 'mdi-database'
   }
 }
 
@@ -220,7 +208,7 @@ const updateAllSources = async () => {
   }
 }
 
-const updateSource = async (source) => {
+const updateSource = async source => {
   updatingSource.value = source
   try {
     // In real implementation, would call API to trigger specific source update

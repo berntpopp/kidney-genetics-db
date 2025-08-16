@@ -63,7 +63,7 @@ class CRUDGene:
                 order_col = GeneCuration.evidence_score
             else:
                 order_col = Gene.approved_symbol
-            
+
             if sort_desc:
                 query = query.order_by(order_col.desc().nullslast())
             else:

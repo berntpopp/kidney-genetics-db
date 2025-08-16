@@ -230,10 +230,10 @@ def update_pubtator_data(db: Session) -> dict[str, Any]:
 
     try:
         # Use single comprehensive query like kidney-genetics-v1
-        logger.info(f"Searching PubTator with comprehensive kidney disease query")
+        logger.info("Searching PubTator with comprehensive kidney disease query")
         all_gene_data = client.get_annotations_by_search(client.kidney_query, max_pages=10)
         stats["queries_processed"] = 1
-        
+
         logger.info(f"Found {len(all_gene_data)} unique genes from PubTator search")
 
         # Store in database (only genes with at least 3 publications, like kidney-genetics-v1)

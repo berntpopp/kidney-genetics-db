@@ -54,7 +54,7 @@
       class="elevation-1"
       @update:options="updateOptions"
     >
-      <template #item.approved_symbol="{ item }">
+      <template #[`item.approved_symbol`]="{ item }">
         <router-link
           :to="`/genes/${item.approved_symbol}`"
           class="text-decoration-none font-weight-medium"
@@ -63,7 +63,7 @@
         </router-link>
       </template>
 
-      <template #item.sources="{ item }">
+      <template #[`item.sources`]="{ item }">
         <v-chip
           v-for="source in item.sources"
           :key="source"
@@ -75,7 +75,7 @@
         </v-chip>
       </template>
 
-      <template #item.evidence_score="{ item }">
+      <template #[`item.evidence_score`]="{ item }">
         <v-chip
           v-if="item.evidence_score"
           :color="getScoreColor(item.evidence_score)"
@@ -86,7 +86,7 @@
         <span v-else class="text-grey">-</span>
       </template>
 
-      <template #item.actions="{ item }">
+      <template #[`item.actions`]="{ item }">
         <v-btn icon="mdi-eye" size="small" variant="text" :to="`/genes/${item.approved_symbol}`" />
       </template>
 

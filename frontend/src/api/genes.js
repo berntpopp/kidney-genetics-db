@@ -7,13 +7,13 @@ import apiClient from './client'
 export const geneApi = {
   // Get paginated list of genes
   async getGenes(params = {}) {
-    const { 
-      page = 1, 
-      perPage = 25, 
-      search = '', 
+    const {
+      page = 1,
+      perPage = 25,
+      search = '',
       minScore = null,
       sortBy = null,
-      sortDesc = false 
+      sortDesc = false
     } = params
     const skip = (page - 1) * perPage
 
