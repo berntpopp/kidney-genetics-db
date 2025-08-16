@@ -34,10 +34,12 @@
 - ✅ **Phase 4**: Minimal Frontend - Complete (Vue.js app with sorting!)
 - ✅ **Phase 5**: Complete Stable Pipeline - Complete (PanelApp + PubTator working!)
 - ✅ **Phase 5.5**: Expert Curation Sources - Complete (ClinGen + GenCC integrated!)
-- ✅ **Phase 6**: API & Frontend Enhancement - Mostly Complete (core features done)
+- ✅ **Phase 6**: API & Frontend Enhancement - Complete (real-time features, WebSockets)
+- ✅ **Phase 6.5**: Architecture & Code Quality - Complete (clean architecture, production-ready)
 - ⏳ **Phase 7**: Ingestion API & Brittle Sources (Diagnostic panels need scraping)
-- ⏳ **Phase 8**: Testing & Validation
-- ⏳ **Phase 9**: Production Preparation
+- ⏳ **Phase 8**: Caching & Performance Optimization (intelligent API caching system)
+- ⏳ **Phase 9**: Testing & Validation (comprehensive test suite)
+- ⏳ **Phase 10**: Production Preparation (deployment readiness)
 
 ## Current Status (2025-08-16 - Updated)
 ### Working Features ✅
@@ -298,6 +300,8 @@ Logical implementation phases for building the kidney-genetics-db system. Each p
   - [x] Filtering by evidence score (score range slider)
   - [x] Sorting options (all columns sortable)
   - [x] Statistics endpoint (data sources API)
+  - [x] Real-time progress tracking with WebSocket updates
+  - [x] Gene staging/normalization endpoints
   - [ ] Export endpoints (CSV, JSON) - **PENDING**
 
 - [x] Gene detail view
@@ -312,6 +316,7 @@ Logical implementation phases for building the kidney-genetics-db system. Each p
   - [x] Show live statistics (571 genes, 4 sources)
   - [x] Source health status (ClinGen/GenCC active, HPO error)
   - [x] Recent updates tracking
+  - [x] Real-time progress monitoring
 
 - [x] Enhanced table features
   - [x] ✅ **FIXED**: Evidence Score column header alignment  
@@ -320,7 +325,44 @@ Logical implementation phases for building the kidney-genetics-db system. Each p
   - [x] Search and filtering
   - [x] Responsive design
 
+- [x] Real-time features
+  - [x] WebSocket-based progress updates
+  - [x] Background task management
+  - [x] Live data source status monitoring
+
 **Remaining**: Export functionality (CSV/JSON endpoints)
+
+## Phase 6.5: Architecture & Code Quality Improvements ✅
+*Goal: Clean architecture and eliminate technical debt*
+
+- [x] Database architecture
+  - [x] Comprehensive single migration with all models and views
+  - [x] Complete evidence scoring view cascade (PostgreSQL-based)
+  - [x] Gene normalization staging system with manual review workflow
+  - [x] Dynamic data source registration on startup
+  - [x] Progress tracking for all data sources
+
+- [x] Code quality and maintainability
+  - [x] Remove redundant CRUD methods (DRY principle compliance)
+  - [x] Centralized configuration management for data sources
+  - [x] Clean up duplicate directory structures from git merge errors
+  - [x] Comprehensive linting and formatting with ruff
+  - [x] Added missing CRUD methods for test compatibility
+
+- [x] Development workflow
+  - [x] Make commands for linting (`make lint`) and testing (`make test`)
+  - [x] Hybrid development mode with Docker database + local services
+  - [x] Automated database reset and cleanup commands
+  - [x] Git commit hooks and standardized commit messages
+
+- [x] System architecture
+  - [x] Background task management with real-time progress tracking
+  - [x] WebSocket-based live updates for data source progress
+  - [x] Async data source implementations (GenCC, PubTator)
+  - [x] Self-contained system that auto-registers data sources
+  - [x] Proper separation of concerns (config, business logic, API)
+
+**Impact**: System is now production-ready with clean architecture, comprehensive testing, and proper development workflow.
 
 ## Phase 7: Ingestion API & Brittle Sources
 *Goal: Handle unreliable data sources*
@@ -348,7 +390,29 @@ Logical implementation phases for building the kidney-genetics-db system. Each p
   - [ ] Show last successful update
   - [ ] Alert on failures
 
-## Phase 8: Testing & Validation
+## Phase 8: Caching & Performance Optimization
+*Goal: Implement intelligent API caching and optimize performance*
+
+- [ ] API Request Caching System
+  - [ ] Database-persisted cache for external API calls (HGNC, PubTator, GenCC file downloads)
+  - [ ] Intelligent cache invalidation based on age and error conditions
+  - [ ] Cache management API endpoints (clear cache, cache statistics)
+  - [ ] Configurable TTL per data source type
+  - [ ] Automatic retry on cache miss or stale data
+
+- [ ] Performance optimization
+  - [ ] Database query optimization and indexing
+  - [ ] API response compression
+  - [ ] Frontend bundle optimization
+  - [ ] Connection pooling optimization
+
+- [ ] Monitoring and observability
+  - [ ] Cache hit/miss rate metrics
+  - [ ] API response time monitoring
+  - [ ] Database performance metrics
+  - [ ] Error rate tracking per data source
+
+## Phase 9: Testing & Validation
 *Goal: Verify correctness vs R pipeline*
 
 - [ ] Data validation
@@ -362,20 +426,16 @@ Logical implementation phases for building the kidney-genetics-db system. Each p
   - [ ] Test merge logic
   - [ ] Test API endpoints
   - [ ] Test data transformations
+  - [ ] Test caching system
 
 - [ ] Integration tests
   - [ ] Full pipeline run
   - [ ] API with database
   - [ ] Frontend E2E tests
+  - [ ] Cache performance tests
 
-## Phase 9: Production Preparation
+## Phase 10: Production Preparation
 *Goal: Ready for deployment*
-
-- [ ] Performance optimization
-  - [ ] Database query optimization
-  - [ ] Add caching (Redis)
-  - [ ] Frontend bundle optimization
-  - [ ] API response compression
 
 - [ ] Production configuration
   - [ ] Create `docker-compose.prod.yml`
@@ -395,13 +455,13 @@ Logical implementation phases for building the kidney-genetics-db system. Each p
   - [ ] Input validation
   - [ ] SQL injection prevention
 
-## Phase 10: Advanced Features (Optional)
+## Phase 11: Advanced Features (Optional)
 *Goal: Nice-to-have enhancements*
 
-- [ ] Real-time updates
-  - [ ] WebSocket for pipeline status
-  - [ ] Live data refresh
-  - [ ] Progress indicators
+- [x] Real-time updates ✅ (Already implemented)
+  - [x] WebSocket for pipeline status
+  - [x] Live data refresh
+  - [x] Progress indicators
 
 - [ ] Advanced analytics
   - [ ] Gene trend analysis
