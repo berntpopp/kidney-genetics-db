@@ -27,51 +27,63 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-### Docker Development Environment (Planned)
+**IMPORTANT: Always use make commands for development. Do not run services directly.**
+
+### Quick Start - Hybrid Mode (Recommended)
 ```bash
-# Start all services
-docker-compose up -d
+# Start database in Docker, API/Frontend locally
+make hybrid-up
 
-# Run database migrations
-docker-compose exec api alembic upgrade head
+# Then in separate terminals:
+make backend   # Start backend API
+make frontend  # Start frontend dev server
 
-# Run data pipeline
-docker-compose exec api python -m pipeline.run_update
+# Stop everything
+make hybrid-down
+```
+
+### Full Docker Development
+```bash
+# Start all services in Docker
+make dev-up
+
+# View logs
+make dev-logs
 
 # Stop services
-docker-compose down
+make dev-down
 ```
 
-### Backend Development (Planned)
+### Database Management
 ```bash
-# Install dependencies
-pip install -r backend/requirements.txt
+# Complete reset (structure + data)
+make db-reset
 
-# Run FastAPI development server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-# Run tests
-pytest backend/tests/
-
-# Database migrations
-alembic revision --autogenerate -m "Description"
-alembic upgrade head
+# Clean data only (keep structure)
+make db-clean
 ```
 
-### Frontend Development (Planned)
+### Monitoring & Maintenance
 ```bash
-# Install dependencies
-cd frontend && npm install
+# Show system status
+make status
 
-# Run development server with HMR
-npm run dev
-
-# Build for production
-npm run build
-
-# Run tests
-npm run test
+# Complete cleanup
+make clean-all
 ```
+
+### Available Make Commands
+```bash
+make help  # Show all available commands
+```
+
+**Key Commands:**
+- `make hybrid-up` / `make hybrid-down` - Hybrid development mode
+- `make backend` / `make frontend` - Start services locally
+- `make dev-up` / `make dev-down` - Full Docker mode
+- `make db-reset` - Reset database completely
+- `make status` - Check system status
+
 
 ## High-Level Architecture
 

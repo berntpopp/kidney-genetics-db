@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     AUTO_UPDATE_ENABLED: bool = True
     
     # PubTator Configuration
-    PUBTATOR_MAX_PAGES: int = 20  # Maximum pages to fetch per run
+    PUBTATOR_MAX_PAGES: int = 100  # Maximum pages to fetch per run
     PUBTATOR_USE_CACHE: bool = True  # Enable caching of PubTator results
     PUBTATOR_MIN_PUBLICATIONS: int = 3  # Minimum publications for gene inclusion
     PUBTATOR_SEARCH_QUERY: str = '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)'

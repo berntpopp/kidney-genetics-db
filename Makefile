@@ -1,43 +1,138 @@
 # Kidney Genetics Database - Development Makefile
 # Usage: make [command]
 
-.PHONY: help clean-db reset-db restart-backend restart-frontend restart-all stop-all test-pubtator status clean-cache
+.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend
+
+# Detect docker compose command (v2 vs v1)
+DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
 
 # Default target - show help
 help:
-	@echo "Available commands:"
-	@echo "  make clean-db        - Remove all data from database tables"
-	@echo "  make reset-db        - Clean database and reset progress tracking"
-	@echo "  make restart-backend - Stop and restart the backend server"
-	@echo "  make restart-frontend- Stop and restart the frontend dev server"
-	@echo "  make restart-all     - Restart both backend and frontend"
-	@echo "  make stop-all        - Stop all running services"
-	@echo "  make test-pubtator   - Run PubTator with test configuration (20 pages)"
-	@echo "  make status          - Show status of all services and data sources"
-	@echo "  make clean-cache     - Clear all caches (PubTator, HGNC)"
-	@echo "  make fresh-start     - Complete fresh start (clean DB + restart all)"
+	@echo "╔════════════════════════════════════════════════════════════════╗"
+	@echo "║         Kidney Genetics Database - Development Commands         ║"
+	@echo "╚════════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "🚀 HYBRID DEVELOPMENT (Recommended):"
+	@echo "  make hybrid-up       - Start DB in Docker + run API/Frontend locally"
+	@echo "  make hybrid-down     - Stop all hybrid mode services"
+	@echo ""
+	@echo "🐳 FULL DOCKER DEVELOPMENT:"
+	@echo "  make dev-up          - Start all services in Docker"
+	@echo "  make dev-down        - Stop all Docker services"
+	@echo "  make dev-logs        - Show Docker logs (follow mode)"
+	@echo ""
+	@echo "🔧 SERVICE MANAGEMENT:"
+	@echo "  make services-up     - Start only DB/Redis in Docker"
+	@echo "  make services-down   - Stop Docker services"
+	@echo "  make backend         - Run backend API locally"
+	@echo "  make frontend        - Run frontend locally"
+	@echo ""
+	@echo "🗄️  DATABASE MANAGEMENT:"
+	@echo "  make db-reset        - Complete database reset (structure + data)"
+	@echo "  make db-clean        - Remove all data (keep structure)"
+	@echo ""
+	@echo "📊 MONITORING:"
+	@echo "  make status          - Show system status and statistics"
+	@echo ""
+	@echo "🧹 CLEANUP:"
+	@echo "  make clean-all       - Stop everything and clean data"
 
-# Clean all data from database
-clean-db:
-	@echo "Cleaning database..."
-	@cd backend && uv run python -c "\
-from sqlalchemy import create_engine, text; \
-from app.core.config import settings; \
-engine = create_engine(settings.DATABASE_URL); \
-with engine.connect() as conn: \
-    tables = ['gene_evidence', 'gene_curations', 'genes', 'data_source_progress']; \
-    for table in tables: \
-        try: \
-            result = conn.execute(text(f'DELETE FROM {table}')); \
-            print(f'  Deleted {result.rowcount} rows from {table}'); \
-        except Exception as e: \
-            print(f'  Error cleaning {table}: {e}'); \
-    conn.commit(); \
-    print('Database cleaned successfully!');"
+# ════════════════════════════════════════════════════════════════════
+# HYBRID DEVELOPMENT MODE (DB in Docker, API/Frontend local)
+# ════════════════════════════════════════════════════════════════════
 
-# Reset database and progress tracking
-reset-db: clean-db
-	@echo "Resetting progress tracking..."
+# Start hybrid development environment
+hybrid-up: services-up
+	@echo "✅ Database is running in Docker"
+	@echo ""
+	@echo "📝 Now run in separate terminals:"
+	@echo "   Terminal 1: make backend"
+	@echo "   Terminal 2: make frontend"
+	@echo ""
+	@echo "🌐 Access points:"
+	@echo "   Frontend: http://localhost:5173"
+	@echo "   Backend:  http://localhost:8000/docs"
+	@echo "   Database: localhost:5432"
+
+# Stop hybrid development environment
+hybrid-down:
+	@echo "Stopping hybrid development environment..."
+	@-pkill -f "uvicorn app.main:app" 2>/dev/null || true
+	@-pkill -f "vite.*5173" 2>/dev/null || true
+	@$(MAKE) services-down
+	@echo "✅ Hybrid environment stopped"
+
+# ════════════════════════════════════════════════════════════════════
+# FULL DOCKER DEVELOPMENT MODE
+# ════════════════════════════════════════════════════════════════════
+
+# Start all services in Docker
+dev-up:
+	@echo "Starting full Docker development environment..."
+	@$(DOCKER_COMPOSE) up -d
+	@echo "⏳ Waiting for services to be ready..."
+	@sleep 5
+	@echo "✅ All services started in Docker"
+	@echo ""
+	@echo "🌐 Access points:"
+	@echo "   Frontend: http://localhost:3000"
+	@echo "   Backend:  http://localhost:8000/docs"
+	@echo "   Database: localhost:5432"
+
+# Stop all Docker services
+dev-down:
+	@echo "Stopping Docker development environment..."
+	@$(DOCKER_COMPOSE) down
+	@echo "✅ Docker environment stopped"
+
+# Show Docker logs
+dev-logs:
+	@$(DOCKER_COMPOSE) logs -f
+
+# ════════════════════════════════════════════════════════════════════
+# SERVICE MANAGEMENT
+# ════════════════════════════════════════════════════════════════════
+
+# Start database and Redis in Docker
+services-up:
+	@echo "Starting database services in Docker..."
+	@$(DOCKER_COMPOSE) -f docker-compose.services.yml up -d
+	@echo "⏳ Waiting for database to be ready..."
+	@sleep 3
+	@docker exec kidney_genetics_postgres pg_isready -U kidney_user -d kidney_genetics >/dev/null 2>&1 && \
+		echo "✅ PostgreSQL is ready" || echo "⚠️  PostgreSQL is starting..."
+	@echo ""
+	@echo "📍 Services:"
+	@echo "   PostgreSQL: localhost:5432"
+
+# Stop Docker services
+services-down:
+	@echo "Stopping Docker services..."
+	@$(DOCKER_COMPOSE) -f docker-compose.services.yml down
+	@echo "✅ Docker services stopped"
+
+# Run backend locally
+backend:
+	@echo "Starting backend API..."
+	@cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Run frontend locally
+frontend:
+	@echo "Starting frontend..."
+	@cd frontend && npm run dev
+
+# ════════════════════════════════════════════════════════════════════
+# DATABASE MANAGEMENT
+# ════════════════════════════════════════════════════════════════════
+
+# Complete database reset (drop and recreate)
+db-reset: services-up
+	@echo "🔄 Resetting database completely..."
+	@docker exec kidney_genetics_postgres psql -U kidney_user -d postgres -c "DROP DATABASE IF EXISTS kidney_genetics;" 2>/dev/null || true
+	@docker exec kidney_genetics_postgres psql -U kidney_user -d postgres -c "CREATE DATABASE kidney_genetics;"
+	@echo "📦 Running migrations..."
+	@cd backend && uv run alembic upgrade head
+	@echo "🎯 Initializing progress tracking..."
 	@cd backend && uv run python -c "\
 from sqlalchemy import create_engine, text; \
 from app.core.config import settings; \
@@ -52,106 +147,76 @@ with engine.connect() as conn: \
             ON CONFLICT (source_name) \
             DO UPDATE SET status = 'idle', progress_percentage = 0, current_operation = 'Ready to start', updated_at = :now \
         '''), {'source': source, 'now': datetime.now(timezone.utc)}); \
-    conn.commit(); \
-    print('Progress tracking reset successfully!');"
+    conn.commit();"
+	@echo "✅ Database reset complete!"
 
-# Stop backend server
-stop-backend:
-	@echo "Stopping backend server..."
-	@pkill -f "uvicorn app.main:app" || true
-	@sleep 1
-
-# Stop frontend server
-stop-frontend:
-	@echo "Stopping frontend server..."
-	@pkill -f "vite.*5173" || true
-	@sleep 1
-
-# Stop all services
-stop-all: stop-backend stop-frontend
-	@echo "All services stopped"
-
-# Start backend server
-start-backend:
-	@echo "Starting backend server..."
-	@cd backend && nohup uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 > ../logs/backend.log 2>&1 &
-	@sleep 3
-	@echo "Backend server started on http://localhost:8000"
-
-# Start frontend server
-start-frontend:
-	@echo "Starting frontend server..."
-	@cd frontend && nohup npm run dev > ../logs/frontend.log 2>&1 &
-	@sleep 3
-	@echo "Frontend server started on http://localhost:5173"
-
-# Restart backend
-restart-backend: stop-backend start-backend
-	@echo "Backend restarted successfully"
-
-# Restart frontend
-restart-frontend: stop-frontend start-frontend
-	@echo "Frontend restarted successfully"
-
-# Restart all services
-restart-all: stop-all
-	@$(MAKE) start-backend
-	@$(MAKE) start-frontend
-	@echo "All services restarted successfully"
-
-# Complete fresh start
-fresh-start: stop-all reset-db clean-cache
-	@echo "Starting fresh environment..."
-	@$(MAKE) start-backend
-	@$(MAKE) start-frontend
-	@echo "Fresh environment ready!"
-	@echo "  Backend: http://localhost:8000/docs"
-	@echo "  Frontend: http://localhost:5173"
-
-# Test PubTator with limited pages
-test-pubtator:
-	@echo "Triggering PubTator test run (20 pages)..."
-	@curl -X POST "http://localhost:8000/api/progress/trigger/PubTator" \
-		-H "Content-Type: application/json" \
-		-s | python3 -m json.tool || echo "Failed to trigger PubTator"
-
-# Show status of all data sources
-status:
-	@echo "Data Source Status:"
-	@echo "==================="
-	@curl -s http://localhost:8000/api/progress/status | python3 scripts/show_status.py || echo "Backend not responding"
-	@echo ""
-	@echo "Database Statistics:"
-	@echo "==================="
+# Clean all data from database (keep structure)
+db-clean:
+	@echo "🧹 Cleaning database data..."
 	@cd backend && uv run python -c "\
 from sqlalchemy import create_engine, text; \
 from app.core.config import settings; \
 engine = create_engine(settings.DATABASE_URL); \
 with engine.connect() as conn: \
-    genes = conn.execute(text('SELECT COUNT(*) FROM genes')).scalar(); \
-    evidence = conn.execute(text('SELECT COUNT(*) FROM gene_evidence')).scalar(); \
-    curations = conn.execute(text('SELECT COUNT(*) FROM gene_curations')).scalar(); \
-    print(f'  Genes: {genes}'); \
-    print(f'  Evidence Records: {evidence}'); \
-    print(f'  Curations: {curations}');" \
-	|| echo "Could not fetch database statistics"
+    tables = ['gene_evidence', 'gene_curations', 'genes', 'data_source_progress']; \
+    for table in tables: \
+        try: \
+            result = conn.execute(text(f'DELETE FROM {table}')); \
+            conn.commit(); \
+            print(f'  ✓ Cleaned {result.rowcount} rows from {table}'); \
+        except Exception as e: \
+            print(f'  ✗ Error cleaning {table}: {e}');"
+	@echo "✅ Database cleaned!"
 
-# Clear all caches
-clean-cache:
-	@echo "Clearing caches..."
-	@rm -rf backend/.cache/pubtator/* 2>/dev/null || true
-	@rm -rf backend/.cache/hgnc/* 2>/dev/null || true
-	@echo "Caches cleared"
+# ════════════════════════════════════════════════════════════════════
+# MONITORING
+# ════════════════════════════════════════════════════════════════════
+
+# Show system status
+status:
+	@echo "╔════════════════════════════════════════════════════════════════╗"
+	@echo "║                      SYSTEM STATUS                              ║"
+	@echo "╚════════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "🐳 Docker Services:"
+	@-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep kidney || echo "  No services running"
+	@echo ""
+	@echo "🔄 Local Processes:"
+	@-ps aux | grep -E "uvicorn app.main:app" | grep -v grep >/dev/null 2>&1 && echo "  ✓ Backend API running" || echo "  ✗ Backend API not running"
+	@-ps aux | grep -E "vite" | grep -v grep >/dev/null 2>&1 && echo "  ✓ Frontend running" || echo "  ✗ Frontend not running"
+	@echo ""
+	@echo "📊 Database Statistics:"
+	@-cd backend && uv run python -c "\
+from sqlalchemy import create_engine, text; \
+from app.core.config import settings; \
+try: \
+    engine = create_engine(settings.DATABASE_URL); \
+    with engine.connect() as conn: \
+        genes = conn.execute(text('SELECT COUNT(*) FROM genes')).scalar(); \
+        evidence = conn.execute(text('SELECT COUNT(*) FROM gene_evidence')).scalar(); \
+        curations = conn.execute(text('SELECT COUNT(*) FROM gene_curations')).scalar(); \
+        print(f'  Genes:     {genes:,}'); \
+        print(f'  Evidence:  {evidence:,}'); \
+        print(f'  Curations: {curations:,}'); \
+except Exception as e: \
+    print('  Database not accessible');" 2>/dev/null || echo "  Database not accessible"
+	@echo ""
+	@echo "📡 Data Source Status:"
+	@-curl -s http://localhost:8000/api/progress/status 2>/dev/null | python3 -c "import sys, json; data = json.loads(sys.stdin.read()) if sys.stdin.read() else []; [print(f\"  {'✓' if s['status'] == 'completed' else '○' if s['status'] == 'idle' else '⏳'} {s['source_name']}: {s['status']} ({s['progress_percentage']}%)\") for s in data]" 2>/dev/null || echo "  Backend API not accessible"
+
+# ════════════════════════════════════════════════════════════════════
+# CLEANUP
+# ════════════════════════════════════════════════════════════════════
+
+# Complete cleanup
+clean-all:
+	@echo "🧹 Performing complete cleanup..."
+	@$(MAKE) hybrid-down
+	@$(MAKE) dev-down
+	@docker volume rm kidney-genetics-db_postgres_data 2>/dev/null || true
+	@rm -rf backend/.cache 2>/dev/null || true
+	@rm -rf logs/*.log 2>/dev/null || true
+	@echo "✅ Cleanup complete!"
 
 # Create log directory if it doesn't exist
 $(shell mkdir -p logs)
-
-# Watch logs
-logs-backend:
-	@tail -f logs/backend.log
-
-logs-frontend:
-	@tail -f logs/frontend.log
-
-logs:
-	@tail -f logs/*.log

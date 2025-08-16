@@ -23,32 +23,26 @@ A comprehensive database of ~3,000 kidney disease-associated genes aggregated fr
 
 ## Quick Start
 
+### Option 1: Hybrid Development (Recommended)
 ```bash
-# 1. Start database
-docker-compose -f docker-compose.services.yml up -d
+# Start database in Docker, run API/Frontend locally
+make hybrid-up
 
-# 2. Install backend dependencies
-cd backend
-pip install uv
-uv pip install -e .
-
-# 3. Run migrations & import data
-uv run alembic upgrade head
-uv run python -m app.pipeline.run update --source panelapp
-
-# 4. Start backend
-uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-# 5. In new terminal, start frontend
-cd frontend
-npm install
-npm run dev
+# Then in separate terminals:
+cd backend && uv run uvicorn app.main:app --reload
+cd frontend && npm run dev
 ```
 
-**Access:**
-- Frontend: http://localhost:5173
+### Option 2: Full Docker Development
+```bash
+# Start all services in Docker containers
+make dev-up
+```
+
+**Access Points:**
+- Frontend: http://localhost:5173 (hybrid) or http://localhost:3000 (docker)
 - API Docs: http://localhost:8000/docs
-- Database: 318 kidney-related genes from PanelApp
+- Database: localhost:5432
 
 ## Requirements
 
@@ -65,6 +59,15 @@ npm run dev
 
 ## Development
 
+### Available Commands
+```bash
+make help           # Show all available commands
+make status         # Show system status and statistics
+make db-reset       # Complete database reset
+make clean-all      # Stop everything and clean data
+```
+
+### Code Quality
 ```bash
 # Backend linting
 cd backend && uv run ruff check . --fix

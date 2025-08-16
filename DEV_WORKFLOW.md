@@ -2,136 +2,225 @@
 
 ## Quick Start
 
-### Fresh Development Environment
+### Hybrid Development (Recommended)
 ```bash
-# Complete fresh start (clean DB + restart all services)
-make fresh-start
+# Start database in Docker, run API/Frontend locally
+make hybrid-up
+
+# Then in separate terminals:
+cd backend && uv run uvicorn app.main:app --reload
+cd frontend && npm run dev
 ```
 
-### Check Status
+### Full Docker Development
 ```bash
-# Show status of all services and data sources
-make status
+# Start all services in Docker
+make dev-up
+
+# View logs
+make dev-logs
 ```
 
 ## Available Make Commands
 
-### Database Management
-- `make clean-db` - Remove all data from database tables
-- `make reset-db` - Clean database and reset progress tracking
-- `make clean-cache` - Clear all caches (PubTator, HGNC)
+### 🚀 Development Modes
+- `make hybrid-up` - Start DB in Docker + instructions for local development
+- `make hybrid-down` - Stop all hybrid mode services
+- `make dev-up` - Start all services in Docker containers
+- `make dev-down` - Stop all Docker services
+- `make dev-logs` - Show Docker logs (follow mode)
 
-### Service Management
-- `make restart-backend` - Stop and restart the backend server
-- `make restart-frontend` - Stop and restart the frontend dev server
-- `make restart-all` - Restart both backend and frontend
-- `make stop-all` - Stop all running services
+### 🔧 Service Management
+- `make services-up` - Start only database in Docker
+- `make services-down` - Stop Docker services
 
-### Testing
-- `make test-pubtator` - Run PubTator with test configuration (20 pages)
-- `make status` - Show status of all services and data sources
+### 🗄️ Database Management
+- `make db-reset` - Complete database reset (drops & recreates with migrations)
+- `make db-clean` - Remove all data but keep structure
 
-### Complete Reset
-- `make fresh-start` - Complete fresh start (clean DB + restart all)
+### 📊 Monitoring
+- `make status` - Show comprehensive system status:
+  - Docker services status
+  - Local processes (backend/frontend)
+  - Database statistics
+  - Data source progress
+
+### 🧹 Cleanup
+- `make clean-all` - Stop everything and clean all data
+
+## Development Workflows
+
+### Starting Fresh Development
+```bash
+# Complete reset and start
+make db-reset
+make hybrid-up
+
+# Run in separate terminals
+cd backend && uv run uvicorn app.main:app --reload
+cd frontend && npm run dev
+```
+
+### Checking System Status
+```bash
+# See what's running and database state
+make status
+```
+
+### Switching Between Modes
+
+#### From Hybrid to Docker:
+```bash
+make hybrid-down
+make dev-up
+```
+
+#### From Docker to Hybrid:
+```bash
+make dev-down
+make hybrid-up
+# Then start local services
+```
+
+## Data Source Management
+
+### Trigger Data Sources
+```bash
+# Through the API (when backend is running)
+curl -X POST http://localhost:8000/api/progress/trigger/PanelApp
+curl -X POST http://localhost:8000/api/progress/trigger/PubTator
+```
+
+### Monitor Progress
+- Visit http://localhost:5173 for real-time progress in UI
+- Use `make status` for command-line view
 
 ## Configuration
+
+### Environment Variables
+Create `.env` file in backend directory:
+```env
+DATABASE_URL=postgresql://kidney_user:kidney_pass@localhost:5432/kidney_genetics
+SECRET_KEY=your-secret-key
+ENVIRONMENT=development
+```
 
 ### PubTator Settings
 Edit `backend/app/core/config.py`:
 ```python
 PUBTATOR_MAX_PAGES: int = 20  # Pages to fetch per run
-PUBTATOR_MIN_PUBLICATIONS: int = 3  # Min publications for gene inclusion
+PUBTATOR_MIN_PUBLICATIONS: int = 3  # Min publications for gene
 PUBTATOR_BATCH_SIZE: int = 100  # PMIDs per batch
 ```
 
-### Batch Normalization
-The system now uses batch HGNC normalization with 20-gene batches to reduce API calls:
-- Previously: 200+ individual API calls
-- Now: ~10 batch API calls for same data
-
-## Development Helper Script
-
-For more complex operations:
-```bash
-./scripts/dev-helper.sh [command]
-```
-
-Commands:
-- `check` - Check status of all services
-- `clean-restart` - Clean database and restart all services
-- `run-source [name]` - Trigger a specific data source
-- `monitor` - Monitor progress in real-time
-- `quick-test` - Set up minimal test environment
-
 ## Access Points
 
+- **Frontend**: http://localhost:5173 (hybrid) or http://localhost:3000 (docker)
 - **Backend API**: http://localhost:8000/docs
-- **Frontend**: http://localhost:5173
 - **Database**: PostgreSQL on localhost:5432
-
-## Monitoring Logs
-
-```bash
-# Watch backend logs
-make logs-backend
-
-# Watch frontend logs
-make logs-frontend
-
-# Watch all logs
-make logs
-```
+  - User: kidney_user
+  - Password: kidney_pass
+  - Database: kidney_genetics
 
 ## Troubleshooting
 
-### Server Not Responding
+### Port Already in Use
 ```bash
-make stop-all
-make start-backend
-make start-frontend
+# Find and kill process using port
+lsof -i :8000  # or :5173, :5432
+kill -9 <PID>
+
+# Or use make commands
+make hybrid-down
+make dev-down
 ```
 
-### Database Issues
+### Database Connection Issues
 ```bash
-make reset-db
+# Check if database is running
+docker ps | grep kidney_genetics_postgres
+
+# Reset database
+make db-reset
 ```
 
-### PubTator Stuck
+### Backend Won't Start
+```bash
+# Check dependencies
+cd backend
+uv pip install -e .
+
+# Check database is accessible
+docker exec kidney_genetics_postgres pg_isready
+```
+
+### Frontend Issues
+```bash
+# Reinstall dependencies
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
+npm run dev
+```
+
+## Testing
+
+### Backend Tests
 ```bash
 cd backend
-uv run python reset_pubtator.py
+uv run pytest
 ```
 
-## Testing Workflow
+### Frontend Tests
+```bash
+cd frontend
+npm run test
+```
 
-1. Start fresh environment:
-   ```bash
-   make fresh-start
-   ```
+### Linting
+```bash
+# Backend
+cd backend && uv run ruff check . --fix
 
-2. Trigger PubTator test:
-   ```bash
-   make test-pubtator
-   ```
+# Frontend
+cd frontend && npm run lint && npm run format
+```
 
-3. Monitor progress:
-   ```bash
-   make status
-   ```
+## Docker Management
 
-4. Check UI at http://localhost:5173
+### View Container Logs
+```bash
+# All services
+make dev-logs
 
-## Key Improvements Implemented
+# Specific service
+docker logs kidney_genetics_postgres -f
+docker logs kidney_genetics_api -f
+```
 
-✅ **Batch HGNC Normalization**: Processes genes in 20-gene batches instead of one-by-one
-✅ **Centralized Configuration**: All settings in `backend/app/core/config.py`
-✅ **Progress Tracking**: Real-time WebSocket updates for all data sources
-✅ **UI Organization**: Separated data sources from internal processes
-✅ **Development Tools**: Makefile and helper scripts for easy management
+### Shell Access
+```bash
+# Database shell
+docker exec -it kidney_genetics_postgres psql -U kidney_user -d kidney_genetics
+
+# Backend shell (if using Docker)
+docker exec -it kidney_genetics_api bash
+```
+
+### Clean Docker Resources
+```bash
+# Complete cleanup
+make clean-all
+
+# Manual cleanup
+docker-compose down -v  # Remove volumes too
+docker system prune -a  # Clean all unused resources
+```
 
 ## Notes
 
-- PubTator now processes 20 pages by default (configurable)
-- Batch normalization reduces API calls by ~95%
-- All data sources have real-time progress tracking
-- Database can be completely reset for testing
+- Hybrid mode is recommended for active development (faster hot-reload)
+- Docker mode is useful for testing production-like environment
+- Database persists data in Docker volume
+- Backend uses `uv` for Python package management
+- Frontend uses Vite for fast HMR (Hot Module Replacement)

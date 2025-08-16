@@ -98,41 +98,32 @@ kidney-genetics-db/
 
 ## Quick Start
 
-### Option 1: Full Docker (Simple)
+### Option 1: Hybrid Development (Recommended)
 ```bash
-# 1. Clone repository
-git clone <repo-url>
-cd kidney-genetics-db
+# Start database in Docker, run API/Frontend locally
+make hybrid-up
 
-# 2. Setup environment
-cp .env.example .env
-
-# 3. Start everything
-docker-compose up -d
-
-# 4. Access services
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:8000
-# Database: localhost:5432
+# Then in separate terminals:
+cd backend && uv run uvicorn app.main:app --reload
+cd frontend && npm run dev
 ```
 
-### Option 2: Hybrid Mode (Recommended for Development)
+### Option 2: Full Docker Development
 ```bash
-# 1. Start database only
-docker-compose -f docker-compose.services.yml up -d
-
-# 2. Run backend locally (Terminal 1)
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-
-# 3. Run frontend locally (Terminal 2)
-cd frontend
-npm install
-npm run dev
+# Start all services in Docker
+make dev-up
 ```
 
-See [Hybrid Development Guide](plan/HYBRID-DEVELOPMENT.md) for more options.
+### Key Commands
+```bash
+make help          # Show all available commands
+make status        # Show system status
+make db-reset      # Reset database completely
+make hybrid-down   # Stop hybrid environment
+make dev-down      # Stop Docker environment
+```
+
+See [Development Workflow](DEV_WORKFLOW.md) for detailed guide.
 
 ## Key Technologies
 
