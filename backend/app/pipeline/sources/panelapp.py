@@ -255,7 +255,7 @@ def update_panelapp_data(db: Session) -> dict[str, Any]:
             if not gene and data["hgnc_id"]:
                 # Try to find by HGNC ID first
                 gene = gene_crud.get_by_hgnc_id(db, data["hgnc_id"])
-                
+
             if not gene:
                 # Create new gene
                 try:

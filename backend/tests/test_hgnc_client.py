@@ -2,11 +2,10 @@
 Tests for HGNC client functionality.
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
 import requests
-from unittest.mock import Mock, patch, MagicMock
-from concurrent.futures import ThreadPoolExecutor
-import time
 
 from app.core.hgnc_client import HGNCClient
 
@@ -61,7 +60,7 @@ class TestHGNCClient:
                         "hgnc_id": "HGNC:8945"
                     },
                     {
-                        "symbol": "PKD2", 
+                        "symbol": "PKD2",
                         "hgnc_id": "HGNC:8946"
                     },
                     {
@@ -81,7 +80,7 @@ class TestHGNCClient:
             batch_size=100,
             max_workers=4
         )
-        
+
         assert client.timeout == 30
         assert client.max_retries == 3
         assert client.retry_delay == 1.0
@@ -99,7 +98,7 @@ class TestHGNCClient:
         mock_request.return_value = mock_response
 
         result = client._make_request("search/symbol", {"symbol": "PKD1"})
-        
+
         assert result == mock_successful_response
         mock_request.assert_called_once()
 
@@ -114,7 +113,7 @@ class TestHGNCClient:
         ]
 
         result = client._make_request("search/symbol", {"symbol": "PKD1"})
-        
+
         assert result == {"success": True}
         assert mock_request.call_count == 3
 
@@ -125,7 +124,7 @@ class TestHGNCClient:
 
         with pytest.raises(requests.RequestException):
             client._make_request("search/symbol", {"symbol": "PKD1"})
-        
+
         assert mock_request.call_count == client.max_retries + 1
 
     @patch('app.core.hgnc_client.HGNCClient._make_request')
@@ -134,7 +133,7 @@ class TestHGNCClient:
         mock_request.return_value = mock_successful_response
 
         result = client.symbol_to_hgnc_id("PKD1")
-        
+
         assert result == "HGNC:8945"
         mock_request.assert_called_once_with("search/symbol", {"symbol": "PKD1"})
 
@@ -144,7 +143,7 @@ class TestHGNCClient:
         mock_request.return_value = mock_empty_response
 
         result = client.symbol_to_hgnc_id("INVALID_GENE")
-        
+
         assert result is None
 
     @patch('app.core.hgnc_client.HGNCClient._make_request')
@@ -153,7 +152,7 @@ class TestHGNCClient:
         mock_request.side_effect = requests.RequestException("API Error")
 
         result = client.symbol_to_hgnc_id("PKD1")
-        
+
         assert result is None
 
     @patch('app.core.hgnc_client.HGNCClient._make_request')
@@ -162,7 +161,7 @@ class TestHGNCClient:
         mock_request.return_value = mock_successful_response
 
         result = client.get_gene_info("PKD1")
-        
+
         expected = mock_successful_response["response"]["docs"][0]
         assert result == expected
         mock_request.assert_called_once_with("search/symbol", {"symbol": "PKD1"})
@@ -173,7 +172,7 @@ class TestHGNCClient:
         mock_request.return_value = mock_empty_response
 
         result = client.get_gene_info("INVALID_GENE")
-        
+
         assert result is None
 
     @patch('app.core.hgnc_client.HGNCClient._make_request')
@@ -182,7 +181,7 @@ class TestHGNCClient:
         mock_request.return_value = mock_successful_response
 
         result = client.standardize_symbol("PKD1")
-        
+
         assert result == "PKD1"
         mock_request.assert_called_once_with("search/symbol/PKD1")
 
@@ -193,7 +192,7 @@ class TestHGNCClient:
         mock_request.side_effect = [mock_empty_response, mock_successful_response, mock_empty_response]
 
         result = client.standardize_symbol("OLD_SYMBOL")
-        
+
         assert result == "PKD1"
         assert mock_request.call_count == 2
 
@@ -204,7 +203,7 @@ class TestHGNCClient:
         mock_request.side_effect = [mock_empty_response, mock_empty_response, mock_successful_response]
 
         result = client.standardize_symbol("ALIAS_SYMBOL")
-        
+
         assert result == "PKD1"
         assert mock_request.call_count == 3
 
@@ -214,7 +213,7 @@ class TestHGNCClient:
         mock_request.return_value = mock_empty_response
 
         result = client.standardize_symbol("INVALID_SYMBOL")
-        
+
         assert result == "INVALID_SYMBOL"  # Returns original symbol
         assert mock_request.call_count == 3  # Tries all three methods
 
@@ -225,14 +224,14 @@ class TestHGNCClient:
 
         symbols = ("PKD1", "PKD2", "ABCA4")
         result = client.standardize_symbols_batch(symbols)
-        
+
         expected = {
             "PKD1": {"approved_symbol": "PKD1", "hgnc_id": "HGNC:8945"},
             "PKD2": {"approved_symbol": "PKD2", "hgnc_id": "HGNC:8946"},
             "ABCA4": {"approved_symbol": "ABCA4", "hgnc_id": "HGNC:34"}
         }
         assert result == expected
-        
+
         # Check the API call was made with correct OR syntax
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
@@ -245,7 +244,7 @@ class TestHGNCClient:
         """Test batch standardization with fallback to individual lookups."""
         # Batch request fails completely
         mock_request.side_effect = requests.RequestException("Batch failed")
-        
+
         # Individual lookups succeed
         mock_standardize.side_effect = ["PKD1", "PKD2"]
         mock_get_info.side_effect = [
@@ -255,7 +254,7 @@ class TestHGNCClient:
 
         symbols = ("PKD1", "PKD2")
         result = client.standardize_symbols_batch(symbols)
-        
+
         expected = {
             "PKD1": {"approved_symbol": "PKD1", "hgnc_id": "HGNC:8945"},
             "PKD2": {"approved_symbol": "PKD2", "hgnc_id": "HGNC:8946"}
@@ -275,7 +274,7 @@ class TestHGNCClient:
         mock_batch.return_value = expected
 
         result = client.standardize_symbols(symbols)
-        
+
         assert result == expected
         mock_batch.assert_called_once_with(tuple(symbols))
 
@@ -284,7 +283,7 @@ class TestHGNCClient:
         """Test standardize_symbols with multiple batches."""
         client.batch_size = 2  # Force multiple batches
         symbols = ["PKD1", "PKD2", "ABCA4"]
-        
+
         # Mock returns for each batch
         mock_batch.side_effect = [
             {"PKD1": {"approved_symbol": "PKD1", "hgnc_id": "HGNC:8945"},
@@ -293,7 +292,7 @@ class TestHGNCClient:
         ]
 
         result = client.standardize_symbols(symbols)
-        
+
         expected = {
             "PKD1": {"approved_symbol": "PKD1", "hgnc_id": "HGNC:8945"},
             "PKD2": {"approved_symbol": "PKD2", "hgnc_id": "HGNC:8946"},
@@ -310,7 +309,7 @@ class TestHGNCClient:
         mock_batch.return_value = expected
 
         result = client.standardize_symbols_parallel(symbols)
-        
+
         assert result == expected
         mock_batch.assert_called_once()
 
@@ -319,7 +318,7 @@ class TestHGNCClient:
         """Test parallel standardization with multiple batches."""
         client.batch_size = 1  # Force one symbol per batch
         symbols = ["PKD1", "PKD2"]
-        
+
         # Mock successful batch processing
         mock_batch.side_effect = [
             {"PKD1": {"approved_symbol": "PKD1", "hgnc_id": "HGNC:8945"}},
@@ -327,7 +326,7 @@ class TestHGNCClient:
         ]
 
         result = client.standardize_symbols_parallel(symbols)
-        
+
         expected = {
             "PKD1": {"approved_symbol": "PKD1", "hgnc_id": "HGNC:8945"},
             "PKD2": {"approved_symbol": "PKD2", "hgnc_id": "HGNC:8946"}
@@ -341,18 +340,18 @@ class TestHGNCClient:
         """Test parallel standardization with batch failure and individual fallback."""
         client.batch_size = 1
         symbols = ["PKD1", "PKD2"]
-        
+
         # First batch succeeds, second fails
         mock_batch.side_effect = [
             {"PKD1": {"approved_symbol": "PKD1", "hgnc_id": "HGNC:8945"}},
             Exception("Batch failed")
         ]
-        
+
         # Individual fallback for second symbol
         mock_get_info.return_value = {"hgnc_id": "HGNC:8946"}
 
         result = client.standardize_symbols_parallel(symbols)
-        
+
         expected = {
             "PKD1": {"approved_symbol": "PKD1", "hgnc_id": "HGNC:8945"},
             "PKD2": {"approved_symbol": "PKD2", "hgnc_id": "HGNC:8946"}
@@ -372,7 +371,7 @@ class TestHGNCClient:
             result1 = client.symbol_to_hgnc_id("PKD1")
             # Second call (should use cache)
             result2 = client.symbol_to_hgnc_id("PKD1")
-            
+
             assert result1 == result2 == "HGNC:8945"
             # Should only make one API call due to caching
             mock_request.assert_called_once()
@@ -380,12 +379,12 @@ class TestHGNCClient:
     def test_get_cache_info(self, client):
         """Test cache info retrieval."""
         cache_info = client.get_cache_info()
-        
+
         assert "symbol_to_hgnc_id" in cache_info
         assert "get_gene_info" in cache_info
         assert "standardize_symbol" in cache_info
         assert "standardize_symbols_batch" in cache_info
-        
+
         # Check that each cache info contains expected fields
         for method_cache in cache_info.values():
             assert "hits" in method_cache
@@ -403,14 +402,14 @@ class TestHGNCClient:
                 }
             }
             client.symbol_to_hgnc_id("PKD1")
-            
+
             # Verify cache has entries
             cache_info = client.get_cache_info()
             assert cache_info["symbol_to_hgnc_id"]["currsize"] > 0
-            
+
             # Clear cache
             client.clear_cache()
-            
+
             # Verify cache is empty
             cache_info = client.get_cache_info()
             assert cache_info["symbol_to_hgnc_id"]["currsize"] == 0
@@ -425,7 +424,7 @@ class TestHGNCClient:
             }
 
             result = client.standardize_symbol("pkd1")  # lowercase input
-            
+
             # Should convert to uppercase and find PKD1
             assert result == "PKD1"
             mock_request.assert_called_with("search/symbol/PKD1")
@@ -449,9 +448,9 @@ class TestHGNCClient:
                 }
             }
             mock_request.return_value = mock_response
-            
+
             client.standardize_symbols_batch(symbols)
-            
+
             # Check the first call (batch request) contains the expected query
             first_call_args = mock_request.call_args_list[0]
             endpoint = first_call_args[0][0]

@@ -2,32 +2,32 @@
 API endpoints for gene normalization staging management
 """
 
-from typing import Any, List
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.crud.gene_staging import staging_crud, log_crud
+from app.crud.gene_staging import log_crud, staging_crud
 from app.schemas.gene_staging import (
-    GeneNormalizationStagingResponse,
     GeneNormalizationLogResponse,
-    StagingStatsResponse,
+    GeneNormalizationStagingResponse,
     NormalizationStatsResponse,
     StagingApprovalRequest,
-    StagingRejectionRequest
+    StagingRejectionRequest,
+    StagingStatsResponse,
 )
 
 router = APIRouter()
 
 
-@router.get("/staging/pending", response_model=List[GeneNormalizationStagingResponse])
+@router.get("/staging/pending", response_model=list[GeneNormalizationStagingResponse])
 def get_pending_reviews(
     *,
     db: Session = Depends(get_db),
     limit: int = Query(default=50, le=200, description="Maximum number of records to return"),
     source_filter: str = Query(default=None, description="Filter by data source")
-) -> List[GeneNormalizationStagingResponse]:
+) -> list[GeneNormalizationStagingResponse]:
     """
     Get genes pending manual review, ordered by priority
     """
@@ -36,7 +36,7 @@ def get_pending_reviews(
         limit=limit,
         source_filter=source_filter
     )
-    
+
     return [
         GeneNormalizationStagingResponse(
             id=record.id,
@@ -74,18 +74,18 @@ def approve_staging_record(
             reviewer=approval_data.reviewer,
             notes=approval_data.notes
         )
-        
+
         return {
             "success": True,
             "message": f"Staging record {staging_id} approved",
             "approved_symbol": staging_record.manual_approved_symbol,
             "hgnc_id": staging_record.manual_hgnc_id
         }
-        
+
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error approving staging record: {e}")
+        raise HTTPException(status_code=500, detail=f"Error approving staging record: {e}") from e
 
 
 @router.post("/staging/{staging_id}/reject")
@@ -105,17 +105,17 @@ def reject_staging_record(
             reviewer=rejection_data.reviewer,
             notes=rejection_data.notes
         )
-        
+
         return {
             "success": True,
             "message": f"Staging record {staging_id} rejected",
             "notes": staging_record.review_notes
         }
-        
+
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error rejecting staging record: {e}")
+        raise HTTPException(status_code=500, detail=f"Error rejecting staging record: {e}") from e
 
 
 @router.get("/staging/stats", response_model=StagingStatsResponse)
@@ -127,7 +127,7 @@ def get_staging_stats(
     Get statistics about staging records
     """
     stats = staging_crud.get_staging_stats(db)
-    
+
     return StagingStatsResponse(
         total_pending=stats["total_pending"],
         total_approved=stats["total_approved"],
@@ -145,7 +145,7 @@ def get_normalization_stats(
     Get statistics about gene normalization success rates
     """
     stats = log_crud.get_normalization_stats(db)
-    
+
     return NormalizationStatsResponse(
         total_attempts=stats["total_attempts"],
         successful_attempts=stats["successful_attempts"],
@@ -154,34 +154,35 @@ def get_normalization_stats(
     )
 
 
-@router.get("/normalization/logs", response_model=List[GeneNormalizationLogResponse])
+@router.get("/normalization/logs", response_model=list[GeneNormalizationLogResponse])
 def get_normalization_logs(
     *,
     db: Session = Depends(get_db),
     limit: int = Query(default=100, le=500, description="Maximum number of logs to return"),
     source_filter: str = Query(default=None, description="Filter by data source"),
     success_filter: bool = Query(default=None, description="Filter by success status")
-) -> List[GeneNormalizationLogResponse]:
+) -> list[GeneNormalizationLogResponse]:
     """
     Get gene normalization logs for debugging and analysis
     """
+    from sqlalchemy import and_, desc
+
     from app.models.gene_staging import GeneNormalizationLog
-    from sqlalchemy import desc, and_
-    
+
     query = db.query(GeneNormalizationLog)
-    
+
     # Apply filters
     filters = []
     if source_filter:
         filters.append(GeneNormalizationLog.source_name == source_filter)
     if success_filter is not None:
         filters.append(GeneNormalizationLog.success == success_filter)
-        
+
     if filters:
         query = query.filter(and_(*filters))
-    
+
     logs = query.order_by(desc(GeneNormalizationLog.created_at)).limit(limit).all()
-    
+
     return [
         GeneNormalizationLogResponse(
             id=log.id,
@@ -210,7 +211,7 @@ def test_normalization(
     Test gene normalization for a given gene text (for debugging)
     """
     from app.core.gene_normalization import normalize_gene_for_database
-    
+
     try:
         result = normalize_gene_for_database(
             db=db,
@@ -218,13 +219,13 @@ def test_normalization(
             source_name=source_name,
             original_data={"test": True}
         )
-        
+
         return {
             "success": True,
             "gene_text": gene_text,
             "result": result
         }
-        
+
     except Exception as e:
         return {
             "success": False,

@@ -40,7 +40,8 @@ class GenCCClient:
     def __init__(self):
         """Initialize GenCC client"""
         self.download_url = "https://search.thegencc.org/download/action/submissions-export-xlsx"
-        self.client = httpx.Client(timeout=60.0)  # Longer timeout for file download
+        # Much longer timeout for large file download (GenCC file is ~3.6MB)
+        self.client = httpx.Client(timeout=httpx.Timeout(120.0, connect=30.0, read=120.0))
 
         # Same kidney keywords as ClinGen for consistency
         self.kidney_keywords = [
@@ -68,24 +69,38 @@ class GenCCClient:
             Path to downloaded file or None if failed
         """
         try:
-            logger.info("Downloading GenCC submissions Excel file...")
-            response = self.client.get(self.download_url)
+            logger.info(f"📥 Downloading GenCC submissions from: {self.download_url}")
+            logger.info("🔄 Starting download... (this may take 30-60 seconds for ~3.6MB file)")
 
-            if response.status_code == 200:
-                # Save to temporary file
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
-                temp_file.write(response.content)
-                temp_file.close()
+            with self.client.stream('GET', self.download_url) as response:
+                logger.info(f"📊 GenCC download response: {response.status_code}")
 
-                file_path = Path(temp_file.name)
-                logger.info(f"Downloaded GenCC file: {file_path} ({len(response.content)} bytes)")
-                return file_path
-            else:
-                logger.error(f"Failed to download GenCC file: {response.status_code}")
-                return None
+                if response.status_code == 200:
+                    # Save to temporary file with progress tracking
+                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+                    total_downloaded = 0
+
+                    for chunk in response.iter_bytes(chunk_size=8192):
+                        temp_file.write(chunk)
+                        total_downloaded += len(chunk)
+
+                        # Log progress every 500KB
+                        if total_downloaded % (500 * 1024) == 0 or total_downloaded < 500 * 1024:
+                            logger.info(f"📊 Downloaded {total_downloaded:,} bytes...")
+
+                    temp_file.close()
+                    file_path = Path(temp_file.name)
+                    logger.info(f"✅ Downloaded GenCC file: {file_path} ({total_downloaded:,} bytes)")
+                    return file_path
+                else:
+                    logger.error(f"❌ Failed to download GenCC file: HTTP {response.status_code}")
+                    logger.error(f"Response headers: {dict(response.headers)}")
+                    return None
 
         except Exception as e:
-            logger.error(f"Error downloading GenCC file: {e}")
+            logger.error(f"❌ Error downloading GenCC file: {e}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return None
 
     def parse_excel_file(self, file_path: Path) -> pd.DataFrame:
@@ -268,6 +283,7 @@ def update_gencc_data(db: Session) -> dict[str, Any]:
         Statistics about the update
     """
     source_name = "GenCC"
+    logger.info(f"🚀 Starting {source_name} data update...")
 
     stats = {
         "source": source_name,
@@ -282,37 +298,48 @@ def update_gencc_data(db: Session) -> dict[str, Any]:
     }
 
     client = GenCCClient()
+    logger.info(f"📡 Created {source_name} client, starting download...")
 
     try:
         # Download Excel file
+        logger.info("🔄 Downloading GenCC Excel file...")
         file_path = client.download_excel_file()
         if not file_path:
-            logger.error("Failed to download GenCC file")
+            logger.error("❌ Failed to download GenCC file")
             return stats
 
         stats["file_downloaded"] = True
+        logger.info(f"✅ GenCC file downloaded successfully: {file_path}")
 
         # Parse Excel file
+        logger.info("🔄 Parsing GenCC Excel file...")
         df = client.parse_excel_file(file_path)
         if df.empty:
-            logger.error("Failed to parse GenCC file or file is empty")
+            logger.error("❌ Failed to parse GenCC file or file is empty")
             return stats
 
         stats["total_submissions"] = len(df)
+        logger.info(f"📊 Parsed {len(df)} total GenCC submissions")
 
         # Aggregate gene data
         gene_data_map = {}  # symbol -> gene data
+        logger.info("🔄 Processing GenCC submissions for kidney-related genes...")
 
-        for _idx, row in df.iterrows():
+        for idx, row in df.iterrows():
             # Filter for kidney-related submissions
             if not client.is_kidney_related(row):
                 continue
 
             stats["kidney_related"] += 1
 
+            # Log every 10th kidney-related submission for debugging
+            if stats["kidney_related"] % 10 == 1:
+                logger.info(f"🔍 Found kidney-related submission #{stats['kidney_related']}")
+
             # Extract gene information
             gene_info = client.extract_gene_info(row)
             if not gene_info:
+                logger.debug(f"⚠️ Failed to extract gene info from row {idx}")
                 continue
 
             symbol = gene_info["symbol"]
@@ -336,8 +363,13 @@ def update_gencc_data(db: Session) -> dict[str, Any]:
                 gene_data_map[symbol]["modes_of_inheritance"].add(gene_info["mode_of_inheritance"])
 
         # Store aggregated data in database
+        logger.info(f"💾 Storing {len(gene_data_map)} unique genes in database...")
         for symbol, data in gene_data_map.items():
             stats["genes_processed"] += 1
+
+            # Log every 5th gene for debugging
+            if stats["genes_processed"] % 5 == 1:
+                logger.info(f"💾 Processing gene #{stats['genes_processed']}: {symbol}")
 
             # Get or create gene - handle potential symbol updates
             gene = gene_crud.get_by_symbol(db, symbol)

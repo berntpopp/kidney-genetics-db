@@ -20,6 +20,10 @@ class CRUDGene:
         """Get gene by symbol"""
         return db.query(Gene).filter(func.upper(Gene.approved_symbol) == symbol.upper()).first()
 
+    def get_gene_by_symbol(self, db: Session, symbol: str) -> Gene | None:
+        """Get gene by symbol (alias for get_by_symbol for test compatibility)"""
+        return self.get_by_symbol(db, symbol)
+
     def get_by_hgnc_id(self, db: Session, hgnc_id: str) -> Gene | None:
         """Get gene by HGNC ID"""
         return db.query(Gene).filter(Gene.hgnc_id == hgnc_id).first()
@@ -143,7 +147,7 @@ class CRUDGene:
         result = db.execute(
             text("""
                 SELECT gene_id, approved_symbol, source_count, evidence_count,
-                       raw_score, percentage_score, total_active_sources, source_percentiles
+                       raw_score, percentage_score, total_active_sources, source_scores
                 FROM gene_scores
                 WHERE gene_id = :gene_id
             """),
@@ -234,6 +238,56 @@ class CRUDGene:
             })
 
         return genes
+
+    def create_pipeline_run(self, db: Session) -> int:
+        """Create a new pipeline run record and return its ID (for test compatibility)"""
+        # This is a simplified implementation for test compatibility
+        from app.models.gene import PipelineRun
+        from datetime import datetime, timezone
+        
+        run = PipelineRun(
+            status="running",
+            started_at=datetime.now(timezone.utc),
+            stats={}
+        )
+        db.add(run)
+        db.commit()
+        db.refresh(run)
+        return run.id
+
+    def create_or_update_gene(self, db: Session, hgnc_id: str, symbol: str) -> int:
+        """Create or update a gene and return its ID (for test compatibility)"""
+        # Check if gene already exists
+        existing = self.get_by_symbol(db, symbol)
+        if existing:
+            return existing.id
+        
+        # Create new gene
+        from app.schemas.gene import GeneCreate
+        gene_data = GeneCreate(
+            hgnc_id=hgnc_id,
+            approved_symbol=symbol,
+            aliases=[]
+        )
+        new_gene = self.create(db, gene_data)
+        return new_gene.id
+
+    def create_gene_evidence(self, db: Session, gene_id: int, source_name: str, evidence_data: dict) -> int:
+        """Create gene evidence record and return its ID (for test compatibility)"""
+        from app.models.gene import GeneEvidence
+        from datetime import datetime, timezone
+        
+        evidence = GeneEvidence(
+            gene_id=gene_id,
+            source_name=source_name,
+            evidence_data=evidence_data,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
+        )
+        db.add(evidence)
+        db.commit()
+        db.refresh(evidence)
+        return evidence.id
 
 
 # Create singleton instance

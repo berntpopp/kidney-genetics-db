@@ -2,19 +2,19 @@
 Tests for gene normalization functionality.
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.core.gene_normalization import (
     clean_gene_text,
+    clear_normalization_cache,
+    get_hgnc_client,
+    get_normalization_stats,
     is_likely_gene_symbol,
     normalize_gene_for_database,
     normalize_genes_batch,
-    get_normalization_stats,
-    clear_normalization_cache,
-    get_hgnc_client
 )
 
 
@@ -133,7 +133,7 @@ class TestGeneNormalization:
     def test_normalize_gene_for_database_hgnc_success(self, mock_get_client, mock_get_gene, mock_db):
         """Test successful normalization via HGNC API."""
         mock_get_gene.return_value = None  # Gene not in database
-        
+
         mock_hgnc_client = Mock()
         mock_hgnc_client.standardize_symbols.return_value = {
             "PKD1": {
@@ -166,7 +166,7 @@ class TestGeneNormalization:
     def test_normalize_gene_for_database_hgnc_failure(self, mock_create_staging, mock_get_client, mock_get_gene, mock_db, mock_staging_record):
         """Test normalization when HGNC lookup fails."""
         mock_get_gene.return_value = None
-        
+
         mock_hgnc_client = Mock()
         mock_hgnc_client.standardize_symbols.return_value = {
             "INVALID_GENE": {
@@ -264,7 +264,7 @@ class TestGeneNormalization:
             gene_texts=[],
             source_name="Test"
         )
-        
+
         assert result == {}
         mock_get_gene.assert_not_called()
         mock_get_client.assert_not_called()
@@ -274,15 +274,15 @@ class TestGeneNormalization:
     def test_normalize_genes_batch_mixed_results(self, mock_get_client, mock_get_gene, mock_db, mock_existing_gene):
         """Test batch normalization with mixed results."""
         gene_texts = ["PKD1", "NEW_GENE", "INVALID_GENE"]
-        
+
         # PKD1 exists in database, others need HGNC lookup
         def mock_get_gene_side_effect(db, symbol):
             if symbol == "PKD1":
                 return mock_existing_gene
             return None
-        
+
         mock_get_gene.side_effect = mock_get_gene_side_effect
-        
+
         mock_hgnc_client = Mock()
         mock_hgnc_client.standardize_symbols_parallel.return_value = {
             "NEW_GENE": {
@@ -315,11 +315,11 @@ class TestGeneNormalization:
             assert result["PKD1"]["status"] == "normalized"
             assert result["PKD1"]["approved_symbol"] == "PKD1"
             assert result["PKD1"]["hgnc_id"] == "HGNC:8945"
-            
+
             assert result["NEW_GENE"]["status"] == "normalized"
             assert result["NEW_GENE"]["approved_symbol"] == "NEW_GENE"
             assert result["NEW_GENE"]["hgnc_id"] == "HGNC:12345"
-            
+
             assert result["INVALID_GENE"]["status"] == "requires_manual_review"
 
     @patch('app.core.gene_normalization.gene_crud.get_gene_by_symbol')
@@ -327,10 +327,10 @@ class TestGeneNormalization:
     def test_normalize_genes_batch_all_existing(self, mock_get_client, mock_get_gene, mock_db, mock_existing_gene):
         """Test batch normalization when all genes exist in database."""
         gene_texts = ["PKD1", "PKD2"]
-        
+
         # All genes exist in database
         mock_get_gene.return_value = mock_existing_gene
-        
+
         result = normalize_genes_batch(
             db=mock_db,
             gene_texts=gene_texts,
@@ -341,7 +341,7 @@ class TestGeneNormalization:
         mock_get_client.assert_called_once()  # Called but not used
         hgnc_client = mock_get_client.return_value
         hgnc_client.standardize_symbols_parallel.assert_not_called()
-        
+
         # All results should be normalized
         assert all(result[gene]["status"] == "normalized" for gene in gene_texts)
 
@@ -354,9 +354,9 @@ class TestGeneNormalization:
             {"pmid": "12345", "mentions": 5},
             {"pmid": "67890", "mentions": 3}
         ]
-        
+
         mock_get_gene.return_value = None  # No existing genes
-        
+
         mock_hgnc_client = Mock()
         mock_hgnc_client.standardize_symbols_parallel.return_value = {
             "PKD1": {"approved_symbol": "PKD1", "hgnc_id": "HGNC:8945"},
@@ -389,7 +389,7 @@ class TestGeneNormalization:
             "rejected": 5,
             "total": 50
         }
-        
+
         mock_hgnc_client = Mock()
         mock_hgnc_client.get_cache_info.return_value = {
             "symbol_to_hgnc_id": {"hits": 100, "misses": 10}
@@ -439,14 +439,14 @@ class TestGeneNormalization:
         """Test that get_hgnc_client returns the same instance."""
         client1 = get_hgnc_client()
         client2 = get_hgnc_client()
-        
+
         assert client1 is client2  # Should be the same instance
 
     @patch('app.core.gene_normalization.gene_staging.create_staging_record')
     def test_create_staging_record_success(self, mock_create_staging, mock_db, mock_staging_record):
         """Test successful staging record creation."""
         from app.core.gene_normalization import _create_staging_record
-        
+
         mock_create_staging.return_value = mock_staging_record
 
         result = _create_staging_record(
@@ -470,7 +470,7 @@ class TestGeneNormalization:
     def test_create_staging_record_failure(self, mock_create_staging, mock_db):
         """Test staging record creation failure."""
         from app.core.gene_normalization import _create_staging_record
-        
+
         mock_create_staging.side_effect = Exception("Staging error")
 
         result = _create_staging_record(
@@ -505,19 +505,19 @@ class TestIntegration:
         """Test complete normalization workflow."""
         # Simulate mixed scenario: some genes exist, some need HGNC lookup, some fail
         gene_texts = ["PKD1", "NEW_GENE", "INVALID123"]
-        
+
         # PKD1 exists in database
         existing_gene = Mock(spec=Gene)
         existing_gene.approved_symbol = "PKD1"
         existing_gene.hgnc_id = "HGNC:8945"
-        
+
         def mock_get_gene_side_effect(db, symbol):
             if symbol == "PKD1":
                 return existing_gene
             return None
-        
+
         mock_get_gene.side_effect = mock_get_gene_side_effect
-        
+
         # HGNC client returns mixed results
         mock_hgnc_client = Mock()
         mock_hgnc_client.standardize_symbols_parallel.return_value = {
@@ -547,12 +547,12 @@ class TestIntegration:
 
             # Verify results
             assert len(result) == 2  # Only valid gene symbols processed
-            
+
             # PKD1 should be found in database
             assert result["PKD1"]["status"] == "normalized"
             assert result["PKD1"]["approved_symbol"] == "PKD1"
             assert result["PKD1"]["hgnc_id"] == "HGNC:8945"
-            
+
             # NEW_GENE should be normalized via HGNC
             assert result["NEW_GENE"]["status"] == "normalized"
             assert result["NEW_GENE"]["approved_symbol"] == "NEW_GENE_CORRECTED"
@@ -562,11 +562,11 @@ class TestIntegration:
         """Test that batch processing is more efficient than individual calls."""
         # This test verifies the batch processing optimization
         large_gene_list = [f"GENE_{i}" for i in range(100)]
-        
+
         with patch('app.core.gene_normalization.gene_crud.get_gene_by_symbol') as mock_get_gene:
             with patch('app.core.gene_normalization.get_hgnc_client') as mock_get_client:
                 mock_get_gene.return_value = None  # No existing genes
-                
+
                 mock_hgnc_client = Mock()
                 mock_hgnc_client.standardize_symbols_parallel.return_value = {
                     gene: {"approved_symbol": gene, "hgnc_id": f"HGNC:{i}"}
@@ -583,7 +583,7 @@ class TestIntegration:
 
                 # Should make only one parallel call, not 100 individual calls
                 mock_hgnc_client.standardize_symbols_parallel.assert_called_once()
-                
+
                 # All genes should be processed
                 assert len(result) == 100
                 assert all(result[gene]["status"] == "normalized" for gene in large_gene_list)

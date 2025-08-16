@@ -3,7 +3,6 @@ Kidney Genetics Database API
 Main FastAPI application
 """
 
-import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -11,10 +10,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from app.api.endpoints import datasources, genes, gene_staging, progress
+from app.api.endpoints import datasources, gene_staging, genes, progress
+from app.core.background_tasks import task_manager
 from app.core.config import settings
 from app.core.database import engine, get_db
-from app.core.background_tasks import task_manager
 from app.models import Base
 
 logger = logging.getLogger(__name__)
@@ -28,18 +27,21 @@ async def lifespan(app: FastAPI):
     """Manage application lifecycle - start/stop background tasks"""
     # Startup
     logger.info("Starting background task manager...")
-    
+
     # Set up broadcast callback for WebSocket updates
     from app.api.endpoints.progress import get_connection_manager
     manager = get_connection_manager()
     task_manager.set_broadcast_callback(manager.broadcast)
-    
+
     # Start auto-updates for data sources
     if settings.AUTO_UPDATE_ENABLED:
-        await task_manager.start_auto_updates()
-    
+        try:
+            await task_manager.start_auto_updates()
+        except Exception as e:
+            logger.warning(f"Failed to start auto-updates: {e}. Continuing without auto-updates.")
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down background task manager...")
     await task_manager.shutdown()

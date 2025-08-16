@@ -10,8 +10,8 @@ Based on proven patterns from custom-panel and kidney-genetics-v1 implementation
 import functools
 import logging
 import time
-from typing import Any, Dict, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any
 
 import requests
 
@@ -37,7 +37,7 @@ class HGNCClient:
         Args:
             timeout: Request timeout in seconds
             max_retries: Maximum number of retry attempts
-            retry_delay: Delay between retries in seconds  
+            retry_delay: Delay between retries in seconds
             batch_size: Maximum symbols per batch request
             max_workers: Maximum threads for parallel processing
         """
@@ -46,7 +46,7 @@ class HGNCClient:
         self.retry_delay = retry_delay
         self.batch_size = batch_size
         self.max_workers = max_workers
-        
+
         self.session = requests.Session()
         self.session.headers.update({
             "Accept": "application/json",
@@ -56,9 +56,9 @@ class HGNCClient:
     def _make_request(
         self,
         endpoint: str,
-        params: Optional[Dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
         method: str = "GET",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Make a request to the HGNC API with retry logic and exponential backoff.
 
@@ -82,14 +82,14 @@ class HGNCClient:
                 )
                 response.raise_for_status()
                 return response.json()
-                
+
             except (requests.RequestException, ValueError) as e:
                 if attempt == self.max_retries:
                     logger.error(
                         f"Failed to fetch {url} after {self.max_retries} retries: {e}"
                     )
                     raise
-                    
+
                 # Exponential backoff
                 delay = self.retry_delay * (2 ** attempt)
                 logger.warning(
@@ -101,7 +101,7 @@ class HGNCClient:
         raise requests.RequestException("Unexpected error in request loop")
 
     @functools.lru_cache(maxsize=10000)
-    def symbol_to_hgnc_id(self, symbol: str) -> Optional[str]:
+    def symbol_to_hgnc_id(self, symbol: str) -> str | None:
         """
         Convert a gene symbol to HGNC ID.
 
@@ -121,7 +121,7 @@ class HGNCClient:
         return None
 
     @functools.lru_cache(maxsize=10000)
-    def get_gene_info(self, symbol: str) -> Optional[Dict[str, Any]]:
+    def get_gene_info(self, symbol: str) -> dict[str, Any] | None:
         """
         Get comprehensive gene information for a symbol.
 
@@ -190,8 +190,8 @@ class HGNCClient:
 
     @functools.lru_cache(maxsize=1000)
     def standardize_symbols_batch(
-        self, symbols: Tuple[str, ...]
-    ) -> Dict[str, Dict[str, Optional[str]]]:
+        self, symbols: tuple[str, ...]
+    ) -> dict[str, dict[str, str | None]]:
         """
         Standardize multiple gene symbols using HGNC batch API.
 
@@ -217,12 +217,12 @@ class HGNCClient:
             # Construct query using +OR+ syntax: "GENE1+OR+GENE2+OR+..."
             query_str = "+OR+".join([s.upper() for s in original_symbols])
             endpoint = f"search/symbol/{query_str}"
-            
+
             params = {"fields": "symbol,hgnc_id"}
             response = self._make_request(endpoint, params=params)
-            
+
             docs = response.get("response", {}).get("docs", [])
-            
+
             # Match by symbol name directly
             found_symbols = set()
             for doc in docs:
@@ -297,8 +297,8 @@ class HGNCClient:
         return result
 
     def standardize_symbols(
-        self, symbols: List[str]
-    ) -> Dict[str, Dict[str, Optional[str]]]:
+        self, symbols: list[str]
+    ) -> dict[str, dict[str, str | None]]:
         """
         Standardize multiple gene symbols with automatic batching.
 
@@ -313,7 +313,7 @@ class HGNCClient:
 
         # Split into batches to avoid URL length limits
         result = {}
-        
+
         for i in range(0, len(symbols), self.batch_size):
             batch = symbols[i : i + self.batch_size]
             batch_result = self.standardize_symbols_batch(tuple(batch))
@@ -322,11 +322,11 @@ class HGNCClient:
         return result
 
     def standardize_symbols_parallel(
-        self, symbols: List[str]
-    ) -> Dict[str, Dict[str, Optional[str]]]:
+        self, symbols: list[str]
+    ) -> dict[str, dict[str, str | None]]:
         """
         Standardize multiple gene symbols using parallel batch processing.
-        
+
         Follows the exact pattern from custom-panel for maximum performance.
 
         Args:
@@ -399,7 +399,7 @@ class HGNCClient:
 
         return standardized
 
-    def get_cache_info(self) -> Dict[str, Any]:
+    def get_cache_info(self) -> dict[str, Any]:
         """
         Get cache statistics for monitoring performance.
 

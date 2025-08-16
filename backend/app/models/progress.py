@@ -2,11 +2,9 @@
 SQLAlchemy models for data source progress tracking
 """
 
-from datetime import datetime
 from enum import Enum as PyEnum
-from typing import Optional
 
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, JSON, Enum
+from sqlalchemy import JSON, Column, DateTime, Enum, Float, Integer, String, Text
 from sqlalchemy.sql import func
 
 from app.core.database import Base
@@ -23,9 +21,9 @@ class SourceStatus(PyEnum):
 
 class DataSourceProgress(Base):
     """Model for tracking data source update progress"""
-    
+
     __tablename__ = "data_source_progress"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     source_name = Column(String, unique=True, nullable=False, index=True)
     status = Column(
@@ -33,7 +31,7 @@ class DataSourceProgress(Base):
         nullable=False,
         default=SourceStatus.idle
     )
-    
+
     # Progress tracking
     current_page = Column(Integer, default=0)
     total_pages = Column(Integer, nullable=True)
@@ -44,12 +42,12 @@ class DataSourceProgress(Base):
     items_updated = Column(Integer, default=0)
     items_failed = Column(Integer, default=0)
     progress_percentage = Column(Float, default=0.0)
-    
+
     # Status information
     current_operation = Column(String, nullable=True)
     last_error = Column(Text, nullable=True)
     progress_metadata = Column("metadata", JSON, default={})
-    
+
     # Timestamps
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
@@ -57,7 +55,7 @@ class DataSourceProgress(Base):
     estimated_completion = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
+
     def to_dict(self) -> dict:
         """Convert to dictionary for API responses"""
         return {

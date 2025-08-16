@@ -14,6 +14,7 @@ from alembic import context
 sys.path.append(str(Path(__file__).parent.parent))
 
 # Import models and settings
+# Import all models to ensure they're registered with Base.metadata
 from app.core.config import settings
 from app.models import Base
 

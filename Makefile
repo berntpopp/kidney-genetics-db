@@ -1,7 +1,7 @@
 # Kidney Genetics Database - Development Makefile
 # Usage: make [command]
 
-.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend
+.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend lint test
 
 # Detect docker compose command (v2 vs v1)
 DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
@@ -33,6 +33,10 @@ help:
 	@echo ""
 	@echo "📊 MONITORING:"
 	@echo "  make status          - Show system status and statistics"
+	@echo ""
+	@echo "🔍 CODE QUALITY:"
+	@echo "  make lint            - Lint backend code with ruff"
+	@echo "  make test            - Run backend tests with pytest"
 	@echo ""
 	@echo "🧹 CLEANUP:"
 	@echo "  make clean-all       - Stop everything and clean data"
@@ -217,6 +221,22 @@ clean-all:
 	@rm -rf backend/.cache 2>/dev/null || true
 	@rm -rf logs/*.log 2>/dev/null || true
 	@echo "✅ Cleanup complete!"
+
+# ════════════════════════════════════════════════════════════════════
+# CODE QUALITY
+# ════════════════════════════════════════════════════════════════════
+
+# Lint backend code
+lint:
+	@echo "🔍 Linting backend app code with ruff..."
+	@cd backend && uv run ruff check app/ --fix
+	@echo "✅ Linting complete!"
+
+# Run backend tests
+test:
+	@echo "🧪 Running backend tests with pytest..."
+	@cd backend && uv run pytest -v
+	@echo "✅ Tests complete!"
 
 # Create log directory if it doesn't exist
 $(shell mkdir -p logs)

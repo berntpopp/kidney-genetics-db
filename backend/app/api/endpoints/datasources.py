@@ -4,11 +4,12 @@ Data source API endpoints
 
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.background_tasks import task_manager
 from app.models.gene import PipelineRun
 from app.schemas.datasource import DataSource, DataSourceList, DataSourceStats
 
@@ -261,3 +262,37 @@ def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dict[str,
             "stats": None,
             "message": "No data available for this source",
         }
+
+
+@router.post("/{source_name}/update")
+async def update_datasource(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """
+    Trigger update for a specific data source
+    """
+    if source_name not in DATA_SOURCE_CONFIG:
+        raise HTTPException(status_code=404, detail=f"Unknown data source: {source_name}")
+
+    try:
+        await task_manager.run_source(source_name)
+        return {"message": f"Update triggered for {source_name}", "status": "started"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start update: {str(e)}") from e
+
+
+@router.post("/update-all")
+async def update_all_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
+    """
+    Trigger updates for all available data sources
+    """
+    try:
+        sources = ["PubTator", "PanelApp", "ClinGen", "GenCC"]
+        for source_name in sources:
+            await task_manager.run_source(source_name)
+
+        return {
+            "message": f"Updates triggered for {len(sources)} sources",
+            "sources": sources,
+            "status": "started"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start updates: {str(e)}") from e

@@ -2,14 +2,15 @@
 Tests for core gene normalization functionality (without database dependencies).
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from app.core.gene_normalization import (
     clean_gene_text,
-    is_likely_gene_symbol,
+    clear_normalization_cache,
     get_hgnc_client,
-    clear_normalization_cache
+    is_likely_gene_symbol,
 )
 
 
@@ -83,7 +84,7 @@ class TestHGNCClientIntegration:
         """Test that get_hgnc_client returns the same instance."""
         client1 = get_hgnc_client()
         client2 = get_hgnc_client()
-        
+
         assert client1 is client2  # Should be the same instance
         assert hasattr(client1, 'standardize_symbols')
         assert hasattr(client1, 'standardize_symbols_parallel')
@@ -101,7 +102,7 @@ class TestHGNCClientIntegration:
     def test_hgnc_client_configuration(self):
         """Test that HGNC client is configured with optimal settings."""
         client = get_hgnc_client()
-        
+
         # Check that client has the expected configuration
         assert client.timeout == 30
         assert client.max_retries == 3
@@ -133,7 +134,7 @@ class TestGeneNormalizationIntegration:
         # Test that the client can be used for batch processing
         gene_list = ["PKD1", "ABCA4", "COL4A5"]
         result = mock_hgnc_client.standardize_symbols_parallel(gene_list)
-        
+
         # Verify all genes were processed
         assert len(result) == 3
         assert all(gene in result for gene in gene_list)
@@ -150,11 +151,11 @@ class TestGeneNormalizationIntegration:
             ("UNKNOWN", False, "UNKNOWN"),
             ("", False, ""),
         ]
-        
+
         for input_text, should_be_valid, expected_cleaned in test_cases:
             cleaned = clean_gene_text(input_text)
             is_valid = is_likely_gene_symbol(cleaned)
-            
+
             assert cleaned == expected_cleaned
             assert is_valid == should_be_valid
 
@@ -164,22 +165,22 @@ class TestGeneNormalizationIntegration:
         assert clean_gene_text("") == ""
         assert clean_gene_text(None) == ""
         assert is_likely_gene_symbol("") == False
-        
+
         # Test very long inputs
         long_text = "A" * 1000
         cleaned = clean_gene_text(long_text)
         assert len(cleaned) <= len(long_text)
         assert is_likely_gene_symbol(cleaned) == False  # Too long
-        
+
         # Test special characters and unicode
         special_cases = [
             ("PKD1™", "PKD1"),
-            ("PKD1®", "PKD1"), 
+            ("PKD1®", "PKD1"),
             ("PKD1©", "PKD1"),
             ("PKD1\n\t", "PKD1"),
             ("PKD1\u2013", "PKD1"),  # En dash
         ]
-        
+
         for input_text, expected in special_cases:
             result = clean_gene_text(input_text)
             assert result == expected
@@ -188,12 +189,12 @@ class TestGeneNormalizationIntegration:
         """Test performance characteristics of text processing functions."""
         # Test that functions can handle large inputs efficiently
         large_input_list = [f"GENE_{i}" for i in range(1000)]
-        
+
         # Should be able to process all inputs without errors
         for gene_text in large_input_list:
             cleaned = clean_gene_text(gene_text)
             is_valid = is_likely_gene_symbol(cleaned)
-            
+
             assert isinstance(cleaned, str)
             assert isinstance(is_valid, bool)
             assert cleaned == gene_text  # These should not be modified
@@ -211,7 +212,7 @@ class TestNormalizationPatterns:
             ("ATP-binding cassette", False),  # Should be rejected - description
             ("COL4A5", True),
         ]
-        
+
         for text, should_be_valid in pubtator_examples:
             cleaned = clean_gene_text(text)
             is_valid = is_likely_gene_symbol(cleaned)
@@ -225,7 +226,7 @@ class TestNormalizationPatterns:
             ("PKD1 (polycystic kidney disease 1)", True),  # With description
             ("SYMBOL:ABCA4", True),  # With symbol prefix
         ]
-        
+
         for text, should_be_valid in clingen_examples:
             cleaned = clean_gene_text(text)
             is_valid = is_likely_gene_symbol(cleaned)
@@ -238,11 +239,11 @@ class TestNormalizationPatterns:
         """Test inputs that might come from GenCC."""
         gencc_examples = [
             ("PKD1", True),
-            ("ABCA4", True), 
+            ("ABCA4", True),
             ("COL4A5", True),
             ("PKD1_HUMAN", True),  # Might have suffix
         ]
-        
+
         for text, should_be_valid in gencc_examples:
             cleaned = clean_gene_text(text)
             is_valid = is_likely_gene_symbol(cleaned)

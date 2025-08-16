@@ -19,18 +19,18 @@ logger = logging.getLogger(__name__)
 def update_all_curations(db: Session) -> dict[str, Any]:
     """
     Update gene curations with aggregated evidence data.
-    
+
     NOTE: Evidence scoring is handled by PostgreSQL views, not this function.
     This function only aggregates evidence metadata.
-    
+
     Args:
         db: Database session
-        
+
     Returns:
         Statistics about the update
     """
     logger.info("Starting gene curation update (evidence aggregation only)")
-    
+
     stats = {
         "genes_processed": 0,
         "curations_created": 0,
@@ -82,7 +82,7 @@ def update_all_curations(db: Session) -> dict[str, Any]:
             stats["curations_created"] += 1
 
     db.commit()
-    
+
     stats["completed_at"] = datetime.now(timezone.utc)
     stats["duration"] = (stats["completed_at"] - stats["started_at"]).total_seconds()
 
@@ -97,18 +97,18 @@ def update_all_curations(db: Session) -> dict[str, Any]:
 def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[str, Any]:
     """
     Aggregate evidence metadata from all sources for a gene.
-    
+
     NOTE: This does NOT calculate scores - that's handled by PostgreSQL views.
-    
+
     Args:
         evidence_records: List of evidence records for a gene
-        
+
     Returns:
         Dictionary with aggregated metadata
     """
     # Count evidence by source
     evidence_count = len(evidence_records)
-    source_count = len(set(record.source_name for record in evidence_records))
+    source_count = len({record.source_name for record in evidence_records})
 
     # Aggregate arrays from each source
     panelapp_panels = []
@@ -121,22 +121,22 @@ def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[s
 
     for evidence in evidence_records:
         evidence_data = evidence.evidence_data or {}
-        
+
         if evidence.source_name == "PanelApp":
             panelapp_panels.extend(evidence_data.get("panels", []))
-            
+
         elif evidence.source_name == "Literature":
             literature_refs.extend(evidence_data.get("references", []))
-            
+
         elif evidence.source_name == "HPO":
             hpo_terms.extend(evidence_data.get("phenotypes", []))
-            
+
         elif evidence.source_name == "PubTator":
             pubtator_pmids.extend(evidence_data.get("pmids", []))
-            
+
         elif evidence.source_name == "OMIM":
             omim_data.update(evidence_data)
-            
+
         elif evidence.source_name == "ClinVar":
             clinvar_data.update(evidence_data)
 
@@ -144,7 +144,7 @@ def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[s
     unique_literature_refs = list(set(literature_refs)) if literature_refs else []
     unique_hpo_terms = list(set(hpo_terms)) if hpo_terms else []
     unique_pubtator_pmids = list(set(pubtator_pmids)) if pubtator_pmids else []
-    
+
     # For panels (list of dicts), convert to strings for storage
     # Format: "PanelName (ID:version)"
     unique_panels = []
@@ -157,7 +157,7 @@ def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[s
         if panel_str not in seen_panels:
             seen_panels.add(panel_str)
             unique_panels.append(panel_str)
-    
+
     return {
         "evidence_count": evidence_count,
         "source_count": source_count,
@@ -175,23 +175,23 @@ def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[s
 
 
 def _update_curation_with_evidence(
-    curation: GeneCuration, 
+    curation: GeneCuration,
     evidence_data: dict[str, Any]
 ) -> None:
     """
     Update existing curation record with new evidence data.
-    
+
     Args:
         curation: Existing curation record
         evidence_data: New evidence data to merge
     """
     # Update metadata (preserve existing classification if any)
     existing_classification = curation.classification
-    
+
     for key, value in evidence_data.items():
         if key != "classification" or existing_classification is None:
             setattr(curation, key, value)
-    
+
     # Preserve manual classification if it exists
     if existing_classification:
         curation.classification = existing_classification

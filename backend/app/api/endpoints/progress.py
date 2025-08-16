@@ -4,12 +4,11 @@ API endpoints for data source progress monitoring
 
 import asyncio
 import logging
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
-from sqlalchemy import select
 
 from app.core.database import get_db
 from app.models.progress import DataSourceProgress, SourceStatus
@@ -21,7 +20,7 @@ router = APIRouter()
 # Store active WebSocket connections
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        self.active_connections: list[WebSocket] = []
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -41,7 +40,7 @@ class ConnectionManager:
             except Exception as e:
                 logger.error(f"Failed to send to websocket: {e}")
                 disconnected.append(connection)
-        
+
         # Clean up disconnected connections
         for conn in disconnected:
             if conn in self.active_connections:
@@ -54,7 +53,7 @@ manager = ConnectionManager()
 async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
     """
     WebSocket endpoint for real-time progress updates
-    
+
     Clients connect to this endpoint to receive live updates about
     data source processing progress.
     """
@@ -67,23 +66,23 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
             "data": [p.to_dict() for p in all_progress]
         }
         await websocket.send_json(initial_status)
-        
+
         # Keep connection alive and send periodic updates
         while True:
             await asyncio.sleep(1)  # Check for updates every second
-            
+
             # Get all running sources
             running_sources = db.query(DataSourceProgress).filter(
                 DataSourceProgress.status == SourceStatus.running
             ).all()
-            
+
             if running_sources:
                 update = {
                     "type": "progress_update",
                     "data": [p.to_dict() for p in running_sources]
                 }
                 await websocket.send_json(update)
-                
+
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception as e:
@@ -92,19 +91,19 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
 
 
 @router.get("/status")
-def get_all_status(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+def get_all_status(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
     """
     Get current status of all data sources
-    
+
     Returns:
         List of status dictionaries for all data sources
     """
     all_progress = db.query(DataSourceProgress).all()
-    
+
     # Categorize sources
     data_sources = ["PubTator", "PanelApp", "HPO", "ClinGen", "GenCC", "OMIM", "Literature"]
     internal_processes = ["Evidence_Aggregation", "HGNC_Normalization"]
-    
+
     result = []
     for p in all_progress:
         status_dict = p.to_dict()
@@ -116,7 +115,7 @@ def get_all_status(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
         else:
             status_dict["category"] = "other"
         result.append(status_dict)
-    
+
     return result
 
 
@@ -124,23 +123,23 @@ def get_all_status(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
 def get_source_status(
     source_name: str,
     db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get status of a specific data source
-    
+
     Args:
         source_name: Name of the data source
-        
+
     Returns:
         Status dictionary for the specified source
     """
     progress = db.query(DataSourceProgress).filter_by(
         source_name=source_name
     ).first()
-    
+
     if not progress:
         raise HTTPException(status_code=404, detail=f"Source {source_name} not found")
-    
+
     return progress.to_dict()
 
 
@@ -148,31 +147,31 @@ def get_source_status(
 async def trigger_update(
     source_name: str,
     db: Session = Depends(get_db)
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Trigger an update for a specific data source
-    
+
     Args:
         source_name: Name of the data source to update
-        
+
     Returns:
         Status message
     """
     from app.core.background_tasks import task_manager
-    
+
     progress = db.query(DataSourceProgress).filter_by(
         source_name=source_name
     ).first()
-    
+
     if not progress:
         raise HTTPException(status_code=404, detail=f"Source {source_name} not found")
-    
+
     if progress.status == SourceStatus.running:
         return {"status": "already_running", "message": f"{source_name} is already running"}
-    
+
     # Trigger the update in background
     asyncio.create_task(task_manager.run_source(source_name))
-    
+
     return {"status": "triggered", "message": f"Update triggered for {source_name}"}
 
 
@@ -180,37 +179,37 @@ async def trigger_update(
 def pause_source(
     source_name: str,
     db: Session = Depends(get_db)
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Pause a running data source update
-    
+
     Args:
         source_name: Name of the data source to pause
-        
+
     Returns:
         Status message
     """
     progress = db.query(DataSourceProgress).filter_by(
         source_name=source_name
     ).first()
-    
+
     if not progress:
         raise HTTPException(status_code=404, detail=f"Source {source_name} not found")
-    
+
     if progress.status != SourceStatus.running:
         return {"status": "not_running", "message": f"{source_name} is not running"}
-    
+
     progress.status = SourceStatus.paused
     progress.current_operation = "Paused by user"
     db.commit()
-    
+
     # Broadcast update
     asyncio.create_task(manager.broadcast({
         "type": "status_change",
         "source": source_name,
         "data": progress.to_dict()
     }))
-    
+
     return {"status": "paused", "message": f"{source_name} has been paused"}
 
 
@@ -218,55 +217,55 @@ def pause_source(
 async def resume_source(
     source_name: str,
     db: Session = Depends(get_db)
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Resume a paused data source update
-    
+
     Args:
         source_name: Name of the data source to resume
-        
+
     Returns:
         Status message
     """
     from app.core.background_tasks import task_manager
-    
+
     progress = db.query(DataSourceProgress).filter_by(
         source_name=source_name
     ).first()
-    
+
     if not progress:
         raise HTTPException(status_code=404, detail=f"Source {source_name} not found")
-    
+
     if progress.status != SourceStatus.paused:
         return {"status": "not_paused", "message": f"{source_name} is not paused"}
-    
+
     # Resume the update in background
     asyncio.create_task(task_manager.run_source(source_name, resume=True))
-    
+
     return {"status": "resumed", "message": f"{source_name} has been resumed"}
 
 
 @router.get("/dashboard")
-def get_dashboard_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_dashboard_data(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Get dashboard data with summary statistics
-    
+
     Returns:
         Dashboard data including overall statistics and source statuses
     """
     all_progress = db.query(DataSourceProgress).all()
-    
+
     # Calculate overall statistics
     total_sources = len(all_progress)
     running_sources = sum(1 for p in all_progress if p.status == SourceStatus.running)
     completed_sources = sum(1 for p in all_progress if p.status == SourceStatus.completed)
     failed_sources = sum(1 for p in all_progress if p.status == SourceStatus.failed)
-    
+
     total_items_processed = sum(p.items_processed for p in all_progress)
     total_items_added = sum(p.items_added for p in all_progress)
     total_items_updated = sum(p.items_updated for p in all_progress)
     total_items_failed = sum(p.items_failed for p in all_progress)
-    
+
     return {
         "summary": {
             "total_sources": total_sources,
