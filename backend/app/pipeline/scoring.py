@@ -217,11 +217,10 @@ class PercentileScorer:
             )
             
             if curation:
-                # Store total score as percentage (0-100)
-                # Max possible is number of sources (each contributes 0-1)
-                max_sources = 5  # Approximate max sources
-                normalized_score = (score_data["total_score"] / max_sources) * 100
-                curation.evidence_score = min(100.0, normalized_score)
+                # Store the raw percentile sum directly (0-N where N is number of sources)
+                # With 2 sources, max is 2.0
+                # With 5 sources, max would be 5.0
+                curation.evidence_score = score_data["total_score"]
                 
                 # Store raw percentile sum in JSONB for reference
                 if not curation.constraint_scores:
