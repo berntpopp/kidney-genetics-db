@@ -17,34 +17,34 @@ export default createVuetify({
     variations: {
       colors: ['primary', 'secondary', 'success'],
       lighten: 3,
-      darken: 2,
+      darken: 2
     },
     themes: {
       light: {
         dark: false,
         colors: {
           // Core Brand Colors
-          primary: '#0EA5E9',         // Sky blue
+          primary: '#0EA5E9', // Sky blue
           'primary-darken-1': '#0284C7',
           'primary-darken-2': '#0369A1',
           'primary-lighten-1': '#38BDF8',
           'primary-lighten-2': '#7DD3FC',
           'primary-lighten-3': '#F0F9FF',
-          
+
           // Semantic Colors
-          secondary: '#8B5CF6',       // Violet
+          secondary: '#8B5CF6', // Violet
           'secondary-darken-1': '#7C3AED',
           'secondary-lighten-1': '#A78BFA',
-          success: '#10B981',         // Emerald
+          success: '#10B981', // Emerald
           'success-darken-1': '#059669',
           'success-lighten-1': '#34D399',
-          warning: '#F59E0B',         // Amber
+          warning: '#F59E0B', // Amber
           'warning-lighten-1': '#FCD34D',
-          error: '#EF4444',           // Red
+          error: '#EF4444', // Red
           'error-lighten-1': '#F87171',
-          info: '#3B82F6',            // Blue
+          info: '#3B82F6', // Blue
           'info-lighten-1': '#60A5FA',
-          
+
           // Surface Colors
           background: '#FAFAFA',
           surface: '#FFFFFF',
@@ -52,7 +52,7 @@ export default createVuetify({
           'surface-light': '#F4F4F5',
           'surface-variant': '#E4E4E7',
           'on-surface-variant': '#52525B',
-          
+
           // Text Colors
           'on-background': '#18181B',
           'on-surface': '#27272A',
@@ -62,18 +62,18 @@ export default createVuetify({
           'on-info': '#FFFFFF',
           'on-success': '#FFFFFF',
           'on-warning': '#FFFFFF',
-          
+
           // Medical/Scientific Colors
-          'kidney-primary': '#14B8A6',  // Teal
+          'kidney-primary': '#14B8A6', // Teal
           'kidney-secondary': '#0D9488',
-          'dna-primary': '#0EA5E9',     // Sky Blue
-          'dna-secondary': '#8B5CF6',   // Violet
+          'dna-primary': '#0EA5E9', // Sky Blue
+          'dna-secondary': '#8B5CF6' // Violet
         },
         variables: {
           'border-color': '#E4E4E7',
           'border-opacity': 0.12,
           'high-emphasis-opacity': 0.87,
-          'medium-emphasis-opacity': 0.60,
+          'medium-emphasis-opacity': 0.6,
           'disabled-opacity': 0.38,
           'idle-opacity': 0.04,
           'hover-opacity': 0.04,
@@ -85,7 +85,7 @@ export default createVuetify({
           'theme-kbd': '#212529',
           'theme-on-kbd': '#FFFFFF',
           'theme-code': '#F5F5F5',
-          'theme-on-code': '#000000',
+          'theme-on-code': '#000000'
         }
       },
       dark: {
@@ -96,7 +96,7 @@ export default createVuetify({
           'primary-darken-1': '#0EA5E9',
           'primary-darken-2': '#0284C7',
           'primary-lighten-1': '#7DD3FC',
-          
+
           // Semantic Colors (Dark Mode)
           secondary: '#A78BFA',
           'secondary-darken-1': '#8B5CF6',
@@ -108,7 +108,7 @@ export default createVuetify({
           'error-darken-1': '#EF4444',
           info: '#60A5FA',
           'info-darken-1': '#3B82F6',
-          
+
           // Surface Colors (Dark Mode)
           background: '#0F0F11',
           surface: '#1A1A1D',
@@ -116,25 +116,25 @@ export default createVuetify({
           'surface-light': '#1F1F23',
           'surface-variant': '#2A2A2E',
           'on-surface-variant': '#E4E4E7',
-          
+
           // Text Colors (Dark Mode)
           'on-background': '#F4F4F5',
           'on-surface': '#F4F4F5',
           'on-primary': '#0F0F11',
           'on-secondary': '#0F0F11',
-          
+
           // Medical/Scientific Colors (Dark Mode)
           'kidney-primary': '#5EEAD4',
           'kidney-secondary': '#2DD4BF',
           'dna-primary': '#60A5FA',
-          'dna-secondary': '#A78BFA',
+          'dna-secondary': '#A78BFA'
         },
         variables: {
           'border-color': '#2A2A2E',
           'border-opacity': 0.15,
           'high-emphasis-opacity': 0.95,
-          'medium-emphasis-opacity': 0.70,
-          'disabled-opacity': 0.40,
+          'medium-emphasis-opacity': 0.7,
+          'disabled-opacity': 0.4
         }
       }
     }
@@ -142,22 +142,22 @@ export default createVuetify({
   defaults: {
     VCard: {
       elevation: 1,
-      rounded: 'lg',
+      rounded: 'lg'
     },
     VBtn: {
       rounded: 'md',
-      elevation: 0,
+      elevation: 0
     },
     VTextField: {
       variant: 'outlined',
       density: 'comfortable',
-      rounded: 'md',
+      rounded: 'md'
     },
     VDataTable: {
-      density: 'comfortable',
+      density: 'comfortable'
     },
     VChip: {
-      rounded: 'pill',
+      rounded: 'pill'
     }
   }
 })

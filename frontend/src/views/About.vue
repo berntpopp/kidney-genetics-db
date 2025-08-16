@@ -4,18 +4,11 @@
     <v-container fluid class="pa-0">
       <div class="about-hero text-center py-12 px-4">
         <v-container>
-          <KidneyGeneticsLogo 
-            :size="100" 
-            variant="full"
-            :animated="true"
-            class="mb-6"
-          />
-          <h1 class="text-h2 text-md-h1 font-weight-bold mb-4">
-            About Our Project
-          </h1>
-          <p class="text-h6 text-md-h5 text-medium-emphasis mx-auto" style="max-width: 700px;">
-            Advancing nephrology research through comprehensive genetic data curation
-            and evidence-based clinical insights
+          <KidneyGeneticsLogo :size="100" variant="full" :animated="true" class="mb-6" />
+          <h1 class="text-h2 text-md-h1 font-weight-bold mb-4">About Our Project</h1>
+          <p class="text-h6 text-md-h5 text-medium-emphasis mx-auto" style="max-width: 700px">
+            Advancing nephrology research through comprehensive genetic data curation and
+            evidence-based clinical insights
           </p>
         </v-container>
       </div>
@@ -30,9 +23,9 @@
               <div class="text-center">
                 <v-icon icon="mdi-target" size="large" color="primary" class="mb-4" />
                 <h2 class="text-h4 font-weight-medium mb-4">Our Mission</h2>
-                <p class="text-h6 text-medium-emphasis mx-auto" style="max-width: 800px;">
-                  To provide researchers and clinicians worldwide with the most comprehensive, 
-                  accurate, and accessible database of kidney disease-related genetic information, 
+                <p class="text-h6 text-medium-emphasis mx-auto" style="max-width: 800px">
+                  To provide researchers and clinicians worldwide with the most comprehensive,
+                  accurate, and accessible database of kidney disease-related genetic information,
                   enabling precision medicine and accelerating therapeutic discoveries.
                 </p>
               </div>
@@ -51,16 +44,16 @@
             </div>
             <v-card rounded="lg" class="overview-card">
               <v-card-text class="pa-6">
-                <div class="text-body-1 mb-4" style="line-height: 1.7;">
-                  The Kidney Genetics Database represents a significant advancement in nephrology 
-                  research infrastructure. Our platform modernizes genetic data curation by 
-                  replacing legacy R-based pipelines with a scalable, cloud-native architecture 
+                <div class="text-body-1 mb-4" style="line-height: 1.7">
+                  The Kidney Genetics Database represents a significant advancement in nephrology
+                  research infrastructure. Our platform modernizes genetic data curation by
+                  replacing legacy R-based pipelines with a scalable, cloud-native architecture
                   built on Python/FastAPI and Vue.js.
                 </div>
-                <div class="text-body-1 mb-4" style="line-height: 1.7;">
-                  We integrate data from multiple authoritative sources, applying sophisticated 
-                  evidence scoring algorithms to provide researchers with confidence levels for 
-                  gene-disease associations. Our GenCC-compatible schema ensures international 
+                <div class="text-body-1 mb-4" style="line-height: 1.7">
+                  We integrate data from multiple authoritative sources, applying sophisticated
+                  evidence scoring algorithms to provide researchers with confidence levels for
+                  gene-disease associations. Our GenCC-compatible schema ensures international
                   interoperability and supports regulatory compliance for clinical applications.
                 </div>
                 <div class="d-flex flex-wrap ga-2 mt-6">
@@ -132,8 +125,8 @@
           </div>
           <v-row>
             <v-col v-for="source in dataSources" :key="source.name" cols="12" md="6" lg="4">
-              <v-card 
-                class="source-card h-100" 
+              <v-card
+                class="source-card h-100"
                 rounded="lg"
                 :class="{ 'source-card--featured': source.featured }"
               >
@@ -144,7 +137,7 @@
                     </v-avatar>
                   </template>
                   <v-card-title class="text-h6">{{ source.name }}</v-card-title>
-                  <template #append v-if="source.featured">
+                  <template v-if="source.featured" #append>
                     <v-chip color="primary" size="x-small" variant="flat">
                       <v-icon icon="mdi-star" size="x-small" start />
                       Primary
@@ -157,11 +150,7 @@
                     <v-chip size="small" variant="tonal" :color="source.color">
                       {{ source.coverage }}
                     </v-chip>
-                    <v-chip 
-                      size="small" 
-                      variant="outlined" 
-                      prepend-icon="mdi-update"
-                    >
+                    <v-chip size="small" variant="outlined" prepend-icon="mdi-update">
                       {{ source.frequency }}
                     </v-chip>
                   </div>
@@ -241,9 +230,9 @@
             <v-card-item class="pa-8 text-center">
               <v-icon icon="mdi-account-group" size="x-large" color="primary" class="mb-4" />
               <h2 class="text-h4 font-weight-medium mb-4">Get Involved</h2>
-              <p class="text-h6 text-medium-emphasis mb-6" style="max-width: 600px; margin: 0 auto;">
-                Join our growing community of researchers, clinicians, and developers 
-                working to advance kidney disease genetics research.
+              <p class="text-h6 text-medium-emphasis mb-6" style="max-width: 600px; margin: 0 auto">
+                Join our growing community of researchers, clinicians, and developers working to
+                advance kidney disease genetics research.
               </p>
               <div class="d-flex justify-center flex-wrap ga-3">
                 <v-btn
@@ -392,15 +381,19 @@ const frontendTech = ref([
 
 <style scoped>
 .about-hero {
-  background: linear-gradient(135deg, 
-    rgb(var(--v-theme-primary-lighten-3)) 0%, 
-    rgb(var(--v-theme-surface)) 100%);
+  background: linear-gradient(
+    135deg,
+    rgb(var(--v-theme-primary-lighten-3)) 0%,
+    rgb(var(--v-theme-surface)) 100%
+  );
 }
 
 .v-theme--dark .about-hero {
-  background: linear-gradient(135deg, 
-    rgba(var(--v-theme-primary), 0.1) 0%, 
-    rgb(var(--v-theme-background)) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--v-theme-primary), 0.1) 0%,
+    rgb(var(--v-theme-background)) 100%
+  );
 }
 
 .mission-card,

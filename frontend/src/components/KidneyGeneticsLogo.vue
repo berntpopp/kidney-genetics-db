@@ -1,23 +1,23 @@
 <template>
-  <div 
+  <div
     class="kidney-genetics-logo"
     :class="[
       `logo--${variant}`,
       `logo--${sizeClass}`,
-      { 
+      {
         'logo--animated': animated && !reducedMotion,
         'logo--interactive': interactive
       }
     ]"
     role="img"
     :aria-label="ariaLabel"
-    @click="$emit('click', $event)"
     :style="{ width: computedSize + 'px', height: computedSize + 'px' }"
+    @click="$emit('click', $event)"
   >
     <!-- Simple nephrology logo -->
     <div v-if="variant === 'full'" class="logo-single">
-      <img 
-        :src="nephrologyIcon" 
+      <img
+        :src="nephrologyIcon"
         alt="Nephrology"
         class="nephrology-icon"
         :style="{ ...iconStyle, width: '100%', height: '100%' }"
@@ -26,9 +26,9 @@
 
     <!-- DNA-only variant -->
     <div v-else-if="variant === 'dna'" class="logo-single">
-      <img 
-        :src="geneticsIcon" 
-        alt="Genetics" 
+      <img
+        :src="geneticsIcon"
+        alt="Genetics"
         class="genetics-icon"
         :style="{ ...iconStyle, width: '100%', height: '100%' }"
       />
@@ -36,9 +36,9 @@
 
     <!-- Kidney-only variant -->
     <div v-else-if="variant === 'kidneys'" class="logo-single">
-      <img 
-        :src="nephrologyIcon" 
-        alt="Nephrology" 
+      <img
+        :src="nephrologyIcon"
+        alt="Nephrology"
         class="nephrology-icon"
         :style="{ ...iconStyle, width: '100%', height: '100%' }"
       />
@@ -46,18 +46,8 @@
 
     <!-- Icon variant (smaller stacked) -->
     <div v-else class="logo-stack">
-      <img 
-        :src="nephrologyIcon" 
-        alt="Nephrology"
-        class="nephrology-icon"
-        :style="iconStyle"
-      />
-      <img 
-        :src="geneticsIcon" 
-        alt="Genetics" 
-        class="genetics-icon"
-        :style="iconStyle"
-      />
+      <img :src="nephrologyIcon" alt="Nephrology" class="nephrology-icon" :style="iconStyle" />
+      <img :src="geneticsIcon" alt="Genetics" class="genetics-icon" :style="iconStyle" />
     </div>
   </div>
 </template>
@@ -72,7 +62,7 @@ const props = defineProps({
   size: {
     type: [Number, String],
     default: 64,
-    validator: (val) => {
+    validator: val => {
       const num = Number(val)
       return num >= 16 && num <= 512
     }
@@ -80,7 +70,7 @@ const props = defineProps({
   variant: {
     type: String,
     default: 'full',
-    validator: (val) => ['full', 'icon', 'dna', 'kidneys'].includes(val)
+    validator: val => ['full', 'icon', 'dna', 'kidneys'].includes(val)
   },
   animated: {
     type: Boolean,
@@ -94,14 +84,14 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  theme: {
+  themeOverride: {
     type: String,
     default: 'auto',
-    validator: (val) => ['auto', 'light', 'dark'].includes(val)
+    validator: val => ['auto', 'light', 'dark'].includes(val)
   }
 })
 
-const emit = defineEmits(['click'])
+defineEmits(['click'])
 
 const theme = useTheme()
 const reducedMotion = ref(false)
@@ -110,13 +100,13 @@ const reducedMotion = ref(false)
 onMounted(() => {
   const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
   reducedMotion.value = mediaQuery.matches
-  
-  const handleChange = (e) => {
+
+  const handleChange = e => {
     reducedMotion.value = e.matches
   }
-  
+
   mediaQuery.addEventListener('change', handleChange)
-  
+
   onUnmounted(() => {
     mediaQuery.removeEventListener('change', handleChange)
   })
@@ -136,19 +126,18 @@ const sizeClass = computed(() => {
 
 // Theme-aware colors
 const isDark = computed(() => {
-  if (props.theme === 'light') return false
-  if (props.theme === 'dark') return true
+  if (props.themeOverride === 'light') return false
+  if (props.themeOverride === 'dark') return true
   return theme.current.value.dark
 })
-
 
 const iconStyle = computed(() => ({
   width: '50%',
   height: '50%',
-  filter: props.monochrome 
-    ? `brightness(${isDark.value ? '0.9' : '0.4'})` 
-    : isDark.value 
-      ? 'brightness(1.1) contrast(1.1)' 
+  filter: props.monochrome
+    ? `brightness(${isDark.value ? '0.9' : '0.4'})`
+    : isDark.value
+      ? 'brightness(1.1) contrast(1.1)'
       : 'brightness(0.8) contrast(1.2)'
 }))
 
@@ -180,7 +169,6 @@ const ariaLabel = computed(() => {
   height: 100%;
   gap: 4px;
 }
-
 
 .logo-single {
   display: flex;
@@ -220,7 +208,8 @@ const ariaLabel = computed(() => {
 }
 
 @keyframes gentle-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.8;
     transform: scale(1);
   }
@@ -249,7 +238,7 @@ const ariaLabel = computed(() => {
   .kidney-genetics-logo {
     animation: none !important;
   }
-  
+
   .nephrology-icon,
   .genetics-icon {
     animation: none !important;

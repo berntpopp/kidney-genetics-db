@@ -10,11 +10,7 @@
     <div v-else-if="gene">
       <!-- Breadcrumb Navigation -->
       <v-container fluid class="pa-0">
-        <v-breadcrumbs
-          :items="breadcrumbs"
-          density="compact"
-          class="px-6 py-2 bg-surface-light"
-        >
+        <v-breadcrumbs :items="breadcrumbs" density="compact" class="px-6 py-2 bg-surface-light">
           <template #prepend>
             <v-icon icon="mdi-home" size="small" />
           </template>
@@ -46,11 +42,7 @@
               </div>
             </div>
             <div class="d-flex align-center flex-wrap ga-2">
-              <v-chip
-                prepend-icon="mdi-identifier"
-                variant="tonal"
-                color="primary"
-              >
+              <v-chip prepend-icon="mdi-identifier" variant="tonal" color="primary">
                 {{ gene.hgnc_id }}
               </v-chip>
               <v-chip
@@ -73,34 +65,18 @@
 
           <!-- Action Buttons -->
           <div class="d-flex ga-2 flex-wrap">
-            <v-btn
-              prepend-icon="mdi-bookmark-outline"
-              variant="outlined"
-              @click="addToFavorites"
-            >
+            <v-btn prepend-icon="mdi-bookmark-outline" variant="outlined" @click="addToFavorites">
               Save
             </v-btn>
-            <v-btn
-              prepend-icon="mdi-share-variant"
-              variant="outlined"
-              @click="shareGene"
-            >
+            <v-btn prepend-icon="mdi-share-variant" variant="outlined" @click="shareGene">
               Share
             </v-btn>
-            <v-btn
-              prepend-icon="mdi-download"
-              variant="outlined"
-              @click="exportGene"
-            >
+            <v-btn prepend-icon="mdi-download" variant="outlined" @click="exportGene">
               Export
             </v-btn>
             <v-menu>
               <template #activator="{ props }">
-                <v-btn
-                  icon="mdi-dots-vertical"
-                  variant="outlined"
-                  v-bind="props"
-                />
+                <v-btn icon="mdi-dots-vertical" variant="outlined" v-bind="props" />
               </template>
               <v-list density="compact">
                 <v-list-item
@@ -135,23 +111,33 @@
                     <template #prepend>
                       <v-icon icon="mdi-tag" size="small" class="text-medium-emphasis" />
                     </template>
-                    <v-list-item-title class="text-body-2 font-weight-medium">Symbol</v-list-item-title>
-                    <v-list-item-subtitle class="font-mono">{{ gene.approved_symbol }}</v-list-item-subtitle>
+                    <v-list-item-title class="text-body-2 font-weight-medium"
+                      >Symbol</v-list-item-title
+                    >
+                    <v-list-item-subtitle class="font-mono">{{
+                      gene.approved_symbol
+                    }}</v-list-item-subtitle>
                   </v-list-item>
-                  
+
                   <v-list-item>
                     <template #prepend>
                       <v-icon icon="mdi-identifier" size="small" class="text-medium-emphasis" />
                     </template>
-                    <v-list-item-title class="text-body-2 font-weight-medium">HGNC ID</v-list-item-title>
-                    <v-list-item-subtitle class="font-mono">{{ gene.hgnc_id }}</v-list-item-subtitle>
+                    <v-list-item-title class="text-body-2 font-weight-medium"
+                      >HGNC ID</v-list-item-title
+                    >
+                    <v-list-item-subtitle class="font-mono">{{
+                      gene.hgnc_id
+                    }}</v-list-item-subtitle>
                   </v-list-item>
 
                   <v-list-item v-if="gene.alias_symbol?.length">
                     <template #prepend>
                       <v-icon icon="mdi-tag-multiple" size="small" class="text-medium-emphasis" />
                     </template>
-                    <v-list-item-title class="text-body-2 font-weight-medium">Aliases</v-list-item-title>
+                    <v-list-item-title class="text-body-2 font-weight-medium"
+                      >Aliases</v-list-item-title
+                    >
                     <v-list-item-subtitle>
                       <div class="d-flex flex-wrap ga-1 mt-1">
                         <v-chip
@@ -164,11 +150,7 @@
                         </v-chip>
                         <v-tooltip v-if="gene.alias_symbol.length > 3" location="bottom">
                           <template #activator="{ props }">
-                            <v-chip
-                              size="x-small"
-                              variant="outlined"
-                              v-bind="props"
-                            >
+                            <v-chip size="x-small" variant="outlined" v-bind="props">
                               +{{ gene.alias_symbol.length - 3 }}
                             </v-chip>
                           </template>
@@ -184,7 +166,9 @@
                     <template #prepend>
                       <v-icon icon="mdi-map-marker" size="small" class="text-medium-emphasis" />
                     </template>
-                    <v-list-item-title class="text-body-2 font-weight-medium">Location</v-list-item-title>
+                    <v-list-item-title class="text-body-2 font-weight-medium"
+                      >Location</v-list-item-title
+                    >
                     <v-list-item-subtitle>{{ gene.chromosome }}</v-list-item-subtitle>
                   </v-list-item>
                 </v-list>
@@ -217,9 +201,7 @@
                         <div class="text-h4 font-weight-bold">
                           {{ gene.evidence_score.toFixed(1) }}
                         </div>
-                        <div class="text-caption text-medium-emphasis">
-                          / 100
-                        </div>
+                        <div class="text-caption text-medium-emphasis">/ 100</div>
                       </div>
                     </v-progress-circular>
                   </div>
@@ -291,8 +273,8 @@
                 prepend-icon="mdi-refresh"
                 variant="outlined"
                 size="small"
-                @click="refreshEvidence"
                 :loading="loadingEvidence"
+                @click="refreshEvidence"
               >
                 Refresh
               </v-btn>
@@ -333,12 +315,7 @@
                     />
                   </v-col>
                   <v-col cols="12" md="4" class="d-flex align-center">
-                    <v-btn
-                      variant="text"
-                      @click="clearEvidenceFilters"
-                    >
-                      Clear Filters
-                    </v-btn>
+                    <v-btn variant="text" @click="clearEvidenceFilters"> Clear Filters </v-btn>
                   </v-col>
                 </v-row>
               </v-card-text>
@@ -362,12 +339,12 @@
                 <v-expansion-panel-title class="py-4">
                   <div class="d-flex align-center justify-space-between w-100">
                     <div class="d-flex align-center">
-                      <v-avatar
-                        :color="getSourceColor(item.source_name)"
-                        size="32"
-                        class="mr-3"
-                      >
-                        <v-icon :icon="getSourceIcon(item.source_name)" size="small" color="white" />
+                      <v-avatar :color="getSourceColor(item.source_name)" size="32" class="mr-3">
+                        <v-icon
+                          :icon="getSourceIcon(item.source_name)"
+                          size="small"
+                          color="white"
+                        />
                       </v-avatar>
                       <div>
                         <div class="text-h6 font-weight-medium">{{ item.source_name }}</div>
@@ -381,7 +358,9 @@
                         variant="tonal"
                         color="primary"
                       >
-                        {{ item.evidence_data.panels.length }} panel{{ item.evidence_data.panels.length !== 1 ? 's' : '' }}
+                        {{ item.evidence_data.panels.length }} panel{{
+                          item.evidence_data.panels.length !== 1 ? 's' : ''
+                        }}
                       </v-chip>
                       <v-chip
                         v-if="item.evidence_data?.phenotypes?.length"
@@ -389,7 +368,9 @@
                         variant="tonal"
                         color="secondary"
                       >
-                        {{ item.evidence_data.phenotypes.length }} phenotype{{ item.evidence_data.phenotypes.length !== 1 ? 's' : '' }}
+                        {{ item.evidence_data.phenotypes.length }} phenotype{{
+                          item.evidence_data.phenotypes.length !== 1 ? 's' : ''
+                        }}
                       </v-chip>
                     </div>
                   </div>
@@ -457,12 +438,7 @@
                         </v-chip>
                         <v-menu v-if="item.evidence_data.phenotypes.length > 10" location="bottom">
                           <template #activator="{ props }">
-                            <v-chip
-                              size="small"
-                              variant="outlined"
-                              v-bind="props"
-                              class="mb-2"
-                            >
+                            <v-chip size="small" variant="outlined" v-bind="props" class="mb-2">
                               +{{ item.evidence_data.phenotypes.length - 10 }} more
                             </v-chip>
                           </template>
@@ -470,7 +446,9 @@
                             <v-card-text>
                               <div class="d-flex flex-wrap ga-1">
                                 <v-chip
-                                  v-for="(phenotype, idx) in item.evidence_data.phenotypes.slice(10)"
+                                  v-for="(phenotype, idx) in item.evidence_data.phenotypes.slice(
+                                    10
+                                  )"
                                   :key="idx"
                                   size="x-small"
                                   variant="outlined"
@@ -566,7 +544,11 @@
             <v-icon icon="mdi-file-document-search" size="64" class="mb-4 text-medium-emphasis" />
             <h3 class="text-h6 mb-2">No Evidence Data</h3>
             <p class="text-body-2 text-medium-emphasis mb-4">
-              {{ selectedEvidenceSources.length > 0 ? 'No evidence matches your current filters' : 'No evidence data available for this gene' }}
+              {{
+                selectedEvidenceSources.length > 0
+                  ? 'No evidence matches your current filters'
+                  : 'No evidence data available for this gene'
+              }}
             </p>
             <v-btn
               v-if="selectedEvidenceSources.length > 0"
@@ -586,17 +568,17 @@
             <v-col
               v-for="relatedGene in relatedGenes.slice(0, 6)"
               :key="relatedGene.approved_symbol"
-              cols="12" sm="6" md="4"
+              cols="12"
+              sm="6"
+              md="4"
             >
-              <v-card 
-                :to="`/genes/${relatedGene.approved_symbol}`"
-                class="related-gene-card"
-                hover
-              >
+              <v-card :to="`/genes/${relatedGene.approved_symbol}`" class="related-gene-card" hover>
                 <v-card-text>
                   <div class="d-flex align-center justify-space-between">
                     <div>
-                      <div class="text-h6 font-weight-medium">{{ relatedGene.approved_symbol }}</div>
+                      <div class="text-h6 font-weight-medium">
+                        {{ relatedGene.approved_symbol }}
+                      </div>
                       <div class="text-body-2 text-medium-emphasis">{{ relatedGene.hgnc_id }}</div>
                     </div>
                     <v-chip
@@ -671,7 +653,7 @@ const breadcrumbs = computed(() => [
 
 const externalLinks = computed(() => {
   if (!gene.value) return []
-  
+
   return [
     {
       name: 'HGNC',
@@ -698,36 +680,38 @@ const externalLinks = computed(() => {
 
 const filteredEvidence = computed(() => {
   if (!evidence.value?.evidence) return []
-  
+
   let filtered = evidence.value.evidence
-  
+
   if (selectedEvidenceSources.value.length > 0) {
-    filtered = filtered.filter(item => 
-      selectedEvidenceSources.value.includes(item.source_name)
-    )
+    filtered = filtered.filter(item => selectedEvidenceSources.value.includes(item.source_name))
   }
-  
+
   // Sort evidence
   switch (evidenceSortOrder.value) {
     case 'oldest':
-      filtered = filtered.sort((a, b) => 
-        new Date(a.evidence_data?.last_updated || 0) - new Date(b.evidence_data?.last_updated || 0)
+      filtered = filtered.sort(
+        (a, b) =>
+          new Date(a.evidence_data?.last_updated || 0) -
+          new Date(b.evidence_data?.last_updated || 0)
       )
       break
     case 'source':
       filtered = filtered.sort((a, b) => a.source_name.localeCompare(b.source_name))
       break
     case 'panels':
-      filtered = filtered.sort((a, b) => 
-        (b.evidence_data?.panels?.length || 0) - (a.evidence_data?.panels?.length || 0)
+      filtered = filtered.sort(
+        (a, b) => (b.evidence_data?.panels?.length || 0) - (a.evidence_data?.panels?.length || 0)
       )
       break
     default: // newest
-      filtered = filtered.sort((a, b) => 
-        new Date(b.evidence_data?.last_updated || 0) - new Date(a.evidence_data?.last_updated || 0)
+      filtered = filtered.sort(
+        (a, b) =>
+          new Date(b.evidence_data?.last_updated || 0) -
+          new Date(a.evidence_data?.last_updated || 0)
       )
   }
-  
+
   return filtered
 })
 
@@ -831,15 +815,15 @@ const exportGene = () => {
   console.log('Export gene:', gene.value.approved_symbol)
 }
 
-const showAllPanels = (item) => {
+const showAllPanels = item => {
   console.log('Show all panels for:', item)
 }
 
-const viewExternalSource = (item) => {
+const viewExternalSource = item => {
   console.log('View external source:', item)
 }
 
-const exportEvidence = (item) => {
+const exportEvidence = item => {
   console.log('Export evidence:', item)
 }
 
@@ -874,11 +858,15 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.info-card, .score-card, .sources-card {
+.info-card,
+.score-card,
+.sources-card {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.info-card:hover, .score-card:hover, .sources-card:hover {
+.info-card:hover,
+.score-card:hover,
+.sources-card:hover {
   transform: translateY(-2px);
 }
 

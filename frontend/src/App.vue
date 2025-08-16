@@ -1,21 +1,21 @@
 <template>
   <v-app>
     <!-- Navigation Bar -->
-    <v-app-bar 
-      app 
-      elevation="0" 
+    <v-app-bar
+      app
+      elevation="0"
       class="border-b"
       :class="{ 'bg-surface': !isDark, 'bg-surface-bright': isDark }"
     >
       <!-- Logo and Title -->
       <div class="d-flex align-center">
-        <KidneyGeneticsLogo 
-          :size="40" 
+        <KidneyGeneticsLogo
+          :size="40"
           variant="kidneys"
           :animated="false"
           interactive
-          @click="$router.push('/')"
           class="mr-3 cursor-pointer"
+          @click="$router.push('/')"
         />
         <v-app-bar-title class="text-h6 font-weight-medium">
           Kidney Genetics Database
@@ -26,8 +26,8 @@
 
       <!-- Navigation Links -->
       <div class="d-none d-md-flex align-center ga-2">
-        <v-btn 
-          :to="'/'" 
+        <v-btn
+          :to="'/'"
           variant="text"
           :color="$route.path === '/' ? 'primary' : ''"
           class="text-none"
@@ -35,8 +35,8 @@
           <v-icon icon="mdi-home" size="small" class="mr-1" />
           Home
         </v-btn>
-        <v-btn 
-          :to="'/genes'" 
+        <v-btn
+          :to="'/genes'"
           variant="text"
           :color="$route.path.startsWith('/genes') ? 'primary' : ''"
           class="text-none"
@@ -44,8 +44,8 @@
           <v-icon icon="mdi-dna" size="small" class="mr-1" />
           Gene Browser
         </v-btn>
-        <v-btn 
-          :to="'/data-sources'" 
+        <v-btn
+          :to="'/data-sources'"
           variant="text"
           :color="$route.path === '/data-sources' ? 'primary' : ''"
           class="text-none"
@@ -53,8 +53,8 @@
           <v-icon icon="mdi-database-sync" size="small" class="mr-1" />
           Data Sources
         </v-btn>
-        <v-btn 
-          :to="'/about'" 
+        <v-btn
+          :to="'/about'"
           variant="text"
           :color="$route.path === '/about' ? 'primary' : ''"
           class="text-none"
@@ -67,33 +67,21 @@
       <!-- Theme Toggle -->
       <v-btn
         icon
-        @click="toggleTheme"
         class="ml-2"
         :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+        @click="toggleTheme"
       >
         <v-icon :icon="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'" />
       </v-btn>
 
       <!-- Mobile Menu -->
-      <v-app-bar-nav-icon 
-        class="d-md-none"
-        @click="drawer = !drawer"
-      />
+      <v-app-bar-nav-icon class="d-md-none" @click="drawer = !drawer" />
     </v-app-bar>
 
     <!-- Mobile Navigation Drawer -->
-    <v-navigation-drawer
-      v-model="drawer"
-      temporary
-      location="right"
-    >
+    <v-navigation-drawer v-model="drawer" temporary location="right">
       <v-list density="comfortable" nav>
-        <v-list-item
-          prepend-icon="mdi-home"
-          title="Home"
-          :to="'/'"
-          :active="$route.path === '/'"
-        />
+        <v-list-item prepend-icon="mdi-home" title="Home" :to="'/'" :active="$route.path === '/'" />
         <v-list-item
           prepend-icon="mdi-dna"
           title="Gene Browser"
@@ -125,17 +113,13 @@
     </v-main>
 
     <!-- Footer -->
-    <v-footer 
-      app 
-      class="bg-surface-light"
-      height="auto"
-    >
+    <v-footer app class="bg-surface-light" height="auto">
       <v-container>
         <v-row align="center" justify="center">
           <v-col cols="12" md="4" class="text-center text-md-left">
             <div class="d-flex align-center justify-center justify-md-start">
-              <KidneyGeneticsLogo 
-                :size="32" 
+              <KidneyGeneticsLogo
+                :size="32"
                 variant="kidneys"
                 :animated="false"
                 monochrome
@@ -177,11 +161,11 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useTheme } from 'vuetify'
-import { useRoute } from 'vue-router'
+// import { useRoute } from 'vue-router' // Removed unused import
 import KidneyGeneticsLogo from '@/components/KidneyGeneticsLogo.vue'
 
 const theme = useTheme()
-const route = useRoute()
+// const route = useRoute() // Removed unused variable
 const drawer = ref(false)
 
 const isDark = computed(() => theme.global.current.value.dark)

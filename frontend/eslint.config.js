@@ -16,7 +16,9 @@ export default [
         process: 'readonly',
         localStorage: 'readonly',
         setTimeout: 'readonly',
-        clearTimeout: 'readonly'
+        clearTimeout: 'readonly',
+        window: 'readonly',
+        navigator: 'readonly'
       }
     },
     rules: {

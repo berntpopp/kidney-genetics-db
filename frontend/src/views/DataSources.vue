@@ -30,12 +30,17 @@
     <!-- Data Sources Cards -->
     <v-row v-else>
       <v-col v-for="source in dataSources" :key="source.name" cols="12" md="6" lg="4">
-        <v-card class="source-card h-100" :elevation="hoveredCard === source.name ? 4 : 1"
-                @mouseenter="hoveredCard = source.name"
-                @mouseleave="hoveredCard = null">
+        <v-card
+          class="source-card h-100"
+          :elevation="hoveredCard === source.name ? 4 : 1"
+          @mouseenter="hoveredCard = source.name"
+          @mouseleave="hoveredCard = null"
+        >
           <!-- Header with gradient -->
-          <div class="source-header pa-4" 
-               :style="`background: linear-gradient(135deg, ${getSourceGradient(source.name)});`">
+          <div
+            class="source-header pa-4"
+            :style="`background: linear-gradient(135deg, ${getSourceGradient(source.name)});`"
+          >
             <div class="d-flex align-center justify-space-between">
               <div class="d-flex align-center">
                 <v-icon color="white" size="large" class="mr-3">
@@ -76,7 +81,9 @@
                 <div class="text-h6 font-weight-bold text-info">
                   {{ getMetadataCount(source) }}
                 </div>
-                <div class="text-caption text-medium-emphasis">{{ getMetadataLabel(source.name) }}</div>
+                <div class="text-caption text-medium-emphasis">
+                  {{ getMetadataLabel(source.name) }}
+                </div>
               </div>
             </div>
 
@@ -154,12 +161,12 @@ const apiResponse = ref(null)
 
 // Source descriptions mapping
 const sourceDescriptions = {
-  'PanelApp': 'Expert-curated gene panels from UK Genomics England and Australian Genomics',
-  'HPO': 'Human Phenotype Ontology providing standardized phenotype-gene associations',
-  'PubTator': 'Literature mining from PubMed Central with automated text analysis',
-  'Literature': 'Manual curation from peer-reviewed research and clinical guidelines',
-  'ClinGen': 'Clinical Genome Resource providing authoritative disease-gene relationships',
-  'Diagnostic': 'Commercial diagnostic panels from leading genetic testing laboratories'
+  PanelApp: 'Expert-curated gene panels from UK Genomics England and Australian Genomics',
+  HPO: 'Human Phenotype Ontology providing standardized phenotype-gene associations',
+  PubTator: 'Literature mining from PubMed Central with automated text analysis',
+  Literature: 'Manual curation from peer-reviewed research and clinical guidelines',
+  ClinGen: 'Clinical Genome Resource providing authoritative disease-gene relationships',
+  Diagnostic: 'Commercial diagnostic panels from leading genetic testing laboratories'
 }
 
 // Summary stats computed from API data
@@ -174,12 +181,8 @@ const summaryStats = computed(() => {
   }
 
   const response = apiResponse.value
-  const totalRecords = dataSources.value.reduce((sum, s) => 
-    sum + (s.stats?.evidence_count || 0), 0
-  )
-  const totalGenes = dataSources.value.reduce((sum, s) => 
-    sum + (s.stats?.gene_count || 0), 0
-  )
+  const totalRecords = dataSources.value.reduce((sum, s) => sum + (s.stats?.evidence_count || 0), 0)
+  const totalGenes = dataSources.value.reduce((sum, s) => sum + (s.stats?.gene_count || 0), 0)
 
   return {
     total_active: response.total_active || 0,
@@ -190,35 +193,35 @@ const summaryStats = computed(() => {
 })
 
 // Style guide color mappings
-const getSourceGradient = (sourceName) => {
+const getSourceGradient = sourceName => {
   const gradients = {
-    'PanelApp': '#0EA5E9, #0284C7',    // Primary blue
-    'HPO': '#8B5CF6, #7C3AED',         // Secondary purple
-    'PubTator': '#3B82F6, #2563EB',    // Info blue
-    'Literature': '#10B981, #059669',   // Success green
-    'ClinGen': '#F59E0B, #D97706',     // Warning amber
-    'Diagnostic': '#EF4444, #DC2626'   // Error red
+    PanelApp: '#0EA5E9, #0284C7', // Primary blue
+    HPO: '#8B5CF6, #7C3AED', // Secondary purple
+    PubTator: '#3B82F6, #2563EB', // Info blue
+    Literature: '#10B981, #059669', // Success green
+    ClinGen: '#F59E0B, #D97706', // Warning amber
+    Diagnostic: '#EF4444, #DC2626' // Error red
   }
   return gradients[sourceName] || gradients['PanelApp']
 }
 
-const getSourceIcon = (sourceName) => {
+const getSourceIcon = sourceName => {
   const icons = {
-    'PanelApp': 'mdi-view-dashboard',
-    'HPO': 'mdi-human',
-    'PubTator': 'mdi-file-document',
-    'Literature': 'mdi-book-open',
-    'ClinGen': 'mdi-test-tube',
-    'Diagnostic': 'mdi-hospital-box'
+    PanelApp: 'mdi-view-dashboard',
+    HPO: 'mdi-human',
+    PubTator: 'mdi-file-document',
+    Literature: 'mdi-book-open',
+    ClinGen: 'mdi-test-tube',
+    Diagnostic: 'mdi-hospital-box'
   }
   return icons[sourceName] || 'mdi-database'
 }
 
-const getSourceDescription = (sourceName) => {
+const getSourceDescription = sourceName => {
   return sourceDescriptions[sourceName] || 'Integrated data source for genetic information'
 }
 
-const getStatusChipColor = (status) => {
+const getStatusChipColor = status => {
   switch (status) {
     case 'active':
       return 'success'
@@ -231,7 +234,7 @@ const getStatusChipColor = (status) => {
   }
 }
 
-const getStatusLabel = (status) => {
+const getStatusLabel = status => {
   switch (status) {
     case 'active':
       return 'Active'
@@ -244,16 +247,16 @@ const getStatusLabel = (status) => {
   }
 }
 
-const getMetadataCount = (source) => {
+const getMetadataCount = source => {
   if (!source.stats?.metadata) return 0
-  
+
   const metadata = source.stats.metadata
   if (metadata.panel_count) return metadata.panel_count
   if (metadata.total_publications) return metadata.total_publications
   return 0
 }
 
-const getMetadataLabel = (sourceName) => {
+const getMetadataLabel = sourceName => {
   switch (sourceName) {
     case 'PanelApp':
       return 'Panels'
@@ -268,14 +271,14 @@ const getMetadataLabel = (sourceName) => {
   }
 }
 
-const formatDate = (dateStr) => {
+const formatDate = dateStr => {
   if (!dateStr) return 'Never'
   const date = new Date(dateStr)
   if (isNaN(date.getTime())) return 'Never'
-  
+
   const today = new Date()
   const diffDays = Math.floor((today - date) / (1000 * 60 * 60 * 24))
-  
+
   if (diffDays === 0) return 'Today'
   if (diffDays === 1) return 'Yesterday'
   if (diffDays < 7) return `${diffDays} days ago`
@@ -288,10 +291,9 @@ onMounted(async () => {
     console.log('Loading data sources...')
     const response = await datasourceApi.getDataSources()
     console.log('Datasource API response:', response)
-    
+
     apiResponse.value = response
     dataSources.value = response.sources || []
-    
   } catch (error) {
     console.error('Failed to load data sources:', error)
     // Fallback empty state

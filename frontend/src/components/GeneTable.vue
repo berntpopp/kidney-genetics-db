@@ -14,23 +14,23 @@
             <v-btn
               icon="mdi-download"
               variant="outlined"
-              @click="exportData"
               :disabled="loading"
               title="Export filtered results"
+              @click="exportData"
             />
             <v-btn
               icon="mdi-filter-variant"
               variant="outlined"
               :color="hasActiveFilters ? 'primary' : ''"
-              @click="showAdvancedFilters = !showAdvancedFilters"
               title="Advanced filters"
+              @click="showAdvancedFilters = !showAdvancedFilters"
             />
             <v-btn
               icon="mdi-refresh"
               variant="outlined"
-              @click="refreshData"
               :loading="loading"
               title="Refresh data"
+              @click="refreshData"
             />
           </div>
         </div>
@@ -47,8 +47,8 @@
               hide-details
               variant="outlined"
               density="compact"
-              @input="debouncedSearch"
               class="search-field"
+              @input="debouncedSearch"
             >
             </v-text-field>
           </v-col>
@@ -61,9 +61,9 @@
               :step="5"
               thumb-label
               hide-details
-              @end="debouncedSearch"
               color="primary"
               density="compact"
+              @end="debouncedSearch"
             >
               <template #prepend>
                 <v-chip size="x-small" variant="tonal">
@@ -106,10 +106,7 @@
                     >
                       {{ item.title }}
                     </v-chip>
-                    <span
-                      v-if="index === 2"
-                      class="text-caption text-medium-emphasis"
-                    >
+                    <span v-if="index === 2" class="text-caption text-medium-emphasis">
                       (+{{ selectedSources.length - 2 }} others)
                     </span>
                   </template>
@@ -124,8 +121,8 @@
                   hide-details
                   variant="outlined"
                   density="compact"
-                  @input="debouncedSearch"
                   clearable
+                  @input="debouncedSearch"
                 />
               </v-col>
               <v-col cols="12" md="4">
@@ -169,7 +166,7 @@
                     hide-details
                     variant="outlined"
                     density="compact"
-                    style="width: 100px;"
+                    style="width: 100px"
                     @update:model-value="loadGenes"
                   />
                 </div>
@@ -185,19 +182,15 @@
       <div class="d-flex align-center ga-3">
         <div class="text-body-2 text-medium-emphasis">
           <span v-if="!loading">
-            {{ ((page - 1) * itemsPerPage + 1).toLocaleString() }}–{{ 
-              Math.min(page * itemsPerPage, totalItems).toLocaleString() 
-            }} of {{ totalItems.toLocaleString() }}
+            {{ ((page - 1) * itemsPerPage + 1).toLocaleString() }}–{{
+              Math.min(page * itemsPerPage, totalItems).toLocaleString()
+            }}
+            of {{ totalItems.toLocaleString() }}
           </span>
           <span v-else>Loading...</span>
         </div>
         <div class="d-flex ga-1">
-          <v-chip
-            v-if="search"
-            size="x-small"
-            variant="tonal"
-            prepend-icon="mdi-magnify"
-          >
+          <v-chip v-if="search" size="x-small" variant="tonal" prepend-icon="mdi-magnify">
             "{{ search }}"
           </v-chip>
           <v-chip
@@ -210,7 +203,7 @@
           </v-chip>
         </div>
       </div>
-      
+
       <!-- Top Pagination Controls -->
       <div class="d-flex align-center ga-2">
         <v-select
@@ -220,7 +213,7 @@
           hide-details
           variant="outlined"
           density="compact"
-          style="width: 100px;"
+          style="width: 100px"
           @update:model-value="loadGenes"
         />
         <v-pagination
@@ -228,8 +221,8 @@
           :length="pageCount"
           :total-visible="5"
           size="small"
-          @update:model-value="loadGenes"
           density="compact"
+          @update:model-value="loadGenes"
         />
       </div>
     </div>
@@ -246,9 +239,9 @@
         class="gene-table"
         density="compact"
         hover
-        @update:options="updateOptions"
         :no-data-text="noDataText"
         loading-text="Loading gene data..."
+        @update:options="updateOptions"
       >
         <!-- Gene Symbol with Link -->
         <template #[`item.approved_symbol`]="{ item }">
@@ -261,15 +254,15 @@
             </router-link>
             <v-tooltip v-if="item.alias_symbol?.length" location="bottom">
               <template #activator="{ props }">
-                <v-icon 
-                  icon="mdi-information-outline" 
+                <v-icon
+                  icon="mdi-information-outline"
                   size="small"
                   v-bind="props"
                   class="ml-1 text-medium-emphasis"
                 />
               </template>
               <div class="pa-2">
-                <strong>Aliases:</strong><br>
+                <strong>Aliases:</strong><br />
                 {{ item.alias_symbol.join(', ') }}
               </div>
             </v-tooltip>
@@ -299,14 +292,17 @@
               :color="getEvidenceCountColor(item.evidence_count)"
               height="2"
               class="ml-2"
-              style="width: 32px;"
+              style="width: 32px"
             />
           </div>
         </template>
 
         <!-- Enhanced Evidence Score -->
         <template #[`item.evidence_score`]="{ item }">
-          <div v-if="item.evidence_score !== null && item.evidence_score !== undefined" class="text-center">
+          <div
+            v-if="item.evidence_score !== null && item.evidence_score !== undefined"
+            class="text-center"
+          >
             <v-tooltip location="bottom">
               <template #activator="{ props }">
                 <v-chip
@@ -316,26 +312,18 @@
                   class="font-weight-medium"
                   v-bind="props"
                 >
-                  <v-icon 
-                    :icon="getScoreIcon(item.evidence_score)" 
-                    size="small" 
-                    start 
-                  />
+                  <v-icon :icon="getScoreIcon(item.evidence_score)" size="small" start />
                   {{ item.evidence_score.toFixed(1) }}
                 </v-chip>
               </template>
               <div class="pa-2">
-                <strong>Classification:</strong> {{ getScoreLabel(item.evidence_score) }}<br>
-                <span class="text-caption">
-                  Evidence strength based on curated data sources
-                </span>
+                <strong>Classification:</strong> {{ getScoreLabel(item.evidence_score) }}<br />
+                <span class="text-caption"> Evidence strength based on curated data sources </span>
               </div>
             </v-tooltip>
           </div>
           <div v-else class="text-center">
-            <v-chip color="grey" variant="tonal" size="x-small">
-              N/A
-            </v-chip>
+            <v-chip color="grey" variant="tonal" size="x-small"> N/A </v-chip>
           </div>
         </template>
 
@@ -350,33 +338,18 @@
               variant="tonal"
               class="font-weight-medium"
             >
-              <v-icon 
-                :icon="getSourceIcon(source)" 
-                size="x-small" 
-                start 
-              />
+              <v-icon :icon="getSourceIcon(source)" size="x-small" start />
               {{ source }}
             </v-chip>
             <v-menu v-if="item.sources?.length > 3" location="bottom">
               <template #activator="{ props }">
-                <v-chip
-                  size="x-small"
-                  variant="outlined"
-                  v-bind="props"
-                >
+                <v-chip size="x-small" variant="outlined" v-bind="props">
                   +{{ item.sources.length - 3 }}
                 </v-chip>
               </template>
               <v-list density="compact">
-                <v-list-item
-                  v-for="source in item.sources.slice(3)"
-                  :key="source"
-                >
-                  <v-chip
-                    size="x-small"
-                    :color="getSourceColor(source)"
-                    variant="tonal"
-                  >
+                <v-list-item v-for="source in item.sources.slice(3)" :key="source">
+                  <v-chip size="x-small" :color="getSourceColor(source)" variant="tonal">
                     {{ source }}
                   </v-chip>
                 </v-list-item>
@@ -384,7 +357,6 @@
             </v-menu>
           </div>
         </template>
-
 
         <!-- Loading State -->
         <template #loading>
@@ -399,9 +371,7 @@
         <!-- Simplified Bottom -->
         <template #bottom>
           <div class="pa-2 text-center">
-            <div class="text-caption text-medium-emphasis">
-              Page {{ page }} of {{ pageCount }}
-            </div>
+            <div class="text-caption text-medium-emphasis">Page {{ page }} of {{ pageCount }}</div>
           </div>
         </template>
       </v-data-table-server>
@@ -414,12 +384,7 @@
       <p class="text-body-2 text-medium-emphasis mb-4">
         {{ search ? `No results for "${search}"` : 'Try adjusting your filters' }}
       </p>
-      <v-btn
-        v-if="hasActiveFilters"
-        color="primary"
-        variant="outlined"
-        @click="clearAllFilters"
-      >
+      <v-btn v-if="hasActiveFilters" color="primary" variant="outlined" @click="clearAllFilters">
         Clear Filters
       </v-btn>
     </v-card>
@@ -427,7 +392,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { geneApi } from '../api/genes'
 
 // Data
@@ -462,37 +427,37 @@ const sortOptions = [
 
 // Enhanced table headers
 const headers = [
-  { 
-    title: 'Gene Symbol', 
-    key: 'approved_symbol', 
+  {
+    title: 'Gene Symbol',
+    key: 'approved_symbol',
     sortable: true,
     width: '140px'
   },
-  { 
-    title: 'HGNC ID', 
-    key: 'hgnc_id', 
+  {
+    title: 'HGNC ID',
+    key: 'hgnc_id',
     sortable: true,
     width: '120px'
   },
-  { 
-    title: 'Evidence Count', 
-    key: 'evidence_count', 
+  {
+    title: 'Evidence Count',
+    key: 'evidence_count',
     sortable: true,
     width: '140px'
   },
-  { 
-    title: 'Evidence Score', 
-    key: 'evidence_score', 
+  {
+    title: 'Evidence Score',
+    key: 'evidence_score',
     sortable: true,
     width: '140px',
     align: 'center'
   },
-  { 
-    title: 'Data Sources', 
-    key: 'sources', 
+  {
+    title: 'Data Sources',
+    key: 'sources',
     sortable: false,
     width: '200px'
-  },
+  }
 ]
 
 // Computed
@@ -504,10 +469,13 @@ const maxEvidenceCount = computed(() => {
 })
 
 const hasActiveFilters = computed(() => {
-  return search.value || 
-         (scoreRange.value[0] > 0 || scoreRange.value[1] < 100) ||
-         selectedSources.value.length > 0 ||
-         minEvidenceCount.value
+  return (
+    search.value ||
+    scoreRange.value[0] > 0 ||
+    scoreRange.value[1] < 100 ||
+    selectedSources.value.length > 0 ||
+    minEvidenceCount.value
+  )
 })
 
 const activeFilterCount = computed(() => {
@@ -555,7 +523,7 @@ const loadGenes = async (sortBy = null, sortDesc = false) => {
 const updateOptions = options => {
   page.value = options.page
   itemsPerPage.value = options.itemsPerPage
-  
+
   // Handle sorting
   if (options.sortBy && options.sortBy.length > 0) {
     const sortField = options.sortBy[0].key
@@ -603,7 +571,7 @@ const exportData = () => {
 const getSourceColor = source => {
   const colors = {
     PanelApp: 'primary',
-    HPO: 'secondary', 
+    HPO: 'secondary',
     PubTator: 'info',
     Literature: 'success'
   }
@@ -657,20 +625,11 @@ const getEvidenceStrength = count => {
 }
 
 // Action methods
-const showExternalLinks = (item) => {
-  // TODO: Implement external links dialog
-  console.log('Show external links for', item.approved_symbol)
-}
+// Removed unused function - will implement later
 
-const addToFavorites = (item) => {
-  // TODO: Implement favorites functionality
-  console.log('Add to favorites', item.approved_symbol)
-}
+// Removed unused function - will implement later
 
-const shareGene = (item) => {
-  // TODO: Implement share functionality
-  console.log('Share gene', item.approved_symbol)
-}
+// Removed unused function - will implement later
 
 // Lifecycle
 onMounted(() => {
