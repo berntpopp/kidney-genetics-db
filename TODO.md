@@ -14,21 +14,44 @@
 
 ## Current Status (2025-08-16)
 ### Working Features
-- **PanelApp Integration**: 407 genes from combined UK (19 panels) and Australian (12 panels) sources
-- **PubTator3 Integration**: 22 genes from literature mining using comprehensive kidney query
-- **Evidence Aggregation**: 429 genes total, with PKD1/PKD2 having evidence from multiple sources
-- **Frontend**: Full table with sorting, search, filtering by score
-- **API**: RESTful endpoints with pagination, sorting, and filtering
+- **PanelApp Integration**: 395 genes from combined UK and Australian sources (27 panels total)
+  - Correct kidney filter applied (excludes adrenal)
+- **PubTator3 Integration**: 50 genes from literature mining
+  - Smart caching system for 5,435 pages
+  - Comprehensive kidney disease query
+- **Percentage Scoring**: 0-100% scores based on percentile normalization
+  - Database views with PostgreSQL PERCENT_RANK()
+  - Automatic source count tracking
+  - Scales to any number of sources
+- **Data Sources API**: Dynamic reporting of source status
+  - Live statistics per source
+  - Error tracking (HPO OMIM issue)
+  - Metadata (panel counts, publications)
+- **Frontend**: Full-featured interface
+  - Table with sorting on all columns
+  - Search and filtering
+  - Gene detail views with evidence
+  - Dynamic data source display
+- **API**: Complete RESTful endpoints
+  - Pagination, sorting, filtering
+  - Percentage-based scoring
+  - Evidence aggregation
 
 ### Known Issues
 - **HPO**: Needs valid OMIM genemap2.txt download link (API key required)
 - **Diagnostic Panels**: Need web scraping implementation (Blueprint, Natera, etc.)
+- **Literature**: Manual upload endpoint not implemented
 
 ### Data Statistics
-- Total genes: 429
-- PanelApp only: 405 genes
-- PubTator only: 22 genes  
-- Both sources: 2 genes (PKD1, PKD2)
+- Total genes: 403
+- Genes with evidence: 403
+- Active sources: 2 (PanelApp, PubTator)
+- PanelApp: 395 genes from 27 panels
+- PubTator: 50 genes with publication evidence
+- High confidence (>80%): 12 genes
+- Medium confidence (50-80%): 10 genes
+- Low confidence (1-50%): 363 genes
+- Minimal evidence (0%): 18 genes
 
 ## Overview
 Logical implementation phases for building the kidney-genetics-db system. Each phase produces working software that can be tested and validated.
@@ -191,6 +214,36 @@ Logical implementation phases for building the kidney-genetics-db system. Each p
   - [ ] Add OMIM data
   - [ ] Add ClinVar annotations
   - [ ] Add constraint scores (gnomAD)
+
+## Phase 5.5: Expert Curation Sources (ClinGen & GenCC)
+*Goal: Add expert-curated gene-disease validity data*
+
+- [ ] ClinGen implementation
+  - [ ] Implement `app/pipeline/sources/clingen.py`
+  - [ ] Target 5 kidney-specific expert panels:
+    - [ ] Kidney Cystic and Ciliopathy Disorders (ID: 40066, ~69 genes)
+    - [ ] Glomerulopathy (ID: 40068, ~17 genes)
+    - [ ] Tubulopathy (ID: 40067, ~24 genes)
+    - [ ] Complement-Mediated Kidney Diseases (ID: 40069, ~12 genes)
+    - [ ] Congenital Anomalies of Kidney and Urinary Tract (ID: 40070, ~3 genes)
+  - [ ] Classification scoring (Definitive=1.0, Strong=0.8, etc.)
+  - [ ] Caching system (7-day TTL)
+
+- [ ] GenCC implementation
+  - [ ] Implement `app/pipeline/sources/gencc.py`
+  - [ ] Excel file download and parsing
+  - [ ] Kidney disease filtering (keywords + MONDO hierarchy)
+  - [ ] Harmonized classification mapping
+  - [ ] Caching system (30-day TTL)
+
+- [ ] Integration and testing
+  - [ ] Update scoring system for 4 sources (PanelApp, PubTator, ClinGen, GenCC)
+  - [ ] Add sources to datasources API
+  - [ ] Test duplicate handling between ClinGen and GenCC
+  - [ ] Validate ~125 new gene validity assessments
+  - [ ] Update frontend to display new sources
+
+**Timeline**: 3 weeks total (see [CLINGEN-GENCC-PLAN.md](CLINGEN-GENCC-PLAN.md) for details)
 
 ## Phase 6: API & Frontend Enhancement
 *Goal: Full-featured user interface*

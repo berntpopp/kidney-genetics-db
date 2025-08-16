@@ -144,11 +144,16 @@ See [Hybrid Development Guide](plan/HYBRID-DEVELOPMENT.md) for more options.
 
 ## Data Sources
 
-1. **PanelApp** - Combined gene panels from UK Genomics England and Australian Genomics (single source, panels tagged by origin)
-2. **Literature** - Manual curation from research papers
-3. **Diagnostic Panels** - Commercial panel data (Blueprint Genetics, etc.) - requires web scraping
-4. **HPO** - Human Phenotype Ontology associations
-5. **PubTator** - Automated literature mining
+### Implemented (Phase 5 Complete)
+1. **PanelApp** - Combined gene panels from UK Genomics England and Australian Genomics (395 genes from 27 panels)
+2. **PubTator** - Automated literature mining via PubTator3 API (50 genes with evidence)
+
+### In Progress / Planned
+3. **HPO** - Human Phenotype Ontology associations (implemented, needs OMIM genemap2.txt fix)
+4. **ClinGen** - Expert-curated gene-disease validity assessments (5 kidney-specific expert panels, ~125 genes)
+5. **GenCC** - Harmonized gene-disease relationships from 40+ submitters worldwide
+6. **Literature** - Manual curation from research papers (upload API needed)
+7. **Diagnostic Panels** - Commercial panel data (Blueprint Genetics, etc.) - requires web scraping
 
 ## Reference Projects
 
@@ -160,6 +165,7 @@ See [Hybrid Development Guide](plan/HYBRID-DEVELOPMENT.md) for more options.
 Detailed implementation plans are available in the `plan/` directory:
 
 - [**Implementation TODO**](TODO.md) - Phased implementation checklist
+- [**ClinGen & GenCC Plan**](CLINGEN-GENCC-PLAN.md) - Expert curation sources implementation (3-week plan)
 - [Development Guide](plan/DEVELOPMENT.md) - Setup and development workflow
 - [Hybrid Development](plan/HYBRID-DEVELOPMENT.md) - Flexible Docker/local development modes
 - [Data Source Architecture](plan/DATA-SOURCE-ARCHITECTURE.md) - Smart source integration strategy
