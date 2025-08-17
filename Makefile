@@ -137,21 +137,7 @@ db-reset: services-up
 	@echo "📦 Running migrations..."
 	@cd backend && uv run alembic upgrade head
 	@echo "🎯 Initializing progress tracking..."
-	@cd backend && uv run python -c "\
-from sqlalchemy import create_engine, text; \
-from app.core.config import settings; \
-from datetime import datetime, timezone; \
-engine = create_engine(settings.DATABASE_URL); \
-with engine.connect() as conn: \
-    sources = ['PubTator', 'PanelApp', 'HPO', 'ClinGen', 'GenCC', 'OMIM', 'Literature', 'Evidence_Aggregation', 'HGNC_Normalization']; \
-    for source in sources: \
-        conn.execute(text(''' \
-            INSERT INTO data_source_progress (source_name, status, progress_percentage, current_operation, created_at, updated_at) \
-            VALUES (:source, 'idle', 0, 'Ready to start', :now, :now) \
-            ON CONFLICT (source_name) \
-            DO UPDATE SET status = 'idle', progress_percentage = 0, current_operation = 'Ready to start', updated_at = :now \
-        '''), {'source': source, 'now': datetime.now(timezone.utc)}); \
-    conn.commit();"
+	@cd backend && uv run python -c "from sqlalchemy import create_engine, text; from app.core.config import settings; from datetime import datetime, timezone; engine = create_engine(settings.DATABASE_URL); conn = engine.connect(); sources = ['PubTator', 'PanelApp', 'HPO', 'ClinGen', 'GenCC', 'Literature', 'Evidence_Aggregation', 'HGNC_Normalization']; [conn.execute(text('INSERT INTO data_source_progress (source_name, status, progress_percentage, current_operation, created_at, updated_at) VALUES (:source, \\'idle\\', 0, \\'Ready to start\\', :now, :now) ON CONFLICT (source_name) DO UPDATE SET status = \\'idle\\', progress_percentage = 0, current_operation = \\'Ready to start\\', updated_at = :now'), {'source': source, 'now': datetime.now(timezone.utc)}) for source in sources]; conn.commit(); conn.close(); print('Progress tracking initialized')"
 	@echo "✅ Database reset complete!"
 
 # Clean all data from database (keep structure)
