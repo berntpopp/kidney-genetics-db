@@ -152,45 +152,24 @@ class BackgroundTaskManager:
             db.close()
 
     async def _run_gencc(self, resume: bool = False):
-        """Run GenCC update with progress tracking - fully async"""
-        logger.info(f"🚀 [DEBUG] _run_gencc called with resume={resume}")
-        print(f"🚀 [DEBUG] _run_gencc called with resume={resume}")
+        """Run GenCC update with unified client"""
+        logger.info(f"🚀 Starting GenCC update with unified client (resume={resume})")
+
+        db = next(get_db())
+        tracker = ProgressTracker(db, "GenCC", self.broadcast_callback)
 
         try:
-            logger.info("🚀 [DEBUG] Importing update_gencc_async...")
-            print("🚀 [DEBUG] Importing update_gencc_async...")
-            from app.pipeline.sources.gencc_async import update_gencc_async
-            logger.info("🚀 [DEBUG] Import successful")
-            print("🚀 [DEBUG] Import successful")
-
-            logger.info("🚀 [DEBUG] Getting database session...")
-            print("🚀 [DEBUG] Getting database session...")
-            db = next(get_db())
-            logger.info("🚀 [DEBUG] Creating ProgressTracker...")
-            print("🚀 [DEBUG] Creating ProgressTracker...")
-            tracker = ProgressTracker(db, "GenCC", self.broadcast_callback)
-            logger.info("🚀 [DEBUG] About to call update_gencc_async...")
-            print("🚀 [DEBUG] About to call update_gencc_async...")
-
-            # Use fully async implementation
-            result = await update_gencc_async(db, tracker)
-            logger.info(f"GenCC async update completed: {result}")
-            print(f"GenCC async update completed: {result}")
+            from app.pipeline.sources.gencc_unified import get_gencc_client
+            
+            client = get_gencc_client(db_session=db)
+            result = await client.update_data(db, tracker)
+            logger.info(f"✅ GenCC update completed: {result}")
 
         except Exception as e:
-            logger.error(f"❌ [DEBUG] GenCC async update failed: {e}")
-            import traceback
-            logger.error(f"❌ [DEBUG] Full traceback: {traceback.format_exc()}")
-            try:
-                tracker.error(str(e))
-            except Exception:
-                logger.error("❌ [DEBUG] Failed to update tracker with error")
+            logger.error(f"❌ GenCC update failed: {e}")
+            tracker.error(str(e))
         finally:
-            try:
-                db.close()
-                logger.info("🚀 [DEBUG] Database session closed")
-            except Exception:
-                logger.error("❌ [DEBUG] Failed to close database session")
+            db.close()
 
     async def _run_hpo(self, resume: bool = False):
         """Run HPO update with progress tracking"""

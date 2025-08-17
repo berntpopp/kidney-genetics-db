@@ -1,0 +1,393 @@
+"""
+Abstract base class for all data source clients.
+
+This module provides a unified architecture for data source implementations,
+enforcing consistent patterns for fetching, processing, and storing data.
+"""
+
+import logging
+from abc import ABC, abstractmethod
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy.orm import Session
+
+from app.core.cache_service import CacheService, get_cache_service
+from app.core.cached_http_client import CachedHttpClient, get_cached_http_client
+from app.core.progress_tracker import ProgressTracker
+from app.crud.gene import gene_crud
+from app.models.gene import Gene, GeneEvidence
+from app.schemas.gene import GeneCreate
+
+logger = logging.getLogger(__name__)
+
+
+class DataSourceClient(ABC):
+    """
+    Abstract base class for all data source clients.
+    
+    Implements the Template Method pattern to ensure consistent data processing
+    workflows across all data sources while allowing specific implementations
+    to customize the data fetching and processing logic.
+    """
+
+    def __init__(
+        self, 
+        cache_service: Optional[CacheService] = None,
+        http_client: Optional[CachedHttpClient] = None,
+        db_session: Optional[Session] = None
+    ):
+        """Initialize the data source client with shared services."""
+        self.cache_service = cache_service or get_cache_service(db_session)
+        self.http_client = http_client or get_cached_http_client(cache_service, db_session)
+        self.db_session = db_session
+        
+    @property
+    @abstractmethod
+    def source_name(self) -> str:
+        """Return the name of this data source."""
+        pass
+        
+    @property
+    @abstractmethod
+    def namespace(self) -> str:
+        """Return the cache namespace for this data source."""
+        pass
+    
+    @abstractmethod
+    async def fetch_raw_data(self) -> Any:
+        """
+        Fetch raw data from the external source.
+        
+        Returns:
+            Raw data in whatever format the source provides
+        """
+        pass
+        
+    @abstractmethod
+    async def process_data(self, raw_data: Any) -> Dict[str, Any]:
+        """
+        Process raw data into structured gene information.
+        
+        Args:
+            raw_data: Raw data from fetch_raw_data()
+            
+        Returns:
+            Dictionary mapping gene symbols to their aggregated data
+        """
+        pass
+        
+    @abstractmethod
+    def is_kidney_related(self, record: Dict[str, Any]) -> bool:
+        """
+        Check if a data record is kidney-related.
+        
+        Args:
+            record: Individual data record from the source
+            
+        Returns:
+            True if the record is kidney-related
+        """
+        pass
+        
+    async def update_data(self, db: Session, tracker: ProgressTracker) -> Dict[str, Any]:
+        """
+        Template method for the complete data update process.
+        
+        This method implements the common workflow:
+        1. Initialize statistics
+        2. Fetch raw data from source
+        3. Process data into gene information
+        4. Store processed data in database
+        5. Return comprehensive statistics
+        
+        Args:
+            db: Database session
+            tracker: Progress tracker for real-time updates
+            
+        Returns:
+            Dictionary with comprehensive update statistics
+        """
+        stats = self._initialize_stats()
+        
+        try:
+            tracker.start(f"Starting {self.source_name} update")
+            logger.info(f"🚀 Starting {self.source_name} data update...")
+            
+            # Step 1: Fetch raw data
+            tracker.update(operation="Fetching data from source")
+            logger.info(f"📥 Fetching {self.source_name} data...")
+            raw_data = await self.fetch_raw_data()
+            stats["data_fetched"] = True
+            
+            # Step 2: Process data
+            tracker.update(operation="Processing and filtering data")
+            logger.info(f"🔄 Processing {self.source_name} data...")
+            processed_data = await self.process_data(raw_data)
+            stats["genes_found"] = len(processed_data)
+            
+            if not processed_data:
+                logger.warning(f"⚠️ No genes found in {self.source_name} data")
+                tracker.complete(f"{self.source_name} update completed: 0 genes found")
+                return stats
+            
+            # Step 3: Store in database
+            tracker.update(operation="Storing genes in database")
+            logger.info(f"💾 Storing {len(processed_data)} genes from {self.source_name}...")
+            await self._store_genes_in_database(db, processed_data, stats, tracker)
+            
+            # Step 4: Finalize
+            stats["completed_at"] = datetime.now(timezone.utc).isoformat()
+            stats["duration"] = (
+                datetime.fromisoformat(stats["completed_at"]) - 
+                datetime.fromisoformat(stats["started_at"])
+            ).total_seconds()
+            
+            logger.info(
+                f"✅ {self.source_name} update completed: "
+                f"{stats['genes_found']} genes found, "
+                f"{stats['genes_created']} created, "
+                f"{stats['evidence_created']} evidence records"
+            )
+            
+            tracker.complete(
+                f"{self.source_name} update completed: "
+                f"{stats['genes_created']} genes, {stats['evidence_created']} evidence"
+            )
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"❌ {self.source_name} update failed: {e}")
+            tracker.error(str(e))
+            stats["error"] = str(e)
+            stats["completed_at"] = datetime.now(timezone.utc).isoformat()
+            raise
+    
+    def _initialize_stats(self) -> Dict[str, Any]:
+        """Initialize statistics dictionary with common fields."""
+        return {
+            "source": self.source_name,
+            "data_fetched": False,
+            "genes_found": 0,
+            "genes_processed": 0,
+            "genes_created": 0,
+            "genes_updated": 0,
+            "evidence_created": 0,
+            "evidence_updated": 0,
+            "errors": 0,
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "completed_at": None,
+            "duration": None
+        }
+        
+    async def _store_genes_in_database(
+        self, 
+        db: Session, 
+        gene_data: Dict[str, Any], 
+        stats: Dict[str, Any], 
+        tracker: ProgressTracker
+    ) -> None:
+        """
+        Store processed gene data in the database.
+        
+        This method handles the common pattern of:
+        1. Getting or creating genes
+        2. Creating/updating evidence records
+        3. Tracking statistics and progress
+        
+        Args:
+            db: Database session
+            gene_data: Processed gene data from process_data()
+            stats: Statistics dictionary to update
+            tracker: Progress tracker for updates
+        """
+        from app.core.gene_normalization_async import normalize_genes_batch_async
+        
+        # Get list of gene symbols for batch normalization
+        gene_symbols = list(gene_data.keys())
+        
+        # Normalize gene symbols in batches
+        batch_size = 50
+        total_batches = (len(gene_symbols) + batch_size - 1) // batch_size
+        
+        for batch_num in range(total_batches):
+            start_idx = batch_num * batch_size
+            end_idx = min(start_idx + batch_size, len(gene_symbols))
+            batch_symbols = gene_symbols[start_idx:end_idx]
+            
+            tracker.update(
+                operation=f"Processing gene batch {batch_num + 1}/{total_batches}"
+            )
+            
+            # Normalize gene symbols
+            normalization_results = await normalize_genes_batch_async(
+                db, batch_symbols, self.source_name
+            )
+            
+            # Process each gene in the batch
+            for symbol in batch_symbols:
+                try:
+                    stats["genes_processed"] += 1
+                    data = gene_data[symbol]
+                    
+                    # Get normalized gene info
+                    norm_result = normalization_results.get(symbol, {})
+                    if norm_result.get("status") != "normalized":
+                        logger.debug(f"Skipping unnormalized gene: {symbol}")
+                        continue
+                    
+                    # Get or create gene
+                    gene = await self._get_or_create_gene(
+                        db, norm_result, symbol, stats
+                    )
+                    
+                    if gene:
+                        # Create or update evidence
+                        await self._create_or_update_evidence(
+                            db, gene, data, stats
+                        )
+                        
+                except Exception as e:
+                    logger.error(f"Error processing gene {symbol}: {e}")
+                    stats["errors"] += 1
+                    
+            # Commit batch
+            db.commit()
+    
+    async def _get_or_create_gene(
+        self, 
+        db: Session, 
+        norm_result: Dict[str, Any], 
+        original_symbol: str,
+        stats: Dict[str, Any]
+    ) -> Optional[Gene]:
+        """Get existing gene or create new one from normalization result."""
+        approved_symbol = norm_result.get("approved_symbol")
+        hgnc_id = norm_result.get("hgnc_id")
+        
+        if not approved_symbol:
+            return None
+            
+        # Try to get existing gene
+        gene = gene_crud.get_by_symbol(db, approved_symbol)
+        
+        if not gene:
+            try:
+                gene_create = GeneCreate(
+                    approved_symbol=approved_symbol,
+                    hgnc_id=hgnc_id,
+                    aliases=[original_symbol] if original_symbol != approved_symbol else []
+                )
+                gene = gene_crud.create(db, gene_create)
+                stats["genes_created"] += 1
+                logger.debug(f"Created new gene: {approved_symbol}")
+            except Exception as e:
+                logger.error(f"Error creating gene {approved_symbol}: {e}")
+                return None
+        else:
+            stats["genes_updated"] += 1
+            
+        return gene
+    
+    async def _create_or_update_evidence(
+        self, 
+        db: Session, 
+        gene: Gene, 
+        evidence_data: Dict[str, Any],
+        stats: Dict[str, Any]
+    ) -> None:
+        """Create or update evidence record for a gene."""
+        try:
+            # Check if evidence already exists
+            existing = (
+                db.query(GeneEvidence)
+                .filter(
+                    GeneEvidence.gene_id == gene.id,
+                    GeneEvidence.source_name == self.source_name,
+                )
+                .first()
+            )
+            
+            # Clean evidence data for JSON storage
+            clean_evidence = self._clean_data_for_json(evidence_data)
+            
+            if existing:
+                # Update existing evidence
+                existing.evidence_data = clean_evidence
+                existing.evidence_date = datetime.now(timezone.utc).date()
+                db.add(existing)
+                stats["evidence_updated"] += 1
+            else:
+                # Create new evidence
+                evidence = GeneEvidence(
+                    gene_id=gene.id,
+                    source_name=self.source_name,
+                    source_detail=self._get_source_detail(evidence_data),
+                    evidence_data=clean_evidence,
+                    evidence_date=datetime.now(timezone.utc).date(),
+                )
+                db.add(evidence)
+                stats["evidence_created"] += 1
+                
+        except Exception as e:
+            logger.error(f"Error creating evidence for gene {gene.approved_symbol}: {e}")
+            stats["errors"] += 1
+    
+    def _clean_data_for_json(self, data: Any) -> Any:
+        """Clean data by replacing NaN/None values for JSON serialization."""
+        if isinstance(data, dict):
+            return {k: self._clean_data_for_json(v) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [self._clean_data_for_json(item) for item in data]
+        elif isinstance(data, set):
+            return list(data)  # Convert sets to lists
+        elif str(data).lower() in ('nan', 'none', 'null') or data is None:
+            return ""
+        else:
+            return data
+    
+    def _get_source_detail(self, evidence_data: Dict[str, Any]) -> str:
+        """
+        Generate a source detail string from evidence data.
+        
+        Subclasses can override this to provide source-specific details.
+        """
+        return f"Data from {self.source_name}"
+
+
+def get_data_source_client(source_name: str, **kwargs) -> DataSourceClient:
+    """
+    Factory function to get appropriate data source client.
+    
+    Args:
+        source_name: Name of the data source
+        **kwargs: Additional arguments for client initialization
+        
+    Returns:
+        Appropriate DataSourceClient instance
+        
+    Raises:
+        ValueError: If source_name is not recognized
+    """
+    source_map = {
+        "GenCC": "app.pipeline.sources.gencc.GenCCClient",
+        "PubTator": "app.pipeline.sources.pubtator.PubTatorClient", 
+        "PanelApp": "app.pipeline.sources.panelapp.PanelAppClient",
+        "ClinGen": "app.pipeline.sources.clingen.ClinGenClient",
+        "HPO": "app.pipeline.sources.hpo.HPOClient",
+    }
+    
+    if source_name not in source_map:
+        raise ValueError(f"Unknown data source: {source_name}")
+    
+    # Dynamic import and instantiation
+    module_path, class_name = source_map[source_name].rsplit(".", 1)
+    
+    try:
+        import importlib
+        module = importlib.import_module(module_path)
+        client_class = getattr(module, class_name)
+        return client_class(**kwargs)
+    except (ImportError, AttributeError) as e:
+        raise ValueError(f"Could not import {source_name} client: {e}")
