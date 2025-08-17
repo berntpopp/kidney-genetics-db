@@ -52,6 +52,11 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
         logger.info("🔄 Fetching GenCC kidney-related gene data...")
 
         gene_data_map = await client.get_kidney_gene_data()
+        
+        logger.info(f"🔍 GenCC returned data: {type(gene_data_map)}, length: {len(gene_data_map) if gene_data_map else 0}")
+        if gene_data_map:
+            sample_keys = list(gene_data_map.keys())[:3] if gene_data_map else []
+            logger.info(f"   Sample genes: {sample_keys}")
 
         if not gene_data_map:
             logger.warning("❌ No GenCC gene data found")

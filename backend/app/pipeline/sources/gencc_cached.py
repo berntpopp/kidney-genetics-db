@@ -402,13 +402,19 @@ class GenCCClientCached:
 
             return gene_data_map
 
-        return await cached(
-            cache_key,
-            fetch_and_process_data,
-            self.NAMESPACE,
-            self.ttl,
-            self.cache_service.db_session
-        )
+        # Try to use cache, but if it fails, still return the data
+        try:
+            return await cached(
+                cache_key,
+                fetch_and_process_data,
+                self.NAMESPACE,
+                self.ttl,
+                self.cache_service.db_session
+            )
+        except Exception as e:
+            logger.warning(f"Cache failed for kidney_gene_data, fetching directly: {e}")
+            # If caching fails, just fetch the data directly
+            return await fetch_and_process_data()
 
     async def get_gene_evidence_score(self, symbol: str) -> float:
         """
