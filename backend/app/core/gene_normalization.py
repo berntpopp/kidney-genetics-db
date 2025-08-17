@@ -13,7 +13,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.core.hgnc_client_cached import HGNCClientCached, get_hgnc_client_cached
+from app.core.hgnc_client import HGNCClientCached, get_hgnc_client_cached
 from app.crud import gene_crud, gene_staging
 
 logger = logging.getLogger(__name__)

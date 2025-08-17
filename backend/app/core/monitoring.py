@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_service import get_cache_service
 from app.core.cached_http_client import get_cached_http_client
-from app.core.hgnc_client_cached import get_hgnc_client_cached
+from app.core.hgnc_client import get_hgnc_client_cached
 from app.pipeline.sources.gencc_cached import get_gencc_client_cached
 from app.pipeline.sources.panelapp_cached import get_panelapp_manager_cached
 from app.pipeline.sources.pubtator_cached import get_pubtator_client_cached

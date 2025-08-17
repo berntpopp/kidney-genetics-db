@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.gene_normalization import clean_gene_text
-from app.core.hgnc_client_cached import get_hgnc_client_cached
+from app.core.hgnc_client import get_hgnc_client_cached
 from app.crud import gene_staging
 from app.crud.gene import gene_crud
 

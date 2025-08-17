@@ -153,23 +153,41 @@ class BackgroundTaskManager:
 
     async def _run_gencc(self, resume: bool = False):
         """Run GenCC update with unified client"""
+        print(f"🚀 [DEBUG] _run_gencc called with resume={resume}")
         logger.info(f"🚀 Starting GenCC update with unified client (resume={resume})")
 
-        db = next(get_db())
-        tracker = ProgressTracker(db, "GenCC", self.broadcast_callback)
-
+        db = None
+        tracker = None
+        
         try:
+            print(f"🚀 [DEBUG] Getting database session...")
+            db = next(get_db())
+            print(f"🚀 [DEBUG] Creating progress tracker...")
+            tracker = ProgressTracker(db, "GenCC", self.broadcast_callback)
+            
+            print(f"🚀 [DEBUG] Importing GenCC client...")
             from app.pipeline.sources.gencc_unified import get_gencc_client
             
+            print(f"🚀 [DEBUG] Creating GenCC client...")
             client = get_gencc_client(db_session=db)
+            
+            print(f"🚀 [DEBUG] Starting GenCC data update...")
             result = await client.update_data(db, tracker)
+            
+            print(f"✅ [DEBUG] GenCC update completed: {result}")
             logger.info(f"✅ GenCC update completed: {result}")
 
         except Exception as e:
+            print(f"❌ [DEBUG] GenCC update failed: {e}")
             logger.error(f"❌ GenCC update failed: {e}")
-            tracker.error(str(e))
+            import traceback
+            print(f"❌ [DEBUG] Full traceback: {traceback.format_exc()}")
+            if tracker:
+                tracker.error(str(e))
         finally:
-            db.close()
+            if db:
+                print(f"🚀 [DEBUG] Closing database session...")
+                db.close()
 
     async def _run_hpo(self, resume: bool = False):
         """Run HPO update with progress tracking"""

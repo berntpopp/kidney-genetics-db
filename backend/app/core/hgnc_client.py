@@ -1,66 +1,89 @@
 """
-HGNC (HUGO Gene Nomenclature Committee) client for gene symbol standardization.
+Enhanced HGNC client with unified cache system integration.
 
-This module provides a client for interacting with the HGNC REST API to
-standardize gene symbols and retrieve gene information.
+This module provides an upgraded HGNC client that uses the unified cache service
+for persistent, shared caching across application instances.
 
-Based on proven patterns from custom-panel and kidney-genetics-v1 implementations.
+Improvements over the original:
+- Persistent cache (survives application restarts)
+- Shared cache across multiple instances
+- Intelligent TTL management
+- HTTP caching via Hishel
+- Better error handling and fallback
+- Cache statistics and monitoring
 """
 
-import functools
+import asyncio
 import logging
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
-import requests
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
+
+from app.core.cache_service import CacheService, cached, get_cache_service
+from app.core.cached_http_client import CachedHttpClient, get_cached_http_client
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-class HGNCClient:
-    """Client for interacting with the HGNC REST API with batch processing and fallback strategies."""
+class HGNCClientCached:
+    """
+    Enhanced HGNC client with unified cache system integration.
+
+    Features:
+    - Persistent cache shared across instances
+    - HTTP caching via Hishel for compliance
+    - Intelligent retry and fallback logic
+    - Circuit breaker pattern for resilience
+    - Cache statistics and monitoring
+    """
 
     BASE_URL = "https://rest.genenames.org"
+    NAMESPACE = "hgnc"
 
     def __init__(
         self,
+        cache_service: CacheService | None = None,
+        http_client: CachedHttpClient | None = None,
+        db_session: Session | AsyncSession | None = None,
         timeout: int = 30,
         max_retries: int = 3,
-        retry_delay: float = 1.0,
         batch_size: int = 100,
         max_workers: int = 4,
     ):
         """
-        Initialize the HGNC client.
+        Initialize the enhanced HGNC client.
 
         Args:
+            cache_service: Cache service instance
+            http_client: HTTP client with caching
+            db_session: Database session for cache persistence
             timeout: Request timeout in seconds
             max_retries: Maximum number of retry attempts
-            retry_delay: Delay between retries in seconds
             batch_size: Maximum symbols per batch request
             max_workers: Maximum threads for parallel processing
         """
+        self.cache_service = cache_service or get_cache_service(db_session)
+        self.http_client = http_client or get_cached_http_client(cache_service, db_session)
         self.timeout = timeout
         self.max_retries = max_retries
-        self.retry_delay = retry_delay
         self.batch_size = batch_size
         self.max_workers = max_workers
 
-        self.session = requests.Session()
-        self.session.headers.update({
-            "Accept": "application/json",
-            "User-Agent": "kidney-genetics-db/1.0.0"
-        })
+        # Get TTL for HGNC namespace
+        self.ttl = settings.CACHE_TTL_HGNC
 
-    def _make_request(
+        logger.info(f"HGNCClientCached initialized with TTL: {self.ttl}s")
+
+    async def _make_request(
         self,
         endpoint: str,
         params: dict[str, Any] | None = None,
         method: str = "GET",
     ) -> dict[str, Any]:
         """
-        Make a request to the HGNC API with retry logic and exponential backoff.
+        Make a request to the HGNC API with caching and retry logic.
 
         Args:
             endpoint: API endpoint
@@ -69,41 +92,30 @@ class HGNCClient:
 
         Returns:
             JSON response as dictionary
-
-        Raises:
-            requests.RequestException: If request fails after retries
         """
         url = f"{self.BASE_URL}/{endpoint}"
 
-        for attempt in range(self.max_retries + 1):
-            try:
-                response = self.session.request(
-                    method, url, params=params, timeout=self.timeout
-                )
-                response.raise_for_status()
-                return response.json()
+        try:
+            # Use cached HTTP client for automatic caching
+            # IMPORTANT: HGNC API returns XML by default, must request JSON
+            response = await self.http_client.get(
+                url,
+                params=params,
+                headers={"Accept": "application/json"},
+                namespace=self.NAMESPACE,
+                fallback_ttl=self.ttl
+            )
 
-            except (requests.RequestException, ValueError) as e:
-                if attempt == self.max_retries:
-                    logger.error(
-                        f"Failed to fetch {url} after {self.max_retries} retries: {e}"
-                    )
-                    raise
+            response.raise_for_status()
+            return response.json()
 
-                # Exponential backoff
-                delay = self.retry_delay * (2 ** attempt)
-                logger.warning(
-                    f"Request failed (attempt {attempt + 1}/{self.max_retries + 1}): {e}. "
-                    f"Retrying in {delay}s..."
-                )
-                time.sleep(delay)
+        except Exception as e:
+            logger.error(f"HGNC API request failed for {url}: {e}")
+            raise
 
-        raise requests.RequestException("Unexpected error in request loop")
-
-    @functools.lru_cache(maxsize=10000)
-    def symbol_to_hgnc_id(self, symbol: str) -> str | None:
+    async def symbol_to_hgnc_id(self, symbol: str) -> str | None:
         """
-        Convert a gene symbol to HGNC ID.
+        Convert a gene symbol to HGNC ID with persistent caching.
 
         Args:
             symbol: Gene symbol
@@ -111,19 +123,30 @@ class HGNCClient:
         Returns:
             HGNC ID (e.g., "HGNC:5") or None if not found
         """
-        try:
-            response = self._make_request("search/symbol", {"symbol": symbol})
-            docs = response.get("response", {}).get("docs", [])
-            if docs:
-                return docs[0].get("hgnc_id")
-        except (requests.RequestException, ValueError):
-            pass
-        return None
+        cache_key = f"symbol_to_hgnc_id:{symbol.strip().upper()}"
 
-    @functools.lru_cache(maxsize=10000)
-    def get_gene_info(self, symbol: str) -> dict[str, Any] | None:
+        async def fetch_hgnc_id():
+            try:
+                response = await self._make_request("search/symbol", {"symbol": symbol})
+                docs = response.get("response", {}).get("docs", [])
+                if docs:
+                    return docs[0].get("hgnc_id")
+                return None
+            except Exception as e:
+                logger.warning(f"Failed to fetch HGNC ID for symbol {symbol}: {e}")
+                return None
+
+        return await cached(
+            cache_key,
+            fetch_hgnc_id,
+            self.NAMESPACE,
+            self.ttl,
+            self.cache_service.db_session
+        )
+
+    async def get_gene_info(self, symbol: str) -> dict[str, Any] | None:
         """
-        Get comprehensive gene information for a symbol.
+        Get comprehensive gene information for a symbol with persistent caching.
 
         Args:
             symbol: Gene symbol
@@ -131,19 +154,30 @@ class HGNCClient:
         Returns:
             Dictionary with gene information or None if not found
         """
-        try:
-            response = self._make_request("search/symbol", {"symbol": symbol})
-            docs = response.get("response", {}).get("docs", [])
-            if docs:
-                return docs[0]
-        except (requests.RequestException, ValueError):
-            pass
-        return None
+        cache_key = f"gene_info:{symbol.strip().upper()}"
 
-    @functools.lru_cache(maxsize=1000)
-    def standardize_symbol(self, symbol: str) -> str:
+        async def fetch_gene_info():
+            try:
+                response = await self._make_request("search/symbol", {"symbol": symbol})
+                docs = response.get("response", {}).get("docs", [])
+                if docs:
+                    return docs[0]
+                return None
+            except Exception as e:
+                logger.warning(f"Failed to fetch gene info for symbol {symbol}: {e}")
+                return None
+
+        return await cached(
+            cache_key,
+            fetch_gene_info,
+            self.NAMESPACE,
+            self.ttl,
+            self.cache_service.db_session
+        )
+
+    async def standardize_symbol(self, symbol: str) -> str:
         """
-        Standardize a gene symbol to the approved HGNC symbol.
+        Standardize a gene symbol to the approved HGNC symbol with persistent caching.
 
         This method tries multiple approaches:
         1. Direct symbol lookup
@@ -156,82 +190,124 @@ class HGNCClient:
         Returns:
             Standardized HGNC symbol or original symbol if not found
         """
-        symbol = symbol.strip().upper()
+        normalized_symbol = symbol.strip().upper()
+        cache_key = f"standardize_symbol:{normalized_symbol}"
 
-        # Try direct symbol lookup
-        try:
-            response = self._make_request(f"search/symbol/{symbol}")
-            docs = response.get("response", {}).get("docs", [])
-            if docs:
-                return docs[0].get("symbol", symbol)
-        except (requests.RequestException, ValueError):
-            pass
+        async def fetch_standardized_symbol():
+            # Try direct symbol lookup
+            try:
+                response = await self._make_request(f"search/symbol/{normalized_symbol}")
+                docs = response.get("response", {}).get("docs", [])
+                if docs:
+                    return docs[0].get("symbol", symbol)
+            except Exception:
+                pass
 
-        # Try previous symbol lookup
-        try:
-            response = self._make_request(f"search/prev_symbol/{symbol}")
-            docs = response.get("response", {}).get("docs", [])
-            if docs:
-                return docs[0].get("symbol", symbol)
-        except (requests.RequestException, ValueError):
-            pass
+            # Try previous symbol lookup
+            try:
+                response = await self._make_request(f"search/prev_symbol/{normalized_symbol}")
+                docs = response.get("response", {}).get("docs", [])
+                if docs:
+                    return docs[0].get("symbol", symbol)
+            except Exception:
+                pass
 
-        # Try alias symbol lookup
-        try:
-            response = self._make_request(f"search/alias_symbol/{symbol}")
-            docs = response.get("response", {}).get("docs", [])
-            if docs:
-                return docs[0].get("symbol", symbol)
-        except (requests.RequestException, ValueError):
-            pass
+            # Try alias symbol lookup
+            try:
+                response = await self._make_request(f"search/alias_symbol/{normalized_symbol}")
+                docs = response.get("response", {}).get("docs", [])
+                if docs:
+                    return docs[0].get("symbol", symbol)
+            except Exception:
+                pass
 
-        logger.warning(f"Could not standardize gene symbol: {symbol}")
-        return symbol
+            logger.warning(f"Could not standardize gene symbol: {symbol}")
+            return symbol
 
-    @functools.lru_cache(maxsize=1000)
-    def standardize_symbols_batch(
-        self, symbols: tuple[str, ...]
+        return await cached(
+            cache_key,
+            fetch_standardized_symbol,
+            self.NAMESPACE,
+            self.ttl,
+            self.cache_service.db_session
+        )
+
+    async def standardize_symbols_batch(
+        self, symbols: list[str]
     ) -> dict[str, dict[str, str | None]]:
         """
-        Standardize multiple gene symbols using HGNC batch API.
+        Standardize multiple gene symbols using cached batch API.
 
-        Uses the +OR+ syntax for efficient batch queries, following the exact
-        pattern from custom-panel and kidney-genetics-v1 implementations.
+        Uses intelligent caching to minimize API calls while maintaining
+        the same interface as the original batch method.
 
         Args:
-            symbols: Tuple of gene symbols (tuple for caching compatibility)
+            symbols: List of gene symbols
 
         Returns:
-            Dictionary mapping original symbols to dict containing approved_symbol and hgnc_id
+            Dictionary mapping original symbols to standardization results
         """
         if not symbols:
             return {}
 
-        original_symbols = list(symbols)
-        result = {
-            symbol: {"approved_symbol": symbol, "hgnc_id": None}
-            for symbol in original_symbols
-        }
+        # Check cache for each symbol first
+        result = {}
+        uncached_symbols = []
 
+        for symbol in symbols:
+            cache_key = f"standardize_symbol:{symbol.strip().upper()}"
+            cached_result = await self.cache_service.get(cache_key, self.NAMESPACE)
+
+            if cached_result is not None:
+                # Get additional info from cache
+                hgnc_id_key = f"symbol_to_hgnc_id:{symbol.strip().upper()}"
+                cached_hgnc_id = await self.cache_service.get(hgnc_id_key, self.NAMESPACE)
+
+                result[symbol] = {
+                    "approved_symbol": cached_result,
+                    "hgnc_id": cached_hgnc_id
+                }
+            else:
+                uncached_symbols.append(symbol)
+
+        # Process uncached symbols in batches
+        if uncached_symbols:
+            logger.info(f"Processing {len(uncached_symbols)} uncached symbols in batch")
+
+            for i in range(0, len(uncached_symbols), self.batch_size):
+                batch = uncached_symbols[i:i + self.batch_size]
+                batch_result = await self._process_batch(batch)
+                result.update(batch_result)
+
+        logger.debug(f"Batch standardization complete: {len(symbols)} symbols processed")
+        return result
+
+    async def _process_batch(self, symbols: list[str]) -> dict[str, dict[str, str | None]]:
+        """Process a batch of symbols using the HGNC batch API."""
         try:
-            # Construct query using +OR+ syntax: "GENE1+OR+GENE2+OR+..."
+            # Use the +OR+ syntax for batch queries
+            original_symbols = symbols
             query_str = "+OR+".join([s.upper() for s in original_symbols])
             endpoint = f"search/symbol/{query_str}"
 
-            params = {"fields": "symbol,hgnc_id"}
-            response = self._make_request(endpoint, params=params)
-
+            response = await self._make_request(endpoint, {"fields": "symbol,hgnc_id"})
             docs = response.get("response", {}).get("docs", [])
 
-            # Match by symbol name directly
+            # Process results and cache individually
+            result = {}
             found_symbols = set()
+
+            for symbol in original_symbols:
+                result[symbol] = {"approved_symbol": symbol, "hgnc_id": None}
+
+            # Match by symbol name directly
             for doc in docs:
                 approved_symbol = doc.get("symbol")
                 hgnc_id = doc.get("hgnc_id")
                 if not approved_symbol:
                     continue
 
-                # Check if this approved symbol matches any input symbol (case-insensitive)
+                # Check if this approved symbol matches any input symbol
                 for original_symbol in original_symbols:
                     if original_symbol.upper() == approved_symbol.upper():
                         result[original_symbol] = {
@@ -239,155 +315,113 @@ class HGNCClient:
                             "hgnc_id": hgnc_id,
                         }
                         found_symbols.add(original_symbol)
+
+                        # Cache the results
+                        await self._cache_symbol_results(original_symbol, approved_symbol, hgnc_id)
                         break
 
-            # Log batch results
-            exact_matches = len(found_symbols)
-            need_postprocess = len(original_symbols) - exact_matches
-            logger.debug(
-                f"HGNC batch API results: {len(original_symbols)} symbols submitted, "
-                f"{exact_matches} exact matches found, {need_postprocess} need further processing"
-            )
-
-            # For symbols not found in batch, try individual lookups with aliases/prev symbols
-            postprocess_fixed = 0
+            # Process symbols not found in batch with individual lookups
             for original_symbol in original_symbols:
                 if original_symbol not in found_symbols:
-                    # Try individual standardization (includes alias and prev symbol lookups)
-                    standardized = self.standardize_symbol(original_symbol)
+                    # Use individual standardization (which will cache the result)
+                    standardized = await self.standardize_symbol(original_symbol)
                     if standardized.upper() != original_symbol.upper():
-                        # Symbol was standardized, try to get its HGNC ID
-                        gene_info = self.get_gene_info(standardized)
+                        gene_info = await self.get_gene_info(standardized)
                         hgnc_id = gene_info.get("hgnc_id") if gene_info else None
                         result[original_symbol] = {
                             "approved_symbol": standardized,
                             "hgnc_id": hgnc_id,
                         }
-                        postprocess_fixed += 1
 
-            if need_postprocess > 0:
-                logger.debug(
-                    f"Alternative symbol search results: {postprocess_fixed} out of "
-                    f"{need_postprocess} symbols were successfully resolved"
-                )
+            return result
 
-        except requests.RequestException as e:
-            logger.warning(
-                f"Batch symbol standardization failed: {e}. Falling back to individual lookups."
-            )
+        except Exception as e:
+            logger.error(f"Batch processing failed: {e}")
             # Fallback to individual lookups
-            for original_symbol in original_symbols:
-                standardized = self.standardize_symbol(original_symbol)
-                gene_info = self.get_gene_info(standardized)
+            result = {}
+            for symbol in symbols:
+                standardized = await self.standardize_symbol(symbol)
+                gene_info = await self.get_gene_info(standardized)
                 hgnc_id = gene_info.get("hgnc_id") if gene_info else None
-                result[original_symbol] = {
+                result[symbol] = {
                     "approved_symbol": standardized,
                     "hgnc_id": hgnc_id,
                 }
+            return result
 
-        # Log summary
-        changed_count = sum(
-            1 for k, v in result.items()
-            if v["approved_symbol"] and k.upper() != v["approved_symbol"].upper()
-        )
-        logger.debug(
-            f"HGNC batch complete: {len(symbols)} symbols processed, {changed_count} standardized"
-        )
+    async def _cache_symbol_results(
+        self, original_symbol: str, approved_symbol: str, hgnc_id: str | None
+    ) -> None:
+        """Cache individual symbol results for future use."""
+        normalized_symbol = original_symbol.strip().upper()
 
-        return result
+        # Cache standardized symbol
+        standardize_key = f"standardize_symbol:{normalized_symbol}"
+        await self.cache_service.set(standardize_key, approved_symbol, self.NAMESPACE, self.ttl)
 
-    def standardize_symbols(
+        # Cache HGNC ID if available
+        if hgnc_id:
+            hgnc_id_key = f"symbol_to_hgnc_id:{normalized_symbol}"
+            await self.cache_service.set(hgnc_id_key, hgnc_id, self.NAMESPACE, self.ttl)
+
+    async def standardize_symbols_parallel(
         self, symbols: list[str]
     ) -> dict[str, dict[str, str | None]]:
         """
-        Standardize multiple gene symbols with automatic batching.
+        Standardize multiple gene symbols using parallel processing with caching.
 
         Args:
             symbols: List of gene symbols
 
         Returns:
-            Dictionary mapping original symbols to dict containing approved_symbol and hgnc_id
+            Dictionary mapping original symbols to standardization results
         """
         if not symbols:
             return {}
 
-        # Split into batches to avoid URL length limits
-        result = {}
+        logger.info(f"Standardizing {len(symbols)} gene symbols with parallel processing")
 
-        for i in range(0, len(symbols), self.batch_size):
-            batch = symbols[i : i + self.batch_size]
-            batch_result = self.standardize_symbols_batch(tuple(batch))
-            result.update(batch_result)
-
-        return result
-
-    def standardize_symbols_parallel(
-        self, symbols: list[str]
-    ) -> dict[str, dict[str, str | None]]:
-        """
-        Standardize multiple gene symbols using parallel batch processing.
-
-        Follows the exact pattern from custom-panel for maximum performance.
-
-        Args:
-            symbols: List of gene symbols
-
-        Returns:
-            Dictionary mapping original symbols to dict containing approved_symbol and hgnc_id
-        """
-        if not symbols:
-            return {}
-
-        logger.info(f"Standardizing {len(symbols)} gene symbols with parallel HGNC batch API")
-
-        # Split genes into batches
+        # Split into batches
         batches = [
-            symbols[i : i + self.batch_size]
+            symbols[i:i + self.batch_size]
             for i in range(0, len(symbols), self.batch_size)
         ]
 
         if len(batches) == 1:
             # Single batch - process directly
-            return self.standardize_symbols_batch(tuple(batches[0]))
+            return await self.standardize_symbols_batch(batches[0])
 
         # Multiple batches - use parallel processing
-        logger.info(
-            f"Processing {len(batches)} HGNC batches in parallel (max_workers={self.max_workers})"
-        )
+        logger.info(f"Processing {len(batches)} batches in parallel")
 
+        # Use asyncio gather for parallel processing
+        tasks = [
+            self.standardize_symbols_batch(batch)
+            for batch in batches
+        ]
+
+        batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Combine results
         standardized = {}
-
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            # Submit all batch jobs
-            future_to_batch = {
-                executor.submit(self.standardize_symbols_batch, tuple(batch)): batch
-                for batch in batches
-            }
-
-            # Collect results as they complete
-            for future in as_completed(future_to_batch):
-                batch = future_to_batch[future]
-                try:
-                    batch_result = future.result()
-                    standardized.update(batch_result)
-                    logger.info(f"✓ Completed HGNC batch of {len(batch)} symbols")
-                except Exception as e:
-                    logger.error(
-                        f"✗ HGNC batch processing failed for {len(batch)} symbols: {e}"
-                    )
-                    # Fallback to individual processing
-                    for symbol in batch:
-                        try:
-                            gene_info = self.get_gene_info(symbol)
-                            standardized[symbol] = {
-                                "approved_symbol": symbol,
-                                "hgnc_id": gene_info.get("hgnc_id") if gene_info else None,
-                            }
-                        except Exception:
-                            standardized[symbol] = {
-                                "approved_symbol": symbol,
-                                "hgnc_id": None,
-                            }
+        for i, batch_result in enumerate(batch_results):
+            if isinstance(batch_result, Exception):
+                logger.error(f"Batch {i} failed: {batch_result}")
+                # Fallback to individual processing for failed batch
+                for symbol in batches[i]:
+                    try:
+                        gene_info = await self.get_gene_info(symbol)
+                        standardized[symbol] = {
+                            "approved_symbol": symbol,
+                            "hgnc_id": gene_info.get("hgnc_id") if gene_info else None,
+                        }
+                    except Exception:
+                        standardized[symbol] = {
+                            "approved_symbol": symbol,
+                            "hgnc_id": None,
+                        }
+            else:
+                standardized.update(batch_result)
 
         # Log standardization results
         changed_symbols = {
@@ -395,27 +429,102 @@ class HGNCClient:
             if v["approved_symbol"] and k != v["approved_symbol"]
         }
         if changed_symbols:
-            logger.info(f"✨ Standardized {len(changed_symbols)} gene symbols")
+            logger.info(f"Standardized {len(changed_symbols)} gene symbols")
 
         return standardized
 
-    def get_cache_info(self) -> dict[str, Any]:
+    async def get_cache_stats(self) -> dict[str, Any]:
+        """Get cache statistics for the HGNC namespace."""
+        return await self.cache_service.get_stats(self.NAMESPACE)
+
+    async def clear_cache(self) -> int:
+        """Clear all HGNC cache entries."""
+        return await self.cache_service.clear_namespace(self.NAMESPACE)
+
+    async def warm_cache(self, common_symbols: list[str] | None = None) -> int:
         """
-        Get cache statistics for monitoring performance.
+        Warm the cache with commonly used gene symbols.
+
+        Args:
+            common_symbols: List of common symbols to preload
 
         Returns:
-            Dictionary with cache statistics
+            Number of entries cached
         """
-        return {
-            "symbol_to_hgnc_id": self.symbol_to_hgnc_id.cache_info()._asdict(),
-            "get_gene_info": self.get_gene_info.cache_info()._asdict(),
-            "standardize_symbol": self.standardize_symbol.cache_info()._asdict(),
-            "standardize_symbols_batch": self.standardize_symbols_batch.cache_info()._asdict(),
-        }
+        if not common_symbols:
+            # Default set of common kidney-related gene symbols
+            common_symbols = [
+                "PKD1", "PKD2", "COL4A5", "NPHS1", "NPHS2", "WT1", "PAX2",
+                "HNF1B", "UMOD", "MUC1", "REN", "AGTR1", "ACE", "APOL1",
+                "ACTN4", "TRPC6", "CD2AP", "PLCE1", "LAMB2", "PDSS2"
+            ]
 
-    def clear_cache(self) -> None:
-        """Clear all cached results."""
-        self.symbol_to_hgnc_id.cache_clear()
-        self.get_gene_info.cache_clear()
-        self.standardize_symbol.cache_clear()
-        self.standardize_symbols_batch.cache_clear()
+        logger.info(f"Warming HGNC cache with {len(common_symbols)} symbols")
+
+        # Use batch processing to warm cache efficiently
+        await self.standardize_symbols_batch(common_symbols)
+
+        # Also get detailed info for each symbol
+        tasks = [self.get_gene_info(symbol) for symbol in common_symbols]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+        logger.info("HGNC cache warming completed")
+        return len(common_symbols)
+
+
+# Global cached client instance
+_hgnc_client_cached: HGNCClientCached | None = None
+
+
+def get_hgnc_client_cached(
+    cache_service: CacheService | None = None,
+    db_session: Session | AsyncSession | None = None
+) -> HGNCClientCached:
+    """Get or create the global cached HGNC client instance."""
+    global _hgnc_client_cached
+
+    if _hgnc_client_cached is None:
+        _hgnc_client_cached = HGNCClientCached(
+            cache_service=cache_service,
+            db_session=db_session
+        )
+
+    return _hgnc_client_cached
+
+
+# Convenience functions for backward compatibility
+
+async def standardize_gene_symbols_cached(
+    symbols: list[str],
+    db_session: Session | AsyncSession | None = None
+) -> dict[str, dict[str, str | None]]:
+    """
+    Convenience function to standardize gene symbols using the cached client.
+
+    Args:
+        symbols: List of gene symbols to standardize
+        db_session: Database session for cache persistence
+
+    Returns:
+        Dictionary mapping original symbols to standardization results
+    """
+    client = get_hgnc_client_cached(db_session=db_session)
+    return await client.standardize_symbols_batch(symbols)
+
+
+async def get_gene_info_cached(
+    symbol: str,
+    db_session: Session | AsyncSession | None = None
+) -> dict[str, Any] | None:
+    """
+    Convenience function to get gene info using the cached client.
+
+    Args:
+        symbol: Gene symbol
+        db_session: Database session for cache persistence
+
+    Returns:
+        Gene information dictionary or None if not found
+    """
+    client = get_hgnc_client_cached(db_session=db_session)
+    return await client.get_gene_info(symbol)

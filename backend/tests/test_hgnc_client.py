@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from app.core.hgnc_client import HGNCClient
+from app.core.hgnc_client import HGNCClientCached as HGNCClient
 
 
 class TestHGNCClient:
