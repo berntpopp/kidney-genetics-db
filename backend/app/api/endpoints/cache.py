@@ -20,6 +20,7 @@ from app.api.deps import get_db
 from app.core.cache_service import get_cache_service
 from app.core.cached_http_client import get_cached_http_client
 from app.core.config import settings
+from app.core.database import get_pool_status
 from app.core.monitoring import get_monitoring_service
 
 logger = logging.getLogger(__name__)
@@ -590,3 +591,55 @@ async def get_cache_system_health(
     except Exception as e:
         logger.error(f"Error getting cache system health: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting health status: {str(e)}") from e
+
+
+@router.get("/database/pool-health")
+async def get_database_pool_health() -> dict[str, Any]:
+    """
+    Get database connection pool health metrics.
+    
+    MONITORING: Tracks connection pool usage to detect leaks and optimize performance.
+    Returns pool size, connections in use, overflow status, and historical statistics.
+    """
+    try:
+        pool_status = get_pool_status()
+
+        # Calculate health indicators
+        total_connections = pool_status["total"]
+        checked_out = pool_status["checked_in"]
+
+        # Determine health status
+        if checked_out > total_connections * 0.9:  # >90% connections in use
+            health_status = "critical"
+            health_message = "Connection pool near exhaustion"
+        elif checked_out > total_connections * 0.7:  # >70% connections in use
+            health_status = "warning"
+            health_message = "High connection pool usage"
+        else:
+            health_status = "healthy"
+            health_message = "Connection pool operating normally"
+
+        # Check for potential leaks
+        stats = pool_status["stats"]
+        potential_leak = False
+        if stats["connections_checked_out"] > stats["connections_checked_in"] + 10:
+            potential_leak = True
+            health_status = "warning"
+            health_message = "Potential connection leak detected"
+
+        return {
+            "status": health_status,
+            "message": health_message,
+            "pool": {
+                "size": pool_status["size"],
+                "checked_out": checked_out,
+                "overflow": pool_status["overflow"],
+                "total": total_connections,
+            },
+            "statistics": stats,
+            "potential_leak": potential_leak,
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting database pool health: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting pool health: {str(e)}") from e

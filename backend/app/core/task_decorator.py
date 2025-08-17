@@ -11,7 +11,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
-from app.core.database import get_db
+from app.core.database import get_db_context
 from app.core.progress_tracker import ProgressTracker
 
 logger = logging.getLogger(__name__)
@@ -28,36 +28,28 @@ def managed_task(source_name: str):
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(self, resume: bool = False) -> dict[str, Any]:
-            """Wrapper with common task management logic."""
-            db = None
+            """Wrapper with ROBUST database management."""
             tracker = None
 
-            try:
-                # Setup
-                db = next(get_db())
-                tracker = ProgressTracker(db, source_name, self.broadcast_callback)
+            # Use context manager for guaranteed cleanup
+            with get_db_context() as db:
+                try:
+                    tracker = ProgressTracker(db, source_name, self.broadcast_callback)
+                    logger.info(f"Starting {source_name} update (resume={resume})")
 
-                logger.info(f"Starting {source_name} update (resume={resume})")
+                    # Execute the actual task
+                    result = await func(self, db, tracker, resume)
 
-                # Execute the actual task
-                result = await func(self, db, tracker, resume)
+                    db.commit()  # Explicit commit on success
+                    logger.info(f"{source_name} update completed: {result}")
+                    return result
 
-                logger.info(f"{source_name} update completed: {result}")
-                return result
-
-            except Exception as e:
-                logger.error(f"{source_name} update failed: {e}")
-                if tracker:
-                    tracker.error(str(e))
-                raise
-
-            finally:
-                # Cleanup
-                if db:
-                    try:
-                        db.close()
-                    except Exception as e:
-                        logger.error(f"Failed to close database session: {e}")
+                except Exception as e:
+                    db.rollback()  # Explicit rollback on error
+                    logger.error(f"{source_name} update failed: {e}")
+                    if tracker:
+                        tracker.error(str(e))
+                    raise
 
         return wrapper
     return decorator
@@ -74,44 +66,36 @@ def executor_task(source_name: str):
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(self, resume: bool = False) -> dict[str, Any]:
-            """Wrapper with executor and common task management logic."""
-            db = None
+            """Wrapper with executor and ROBUST database management."""
             tracker = None
 
-            try:
-                # Setup
-                db = next(get_db())
-                tracker = ProgressTracker(db, source_name, self.broadcast_callback)
+            # Use context manager for guaranteed cleanup
+            with get_db_context() as db:
+                try:
+                    tracker = ProgressTracker(db, source_name, self.broadcast_callback)
+                    logger.info(f"Starting {source_name} update (resume={resume})")
 
-                logger.info(f"Starting {source_name} update (resume={resume})")
+                    # Execute the actual task in thread executor
+                    loop = asyncio.get_event_loop()
+                    result = await loop.run_in_executor(
+                        self.executor,
+                        func,
+                        self,
+                        db,
+                        tracker,
+                        resume
+                    )
 
-                # Execute the actual task in thread executor
-                loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(
-                    self.executor,
-                    func,
-                    self,
-                    db,
-                    tracker,
-                    resume
-                )
+                    db.commit()  # Explicit commit on success
+                    logger.info(f"{source_name} update completed: {result}")
+                    return result
 
-                logger.info(f"{source_name} update completed: {result}")
-                return result
-
-            except Exception as e:
-                logger.error(f"{source_name} update failed: {e}")
-                if tracker:
-                    tracker.error(str(e))
-                raise
-
-            finally:
-                # Cleanup
-                if db:
-                    try:
-                        db.close()
-                    except Exception as e:
-                        logger.error(f"Failed to close database session: {e}")
+                except Exception as e:
+                    db.rollback()  # Explicit rollback on error
+                    logger.error(f"{source_name} update failed: {e}")
+                    if tracker:
+                        tracker.error(str(e))
+                    raise
 
         return wrapper
     return decorator

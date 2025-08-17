@@ -190,6 +190,102 @@ class CRUDGene:
 
         return genes
 
+    def get_multi_with_scores_and_sources(
+        self,
+        db: Session,
+        skip: int = 0,
+        limit: int = 100,
+        search: str | None = None,
+        min_score: float | None = None,
+        sort_by: str | None = None,
+        sort_desc: bool = False,
+    ) -> list[dict]:
+        """Get genes with scores and aggregated source names in a single query - FIXES N+1 QUERY ISSUE"""
+
+        params = {"skip": skip, "limit": limit}
+
+        # Single query with LEFT JOIN and array aggregation for sources
+        base_query = """
+            SELECT
+                gs.gene_id,
+                gs.approved_symbol,
+                gs.source_count,
+                gs.evidence_count,
+                gs.raw_score,
+                gs.percentage_score,
+                gs.total_active_sources,
+                g.hgnc_id,
+                g.aliases,
+                g.created_at,
+                g.updated_at,
+                COALESCE(
+                    array_agg(DISTINCT ge.source_name ORDER BY ge.source_name)
+                    FILTER (WHERE ge.source_name IS NOT NULL),
+                    ARRAY[]::text[]
+                ) as source_names
+            FROM gene_scores gs
+            JOIN genes g ON gs.gene_id = g.id
+            LEFT JOIN gene_evidence ge ON g.id = ge.gene_id
+            WHERE 1=1
+        """
+
+        # Add filters
+        if search:
+            base_query += " AND (gs.approved_symbol ILIKE :search OR g.hgnc_id ILIKE :search)"
+            params["search"] = f"%{search}%"
+
+        if min_score is not None:
+            base_query += " AND gs.percentage_score >= :min_score"
+            params["min_score"] = min_score
+
+        # Group by all non-aggregated columns
+        base_query += """
+            GROUP BY gs.gene_id, gs.approved_symbol, gs.source_count,
+                     gs.evidence_count, gs.raw_score, gs.percentage_score,
+                     gs.total_active_sources, g.hgnc_id, g.aliases,
+                     g.created_at, g.updated_at
+        """
+
+        # Add sorting
+        if sort_by == "approved_symbol":
+            order_clause = "gs.approved_symbol"
+        elif sort_by == "hgnc_id":
+            order_clause = "g.hgnc_id"
+        elif sort_by == "evidence_count":
+            order_clause = "gs.evidence_count"
+        elif sort_by == "evidence_score":
+            order_clause = "gs.percentage_score"
+        else:
+            order_clause = "gs.approved_symbol"
+
+        if sort_desc:
+            base_query += f" ORDER BY {order_clause} DESC NULLS LAST"
+        else:
+            base_query += f" ORDER BY {order_clause} ASC NULLS FIRST"
+
+        base_query += " LIMIT :limit OFFSET :skip"
+
+        results = db.execute(text(base_query), params).fetchall()
+
+        genes = []
+        for row in results:
+            genes.append({
+                "id": row[0],
+                "approved_symbol": row[1],
+                "source_count": row[2],
+                "evidence_count": row[3],
+                "raw_score": row[4],
+                "percentage_score": row[5],
+                "total_active_sources": row[6],
+                "hgnc_id": row[7],
+                "aliases": row[8] or [],
+                "created_at": row[9],
+                "updated_at": row[10],
+                "source_names": list(row[11]) if row[11] else [],  # Convert array to list
+            })
+
+        return genes
+
     def create_pipeline_run(self, db: Session) -> int:
         """Create a new pipeline run record and return its ID (for test compatibility)"""
         # This is a simplified implementation for test compatibility

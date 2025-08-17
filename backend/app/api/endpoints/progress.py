@@ -1,5 +1,6 @@
 """
 API endpoints for data source progress monitoring
+OPTIMIZED: Uses event-driven pub/sub pattern instead of database polling
 """
 
 import asyncio
@@ -11,16 +12,54 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.events import EventTypes, event_bus
 from app.models.progress import DataSourceProgress, SourceStatus
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Store active WebSocket connections
+# Store active WebSocket connections with event-driven updates
 class ConnectionManager:
     def __init__(self):
         self.active_connections: list[WebSocket] = []
+        # Subscribe to progress events on initialization
+        self._setup_event_subscriptions()
+
+    def _setup_event_subscriptions(self):
+        """Setup subscriptions to event bus"""
+        event_bus.subscribe(EventTypes.PROGRESS_UPDATE, self._handle_progress_update)
+        event_bus.subscribe(EventTypes.TASK_STARTED, self._handle_task_started)
+        event_bus.subscribe(EventTypes.TASK_COMPLETED, self._handle_task_completed)
+        event_bus.subscribe(EventTypes.TASK_FAILED, self._handle_task_failed)
+
+    async def _handle_progress_update(self, data: dict):
+        """Handle progress updates from event bus - NO MORE POLLING!"""
+        await self.broadcast({
+            "type": "progress_update",
+            "data": data
+        })
+
+    async def _handle_task_started(self, data: dict):
+        """Handle task started events"""
+        await self.broadcast({
+            "type": "task_started",
+            "data": data
+        })
+
+    async def _handle_task_completed(self, data: dict):
+        """Handle task completed events"""
+        await self.broadcast({
+            "type": "task_completed",
+            "data": data
+        })
+
+    async def _handle_task_failed(self, data: dict):
+        """Handle task failed events"""
+        await self.broadcast({
+            "type": "task_failed",
+            "data": data
+        })
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -28,11 +67,15 @@ class ConnectionManager:
         logger.info(f"WebSocket connected. Total connections: {len(self.active_connections)}")
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
         logger.info(f"WebSocket disconnected. Total connections: {len(self.active_connections)}")
 
     async def broadcast(self, message: dict):
         """Broadcast message to all connected clients"""
+        if not self.active_connections:
+            return  # No connections to broadcast to
+
         disconnected = []
         for connection in self.active_connections:
             try:
@@ -53,9 +96,10 @@ manager = ConnectionManager()
 async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
     """
     WebSocket endpoint for real-time progress updates
-
+    
+    OPTIMIZED: No more polling! Updates are pushed via event bus.
     Clients connect to this endpoint to receive live updates about
-    data source processing progress.
+    data source processing progress through event-driven architecture.
     """
     await manager.connect(websocket)
     try:
@@ -67,21 +111,21 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
         }
         await websocket.send_json(initial_status)
 
-        # Keep connection alive and send periodic updates
+        # NO MORE POLLING! Just keep connection alive
+        # Updates will be pushed through event bus subscriptions
         while True:
-            await asyncio.sleep(1)  # Check for updates every second
-
-            # Get all running sources
-            running_sources = db.query(DataSourceProgress).filter(
-                DataSourceProgress.status == SourceStatus.running
-            ).all()
-
-            if running_sources:
-                update = {
-                    "type": "progress_update",
-                    "data": [p.to_dict() for p in running_sources]
-                }
-                await websocket.send_json(update)
+            # Wait for client messages (ping/pong or commands)
+            try:
+                # Use receive_text with a timeout for keepalive
+                await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=30.0  # 30 second timeout for keepalive
+                )
+            except asyncio.TimeoutError:
+                # Send a ping to keep connection alive
+                await websocket.send_json({"type": "ping"})
+            except WebSocketDisconnect:
+                break
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

@@ -27,9 +27,10 @@ def get_genes(
     """
     Get list of genes with optional filtering and sorting.
     Scores are percentages (0-100) calculated from percentiles across all active sources.
+    OPTIMIZED: Uses single query with aggregation to avoid N+1 query problem.
     """
-    # Use the new method that gets data from the gene_scores view
-    genes = gene_crud.get_multi_with_scores(
+    # Use the optimized method that gets data with sources in a single query
+    genes = gene_crud.get_multi_with_scores_and_sources(
         db, skip=skip, limit=limit, search=search, min_score=min_score,
         sort_by=sort_by, sort_desc=sort_desc
     )
@@ -37,13 +38,10 @@ def get_genes(
     # Get total count for pagination
     total = gene_crud.count(db, search=search, min_score=min_score)
 
-    # Transform to response schema
+    # Transform to response schema - NO MORE N+1 QUERIES!
     items = []
     for gene_data in genes:
-        # Get evidence sources from database
-        evidence = gene_crud.get_evidence(db, gene_data["id"])
-        sources = list({e.source_name for e in evidence})
-
+        # Sources are already included in gene_data from the aggregated query
         items.append(
             Gene(
                 id=gene_data["id"],  # type: ignore[arg-type]
@@ -54,7 +52,7 @@ def get_genes(
                 updated_at=gene_data["updated_at"],  # type: ignore[arg-type]
                 evidence_count=gene_data["evidence_count"],
                 evidence_score=gene_data["percentage_score"],  # Use percentage score (0-100)
-                sources=sources,
+                sources=gene_data["source_names"],  # Now directly from the aggregated query!
             )
         )
 

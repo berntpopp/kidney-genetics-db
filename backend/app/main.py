@@ -14,6 +14,7 @@ from app.api.endpoints import cache, datasources, gene_staging, genes, progress
 from app.core.background_tasks import task_manager
 from app.core.config import settings
 from app.core.database import engine, get_db
+from app.core.events import event_bus
 from app.core.startup import run_startup_tasks
 from app.models import Base
 
@@ -25,16 +26,20 @@ Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manage application lifecycle - start/stop background tasks"""
+    """Manage application lifecycle - start/stop background tasks and event bus"""
     # Startup
     logger.info("Starting application...")
 
     # Run startup tasks (register data sources, etc.)
     run_startup_tasks()
 
+    # Start event bus for WebSocket pub/sub pattern - REPLACES POLLING!
+    logger.info("Starting event bus for optimized WebSocket communication...")
+    await event_bus.start()
+
     logger.info("Starting background task manager...")
 
-    # Set up broadcast callback for WebSocket updates
+    # Set up broadcast callback for WebSocket updates (now uses event bus internally)
     from app.api.endpoints.progress import get_connection_manager
     manager = get_connection_manager()
     task_manager.set_broadcast_callback(manager.broadcast)
@@ -49,6 +54,9 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
+    logger.info("Shutting down event bus...")
+    await event_bus.stop()
+
     logger.info("Shutting down background task manager...")
     await task_manager.shutdown()
 

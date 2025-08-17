@@ -1,5 +1,6 @@
 """
 Progress tracker utility for real-time data source updates
+OPTIMIZED: Uses event bus for notifications instead of direct callbacks
 """
 
 import asyncio
@@ -11,6 +12,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.events import EventTypes, event_bus
 from app.models.progress import DataSourceProgress, SourceStatus
 
 logger = logging.getLogger(__name__)
@@ -192,17 +194,31 @@ class ProgressTracker:
         self._commit_and_broadcast()
 
     def _commit_and_broadcast(self):
-        """Commit to database and broadcast update if callback provided"""
+        """Commit to database and publish update to event bus - NO MORE DIRECT CALLBACKS!"""
         try:
             self.db.commit()
-            if self.broadcast_callback:
-                # Try to run broadcast in background if in async context
-                try:
-                    asyncio.get_running_loop()
-                    asyncio.create_task(self._broadcast_update())
-                except RuntimeError:
-                    # Not in async context, skip broadcast
-                    pass
+
+            # Publish to event bus instead of direct callback
+            # This eliminates the need for complex async/sync handling
+            progress_data = self.progress_record.to_dict()
+
+            # Determine event type based on status
+            if self.progress_record.status == SourceStatus.running:
+                event_type = EventTypes.PROGRESS_UPDATE
+            elif self.progress_record.status == SourceStatus.completed:
+                event_type = EventTypes.TASK_COMPLETED
+            elif self.progress_record.status == SourceStatus.failed:
+                event_type = EventTypes.TASK_FAILED
+            else:
+                event_type = EventTypes.PROGRESS_UPDATE
+
+            # Try to publish event if in async context
+            try:
+                asyncio.get_running_loop()
+                asyncio.create_task(event_bus.publish(event_type, progress_data))
+            except RuntimeError:
+                # Not in async context, log instead
+                logger.debug(f"Progress update (sync context): {self.source_name} - {self.progress_record.status}")
         except Exception as e:
             logger.error(f"Failed to update progress for {self.source_name}: {e}")
             self.db.rollback()

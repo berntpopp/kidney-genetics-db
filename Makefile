@@ -39,7 +39,8 @@ help:
 	@echo "  make test            - Run backend tests with pytest"
 	@echo ""
 	@echo "🧹 CLEANUP:"
-	@echo "  make clean-all       - Stop everything and clean data"
+	@echo "  make clean-backend   - Clean Python cache files (__pycache__, .pyc, etc.)"
+	@echo "  make clean-all       - Stop everything and clean all data"
 
 # ════════════════════════════════════════════════════════════════════
 # HYBRID DEVELOPMENT MODE (DB in Docker, API/Frontend local)
@@ -203,8 +204,8 @@ clean-all:
 	@echo "🧹 Performing complete cleanup..."
 	@$(MAKE) hybrid-down
 	@$(MAKE) dev-down
+	@$(MAKE) clean-backend
 	@docker volume rm kidney-genetics-db_postgres_data 2>/dev/null || true
-	@rm -rf backend/.cache 2>/dev/null || true
 	@rm -rf logs/*.log 2>/dev/null || true
 	@echo "✅ Cleanup complete!"
 
@@ -223,6 +224,24 @@ test:
 	@echo "🧪 Running backend tests with pytest..."
 	@cd backend && uv run pytest -v
 	@echo "✅ Tests complete!"
+
+# Clean backend development cache files
+clean-backend:
+	@echo "🧹 Cleaning backend cache files..."
+	@echo "  Removing Python cache directories..."
+	@find backend -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	@find backend -type f -name "*.pyc" -delete 2>/dev/null || true
+	@find backend -type f -name "*.pyo" -delete 2>/dev/null || true
+	@find backend -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+	@echo "  Removing .cache directory..."
+	@rm -rf backend/.cache 2>/dev/null || true
+	@echo "  Removing pytest cache..."
+	@rm -rf backend/.pytest_cache 2>/dev/null || true
+	@echo "  Removing ruff cache..."
+	@rm -rf backend/.ruff_cache 2>/dev/null || true
+	@echo "  Removing mypy cache..."
+	@rm -rf backend/.mypy_cache 2>/dev/null || true
+	@echo "✅ Backend cache cleaned!"
 
 # Create log directory if it doesn't exist
 $(shell mkdir -p logs)
