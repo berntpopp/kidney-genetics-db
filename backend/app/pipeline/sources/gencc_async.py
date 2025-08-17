@@ -21,7 +21,7 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
     This version provides true async processing with intelligent caching,
     replacing the thread-pool delegation approach.
     """
-    from app.core.gene_normalization import normalize_genes_batch
+    from app.core.gene_normalization_async import normalize_genes_batch_async
     from app.crud.gene import gene_crud
     from app.models.gene import GeneEvidence
     from app.schemas.gene import GeneCreate
@@ -80,8 +80,8 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
             logger.info(f"🔄 Normalizing batch {batch_num + 1}/{total_batches} ({len(batch_symbols)} genes)")
             tracker.update(operation=f"Normalizing batch {batch_num + 1}/{total_batches}")
 
-            # Use the enhanced gene normalization
-            normalization_results = normalize_genes_batch(
+            # Use the enhanced async gene normalization
+            normalization_results = await normalize_genes_batch_async(
                 db, batch_symbols, source_name
             )
 

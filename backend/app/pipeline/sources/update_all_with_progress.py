@@ -73,33 +73,19 @@ def update_clingen_with_progress(db: Session, tracker: ProgressTracker | None = 
         raise
 
 
-def update_gencc_with_progress(db: Session, tracker: ProgressTracker | None = None) -> dict[str, Any]:
-    """Update GenCC data with progress tracking"""
-    from app.pipeline.sources.gencc import update_gencc_data as original_update
+async def update_gencc_with_progress(db: Session, tracker: ProgressTracker | None = None) -> dict[str, Any]:
+    """Update GenCC data with progress tracking - async version"""
+    from app.pipeline.sources.gencc_async import update_gencc_async
 
     # Create tracker if not provided
     if tracker is None:
         tracker = ProgressTracker(db, "GenCC")
 
-    logger.info("🚀 Starting GenCC update with progress tracking...")
+    logger.info("🚀 Starting GenCC async update with progress tracking...")
     try:
-        tracker.start("Initializing GenCC update")
-        logger.info("📋 GenCC tracker started, calling original update function...")
-
-        # Call original function
-        result = original_update(db)
-        logger.info(f"✅ GenCC original update completed: {result}")
-
-        # Update final counts
-        tracker.update(
-            items_added=result.get("genes_created", 0) + result.get("evidence_created", 0),
-            items_updated=result.get("evidence_updated", 0),
-            items_failed=result.get("errors", 0),
-            operation="Update complete"
-        )
-
-        tracker.complete(f"Processed {result.get('genes_processed', 0)} genes")
-        logger.info(f"🎉 GenCC update completed successfully: {result.get('genes_processed', 0)} genes processed")
+        # Call async function directly
+        result = await update_gencc_async(db, tracker)
+        logger.info(f"✅ GenCC async update completed: {result}")
         return result
 
     except Exception as e:
@@ -122,23 +108,26 @@ def update_pubtator_with_progress(db: Session, tracker: ProgressTracker | None =
     return update_pubtator_data(db, tracker)
 
 
-def test_progress_tracking(db: Session):
+async def test_progress_tracking(db: Session):
     """Test function to verify progress tracking works for all sources"""
     logger.info("Testing progress tracking for all sources...")
 
     # Test each source
     sources = [
-        ("PubTator", update_pubtator_with_progress),
-        ("PanelApp", update_panelapp_with_progress),
-        ("ClinGen", update_clingen_with_progress),
-        ("GenCC", update_gencc_with_progress),
+        ("PubTator", update_pubtator_with_progress, False),
+        ("PanelApp", update_panelapp_with_progress, False),
+        ("ClinGen", update_clingen_with_progress, False),
+        ("GenCC", update_gencc_with_progress, True),  # This one is async
     ]
 
-    for source_name, update_func in sources:
+    for source_name, update_func, is_async in sources:
         logger.info(f"Testing {source_name}...")
         try:
             tracker = ProgressTracker(db, source_name)
-            result = update_func(db, tracker)
+            if is_async:
+                result = await update_func(db, tracker)
+            else:
+                result = update_func(db, tracker)
             logger.info(f"{source_name} test complete: {result}")
         except Exception as e:
             logger.error(f"{source_name} test failed: {e}")

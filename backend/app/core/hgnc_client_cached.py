@@ -97,9 +97,11 @@ class HGNCClientCached:
 
         try:
             # Use cached HTTP client for automatic caching
+            # IMPORTANT: HGNC API returns XML by default, must request JSON
             response = await self.http_client.get(
                 url,
                 params=params,
+                headers={"Accept": "application/json"},
                 namespace=self.NAMESPACE,
                 fallback_ttl=self.ttl
             )

@@ -419,6 +419,12 @@ class PubTatorClientCached:
                     "ncbi_gene_ids": set(),
                 }
 
+            # Ensure target fields are sets for merging
+            if isinstance(target[symbol]["pmids"], list):
+                target[symbol]["pmids"] = set(target[symbol]["pmids"])
+            if isinstance(target[symbol]["ncbi_gene_ids"], list):
+                target[symbol]["ncbi_gene_ids"] = set(target[symbol]["ncbi_gene_ids"])
+
             # Merge data
             if isinstance(data["pmids"], list):
                 target[symbol]["pmids"].update(data["pmids"])
