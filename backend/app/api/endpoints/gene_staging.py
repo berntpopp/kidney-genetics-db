@@ -22,7 +22,7 @@ router = APIRouter()
 
 
 @router.get("/staging/pending", response_model=list[GeneNormalizationStagingResponse])
-def get_pending_reviews(
+async def get_pending_reviews(
     *,
     db: Session = Depends(get_db),
     limit: int = Query(default=50, le=200, description="Maximum number of records to return"),
@@ -55,7 +55,7 @@ def get_pending_reviews(
 
 
 @router.post("/staging/{staging_id}/approve")
-def approve_staging_record(
+async def approve_staging_record(
     *,
     db: Session = Depends(get_db),
     staging_id: int,
@@ -89,7 +89,7 @@ def approve_staging_record(
 
 
 @router.post("/staging/{staging_id}/reject")
-def reject_staging_record(
+async def reject_staging_record(
     *,
     db: Session = Depends(get_db),
     staging_id: int,
@@ -119,7 +119,7 @@ def reject_staging_record(
 
 
 @router.get("/staging/stats", response_model=StagingStatsResponse)
-def get_staging_stats(
+async def get_staging_stats(
     *,
     db: Session = Depends(get_db)
 ) -> StagingStatsResponse:
@@ -137,7 +137,7 @@ def get_staging_stats(
 
 
 @router.get("/normalization/stats", response_model=NormalizationStatsResponse)
-def get_normalization_stats(
+async def get_normalization_stats(
     *,
     db: Session = Depends(get_db)
 ) -> NormalizationStatsResponse:
@@ -155,7 +155,7 @@ def get_normalization_stats(
 
 
 @router.get("/normalization/logs", response_model=list[GeneNormalizationLogResponse])
-def get_normalization_logs(
+async def get_normalization_logs(
     *,
     db: Session = Depends(get_db),
     limit: int = Query(default=100, le=500, description="Maximum number of logs to return"),

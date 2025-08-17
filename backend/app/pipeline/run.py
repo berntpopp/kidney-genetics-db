@@ -12,12 +12,27 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.gene import PipelineRun
 from app.pipeline.aggregate import update_all_curations
-from app.pipeline.sources.clingen import update_clingen_data
-from app.pipeline.sources.gencc import update_gencc_data
+from app.pipeline.sources.sync_wrappers import (
+    update_clingen_sync as update_clingen_data,
+)
 
-# HPO now uses async version in background_tasks.py - not available for sync CLI
-from app.pipeline.sources.panelapp import update_all_panelapp
-from app.pipeline.sources.pubtator import update_pubtator_data
+# REFACTORED: Old sync sources have been replaced with unified async sources
+# These imports are commented out as the old files have been deleted
+# TODO: Migrate CLI to use unified sources or async execution
+# from app.pipeline.sources.clingen import update_clingen_data
+# from app.pipeline.sources.gencc import update_gencc_data
+# from app.pipeline.sources.panelapp import update_all_panelapp
+# from app.pipeline.sources.pubtator import update_pubtator_data
+# REFACTORED: Import sync wrappers for unified sources
+from app.pipeline.sources.sync_wrappers import (
+    update_gencc_sync as update_gencc_data,
+)
+from app.pipeline.sources.sync_wrappers import (
+    update_panelapp_sync as update_all_panelapp,
+)
+from app.pipeline.sources.sync_wrappers import (
+    update_pubtator_sync as update_pubtator_data,
+)
 
 # Configure logging
 logging.basicConfig(

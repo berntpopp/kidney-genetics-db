@@ -107,15 +107,46 @@ class TaskMixin:
     @managed_task("PubTator")
     async def _run_pubtator(self, db, tracker, resume: bool = False):
         """Run PubTator update with managed lifecycle."""
-        from app.pipeline.sources.pubtator_async import update_pubtator_async
-        return await update_pubtator_async(db, tracker)
+        # REFACTORED: Use unified PubTator source
+        from app.pipeline.sources.unified.pubtator import PubTatorUnifiedSource
+
+        source = PubTatorUnifiedSource(db_session=db)
+
+        # Fetch and process data
+        tracker.start("Fetching PubTator data")
+        raw_data = await source.fetch_raw_data()
+
+        tracker.update(operation="Processing data")
+        processed_data = await source.process_data(raw_data)
+
+        # Save to database
+        tracker.update(operation="Saving to database")
+        stats = await source.save_to_database(db, processed_data, tracker)
+
+        tracker.complete(f"PubTator update complete: {stats}")
+        return stats
 
     @managed_task("GenCC")
     async def _run_gencc(self, db, tracker, resume: bool = False):
         """Run GenCC update with managed lifecycle."""
-        from app.pipeline.sources.gencc_unified import get_gencc_client
-        client = get_gencc_client(db_session=db)
-        return await client.update_data(db, tracker)
+        # REFACTORED: Use unified GenCC source
+        from app.pipeline.sources.unified.gencc import GenCCUnifiedSource
+
+        source = GenCCUnifiedSource(db_session=db)
+
+        # Fetch and process data
+        tracker.start("Fetching GenCC data")
+        raw_data = await source.fetch_raw_data()
+
+        tracker.update(operation="Processing data")
+        processed_data = await source.process_data(raw_data)
+
+        # Save to database
+        tracker.update(operation="Saving to database")
+        stats = await source.save_to_database(db, processed_data, tracker)
+
+        tracker.complete(f"GenCC update complete: {stats}")
+        return stats
 
     @executor_task("PanelApp")
     def _run_panelapp(self, db, tracker, resume: bool = False):
@@ -126,8 +157,24 @@ class TaskMixin:
     @managed_task("HPO")
     async def _run_hpo(self, db, tracker, resume: bool = False):
         """Run HPO update with managed lifecycle."""
-        from app.pipeline.sources.hpo_async import update_hpo_async
-        return await update_hpo_async(db, tracker)
+        # REFACTORED: Use unified HPO source
+        from app.pipeline.sources.unified.hpo import HPOUnifiedSource
+
+        source = HPOUnifiedSource(db_session=db)
+
+        # Fetch and process data
+        tracker.start("Fetching HPO data")
+        raw_data = await source.fetch_raw_data()
+
+        tracker.update(operation="Processing data")
+        processed_data = await source.process_data(raw_data)
+
+        # Save to database
+        tracker.update(operation="Saving to database")
+        stats = await source.save_to_database(db, processed_data, tracker)
+
+        tracker.complete(f"HPO update complete: {stats}")
+        return stats
 
     @executor_task("ClinGen")
     def _run_clingen(self, db, tracker, resume: bool = False):

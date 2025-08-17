@@ -17,12 +17,12 @@ from sqlalchemy.orm import Session
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.config import settings
-from app.core.data_source_base import DataSourceClient
+from app.pipeline.sources.unified.base import UnifiedDataSource
 
 logger = logging.getLogger(__name__)
 
 
-class GenCCClient(DataSourceClient):
+class GenCCUnifiedSource(UnifiedDataSource):
     """
     Unified GenCC client with intelligent caching and async processing.
 
@@ -45,10 +45,11 @@ class GenCCClient(DataSourceClient):
         self,
         cache_service: CacheService | None = None,
         http_client: CachedHttpClient | None = None,
-        db_session: Session | None = None
+        db_session: Session | None = None,
+        **kwargs
     ):
         """Initialize GenCC client with caching and HTTP services."""
-        super().__init__(cache_service, http_client, db_session)
+        super().__init__(cache_service, http_client, db_session, **kwargs)
 
         # GenCC configuration
         self.download_url = "https://search.thegencc.org/download/action/submissions-export-xlsx"
@@ -72,32 +73,26 @@ class GenCCClient(DataSourceClient):
             "Refuted Evidence": 0.0,
         }
 
-        # Cache TTL
-        self.ttl = settings.CACHE_TTL_GENCC
+        logger.info(f"GenCCUnifiedSource initialized with TTL: {self.cache_ttl}s")
 
-        logger.info(f"GenCCClient initialized with TTL: {self.ttl}s")
+    def _get_default_ttl(self) -> int:
+        """Get default TTL for GenCC data."""
+        return settings.CACHE_TTL_GENCC
 
     async def fetch_raw_data(self) -> pd.DataFrame:
         """
         Fetch GenCC submissions Excel file with intelligent caching.
 
-        Uses HTTP caching with ETags to avoid re-downloading unchanged files.
+        Uses unified caching with automatic retry logic.
 
         Returns:
             Pandas DataFrame with GenCC submissions
         """
-        cache_key = "gencc_excel_file"
+        async def _fetch_gencc_data():
+            """Internal function to fetch GenCC data."""
+            logger.info(f"📥 Downloading GenCC submissions from: {self.download_url}")
+            logger.info("🔄 Starting download... (this may take 30-60 seconds for ~3.6MB file)")
 
-        # Check cache first
-        cached_df = await self.cache_service.get(cache_key, self.namespace)
-        if cached_df is not None:
-            logger.info("📦 Using cached GenCC data")
-            return cached_df
-
-        logger.info(f"📥 Downloading GenCC submissions from: {self.download_url}")
-        logger.info("🔄 Starting download... (this may take 30-60 seconds for ~3.6MB file)")
-
-        try:
             # Use cached HTTP client for download
             response = await self.http_client.get(
                 self.download_url,
@@ -114,20 +109,18 @@ class GenCCClient(DataSourceClient):
             # Log column structure for debugging
             logger.info(f"GenCC columns: {list(df.columns)[:10]}...")  # First 10 columns
 
-            # Cache the parsed DataFrame
-            await self.cache_service.set(
-                cache_key,
-                df,
-                namespace=self.namespace,
-                ttl=self.ttl
-            )
-
-            logger.info(f"✅ GenCC data downloaded and cached: {len(df)} submissions")
             return df
 
-        except Exception as e:
-            logger.error(f"❌ Error downloading/parsing GenCC file: {e}")
-            raise
+        # Use unified caching pattern
+        cache_key = "excel_file"
+        df = await self.fetch_with_cache(
+            cache_key=cache_key,
+            fetch_func=_fetch_gencc_data,
+            ttl=self.cache_ttl
+        )
+
+        logger.info(f"✅ GenCC data ready: {len(df)} submissions")
+        return df
 
     async def process_data(self, df: pd.DataFrame) -> dict[str, Any]:
         """
@@ -369,14 +362,14 @@ class GenCCClient(DataSourceClient):
         )
 
 
-def get_gencc_client(**kwargs) -> GenCCClient:
+def get_gencc_client(**kwargs) -> GenCCUnifiedSource:
     """
     Factory function for GenCC client.
 
     Returns:
-        GenCCClient instance
+        GenCCUnifiedSource instance
     """
-    return GenCCClient(**kwargs)
+    return GenCCUnifiedSource(**kwargs)
 
 
 # Backwards compatibility function

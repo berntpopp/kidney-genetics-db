@@ -19,7 +19,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=DataSourceList)
-def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
+async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Get information about all data sources and their current status
     """
@@ -136,7 +136,7 @@ def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
 
 
 @router.get("/{source_name}")
-def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Get detailed information about a specific data source
     """

@@ -135,7 +135,7 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
 
 
 @router.get("/status")
-def get_all_status(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
+async def get_all_status(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
     """
     Get current status of all data sources
 
@@ -164,7 +164,7 @@ def get_all_status(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
 
 
 @router.get("/status/{source_name}")
-def get_source_status(
+async def get_source_status(
     source_name: str,
     db: Session = Depends(get_db)
 ) -> dict[str, Any]:
@@ -290,7 +290,7 @@ async def resume_source(
 
 
 @router.get("/dashboard")
-def get_dashboard_data(db: Session = Depends(get_db)) -> dict[str, Any]:
+async def get_dashboard_data(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Get dashboard data with summary statistics
 

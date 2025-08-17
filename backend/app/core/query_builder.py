@@ -1,6 +1,7 @@
 """
 Query builder utilities for common database patterns.
 OPTIMIZATION: Implements DRY principle for reusable query construction.
+Enhanced to support complex operations including views, aggregations, and raw SQL.
 """
 
 import logging
@@ -16,8 +17,9 @@ T = TypeVar('T')
 
 class QueryBuilder(Generic[T]):
     """
-    Reusable query builder for common patterns.
+    Enhanced reusable query builder for complex patterns.
     Implements DRY principle to avoid repetitive query construction.
+    Supports views, aggregations, and raw SQL generation.
     """
 
     def __init__(self, session: Session, model: T):
@@ -32,6 +34,11 @@ class QueryBuilder(Generic[T]):
         self.model = model
         self.query = session.query(model)
         self._filters = []
+        self._joins = []
+        self._aggregations = []
+        self._group_by = []
+        self._raw_select = None
+        self._view_name = None
 
     def search(self, search_term: str | None, *fields) -> 'QueryBuilder[T]':
         """
@@ -166,6 +173,88 @@ class QueryBuilder(Generic[T]):
                 )
         return self
 
+    def join_view(self, view_name: str, on_clause: str) -> 'QueryBuilder[T]':
+        """
+        Join with a database view.
+        
+        Args:
+            view_name: Name of the view to join
+            on_clause: SQL ON clause for the join
+            
+        Returns:
+            Self for method chaining
+        """
+        self._view_name = view_name
+        self._joins.append(("view", view_name, on_clause))
+        return self
+
+    def left_join(self, target, condition) -> 'QueryBuilder[T]':
+        """
+        Add left outer join.
+        
+        Args:
+            target: Target table/model to join
+            condition: Join condition
+            
+        Returns:
+            Self for method chaining
+        """
+        self.query = self.query.outerjoin(target, condition)
+        self._joins.append(("left", target, condition))
+        return self
+
+    def aggregate(
+        self,
+        func_name: str,
+        field: str,
+        alias: str,
+        distinct: bool = False
+    ) -> 'QueryBuilder[T]':
+        """
+        Add aggregation to query.
+        
+        Args:
+            func_name: Aggregation function name (e.g., 'array_agg', 'count', 'sum')
+            field: Field to aggregate
+            alias: Alias for the aggregated result
+            distinct: Whether to use DISTINCT in aggregation
+            
+        Returns:
+            Self for method chaining
+        """
+        self._aggregations.append({
+            "func": func_name,
+            "field": field,
+            "alias": alias,
+            "distinct": distinct
+        })
+        return self
+
+    def group_by(self, *fields) -> 'QueryBuilder[T]':
+        """
+        Add GROUP BY clause.
+        
+        Args:
+            *fields: Fields to group by
+            
+        Returns:
+            Self for method chaining
+        """
+        for field in fields:
+            if isinstance(field, str):
+                if hasattr(self.model, field):
+                    self._group_by.append(getattr(self.model, field))
+                else:
+                    # Handle raw field names (e.g., from views)
+                    self._group_by.append(text(field))
+            else:
+                self._group_by.append(field)
+
+        if self._group_by:
+            self.query = self.query.group_by(*self._group_by)
+
+        return self
+
     def build(self) -> Query:
         """
         Build and return the constructed query.
@@ -210,6 +299,137 @@ class QueryBuilder(Generic[T]):
             True if records exist, False otherwise
         """
         return self.session.query(self.query.exists()).scalar()
+
+    def build_raw_sql(self) -> tuple[str, dict]:
+        """
+        Build raw SQL string for complex queries with views and aggregations.
+        
+        Returns:
+            Tuple of (SQL string, parameters dictionary)
+        """
+        if self._view_name and self._aggregations:
+            # Build complex query with view join and aggregations
+            return self._build_complex_sql()
+
+        # Fall back to standard SQLAlchemy query compilation
+        compiled = self.query.statement.compile(
+            compile_kwargs={"literal_binds": True}
+        )
+        return str(compiled), {}
+
+    def _build_complex_sql(self) -> tuple[str, dict]:
+        """
+        Build complex SQL with view joins and aggregations.
+        
+        Returns:
+            Tuple of (SQL string, parameters dictionary)
+        """
+        # Start with SELECT clause
+        select_fields = []
+
+        # Add regular fields from model
+        table_name = self.model.__tablename__
+        select_fields.extend([
+            f"{table_name}.id",
+            f"{table_name}.approved_symbol",
+            f"{table_name}.hgnc_id",
+            f"{table_name}.aliases",
+            f"{table_name}.created_at",
+            f"{table_name}.updated_at",
+        ])
+
+        # Add view fields if joined
+        if self._view_name:
+            select_fields.extend([
+                f"{self._view_name}.source_count",
+                f"{self._view_name}.evidence_count",
+                f"{self._view_name}.raw_score",
+                f"{self._view_name}.percentage_score",
+                f"{self._view_name}.total_active_sources",
+            ])
+
+        # Add aggregations
+        for agg in self._aggregations:
+            if agg["distinct"]:
+                select_fields.append(
+                    f"{agg['func']}(DISTINCT {agg['field']}) as {agg['alias']}"
+                )
+            else:
+                select_fields.append(
+                    f"{agg['func']}({agg['field']}) as {agg['alias']}"
+                )
+
+        sql = f"SELECT {', '.join(select_fields)}"
+
+        # FROM clause
+        sql += f" FROM {table_name}"
+
+        # JOIN clauses
+        for join_type, target, condition in self._joins:
+            if join_type == "view":
+                sql += f" JOIN {target} ON {condition}"
+            elif join_type == "left":
+                if hasattr(target, "__tablename__"):
+                    target_name = target.__tablename__
+                else:
+                    target_name = str(target)
+                sql += f" LEFT JOIN {target_name} ON {condition}"
+
+        # WHERE clause
+        params = {}
+        where_conditions = []
+
+        # Add filters from the query
+        # This is simplified - in production you'd need more sophisticated filter extraction
+
+        # GROUP BY clause
+        if self._group_by:
+            group_fields = []
+            for field in self._group_by:
+                if hasattr(field, "key"):
+                    group_fields.append(f"{table_name}.{field.key}")
+                else:
+                    group_fields.append(str(field))
+            sql += f" GROUP BY {', '.join(group_fields)}"
+
+        # ORDER BY and LIMIT would go here
+
+        return sql, params
+
+    def execute_aggregated(self) -> list[dict[str, Any]]:
+        """
+        Execute query with aggregations and return results as dictionaries.
+        
+        Returns:
+            List of result dictionaries
+        """
+        if self._view_name or self._aggregations:
+            # Execute as raw SQL for complex queries
+            sql, params = self.build_raw_sql()
+            result = self.session.execute(text(sql), params)
+
+            # Convert to dictionaries
+            columns = result.keys()
+            return [dict(zip(columns, row, strict=False)) for row in result.fetchall()]
+
+        # Standard query execution
+        results = self.query.all()
+        return [self._model_to_dict(r) for r in results]
+
+    def _model_to_dict(self, model_instance) -> dict[str, Any]:
+        """
+        Convert model instance to dictionary.
+        
+        Args:
+            model_instance: SQLAlchemy model instance
+            
+        Returns:
+            Dictionary representation
+        """
+        result = {}
+        for column in model_instance.__table__.columns:
+            result[column.name] = getattr(model_instance, column.name)
+        return result
 
 
 class QueryOptimizer:

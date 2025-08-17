@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.cache_service import get_cache_service
 from app.core.cached_http_client import get_cached_http_client
 from app.core.hgnc_client import get_hgnc_client_cached
-from app.pipeline.sources.gencc_unified import get_gencc_client
+from app.pipeline.sources.unified.gencc import get_gencc_client
 
 logger = logging.getLogger(__name__)
 

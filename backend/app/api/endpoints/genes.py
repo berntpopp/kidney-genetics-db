@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=GeneList)
-def get_genes(
+async def get_genes(
     skip: int = Query(0, ge=0, description="Number of items to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Number of items to return"),
     search: str | None = Query(None, description="Search term for gene symbol or HGNC ID"),
@@ -30,7 +30,7 @@ def get_genes(
     OPTIMIZED: Uses single query with aggregation to avoid N+1 query problem.
     """
     # Use the optimized method that gets data with sources in a single query
-    genes = gene_crud.get_multi_with_scores_and_sources(
+    genes = gene_crud.get_genes_with_aggregated_data(
         db, skip=skip, limit=limit, search=search, min_score=min_score,
         sort_by=sort_by, sort_desc=sort_desc
     )
@@ -60,7 +60,7 @@ def get_genes(
 
 
 @router.get("/{gene_symbol}", response_model=Gene)
-def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Get gene by symbol with percentage score (0-100)
     """
@@ -92,7 +92,7 @@ def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
 
 
 @router.get("/{gene_symbol}/evidence")
-def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Get all evidence for a gene
     """

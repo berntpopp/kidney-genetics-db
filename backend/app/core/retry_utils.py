@@ -243,6 +243,101 @@ def retry_with_backoff(
     return decorator
 
 
+class RetryStrategy:
+    """
+    Unified retry strategy for executing functions with exponential backoff.
+    """
+
+    def __init__(
+        self,
+        max_retries: int = 3,
+        initial_delay: float = 1.0,
+        max_delay: float = 30.0,
+        exponential_base: float = 2.0,
+        jitter: bool = True
+    ):
+        """Initialize retry strategy with configuration."""
+        self.config = RetryConfig(
+            max_retries=max_retries,
+            initial_delay=initial_delay,
+            max_delay=max_delay,
+            exponential_base=exponential_base,
+            jitter=jitter
+        )
+
+    async def execute_async(self, func: Callable, *args, **kwargs) -> Any:
+        """
+        Execute an async function with retry logic.
+        
+        Args:
+            func: Async function to execute
+            *args: Positional arguments for func
+            **kwargs: Keyword arguments for func
+            
+        Returns:
+            Result from successful function execution
+            
+        Raises:
+            Last exception if all retries fail
+        """
+        last_exception = None
+
+        for attempt in range(self.config.max_retries + 1):
+            try:
+                return await func(*args, **kwargs)
+            except self.config.retry_on_exceptions as e:
+                last_exception = e
+
+                if attempt < self.config.max_retries:
+                    delay = self.config.calculate_delay(attempt)
+                    logger.warning(
+                        f"Attempt {attempt + 1}/{self.config.max_retries + 1} failed: {e}. "
+                        f"Retrying in {delay:.2f}s..."
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error(f"All {self.config.max_retries + 1} attempts failed")
+
+        if last_exception:
+            raise last_exception
+
+    def execute(self, func: Callable, *args, **kwargs) -> Any:
+        """
+        Execute a sync function with retry logic.
+        
+        Args:
+            func: Function to execute
+            *args: Positional arguments for func
+            **kwargs: Keyword arguments for func
+            
+        Returns:
+            Result from successful function execution
+            
+        Raises:
+            Last exception if all retries fail
+        """
+        last_exception = None
+
+        for attempt in range(self.config.max_retries + 1):
+            try:
+                return func(*args, **kwargs)
+            except self.config.retry_on_exceptions as e:
+                last_exception = e
+
+                if attempt < self.config.max_retries:
+                    delay = self.config.calculate_delay(attempt)
+                    logger.warning(
+                        f"Attempt {attempt + 1}/{self.config.max_retries + 1} failed: {e}. "
+                        f"Retrying in {delay:.2f}s..."
+                    )
+                    time.sleep(delay)
+                else:
+                    logger.error(f"All {self.config.max_retries + 1} attempts failed")
+
+        if last_exception:
+            raise last_exception
+
+
 class RetryableHTTPClient:
     """
     HTTP client with built-in retry logic and circuit breaker.

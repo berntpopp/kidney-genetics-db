@@ -371,11 +371,12 @@ def get_data_source_client(source_name: str, **kwargs) -> DataSourceClient:
         ValueError: If source_name is not recognized
     """
     source_map = {
-        "GenCC": "app.pipeline.sources.gencc.GenCCClient",
-        "PubTator": "app.pipeline.sources.pubtator.PubTatorClient",
-        "PanelApp": "app.pipeline.sources.panelapp.PanelAppClient",
-        "ClinGen": "app.pipeline.sources.clingen.ClinGenClient",
-        "HPO": "app.pipeline.sources.hpo.HPOClient",
+        # REFACTORED: Updated to use unified sources
+        "GenCC": "app.pipeline.sources.unified.gencc.GenCCUnifiedSource",
+        "PubTator": "app.pipeline.sources.unified.pubtator.PubTatorUnifiedSource",
+        "PanelApp": "app.pipeline.sources.unified.panelapp.PanelAppUnifiedSource",
+        "ClinGen": "app.pipeline.sources.unified.clingen.ClinGenUnifiedSource",
+        "HPO": "app.pipeline.sources.unified.hpo.HPOUnifiedSource",
     }
 
     if source_name not in source_map:
