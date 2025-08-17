@@ -195,29 +195,29 @@ class BackgroundTaskManager:
     async def _run_hpo(self, resume: bool = False):
         """Run HPO update with progress tracking"""
         from app.pipeline.sources.hpo_async import update_hpo_async
-        
+
         # Create a tracker for HPO
         db = next(get_db())
         tracker = ProgressTracker(db, "HPO", broadcast_callback=self.broadcast_callback)
         tracker.start("HPO")
-        
+
         try:
             logger.info("Starting HPO data update...")
-            
+
             # The tracker already has a database session, use it
             try:
                 stats = await update_hpo_async(db, tracker)
-                
+
                 if stats.get("completed"):
                     tracker.complete("HPO")
                     logger.info(f"✅ HPO update completed: {stats}")
                 else:
                     tracker.fail("HPO", stats.get("error", "Unknown error"))
                     logger.error(f"❌ HPO update failed: {stats}")
-                    
+
             finally:
                 db.close()
-                
+
         except Exception as e:
             logger.error(f"HPO update error: {e}", exc_info=True)
             tracker.error(str(e))

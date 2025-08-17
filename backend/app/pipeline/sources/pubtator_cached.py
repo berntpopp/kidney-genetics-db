@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class PubTatorClientCached:
     """
     Enhanced PubTator client with unified cache system integration.
-    
+
     Features:
     - Persistent cache shared across instances
     - HTTP caching via Hishel for API compliance
@@ -61,11 +61,11 @@ class PubTatorClientCached:
     async def search_publications(self, query: str, max_results: int = 100) -> list[str]:
         """
         Search PubMed for kidney-related publications with caching.
-        
+
         Args:
             query: Search query
             max_results: Maximum number of PMIDs to return
-        
+
         Returns:
             List of PMIDs
         """
@@ -116,12 +116,12 @@ class PubTatorClientCached:
     ) -> dict[str, Any]:
         """
         Get PubTator annotations by searching with enhanced caching support.
-        
+
         Args:
             query: Search query
             max_pages: Maximum number of pages to fetch (None = use configured limit)
             tracker: Progress tracker for updates
-        
+
         Returns:
             Dictionary mapping gene symbols to annotation data
         """
@@ -448,10 +448,10 @@ class PubTatorClientCached:
     def normalize_gene_symbol(self, gene_text: str) -> str | None:
         """
         Normalize gene text to standard symbol.
-        
+
         Args:
             gene_text: Gene text from PubTator
-        
+
         Returns:
             Normalized gene symbol or None
         """
@@ -479,10 +479,10 @@ class PubTatorClientCached:
     async def warm_cache(self, common_queries: list[str] | None = None) -> int:
         """
         Warm the cache with commonly used queries.
-        
+
         Args:
             common_queries: List of common queries to preload
-        
+
         Returns:
             Number of entries cached
         """
@@ -534,12 +534,12 @@ async def search_publications_cached(
 ) -> list[str]:
     """
     Convenience function to search publications using the cached client.
-    
+
     Args:
         query: Search query
         max_results: Maximum number of results
         db_session: Database session for cache persistence
-    
+
     Returns:
         List of PMIDs
     """
@@ -555,13 +555,13 @@ async def get_annotations_by_search_cached(
 ) -> dict[str, Any]:
     """
     Convenience function to get annotations using the cached client.
-    
+
     Args:
         query: Search query
         max_pages: Maximum pages to process
         tracker: Progress tracker
         db_session: Database session for cache persistence
-    
+
     Returns:
         Gene annotations dictionary
     """

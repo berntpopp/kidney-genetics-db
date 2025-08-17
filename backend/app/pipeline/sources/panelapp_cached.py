@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class PanelAppClientCached:
     """
     Enhanced PanelApp client with unified cache system integration.
-    
+
     Features:
     - Persistent API response caching
     - HTTP caching via Hishel for API compliance
@@ -56,10 +56,10 @@ class PanelAppClientCached:
     async def search_panels(self, keywords: list[str]) -> list[dict[str, Any]]:
         """
         Search for panels matching kidney-related keywords with caching.
-        
+
         Args:
             keywords: List of search terms
-        
+
         Returns:
             List of panel data
         """
@@ -113,10 +113,10 @@ class PanelAppClientCached:
     async def get_panel_genes(self, panel_id: str | int) -> list[dict[str, Any]]:
         """
         Get genes from a specific panel with caching.
-        
+
         Args:
             panel_id: Panel identifier
-        
+
         Returns:
             List of gene data from panel
         """
@@ -190,7 +190,7 @@ class PanelAppClientCached:
     async def get_all_kidney_panels_and_genes(self) -> dict[str, Any]:
         """
         Get all kidney-related panels and their genes with comprehensive caching.
-        
+
         Returns:
             Dictionary with panels and aggregated gene data
         """
@@ -258,7 +258,7 @@ class PanelAppManagerCached:
     async def get_all_data(self) -> dict[str, Any]:
         """
         Get data from both UK and Australia PanelApp sources.
-        
+
         Returns:
             Combined statistics and data from both sources
         """
@@ -360,7 +360,7 @@ class PanelAppManagerCached:
     async def warm_cache(self) -> int:
         """
         Warm the cache by preloading PanelApp data.
-        
+
         Returns:
             Number of entries cached
         """
@@ -405,10 +405,10 @@ async def get_panelapp_data_cached(
 ) -> dict[str, Any]:
     """
     Convenience function to get PanelApp data using the cached manager.
-    
+
     Args:
         db_session: Database session for cache persistence
-    
+
     Returns:
         Combined PanelApp data from UK and Australia
     """

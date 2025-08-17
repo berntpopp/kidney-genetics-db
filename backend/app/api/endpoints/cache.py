@@ -111,7 +111,7 @@ async def get_cache_stats(
 ) -> CacheStatsResponse:
     """
     Get cache statistics.
-    
+
     Returns overall cache performance metrics including hit rates,
     memory usage, and entry counts.
     """
@@ -180,7 +180,7 @@ async def get_cache_health(
 ) -> CacheHealthResponse:
     """
     Get cache system health status.
-    
+
     Performs health checks on all cache components and returns
     overall system status.
     """
@@ -256,7 +256,7 @@ async def list_cache_keys(
     try:
         # This would require implementing pagination in the cache service
         # For now, return a placeholder implementation
-        cache_service = get_cache_service(db)
+        get_cache_service(db)
 
         # TODO: Implement actual key listing with pagination
         # This is a complex operation that would require database queries
@@ -354,7 +354,7 @@ async def warm_cache(
 ) -> CacheWarmResponse:
     """
     Warm up cache by preloading data from specified sources.
-    
+
     This endpoint can be used to preload frequently accessed data
     to improve performance during peak usage.
     """
@@ -469,7 +469,7 @@ async def get_monitoring_dashboard(
 ) -> dict[str, Any]:
     """
     Get comprehensive monitoring dashboard data.
-    
+
     Provides detailed statistics, performance metrics, and health status
     across all cache components and data sources.
     """
@@ -512,7 +512,7 @@ async def warm_all_caches(
 ) -> dict[str, Any]:
     """
     Warm all data source caches in parallel.
-    
+
     This endpoint triggers cache warming for all supported data sources
     to improve performance during peak usage.
     """
@@ -537,7 +537,7 @@ async def clear_all_caches(
 ) -> dict[str, Any]:
     """
     Clear all data source caches.
-    
+
     This endpoint clears all cache entries across all data sources.
     Use with caution as this will impact performance until caches are rebuilt.
     """
@@ -562,7 +562,7 @@ async def get_cache_system_health(
 ) -> dict[str, Any]:
     """
     Get comprehensive health status of the cache system.
-    
+
     Provides health checks for all cache components including
     circuit breakers, data sources, and performance indicators.
     """

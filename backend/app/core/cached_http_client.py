@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class CachedHttpClient:
     """
     HTTP client with intelligent caching capabilities.
-    
+
     Features:
     - RFC 9111 compliant HTTP caching via Hishel
     - Custom cache policies per data source
@@ -133,7 +133,7 @@ class CachedHttpClient:
     ) -> httpx.Response:
         """
         Perform GET request with intelligent caching.
-        
+
         Args:
             url: Request URL
             namespace: Cache namespace for database fallback
@@ -210,7 +210,7 @@ class CachedHttpClient:
     ) -> httpx.Response:
         """
         Perform POST request with optional response caching.
-        
+
         Args:
             url: Request URL
             namespace: Cache namespace
@@ -251,7 +251,7 @@ class CachedHttpClient:
     ) -> bytes:
         """
         Download file with intelligent caching using ETags.
-        
+
         Args:
             url: File URL
             namespace: Cache namespace
@@ -347,7 +347,7 @@ class CachedHttpClient:
                 content = content.encode("utf-8")
             elif not isinstance(content, bytes):
                 content = str(content).encode("utf-8")
-            
+
             response = httpx.Response(
                 status_code=cached_response.get("status_code", 200),
                 headers=cached_response.get("headers", {}),

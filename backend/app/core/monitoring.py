@@ -58,7 +58,7 @@ class CacheMonitoringService:
     async def get_comprehensive_stats(self) -> dict[str, Any]:
         """
         Get comprehensive statistics across all cache components.
-        
+
         Returns:
             Dictionary with detailed cache statistics
         """
@@ -391,7 +391,7 @@ class CacheMonitoringService:
     async def warm_all_caches(self) -> dict[str, Any]:
         """
         Warm all data source caches in parallel.
-        
+
         Returns:
             Dictionary with warming results for each source
         """
@@ -414,7 +414,7 @@ class CacheMonitoringService:
         if warming_tasks:
             task_results = await asyncio.gather(*warming_tasks.values(), return_exceptions=True)
 
-            for i, (source_name, task) in enumerate(warming_tasks.items()):
+            for i, (source_name, _task) in enumerate(warming_tasks.items()):
                 result = task_results[i]
 
                 if isinstance(result, Exception):
@@ -446,7 +446,7 @@ class CacheMonitoringService:
     async def clear_all_caches(self) -> dict[str, Any]:
         """
         Clear all data source caches.
-        
+
         Returns:
             Dictionary with clearing results for each source
         """

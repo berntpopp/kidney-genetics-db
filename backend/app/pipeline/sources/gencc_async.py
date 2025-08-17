@@ -17,14 +17,14 @@ logger = logging.getLogger(__name__)
 async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str, Any]:
     """
     Enhanced async GenCC update using the unified cache system.
-    
+
     This version provides true async processing with intelligent caching,
     replacing the thread-pool delegation approach.
     """
     source_name = "GenCC"
     logger.info(f"🚀 [ENTRY] update_gencc_async called - Starting {source_name} data update with cached client...")
     print(f"🚀 [ENTRY] update_gencc_async called - Starting {source_name} data update with cached client...")
-    
+
     # Initialize stats with timestamp
     stats = {
         "source": source_name,
@@ -36,17 +36,17 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
         "completed": False,
         "started_at": datetime.now(timezone.utc).isoformat()
     }
-    
+
     try:
         from app.core.gene_normalization_async import normalize_genes_batch_async
         from app.crud.gene import gene_crud
         from app.models.gene import GeneEvidence
         from app.schemas.gene import GeneCreate
         logger.info("🚀 [DEBUG] Imports successful")
-        
+
         tracker.start("Starting GenCC async update")
         logger.info("🚀 [DEBUG] Tracker started")
-        
+
         # Initialize cached GenCC client
         client = get_gencc_client_cached(db_session=db)
         logger.info("🚀 [DEBUG] Client initialized")
@@ -54,19 +54,19 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
         # Get processed kidney gene data
         logger.info("🔄 Fetching GenCC kidney-related gene data...")
         gene_data_map = await client.get_kidney_gene_data()
-        
+
         logger.info(f"🔍 GenCC returned data: {type(gene_data_map)}, length: {len(gene_data_map) if gene_data_map else 0}")
-        
+
         if not gene_data_map:
             logger.warning("⚠️ No kidney-related genes found in GenCC data")
             tracker.complete("GenCC processing complete: 0 genes found")
             return stats
-        
+
         stats["kidney_related"] = len(gene_data_map)
-        
+
         logger.info(f"🎯 About to start normalization processing for {len(gene_data_map)} genes")
         print(f"🎯 About to start normalization processing for {len(gene_data_map)} genes")
-        
+
         # Process genes for normalization
         tracker.update(operation="Starting batch normalization")
         logger.info(f"🔄 Starting batch normalization of {len(gene_data_map)} genes")
@@ -91,7 +91,7 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
             normalization_results = await normalize_genes_batch_async(
                 db, batch_symbols, source_name
             )
-            
+
             logger.info(f"🔍 Normalization results for batch {batch_num + 1}: {len(normalization_results)} results")
             logger.info(f"   Sample results: {list(normalization_results.keys())[:3] if normalization_results else 'None'}")
 
@@ -106,7 +106,7 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
                         stats["errors"] += 1
                         continue
 
-                    if result["status"] == "normalized":
+                    if result.get("status") == "normalized":
                         approved_symbol = result["approved_symbol"]
                         hgnc_id = result["hgnc_id"]
 
@@ -114,7 +114,7 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
                         existing_gene = None
                         if hgnc_id:
                             existing_gene = gene_crud.get_by_hgnc_id(db, hgnc_id)
-                        
+
                         if not existing_gene:
                             existing_gene = gene_crud.get_by_symbol(db, approved_symbol)
 
@@ -132,40 +132,35 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
                         else:
                             target_gene = existing_gene
 
-                        # Process evidence records from GenCC submissions
-                        for submission in gene_data["submissions"]:
-                            # Create unique source detail for this submission
-                            disease_name_short = submission["disease_name"][:50] if submission["disease_name"] else "unknown"
-                            source_detail = f"{submission['submitter']}_{disease_name_short}"
+                        # Create ONE aggregated evidence record per gene (not per submission)
+                        source_detail = f"{approved_symbol}_aggregated_gencc_data"
 
-                            # Check if evidence already exists
-                            existing_evidence = db.query(GeneEvidence).filter(
-                                GeneEvidence.gene_id == target_gene.id,
-                                GeneEvidence.source_name == source_name,
-                                GeneEvidence.source_detail == source_detail
-                            ).first()
+                        # Check if evidence already exists for this gene
+                        existing_evidence = db.query(GeneEvidence).filter(
+                            GeneEvidence.gene_id == target_gene.id,
+                            GeneEvidence.source_name == source_name,
+                            GeneEvidence.source_detail == source_detail
+                        ).first()
 
-                            if not existing_evidence:
-                                # Create new evidence using correct schema
-                                evidence = GeneEvidence(
-                                    gene_id=target_gene.id,
-                                    source_name=source_name,
-                                    source_detail=source_detail,
-                                    evidence_data={
-                                        "gene_symbol": approved_symbol,
-                                        "classification": submission["classification"],
-                                        "disease_name": submission["disease_name"],
-                                        "submitter": submission["submitter"],
-                                        "mode_of_inheritance": submission["mode_of_inheritance"],
-                                        "submission_date": submission["submission_date"],
-                                        "hgnc_id": submission["hgnc_id"],
-                                        "submitter_count": gene_data["submitter_count"],
-                                        "disease_count": gene_data["disease_count"],
-                                        "submission_count": gene_data["submission_count"]
-                                    }
-                                )
-                                db.add(evidence)
-                                stats["evidence_created"] += 1
+                        if not existing_evidence:
+                            # Aggregate all submission data into a single evidence record
+                            aggregated_evidence_data = {
+                                "gene_symbol": approved_symbol,
+                                "submitter_count": gene_data["submitter_count"],
+                                "disease_count": gene_data["disease_count"],
+                                "submission_count": gene_data["submission_count"],
+                                "submissions": gene_data["submissions"]  # All submissions in one record
+                            }
+
+                            # Create single aggregated evidence record
+                            evidence = GeneEvidence(
+                                gene_id=target_gene.id,
+                                source_name=source_name,
+                                source_detail=source_detail,
+                                evidence_data=aggregated_evidence_data
+                            )
+                            db.add(evidence)
+                            stats["evidence_created"] += 1
 
                         stats["genes_processed"] += 1
 
@@ -173,19 +168,31 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
                         if stats["genes_processed"] % 10 == 0:
                             logger.info(f"📊 Processed gene {stats['genes_processed']}/{len(gene_data_map)}: {approved_symbol}")
 
-                    elif result["status"] == "requires_manual_review":
-                        logger.info(f"🔍 Gene '{symbol}' sent to staging (ID: {result['staging_id']}) for manual review")
+                    elif result.get("status") == "requires_manual_review":
+                        logger.info(f"🔍 Gene '{symbol}' sent to staging (ID: {result.get('staging_id')}) for manual review")
+
+                    elif result.get("status") == "error":
+                        logger.error(f"❌ Error normalizing gene '{symbol}': {result.get('error', 'Unknown error')}")
+                        stats["errors"] += 1
 
                     else:
-                        logger.error(f"❌ Error normalizing gene '{symbol}': {result.get('error', 'Unknown error')}")
+                        logger.warning(f"⚠️ Unexpected normalization status for gene '{symbol}': {result.get('status', 'Unknown')}")
                         stats["errors"] += 1
 
                 except Exception as e:
                     logger.error(f"❌ Error processing gene '{symbol}': {e}")
                     stats["errors"] += 1
+                    # Rollback on error to clear bad transaction state
+                    db.rollback()
 
-            # Commit batch changes
-            db.commit()
+            # Commit batch changes with error handling
+            try:
+                db.commit()
+                logger.info(f"✅ Committed batch {batch_num + 1}/{total_batches}")
+            except Exception as e:
+                logger.error(f"❌ Error committing batch {batch_num + 1}: {e}")
+                db.rollback()
+                stats["errors"] += len(batch_symbols)
 
         # Final statistics
         stats["completed"] = True
@@ -208,7 +215,7 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
         )
 
         return stats
-        
+
     except Exception as e:
         logger.error(f"❌ GenCC update failed: {e}")
         print(f"❌ GenCC update failed: {e}")

@@ -14,6 +14,7 @@ from app.models.gene import PipelineRun
 from app.pipeline.aggregate import update_all_curations
 from app.pipeline.sources.clingen import update_clingen_data
 from app.pipeline.sources.gencc import update_gencc_data
+
 # HPO now uses async version in background_tasks.py - not available for sync CLI
 from app.pipeline.sources.panelapp import update_all_panelapp
 from app.pipeline.sources.pubtator import update_pubtator_data

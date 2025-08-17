@@ -6,7 +6,6 @@ using enhanced caching infrastructure for improved performance.
 """
 
 import asyncio
-import hashlib
 import logging
 import tempfile
 from pathlib import Path
@@ -38,7 +37,7 @@ def clean_data_for_json(data: Any) -> Any:
 class GenCCClientCached:
     """
     Enhanced GenCC client with unified cache system integration.
-    
+
     Features:
     - Persistent file caching with ETag support
     - HTTP caching via Hishel for file downloads
@@ -89,13 +88,12 @@ class GenCCClientCached:
     async def download_excel_file(self) -> str | None:
         """
         Download GenCC submissions Excel file with intelligent caching.
-        
+
         Uses ETag-based caching to avoid re-downloading unchanged files.
-        
+
         Returns:
             Path to downloaded file or None if failed
         """
-        cache_key = "excel_file"
 
         async def fetch_excel_file():
             try:
@@ -109,11 +107,11 @@ class GenCCClientCached:
                     namespace=self.NAMESPACE,
                     fallback_ttl=0  # Don't cache binary response
                 )
-                
+
                 if response.status_code != 200:
                     logger.error(f"Failed to download GenCC file: HTTP {response.status_code}")
                     return None
-                
+
                 content = response.content
 
                 # Save to temporary file
@@ -137,17 +135,17 @@ class GenCCClientCached:
     async def parse_excel_file(self, file_path: Path | str) -> pd.DataFrame:
         """
         Parse GenCC Excel file (without caching).
-        
+
         Args:
             file_path: Path to Excel file
-        
+
         Returns:
             DataFrame with submissions data
         """
         # Convert to Path if string
         if isinstance(file_path, str):
             file_path = Path(file_path)
-            
+
         try:
             # Read Excel file - usually first sheet contains the submissions
             df = pd.read_excel(file_path)
@@ -158,7 +156,7 @@ class GenCCClientCached:
 
             # Replace NaN with None for cleaner processing
             df = df.where(pd.notnull(df), None)
-            
+
             return df
 
         except Exception as e:
@@ -269,24 +267,24 @@ class GenCCClientCached:
     async def get_kidney_gene_data(self) -> dict[str, Any]:
         """
         Get processed kidney-related gene data with intelligent checksum-based caching.
-        
+
         Logic:
         1. Download Excel file and calculate checksum
         2. Check if we have cached data for this checksum
         3. If same file and successful run exists, return cached data
         4. Otherwise process fresh and cache result with checksum
-        
+
         Returns:
             Dictionary mapping gene symbols to aggregated GenCC data
         """
         logger.info("🔄 Starting GenCC kidney gene data fetch...")
-        
+
         # Step 1: Download Excel file to get checksum
         file_path = await self.download_excel_file()
         if not file_path:
             logger.error("❌ Failed to download GenCC file")
             return {}
-        
+
         # Step 2: Calculate file checksum
         try:
             import hashlib
@@ -296,7 +294,7 @@ class GenCCClientCached:
         except Exception as e:
             logger.error(f"❌ Failed to calculate checksum: {e}")
             file_checksum = "unknown"
-        
+
         # Step 3: Check cache using checksum as key
         cache_key = f"kidney_gene_data_{file_checksum}"
         cached_data = await self.cache_service.get(cache_key, self.NAMESPACE)
@@ -386,7 +384,7 @@ class GenCCClientCached:
 
             logger.info(f"✅ Processed {kidney_related_count} kidney-related submissions")
             logger.info(f"📊 Found {len(gene_data_map)} unique kidney-related genes")
-            
+
             # Debug: Log some sample genes found
             if gene_data_map:
                 sample_genes = list(gene_data_map.keys())[:5]
@@ -402,7 +400,7 @@ class GenCCClientCached:
         # Step 4: Fetch and process fresh data
         logger.info(f"🔄 Processing fresh GenCC data for checksum {file_checksum}...")
         gene_data = await fetch_and_process_data()
-        
+
         # Step 5: Cache the processed data with checksum if we got results
         if gene_data:
             try:
@@ -415,16 +413,16 @@ class GenCCClientCached:
                 logger.warning(f"⚠️ Cache error (continuing anyway): {e}")
         else:
             logger.warning("⚠️ No gene data to cache")
-        
+
         return gene_data
 
     async def get_gene_evidence_score(self, symbol: str) -> float:
         """
         Calculate evidence score for a gene based on GenCC classifications.
-        
+
         Args:
             symbol: Gene symbol
-        
+
         Returns:
             Evidence score (0.0 to 1.0)
         """
@@ -481,7 +479,7 @@ class GenCCClientCached:
     async def warm_cache(self) -> int:
         """
         Warm the cache by preloading GenCC data.
-        
+
         Returns:
             Number of entries cached
         """
@@ -535,10 +533,10 @@ async def get_kidney_gene_data_cached(
 ) -> dict[str, Any]:
     """
     Convenience function to get kidney gene data using the cached client.
-    
+
     Args:
         db_session: Database session for cache persistence
-    
+
     Returns:
         Dictionary mapping gene symbols to GenCC data
     """
@@ -552,11 +550,11 @@ async def get_gene_evidence_score_cached(
 ) -> float:
     """
     Convenience function to get gene evidence score using the cached client.
-    
+
     Args:
         symbol: Gene symbol
         db_session: Database session for cache persistence
-    
+
     Returns:
         Evidence score (0.0 to 1.0)
     """

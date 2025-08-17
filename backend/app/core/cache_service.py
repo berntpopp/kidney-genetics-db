@@ -101,7 +101,7 @@ class CacheStats:
 class CacheService:
     """
     Unified cache service with multi-layer caching strategy.
-    
+
     Features:
     - L1 (Memory): Fast LRU cache for hot data
     - L2 (Database): Persistent PostgreSQL storage
@@ -160,7 +160,7 @@ class CacheService:
             if not serialized or serialized.strip() == "":
                 logger.warning("Attempted to deserialize empty value, returning None")
                 return None
-            
+
             return json.loads(serialized)
         except (TypeError, ValueError) as e:
             logger.error(f"Error deserializing value: {e}")
@@ -176,7 +176,7 @@ class CacheService:
     ) -> Any:
         """
         Get a value from cache.
-        
+
         Checks L1 (memory) first, then L2 (database).
         """
         if not self.enabled:
@@ -232,7 +232,7 @@ class CacheService:
     ) -> bool:
         """
         Set a value in cache.
-        
+
         Stores in both L1 (memory) and L2 (database).
         """
         if not self.enabled:
@@ -297,7 +297,7 @@ class CacheService:
     ) -> Any:
         """
         Get value from cache or fetch and cache it.
-        
+
         This implements the cache-aside pattern.
         """
         # Try to get from cache first
@@ -359,7 +359,7 @@ class CacheService:
             count = 0
 
             # L1 Cache: Clean expired memory entries
-            current_time = datetime.now(timezone.utc)
+            datetime.now(timezone.utc)
             expired_keys = [
                 k for k, v in self.memory_cache.items()
                 if v.is_expired()
@@ -413,11 +413,11 @@ class CacheService:
 
         try:
             from sqlalchemy.ext.asyncio import AsyncSession
-            
+
             query = text("""
-                SELECT data, expires_at 
-                FROM cache_entries 
-                WHERE cache_key = :cache_key 
+                SELECT data, expires_at
+                FROM cache_entries
+                WHERE cache_key = :cache_key
                 AND (expires_at IS NULL OR expires_at > NOW())
             """)
 
@@ -425,7 +425,7 @@ class CacheService:
                 result = await self.db_session.execute(query, {"cache_key": cache_key})
             else:
                 result = self.db_session.execute(query, {"cache_key": cache_key})
-            
+
             row = result.fetchone()
 
             if row:
@@ -459,11 +459,11 @@ class CacheService:
             data_size = len(json.dumps(data_value).encode('utf-8'))
 
             query = text("""
-                INSERT INTO cache_entries 
+                INSERT INTO cache_entries
                 (cache_key, namespace, data, expires_at, data_size, metadata)
                 VALUES (:cache_key, :namespace, CAST(:data AS jsonb), :expires_at, :data_size, CAST(:metadata AS jsonb))
-                ON CONFLICT (cache_key) 
-                DO UPDATE SET 
+                ON CONFLICT (cache_key)
+                DO UPDATE SET
                     data = EXCLUDED.data,
                     expires_at = EXCLUDED.expires_at,
                     last_accessed = NOW(),
@@ -473,7 +473,7 @@ class CacheService:
             """)
 
             from sqlalchemy.ext.asyncio import AsyncSession
-            
+
             if isinstance(self.db_session, AsyncSession):
                 await self.db_session.execute(query, {
                     "cache_key": cache_key,
@@ -512,7 +512,7 @@ class CacheService:
 
         try:
             from sqlalchemy.ext.asyncio import AsyncSession
-            
+
             query = text("DELETE FROM cache_entries WHERE cache_key = :cache_key")
             if isinstance(self.db_session, AsyncSession):
                 await self.db_session.execute(query, {"cache_key": cache_key})
@@ -538,13 +538,13 @@ class CacheService:
 
         try:
             from sqlalchemy.ext.asyncio import AsyncSession
-            
+
             query = text("""
-                UPDATE cache_entries 
+                UPDATE cache_entries
                 SET last_accessed = NOW(), access_count = access_count + 1
                 WHERE cache_key = :cache_key
             """)
-            
+
             if isinstance(self.db_session, AsyncSession):
                 await self.db_session.execute(query, {"cache_key": cache_key})
                 await self.db_session.commit()
@@ -567,7 +567,7 @@ class CacheService:
 
         try:
             from sqlalchemy.ext.asyncio import AsyncSession
-            
+
             query = text("DELETE FROM cache_entries WHERE namespace = :namespace")
             if isinstance(self.db_session, AsyncSession):
                 result = await self.db_session.execute(query, {"namespace": namespace})
@@ -593,12 +593,12 @@ class CacheService:
 
         try:
             from sqlalchemy.ext.asyncio import AsyncSession
-            
+
             query = text("""
-                DELETE FROM cache_entries 
+                DELETE FROM cache_entries
                 WHERE expires_at IS NOT NULL AND expires_at <= NOW()
             """)
-            
+
             if isinstance(self.db_session, AsyncSession):
                 result = await self.db_session.execute(query)
                 await self.db_session.commit()
@@ -623,7 +623,7 @@ class CacheService:
 
         try:
             from sqlalchemy.ext.asyncio import AsyncSession
-            
+
             if namespace:
                 query = text("SELECT COUNT(*) FROM cache_entries WHERE namespace = :namespace")
                 if isinstance(self.db_session, AsyncSession):
@@ -650,13 +650,13 @@ class CacheService:
 
         try:
             from sqlalchemy.ext.asyncio import AsyncSession
-            
+
             query = text("SELECT * FROM cache_stats WHERE namespace = :namespace")
             if isinstance(self.db_session, AsyncSession):
                 result = await self.db_session.execute(query, {"namespace": namespace})
             else:
                 result = self.db_session.execute(query, {"namespace": namespace})
-            
+
             row = result.fetchone()
 
             if row:
@@ -697,7 +697,7 @@ async def cached(
 ) -> T:
     """
     Decorator-style function for caching.
-    
+
     Usage:
         result = await cached("my_key", lambda: expensive_operation(), "my_namespace")
     """

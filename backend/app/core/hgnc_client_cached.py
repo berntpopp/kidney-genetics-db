@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 class HGNCClientCached:
     """
     Enhanced HGNC client with unified cache system integration.
-    
+
     Features:
     - Persistent cache shared across instances
     - HTTP caching via Hishel for compliance
@@ -54,7 +54,7 @@ class HGNCClientCached:
     ):
         """
         Initialize the enhanced HGNC client.
-        
+
         Args:
             cache_service: Cache service instance
             http_client: HTTP client with caching
@@ -84,12 +84,12 @@ class HGNCClientCached:
     ) -> dict[str, Any]:
         """
         Make a request to the HGNC API with caching and retry logic.
-        
+
         Args:
             endpoint: API endpoint
             params: Query parameters
             method: HTTP method
-        
+
         Returns:
             JSON response as dictionary
         """
@@ -116,10 +116,10 @@ class HGNCClientCached:
     async def symbol_to_hgnc_id(self, symbol: str) -> str | None:
         """
         Convert a gene symbol to HGNC ID with persistent caching.
-        
+
         Args:
             symbol: Gene symbol
-        
+
         Returns:
             HGNC ID (e.g., "HGNC:5") or None if not found
         """
@@ -147,10 +147,10 @@ class HGNCClientCached:
     async def get_gene_info(self, symbol: str) -> dict[str, Any] | None:
         """
         Get comprehensive gene information for a symbol with persistent caching.
-        
+
         Args:
             symbol: Gene symbol
-        
+
         Returns:
             Dictionary with gene information or None if not found
         """
@@ -178,15 +178,15 @@ class HGNCClientCached:
     async def standardize_symbol(self, symbol: str) -> str:
         """
         Standardize a gene symbol to the approved HGNC symbol with persistent caching.
-        
+
         This method tries multiple approaches:
         1. Direct symbol lookup
         2. Previous symbol lookup
         3. Alias symbol lookup
-        
+
         Args:
             symbol: Input gene symbol
-        
+
         Returns:
             Standardized HGNC symbol or original symbol if not found
         """
@@ -237,13 +237,13 @@ class HGNCClientCached:
     ) -> dict[str, dict[str, str | None]]:
         """
         Standardize multiple gene symbols using cached batch API.
-        
+
         Uses intelligent caching to minimize API calls while maintaining
         the same interface as the original batch method.
-        
+
         Args:
             symbols: List of gene symbols
-        
+
         Returns:
             Dictionary mapping original symbols to standardization results
         """
@@ -369,10 +369,10 @@ class HGNCClientCached:
     ) -> dict[str, dict[str, str | None]]:
         """
         Standardize multiple gene symbols using parallel processing with caching.
-        
+
         Args:
             symbols: List of gene symbols
-        
+
         Returns:
             Dictionary mapping original symbols to standardization results
         """
@@ -444,10 +444,10 @@ class HGNCClientCached:
     async def warm_cache(self, common_symbols: list[str] | None = None) -> int:
         """
         Warm the cache with commonly used gene symbols.
-        
+
         Args:
             common_symbols: List of common symbols to preload
-        
+
         Returns:
             Number of entries cached
         """
@@ -500,11 +500,11 @@ async def standardize_gene_symbols_cached(
 ) -> dict[str, dict[str, str | None]]:
     """
     Convenience function to standardize gene symbols using the cached client.
-    
+
     Args:
         symbols: List of gene symbols to standardize
         db_session: Database session for cache persistence
-    
+
     Returns:
         Dictionary mapping original symbols to standardization results
     """
@@ -518,11 +518,11 @@ async def get_gene_info_cached(
 ) -> dict[str, Any] | None:
     """
     Convenience function to get gene info using the cached client.
-    
+
     Args:
         symbol: Gene symbol
         db_session: Database session for cache persistence
-    
+
     Returns:
         Gene information dictionary or None if not found
     """

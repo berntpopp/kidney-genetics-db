@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 async def update_pubtator_async(db: Session, tracker: ProgressTracker) -> dict[str, Any]:
     """
     Enhanced async PubTator update using the unified cache system.
-    
+
     This version provides true async processing with intelligent caching,
     replacing the thread-pool delegation approach.
     """
@@ -128,13 +128,12 @@ async def update_pubtator_async(db: Session, tracker: ProgressTracker) -> dict[s
                                 hgnc_id=hgnc_id,
                                 status="active"
                             )
-                            new_gene = gene_crud.create(db, obj_in=gene_create)
+                            gene_crud.create(db, obj_in=gene_create)
                             stats["genes_created"] += 1
                             logger.info(f"Created new gene: {approved_symbol}")
 
-                            target_gene = new_gene
                         else:
-                            target_gene = existing_gene
+                            pass
 
                         # Process evidence records
                         pmids = gene_data.get("pmids", [])
