@@ -379,11 +379,39 @@ class CachedHttpClient:
         if response.status_code != 200:
             return
 
+        # Skip caching binary content in database (too large and problematic)
+        content_type = response.headers.get("content-type", "").lower()
+        if any(binary_type in content_type for binary_type in [
+            "application/octet-stream",
+            "application/vnd.ms-excel", 
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/zip",
+            "application/pdf",
+            "image/",
+            "video/",
+            "audio/"
+        ]):
+            logger.debug(f"Skipping database cache for binary content: {url} (type: {content_type})")
+            return
+            
+        # Skip very large responses (> 1MB) to avoid database bloat
+        if len(response.content) > 1024 * 1024:
+            logger.debug(f"Skipping database cache for large response: {url} ({len(response.content)} bytes)")
+            return
+
         try:
+            # Try to decode as text
+            try:
+                content_text = response.content.decode("utf-8")
+            except UnicodeDecodeError:
+                # If it can't be decoded as UTF-8, it's likely binary - skip database caching
+                logger.debug(f"Skipping database cache for non-UTF-8 content: {url}")
+                return
+                
             cached_response = {
                 "status_code": response.status_code,
                 "headers": dict(response.headers),
-                "content": response.content.decode("utf-8", errors="ignore"),
+                "content": content_text,
                 "url": url,
                 "cached_at": response.headers.get("date", "unknown")
             }

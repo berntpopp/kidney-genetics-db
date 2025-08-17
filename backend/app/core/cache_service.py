@@ -160,19 +160,25 @@ class CacheService:
         """Serialize a value for storage with pandas DataFrame support."""
         try:
             # Handle pandas DataFrames
-            import pandas as pd
-            if isinstance(value, pd.DataFrame):
-                # Convert DataFrame to JSON-serializable dict
-                return json.dumps({
-                    '_type': 'dataframe',
-                    'data': value.to_dict(orient='records'),
-                    'columns': list(value.columns),
-                    'index': list(value.index)
-                }, default=str, ensure_ascii=False)
+            try:
+                import pandas as pd
+                if isinstance(value, pd.DataFrame):
+                    # Convert DataFrame to JSON-serializable dict
+                    return json.dumps({
+                        '_type': 'dataframe',
+                        'data': value.to_dict(orient='records'),
+                        'columns': list(value.columns),
+                        'index': list(value.index)
+                    }, default=str, ensure_ascii=False)
+            except ImportError:
+                # pandas not available, continue with regular serialization
+                pass
             
             return json.dumps(value, default=str, ensure_ascii=False)
         except (TypeError, ValueError) as e:
             logger.error(f"Error serializing value: {e}")
+            logger.error(f"Value type: {type(value)}")
+            logger.error(f"Value repr: {repr(value)[:200] if value else 'None'}")
             raise
 
     def _deserialize_value(self, serialized: Any) -> Any:
@@ -186,8 +192,12 @@ class CacheService:
             if isinstance(serialized, dict):
                 if serialized.get('_type') == 'dataframe':
                     # Reconstruct DataFrame
-                    import pandas as pd
-                    return pd.DataFrame(serialized['data'])
+                    try:
+                        import pandas as pd
+                        return pd.DataFrame(serialized['data'])
+                    except ImportError:
+                        # pandas not available, return as dict
+                        return serialized
                 return serialized
                 
             if isinstance(serialized, (list, bool, int, float)):
@@ -202,8 +212,12 @@ class CacheService:
                 data = json.loads(serialized)
                 # Check if it's a serialized DataFrame
                 if isinstance(data, dict) and data.get('_type') == 'dataframe':
-                    import pandas as pd
-                    return pd.DataFrame(data['data'])
+                    try:
+                        import pandas as pd
+                        return pd.DataFrame(data['data'])
+                    except ImportError:
+                        # pandas not available, return as dict
+                        return data
                 return data
             
             # Handle other types by converting to string first
