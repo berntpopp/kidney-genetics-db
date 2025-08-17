@@ -37,7 +37,7 @@ async def update_hpo_async(db: Session, tracker: ProgressTracker) -> dict[str, A
         Dictionary with update statistics
     """
     from app.core.cache_service import get_cache_service
-    from app.core.gene_normalization_async import normalize_genes_batch_async
+    from app.core.gene_normalizer import normalize_genes_batch_async
     from app.crud.gene import gene_crud
     from app.models.gene import GeneEvidence
     from app.schemas.gene import GeneCreate

@@ -22,7 +22,7 @@ async def update_pubtator_async(db: Session, tracker: ProgressTracker) -> dict[s
     replacing the thread-pool delegation approach.
     """
     from app.core.config import settings
-    from app.core.gene_normalization_async import normalize_genes_batch_async
+    from app.core.gene_normalizer import normalize_genes_batch_async
     from app.crud.gene import gene_crud
     from app.models.gene import GeneEvidence
     from app.schemas.gene import GeneCreate
