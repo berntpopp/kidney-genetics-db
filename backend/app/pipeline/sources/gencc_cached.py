@@ -117,7 +117,8 @@ class GenCCClientCached:
 
                 file_path = Path(temp_file.name)
                 logger.info(f"✅ Downloaded GenCC file: {file_path} ({len(content):,} bytes)")
-                return file_path
+                # Return string path for JSON serialization
+                return str(file_path)
 
             except Exception as e:
                 logger.error(f"❌ Error downloading GenCC file: {e}")
@@ -131,7 +132,7 @@ class GenCCClientCached:
             self.cache_service.db_session
         )
 
-    async def parse_excel_file(self, file_path: Path) -> pd.DataFrame:
+    async def parse_excel_file(self, file_path: Path | str) -> pd.DataFrame:
         """
         Parse GenCC Excel file with caching of parsed results.
         
@@ -141,6 +142,10 @@ class GenCCClientCached:
         Returns:
             DataFrame with submissions data
         """
+        # Convert to Path if string
+        if isinstance(file_path, str):
+            file_path = Path(file_path)
+            
         # Create cache key based on file content hash for data integrity
         try:
             file_hash = hashlib.md5(file_path.read_bytes()).hexdigest()
@@ -170,6 +175,8 @@ class GenCCClientCached:
                             logger.info(f"Sample {col} values: {sample_values}")
 
                 # Convert DataFrame to JSON-serializable format for caching
+                # Replace NaN with None for JSON serialization
+                df = df.where(pd.notnull(df), None)
                 return df.to_dict('records')
 
             except Exception as e:
@@ -317,6 +324,8 @@ class GenCCClientCached:
             kidney_related_count = 0
 
             logger.info("🔄 Processing GenCC submissions for kidney-related genes...")
+            logger.debug(f"DataFrame shape: {df.shape}")
+            logger.debug(f"DataFrame columns: {list(df.columns)[:10]}...")  # First 10 columns
 
             for idx, row in df.iterrows():
                 # Filter for kidney-related submissions
@@ -328,6 +337,10 @@ class GenCCClientCached:
                 # Log every 10th kidney-related submission for debugging
                 if kidney_related_count % 10 == 1:
                     logger.info(f"🔍 Found kidney-related submission #{kidney_related_count}")
+                    # Add more detail about what was found
+                    gene_symbol = row.get('gene_symbol', 'Unknown')
+                    disease = row.get('disease_title', row.get('submitted_as_disease_name', 'Unknown'))
+                    logger.debug(f"   Gene: {gene_symbol}, Disease: {disease[:50]}...")
 
                 # Extract gene information
                 gene_info = self.extract_gene_info(row)
@@ -374,6 +387,16 @@ class GenCCClientCached:
 
             logger.info(f"✅ Processed {kidney_related_count} kidney-related submissions")
             logger.info(f"📊 Found {len(gene_data_map)} unique kidney-related genes")
+            
+            # Debug: Log some sample genes found
+            if gene_data_map:
+                sample_genes = list(gene_data_map.keys())[:5]
+                logger.info(f"📌 Sample genes found: {sample_genes}")
+                for gene in sample_genes[:2]:
+                    data = gene_data_map[gene]
+                    logger.debug(f"  {gene}: {data['submission_count']} submissions, {data['disease_count']} diseases")
+            else:
+                logger.warning("⚠️ No genes extracted despite finding kidney-related submissions!")
 
             return gene_data_map
 
