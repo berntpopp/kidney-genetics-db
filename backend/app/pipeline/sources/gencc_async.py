@@ -25,7 +25,7 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
     logger.info(f"🚀 [ENTRY] update_gencc_async called - Starting {source_name} data update with cached client...")
     print(f"🚀 [ENTRY] update_gencc_async called - Starting {source_name} data update with cached client...")
     
-    # Simplified for debugging - just return basic stats
+    # Initialize stats with timestamp
     stats = {
         "source": source_name,
         "kidney_related": 0,
@@ -33,7 +33,8 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
         "genes_created": 0,
         "evidence_created": 0,
         "errors": 0,
-        "completed": True
+        "completed": False,
+        "started_at": datetime.now(timezone.utc).isoformat()
     }
     
     try:
@@ -42,37 +43,170 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
         from app.models.gene import GeneEvidence
         from app.schemas.gene import GeneCreate
         logger.info("🚀 [DEBUG] Imports successful")
-        print("🚀 [DEBUG] Imports successful")
         
         tracker.start("Starting GenCC async update")
         logger.info("🚀 [DEBUG] Tracker started")
-        print("🚀 [DEBUG] Tracker started")
         
         # Initialize cached GenCC client
         client = get_gencc_client_cached(db_session=db)
         logger.info("🚀 [DEBUG] Client initialized")
-        print("🚀 [DEBUG] Client initialized")
 
         # Get processed kidney gene data
         logger.info("🔄 Fetching GenCC kidney-related gene data...")
-        print("🔄 Fetching GenCC kidney-related gene data...")
-        
         gene_data_map = await client.get_kidney_gene_data()
         
         logger.info(f"🔍 GenCC returned data: {type(gene_data_map)}, length: {len(gene_data_map) if gene_data_map else 0}")
-        print(f"🔍 GenCC returned data: {type(gene_data_map)}, length: {len(gene_data_map) if gene_data_map else 0}")
         
-        if gene_data_map:
-            sample_keys = list(gene_data_map.keys())[:3] if gene_data_map else []
-            logger.info(f"   Sample genes: {sample_keys}")
-            print(f"   Sample genes: {sample_keys}")
-            stats["kidney_related"] = len(gene_data_map)
-            stats["genes_processed"] = len(gene_data_map)
+        if not gene_data_map:
+            logger.warning("⚠️ No kidney-related genes found in GenCC data")
+            tracker.complete("GenCC processing complete: 0 genes found")
+            return stats
         
-        tracker.complete(f"GenCC processing complete: {stats['genes_processed']} genes processed")
-        logger.info(f"✅ GenCC update completed: {stats}")
-        print(f"✅ GenCC update completed: {stats}")
+        stats["kidney_related"] = len(gene_data_map)
         
+        logger.info(f"🎯 About to start normalization processing for {len(gene_data_map)} genes")
+        print(f"🎯 About to start normalization processing for {len(gene_data_map)} genes")
+        
+        # Process genes for normalization
+        tracker.update(operation="Starting batch normalization")
+        logger.info(f"🔄 Starting batch normalization of {len(gene_data_map)} genes")
+        print(f"🔄 Starting batch normalization of {len(gene_data_map)} genes")
+
+        # Prepare gene symbols for batch normalization
+        gene_symbols = list(gene_data_map.keys())
+
+        # Use batch normalization for efficient processing
+        batch_size = 50  # Process in smaller batches for progress tracking
+        total_batches = (len(gene_symbols) + batch_size - 1) // batch_size
+
+        for batch_num in range(total_batches):
+            start_idx = batch_num * batch_size
+            end_idx = min(start_idx + batch_size, len(gene_symbols))
+            batch_symbols = gene_symbols[start_idx:end_idx]
+
+            logger.info(f"🔄 Normalizing batch {batch_num + 1}/{total_batches} ({len(batch_symbols)} genes)")
+            tracker.update(operation=f"Normalizing batch {batch_num + 1}/{total_batches}")
+
+            # Use the enhanced async gene normalization
+            normalization_results = await normalize_genes_batch_async(
+                db, batch_symbols, source_name
+            )
+            
+            logger.info(f"🔍 Normalization results for batch {batch_num + 1}: {len(normalization_results)} results")
+            logger.info(f"   Sample results: {list(normalization_results.keys())[:3] if normalization_results else 'None'}")
+
+            # Process normalization results and create/update genes
+            for symbol in batch_symbols:
+                try:
+                    result = normalization_results.get(symbol)
+                    gene_data = gene_data_map[symbol]
+
+                    if not result:
+                        logger.warning(f"No normalization result for gene '{symbol}'")
+                        stats["errors"] += 1
+                        continue
+
+                    if result["status"] == "normalized":
+                        approved_symbol = result["approved_symbol"]
+                        hgnc_id = result["hgnc_id"]
+
+                        # Check if gene exists by HGNC ID first, then by symbol
+                        existing_gene = None
+                        if hgnc_id:
+                            existing_gene = gene_crud.get_by_hgnc_id(db, hgnc_id)
+                        
+                        if not existing_gene:
+                            existing_gene = gene_crud.get_by_symbol(db, approved_symbol)
+
+                        if not existing_gene:
+                            # Create new gene
+                            gene_create = GeneCreate(
+                                approved_symbol=approved_symbol,
+                                hgnc_id=hgnc_id,
+                                aliases=result.get("aliases", [])
+                            )
+                            new_gene = gene_crud.create(db, obj_in=gene_create)
+                            stats["genes_created"] += 1
+                            logger.info(f"✅ Created new gene: {approved_symbol}")
+                            target_gene = new_gene
+                        else:
+                            target_gene = existing_gene
+
+                        # Process evidence records from GenCC submissions
+                        for submission in gene_data["submissions"]:
+                            # Create unique source detail for this submission
+                            disease_name_short = submission["disease_name"][:50] if submission["disease_name"] else "unknown"
+                            source_detail = f"{submission['submitter']}_{disease_name_short}"
+
+                            # Check if evidence already exists
+                            existing_evidence = db.query(GeneEvidence).filter(
+                                GeneEvidence.gene_id == target_gene.id,
+                                GeneEvidence.source_name == source_name,
+                                GeneEvidence.source_detail == source_detail
+                            ).first()
+
+                            if not existing_evidence:
+                                # Create new evidence using correct schema
+                                evidence = GeneEvidence(
+                                    gene_id=target_gene.id,
+                                    source_name=source_name,
+                                    source_detail=source_detail,
+                                    evidence_data={
+                                        "gene_symbol": approved_symbol,
+                                        "classification": submission["classification"],
+                                        "disease_name": submission["disease_name"],
+                                        "submitter": submission["submitter"],
+                                        "mode_of_inheritance": submission["mode_of_inheritance"],
+                                        "submission_date": submission["submission_date"],
+                                        "hgnc_id": submission["hgnc_id"],
+                                        "submitter_count": gene_data["submitter_count"],
+                                        "disease_count": gene_data["disease_count"],
+                                        "submission_count": gene_data["submission_count"]
+                                    }
+                                )
+                                db.add(evidence)
+                                stats["evidence_created"] += 1
+
+                        stats["genes_processed"] += 1
+
+                        # Log progress every 10 genes
+                        if stats["genes_processed"] % 10 == 0:
+                            logger.info(f"📊 Processed gene {stats['genes_processed']}/{len(gene_data_map)}: {approved_symbol}")
+
+                    elif result["status"] == "requires_manual_review":
+                        logger.info(f"🔍 Gene '{symbol}' sent to staging (ID: {result['staging_id']}) for manual review")
+
+                    else:
+                        logger.error(f"❌ Error normalizing gene '{symbol}': {result.get('error', 'Unknown error')}")
+                        stats["errors"] += 1
+
+                except Exception as e:
+                    logger.error(f"❌ Error processing gene '{symbol}': {e}")
+                    stats["errors"] += 1
+
+            # Commit batch changes
+            db.commit()
+
+        # Final statistics
+        stats["completed"] = True
+        stats["completed_at"] = datetime.now(timezone.utc).isoformat()
+        stats["duration"] = (
+            datetime.fromisoformat(stats["completed_at"]) -
+            datetime.fromisoformat(stats["started_at"])
+        ).total_seconds()
+
+        logger.info(
+            f"✅ GenCC update complete: {stats['genes_processed']} genes processed, "
+            f"{stats['genes_created']} new genes created, "
+            f"{stats['evidence_created']} new evidence records, "
+            f"Duration: {stats['duration']:.1f}s"
+        )
+
+        tracker.complete(
+            f"GenCC processing complete: {stats['genes_processed']} genes, "
+            f"{stats['genes_created']} new, {stats['evidence_created']} evidence"
+        )
+
         return stats
         
     except Exception as e:
