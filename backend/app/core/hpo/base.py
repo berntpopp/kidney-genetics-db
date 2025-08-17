@@ -21,9 +21,7 @@ class HPOAPIBase:
     HPO_BROWSER_URL = "https://hpo.jax.org"
 
     def __init__(
-        self,
-        cache_service: CacheService | None = None,
-        http_client: CachedHttpClient | None = None
+        self, cache_service: CacheService | None = None, http_client: CachedHttpClient | None = None
     ):
         """
         Initialize the HPO API base client.
@@ -47,7 +45,7 @@ class HPOAPIBase:
         params: dict | None = None,
         cache_key: str | None = None,
         ttl: int | None = None,
-        base_url: str | None = None
+        base_url: str | None = None,
     ) -> Any:
         """
         Generic GET request with intelligent caching.
@@ -77,7 +75,7 @@ class HPOAPIBase:
                 max_delay=32.0,
                 exponential_base=2.0,
                 jitter=True,
-                retry_on_status_codes=(429, 500, 502, 503, 504)
+                retry_on_status_codes=(429, 500, 502, 503, 504),
             )
 
             @retry_with_backoff(config=retry_config)
@@ -87,11 +85,11 @@ class HPOAPIBase:
                     params=params,
                     namespace=self.namespace,
                     cache_key=cache_key,
-                    fallback_ttl=ttl or self.ttl_annotations
+                    fallback_ttl=ttl or self.ttl_annotations,
                 )
 
                 # Handle both Response objects and dict responses
-                if hasattr(response, 'json'):
+                if hasattr(response, "json"):
                     return response.json()
                 return response
 
@@ -111,6 +109,7 @@ class HPOAPIBase:
 
         # Fallback to basic HTTP request if no cached client
         import httpx
+
         async with httpx.AsyncClient() as client:
             response = await client.get(url, params=params, timeout=30.0)
             response.raise_for_status()
@@ -118,9 +117,7 @@ class HPOAPIBase:
 
             # Cache the response if cache service is available
             if self.cache_service and ttl:
-                await self.cache_service.set(
-                    cache_key, data, self.namespace, ttl
-                )
+                await self.cache_service.set(cache_key, data, self.namespace, ttl)
 
             return data
 

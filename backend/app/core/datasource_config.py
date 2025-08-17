@@ -133,14 +133,12 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
 
 # List of sources that support automatic updates
 AUTO_UPDATE_SOURCES = [
-    source for source, config in DATA_SOURCE_CONFIG.items()
-    if config.get("auto_update", False)
+    source for source, config in DATA_SOURCE_CONFIG.items() if config.get("auto_update", False)
 ]
 
 # List of sources in priority order
 PRIORITY_ORDERED_SOURCES = sorted(
-    DATA_SOURCE_CONFIG.keys(),
-    key=lambda x: DATA_SOURCE_CONFIG[x].get("priority", 999)
+    DATA_SOURCE_CONFIG.keys(), key=lambda x: DATA_SOURCE_CONFIG[x].get("priority", 999)
 )
 
 
@@ -167,12 +165,12 @@ def is_source_configured(source_name: str) -> bool:
 def get_source_parameter(source_name: str, param_name: str, default: Any = None) -> Any:
     """
     Get a specific parameter for a data source.
-    
+
     Args:
         source_name: Name of the data source
         param_name: Name of the parameter
         default: Default value if parameter not found
-        
+
     Returns:
         Parameter value or default
     """
@@ -185,10 +183,10 @@ def get_source_parameter(source_name: str, param_name: str, default: Any = None)
 def get_source_cache_ttl(source_name: str) -> int:
     """
     Get cache TTL for a data source.
-    
+
     Args:
         source_name: Name of the data source
-        
+
     Returns:
         Cache TTL in seconds, defaults to 3600 (1 hour)
     """
@@ -198,10 +196,10 @@ def get_source_cache_ttl(source_name: str) -> int:
 def get_source_api_url(source_name: str) -> str | None:
     """
     Get API URL for a data source.
-    
+
     Args:
         source_name: Name of the data source
-        
+
     Returns:
         API URL or None
     """

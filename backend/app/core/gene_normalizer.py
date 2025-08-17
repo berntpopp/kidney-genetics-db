@@ -35,13 +35,13 @@ def clean_gene_text(gene_text: str) -> str:
     cleaned = gene_text.strip().upper()
 
     # Remove common prefixes/suffixes that interfere with HGNC lookup
-    cleaned = re.sub(r'^(GENE:|SYMBOL:|PROTEIN:)', '', cleaned)
-    cleaned = re.sub(r'(GENE|PROTEIN|_HUMAN)$', '', cleaned)
+    cleaned = re.sub(r"^(GENE:|SYMBOL:|PROTEIN:)", "", cleaned)
+    cleaned = re.sub(r"(GENE|PROTEIN|_HUMAN)$", "", cleaned)
 
     # Remove common separators and special characters
-    cleaned = re.sub(r'[;,|/\\].*$', '', cleaned)  # Take only first part
-    cleaned = re.sub(r'\s*\([^)]*\)', '', cleaned)  # Remove parenthetical content
-    cleaned = re.sub(r'[^\w-]', '', cleaned)  # Keep only alphanumeric and hyphens
+    cleaned = re.sub(r"[;,|/\\].*$", "", cleaned)  # Take only first part
+    cleaned = re.sub(r"\s*\([^)]*\)", "", cleaned)  # Remove parenthetical content
+    cleaned = re.sub(r"[^\w-]", "", cleaned)  # Keep only alphanumeric and hyphens
 
     return cleaned.strip()
 
@@ -61,9 +61,24 @@ def is_likely_gene_symbol(gene_text: str) -> bool:
 
     # Skip common non-gene terms
     excluded_terms = {
-        'UNKNOWN', 'NONE', 'NULL', 'NA', 'GENE', 'PROTEIN', 'CHROMOSOME',
-        'COMPLEX', 'FAMILY', 'GROUP', 'CLUSTER', 'REGION', 'LOCUS',
-        'ELEMENT', 'SEQUENCE', 'FRAGMENT', 'PARTIAL', 'PUTATIVE'
+        "UNKNOWN",
+        "NONE",
+        "NULL",
+        "NA",
+        "GENE",
+        "PROTEIN",
+        "CHROMOSOME",
+        "COMPLEX",
+        "FAMILY",
+        "GROUP",
+        "CLUSTER",
+        "REGION",
+        "LOCUS",
+        "ELEMENT",
+        "SEQUENCE",
+        "FRAGMENT",
+        "PARTIAL",
+        "PUTATIVE",
     }
 
     if gene_text in excluded_terms:
@@ -91,7 +106,7 @@ class GeneNormalizer:
         db: Session,
         gene_texts: list[str],
         source_name: str,
-        original_data_list: list[dict[str, Any]] | None = None
+        original_data_list: list[dict[str, Any]] | None = None,
     ) -> dict[str, dict[str, Any]]:
         """Async batch normalization of gene symbols."""
         if not gene_texts:
@@ -113,7 +128,7 @@ class GeneNormalizer:
                 gene_mapping[cleaned] = {
                     "original": gene_text,
                     "index": i,
-                    "original_data": original_data_list[i] if original_data_list else None
+                    "original_data": original_data_list[i] if original_data_list else None,
                 }
 
         if not cleaned_genes:
@@ -140,7 +155,7 @@ class GeneNormalizer:
             if existing_gene and existing_gene.hgnc_id:
                 existing_genes[symbol] = {
                     "approved_symbol": existing_gene.approved_symbol,
-                    "hgnc_id": existing_gene.hgnc_id
+                    "hgnc_id": existing_gene.hgnc_id,
                 }
         return existing_genes
 
@@ -150,7 +165,7 @@ class GeneNormalizer:
         existing_genes: dict[str, dict[str, Any]],
         hgnc_results: dict[str, dict[str, Any]],
         db: Session,
-        source_name: str
+        source_name: str,
     ) -> dict[str, dict[str, Any]]:
         """Compile final normalization results."""
         results = {}
@@ -170,7 +185,7 @@ class GeneNormalizer:
                     "staging_id": None,
                     "error": None,
                     "source": "database",
-                    "original_data": original_data
+                    "original_data": original_data,
                 }
             elif cleaned in hgnc_results:
                 # Use HGNC lookup result
@@ -186,19 +201,25 @@ class GeneNormalizer:
                         "staging_id": None,
                         "error": None,
                         "source": "hgnc",
-                        "original_data": original_data
+                        "original_data": original_data,
                     }
                 else:
                     # Failed normalization - create staging record
                     results[original_text] = self._create_staging_record(
-                        db, original_text, source_name, original_data,
-                        reason="HGNC lookup failed - no HGNC ID found"
+                        db,
+                        original_text,
+                        source_name,
+                        original_data,
+                        reason="HGNC lookup failed - no HGNC ID found",
                     )
             else:
                 # Shouldn't happen, but handle gracefully
                 results[original_text] = self._create_staging_record(
-                    db, original_text, source_name, original_data,
-                    reason="Unexpected error in batch processing"
+                    db,
+                    original_text,
+                    source_name,
+                    original_data,
+                    reason="Unexpected error in batch processing",
                 )
 
         # Log summary
@@ -222,7 +243,7 @@ class GeneNormalizer:
         gene_text: str,
         source_name: str,
         original_data: dict[str, Any] | None,
-        reason: str
+        reason: str,
     ) -> dict[str, Any]:
         """Create a staging record for manual review."""
         try:
@@ -231,7 +252,7 @@ class GeneNormalizer:
                 original_text=gene_text,
                 source_name=source_name,
                 original_data=original_data or {},
-                normalization_log={"failure_reason": reason, "attempts": 1}
+                normalization_log={"failure_reason": reason, "attempts": 1},
             )
 
             logger.debug(f"Created staging record {staging_record.id} for gene '{gene_text}'")
@@ -243,7 +264,7 @@ class GeneNormalizer:
                 "staging_id": staging_record.id,
                 "error": None,
                 "source": "not_found",
-                "original_data": original_data
+                "original_data": original_data,
             }
 
         except Exception as e:
@@ -255,7 +276,7 @@ class GeneNormalizer:
                 "staging_id": None,
                 "error": f"Staging creation failed: {e}",
                 "source": "error",
-                "original_data": original_data
+                "original_data": original_data,
             }
 
 
@@ -276,7 +297,7 @@ async def normalize_genes_batch_async(
     db: Session,
     gene_texts: list[str],
     source_name: str,
-    original_data_list: list[dict[str, Any]] | None = None
+    original_data_list: list[dict[str, Any]] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Async batch gene normalization - the only correct implementation."""
     normalizer = get_gene_normalizer(db)
@@ -301,14 +322,16 @@ async def get_normalization_stats(db: Session) -> dict[str, Any]:
             "total_genes": total_genes,
             "genes_with_hgnc_id": genes_with_hgnc,
             "genes_without_hgnc_id": total_genes - genes_with_hgnc,
-            "normalization_coverage": (genes_with_hgnc / total_genes * 100) if total_genes > 0 else 0,
+            "normalization_coverage": (genes_with_hgnc / total_genes * 100)
+            if total_genes > 0
+            else 0,
             "staging_records": {
                 "pending": staging_stats.get("pending", 0),
                 "approved": staging_stats.get("approved", 0),
                 "rejected": staging_stats.get("rejected", 0),
-                "total": staging_stats.get("total", 0)
+                "total": staging_stats.get("total", 0),
             },
-            "hgnc_cache_info": hgnc_cache_info
+            "hgnc_cache_info": hgnc_cache_info,
         }
     except Exception as e:
         logger.error(f"Error getting normalization stats: {e}")

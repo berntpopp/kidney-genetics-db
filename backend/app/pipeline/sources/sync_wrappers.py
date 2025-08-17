@@ -31,38 +31,23 @@ def run_async(coro):
         loop.close()
 
 
-def update_gencc_sync(
-    db: Session,
-    tracker: ProgressTracker | None = None
-) -> dict[str, Any]:
+def update_gencc_sync(db: Session, tracker: ProgressTracker | None = None) -> dict[str, Any]:
     """
     Synchronous wrapper for GenCC update.
-    
+
     Args:
         db: Database session
         tracker: Optional progress tracker
-        
+
     Returns:
         Update statistics
     """
+
     async def _update():
         source = GenCCUnifiedSource(db_session=db)
 
-        if tracker:
-            tracker.start("Fetching GenCC data")
-
-        # Fetch and process data
-        raw_data = await source.fetch_raw_data()
-        processed_data = await source.process_data(raw_data)
-
-        # Save to database
-        if tracker:
-            tracker.update(operation="Saving to database")
-
-        stats = await source.save_to_database(db, processed_data, tracker)
-
-        if tracker:
-            tracker.complete(f"GenCC update complete: {stats}")
+        # Use template method for complete workflow with normalization
+        stats = await source.update_data(db, tracker)
 
         return stats
 
@@ -70,38 +55,23 @@ def update_gencc_sync(
     return run_async(_update())
 
 
-def update_panelapp_sync(
-    db: Session,
-    tracker: ProgressTracker | None = None
-) -> dict[str, Any]:
+def update_panelapp_sync(db: Session, tracker: ProgressTracker | None = None) -> dict[str, Any]:
     """
     Synchronous wrapper for PanelApp update.
-    
+
     Args:
         db: Database session
         tracker: Optional progress tracker
-        
+
     Returns:
         Update statistics
     """
+
     async def _update():
         source = PanelAppUnifiedSource(db_session=db)
 
-        if tracker:
-            tracker.start("Fetching PanelApp data")
-
-        # Fetch and process data
-        raw_data = await source.fetch_raw_data()
-        processed_data = await source.process_data(raw_data)
-
-        # Save to database
-        if tracker:
-            tracker.update(operation="Saving to database")
-
-        stats = await source.save_to_database(db, processed_data, tracker)
-
-        if tracker:
-            tracker.complete(f"PanelApp update complete: {stats}")
+        # Use template method for complete workflow with normalization
+        stats = await source.update_data(db, tracker)
 
         return stats
 
@@ -109,35 +79,23 @@ def update_panelapp_sync(
     return run_async(_update())
 
 
-def update_pubtator_sync(
-    db: Session,
-    tracker: ProgressTracker | None = None
-) -> dict[str, Any]:
+def update_pubtator_sync(db: Session, tracker: ProgressTracker | None = None) -> dict[str, Any]:
     """
     Synchronous wrapper for PubTator update.
-    
+
     Args:
         db: Database session
         tracker: Optional progress tracker
-        
+
     Returns:
         Update statistics
     """
+
     async def _update():
         source = PubTatorUnifiedSource(db_session=db)
 
-        if tracker:
-            tracker.start("Fetching PubTator data")
-
-        # Fetch and process data
-        raw_data = await source.fetch_raw_data()
-        processed_data = await source.process_data(raw_data)
-
-        # Save to database
-        if tracker:
-            tracker.update(operation="Saving to database")
-
-        stats = await source.save_to_database(db, processed_data, tracker)
+        # Use template method for complete workflow with normalization
+        stats = await source.update_data(db, tracker)
 
         if tracker:
             tracker.complete(f"PubTator update complete: {stats}")
@@ -148,35 +106,23 @@ def update_pubtator_sync(
     return run_async(_update())
 
 
-def update_hpo_sync(
-    db: Session,
-    tracker: ProgressTracker | None = None
-) -> dict[str, Any]:
+def update_hpo_sync(db: Session, tracker: ProgressTracker | None = None) -> dict[str, Any]:
     """
     Synchronous wrapper for HPO update.
-    
+
     Args:
         db: Database session
         tracker: Optional progress tracker
-        
+
     Returns:
         Update statistics
     """
+
     async def _update():
         source = HPOUnifiedSource(db_session=db)
 
-        if tracker:
-            tracker.start("Fetching HPO data")
-
-        # Fetch and process data
-        raw_data = await source.fetch_raw_data()
-        processed_data = await source.process_data(raw_data)
-
-        # Save to database
-        if tracker:
-            tracker.update(operation="Saving to database")
-
-        stats = await source.save_to_database(db, processed_data, tracker)
+        # Use template method for complete workflow with normalization
+        stats = await source.update_data(db, tracker)
 
         if tracker:
             tracker.complete(f"HPO update complete: {stats}")
@@ -187,35 +133,23 @@ def update_hpo_sync(
     return run_async(_update())
 
 
-def update_clingen_sync(
-    db: Session,
-    tracker: ProgressTracker | None = None
-) -> dict[str, Any]:
+def update_clingen_sync(db: Session, tracker: ProgressTracker | None = None) -> dict[str, Any]:
     """
     Synchronous wrapper for ClinGen update.
-    
+
     Args:
         db: Database session
         tracker: Optional progress tracker
-        
+
     Returns:
         Update statistics
     """
+
     async def _update():
         source = ClinGenUnifiedSource(db_session=db)
 
-        if tracker:
-            tracker.start("Fetching ClinGen data")
-
-        # Fetch and process data
-        raw_data = await source.fetch_raw_data()
-        processed_data = await source.process_data(raw_data)
-
-        # Save to database
-        if tracker:
-            tracker.update(operation="Saving to database")
-
-        stats = await source.save_to_database(db, processed_data, tracker)
+        # Use template method for complete workflow with normalization
+        stats = await source.update_data(db, tracker)
 
         if tracker:
             tracker.complete(f"ClinGen update complete: {stats}")

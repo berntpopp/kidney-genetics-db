@@ -12,7 +12,7 @@ from sqlalchemy.orm import Query, Session
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class QueryBuilder(Generic[T]):
@@ -25,7 +25,7 @@ class QueryBuilder(Generic[T]):
     def __init__(self, session: Session, model: T):
         """
         Initialize query builder.
-        
+
         Args:
             session: Database session
             model: SQLAlchemy model class
@@ -40,14 +40,14 @@ class QueryBuilder(Generic[T]):
         self._raw_select = None
         self._view_name = None
 
-    def search(self, search_term: str | None, *fields) -> 'QueryBuilder[T]':
+    def search(self, search_term: str | None, *fields) -> "QueryBuilder[T]":
         """
         Add search filter across multiple fields.
-        
+
         Args:
             search_term: Term to search for
             *fields: Field names to search in
-            
+
         Returns:
             Self for method chaining
         """
@@ -56,44 +56,37 @@ class QueryBuilder(Generic[T]):
             conditions = []
             for field in fields:
                 if hasattr(self.model, field):
-                    conditions.append(
-                        getattr(self.model, field).ilike(search_filter)
-                    )
+                    conditions.append(getattr(self.model, field).ilike(search_filter))
             if conditions:
                 self.query = self.query.filter(or_(*conditions))
         return self
 
-    def filter_by(self, **kwargs) -> 'QueryBuilder[T]':
+    def filter_by(self, **kwargs) -> "QueryBuilder[T]":
         """
         Add exact match filters.
-        
+
         Args:
             **kwargs: Field=value pairs to filter by
-            
+
         Returns:
             Self for method chaining
         """
         for field, value in kwargs.items():
             if value is not None and hasattr(self.model, field):
-                self.query = self.query.filter(
-                    getattr(self.model, field) == value
-                )
+                self.query = self.query.filter(getattr(self.model, field) == value)
         return self
 
     def filter_range(
-        self,
-        field: str,
-        min_value: Any | None = None,
-        max_value: Any | None = None
-    ) -> 'QueryBuilder[T]':
+        self, field: str, min_value: Any | None = None, max_value: Any | None = None
+    ) -> "QueryBuilder[T]":
         """
         Add range filter for a field.
-        
+
         Args:
             field: Field name to filter
             min_value: Minimum value (inclusive)
             max_value: Maximum value (inclusive)
-            
+
         Returns:
             Self for method chaining
         """
@@ -105,14 +98,14 @@ class QueryBuilder(Generic[T]):
                 self.query = self.query.filter(field_attr <= max_value)
         return self
 
-    def paginate(self, skip: int = 0, limit: int | None = 100) -> 'QueryBuilder[T]':
+    def paginate(self, skip: int = 0, limit: int | None = 100) -> "QueryBuilder[T]":
         """
         Add pagination to query.
-        
+
         Args:
             skip: Number of records to skip
             limit: Maximum number of records to return
-            
+
         Returns:
             Self for method chaining
         """
@@ -121,14 +114,14 @@ class QueryBuilder(Generic[T]):
             self.query = self.query.limit(limit)
         return self
 
-    def sort(self, field: str, desc: bool = False) -> 'QueryBuilder[T]':
+    def sort(self, field: str, desc: bool = False) -> "QueryBuilder[T]":
         """
         Add sorting to query.
-        
+
         Args:
             field: Field name to sort by
             desc: Sort in descending order if True
-            
+
         Returns:
             Self for method chaining
         """
@@ -140,47 +133,43 @@ class QueryBuilder(Generic[T]):
                 self.query = self.query.order_by(order_field)
         return self
 
-    def filter_by_score(self, min_score: float) -> 'QueryBuilder[T]':
+    def filter_by_score(self, min_score: float) -> "QueryBuilder[T]":
         """
         Filter by minimum evidence score.
-        
+
         Args:
             min_score: Minimum score threshold
-            
+
         Returns:
             Self for method chaining
         """
-        if hasattr(self.model, 'evidence_score'):
-            self.query = self.query.filter(
-                self.model.evidence_score >= min_score
-            )
+        if hasattr(self.model, "evidence_score"):
+            self.query = self.query.filter(self.model.evidence_score >= min_score)
         return self
 
-    def join_related(self, *relationships) -> 'QueryBuilder[T]':
+    def join_related(self, *relationships) -> "QueryBuilder[T]":
         """
         Add joins for related tables.
-        
+
         Args:
             *relationships: Relationship names to join
-            
+
         Returns:
             Self for method chaining
         """
         for relationship in relationships:
             if hasattr(self.model, relationship):
-                self.query = self.query.join(
-                    getattr(self.model, relationship)
-                )
+                self.query = self.query.join(getattr(self.model, relationship))
         return self
 
-    def join_view(self, view_name: str, on_clause: str) -> 'QueryBuilder[T]':
+    def join_view(self, view_name: str, on_clause: str) -> "QueryBuilder[T]":
         """
         Join with a database view.
-        
+
         Args:
             view_name: Name of the view to join
             on_clause: SQL ON clause for the join
-            
+
         Returns:
             Self for method chaining
         """
@@ -188,14 +177,14 @@ class QueryBuilder(Generic[T]):
         self._joins.append(("view", view_name, on_clause))
         return self
 
-    def left_join(self, target, condition) -> 'QueryBuilder[T]':
+    def left_join(self, target, condition) -> "QueryBuilder[T]":
         """
         Add left outer join.
-        
+
         Args:
             target: Target table/model to join
             condition: Join condition
-            
+
         Returns:
             Self for method chaining
         """
@@ -204,39 +193,32 @@ class QueryBuilder(Generic[T]):
         return self
 
     def aggregate(
-        self,
-        func_name: str,
-        field: str,
-        alias: str,
-        distinct: bool = False
-    ) -> 'QueryBuilder[T]':
+        self, func_name: str, field: str, alias: str, distinct: bool = False
+    ) -> "QueryBuilder[T]":
         """
         Add aggregation to query.
-        
+
         Args:
             func_name: Aggregation function name (e.g., 'array_agg', 'count', 'sum')
             field: Field to aggregate
             alias: Alias for the aggregated result
             distinct: Whether to use DISTINCT in aggregation
-            
+
         Returns:
             Self for method chaining
         """
-        self._aggregations.append({
-            "func": func_name,
-            "field": field,
-            "alias": alias,
-            "distinct": distinct
-        })
+        self._aggregations.append(
+            {"func": func_name, "field": field, "alias": alias, "distinct": distinct}
+        )
         return self
 
-    def group_by(self, *fields) -> 'QueryBuilder[T]':
+    def group_by(self, *fields) -> "QueryBuilder[T]":
         """
         Add GROUP BY clause.
-        
+
         Args:
             *fields: Fields to group by
-            
+
         Returns:
             Self for method chaining
         """
@@ -258,7 +240,7 @@ class QueryBuilder(Generic[T]):
     def build(self) -> Query:
         """
         Build and return the constructed query.
-        
+
         Returns:
             Constructed SQLAlchemy query
         """
@@ -267,7 +249,7 @@ class QueryBuilder(Generic[T]):
     def all(self) -> list:
         """
         Execute query and return all results.
-        
+
         Returns:
             List of results
         """
@@ -276,7 +258,7 @@ class QueryBuilder(Generic[T]):
     def first(self) -> Any | None:
         """
         Execute query and return first result.
-        
+
         Returns:
             First result or None
         """
@@ -285,7 +267,7 @@ class QueryBuilder(Generic[T]):
     def count(self) -> int:
         """
         Get count of matching records.
-        
+
         Returns:
             Number of matching records
         """
@@ -294,7 +276,7 @@ class QueryBuilder(Generic[T]):
     def exists(self) -> bool:
         """
         Check if any matching records exist.
-        
+
         Returns:
             True if records exist, False otherwise
         """
@@ -303,7 +285,7 @@ class QueryBuilder(Generic[T]):
     def build_raw_sql(self) -> tuple[str, dict]:
         """
         Build raw SQL string for complex queries with views and aggregations.
-        
+
         Returns:
             Tuple of (SQL string, parameters dictionary)
         """
@@ -312,15 +294,13 @@ class QueryBuilder(Generic[T]):
             return self._build_complex_sql()
 
         # Fall back to standard SQLAlchemy query compilation
-        compiled = self.query.statement.compile(
-            compile_kwargs={"literal_binds": True}
-        )
+        compiled = self.query.statement.compile(compile_kwargs={"literal_binds": True})
         return str(compiled), {}
 
     def _build_complex_sql(self) -> tuple[str, dict]:
         """
         Build complex SQL with view joins and aggregations.
-        
+
         Returns:
             Tuple of (SQL string, parameters dictionary)
         """
@@ -329,35 +309,35 @@ class QueryBuilder(Generic[T]):
 
         # Add regular fields from model
         table_name = self.model.__tablename__
-        select_fields.extend([
-            f"{table_name}.id",
-            f"{table_name}.approved_symbol",
-            f"{table_name}.hgnc_id",
-            f"{table_name}.aliases",
-            f"{table_name}.created_at",
-            f"{table_name}.updated_at",
-        ])
+        select_fields.extend(
+            [
+                f"{table_name}.id",
+                f"{table_name}.approved_symbol",
+                f"{table_name}.hgnc_id",
+                f"{table_name}.aliases",
+                f"{table_name}.created_at",
+                f"{table_name}.updated_at",
+            ]
+        )
 
         # Add view fields if joined
         if self._view_name:
-            select_fields.extend([
-                f"{self._view_name}.source_count",
-                f"{self._view_name}.evidence_count",
-                f"{self._view_name}.raw_score",
-                f"{self._view_name}.percentage_score",
-                f"{self._view_name}.total_active_sources",
-            ])
+            select_fields.extend(
+                [
+                    f"{self._view_name}.source_count",
+                    f"{self._view_name}.evidence_count",
+                    f"{self._view_name}.raw_score",
+                    f"{self._view_name}.percentage_score",
+                    f"{self._view_name}.total_active_sources",
+                ]
+            )
 
         # Add aggregations
         for agg in self._aggregations:
             if agg["distinct"]:
-                select_fields.append(
-                    f"{agg['func']}(DISTINCT {agg['field']}) as {agg['alias']}"
-                )
+                select_fields.append(f"{agg['func']}(DISTINCT {agg['field']}) as {agg['alias']}")
             else:
-                select_fields.append(
-                    f"{agg['func']}({agg['field']}) as {agg['alias']}"
-                )
+                select_fields.append(f"{agg['func']}({agg['field']}) as {agg['alias']}")
 
         sql = f"SELECT {', '.join(select_fields)}"
 
@@ -377,7 +357,6 @@ class QueryBuilder(Generic[T]):
 
         # WHERE clause
         params = {}
-        where_conditions = []
 
         # Add filters from the query
         # This is simplified - in production you'd need more sophisticated filter extraction
@@ -399,7 +378,7 @@ class QueryBuilder(Generic[T]):
     def execute_aggregated(self) -> list[dict[str, Any]]:
         """
         Execute query with aggregations and return results as dictionaries.
-        
+
         Returns:
             List of result dictionaries
         """
@@ -419,10 +398,10 @@ class QueryBuilder(Generic[T]):
     def _model_to_dict(self, model_instance) -> dict[str, Any]:
         """
         Convert model instance to dictionary.
-        
+
         Args:
             model_instance: SQLAlchemy model instance
-            
+
         Returns:
             Dictionary representation
         """
@@ -441,19 +420,17 @@ class QueryOptimizer:
     def explain_query(db: Session, query: Query) -> dict:
         """
         Get query execution plan for optimization.
-        
+
         Args:
             db: Database session
             query: Query to analyze
-            
+
         Returns:
             Execution plan details
         """
         try:
             # Compile query to SQL
-            sql = str(query.statement.compile(
-                compile_kwargs={"literal_binds": True}
-            ))
+            sql = str(query.statement.compile(compile_kwargs={"literal_binds": True}))
 
             # Execute EXPLAIN ANALYZE
             result = db.execute(text(f"EXPLAIN ANALYZE {sql}"))
@@ -489,10 +466,10 @@ class QueryOptimizer:
     def add_query_hints(query: Query) -> Query:
         """
         Add optimizer hints for complex queries.
-        
+
         Args:
             query: Query to optimize
-            
+
         Returns:
             Optimized query
         """
@@ -505,19 +482,20 @@ class QueryOptimizer:
     def suggest_indexes(db: Session, table_name: str) -> list[str]:
         """
         Suggest potential indexes based on query patterns.
-        
+
         Args:
             db: Database session
             table_name: Table to analyze
-            
+
         Returns:
             List of suggested index creation statements
         """
         suggestions = []
 
         # Check for missing indexes on foreign keys
-        result = db.execute(text("""
-            SELECT 
+        result = db.execute(
+            text("""
+            SELECT
                 a.attname as column_name
             FROM pg_attribute a
             JOIN pg_class t ON a.attrelid = t.oid
@@ -531,13 +509,13 @@ class QueryOptimizer:
                     WHERE i.indrelid = t.oid
                     AND a.attnum = ANY(i.indkey)
                 )
-        """), {"table_name": table_name})
+        """),
+            {"table_name": table_name},
+        )
 
         for row in result:
             column = row[0]
-            suggestions.append(
-                f"CREATE INDEX idx_{table_name}_{column} ON {table_name}({column});"
-            )
+            suggestions.append(f"CREATE INDEX idx_{table_name}_{column} ON {table_name}({column});")
 
         return suggestions
 
@@ -550,16 +528,16 @@ def get_genes_optimized(
     skip: int = 0,
     limit: int = 100,
     sort_by: str = "approved_symbol",
-    sort_desc: bool = False
+    sort_desc: bool = False,
 ):
     """
     Example of using QueryBuilder for gene queries.
-    
+
     Demonstrates DRY principle - reusable query construction.
     """
     from app.models.gene import Gene
 
-    builder = QueryBuilder(db, Gene).search(search, 'approved_symbol', 'hgnc_id')
+    builder = QueryBuilder(db, Gene).search(search, "approved_symbol", "hgnc_id")
     if min_score:
         builder = builder.filter_by_score(min_score)
     return builder.paginate(skip, limit).sort(sort_by, sort_desc).all()

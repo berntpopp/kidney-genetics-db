@@ -65,11 +65,13 @@ class Settings(BaseSettings):
     AUTO_UPDATE_ENABLED: bool = True
 
     # PubTator Configuration
-    PUBTATOR_MAX_PAGES: int = 100  # Maximum pages to fetch per run
+    PUBTATOR_MAX_PAGES: int = 500  # Maximum pages to fetch per run
     PUBTATOR_USE_CACHE: bool = True  # Enable caching of PubTator results
     PUBTATOR_MIN_PUBLICATIONS: int = 3  # Minimum publications for gene inclusion
-    PUBTATOR_SEARCH_QUERY: str = '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)'
-    PUBTATOR_MIN_DATE: str = "2015"  # Focus on recent literature
+    PUBTATOR_SEARCH_QUERY: str = (
+        '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)'
+    )
+    PUBTATOR_MIN_DATE: str = "2010"  # Focus on recent literature
     PUBTATOR_BATCH_SIZE: int = 100  # PMIDs per batch for annotation fetching
     PUBTATOR_RATE_LIMIT_DELAY: float = 0.3  # Seconds between API calls
 
@@ -83,7 +85,10 @@ class Settings(BaseSettings):
     HPO_API_URL: str = "https://ontology.jax.org/api"
     HPO_BROWSER_URL: str = "https://hpo.jax.org"
     HPO_KIDNEY_ROOT_TERM: str = "HP:0010935"  # Abnormality of the upper urinary tract
-    HPO_KIDNEY_ROOT_TERMS: list[str] = ["HP:0000077", "HP:0000079"]  # Legacy - kept for compatibility
+    HPO_KIDNEY_ROOT_TERMS: list[str] = [
+        "HP:0000077",
+        "HP:0000079",
+    ]  # Legacy - kept for compatibility
     HPO_MIN_GENE_ASSOCIATIONS: int = 1  # Minimum associations for inclusion
     HPO_MAX_DEPTH: int = 10  # Maximum depth for descendant traversal
     HPO_BATCH_SIZE: int = 5  # Number of concurrent requests (with exponential backoff)

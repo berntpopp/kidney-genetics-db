@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class PubTatorUnifiedSource(UnifiedDataSource):
     """
     Unified PubTator client with intelligent caching and async processing.
-    
+
     Features:
     - Async-first design with batch processing
     - Literature mining from PubMed/PubTator
@@ -45,7 +45,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         cache_service: CacheService | None = None,
         http_client: CachedHttpClient | None = None,
         db_session: Session | None = None,
-        **kwargs
+        **kwargs,
     ):
         """Initialize PubTator client with literature mining capabilities."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
@@ -73,14 +73,17 @@ class PubTatorUnifiedSource(UnifiedDataSource):
     async def fetch_raw_data(self) -> dict[str, Any]:
         """
         Fetch kidney disease-related publications and gene annotations.
-        
+
         Returns:
             Dictionary with PMIDs and gene annotations
         """
-        logger.info("📥 Fetching PubTator data for kidney disease genes...")
+        logger.info("🧬 PUBTATOR SOURCE: fetch_raw_data() METHOD CALLED")
+        logger.info(f"🧬 PUBTATOR SOURCE: kidney_query = '{self.kidney_query}'")
 
         # Search for relevant publications
+        logger.info("🧬 PUBTATOR SOURCE: Calling _search_publications()...")
         pmids = await self._search_publications(self.kidney_query)
+        logger.info(f"🧬 PUBTATOR SOURCE: Search returned {len(pmids) if pmids else 0} PMIDs")
 
         if not pmids:
             logger.warning("No publications found for kidney disease query")
@@ -91,7 +94,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         # Fetch annotations for PMIDs in batches
         all_annotations = {}
         for i in range(0, len(pmids), self.batch_size):
-            batch = pmids[i:i + self.batch_size]
+            batch = pmids[i : i + self.batch_size]
             annotations = await self._fetch_annotations_batch(batch)
             all_annotations.update(annotations)
 
@@ -103,19 +106,20 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             "pmids": pmids,
             "annotations": all_annotations,
             "query": self.kidney_query,
-            "fetch_date": datetime.now(timezone.utc).isoformat()
+            "fetch_date": datetime.now(timezone.utc).isoformat(),
         }
 
     async def _search_publications(self, query: str) -> list[str]:
         """
         Search PubMed for relevant publications.
-        
+
         Args:
             query: Search query
-            
+
         Returns:
             List of PMIDs
         """
+
         async def _fetch_pmids():
             """Internal function to fetch PMIDs."""
             url = f"{self.pubmed_url}/esearch.fcgi"
@@ -128,21 +132,28 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 "mindate": self.min_date,
             }
 
+            logger.info(f"PubMed search URL: {url}")
+            logger.info(f"PubMed search params: {params}")
+
             response = await self.http_client.get(url, params=params, timeout=30)
+
+            logger.info(f"PubMed response status: {response.status_code}")
 
             if response.status_code == 200:
                 data = response.json()
-                return data.get("esearchresult", {}).get("idlist", [])
+                count = data.get("esearchresult", {}).get("count", "0")
+                idlist = data.get("esearchresult", {}).get("idlist", [])
+                logger.info(f"PubMed found {count} total results, returning {len(idlist)} PMIDs")
+                return idlist
 
             logger.error(f"Failed to search PubMed: HTTP {response.status_code}")
+            logger.error(f"Response content: {response.text[:500]}")
             return []
 
         # Use unified caching
         cache_key = f"search:{query}:{self.max_pages}"
         pmids = await self.fetch_with_cache(
-            cache_key=cache_key,
-            fetch_func=_fetch_pmids,
-            ttl=self.cache_ttl
+            cache_key=cache_key, fetch_func=_fetch_pmids, ttl=self.cache_ttl
         )
 
         return pmids or []
@@ -150,10 +161,10 @@ class PubTatorUnifiedSource(UnifiedDataSource):
     async def _fetch_annotations_batch(self, pmids: list[str]) -> dict[str, Any]:
         """
         Fetch PubTator annotations for a batch of PMIDs.
-        
+
         Args:
             pmids: List of PMIDs
-            
+
         Returns:
             Dictionary of annotations by PMID
         """
@@ -182,9 +193,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         # Cache each batch
         cache_key = f"annotations:{','.join(sorted(pmids[:5]))}"  # Use first 5 PMIDs as key
         annotations = await self.fetch_with_cache(
-            cache_key=cache_key,
-            fetch_func=_fetch_batch,
-            ttl=self.cache_ttl
+            cache_key=cache_key, fetch_func=_fetch_batch, ttl=self.cache_ttl
         )
 
         return annotations or {}
@@ -192,10 +201,10 @@ class PubTatorUnifiedSource(UnifiedDataSource):
     def _parse_biocjson(self, bioc_data: Any) -> dict[str, Any]:
         """
         Parse BioC JSON format from PubTator.
-        
+
         Args:
             bioc_data: BioC JSON data
-            
+
         Returns:
             Parsed annotations by PMID
         """
@@ -204,9 +213,18 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         if not isinstance(bioc_data, list):
             bioc_data = [bioc_data]
 
-        for doc in bioc_data:
+        for _i, doc in enumerate(bioc_data):
             if not isinstance(doc, dict):
                 continue
+
+            # Check if this is the new PubTator3 format
+            if "PubTator3" in doc:
+                pubtator3_data = doc["PubTator3"]
+
+                # If PubTator3 contains a list of documents, process them
+                if isinstance(pubtator3_data, list):
+                    # Recursively process the PubTator3 documents
+                    return self._parse_biocjson(pubtator3_data)
 
             pmid = doc.get("id", "")
             if not pmid:
@@ -239,16 +257,15 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
             if doc_annotations["genes"]:
                 annotations[pmid] = doc_annotations
-
         return annotations
 
     async def process_data(self, raw_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process PubTator annotations into structured gene information.
-        
+
         Args:
             raw_data: Raw data with PMIDs and annotations
-            
+
         Returns:
             Dictionary mapping gene symbols to aggregated data
         """
@@ -286,17 +303,19 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
                 # Add publication and mention
                 gene_data_map[gene_symbol]["pmids"].add(pmid)
-                gene_data_map[gene_symbol]["mentions"].append({
-                    "pmid": pmid,
-                    "text": gene_text,
-                    "context": doc_data.get("title", "")[:200],
-                })
+                gene_data_map[gene_symbol]["mentions"].append(
+                    {
+                        "pmid": pmid,
+                        "text": gene_text,
+                        "context": doc_data.get("title", "")[:200],
+                    }
+                )
 
                 if gene_id:
                     gene_data_map[gene_symbol]["identifiers"].add(gene_id)
 
         # Convert sets to lists and calculate stats
-        for symbol, data in gene_data_map.items():
+        for _symbol, data in gene_data_map.items():
             data["pmids"] = list(data["pmids"])
             data["identifiers"] = list(data["identifiers"])
             data["publication_count"] = len(data["pmids"])
@@ -320,10 +339,10 @@ class PubTatorUnifiedSource(UnifiedDataSource):
     def _normalize_gene_symbol(self, text: str) -> str | None:
         """
         Normalize gene symbol from PubTator text.
-        
+
         Args:
             text: Raw gene text from annotation
-            
+
         Returns:
             Normalized gene symbol or None
         """
@@ -336,7 +355,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         # Remove common suffixes/prefixes
         for suffix in [" GENE", " PROTEIN", " MRNA"]:
             if symbol.endswith(suffix):
-                symbol = symbol[:-len(suffix)]
+                symbol = symbol[: -len(suffix)]
 
         # Basic validation
         if len(symbol) < 2 or len(symbol) > 15:
@@ -351,7 +370,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
     def is_kidney_related(self, record: dict[str, Any]) -> bool:
         """
         Check if a gene record is kidney-related.
-        
+
         Always returns True as we pre-filter with kidney query.
         """
         return True
@@ -359,10 +378,10 @@ class PubTatorUnifiedSource(UnifiedDataSource):
     def _get_source_detail(self, evidence_data: dict[str, Any]) -> str:
         """
         Generate source detail string for evidence.
-        
+
         Args:
             evidence_data: Evidence data
-            
+
         Returns:
             Source detail string
         """

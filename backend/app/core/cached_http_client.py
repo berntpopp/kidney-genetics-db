@@ -43,7 +43,7 @@ class CachedHttpClient:
         db_session: Session | AsyncSession | None = None,
         timeout: float = 30.0,
         max_retries: int = 3,
-        retry_delay: float = 1.0
+        retry_delay: float = 1.0,
     ):
         self.cache_service = cache_service or get_cache_service(db_session)
         self.timeout = timeout
@@ -67,14 +67,12 @@ class CachedHttpClient:
         self.storage = hishel.AsyncFileStorage(
             base_path=str(self.cache_dir),
             ttl=settings.HTTP_CACHE_TTL_DEFAULT,
-            check_ttl_every=3600  # Check for expired entries every hour
+            check_ttl_every=3600,  # Check for expired entries every hour
         )
 
         # Create async HTTP client with caching
         self.http_client = hishel.AsyncCacheClient(
-            controller=self.controller,
-            storage=self.storage,
-            timeout=httpx.Timeout(timeout)
+            controller=self.controller, storage=self.storage, timeout=httpx.Timeout(timeout)
         )
 
         # Circuit breaker state per domain
@@ -95,6 +93,7 @@ class CachedHttpClient:
         if breaker.get("state") == "open":
             # Check if enough time has passed to try again
             import time
+
             if time.time() - breaker.get("opened_at", 0) > 60:  # 1 minute cooldown
                 breaker["state"] = "half_open"
                 logger.info(f"Circuit breaker for {domain} moved to half-open state")
@@ -118,9 +117,12 @@ class CachedHttpClient:
         # Open circuit after 5 consecutive failures
         if breaker["failures"] >= 5:
             import time
+
             breaker["state"] = "open"
             breaker["opened_at"] = time.time()
-            logger.warning(f"Circuit breaker opened for {domain} after {breaker['failures']} failures")
+            logger.warning(
+                f"Circuit breaker opened for {domain} after {breaker['failures']} failures"
+            )
 
     async def get(
         self,
@@ -129,7 +131,7 @@ class CachedHttpClient:
         cache_key: str | None = None,
         fallback_ttl: int = 3600,
         force_refresh: bool = False,
-        **kwargs
+        **kwargs,
     ) -> httpx.Response:
         """
         Perform GET request with intelligent caching.
@@ -152,10 +154,7 @@ class CachedHttpClient:
         # Prepare request headers
         headers = kwargs.get("headers", {})
         if force_refresh:
-            headers.update({
-                "Cache-Control": "no-cache, must-revalidate",
-                "Pragma": "no-cache"
-            })
+            headers.update({"Cache-Control": "no-cache, must-revalidate", "Pragma": "no-cache"})
             kwargs["headers"] = headers
 
         # Attempt HTTP request with retries
@@ -181,7 +180,7 @@ class CachedHttpClient:
 
                 if attempt < self.max_retries:
                     # Exponential backoff
-                    delay = self.retry_delay * (2 ** attempt)
+                    delay = self.retry_delay * (2**attempt)
                     await asyncio.sleep(delay)
                 else:
                     # All retries failed, record failure and try cache fallback
@@ -202,11 +201,7 @@ class CachedHttpClient:
             raise httpx.RequestError(f"Request failed after {self.max_retries} retries")
 
     async def post(
-        self,
-        url: str,
-        namespace: str = "http",
-        cache_response: bool = False,
-        **kwargs
+        self, url: str, namespace: str = "http", cache_response: bool = False, **kwargs
     ) -> httpx.Response:
         """
         Perform POST request with optional response caching.
@@ -231,7 +226,11 @@ class CachedHttpClient:
             if cache_response and response.status_code == 200:
                 cache_key = f"post:{url}:{hash(str(kwargs))}"
                 await self._store_fallback_cache(
-                    cache_key, response, namespace, cache_key, 300  # 5 minute TTL
+                    cache_key,
+                    response,
+                    namespace,
+                    cache_key,
+                    300,  # 5 minute TTL
                 )
 
             return response
@@ -247,7 +246,7 @@ class CachedHttpClient:
         namespace: str = "files",
         cache_key: str | None = None,
         etag_check: bool = True,
-        **kwargs
+        **kwargs,
     ) -> bytes:
         """
         Download file with intelligent caching using ETags.
@@ -267,9 +266,7 @@ class CachedHttpClient:
         cached_etag = None
 
         if etag_check:
-            cached_entry = await self.cache_service.get(
-                f"{cache_key}:metadata", namespace
-            )
+            cached_entry = await self.cache_service.get(f"{cache_key}:metadata", namespace)
             if cached_entry:
                 cached_etag = cached_entry.get("etag")
                 cached_data = await self.cache_service.get(cache_key, namespace)
@@ -294,8 +291,10 @@ class CachedHttpClient:
 
                 # Cache the file content
                 await self.cache_service.set(
-                    cache_key, content, namespace,
-                    self.cache_service._get_ttl_for_namespace(namespace)
+                    cache_key,
+                    content,
+                    namespace,
+                    self.cache_service._get_ttl_for_namespace(namespace),
                 )
 
                 # Cache metadata including ETag
@@ -305,11 +304,9 @@ class CachedHttpClient:
                         "etag": etag,
                         "last_modified": response.headers.get("last-modified"),
                         "content_length": len(content),
-                        "content_type": response.headers.get("content-type")
+                        "content_type": response.headers.get("content-type"),
                     }
-                    await self.cache_service.set(
-                        f"{cache_key}:metadata", metadata, namespace
-                    )
+                    await self.cache_service.set(f"{cache_key}:metadata", metadata, namespace)
 
                 logger.info(f"Downloaded and cached file: {url} ({len(content)} bytes)")
                 return content
@@ -327,10 +324,7 @@ class CachedHttpClient:
             raise
 
     async def _get_from_fallback_cache(
-        self,
-        url: str,
-        namespace: str,
-        cache_key: str | None = None
+        self, url: str, namespace: str, cache_key: str | None = None
     ) -> httpx.Response:
         """Get response from database cache as fallback."""
         if not cache_key:
@@ -352,7 +346,7 @@ class CachedHttpClient:
                 status_code=cached_response.get("status_code", 200),
                 headers=cached_response.get("headers", {}),
                 content=content,
-                request=httpx.Request("GET", url)
+                request=httpx.Request("GET", url),
             )
             return response
         else:
@@ -369,7 +363,7 @@ class CachedHttpClient:
         response: httpx.Response,
         namespace: str,
         cache_key: str | None = None,
-        ttl: int = 3600
+        ttl: int = 3600,
     ) -> None:
         """Store response in database cache as fallback."""
         if not cache_key:
@@ -381,22 +375,29 @@ class CachedHttpClient:
 
         # Skip caching binary content in database (too large and problematic)
         content_type = response.headers.get("content-type", "").lower()
-        if any(binary_type in content_type for binary_type in [
-            "application/octet-stream",
-            "application/vnd.ms-excel",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/zip",
-            "application/pdf",
-            "image/",
-            "video/",
-            "audio/"
-        ]):
-            logger.debug(f"Skipping database cache for binary content: {url} (type: {content_type})")
+        if any(
+            binary_type in content_type
+            for binary_type in [
+                "application/octet-stream",
+                "application/vnd.ms-excel",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "application/zip",
+                "application/pdf",
+                "image/",
+                "video/",
+                "audio/",
+            ]
+        ):
+            logger.debug(
+                f"Skipping database cache for binary content: {url} (type: {content_type})"
+            )
             return
 
         # Skip very large responses (> 1MB) to avoid database bloat
         if len(response.content) > 1024 * 1024:
-            logger.debug(f"Skipping database cache for large response: {url} ({len(response.content)} bytes)")
+            logger.debug(
+                f"Skipping database cache for large response: {url} ({len(response.content)} bytes)"
+            )
             return
 
         try:
@@ -413,7 +414,7 @@ class CachedHttpClient:
                 "headers": dict(response.headers),
                 "content": content_text,
                 "url": url,
-                "cached_at": response.headers.get("date", "unknown")
+                "cached_at": response.headers.get("date", "unknown"),
             }
 
             await self.cache_service.set(cache_key, cached_response, namespace, ttl)
@@ -457,7 +458,7 @@ class CachedHttpClient:
                 stats["http_cache"] = {
                     "files": len(cache_files),
                     "total_size_mb": round(total_size / (1024 * 1024), 2),
-                    "cache_dir": str(self.cache_dir)
+                    "cache_dir": str(self.cache_dir),
                 }
         except Exception as e:
             logger.error(f"Error getting HTTP cache stats: {e}")
@@ -486,9 +487,9 @@ class CachedHttpClient:
 
     async def close(self):
         """Close the HTTP client."""
-        if hasattr(self.http_client, 'aclose'):
+        if hasattr(self.http_client, "aclose"):
             await self.http_client.aclose()
-        elif hasattr(self.http_client, 'close'):
+        elif hasattr(self.http_client, "close"):
             await self.http_client.close()
 
 
@@ -497,8 +498,7 @@ _cached_http_client: CachedHttpClient | None = None
 
 
 def get_cached_http_client(
-    cache_service: CacheService | None = None,
-    db_session: Session | AsyncSession | None = None
+    cache_service: CacheService | None = None, db_session: Session | AsyncSession | None = None
 ) -> CachedHttpClient:
     """Get or create the global cached HTTP client instance."""
     global _cached_http_client
@@ -511,11 +511,9 @@ def get_cached_http_client(
 
 # Convenience functions
 
+
 async def cached_get(
-    url: str,
-    namespace: str = "http",
-    cache_key: str | None = None,
-    **kwargs
+    url: str, namespace: str = "http", cache_key: str | None = None, **kwargs
 ) -> httpx.Response:
     """Perform cached GET request."""
     client = get_cached_http_client()
@@ -523,10 +521,7 @@ async def cached_get(
 
 
 async def cached_download(
-    url: str,
-    namespace: str = "files",
-    cache_key: str | None = None,
-    **kwargs
+    url: str, namespace: str = "files", cache_key: str | None = None, **kwargs
 ) -> bytes:
     """Download file with caching."""
     client = get_cached_http_client()

@@ -18,6 +18,20 @@ from app.core.events import event_bus
 from app.core.startup import run_startup_tasks
 from app.models import Base
 
+# FORCE DEBUG LOGGING TO WORK
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", force=True
+)
+# Set uvicorn loggers to DEBUG
+logging.getLogger("uvicorn").setLevel(logging.DEBUG)
+logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
+logging.getLogger("uvicorn.error").setLevel(logging.DEBUG)
+# Set our app loggers to DEBUG
+logging.getLogger("app").setLevel(logging.DEBUG)
+logging.getLogger("app.core").setLevel(logging.DEBUG)
+logging.getLogger("app.api").setLevel(logging.DEBUG)
+logging.getLogger("app.pipeline").setLevel(logging.DEBUG)
+
 logger = logging.getLogger(__name__)
 
 # Create database tables
@@ -41,6 +55,7 @@ async def lifespan(app: FastAPI):
 
     # Set up broadcast callback for WebSocket updates (now uses event bus internally)
     from app.api.endpoints.progress import get_connection_manager
+
     manager = get_connection_manager()
     task_manager.set_broadcast_callback(manager.broadcast)
 

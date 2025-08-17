@@ -19,7 +19,9 @@ async def get_genes(
     skip: int = Query(0, ge=0, description="Number of items to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Number of items to return"),
     search: str | None = Query(None, description="Search term for gene symbol or HGNC ID"),
-    min_score: float | None = Query(None, ge=0, le=100, description="Minimum evidence score (0-100)"),
+    min_score: float | None = Query(
+        None, ge=0, le=100, description="Minimum evidence score (0-100)"
+    ),
     sort_by: str | None = Query(None, description="Field to sort by"),
     sort_desc: bool = Query(False, description="Sort in descending order"),
     db: Session = Depends(get_db),
@@ -31,8 +33,13 @@ async def get_genes(
     """
     # Use the optimized method that gets data with sources in a single query
     genes = gene_crud.get_genes_with_aggregated_data(
-        db, skip=skip, limit=limit, search=search, min_score=min_score,
-        sort_by=sort_by, sort_desc=sort_desc
+        db,
+        skip=skip,
+        limit=limit,
+        search=search,
+        min_score=min_score,
+        sort_by=sort_by,
+        sort_desc=sort_desc,
     )
 
     # Get total count for pagination

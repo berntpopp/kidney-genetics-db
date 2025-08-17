@@ -21,10 +21,7 @@ logger = logging.getLogger(__name__)
 class ProgressTracker:
     """Tracks and reports progress for data source updates"""
 
-    def __init__(self,
-                 db: Session,
-                 source_name: str,
-                 broadcast_callback: Callable | None = None):
+    def __init__(self, db: Session, source_name: str, broadcast_callback: Callable | None = None):
         """
         Initialize progress tracker
 
@@ -43,15 +40,11 @@ class ProgressTracker:
 
     def _get_or_create_progress(self) -> DataSourceProgress:
         """Get or create progress record for this source"""
-        progress = self.db.query(DataSourceProgress).filter_by(
-            source_name=self.source_name
-        ).first()
+        progress = self.db.query(DataSourceProgress).filter_by(source_name=self.source_name).first()
 
         if not progress:
             progress = DataSourceProgress(
-                source_name=self.source_name,
-                status=SourceStatus.idle,
-                progress_metadata={}
+                source_name=self.source_name, status=SourceStatus.idle, progress_metadata={}
             )
             self.db.add(progress)
             self.db.commit()
@@ -86,16 +79,18 @@ class ProgressTracker:
         self.progress_record.progress_percentage = 0.0
         self._commit_and_broadcast()
 
-    def update(self,
-               current_item: int | None = None,
-               total_items: int | None = None,
-               current_page: int | None = None,
-               total_pages: int | None = None,
-               operation: str | None = None,
-               items_added: int | None = None,
-               items_updated: int | None = None,
-               items_failed: int | None = None,
-               force: bool = False):
+    def update(
+        self,
+        current_item: int | None = None,
+        total_items: int | None = None,
+        current_page: int | None = None,
+        total_pages: int | None = None,
+        operation: str | None = None,
+        items_added: int | None = None,
+        items_updated: int | None = None,
+        items_failed: int | None = None,
+        force: bool = False,
+    ):
         """
         Update progress information
 
@@ -149,7 +144,9 @@ class ProgressTracker:
             if self.progress_record.progress_percentage > 0:
                 total_time = elapsed / (self.progress_record.progress_percentage / 100)
                 remaining = total_time - elapsed
-                self.progress_record.estimated_completion = datetime.now(timezone.utc) + timedelta(seconds=remaining)
+                self.progress_record.estimated_completion = datetime.now(timezone.utc) + timedelta(
+                    seconds=remaining
+                )
 
         # Only commit if enough time has passed or forced
         now = datetime.now(timezone.utc)
@@ -218,7 +215,9 @@ class ProgressTracker:
                 asyncio.create_task(event_bus.publish(event_type, progress_data))
             except RuntimeError:
                 # Not in async context, log instead
-                logger.debug(f"Progress update (sync context): {self.source_name} - {self.progress_record.status}")
+                logger.debug(
+                    f"Progress update (sync context): {self.source_name} - {self.progress_record.status}"
+                )
         except Exception as e:
             logger.error(f"Failed to update progress for {self.source_name}: {e}")
             self.db.rollback()
@@ -227,11 +226,13 @@ class ProgressTracker:
         """Broadcast update via callback"""
         try:
             if self.broadcast_callback:
-                await self.broadcast_callback({
-                    "type": "progress_update",
-                    "source": self.source_name,
-                    "data": self.progress_record.to_dict()
-                })
+                await self.broadcast_callback(
+                    {
+                        "type": "progress_update",
+                        "source": self.source_name,
+                        "data": self.progress_record.to_dict(),
+                    }
+                )
         except Exception as e:
             logger.error(f"Failed to broadcast progress update: {e}")
 

@@ -12,6 +12,7 @@ from app.core.database import Base
 
 class SourceStatus(PyEnum):
     """Enumeration for data source status"""
+
     idle = "idle"
     running = "running"
     completed = "completed"
@@ -29,7 +30,7 @@ class DataSourceProgress(Base):
     status = Column(
         Enum(SourceStatus, native_enum=True, name="source_status"),
         nullable=False,
-        default=SourceStatus.idle
+        default=SourceStatus.idle,
     )
 
     # Progress tracking
@@ -75,6 +76,8 @@ class DataSourceProgress(Base):
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
             "last_update_at": self.last_update_at.isoformat() if self.last_update_at else None,
-            "estimated_completion": self.estimated_completion.isoformat() if self.estimated_completion else None,
-            "metadata": self.progress_metadata or {}
+            "estimated_completion": self.estimated_completion.isoformat()
+            if self.estimated_completion
+            else None,
+            "metadata": self.progress_metadata or {},
         }

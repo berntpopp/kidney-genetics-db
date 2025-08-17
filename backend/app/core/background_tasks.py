@@ -57,21 +57,65 @@ class BackgroundTaskManager(TaskMixin):
             source_name: Name of the data source
             resume: Whether to resume from previous position
         """
+        logger.info(
+            f"🏃 TASK MANAGER: run_source() CALLED for source: {source_name}, resume: {resume}"
+        )
+        logger.info(f"🏃 TASK MANAGER: Current running tasks: {list(self.running_tasks.keys())}")
+
         # Check if already running
         if source_name in self.running_tasks and not self.running_tasks[source_name].done():
-            logger.warning(f"{source_name} is already running")
+            logger.warning(
+                f"🏃 TASK MANAGER: {source_name} is already running, task: {self.running_tasks[source_name]}"
+            )
             return
 
         # Dynamic task dispatch
         method_name = f"_run_{source_name.lower().replace('_', '_')}"
-        task_method = getattr(self, method_name, None)
+        logger.info(
+            f"🏃 TASK MANAGER: Looking for method '{method_name}' for source '{source_name}'"
+        )
+        logger.info(
+            f"🏃 TASK MANAGER: Available methods on self: {[m for m in dir(self) if m.startswith('_run_')]}"
+        )
 
-        if not task_method:
-            logger.error(f"Unknown source: {source_name}")
+        try:
+            task_method = getattr(self, method_name, None)
+            logger.info(f"🏃 TASK MANAGER: getattr result: {task_method}")
+        except Exception as e:
+            logger.error(f"🏃 TASK MANAGER: Exception in getattr: {e}")
             return
 
-        task = asyncio.create_task(task_method(resume=resume))
-        self.running_tasks[source_name] = task
+        if not task_method:
+            logger.error(f"🏃 TASK MANAGER: No method found for source: {source_name}")
+            logger.error(f"🏃 TASK MANAGER: Tried method name: {method_name}")
+            return
+
+        logger.info(f"🏃 TASK MANAGER: Found method: {task_method}")
+        logger.info(f"🏃 TASK MANAGER: Method callable: {callable(task_method)}")
+
+        try:
+            logger.info(f"🏃 TASK MANAGER: Creating asyncio task for {source_name}")
+            task = asyncio.create_task(task_method(resume=resume))
+            logger.info(f"🏃 TASK MANAGER: Created task: {task}")
+
+            self.running_tasks[source_name] = task
+            logger.info(
+                f"🏃 TASK MANAGER: Stored task for {source_name}, total running: {len(self.running_tasks)}"
+            )
+
+            # Add task completion callback
+            task.add_done_callback(
+                lambda t: logger.info(
+                    f"🏃 TASK MANAGER: Task {source_name} completed: {t.done()}, exception: {t.exception() if t.done() else 'N/A'}"
+                )
+            )
+
+        except Exception as e:
+            logger.error(f"🏃 TASK MANAGER: Exception creating/storing task for {source_name}: {e}")
+            import traceback
+
+            logger.error(f"🏃 TASK MANAGER: Full traceback: {traceback.format_exc()}")
+            raise
 
     async def shutdown(self):
         """Gracefully shutdown all running tasks"""
@@ -86,10 +130,7 @@ class BackgroundTaskManager(TaskMixin):
 
         # Wait for all tasks to complete
         if self.running_tasks:
-            await asyncio.gather(
-                *self.running_tasks.values(),
-                return_exceptions=True
-            )
+            await asyncio.gather(*self.running_tasks.values(), return_exceptions=True)
 
         # Shutdown executor
         self.executor.shutdown(wait=True)

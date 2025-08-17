@@ -34,11 +34,7 @@ def update_source_percentiles(db: Session, source_name: str) -> dict[str, Any]:
     }
 
     # Get all evidence for this source
-    evidence_records = (
-        db.query(GeneEvidence)
-        .filter(GeneEvidence.source_name == source_name)
-        .all()
-    )
+    evidence_records = db.query(GeneEvidence).filter(GeneEvidence.source_name == source_name).all()
 
     if not evidence_records:
         logger.warning(f"No evidence records found for source: {source_name}")
@@ -98,8 +94,7 @@ def update_source_percentiles(db: Session, source_name: str) -> dict[str, Any]:
     db.commit()
 
     logger.info(
-        f"Updated percentiles for {source_name}: "
-        f"{stats['percentiles_updated']} records updated"
+        f"Updated percentiles for {source_name}: {stats['percentiles_updated']} records updated"
     )
 
     return stats
@@ -137,9 +132,9 @@ def _get_count_for_evidence(evidence: GeneEvidence) -> int:
     else:
         # Default: try to count common fields
         return (
-            len(data.get("pmids", [])) +
-            len(data.get("references", [])) +
-            len(data.get("items", []))
+            len(data.get("pmids", []))
+            + len(data.get("references", []))
+            + len(data.get("items", []))
         )
 
 

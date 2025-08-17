@@ -27,7 +27,7 @@ class HPOTerms(HPOAPIBase):
             response = await self._get(
                 f"hp/terms/{hpo_id}",
                 cache_key=f"term:{hpo_id}",
-                ttl=self.ttl_stable  # Terms are stable
+                ttl=self.ttl_stable,  # Terms are stable
             )
 
             if response:
@@ -40,7 +40,7 @@ class HPOTerms(HPOAPIBase):
                     is_obsolete=response.get("isObsolete", False),
                     replaced_by=response.get("replacedBy"),
                     children=[c.get("id") for c in response.get("children", []) if c.get("id")],
-                    parents=[p.get("id") for p in response.get("parents", []) if p.get("id")]
+                    parents=[p.get("id") for p in response.get("parents", []) if p.get("id")],
                 )
 
         except Exception as e:
@@ -49,10 +49,7 @@ class HPOTerms(HPOAPIBase):
         return None
 
     async def get_descendants(
-        self,
-        hpo_id: str,
-        max_depth: int = 10,
-        include_self: bool = True
+        self, hpo_id: str, max_depth: int = 10, include_self: bool = True
     ) -> set[str]:
         """
         Get all descendant terms using optimal strategy.
@@ -78,7 +75,7 @@ class HPOTerms(HPOAPIBase):
             response = await self._get(
                 f"hp/terms/{hpo_id}/descendants",
                 cache_key=f"descendants:{hpo_id}",
-                ttl=self.ttl_stable
+                ttl=self.ttl_stable,
             )
 
             if isinstance(response, list):
@@ -100,11 +97,7 @@ class HPOTerms(HPOAPIBase):
         logger.info(f"Total descendants for {hpo_id}: {len(descendants)}")
         return descendants
 
-    async def _get_descendants_recursive(
-        self,
-        hpo_id: str,
-        max_depth: int
-    ) -> set[str]:
+    async def _get_descendants_recursive(self, hpo_id: str, max_depth: int) -> set[str]:
         """
         Recursively collect descendants via children endpoint.
 
@@ -130,7 +123,7 @@ class HPOTerms(HPOAPIBase):
                 response = await self._get(
                     f"hp/terms/{term_id}/children",
                     cache_key=f"children:{term_id}",
-                    ttl=self.ttl_stable
+                    ttl=self.ttl_stable,
                 )
 
                 if isinstance(response, list):
@@ -161,9 +154,7 @@ class HPOTerms(HPOAPIBase):
         """
         try:
             response = await self._get(
-                f"hp/terms/{hpo_id}/children",
-                cache_key=f"children:{hpo_id}",
-                ttl=self.ttl_stable
+                f"hp/terms/{hpo_id}/children", cache_key=f"children:{hpo_id}", ttl=self.ttl_stable
             )
 
             if isinstance(response, list):
@@ -191,9 +182,7 @@ class HPOTerms(HPOAPIBase):
         """
         try:
             response = await self._get(
-                f"hp/terms/{hpo_id}/parents",
-                cache_key=f"parents:{hpo_id}",
-                ttl=self.ttl_stable
+                f"hp/terms/{hpo_id}/parents", cache_key=f"parents:{hpo_id}", ttl=self.ttl_stable
             )
 
             if isinstance(response, list):
@@ -209,11 +198,7 @@ class HPOTerms(HPOAPIBase):
 
         return []
 
-    async def search_terms(
-        self,
-        query: str,
-        max_results: int = 100
-    ) -> list[HPOTerm]:
+    async def search_terms(self, query: str, max_results: int = 100) -> list[HPOTerm]:
         """
         Search for HPO terms by text.
 
@@ -229,18 +214,20 @@ class HPOTerms(HPOAPIBase):
                 "hp/search",
                 params={"q": query, "max": max_results},
                 cache_key=f"term_search:{query}:{max_results}",
-                ttl=self.ttl_search
+                ttl=self.ttl_search,
             )
 
             terms = []
             if response and "terms" in response:
                 for item in response["terms"]:
-                    terms.append(HPOTerm(
-                        id=item.get("id", ""),
-                        name=item.get("name", ""),
-                        definition=item.get("definition"),
-                        synonyms=item.get("synonyms", [])
-                    ))
+                    terms.append(
+                        HPOTerm(
+                            id=item.get("id", ""),
+                            name=item.get("name", ""),
+                            definition=item.get("definition"),
+                            synonyms=item.get("synonyms", []),
+                        )
+                    )
 
             return terms
 

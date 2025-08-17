@@ -30,8 +30,10 @@ router = APIRouter()
 
 # Pydantic models for API responses
 
+
 class CacheStatsResponse(BaseModel):
     """Cache statistics response model."""
+
     namespace: str | None = None
     total_entries: int = Field(ge=0, description="Total number of cache entries")
     memory_entries: int = Field(ge=0, description="Number of entries in memory cache")
@@ -45,6 +47,7 @@ class CacheStatsResponse(BaseModel):
 
 class NamespaceStatsResponse(BaseModel):
     """Namespace-specific cache statistics."""
+
     namespace: str
     total_entries: int = Field(ge=0)
     active_entries: int = Field(ge=0, description="Non-expired entries")
@@ -59,6 +62,7 @@ class NamespaceStatsResponse(BaseModel):
 
 class CacheHealthResponse(BaseModel):
     """Cache system health response."""
+
     status: str = Field(description="Overall health status")
     cache_enabled: bool
     memory_cache_size: int = Field(ge=0)
@@ -71,6 +75,7 @@ class CacheHealthResponse(BaseModel):
 
 class CacheKeyListResponse(BaseModel):
     """Cache key listing response."""
+
     namespace: str
     keys: list[str]
     total_keys: int = Field(ge=0)
@@ -81,6 +86,7 @@ class CacheKeyListResponse(BaseModel):
 
 class CacheClearResponse(BaseModel):
     """Cache clear operation response."""
+
     success: bool
     entries_cleared: int = Field(ge=0)
     namespace: str | None = None
@@ -89,6 +95,7 @@ class CacheClearResponse(BaseModel):
 
 class CacheWarmRequest(BaseModel):
     """Cache warming request model."""
+
     sources: list[str] = Field(description="Data sources to warm up")
     force_refresh: bool = Field(default=False, description="Force refresh of existing cache")
     priority: str = Field(default="normal", pattern="^(low|normal|high)$")
@@ -96,6 +103,7 @@ class CacheWarmRequest(BaseModel):
 
 class CacheWarmResponse(BaseModel):
     """Cache warming response."""
+
     success: bool
     sources_warmed: list[str]
     entries_created: int = Field(ge=0)
@@ -105,10 +113,11 @@ class CacheWarmResponse(BaseModel):
 
 # API endpoints
 
+
 @router.get("/stats", response_model=CacheStatsResponse)
 async def get_cache_stats(
     namespace: str | None = Query(None, description="Specific namespace to get stats for"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> CacheStatsResponse:
     """
     Get cache statistics.
@@ -132,7 +141,7 @@ async def get_cache_stats(
             misses=stats.get("misses", 0),
             hit_rate=stats.get("hit_rate", 0.0),
             total_size_bytes=stats.get("total_size", 0),
-            total_size_mb=total_size_mb
+            total_size_mb=total_size_mb,
         )
 
     except Exception as e:
@@ -142,8 +151,7 @@ async def get_cache_stats(
 
 @router.get("/stats/{namespace}", response_model=NamespaceStatsResponse)
 async def get_namespace_stats(
-    namespace: str,
-    db: AsyncSession = Depends(get_db)
+    namespace: str, db: AsyncSession = Depends(get_db)
 ) -> NamespaceStatsResponse:
     """
     Get detailed statistics for a specific cache namespace.
@@ -165,20 +173,20 @@ async def get_namespace_stats(
             total_size_bytes=stats.get("total_size_bytes", 0),
             last_access_time=stats.get("last_access_time"),
             oldest_entry=stats.get("oldest_entry"),
-            newest_entry=stats.get("newest_entry")
+            newest_entry=stats.get("newest_entry"),
         )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error getting namespace stats for {namespace}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting namespace stats: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error getting namespace stats: {str(e)}"
+        ) from e
 
 
 @router.get("/health", response_model=CacheHealthResponse)
-async def get_cache_health(
-    db: AsyncSession = Depends(get_db)
-) -> CacheHealthResponse:
+async def get_cache_health(db: AsyncSession = Depends(get_db)) -> CacheHealthResponse:
     """
     Get cache system health status.
 
@@ -236,7 +244,7 @@ async def get_cache_health(
             http_cache_size_mb=http_stats.get("http_cache", {}).get("total_size_mb", 0.0),
             namespaces=namespaces,
             issues=issues,
-            last_cleanup=None  # Would track last cleanup time
+            last_cleanup=None,  # Would track last cleanup time
         )
 
     except Exception as e:
@@ -249,7 +257,7 @@ async def list_cache_keys(
     namespace: str,
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=1, le=1000, description="Items per page"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> CacheKeyListResponse:
     """
     List cache keys in a namespace with pagination.
@@ -268,7 +276,7 @@ async def list_cache_keys(
             total_keys=0,
             page=page,
             page_size=page_size,
-            has_more=False
+            has_more=False,
         )
 
     except Exception as e:
@@ -277,10 +285,7 @@ async def list_cache_keys(
 
 
 @router.delete("/{namespace}", response_model=CacheClearResponse)
-async def clear_namespace(
-    namespace: str,
-    db: AsyncSession = Depends(get_db)
-) -> CacheClearResponse:
+async def clear_namespace(namespace: str, db: AsyncSession = Depends(get_db)) -> CacheClearResponse:
     """
     Clear all cache entries in a specific namespace.
     """
@@ -292,7 +297,7 @@ async def clear_namespace(
             success=True,
             entries_cleared=entries_cleared,
             namespace=namespace,
-            message=f"Successfully cleared {entries_cleared} entries from namespace '{namespace}'"
+            message=f"Successfully cleared {entries_cleared} entries from namespace '{namespace}'",
         )
 
     except Exception as e:
@@ -302,9 +307,7 @@ async def clear_namespace(
 
 @router.delete("/{namespace}/{key}", response_model=CacheClearResponse)
 async def delete_cache_key(
-    namespace: str,
-    key: str,
-    db: AsyncSession = Depends(get_db)
+    namespace: str, key: str, db: AsyncSession = Depends(get_db)
 ) -> CacheClearResponse:
     """
     Delete a specific cache key.
@@ -317,7 +320,7 @@ async def delete_cache_key(
             success=success,
             entries_cleared=1 if success else 0,
             namespace=namespace,
-            message=f"Cache key '{key}' {'deleted' if success else 'not found'} in namespace '{namespace}'"
+            message=f"Cache key '{key}' {'deleted' if success else 'not found'} in namespace '{namespace}'",
         )
 
     except Exception as e:
@@ -326,9 +329,7 @@ async def delete_cache_key(
 
 
 @router.post("/cleanup")
-async def cleanup_expired_entries(
-    db: AsyncSession = Depends(get_db)
-) -> CacheClearResponse:
+async def cleanup_expired_entries(db: AsyncSession = Depends(get_db)) -> CacheClearResponse:
     """
     Manually trigger cleanup of expired cache entries.
     """
@@ -340,7 +341,7 @@ async def cleanup_expired_entries(
             success=True,
             entries_cleared=entries_cleared,
             namespace=None,
-            message=f"Successfully cleaned up {entries_cleared} expired cache entries"
+            message=f"Successfully cleaned up {entries_cleared} expired cache entries",
         )
 
     except Exception as e:
@@ -350,8 +351,7 @@ async def cleanup_expired_entries(
 
 @router.post("/warm", response_model=CacheWarmResponse)
 async def warm_cache(
-    request: CacheWarmRequest,
-    db: AsyncSession = Depends(get_db)
+    request: CacheWarmRequest, db: AsyncSession = Depends(get_db)
 ) -> CacheWarmResponse:
     """
     Warm up cache by preloading data from specified sources.
@@ -384,7 +384,7 @@ async def warm_cache(
             sources_warmed=sources_warmed,
             entries_created=entries_created,
             time_taken_seconds=time_taken,
-            message=f"Cache warming completed for {len(sources_warmed)} sources"
+            message=f"Cache warming completed for {len(sources_warmed)} sources",
         )
 
     except Exception as e:
@@ -415,14 +415,12 @@ async def get_cache_config() -> dict[str, Any]:
             "directory": settings.HTTP_CACHE_DIR,
             "max_size_mb": settings.HTTP_CACHE_MAX_SIZE_MB,
             "default_ttl": settings.HTTP_CACHE_TTL_DEFAULT,
-        }
+        },
     }
 
 
 @router.get("/metrics/prometheus")
-async def get_prometheus_metrics(
-    db: AsyncSession = Depends(get_db)
-) -> Response:
+async def get_prometheus_metrics(db: AsyncSession = Depends(get_db)) -> Response:
     """
     Get cache metrics in Prometheus format for monitoring.
     """
@@ -454,10 +452,7 @@ async def get_prometheus_metrics(
 
         metrics_text = "\n".join(metrics)
 
-        return Response(
-            content=metrics_text,
-            media_type="text/plain; charset=utf-8"
-        )
+        return Response(content=metrics_text, media_type="text/plain; charset=utf-8")
 
     except Exception as e:
         logger.error(f"Error generating Prometheus metrics: {e}")
@@ -465,9 +460,7 @@ async def get_prometheus_metrics(
 
 
 @router.get("/monitoring/dashboard")
-async def get_monitoring_dashboard(
-    db: AsyncSession = Depends(get_db)
-) -> dict[str, Any]:
+async def get_monitoring_dashboard(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """
     Get comprehensive monitoring dashboard data.
 
@@ -482,13 +475,13 @@ async def get_monitoring_dashboard(
 
     except Exception as e:
         logger.error(f"Error getting monitoring dashboard: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting dashboard data: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error getting dashboard data: {str(e)}"
+        ) from e
 
 
 @router.get("/monitoring/performance")
-async def get_performance_metrics(
-    db: AsyncSession = Depends(get_db)
-) -> dict[str, Any]:
+async def get_performance_metrics(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """
     Get detailed performance metrics for cache optimization.
     """
@@ -499,18 +492,18 @@ async def get_performance_metrics(
         return {
             "performance": stats.get("performance", {}),
             "namespaces": stats.get("namespaces", {}),
-            "recommendations": stats.get("health", {}).get("recommendations", [])
+            "recommendations": stats.get("health", {}).get("recommendations", []),
         }
 
     except Exception as e:
         logger.error(f"Error getting performance metrics: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting performance metrics: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error getting performance metrics: {str(e)}"
+        ) from e
 
 
 @router.post("/monitoring/warm-all")
-async def warm_all_caches(
-    db: AsyncSession = Depends(get_db)
-) -> dict[str, Any]:
+async def warm_all_caches(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """
     Warm all data source caches in parallel.
 
@@ -524,7 +517,7 @@ async def warm_all_caches(
         return {
             "success": True,
             "message": f"Cache warming completed: {results['total_entries_cached']} entries cached",
-            "results": results
+            "results": results,
         }
 
     except Exception as e:
@@ -533,9 +526,7 @@ async def warm_all_caches(
 
 
 @router.post("/monitoring/clear-all")
-async def clear_all_caches(
-    db: AsyncSession = Depends(get_db)
-) -> dict[str, Any]:
+async def clear_all_caches(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """
     Clear all data source caches.
 
@@ -549,7 +540,7 @@ async def clear_all_caches(
         return {
             "success": True,
             "message": f"Cache clearing completed: {results['total_entries_cleared']} entries cleared",
-            "results": results
+            "results": results,
         }
 
     except Exception as e:
@@ -558,9 +549,7 @@ async def clear_all_caches(
 
 
 @router.get("/monitoring/health")
-async def get_cache_system_health(
-    db: AsyncSession = Depends(get_db)
-) -> dict[str, Any]:
+async def get_cache_system_health(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """
     Get comprehensive health status of the cache system.
 
@@ -576,17 +565,19 @@ async def get_cache_system_health(
         # Add summary information
         summary = {
             "overall_status": health_data.get("overall_status", "unknown"),
-            "components_healthy": len([c for c in health_data.get("components", {}).values() if c.get("status") == "healthy"]),
+            "components_healthy": len(
+                [
+                    c
+                    for c in health_data.get("components", {}).values()
+                    if c.get("status") == "healthy"
+                ]
+            ),
             "total_components": len(health_data.get("components", {})),
             "issues_count": len(health_data.get("issues", [])),
-            "recommendations_count": len(health_data.get("recommendations", []))
+            "recommendations_count": len(health_data.get("recommendations", [])),
         }
 
-        return {
-            "summary": summary,
-            "health": health_data,
-            "timestamp": stats.get("timestamp")
-        }
+        return {"summary": summary, "health": health_data, "timestamp": stats.get("timestamp")}
 
     except Exception as e:
         logger.error(f"Error getting cache system health: {e}")
@@ -597,7 +588,7 @@ async def get_cache_system_health(
 async def get_database_pool_health() -> dict[str, Any]:
     """
     Get database connection pool health metrics.
-    
+
     MONITORING: Tracks connection pool usage to detect leaks and optimize performance.
     Returns pool size, connections in use, overflow status, and historical statistics.
     """

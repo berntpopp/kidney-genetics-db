@@ -31,9 +31,7 @@ def register_data_sources() -> None:
 
         for source_name, config in DATA_SOURCE_CONFIG.items():
             # Check if progress record exists
-            existing = db.query(DataSourceProgress).filter_by(
-                source_name=source_name
-            ).first()
+            existing = db.query(DataSourceProgress).filter_by(source_name=source_name).first()
 
             if existing:
                 # Update metadata if configuration has changed
@@ -63,7 +61,7 @@ def register_data_sources() -> None:
                         "description": config.get("description", ""),
                         "url": config.get("url"),
                         "documentation_url": config.get("documentation_url"),
-                    }
+                    },
                 )
                 db.add(progress_record)
                 registered_count += 1
@@ -101,9 +99,11 @@ def cleanup_orphaned_sources() -> None:
         configured_sources = set(DATA_SOURCE_CONFIG.keys())
 
         # Find progress records for sources not in current config
-        orphaned = db.query(DataSourceProgress).filter(
-            ~DataSourceProgress.source_name.in_(configured_sources)
-        ).all()
+        orphaned = (
+            db.query(DataSourceProgress)
+            .filter(~DataSourceProgress.source_name.in_(configured_sources))
+            .all()
+        )
 
         if orphaned:
             orphaned_names = [record.source_name for record in orphaned]
@@ -124,6 +124,55 @@ def cleanup_orphaned_sources() -> None:
         db.close()
 
 
+def validate_dependencies() -> None:
+    """
+    Validate that all required dependencies and settings are available.
+
+    This helps identify configuration issues early in the startup process.
+    """
+    logger.info("Validating application dependencies...")
+
+    try:
+        from app.core.config import settings
+
+        # Validate required API URLs
+        required_urls = {
+            "PUBTATOR_API_URL": settings.PUBTATOR_API_URL,
+            "PANELAPP_UK_URL": settings.PANELAPP_UK_URL,
+            "PANELAPP_AU_URL": settings.PANELAPP_AU_URL,
+            "HPO_API_URL": settings.HPO_API_URL,
+            "HGNC_API_URL": settings.HGNC_API_URL,
+        }
+
+        for setting_name, url in required_urls.items():
+            if not url or not url.startswith("http"):
+                logger.warning(f"Invalid {setting_name}: {url}")
+
+        # Test cache service initialization
+        try:
+            from app.core.cache_service import get_cache_service
+
+            cache = get_cache_service()
+            logger.info(f"Cache service initialized: enabled={cache.enabled}")
+        except Exception as e:
+            logger.error(f"Cache service initialization failed: {e}")
+
+        # Test HTTP client initialization
+        try:
+            from app.core.cached_http_client import get_cached_http_client
+
+            get_cached_http_client()
+            logger.info("HTTP client initialized successfully")
+        except Exception as e:
+            logger.error(f"HTTP client initialization failed: {e}")
+
+        logger.info("Dependency validation completed")
+
+    except Exception as e:
+        logger.error(f"Dependency validation failed: {e}")
+        # Don't re-raise - log the issue but continue startup
+
+
 def run_startup_tasks() -> None:
     """
     Run all startup tasks for the application.
@@ -133,6 +182,9 @@ def run_startup_tasks() -> None:
     logger.info("Running application startup tasks...")
 
     try:
+        # Validate dependencies first
+        validate_dependencies()
+
         # Register data sources
         register_data_sources()
 

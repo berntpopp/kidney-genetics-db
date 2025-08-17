@@ -22,9 +22,7 @@ class HPOPipeline:
     KIDNEY_ROOT_TERM = "HP:0010935"  # Abnormality of the upper urinary tract
 
     def __init__(
-        self,
-        cache_service: CacheService | None = None,
-        http_client: CachedHttpClient | None = None
+        self, cache_service: CacheService | None = None, http_client: CachedHttpClient | None = None
     ):
         """
         Initialize the HPO pipeline.
@@ -42,8 +40,7 @@ class HPOPipeline:
         self.batch_size = getattr(settings, "HPO_BATCH_SIZE", 10)
 
     async def process_kidney_phenotypes(
-        self,
-        tracker: ProgressTracker | None = None
+        self, tracker: ProgressTracker | None = None
     ) -> dict[str, Any]:
         """
         Main pipeline for processing kidney/urinary phenotypes.
@@ -74,9 +71,7 @@ class HPOPipeline:
         # Step 1: Get all relevant HPO terms
         logger.info(f"Getting descendants of {self.root_term}")
         descendants = await self.terms.get_descendants(
-            self.root_term,
-            max_depth=self.max_depth,
-            include_self=True
+            self.root_term, max_depth=self.max_depth, include_self=True
         )
 
         logger.info(f"Found {len(descendants)} kidney-related HPO terms")
@@ -86,25 +81,23 @@ class HPOPipeline:
             return {}
 
         if tracker:
-            tracker.update(
-                operation=f"Found {len(descendants)} kidney-related HPO terms"
-            )
+            tracker.update(operation=f"Found {len(descendants)} kidney-related HPO terms")
 
         # Step 2: Batch fetch annotations for all terms
         if tracker:
             tracker.update(operation="Fetching gene-disease associations...")
 
         annotations_map = await self.annotations.batch_get_annotations(
-            list(descendants),
-            batch_size=self.batch_size,
-            delay=settings.HPO_REQUEST_DELAY
+            list(descendants), batch_size=self.batch_size, delay=settings.HPO_REQUEST_DELAY
         )
 
         logger.info(f"Fetched annotations for {len(annotations_map)} terms")
         if annotations_map:
             first_term = list(annotations_map.keys())[0]
             first_annotation = annotations_map[first_term]
-            logger.info(f"Example annotation for {first_term}: {len(first_annotation.genes) if first_annotation else 0} genes")
+            logger.info(
+                f"Example annotation for {first_term}: {len(first_annotation.genes) if first_annotation else 0} genes"
+            )
 
         # Step 3: Aggregate gene evidence
         gene_evidence = {}
@@ -119,7 +112,7 @@ class HPOPipeline:
                 tracker.update(
                     current_item=processed,
                     total_items=total_terms,
-                    operation=f"Processing {hpo_id}"
+                    operation=f"Processing {hpo_id}",
                 )
 
             # Process genes from this HPO term
@@ -132,7 +125,7 @@ class HPOPipeline:
                         "entrez_id": gene.entrez_id,
                         "hpo_terms": set(),
                         "diseases": set(),
-                        "inheritance_patterns": set()
+                        "inheritance_patterns": set(),
                     }
 
                 # Add HPO term
@@ -166,10 +159,7 @@ class HPOPipeline:
             Dictionary with statistics
         """
         # Get basic stats about the root term
-        descendants = await self.terms.get_descendants(
-            self.root_term,
-            max_depth=self.max_depth
-        )
+        descendants = await self.terms.get_descendants(self.root_term, max_depth=self.max_depth)
 
         # Sample annotations for statistics
         sample_annotations = await self.annotations.get_term_annotations(self.root_term)
@@ -179,7 +169,7 @@ class HPOPipeline:
             "total_descendant_terms": len(descendants),
             "max_depth": self.max_depth,
             "sample_genes": 0,
-            "sample_diseases": 0
+            "sample_diseases": 0,
         }
 
         if sample_annotations:

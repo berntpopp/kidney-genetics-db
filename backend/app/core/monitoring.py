@@ -42,8 +42,8 @@ class CacheMonitoringService:
         """Initialize cached clients for monitoring."""
         try:
             self.data_source_clients = {
-                'hgnc': get_hgnc_client_cached(db_session=self.db_session),
-                'gencc': get_gencc_client(db_session=self.db_session),
+                "hgnc": get_hgnc_client_cached(db_session=self.db_session),
+                "gencc": get_gencc_client(db_session=self.db_session),
                 # Note: Other data sources (PubTator, PanelApp, HPO) use unified cache through namespace
                 # Cache stats for these are retrieved via namespace in get_comprehensive_stats
             }
@@ -87,7 +87,7 @@ class CacheMonitoringService:
             # Data source-specific statistics
             for source_name, client in self.data_source_clients.items():
                 try:
-                    if hasattr(client, 'get_cache_stats'):
+                    if hasattr(client, "get_cache_stats"):
                         source_stats = await client.get_cache_stats()
                         stats["data_sources"][source_name] = source_stats
                 except Exception as e:
@@ -240,25 +240,20 @@ class CacheMonitoringService:
                 cache_stats = await self.cache_service.get_stats()
                 hit_rate = cache_stats.get("hit_rate", 0.0)
 
-                cache_health = {
-                    "status": "healthy",
-                    "hit_rate": hit_rate,
-                    "issues": []
-                }
+                cache_health = {"status": "healthy", "hit_rate": hit_rate, "issues": []}
 
                 if hit_rate < 0.3:
                     cache_health["status"] = "warning"
                     cache_health["issues"].append("Low hit rate (< 30%)")
                     health["issues"].append("Overall cache hit rate is below optimal threshold")
-                    health["recommendations"].append("Consider cache warming or reviewing cache TTL settings")
+                    health["recommendations"].append(
+                        "Consider cache warming or reviewing cache TTL settings"
+                    )
 
                 health["components"]["cache_service"] = cache_health
 
             except Exception as e:
-                health["components"]["cache_service"] = {
-                    "status": "error",
-                    "error": str(e)
-                }
+                health["components"]["cache_service"] = {"status": "error", "error": str(e)}
                 health["issues"].append(f"Cache service error: {e}")
 
             # Check HTTP client health
@@ -270,7 +265,7 @@ class CacheMonitoringService:
                     "status": "healthy",
                     "circuit_breakers": len(circuit_breakers),
                     "open_circuits": 0,
-                    "issues": []
+                    "issues": [],
                 }
 
                 for domain, breaker in circuit_breakers.items():
@@ -280,45 +275,48 @@ class CacheMonitoringService:
 
                 if http_health["open_circuits"] > 0:
                     http_health["status"] = "warning"
-                    health["issues"].append(f"{http_health['open_circuits']} circuit breakers are open")
+                    health["issues"].append(
+                        f"{http_health['open_circuits']} circuit breakers are open"
+                    )
 
                 health["components"]["http_client"] = http_health
 
             except Exception as e:
-                health["components"]["http_client"] = {
-                    "status": "error",
-                    "error": str(e)
-                }
+                health["components"]["http_client"] = {"status": "error", "error": str(e)}
                 health["issues"].append(f"HTTP client error: {e}")
 
             # Check data source health
             for source_name, client in self.data_source_clients.items():
                 try:
-                    if hasattr(client, 'get_cache_stats'):
+                    if hasattr(client, "get_cache_stats"):
                         source_stats = await client.get_cache_stats()
 
                         source_health = {
                             "status": "healthy",
                             "cached_entries": source_stats.get("db_entries", 0),
-                            "issues": []
+                            "issues": [],
                         }
 
                         if source_stats.get("db_entries", 0) == 0:
                             source_health["status"] = "warning"
                             source_health["issues"].append("No cached data available")
-                            health["recommendations"].append(f"Consider warming {source_name} cache")
+                            health["recommendations"].append(
+                                f"Consider warming {source_name} cache"
+                            )
 
                         health["components"][f"source_{source_name}"] = source_health
 
                 except Exception as e:
                     health["components"][f"source_{source_name}"] = {
                         "status": "error",
-                        "error": str(e)
+                        "error": str(e),
                     }
                     health["issues"].append(f"{source_name} source error: {e}")
 
             # Determine overall health status
-            component_statuses = [comp.get("status", "error") for comp in health["components"].values()]
+            component_statuses = [
+                comp.get("status", "error") for comp in health["components"].values()
+            ]
 
             if "error" in component_statuses:
                 health["overall_status"] = "error"
@@ -356,13 +354,19 @@ class CacheMonitoringService:
             memory_entries = overall_stats.get("memory_entries", 0)
             max_memory_size = settings.CACHE_MAX_MEMORY_SIZE
 
-            utilization_percent = (memory_entries / max_memory_size * 100) if max_memory_size > 0 else 0
+            utilization_percent = (
+                (memory_entries / max_memory_size * 100) if max_memory_size > 0 else 0
+            )
 
             return {
                 "current_entries": memory_entries,
                 "max_entries": max_memory_size,
                 "utilization_percent": round(utilization_percent, 2),
-                "status": "high" if utilization_percent > 80 else "normal" if utilization_percent > 50 else "low"
+                "status": "high"
+                if utilization_percent > 80
+                else "normal"
+                if utilization_percent > 50
+                else "low",
             }
 
         except Exception as e:
@@ -373,7 +377,7 @@ class CacheMonitoringService:
         """Estimate response time improvement from caching."""
         # Rough estimates based on typical API response times
         typical_api_time_ms = 500  # Average API response time
-        cache_hit_time_ms = 10     # Cache hit response time
+        cache_hit_time_ms = 10  # Cache hit response time
 
         avg_response_time = (hit_rate * cache_hit_time_ms) + ((1 - hit_rate) * typical_api_time_ms)
         improvement_factor = typical_api_time_ms / avg_response_time if avg_response_time > 0 else 1
@@ -381,7 +385,7 @@ class CacheMonitoringService:
         return {
             "estimated_avg_response_ms": round(avg_response_time, 2),
             "improvement_factor": round(improvement_factor, 2),
-            "time_saved_percent": round((1 - avg_response_time / typical_api_time_ms) * 100, 2)
+            "time_saved_percent": round((1 - avg_response_time / typical_api_time_ms) * 100, 2),
         }
 
     async def warm_all_caches(self) -> dict[str, Any]:
@@ -397,13 +401,13 @@ class CacheMonitoringService:
             "started_at": datetime.now(timezone.utc).isoformat(),
             "sources": {},
             "total_entries_cached": 0,
-            "errors": []
+            "errors": [],
         }
 
         # Create warming tasks for all sources
         warming_tasks = {}
         for source_name, client in self.data_source_clients.items():
-            if hasattr(client, 'warm_cache'):
+            if hasattr(client, "warm_cache"):
                 warming_tasks[source_name] = client.warm_cache()
 
         # Execute warming tasks in parallel
@@ -418,24 +422,26 @@ class CacheMonitoringService:
                     results["sources"][source_name] = {
                         "status": "error",
                         "error": str(result),
-                        "entries_cached": 0
+                        "entries_cached": 0,
                     }
                     results["errors"].append(f"{source_name}: {result}")
                 else:
                     results["sources"][source_name] = {
                         "status": "success",
-                        "entries_cached": result
+                        "entries_cached": result,
                     }
                     results["total_entries_cached"] += result
 
         results["completed_at"] = datetime.now(timezone.utc).isoformat()
         duration = (
-            datetime.fromisoformat(results["completed_at"]) -
-            datetime.fromisoformat(results["started_at"])
+            datetime.fromisoformat(results["completed_at"])
+            - datetime.fromisoformat(results["started_at"])
         ).total_seconds()
         results["duration_seconds"] = round(duration, 2)
 
-        logger.info(f"Cache warming completed: {results['total_entries_cached']} entries cached in {duration:.2f}s")
+        logger.info(
+            f"Cache warming completed: {results['total_entries_cached']} entries cached in {duration:.2f}s"
+        )
 
         return results
 
@@ -452,30 +458,30 @@ class CacheMonitoringService:
             "started_at": datetime.now(timezone.utc).isoformat(),
             "sources": {},
             "total_entries_cleared": 0,
-            "errors": []
+            "errors": [],
         }
 
         # Clear caches for all sources
         for source_name, client in self.data_source_clients.items():
             try:
-                if hasattr(client, 'clear_cache'):
+                if hasattr(client, "clear_cache"):
                     entries_cleared = await client.clear_cache()
                     results["sources"][source_name] = {
                         "status": "success",
-                        "entries_cleared": entries_cleared
+                        "entries_cleared": entries_cleared,
                     }
                     results["total_entries_cleared"] += entries_cleared
                 else:
                     results["sources"][source_name] = {
                         "status": "skipped",
-                        "reason": "No clear_cache method available"
+                        "reason": "No clear_cache method available",
                     }
             except Exception as e:
                 logger.error(f"Error clearing {source_name} cache: {e}")
                 results["sources"][source_name] = {
                     "status": "error",
                     "error": str(e),
-                    "entries_cleared": 0
+                    "entries_cleared": 0,
                 }
                 results["errors"].append(f"{source_name}: {e}")
 
@@ -490,7 +496,9 @@ class CacheMonitoringService:
 _monitoring_service: CacheMonitoringService | None = None
 
 
-def get_monitoring_service(db_session: Session | AsyncSession | None = None) -> CacheMonitoringService:
+def get_monitoring_service(
+    db_session: Session | AsyncSession | None = None,
+) -> CacheMonitoringService:
     """Get or create the global cache monitoring service instance."""
     global _monitoring_service
 

@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 # Store active WebSocket connections with event-driven updates
 class ConnectionManager:
     def __init__(self):
@@ -35,31 +36,19 @@ class ConnectionManager:
 
     async def _handle_progress_update(self, data: dict):
         """Handle progress updates from event bus - NO MORE POLLING!"""
-        await self.broadcast({
-            "type": "progress_update",
-            "data": data
-        })
+        await self.broadcast({"type": "progress_update", "data": data})
 
     async def _handle_task_started(self, data: dict):
         """Handle task started events"""
-        await self.broadcast({
-            "type": "task_started",
-            "data": data
-        })
+        await self.broadcast({"type": "task_started", "data": data})
 
     async def _handle_task_completed(self, data: dict):
         """Handle task completed events"""
-        await self.broadcast({
-            "type": "task_completed",
-            "data": data
-        })
+        await self.broadcast({"type": "task_completed", "data": data})
 
     async def _handle_task_failed(self, data: dict):
         """Handle task failed events"""
-        await self.broadcast({
-            "type": "task_failed",
-            "data": data
-        })
+        await self.broadcast({"type": "task_failed", "data": data})
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -89,6 +78,7 @@ class ConnectionManager:
             if conn in self.active_connections:
                 self.active_connections.remove(conn)
 
+
 manager = ConnectionManager()
 
 
@@ -96,7 +86,7 @@ manager = ConnectionManager()
 async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
     """
     WebSocket endpoint for real-time progress updates
-    
+
     OPTIMIZED: No more polling! Updates are pushed via event bus.
     Clients connect to this endpoint to receive live updates about
     data source processing progress through event-driven architecture.
@@ -105,10 +95,7 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
     try:
         # Send initial status of all sources
         all_progress = db.query(DataSourceProgress).all()
-        initial_status = {
-            "type": "initial_status",
-            "data": [p.to_dict() for p in all_progress]
-        }
+        initial_status = {"type": "initial_status", "data": [p.to_dict() for p in all_progress]}
         await websocket.send_json(initial_status)
 
         # NO MORE POLLING! Just keep connection alive
@@ -119,7 +106,7 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                 # Use receive_text with a timeout for keepalive
                 await asyncio.wait_for(
                     websocket.receive_text(),
-                    timeout=30.0  # 30 second timeout for keepalive
+                    timeout=30.0,  # 30 second timeout for keepalive
                 )
             except asyncio.TimeoutError:
                 # Send a ping to keep connection alive
@@ -164,10 +151,7 @@ async def get_all_status(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
 
 
 @router.get("/status/{source_name}")
-async def get_source_status(
-    source_name: str,
-    db: Session = Depends(get_db)
-) -> dict[str, Any]:
+async def get_source_status(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Get status of a specific data source
 
@@ -177,9 +161,7 @@ async def get_source_status(
     Returns:
         Status dictionary for the specified source
     """
-    progress = db.query(DataSourceProgress).filter_by(
-        source_name=source_name
-    ).first()
+    progress = db.query(DataSourceProgress).filter_by(source_name=source_name).first()
 
     if not progress:
         raise HTTPException(status_code=404, detail=f"Source {source_name} not found")
@@ -188,10 +170,7 @@ async def get_source_status(
 
 
 @router.post("/trigger/{source_name}")
-async def trigger_update(
-    source_name: str,
-    db: Session = Depends(get_db)
-) -> dict[str, str]:
+async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dict[str, str]:
     """
     Trigger an update for a specific data source
 
@@ -201,29 +180,42 @@ async def trigger_update(
     Returns:
         Status message
     """
+    logger.info(f"🚀 API TRIGGER ENDPOINT CALLED for source: {source_name}")
+
     from app.core.background_tasks import task_manager
 
-    progress = db.query(DataSourceProgress).filter_by(
-        source_name=source_name
-    ).first()
+    logger.info(f"🚀 API: Imported task_manager: {task_manager}")
+
+    progress = db.query(DataSourceProgress).filter_by(source_name=source_name).first()
+    logger.info(f"🚀 API: Found progress record: {progress}")
 
     if not progress:
+        logger.error(f"🚀 API: Source {source_name} not found in database")
         raise HTTPException(status_code=404, detail=f"Source {source_name} not found")
 
     if progress.status == SourceStatus.running:
+        logger.warning(f"🚀 API: Source {source_name} already running")
         return {"status": "already_running", "message": f"{source_name} is already running"}
 
     # Trigger the update in background
-    asyncio.create_task(task_manager.run_source(source_name))
+    logger.info(f"🚀 API: About to call task_manager.run_source({source_name})")
+    logger.info(f"🚀 API: task_manager object: {task_manager}")
+    logger.info(f"🚀 API: task_manager type: {type(task_manager)}")
 
+    try:
+        task = asyncio.create_task(task_manager.run_source(source_name))
+        logger.info(f"🚀 API: Successfully created asyncio task: {task}")
+        logger.info(f"🚀 API: Task status: {task.done()}")
+    except Exception as e:
+        logger.error(f"🚀 API: Exception creating task: {e}")
+        raise
+
+    logger.info(f"🚀 API: Returning success response for {source_name}")
     return {"status": "triggered", "message": f"Update triggered for {source_name}"}
 
 
 @router.post("/pause/{source_name}")
-def pause_source(
-    source_name: str,
-    db: Session = Depends(get_db)
-) -> dict[str, str]:
+def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, str]:
     """
     Pause a running data source update
 
@@ -233,9 +225,7 @@ def pause_source(
     Returns:
         Status message
     """
-    progress = db.query(DataSourceProgress).filter_by(
-        source_name=source_name
-    ).first()
+    progress = db.query(DataSourceProgress).filter_by(source_name=source_name).first()
 
     if not progress:
         raise HTTPException(status_code=404, detail=f"Source {source_name} not found")
@@ -248,20 +238,17 @@ def pause_source(
     db.commit()
 
     # Broadcast update
-    asyncio.create_task(manager.broadcast({
-        "type": "status_change",
-        "source": source_name,
-        "data": progress.to_dict()
-    }))
+    asyncio.create_task(
+        manager.broadcast(
+            {"type": "status_change", "source": source_name, "data": progress.to_dict()}
+        )
+    )
 
     return {"status": "paused", "message": f"{source_name} has been paused"}
 
 
 @router.post("/resume/{source_name}")
-async def resume_source(
-    source_name: str,
-    db: Session = Depends(get_db)
-) -> dict[str, str]:
+async def resume_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, str]:
     """
     Resume a paused data source update
 
@@ -273,9 +260,7 @@ async def resume_source(
     """
     from app.core.background_tasks import task_manager
 
-    progress = db.query(DataSourceProgress).filter_by(
-        source_name=source_name
-    ).first()
+    progress = db.query(DataSourceProgress).filter_by(source_name=source_name).first()
 
     if not progress:
         raise HTTPException(status_code=404, detail=f"Source {source_name} not found")
@@ -322,7 +307,7 @@ async def get_dashboard_data(db: Session = Depends(get_db)) -> dict[str, Any]:
             "total_items_failed": total_items_failed,
         },
         "sources": [p.to_dict() for p in all_progress],
-        "last_update": datetime.utcnow().isoformat()
+        "last_update": datetime.utcnow().isoformat(),
     }
 
 

@@ -50,10 +50,7 @@ class RetryConfig:
         Uses exponential backoff with optional jitter.
         """
         # Exponential backoff
-        delay = min(
-            self.initial_delay * (self.exponential_base ** attempt),
-            self.max_delay
-        )
+        delay = min(self.initial_delay * (self.exponential_base**attempt), self.max_delay)
 
         # Add jitter to prevent thundering herd
         if self.jitter:
@@ -73,7 +70,7 @@ class CircuitBreaker:
         self,
         failure_threshold: int = 5,
         recovery_timeout: float = 60.0,
-        expected_exception: type[Exception] = Exception
+        expected_exception: type[Exception] = Exception,
     ):
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
@@ -118,8 +115,8 @@ class CircuitBreaker:
     def _should_attempt_reset(self) -> bool:
         """Check if enough time has passed to attempt reset."""
         return (
-            self.last_failure_time is not None and
-            time.time() - self.last_failure_time >= self.recovery_timeout
+            self.last_failure_time is not None
+            and time.time() - self.last_failure_time >= self.recovery_timeout
         )
 
     def _on_success(self):
@@ -138,8 +135,7 @@ class CircuitBreaker:
 
 
 def retry_with_backoff(
-    config: RetryConfig | None = None,
-    circuit_breaker: CircuitBreaker | None = None
+    config: RetryConfig | None = None, circuit_breaker: CircuitBreaker | None = None
 ):
     """
     Decorator for retrying functions with exponential backoff.
@@ -178,7 +174,9 @@ def retry_with_backoff(
                             if retry_after:
                                 try:
                                     delay = float(retry_after)
-                                    logger.info(f"Rate limited. Waiting {delay}s as requested by server")
+                                    logger.info(
+                                        f"Rate limited. Waiting {delay}s as requested by server"
+                                    )
                                 except ValueError:
                                     delay = config.calculate_delay(attempt)
                             else:
@@ -254,7 +252,7 @@ class RetryStrategy:
         initial_delay: float = 1.0,
         max_delay: float = 30.0,
         exponential_base: float = 2.0,
-        jitter: bool = True
+        jitter: bool = True,
     ):
         """Initialize retry strategy with configuration."""
         self.config = RetryConfig(
@@ -262,21 +260,21 @@ class RetryStrategy:
             initial_delay=initial_delay,
             max_delay=max_delay,
             exponential_base=exponential_base,
-            jitter=jitter
+            jitter=jitter,
         )
 
     async def execute_async(self, func: Callable, *args, **kwargs) -> Any:
         """
         Execute an async function with retry logic.
-        
+
         Args:
             func: Async function to execute
             *args: Positional arguments for func
             **kwargs: Keyword arguments for func
-            
+
         Returns:
             Result from successful function execution
-            
+
         Raises:
             Last exception if all retries fail
         """
@@ -304,15 +302,15 @@ class RetryStrategy:
     def execute(self, func: Callable, *args, **kwargs) -> Any:
         """
         Execute a sync function with retry logic.
-        
+
         Args:
             func: Function to execute
             *args: Positional arguments for func
             **kwargs: Keyword arguments for func
-            
+
         Returns:
             Result from successful function execution
-            
+
         Raises:
             Last exception if all retries fail
         """
@@ -347,7 +345,7 @@ class RetryableHTTPClient:
         self,
         client: httpx.AsyncClient,
         retry_config: RetryConfig | None = None,
-        circuit_breaker: CircuitBreaker | None = None
+        circuit_breaker: CircuitBreaker | None = None,
     ):
         self.client = client
         self.retry_config = retry_config or RetryConfig()

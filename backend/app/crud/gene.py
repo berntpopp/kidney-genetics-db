@@ -29,9 +29,7 @@ class CRUDGene:
 
         # For case-insensitive search, still need raw filter
         builder = QueryBuilder(db, Gene)
-        builder.query = builder.query.filter(
-            func.upper(Gene.approved_symbol) == symbol.upper()
-        )
+        builder.query = builder.query.filter(func.upper(Gene.approved_symbol) == symbol.upper())
         return builder.first()
 
     def get_gene_by_symbol(self, db: Session, symbol: str) -> Gene | None:
@@ -44,7 +42,6 @@ class CRUDGene:
 
         builder = QueryBuilder(db, Gene)
         return builder.filter_by(hgnc_id=hgnc_id).first()
-
 
     def count(self, db: Session, search: str | None = None, min_score: float | None = None) -> int:
         """Count genes with filtering using gene_scores view for percentage scores - REFACTORED"""
@@ -140,7 +137,7 @@ class CRUDGene:
                 FROM gene_scores
                 WHERE gene_id = :gene_id
             """),
-            {"gene_id": gene_id}
+            {"gene_id": gene_id},
         ).first()
 
         if result:
@@ -237,19 +234,21 @@ class CRUDGene:
 
         genes = []
         for row in results:
-            genes.append({
-                "id": row[0],
-                "approved_symbol": row[1],
-                "source_count": row[2],
-                "evidence_count": row[3],
-                "raw_score": row[4],
-                "percentage_score": row[5],
-                "total_active_sources": row[6],
-                "hgnc_id": row[7],
-                "aliases": row[8] or [],
-                "created_at": row[9],
-                "updated_at": row[10],
-            })
+            genes.append(
+                {
+                    "id": row[0],
+                    "approved_symbol": row[1],
+                    "source_count": row[2],
+                    "evidence_count": row[3],
+                    "raw_score": row[4],
+                    "percentage_score": row[5],
+                    "total_active_sources": row[6],
+                    "hgnc_id": row[7],
+                    "aliases": row[8] or [],
+                    "created_at": row[9],
+                    "updated_at": row[10],
+                }
+            )
 
         return genes
 
@@ -286,19 +285,22 @@ class CRUDGene:
 
         # Add aggregation for source names
         builder = builder.aggregate(
-            "array_agg",
-            "gene_evidence.source_name",
-            "source_names",
-            distinct=True
+            "array_agg", "gene_evidence.source_name", "source_names", distinct=True
         )
 
         # Group by all gene fields and view fields
         builder = builder.group_by(
-            "id", "approved_symbol", "hgnc_id", "aliases",
-            "created_at", "updated_at",
-            "gene_scores.source_count", "gene_scores.evidence_count",
-            "gene_scores.raw_score", "gene_scores.percentage_score",
-            "gene_scores.total_active_sources"
+            "id",
+            "approved_symbol",
+            "hgnc_id",
+            "aliases",
+            "created_at",
+            "updated_at",
+            "gene_scores.source_count",
+            "gene_scores.evidence_count",
+            "gene_scores.raw_score",
+            "gene_scores.percentage_score",
+            "gene_scores.total_active_sources",
         )
 
         # Add sorting
@@ -381,20 +383,22 @@ class CRUDGene:
 
             genes = []
             for row in results:
-                genes.append({
-                    "id": row[0],
-                    "approved_symbol": row[1],
-                    "source_count": row[2],
-                    "evidence_count": row[3],
-                    "raw_score": row[4],
-                    "percentage_score": row[5],
-                    "total_active_sources": row[6],
-                    "hgnc_id": row[7],
-                    "aliases": row[8] or [],
-                    "created_at": row[9],
-                    "updated_at": row[10],
-                    "source_names": list(row[11]) if row[11] else [],
-                })
+                genes.append(
+                    {
+                        "id": row[0],
+                        "approved_symbol": row[1],
+                        "source_count": row[2],
+                        "evidence_count": row[3],
+                        "raw_score": row[4],
+                        "percentage_score": row[5],
+                        "total_active_sources": row[6],
+                        "hgnc_id": row[7],
+                        "aliases": row[8] or [],
+                        "created_at": row[9],
+                        "updated_at": row[10],
+                        "source_names": list(row[11]) if row[11] else [],
+                    }
+                )
 
             return genes
 
@@ -412,11 +416,7 @@ class CRUDGene:
 
         from app.models.gene import PipelineRun
 
-        run = PipelineRun(
-            status="running",
-            started_at=datetime.now(timezone.utc),
-            stats={}
-        )
+        run = PipelineRun(status="running", started_at=datetime.now(timezone.utc), stats={})
         db.add(run)
         db.commit()
         db.refresh(run)
@@ -431,11 +431,8 @@ class CRUDGene:
 
         # Create new gene
         from app.schemas.gene import GeneCreate
-        gene_data = GeneCreate(
-            hgnc_id=hgnc_id,
-            approved_symbol=symbol,
-            aliases=[]
-        )
+
+        gene_data = GeneCreate(hgnc_id=hgnc_id, approved_symbol=symbol, aliases=[])
         new_gene = self.create(db, gene_data)
         return new_gene.id
 
@@ -444,7 +441,9 @@ class CRUDGene:
         """Deprecated: Use get_genes_with_aggregated_data instead"""
         return self.get_genes_with_aggregated_data(*args, **kwargs)
 
-    def create_gene_evidence(self, db: Session, gene_id: int, source_name: str, evidence_data: dict) -> int:
+    def create_gene_evidence(
+        self, db: Session, gene_id: int, source_name: str, evidence_data: dict
+    ) -> int:
         """Create gene evidence record and return its ID (for test compatibility)"""
         from datetime import datetime, timezone
 
@@ -455,7 +454,7 @@ class CRUDGene:
             source_name=source_name,
             evidence_data=evidence_data,
             created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
+            updated_at=datetime.now(timezone.utc),
         )
         db.add(evidence)
         db.commit()

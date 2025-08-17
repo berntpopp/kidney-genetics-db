@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class PanelAppUnifiedSource(UnifiedDataSource):
     """
     Unified PanelApp client with intelligent caching and async processing.
-    
+
     Features:
     - Multi-region support (UK and Australia)
     - Async-first design with batch processing
@@ -46,7 +46,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
         http_client: CachedHttpClient | None = None,
         db_session: Session | None = None,
         regions: list[str] | None = None,
-        **kwargs
+        **kwargs,
     ):
         """Initialize PanelApp client with multi-region support."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
@@ -60,11 +60,23 @@ class PanelAppUnifiedSource(UnifiedDataSource):
 
         # Kidney-related search terms
         self.kidney_keywords = [
-            "kidney", "renal", "nephro", "glomerul",
-            "tubul", "polycystic", "alport", "nephritis",
-            "cystic", "ciliopathy", "complement", "cakut",
-            "focal segmental", "steroid resistant", "nephrotic",
-            "proteinuria", "hematuria"
+            "kidney",
+            "renal",
+            "nephro",
+            "glomerul",
+            "tubul",
+            "polycystic",
+            "alport",
+            "nephritis",
+            "cystic",
+            "ciliopathy",
+            "complement",
+            "cakut",
+            "focal segmental",
+            "steroid resistant",
+            "nephrotic",
+            "proteinuria",
+            "hematuria",
         ]
 
         # Confidence levels (green list)
@@ -79,7 +91,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
     async def fetch_raw_data(self) -> dict[str, Any]:
         """
         Fetch all kidney-related panels from configured regions.
-        
+
         Returns:
             Dictionary with panels from each region
         """
@@ -107,14 +119,15 @@ class PanelAppUnifiedSource(UnifiedDataSource):
     async def _fetch_region_panels(self, base_url: str, region: str) -> list[dict]:
         """
         Fetch all kidney-related panels from a specific region.
-        
+
         Args:
             base_url: API base URL for the region
             region: Region name for caching
-            
+
         Returns:
             List of panel data with genes
         """
+
         async def _fetch_panels():
             """Internal function to fetch panels."""
             all_panels = []
@@ -159,9 +172,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
         # Use unified caching
         cache_key = f"panels:{region}"
         panels = await self.fetch_with_cache(
-            cache_key=cache_key,
-            fetch_func=_fetch_panels,
-            ttl=self.cache_ttl
+            cache_key=cache_key, fetch_func=_fetch_panels, ttl=self.cache_ttl
         )
 
         return panels or []
@@ -171,12 +182,12 @@ class PanelAppUnifiedSource(UnifiedDataSource):
     ) -> dict | None:
         """
         Fetch detailed panel information including genes.
-        
+
         Args:
             base_url: API base URL
             panel_id: Panel identifier
             panel_name: Panel name for logging
-            
+
         Returns:
             Panel data with genes or None
         """
@@ -199,10 +210,10 @@ class PanelAppUnifiedSource(UnifiedDataSource):
     async def process_data(self, raw_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process panel data into structured gene information.
-        
+
         Args:
             raw_data: Dictionary with panels from each region
-            
+
         Returns:
             Dictionary mapping gene symbols to aggregated data
         """
@@ -266,7 +277,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
                             gene_data_map[symbol]["modes_of_inheritance"].add(moi)
 
         # Convert sets to lists for JSON serialization
-        for symbol, data in gene_data_map.items():
+        for _symbol, data in gene_data_map.items():
             data["regions"] = list(data["regions"])
             data["phenotypes"] = list(data["phenotypes"])
             data["modes_of_inheritance"] = list(data["modes_of_inheritance"])
@@ -285,7 +296,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
     def is_kidney_related(self, record: dict[str, Any]) -> bool:
         """
         Check if a gene record is kidney-related.
-        
+
         Always returns True as we pre-filter panels.
         """
         return True
@@ -293,10 +304,10 @@ class PanelAppUnifiedSource(UnifiedDataSource):
     def _is_kidney_related_panel(self, panel: dict) -> bool:
         """
         Check if a panel is kidney-related based on name and description.
-        
+
         Args:
             panel: Panel data
-            
+
         Returns:
             True if panel is kidney-related
         """
@@ -330,10 +341,10 @@ class PanelAppUnifiedSource(UnifiedDataSource):
     def _get_source_detail(self, evidence_data: dict[str, Any]) -> str:
         """
         Generate source detail string for evidence.
-        
+
         Args:
             evidence_data: Evidence data
-            
+
         Returns:
             Source detail string
         """

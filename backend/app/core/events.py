@@ -47,10 +47,7 @@ class EventBus:
         while self._running:
             try:
                 # Wait for events with a timeout to allow checking _running flag
-                event_type, data = await asyncio.wait_for(
-                    self._queue.get(),
-                    timeout=1.0
-                )
+                event_type, data = await asyncio.wait_for(self._queue.get(), timeout=1.0)
 
                 # Call all subscribers for this event type
                 subscribers = self._subscribers.get(event_type, [])
@@ -72,7 +69,7 @@ class EventBus:
     async def publish(self, event_type: str, data: Any):
         """
         Publish an event to all subscribers.
-        
+
         Args:
             event_type: Type of event (e.g., 'progress_update', 'task_complete')
             data: Event data to send to subscribers
@@ -83,7 +80,7 @@ class EventBus:
     def subscribe(self, event_type: str, callback: Callable):
         """
         Subscribe to an event type.
-        
+
         Args:
             event_type: Type of event to subscribe to
             callback: Function to call when event is published
@@ -94,7 +91,7 @@ class EventBus:
     def unsubscribe(self, event_type: str, callback: Callable):
         """
         Unsubscribe from an event type.
-        
+
         Args:
             event_type: Type of event to unsubscribe from
             callback: Function to remove from subscribers
@@ -120,6 +117,7 @@ event_bus = EventBus()
 # Event types as constants to avoid typos
 class EventTypes:
     """Standard event types used in the application"""
+
     PROGRESS_UPDATE = "progress_update"
     TASK_STARTED = "task_started"
     TASK_COMPLETED = "task_completed"

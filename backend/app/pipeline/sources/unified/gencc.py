@@ -46,7 +46,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
         cache_service: CacheService | None = None,
         http_client: CachedHttpClient | None = None,
         db_session: Session | None = None,
-        **kwargs
+        **kwargs,
     ):
         """Initialize GenCC client with caching and HTTP services."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
@@ -56,9 +56,18 @@ class GenCCUnifiedSource(UnifiedDataSource):
 
         # Kidney-related keywords for filtering
         self.kidney_keywords = [
-            "kidney", "renal", "nephro", "glomerul",
-            "tubul", "polycystic", "alport", "nephritis",
-            "cystic", "ciliopathy", "complement", "cakut"
+            "kidney",
+            "renal",
+            "nephro",
+            "glomerul",
+            "tubul",
+            "polycystic",
+            "alport",
+            "nephritis",
+            "cystic",
+            "ciliopathy",
+            "complement",
+            "cakut",
         ]
 
         # GenCC classification weights for evidence scoring
@@ -88,6 +97,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
         Returns:
             Pandas DataFrame with GenCC submissions
         """
+
         async def _fetch_gencc_data():
             """Internal function to fetch GenCC data."""
             logger.info(f"📥 Downloading GenCC submissions from: {self.download_url}")
@@ -96,7 +106,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
             # Use cached HTTP client for download
             response = await self.http_client.get(
                 self.download_url,
-                timeout=120  # Longer timeout for large file
+                timeout=120,  # Longer timeout for large file
             )
 
             if response.status_code != 200:
@@ -114,9 +124,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
         # Use unified caching pattern
         cache_key = "excel_file"
         df = await self.fetch_with_cache(
-            cache_key=cache_key,
-            fetch_func=_fetch_gencc_data,
-            ttl=self.cache_ttl
+            cache_key=cache_key, fetch_func=_fetch_gencc_data, ttl=self.cache_ttl
         )
 
         logger.info(f"✅ GenCC data ready: {len(df)} submissions")
@@ -170,9 +178,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
             gene_data_map[symbol]["submitters"].add(gene_info["submitter"])
 
             if gene_info["mode_of_inheritance"]:
-                gene_data_map[symbol]["modes_of_inheritance"].add(
-                    gene_info["mode_of_inheritance"]
-                )
+                gene_data_map[symbol]["modes_of_inheritance"].add(gene_info["mode_of_inheritance"])
 
         # Convert sets to lists for JSON serialization
         for _symbol, data in gene_data_map.items():
@@ -209,8 +215,14 @@ class GenCCUnifiedSource(UnifiedDataSource):
 
         # GenCC-specific field names for disease information
         disease_fields = [
-            'disease_title', 'disease_original_title', 'submitted_as_disease_name',
-            'disease_name', 'condition', 'disease', 'phenotype', 'disorder'
+            "disease_title",
+            "disease_original_title",
+            "submitted_as_disease_name",
+            "disease_name",
+            "condition",
+            "disease",
+            "phenotype",
+            "disorder",
         ]
 
         for field in disease_fields:
@@ -219,7 +231,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
 
         # Also check description fields
         for field in row.index:
-            if 'description' in field.lower() and pd.notna(row[field]):
+            if "description" in field.lower() and pd.notna(row[field]):
                 text_fields.append(str(row[field]).lower())
 
         # Combine all text
@@ -242,7 +254,11 @@ class GenCCUnifiedSource(UnifiedDataSource):
             # Extract gene symbol
             symbol = None
             gene_fields = [
-                'gene_symbol', 'submitted_as_hgnc_symbol', 'symbol', 'gene', 'hgnc_symbol'
+                "gene_symbol",
+                "submitted_as_hgnc_symbol",
+                "symbol",
+                "gene",
+                "hgnc_symbol",
             ]
             for field in gene_fields:
                 if field in row.index and pd.notna(row[field]):
@@ -254,7 +270,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
 
             # Extract HGNC ID
             hgnc_id = None
-            hgnc_fields = ['submitted_as_hgnc_id', 'hgnc_id', 'hgnc']
+            hgnc_fields = ["submitted_as_hgnc_id", "hgnc_id", "hgnc"]
             for field in hgnc_fields:
                 if field in row.index and pd.notna(row[field]):
                     hgnc_id = str(row[field]).strip()
@@ -263,8 +279,13 @@ class GenCCUnifiedSource(UnifiedDataSource):
             # Extract disease information
             disease_name = ""
             disease_fields = [
-                'disease_title', 'disease_original_title', 'submitted_as_disease_name',
-                'disease_name', 'condition', 'disease', 'phenotype'
+                "disease_title",
+                "disease_original_title",
+                "submitted_as_disease_name",
+                "disease_name",
+                "condition",
+                "disease",
+                "phenotype",
             ]
             for field in disease_fields:
                 if field in row.index and pd.notna(row[field]):
@@ -274,8 +295,11 @@ class GenCCUnifiedSource(UnifiedDataSource):
             # Extract classification
             classification = ""
             classification_fields = [
-                'classification_title', 'submitted_as_classification_name',
-                'classification', 'validity', 'confidence'
+                "classification_title",
+                "submitted_as_classification_name",
+                "classification",
+                "validity",
+                "confidence",
             ]
             for field in classification_fields:
                 if field in row.index and pd.notna(row[field]):
@@ -285,8 +309,11 @@ class GenCCUnifiedSource(UnifiedDataSource):
             # Extract submitter
             submitter = ""
             submitter_fields = [
-                'submitter_title', 'submitted_as_submitter_name',
-                'submitter', 'source', 'submitting_organization'
+                "submitter_title",
+                "submitted_as_submitter_name",
+                "submitter",
+                "source",
+                "submitting_organization",
             ]
             for field in submitter_fields:
                 if field in row.index and pd.notna(row[field]):
@@ -296,8 +323,11 @@ class GenCCUnifiedSource(UnifiedDataSource):
             # Extract mode of inheritance
             mode_of_inheritance = ""
             moi_fields = [
-                'moi_title', 'submitted_as_moi_name',
-                'mode_of_inheritance', 'inheritance', 'moi'
+                "moi_title",
+                "submitted_as_moi_name",
+                "mode_of_inheritance",
+                "inheritance",
+                "moi",
             ]
             for field in moi_fields:
                 if field in row.index and pd.notna(row[field]):
@@ -307,13 +337,23 @@ class GenCCUnifiedSource(UnifiedDataSource):
             # Extract submission date
             submission_date = ""
             date_fields = [
-                'submitted_as_date', 'submitted_run_date', 'date',
-                'submission_date', 'last_updated'
+                "submitted_as_date",
+                "submitted_run_date",
+                "date",
+                "submission_date",
+                "last_updated",
             ]
             for field in date_fields:
                 if field in row.index and pd.notna(row[field]):
                     submission_date = str(row[field]).strip()
                     break
+
+            # Handle NaN values in raw data
+            raw_data = row.to_dict()
+            # Replace NaN values with None for JSON serialization
+            for key, value in raw_data.items():
+                if pd.isna(value):
+                    raw_data[key] = None
 
             return {
                 "symbol": symbol,
@@ -323,7 +363,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
                 "submitter": submitter,
                 "mode_of_inheritance": mode_of_inheritance,
                 "submission_date": submission_date,
-                "raw_data": row.to_dict()  # Store full record for reference
+                "raw_data": raw_data,  # Store full record with NaN values replaced
             }
 
         except Exception as e:

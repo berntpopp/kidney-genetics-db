@@ -17,7 +17,6 @@ from app.schemas.datasource import DataSource, DataSourceList, DataSourceStats
 router = APIRouter()
 
 
-
 @router.get("/", response_model=DataSourceList)
 async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
@@ -93,7 +92,9 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             elif source_name == "PubTator" and pubtator_metadata:
                 stats.metadata["total_publications"] = pubtator_metadata[0] or 0
                 stats.metadata["unique_pmids"] = pubtator_metadata[1] or 0
-                stats.metadata["search_query"] = '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)'
+                stats.metadata["search_query"] = (
+                    '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)'
+                )
 
             status = "active"
         else:
@@ -156,7 +157,7 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
             FROM gene_evidence
             WHERE source_name = :source_name
         """),
-        {"source_name": source_name}
+        {"source_name": source_name},
     ).fetchone()
 
     if stats and stats[0] > 0:
@@ -180,7 +181,7 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
                 ORDER BY gep.source_count_percentile DESC
                 LIMIT 10
             """),
-            {"source_name": source_name}
+            {"source_name": source_name},
         ).fetchall()
 
         return {
@@ -245,7 +246,7 @@ async def update_all_datasources(db: Session = Depends(get_db)) -> dict[str, Any
         return {
             "message": f"Updates triggered for {len(sources)} sources",
             "sources": sources,
-            "status": "started"
+            "status": "started",
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start updates: {str(e)}") from e

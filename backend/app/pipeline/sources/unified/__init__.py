@@ -36,14 +36,14 @@ SOURCE_MAP = {
 def get_unified_source(source_name: str, **kwargs) -> UnifiedDataSource:
     """
     Factory function to get appropriate unified data source client.
-    
+
     Args:
         source_name: Name of the data source
         **kwargs: Additional arguments for client initialization
-        
+
     Returns:
         Appropriate UnifiedDataSource instance
-        
+
     Raises:
         ValueError: If source_name is not recognized
     """

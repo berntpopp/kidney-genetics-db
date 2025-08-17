@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class ClinGenUnifiedSource(UnifiedDataSource):
     """
     Unified ClinGen client with intelligent caching and async processing.
-    
+
     Features:
     - Async-first design with batch processing
     - Kidney expert panel gene validity assessments
@@ -44,7 +44,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         cache_service: CacheService | None = None,
         http_client: CachedHttpClient | None = None,
         db_session: Session | None = None,
-        **kwargs
+        **kwargs,
     ):
         """Initialize ClinGen client with gene validity assessment capabilities."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
@@ -75,21 +75,32 @@ class ClinGenUnifiedSource(UnifiedDataSource):
 
         # Kidney disease keywords
         self.kidney_keywords = [
-            "kidney", "renal", "nephro", "glomerul",
-            "tubul", "polycystic", "alport", "nephritis",
-            "cystic", "ciliopathy", "complement", "cakut"
+            "kidney",
+            "renal",
+            "nephro",
+            "glomerul",
+            "tubul",
+            "polycystic",
+            "alport",
+            "nephritis",
+            "cystic",
+            "ciliopathy",
+            "complement",
+            "cakut",
         ]
 
-        logger.info(f"ClinGenUnifiedSource initialized with {len(self.kidney_affiliate_ids)} kidney panels")
+        logger.info(
+            f"ClinGenUnifiedSource initialized with {len(self.kidney_affiliate_ids)} kidney panels"
+        )
 
     def _get_default_ttl(self) -> int:
         """Get default TTL for ClinGen data."""
-        return settings.CACHE_TTL_CLINGEN if hasattr(settings, 'CACHE_TTL_CLINGEN') else 86400
+        return settings.CACHE_TTL_CLINGEN if hasattr(settings, "CACHE_TTL_CLINGEN") else 86400
 
     async def fetch_raw_data(self) -> dict[str, Any]:
         """
         Fetch gene validity assessments from kidney expert panels.
-        
+
         Returns:
             Dictionary with validity assessments from all panels
         """
@@ -111,19 +122,20 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             "validities": all_validities,
             "panel_stats": panel_stats,
             "total_records": len(all_validities),
-            "fetch_date": datetime.now(timezone.utc).isoformat()
+            "fetch_date": datetime.now(timezone.utc).isoformat(),
         }
 
     async def _fetch_affiliate_data(self, affiliate_id: int) -> list[dict[str, Any]]:
         """
         Fetch gene validity data from a specific ClinGen affiliate.
-        
+
         Args:
             affiliate_id: ClinGen affiliate/expert panel ID
-            
+
         Returns:
             List of gene validity records
         """
+
         async def _fetch_panel():
             """Internal function to fetch panel data."""
             url = f"{self.base_url}/affiliates/{affiliate_id}"
@@ -135,7 +147,9 @@ class ClinGenUnifiedSource(UnifiedDataSource):
                     data = response.json()
                     return data.get("rows", [])
                 else:
-                    logger.error(f"Failed to fetch affiliate {affiliate_id}: HTTP {response.status_code}")
+                    logger.error(
+                        f"Failed to fetch affiliate {affiliate_id}: HTTP {response.status_code}"
+                    )
                     return []
 
             except Exception as e:
@@ -145,9 +159,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         # Use unified caching
         cache_key = f"affiliate:{affiliate_id}"
         validities = await self.fetch_with_cache(
-            cache_key=cache_key,
-            fetch_func=_fetch_panel,
-            ttl=self.cache_ttl
+            cache_key=cache_key, fetch_func=_fetch_panel, ttl=self.cache_ttl
         )
 
         return validities or []
@@ -155,10 +167,10 @@ class ClinGenUnifiedSource(UnifiedDataSource):
     async def process_data(self, raw_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process ClinGen validity assessments into structured gene information.
-        
+
         Args:
             raw_data: Raw data with validity assessments
-            
+
         Returns:
             Dictionary mapping gene symbols to aggregated data
         """
@@ -213,7 +225,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
                 gene_data_map[symbol]["max_classification_score"] = score
 
         # Convert sets to lists and calculate final scores
-        for symbol, data in gene_data_map.items():
+        for _symbol, data in gene_data_map.items():
             data["diseases"] = list(data["diseases"])
             data["classifications"] = list(data["classifications"])
             data["expert_panels"] = list(data["expert_panels"])
@@ -237,10 +249,10 @@ class ClinGenUnifiedSource(UnifiedDataSource):
     def is_kidney_related(self, validity: dict[str, Any]) -> bool:
         """
         Check if a gene validity assessment is kidney-related.
-        
+
         Args:
             validity: Gene validity record
-            
+
         Returns:
             True if kidney-related
         """
@@ -257,7 +269,14 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         # Since these are from kidney-specific panels, be more permissive
         if not is_kidney and disease_name:
             # Exclude obviously non-kidney conditions
-            excluded_terms = ["hearing", "intellectual", "developmental", "cardiac", "retinal", "ocular"]
+            excluded_terms = [
+                "hearing",
+                "intellectual",
+                "developmental",
+                "cardiac",
+                "retinal",
+                "ocular",
+            ]
             has_excluded = any(term in combined_text for term in excluded_terms)
 
             if not has_excluded:
@@ -269,10 +288,10 @@ class ClinGenUnifiedSource(UnifiedDataSource):
     def _extract_gene_info(self, validity: dict[str, Any]) -> dict[str, Any] | None:
         """
         Extract gene information from validity record.
-        
+
         Args:
             validity: Gene validity record
-            
+
         Returns:
             Gene information dictionary or None
         """
@@ -296,10 +315,10 @@ class ClinGenUnifiedSource(UnifiedDataSource):
     def _get_source_detail(self, evidence_data: dict[str, Any]) -> str:
         """
         Generate source detail string for evidence.
-        
+
         Args:
             evidence_data: Evidence data
-            
+
         Returns:
             Source detail string
         """

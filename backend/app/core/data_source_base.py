@@ -12,8 +12,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.core.cache_service import CacheService, get_cache_service
-from app.core.cached_http_client import CachedHttpClient, get_cached_http_client
+from app.core.cache_service import CacheService
+from app.core.cached_http_client import CachedHttpClient
 from app.core.progress_tracker import ProgressTracker
 from app.crud.gene import gene_crud
 from app.models.gene import Gene, GeneEvidence
@@ -35,11 +35,14 @@ class DataSourceClient(ABC):
         self,
         cache_service: CacheService | None = None,
         http_client: CachedHttpClient | None = None,
-        db_session: Session | None = None
+        db_session: Session | None = None,
     ):
         """Initialize the data source client with shared services."""
-        self.cache_service = cache_service or get_cache_service(db_session)
-        self.http_client = http_client or get_cached_http_client(cache_service, db_session)
+        # BUGFIX: Removed the faulty 'or' logic. The dependencies are now
+        # correctly created and passed in by the UnifiedDataSource or TaskMixin.
+        # This constructor should simply assign them.
+        self.cache_service = cache_service
+        self.http_client = http_client
         self.db_session = db_session
 
     @property
@@ -139,8 +142,8 @@ class DataSourceClient(ABC):
             # Step 4: Finalize
             stats["completed_at"] = datetime.now(timezone.utc).isoformat()
             stats["duration"] = (
-                datetime.fromisoformat(stats["completed_at"]) -
-                datetime.fromisoformat(stats["started_at"])
+                datetime.fromisoformat(stats["completed_at"])
+                - datetime.fromisoformat(stats["started_at"])
             ).total_seconds()
 
             logger.info(
@@ -178,7 +181,7 @@ class DataSourceClient(ABC):
             "errors": 0,
             "started_at": datetime.now(timezone.utc).isoformat(),
             "completed_at": None,
-            "duration": None
+            "duration": None,
         }
 
     async def _store_genes_in_database(
@@ -186,7 +189,7 @@ class DataSourceClient(ABC):
         db: Session,
         gene_data: dict[str, Any],
         stats: dict[str, Any],
-        tracker: ProgressTracker
+        tracker: ProgressTracker,
     ) -> None:
         """
         Store processed gene data in the database.
@@ -202,7 +205,7 @@ class DataSourceClient(ABC):
             stats: Statistics dictionary to update
             tracker: Progress tracker for updates
         """
-        from app.core.gene_normalization_async import normalize_genes_batch_async
+        from app.core.gene_normalizer import normalize_genes_batch_async
 
         # Get list of gene symbols for batch normalization
         gene_symbols = list(gene_data.keys())
@@ -216,9 +219,7 @@ class DataSourceClient(ABC):
             end_idx = min(start_idx + batch_size, len(gene_symbols))
             batch_symbols = gene_symbols[start_idx:end_idx]
 
-            tracker.update(
-                operation=f"Processing gene batch {batch_num + 1}/{total_batches}"
-            )
+            tracker.update(operation=f"Processing gene batch {batch_num + 1}/{total_batches}")
 
             # Normalize gene symbols
             normalization_results = await normalize_genes_batch_async(
@@ -238,15 +239,11 @@ class DataSourceClient(ABC):
                         continue
 
                     # Get or create gene
-                    gene = await self._get_or_create_gene(
-                        db, norm_result, symbol, stats
-                    )
+                    gene = await self._get_or_create_gene(db, norm_result, symbol, stats)
 
                     if gene:
                         # Create or update evidence
-                        await self._create_or_update_evidence(
-                            db, gene, data, stats
-                        )
+                        await self._create_or_update_evidence(db, gene, data, stats)
 
                 except Exception as e:
                     logger.error(f"Error processing gene {symbol}: {e}")
@@ -256,11 +253,7 @@ class DataSourceClient(ABC):
             db.commit()
 
     async def _get_or_create_gene(
-        self,
-        db: Session,
-        norm_result: dict[str, Any],
-        original_symbol: str,
-        stats: dict[str, Any]
+        self, db: Session, norm_result: dict[str, Any], original_symbol: str, stats: dict[str, Any]
     ) -> Gene | None:
         """Get existing gene or create new one from normalization result."""
         approved_symbol = norm_result.get("approved_symbol")
@@ -269,33 +262,56 @@ class DataSourceClient(ABC):
         if not approved_symbol:
             return None
 
-        # Try to get existing gene
+        # Try to get existing gene by symbol first
         gene = gene_crud.get_by_symbol(db, approved_symbol)
+
+        # If not found by symbol, try by HGNC ID (in case of symbol changes)
+        if not gene and hgnc_id:
+            gene = db.query(Gene).filter(Gene.hgnc_id == hgnc_id).first()
 
         if not gene:
             try:
                 gene_create = GeneCreate(
                     approved_symbol=approved_symbol,
                     hgnc_id=hgnc_id,
-                    aliases=[original_symbol] if original_symbol != approved_symbol else []
+                    aliases=[original_symbol] if original_symbol != approved_symbol else [],
                 )
                 gene = gene_crud.create(db, gene_create)
                 stats["genes_created"] += 1
-                logger.debug(f"Created new gene: {approved_symbol}")
+                logger.debug(f"Created new gene: {approved_symbol} (HGNC:{hgnc_id})")
             except Exception as e:
-                logger.error(f"Error creating gene {approved_symbol}: {e}")
-                return None
+                # Handle race condition: another task may have created the gene
+                if "unique constraint" in str(e).lower() or "duplicate key" in str(e).lower():
+                    logger.debug(
+                        f"Gene constraint violation, retrying fetch: {approved_symbol} (HGNC:{hgnc_id})"
+                    )
+
+                    # Try to get the gene that was created by another task
+                    # Check both symbol and HGNC ID constraints
+                    gene = gene_crud.get_by_symbol(db, approved_symbol)
+                    if not gene and hgnc_id:
+                        gene = db.query(Gene).filter(Gene.hgnc_id == hgnc_id).first()
+
+                    if gene:
+                        stats["genes_updated"] += 1
+                        logger.debug(
+                            f"Found gene after race condition: {gene.approved_symbol} (HGNC:{gene.hgnc_id})"
+                        )
+                    else:
+                        logger.error(
+                            f"Race condition: gene still not found after creation attempt: {approved_symbol} (HGNC:{hgnc_id})"
+                        )
+                        return None
+                else:
+                    logger.error(f"Error creating gene {approved_symbol} (HGNC:{hgnc_id}): {e}")
+                    return None
         else:
             stats["genes_updated"] += 1
 
         return gene
 
     async def _create_or_update_evidence(
-        self,
-        db: Session,
-        gene: Gene,
-        evidence_data: dict[str, Any],
-        stats: dict[str, Any]
+        self, db: Session, gene: Gene, evidence_data: dict[str, Any], stats: dict[str, Any]
     ) -> None:
         """Create or update evidence record for a gene."""
         try:
@@ -342,7 +358,7 @@ class DataSourceClient(ABC):
             return [self._clean_data_for_json(item) for item in data]
         elif isinstance(data, set):
             return list(data)  # Convert sets to lists
-        elif str(data).lower() in ('nan', 'none', 'null') or data is None:
+        elif str(data).lower() in ("nan", "none", "null") or data is None:
             return ""
         else:
             return data
@@ -387,6 +403,7 @@ def get_data_source_client(source_name: str, **kwargs) -> DataSourceClient:
 
     try:
         import importlib
+
         module = importlib.import_module(module_path)
         client_class = getattr(module, class_name)
         return client_class(**kwargs)

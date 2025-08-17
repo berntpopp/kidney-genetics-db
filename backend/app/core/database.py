@@ -81,7 +81,9 @@ connection_stats = {
 def increment_connect(dbapi_conn, connection_record):
     """Track new connections created"""
     connection_stats["connections_created"] += 1
-    logger.debug(f"New database connection created. Total: {connection_stats['connections_created']}")
+    logger.debug(
+        f"New database connection created. Total: {connection_stats['connections_created']}"
+    )
 
 
 @event.listens_for(Pool, "close")

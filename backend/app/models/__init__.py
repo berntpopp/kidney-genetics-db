@@ -19,5 +19,5 @@ __all__ = [
     "GeneNormalizationStaging",
     "GeneNormalizationLog",
     "DataSourceProgress",
-    "SourceStatus"
+    "SourceStatus",
 ]

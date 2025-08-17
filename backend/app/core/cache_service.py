@@ -25,7 +25,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class CacheEntry:
@@ -37,17 +37,14 @@ class CacheEntry:
         value: Any,
         namespace: str = "default",
         ttl: int | None = None,
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ):
         self.key = key
         self.value = value
         self.namespace = namespace
         self.created_at = datetime.now(timezone.utc)
         self.ttl = ttl
-        self.expires_at = (
-            self.created_at + timedelta(seconds=ttl)
-            if ttl is not None else None
-        )
+        self.expires_at = self.created_at + timedelta(seconds=ttl) if ttl is not None else None
         self.last_accessed = self.created_at
         self.access_count = 1
         self.metadata = metadata or {}
@@ -94,7 +91,7 @@ class CacheStats:
             "hit_rate": self.hit_rate,
             "total_size": self.total_size,
             "memory_entries": self.memory_entries,
-            "db_entries": self.db_entries
+            "db_entries": self.db_entries,
         }
 
 
@@ -162,14 +159,19 @@ class CacheService:
             # Handle pandas DataFrames
             try:
                 import pandas as pd
+
                 if isinstance(value, pd.DataFrame):
                     # Convert DataFrame to JSON-serializable dict
-                    return json.dumps({
-                        '_type': 'dataframe',
-                        'data': value.to_dict(orient='records'),
-                        'columns': list(value.columns),
-                        'index': list(value.index)
-                    }, default=str, ensure_ascii=False)
+                    return json.dumps(
+                        {
+                            "_type": "dataframe",
+                            "data": value.to_dict(orient="records"),
+                            "columns": list(value.columns),
+                            "index": list(value.index),
+                        },
+                        default=str,
+                        ensure_ascii=False,
+                    )
             except ImportError:
                 # pandas not available, continue with regular serialization
                 pass
@@ -190,11 +192,12 @@ class CacheService:
 
             # If it's already a dict/list/bool/number, check for DataFrame format
             if isinstance(serialized, dict):
-                if serialized.get('_type') == 'dataframe':
+                if serialized.get("_type") == "dataframe":
                     # Reconstruct DataFrame
                     try:
                         import pandas as pd
-                        return pd.DataFrame(serialized['data'])
+
+                        return pd.DataFrame(serialized["data"])
                     except ImportError:
                         # pandas not available, return as dict
                         return serialized
@@ -211,31 +214,31 @@ class CacheService:
 
                 data = json.loads(serialized)
                 # Check if it's a serialized DataFrame
-                if isinstance(data, dict) and data.get('_type') == 'dataframe':
+                if isinstance(data, dict) and data.get("_type") == "dataframe":
                     try:
                         import pandas as pd
-                        return pd.DataFrame(data['data'])
+
+                        return pd.DataFrame(data["data"])
                     except ImportError:
                         # pandas not available, return as dict
                         return data
                 return data
 
             # Handle other types by converting to string first
-            logger.warning(f"Unexpected type {type(serialized)} for cache value, converting to string")
+            logger.warning(
+                f"Unexpected type {type(serialized)} for cache value, converting to string"
+            )
             return json.loads(str(serialized))
 
         except (TypeError, ValueError) as e:
             logger.error(f"Error deserializing value: {e}")
-            logger.debug(f"Failed to deserialize: {repr(str(serialized)[:100] if serialized else serialized)}")
+            logger.debug(
+                f"Failed to deserialize: {repr(str(serialized)[:100] if serialized else serialized)}"
+            )
             # Return None instead of raising to allow graceful recovery
             return None
 
-    async def get(
-        self,
-        key: Any,
-        namespace: str = "default",
-        default: Any = None
-    ) -> Any:
+    async def get(self, key: Any, namespace: str = "default", default: Any = None) -> Any:
         """
         Get a value from cache.
 
@@ -286,11 +289,7 @@ class CacheService:
             return default
 
     async def set(
-        self,
-        key: Any,
-        value: Any,
-        namespace: str = "default",
-        ttl: int | None = None
+        self, key: Any, value: Any, namespace: str = "default", ttl: int | None = None
     ) -> bool:
         """
         Set a value in cache.
@@ -355,7 +354,7 @@ class CacheService:
         key: Any,
         fetch_func: Callable[[], Any],
         namespace: str = "default",
-        ttl: int | None = None
+        ttl: int | None = None,
     ) -> Any:
         """
         Get value from cache or fetch and cache it.
@@ -391,10 +390,7 @@ class CacheService:
             count = 0
 
             # L1 Cache: Clear memory entries
-            keys_to_remove = [
-                k for k, v in self.memory_cache.items()
-                if v.namespace == namespace
-            ]
+            keys_to_remove = [k for k, v in self.memory_cache.items() if v.namespace == namespace]
             for key in keys_to_remove:
                 del self.memory_cache[key]
                 count += 1
@@ -422,10 +418,7 @@ class CacheService:
 
             # L1 Cache: Clean expired memory entries
             datetime.now(timezone.utc)
-            expired_keys = [
-                k for k, v in self.memory_cache.items()
-                if v.is_expired()
-            ]
+            expired_keys = [k for k, v in self.memory_cache.items() if v.is_expired()]
             for key in expired_keys:
                 del self.memory_cache[key]
                 count += 1
@@ -518,7 +511,7 @@ class CacheService:
             # For JSONB column, we can store the value directly as dict/list
             # No need to serialize to string
             data_value = entry.value
-            data_size = len(json.dumps(data_value).encode('utf-8'))
+            data_size = len(json.dumps(data_value).encode("utf-8"))
 
             query = text("""
                 INSERT INTO cache_entries
@@ -537,29 +530,36 @@ class CacheService:
             from sqlalchemy.ext.asyncio import AsyncSession
 
             if isinstance(self.db_session, AsyncSession):
-                await self.db_session.execute(query, {
-                    "cache_key": cache_key,
-                    "namespace": entry.namespace,
-                    "data": json.dumps(data_value),  # Pass as JSON string for JSONB casting
-                    "expires_at": entry.expires_at,
-                    "data_size": data_size,
-                    "metadata": json.dumps(entry.metadata)
-                })
+                await self.db_session.execute(
+                    query,
+                    {
+                        "cache_key": cache_key,
+                        "namespace": entry.namespace,
+                        "data": json.dumps(data_value),  # Pass as JSON string for JSONB casting
+                        "expires_at": entry.expires_at,
+                        "data_size": data_size,
+                        "metadata": json.dumps(entry.metadata),
+                    },
+                )
                 await self.db_session.commit()
             else:
-                self.db_session.execute(query, {
-                    "cache_key": cache_key,
-                    "namespace": entry.namespace,
-                    "data": json.dumps(data_value),  # Pass as JSON string for JSONB casting
-                    "expires_at": entry.expires_at,
-                    "data_size": data_size,
-                    "metadata": json.dumps(entry.metadata)
-                })
+                self.db_session.execute(
+                    query,
+                    {
+                        "cache_key": cache_key,
+                        "namespace": entry.namespace,
+                        "data": json.dumps(data_value),  # Pass as JSON string for JSONB casting
+                        "expires_at": entry.expires_at,
+                        "data_size": data_size,
+                        "metadata": json.dumps(entry.metadata),
+                    },
+                )
                 self.db_session.commit()
             return True
 
         except Exception as e:
             from sqlalchemy.ext.asyncio import AsyncSession
+
             if isinstance(self.db_session, AsyncSession):
                 await self.db_session.rollback()
             else:
@@ -586,6 +586,7 @@ class CacheService:
 
         except Exception as e:
             from sqlalchemy.ext.asyncio import AsyncSession
+
             if isinstance(self.db_session, AsyncSession):
                 await self.db_session.rollback()
             else:
@@ -616,6 +617,7 @@ class CacheService:
 
         except Exception as e:
             from sqlalchemy.ext.asyncio import AsyncSession
+
             if isinstance(self.db_session, AsyncSession):
                 await self.db_session.rollback()
             else:
@@ -641,6 +643,7 @@ class CacheService:
 
         except Exception as e:
             from sqlalchemy.ext.asyncio import AsyncSession
+
             if isinstance(self.db_session, AsyncSession):
                 await self.db_session.rollback()
             else:
@@ -671,6 +674,7 @@ class CacheService:
 
         except Exception as e:
             from sqlalchemy.ext.asyncio import AsyncSession
+
             if isinstance(self.db_session, AsyncSession):
                 await self.db_session.rollback()
             else:
@@ -750,12 +754,13 @@ def get_cache_service(db_session: Session | AsyncSession | None = None) -> Cache
 
 # Convenience functions
 
+
 async def cached(
     key: str,
     fetch_func: Callable[[], T],
     namespace: str = "default",
     ttl: int | None = None,
-    db_session: Session | AsyncSession | None = None
+    db_session: Session | AsyncSession | None = None,
 ) -> T:
     """
     Decorator-style function for caching.
@@ -771,7 +776,7 @@ async def cache_get(
     key: str,
     namespace: str = "default",
     default: Any = None,
-    db_session: Session | AsyncSession | None = None
+    db_session: Session | AsyncSession | None = None,
 ) -> Any:
     """Get a value from cache."""
     cache = get_cache_service(db_session)
@@ -783,7 +788,7 @@ async def cache_set(
     value: Any,
     namespace: str = "default",
     ttl: int | None = None,
-    db_session: Session | AsyncSession | None = None
+    db_session: Session | AsyncSession | None = None,
 ) -> bool:
     """Set a value in cache."""
     cache = get_cache_service(db_session)
@@ -791,9 +796,7 @@ async def cache_set(
 
 
 async def cache_delete(
-    key: str,
-    namespace: str = "default",
-    db_session: Session | AsyncSession | None = None
+    key: str, namespace: str = "default", db_session: Session | AsyncSession | None = None
 ) -> bool:
     """Delete a value from cache."""
     cache = get_cache_service(db_session)

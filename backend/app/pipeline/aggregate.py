@@ -39,12 +39,7 @@ def update_all_curations(db: Session) -> dict[str, Any]:
     }
 
     # Get all genes with evidence
-    genes_with_evidence = (
-        db.query(Gene)
-        .join(GeneEvidence)
-        .distinct()
-        .all()
-    )
+    genes_with_evidence = db.query(Gene).join(GeneEvidence).distinct().all()
 
     logger.info(f"Processing {len(genes_with_evidence)} genes with evidence")
 
@@ -52,21 +47,13 @@ def update_all_curations(db: Session) -> dict[str, Any]:
         stats["genes_processed"] += 1
 
         # Get all evidence for this gene
-        evidence_records = (
-            db.query(GeneEvidence)
-            .filter(GeneEvidence.gene_id == gene.id)
-            .all()
-        )
+        evidence_records = db.query(GeneEvidence).filter(GeneEvidence.gene_id == gene.id).all()
 
         # Aggregate evidence metadata
         evidence_data = _aggregate_evidence_metadata(evidence_records)
 
         # Get or create curation record
-        curation = (
-            db.query(GeneCuration)
-            .filter(GeneCuration.gene_id == gene.id)
-            .first()
-        )
+        curation = db.query(GeneCuration).filter(GeneCuration.gene_id == gene.id).first()
 
         if curation:
             # Update existing curation
@@ -74,10 +61,7 @@ def update_all_curations(db: Session) -> dict[str, Any]:
             stats["curations_updated"] += 1
         else:
             # Create new curation
-            curation = GeneCuration(
-                gene_id=gene.id,
-                **evidence_data
-            )
+            curation = GeneCuration(gene_id=gene.id, **evidence_data)
             db.add(curation)
             stats["curations_created"] += 1
 
@@ -174,10 +158,7 @@ def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[s
     }
 
 
-def _update_curation_with_evidence(
-    curation: GeneCuration,
-    evidence_data: dict[str, Any]
-) -> None:
+def _update_curation_with_evidence(curation: GeneCuration, evidence_data: dict[str, Any]) -> None:
     """
     Update existing curation record with new evidence data.
 

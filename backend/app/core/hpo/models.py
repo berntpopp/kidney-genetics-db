@@ -100,7 +100,9 @@ class DiseaseCategories(BaseModel):
     """Disease phenotype categories."""
 
     inheritance: list[InheritancePattern] = Field(default_factory=list, alias="Inheritance")
-    genitourinary_system: list[Phenotype] = Field(default_factory=list, alias="Genitourinary system")
+    genitourinary_system: list[Phenotype] = Field(
+        default_factory=list, alias="Genitourinary system"
+    )
 
     class Config:
         populate_by_name = True
@@ -113,12 +115,14 @@ class DiseaseCategories(BaseModel):
             if field_name != "inheritance" and isinstance(field_value, list):
                 for item in field_value:
                     if isinstance(item, dict):
-                        phenotypes.append(Phenotype(
-                            id=item.get("id", ""),
-                            name=item.get("name", ""),
-                            category=field_name.replace("_", " ").title(),
-                            metadata=PhenotypeMetadata(**item.get("metadata", {}))
-                        ))
+                        phenotypes.append(
+                            Phenotype(
+                                id=item.get("id", ""),
+                                name=item.get("name", ""),
+                                category=field_name.replace("_", " ").title(),
+                                metadata=PhenotypeMetadata(**item.get("metadata", {})),
+                            )
+                        )
         return phenotypes
 
 
@@ -153,12 +157,14 @@ class DiseaseAnnotations(BaseModel):
         inheritance_data = self.categories.get("Inheritance", [])
 
         for item in inheritance_data:
-            patterns.append(InheritancePattern(
-                id=item.get("id", ""),
-                name=item.get("name", ""),
-                frequency=item.get("metadata", {}).get("frequency"),
-                sources=item.get("metadata", {}).get("sources", [])
-            ))
+            patterns.append(
+                InheritancePattern(
+                    id=item.get("id", ""),
+                    name=item.get("name", ""),
+                    frequency=item.get("metadata", {}).get("frequency"),
+                    sources=item.get("metadata", {}).get("sources", []),
+                )
+            )
 
         return patterns
 
@@ -169,12 +175,14 @@ class DiseaseAnnotations(BaseModel):
         for category_name, items in self.categories.items():
             if category_name != "Inheritance" and isinstance(items, list):
                 for item in items:
-                    phenotypes.append(Phenotype(
-                        id=item.get("id", ""),
-                        name=item.get("name", ""),
-                        category=category_name,
-                        metadata=PhenotypeMetadata(**item.get("metadata", {}))
-                    ))
+                    phenotypes.append(
+                        Phenotype(
+                            id=item.get("id", ""),
+                            name=item.get("name", ""),
+                            category=category_name,
+                            metadata=PhenotypeMetadata(**item.get("metadata", {})),
+                        )
+                    )
 
         return phenotypes
 

@@ -103,7 +103,7 @@ class HGNCClientCached:
                 params=params,
                 headers={"Accept": "application/json"},
                 namespace=self.NAMESPACE,
-                fallback_ttl=self.ttl
+                fallback_ttl=self.ttl,
             )
 
             response.raise_for_status()
@@ -137,11 +137,7 @@ class HGNCClientCached:
                 return None
 
         return await cached(
-            cache_key,
-            fetch_hgnc_id,
-            self.NAMESPACE,
-            self.ttl,
-            self.cache_service.db_session
+            cache_key, fetch_hgnc_id, self.NAMESPACE, self.ttl, self.cache_service.db_session
         )
 
     async def get_gene_info(self, symbol: str) -> dict[str, Any] | None:
@@ -168,11 +164,7 @@ class HGNCClientCached:
                 return None
 
         return await cached(
-            cache_key,
-            fetch_gene_info,
-            self.NAMESPACE,
-            self.ttl,
-            self.cache_service.db_session
+            cache_key, fetch_gene_info, self.NAMESPACE, self.ttl, self.cache_service.db_session
         )
 
     async def standardize_symbol(self, symbol: str) -> str:
@@ -229,7 +221,7 @@ class HGNCClientCached:
             fetch_standardized_symbol,
             self.NAMESPACE,
             self.ttl,
-            self.cache_service.db_session
+            self.cache_service.db_session,
         )
 
     async def standardize_symbols_batch(
@@ -263,10 +255,7 @@ class HGNCClientCached:
                 hgnc_id_key = f"symbol_to_hgnc_id:{symbol.strip().upper()}"
                 cached_hgnc_id = await self.cache_service.get(hgnc_id_key, self.NAMESPACE)
 
-                result[symbol] = {
-                    "approved_symbol": cached_result,
-                    "hgnc_id": cached_hgnc_id
-                }
+                result[symbol] = {"approved_symbol": cached_result, "hgnc_id": cached_hgnc_id}
             else:
                 uncached_symbols.append(symbol)
 
@@ -275,7 +264,7 @@ class HGNCClientCached:
             logger.info(f"Processing {len(uncached_symbols)} uncached symbols in batch")
 
             for i in range(0, len(uncached_symbols), self.batch_size):
-                batch = uncached_symbols[i:i + self.batch_size]
+                batch = uncached_symbols[i : i + self.batch_size]
                 batch_result = await self._process_batch(batch)
                 result.update(batch_result)
 
@@ -383,8 +372,7 @@ class HGNCClientCached:
 
         # Split into batches
         batches = [
-            symbols[i:i + self.batch_size]
-            for i in range(0, len(symbols), self.batch_size)
+            symbols[i : i + self.batch_size] for i in range(0, len(symbols), self.batch_size)
         ]
 
         if len(batches) == 1:
@@ -395,10 +383,7 @@ class HGNCClientCached:
         logger.info(f"Processing {len(batches)} batches in parallel")
 
         # Use asyncio gather for parallel processing
-        tasks = [
-            self.standardize_symbols_batch(batch)
-            for batch in batches
-        ]
+        tasks = [self.standardize_symbols_batch(batch) for batch in batches]
 
         batch_results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -425,7 +410,8 @@ class HGNCClientCached:
 
         # Log standardization results
         changed_symbols = {
-            k: v for k, v in standardized.items()
+            k: v
+            for k, v in standardized.items()
             if v["approved_symbol"] and k != v["approved_symbol"]
         }
         if changed_symbols:
@@ -454,9 +440,26 @@ class HGNCClientCached:
         if not common_symbols:
             # Default set of common kidney-related gene symbols
             common_symbols = [
-                "PKD1", "PKD2", "COL4A5", "NPHS1", "NPHS2", "WT1", "PAX2",
-                "HNF1B", "UMOD", "MUC1", "REN", "AGTR1", "ACE", "APOL1",
-                "ACTN4", "TRPC6", "CD2AP", "PLCE1", "LAMB2", "PDSS2"
+                "PKD1",
+                "PKD2",
+                "COL4A5",
+                "NPHS1",
+                "NPHS2",
+                "WT1",
+                "PAX2",
+                "HNF1B",
+                "UMOD",
+                "MUC1",
+                "REN",
+                "AGTR1",
+                "ACE",
+                "APOL1",
+                "ACTN4",
+                "TRPC6",
+                "CD2AP",
+                "PLCE1",
+                "LAMB2",
+                "PDSS2",
             ]
 
         logger.info(f"Warming HGNC cache with {len(common_symbols)} symbols")
@@ -477,26 +480,22 @@ _hgnc_client_cached: HGNCClientCached | None = None
 
 
 def get_hgnc_client_cached(
-    cache_service: CacheService | None = None,
-    db_session: Session | AsyncSession | None = None
+    cache_service: CacheService | None = None, db_session: Session | AsyncSession | None = None
 ) -> HGNCClientCached:
     """Get or create the global cached HGNC client instance."""
     global _hgnc_client_cached
 
     if _hgnc_client_cached is None:
-        _hgnc_client_cached = HGNCClientCached(
-            cache_service=cache_service,
-            db_session=db_session
-        )
+        _hgnc_client_cached = HGNCClientCached(cache_service=cache_service, db_session=db_session)
 
     return _hgnc_client_cached
 
 
 # Convenience functions for backward compatibility
 
+
 async def standardize_gene_symbols_cached(
-    symbols: list[str],
-    db_session: Session | AsyncSession | None = None
+    symbols: list[str], db_session: Session | AsyncSession | None = None
 ) -> dict[str, dict[str, str | None]]:
     """
     Convenience function to standardize gene symbols using the cached client.
@@ -513,8 +512,7 @@ async def standardize_gene_symbols_cached(
 
 
 async def get_gene_info_cached(
-    symbol: str,
-    db_session: Session | AsyncSession | None = None
+    symbol: str, db_session: Session | AsyncSession | None = None
 ) -> dict[str, Any] | None:
     """
     Convenience function to get gene info using the cached client.

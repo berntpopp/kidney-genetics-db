@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class HPOUnifiedSource(UnifiedDataSource):
     """
     Unified HPO client with intelligent caching and async processing.
-    
+
     Features:
     - Async-first design with batch processing
     - Kidney phenotype hierarchy traversal
@@ -44,7 +44,7 @@ class HPOUnifiedSource(UnifiedDataSource):
         cache_service: CacheService | None = None,
         http_client: CachedHttpClient | None = None,
         db_session: Session | None = None,
-        **kwargs
+        **kwargs,
     ):
         """Initialize HPO client with phenotype ontology capabilities."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
@@ -57,12 +57,16 @@ class HPOUnifiedSource(UnifiedDataSource):
         self.kidney_root_term = get_source_parameter("HPO", "kidney_root_term", "HP:0010935")
 
         # Additional kidney-related root terms
-        self.kidney_terms = get_source_parameter("HPO", "kidney_terms", [
-            "HP:0010935",  # Abnormality of upper urinary tract
-            "HP:0000077",  # Abnormality of the kidney
-            "HP:0012210",  # Abnormal renal morphology
-            "HP:0000079",  # Abnormality of the urinary system
-        ])
+        self.kidney_terms = get_source_parameter(
+            "HPO",
+            "kidney_terms",
+            [
+                "HP:0010935",  # Abnormality of upper urinary tract
+                "HP:0000077",  # Abnormality of the kidney
+                "HP:0012210",  # Abnormal renal morphology
+                "HP:0000079",  # Abnormality of the urinary system
+            ],
+        )
 
         # Processing settings
         self.max_depth = get_source_parameter("HPO", "max_depth", 10)
@@ -78,7 +82,7 @@ class HPOUnifiedSource(UnifiedDataSource):
     async def fetch_raw_data(self) -> dict[str, Any]:
         """
         Fetch kidney-related phenotypes and associated genes from HPO.
-        
+
         Returns:
             Dictionary with phenotypes and gene associations
         """
@@ -95,19 +99,20 @@ class HPOUnifiedSource(UnifiedDataSource):
         return {
             "gene_evidence": gene_evidence_map,
             "root_term": self.kidney_root_term,
-            "fetch_date": datetime.now(timezone.utc).isoformat()
+            "fetch_date": datetime.now(timezone.utc).isoformat(),
         }
 
     async def _fetch_phenotype_hierarchy(self, root_term: str) -> list[str]:
         """
         Fetch all descendant terms of a phenotype.
-        
+
         Args:
             root_term: HPO term ID (e.g., HP:0010935)
-            
+
         Returns:
             List of HPO term IDs including root and descendants
         """
+
         async def _fetch_descendants():
             """Internal function to fetch term hierarchy."""
             url = f"{self.api_url}/hpo/terms/{root_term}"
@@ -133,7 +138,9 @@ class HPOUnifiedSource(UnifiedDataSource):
 
                     return list(set(descendants))
                 else:
-                    logger.error(f"Failed to fetch HPO term {root_term}: HTTP {response.status_code}")
+                    logger.error(
+                        f"Failed to fetch HPO term {root_term}: HTTP {response.status_code}"
+                    )
                     return [root_term]
 
             except Exception as e:
@@ -145,7 +152,7 @@ class HPOUnifiedSource(UnifiedDataSource):
         terms = await self.fetch_with_cache(
             cache_key=cache_key,
             fetch_func=_fetch_descendants,
-            ttl=self.cache_ttl * 7  # Cache for a week
+            ttl=self.cache_ttl * 7,  # Cache for a week
         )
 
         return terms or [root_term]
@@ -153,13 +160,14 @@ class HPOUnifiedSource(UnifiedDataSource):
     async def _fetch_gene_associations(self, hpo_term: str) -> list[dict[str, Any]]:
         """
         Fetch gene associations for an HPO term.
-        
+
         Args:
             hpo_term: HPO term ID
-            
+
         Returns:
             List of gene associations
         """
+
         async def _fetch_associations():
             """Internal function to fetch associations."""
             url = f"{self.api_url}/hpo/terms/{hpo_term}/genes"
@@ -171,7 +179,9 @@ class HPOUnifiedSource(UnifiedDataSource):
                     data = response.json()
                     return data.get("associations", [])
                 else:
-                    logger.debug(f"No gene associations for {hpo_term}: HTTP {response.status_code}")
+                    logger.debug(
+                        f"No gene associations for {hpo_term}: HTTP {response.status_code}"
+                    )
                     return []
 
             except Exception as e:
@@ -181,9 +191,7 @@ class HPOUnifiedSource(UnifiedDataSource):
         # Use unified caching
         cache_key = f"associations:{hpo_term}"
         associations = await self.fetch_with_cache(
-            cache_key=cache_key,
-            fetch_func=_fetch_associations,
-            ttl=self.cache_ttl
+            cache_key=cache_key, fetch_func=_fetch_associations, ttl=self.cache_ttl
         )
 
         return associations or []
@@ -191,10 +199,10 @@ class HPOUnifiedSource(UnifiedDataSource):
     async def process_data(self, raw_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process HPO data into structured gene information.
-        
+
         Args:
             raw_data: Raw data with gene evidence
-            
+
         Returns:
             Dictionary mapping gene symbols to aggregated data
         """
@@ -228,8 +236,7 @@ class HPOUnifiedSource(UnifiedDataSource):
                 )
 
         logger.info(
-            f"🎯 HPO processing complete: "
-            f"{len(gene_data_map)} genes with kidney phenotypes"
+            f"🎯 HPO processing complete: {len(gene_data_map)} genes with kidney phenotypes"
         )
 
         return gene_data_map
@@ -237,10 +244,10 @@ class HPOUnifiedSource(UnifiedDataSource):
     def _calculate_hpo_score(self, evidence_data: dict[str, Any]) -> float:
         """
         Calculate evidence score based on HPO data.
-        
+
         Args:
             evidence_data: Evidence data for a gene
-            
+
         Returns:
             Calculated score (0-100)
         """
@@ -270,7 +277,7 @@ class HPOUnifiedSource(UnifiedDataSource):
     def is_kidney_related(self, record: dict[str, Any]) -> bool:
         """
         Check if a gene record is kidney-related.
-        
+
         Always returns True as we pre-filter with kidney phenotypes.
         """
         return True
@@ -278,10 +285,10 @@ class HPOUnifiedSource(UnifiedDataSource):
     def _get_source_detail(self, evidence_data: dict[str, Any]) -> str:
         """
         Generate source detail string for evidence.
-        
+
         Args:
             evidence_data: Evidence data
-            
+
         Returns:
             Source detail string
         """
@@ -293,13 +300,14 @@ class HPOUnifiedSource(UnifiedDataSource):
     async def fetch_disease_info(self, disease_id: str) -> dict[str, Any] | None:
         """
         Fetch detailed disease information.
-        
+
         Args:
             disease_id: Disease identifier (e.g., OMIM:123456)
-            
+
         Returns:
             Disease information or None
         """
+
         async def _fetch_disease():
             """Internal function to fetch disease data."""
             url = f"{self.api_url}/diseases/{disease_id}"
@@ -322,7 +330,7 @@ class HPOUnifiedSource(UnifiedDataSource):
         disease_info = await self.fetch_with_cache(
             cache_key=cache_key,
             fetch_func=_fetch_disease,
-            ttl=self.cache_ttl * 7  # Cache for a week
+            ttl=self.cache_ttl * 7,  # Cache for a week
         )
 
         return disease_info

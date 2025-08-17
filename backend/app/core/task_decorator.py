@@ -52,6 +52,7 @@ def managed_task(source_name: str):
                     raise
 
         return wrapper
+
     return decorator
 
 
@@ -78,12 +79,7 @@ def executor_task(source_name: str):
                     # Execute the actual task in thread executor
                     loop = asyncio.get_event_loop()
                     result = await loop.run_in_executor(
-                        self.executor,
-                        func,
-                        self,
-                        db,
-                        tracker,
-                        resume
+                        self.executor, func, self, db, tracker, resume
                     )
 
                     db.commit()  # Explicit commit on success
@@ -98,89 +94,57 @@ def executor_task(source_name: str):
                     raise
 
         return wrapper
+
     return decorator
 
 
 class TaskMixin:
     """Mixin providing common task functionality with unified client architecture."""
 
+    def _get_source_instance(self, source_name: str, db_session):
+        """Factory to get a configured source instance."""
+        # This helper ensures that all dependencies are correctly instantiated
+        # on a per-task basis, using the correct DB session.
+        from app.core.cache_service import get_cache_service
+        from app.core.cached_http_client import get_cached_http_client
+        from app.pipeline.sources.unified import get_unified_source
+
+        cache_service = get_cache_service(db_session)
+        http_client = get_cached_http_client(cache_service, db_session)
+
+        return get_unified_source(
+            source_name, cache_service=cache_service, http_client=http_client, db_session=db_session
+        )
+
     @managed_task("PubTator")
     async def _run_pubtator(self, db, tracker, resume: bool = False):
-        """Run PubTator update with managed lifecycle."""
-        # REFACTORED: Use unified PubTator source
-        from app.pipeline.sources.unified.pubtator import PubTatorUnifiedSource
-
-        source = PubTatorUnifiedSource(db_session=db)
-
-        # Fetch and process data
-        tracker.start("Fetching PubTator data")
-        raw_data = await source.fetch_raw_data()
-
-        tracker.update(operation="Processing data")
-        processed_data = await source.process_data(raw_data)
-
-        # Save to database
-        tracker.update(operation="Saving to database")
-        stats = await source.save_to_database(db, processed_data, tracker)
-
-        tracker.complete(f"PubTator update complete: {stats}")
-        return stats
+        """Run PubTator update using the unified template method."""
+        source = self._get_source_instance("PubTator", db)
+        return await source.update_data(db, tracker)
 
     @managed_task("GenCC")
     async def _run_gencc(self, db, tracker, resume: bool = False):
-        """Run GenCC update with managed lifecycle."""
-        # REFACTORED: Use unified GenCC source
-        from app.pipeline.sources.unified.gencc import GenCCUnifiedSource
+        """Run GenCC update using the unified template method."""
+        source = self._get_source_instance("GenCC", db)
+        return await source.update_data(db, tracker)
 
-        source = GenCCUnifiedSource(db_session=db)
-
-        # Fetch and process data
-        tracker.start("Fetching GenCC data")
-        raw_data = await source.fetch_raw_data()
-
-        tracker.update(operation="Processing data")
-        processed_data = await source.process_data(raw_data)
-
-        # Save to database
-        tracker.update(operation="Saving to database")
-        stats = await source.save_to_database(db, processed_data, tracker)
-
-        tracker.complete(f"GenCC update complete: {stats}")
-        return stats
-
-    @executor_task("PanelApp")
-    def _run_panelapp(self, db, tracker, resume: bool = False):
-        """Run PanelApp update with managed lifecycle."""
-        from app.pipeline.sources.update_all_with_progress import update_panelapp_with_progress
-        return update_panelapp_with_progress(db, tracker)
+    @managed_task("PanelApp")
+    async def _run_panelapp(self, db, tracker, resume: bool = False):
+        """Run PanelApp update using the unified template method."""
+        source = self._get_source_instance("PanelApp", db)
+        return await source.update_data(db, tracker)
 
     @managed_task("HPO")
     async def _run_hpo(self, db, tracker, resume: bool = False):
-        """Run HPO update with managed lifecycle."""
-        # REFACTORED: Use unified HPO source
-        from app.pipeline.sources.unified.hpo import HPOUnifiedSource
+        """Run HPO update using the unified template method."""
+        source = self._get_source_instance("HPO", db)
+        return await source.update_data(db, tracker)
 
-        source = HPOUnifiedSource(db_session=db)
-
-        # Fetch and process data
-        tracker.start("Fetching HPO data")
-        raw_data = await source.fetch_raw_data()
-
-        tracker.update(operation="Processing data")
-        processed_data = await source.process_data(raw_data)
-
-        # Save to database
-        tracker.update(operation="Saving to database")
-        stats = await source.save_to_database(db, processed_data, tracker)
-
-        tracker.complete(f"HPO update complete: {stats}")
-        return stats
-
-    @executor_task("ClinGen")
-    def _run_clingen(self, db, tracker, resume: bool = False):
-        """Run ClinGen update with managed lifecycle."""
-        from app.pipeline.sources.update_all_with_progress import update_clingen_with_progress
-        return update_clingen_with_progress(db, tracker)
+    @managed_task("ClinGen")
+    async def _run_clingen(self, db, tracker, resume: bool = False):
+        """Run ClinGen update using the unified template method."""
+        source = self._get_source_instance("ClinGen", db)
+        return await source.update_data(db, tracker)
 
     @executor_task("HGNC_Normalization")
     def _run_hgnc_normalization(self, db, tracker, resume: bool = False):
@@ -193,9 +157,8 @@ class TaskMixin:
             tracker.update(
                 items_added=result.get("normalized", 0),
                 items_updated=result.get("updated", 0),
-                items_failed=result.get("failed", 0)
+                items_failed=result.get("failed", 0),
             )
-
             return result
 
     @managed_task("Evidence_Aggregation")
@@ -204,28 +167,17 @@ class TaskMixin:
         from app.pipeline.aggregate import update_all_curations
 
         tracker.start("Starting evidence aggregation")
-
-        # Run synchronous code in executor with its own DB session
         loop = asyncio.get_event_loop()
 
         def run_aggregation():
-            """Run aggregation with its own DB session"""
-            agg_db = next(get_db())
-            try:
-                result = update_all_curations(agg_db)
-                return result
-            finally:
-                agg_db.close()
+            with get_db_context() as agg_db:
+                return update_all_curations(agg_db)
 
-        result = await loop.run_in_executor(
-            self.executor,
-            run_aggregation
-        )
+        result = await loop.run_in_executor(self.executor, run_aggregation)
 
         tracker.update(
             items_updated=result.get("curations_updated", 0),
-            items_added=result.get("curations_created", 0)
+            items_added=result.get("curations_created", 0),
         )
         tracker.complete(f"Aggregated evidence for {result.get('genes_processed', 0)} genes")
-
         return result

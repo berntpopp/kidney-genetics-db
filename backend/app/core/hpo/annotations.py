@@ -37,7 +37,7 @@ class HPOAnnotations(HPOAPIBase):
             response = await self._get(
                 f"network/annotation/{hpo_id}",
                 cache_key=f"annotations:{hpo_id}",
-                ttl=self.ttl_annotations
+                ttl=self.ttl_annotations,
             )
 
             if response:
@@ -64,7 +64,7 @@ class HPOAnnotations(HPOAPIBase):
             response = await self._get(
                 f"network/annotation/{disease_id}",
                 cache_key=f"disease:{disease_id}",
-                ttl=self.ttl_annotations
+                ttl=self.ttl_annotations,
             )
 
             if response:
@@ -91,10 +91,7 @@ class HPOAnnotations(HPOAPIBase):
         return []
 
     async def batch_get_annotations(
-        self,
-        hpo_ids: list[str],
-        batch_size: int = 10,
-        delay: float = 0.1
+        self, hpo_ids: list[str], batch_size: int = 10, delay: float = 0.1
     ) -> dict[str, TermAnnotations]:
         """
         Efficiently fetch annotations for multiple HPO terms.
@@ -113,7 +110,7 @@ class HPOAnnotations(HPOAPIBase):
         total = len(hpo_ids)
 
         for i in range(0, total, batch_size):
-            batch = hpo_ids[i:i + batch_size]
+            batch = hpo_ids[i : i + batch_size]
             batch_num = i // batch_size + 1
             total_batches = (total + batch_size - 1) // batch_size
 
@@ -170,9 +167,7 @@ class HPOAnnotations(HPOAPIBase):
         return []
 
     async def get_genes_with_inheritance(
-        self,
-        hpo_id: str,
-        include_disease_details: bool = True
+        self, hpo_id: str, include_disease_details: bool = True
     ) -> dict[str, dict[str, Any]]:
         """
         Get genes for an HPO term with inheritance information from associated diseases.
@@ -199,7 +194,7 @@ class HPOAnnotations(HPOAPIBase):
                     "entrez_id": gene.entrez_id,
                     "hpo_terms": {hpo_id},
                     "diseases": set(),
-                    "inheritance_patterns": set()
+                    "inheritance_patterns": set(),
                 }
             else:
                 genes_data[gene_symbol]["hpo_terms"].add(hpo_id)
@@ -220,7 +215,9 @@ class HPOAnnotations(HPOAPIBase):
                             if gene_symbol in genes_data:
                                 genes_data[gene_symbol]["diseases"].add(disease.id)
                                 for pattern in inheritance:
-                                    genes_data[gene_symbol]["inheritance_patterns"].add(pattern.name)
+                                    genes_data[gene_symbol]["inheritance_patterns"].add(
+                                        pattern.name
+                                    )
 
         # Convert sets to lists for JSON serialization
         for gene_data in genes_data.values():
