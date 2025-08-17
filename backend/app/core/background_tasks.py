@@ -1,5 +1,5 @@
 """
-Background task manager for concurrent data source updates
+Background task manager for concurrent data source updates with unified architecture.
 """
 
 import asyncio
@@ -8,13 +8,13 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 
 from app.core.database import get_db
-from app.core.progress_tracker import ProgressTracker
+from app.core.task_decorator import TaskMixin
 from app.models.progress import DataSourceProgress, SourceStatus
 
 logger = logging.getLogger(__name__)
 
 
-class BackgroundTaskManager:
+class BackgroundTaskManager(TaskMixin):
     """Manages background tasks for all data sources"""
 
     def __init__(self):
@@ -51,7 +51,7 @@ class BackgroundTaskManager:
 
     async def run_source(self, source_name: str, resume: bool = False):
         """
-        Run update for a specific data source
+        Run update for a specific data source using dynamic dispatch.
 
         Args:
             source_name: Name of the data source
@@ -62,231 +62,16 @@ class BackgroundTaskManager:
             logger.warning(f"{source_name} is already running")
             return
 
-        # Create task based on source
-        if source_name == "PubTator":
-            task = asyncio.create_task(self._run_pubtator(resume))
-        elif source_name == "PanelApp":
-            task = asyncio.create_task(self._run_panelapp(resume))
-        elif source_name == "ClinGen":
-            task = asyncio.create_task(self._run_clingen(resume))
-        elif source_name == "GenCC":
-            task = asyncio.create_task(self._run_gencc(resume))
-        elif source_name == "HPO":
-            task = asyncio.create_task(self._run_hpo(resume))
-        elif source_name == "HGNC_Normalization":
-            task = asyncio.create_task(self._run_hgnc_normalization(resume))
-        elif source_name == "Evidence_Aggregation":
-            task = asyncio.create_task(self._run_evidence_aggregation(resume))
-        else:
+        # Dynamic task dispatch
+        method_name = f"_run_{source_name.lower().replace('_', '_')}"
+        task_method = getattr(self, method_name, None)
+        
+        if not task_method:
             logger.error(f"Unknown source: {source_name}")
             return
 
+        task = asyncio.create_task(task_method(resume=resume))
         self.running_tasks[source_name] = task
-
-    async def _run_pubtator(self, resume: bool = False):
-        """Run PubTator update with progress tracking"""
-        from app.pipeline.sources.pubtator_async import update_pubtator_async
-
-        db = next(get_db())
-        tracker = ProgressTracker(db, "PubTator", self.broadcast_callback)
-
-        try:
-            # Run async version that won't block
-            result = await update_pubtator_async(db, tracker)
-            logger.info(f"PubTator update completed: {result}")
-
-        except Exception as e:
-            logger.error(f"PubTator update failed: {e}")
-            tracker.error(str(e))
-        finally:
-            db.close()
-
-    async def _run_panelapp(self, resume: bool = False):
-        """Run PanelApp update with progress tracking"""
-        from app.pipeline.sources.update_all_with_progress import update_panelapp_with_progress
-
-        db = next(get_db())
-        tracker = ProgressTracker(db, "PanelApp", self.broadcast_callback)
-
-        try:
-            # Run synchronous code in executor
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                self.executor,
-                update_panelapp_with_progress,
-                db,
-                tracker
-            )
-
-            logger.info(f"PanelApp update completed: {result}")
-
-        except Exception as e:
-            logger.error(f"PanelApp update failed: {e}")
-            tracker.error(str(e))
-        finally:
-            db.close()
-
-    async def _run_clingen(self, resume: bool = False):
-        """Run ClinGen update with progress tracking"""
-        from app.pipeline.sources.update_all_with_progress import update_clingen_with_progress
-
-        db = next(get_db())
-        tracker = ProgressTracker(db, "ClinGen", self.broadcast_callback)
-
-        try:
-            # Run synchronous code in executor
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                self.executor,
-                update_clingen_with_progress,
-                db,
-                tracker
-            )
-
-            logger.info(f"ClinGen update completed: {result}")
-
-        except Exception as e:
-            logger.error(f"ClinGen update failed: {e}")
-            tracker.error(str(e))
-        finally:
-            db.close()
-
-    async def _run_gencc(self, resume: bool = False):
-        """Run GenCC update with unified client"""
-        print(f"🚀 [DEBUG] _run_gencc called with resume={resume}")
-        logger.info(f"🚀 Starting GenCC update with unified client (resume={resume})")
-
-        db = None
-        tracker = None
-        
-        try:
-            print(f"🚀 [DEBUG] Getting database session...")
-            db = next(get_db())
-            print(f"🚀 [DEBUG] Creating progress tracker...")
-            tracker = ProgressTracker(db, "GenCC", self.broadcast_callback)
-            
-            print(f"🚀 [DEBUG] Importing GenCC client...")
-            from app.pipeline.sources.gencc_unified import get_gencc_client
-            
-            print(f"🚀 [DEBUG] Creating GenCC client...")
-            client = get_gencc_client(db_session=db)
-            
-            print(f"🚀 [DEBUG] Starting GenCC data update...")
-            result = await client.update_data(db, tracker)
-            
-            print(f"✅ [DEBUG] GenCC update completed: {result}")
-            logger.info(f"✅ GenCC update completed: {result}")
-
-        except Exception as e:
-            print(f"❌ [DEBUG] GenCC update failed: {e}")
-            logger.error(f"❌ GenCC update failed: {e}")
-            import traceback
-            print(f"❌ [DEBUG] Full traceback: {traceback.format_exc()}")
-            if tracker:
-                tracker.error(str(e))
-        finally:
-            if db:
-                print(f"🚀 [DEBUG] Closing database session...")
-                db.close()
-
-    async def _run_hpo(self, resume: bool = False):
-        """Run HPO update with progress tracking"""
-        from app.pipeline.sources.hpo_async import update_hpo_async
-
-        # Create a tracker for HPO
-        db = next(get_db())
-        tracker = ProgressTracker(db, "HPO", broadcast_callback=self.broadcast_callback)
-        tracker.start("HPO")
-
-        try:
-            logger.info("Starting HPO data update...")
-
-            # The tracker already has a database session, use it
-            try:
-                stats = await update_hpo_async(db, tracker)
-
-                if stats.get("completed"):
-                    tracker.complete("HPO")
-                    logger.info(f"✅ HPO update completed: {stats}")
-                else:
-                    tracker.fail("HPO", stats.get("error", "Unknown error"))
-                    logger.error(f"❌ HPO update failed: {stats}")
-
-            finally:
-                db.close()
-
-        except Exception as e:
-            logger.error(f"HPO update error: {e}", exc_info=True)
-            tracker.error(str(e))
-
-    async def _run_hgnc_normalization(self, resume: bool = False):
-        """Run HGNC normalization with progress tracking"""
-        from app.pipeline.normalize import normalize_all_genes
-
-        db = next(get_db())
-        tracker = ProgressTracker(db, "HGNC_Normalization", self.broadcast_callback)
-
-        try:
-            with tracker.track_operation("Normalizing gene symbols"):
-                # Run synchronous code in executor
-                loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(
-                    self.executor,
-                    normalize_all_genes,
-                    db
-                )
-
-                tracker.update(
-                    items_added=result.get("normalized", 0),
-                    items_updated=result.get("updated", 0),
-                    items_failed=result.get("failed", 0)
-                )
-
-        except Exception as e:
-            logger.error(f"HGNC normalization failed: {e}")
-            tracker.error(str(e))
-        finally:
-            db.close()
-
-    async def _run_evidence_aggregation(self, resume: bool = False):
-        """Run evidence aggregation with progress tracking"""
-        from app.pipeline.aggregate import update_all_curations
-
-        # Create separate sessions for tracker and aggregation
-        tracker_db = next(get_db())
-        tracker = ProgressTracker(tracker_db, "Evidence_Aggregation", self.broadcast_callback)
-
-        try:
-            tracker.start("Starting evidence aggregation")
-
-            # Run synchronous code in executor with its own DB session
-            loop = asyncio.get_event_loop()
-
-            def run_aggregation():
-                """Run aggregation with its own DB session"""
-                agg_db = next(get_db())
-                try:
-                    result = update_all_curations(agg_db)
-                    return result
-                finally:
-                    agg_db.close()
-
-            result = await loop.run_in_executor(
-                self.executor,
-                run_aggregation
-            )
-
-            tracker.update(
-                items_updated=result.get("curations_updated", 0),
-                items_added=result.get("curations_created", 0)
-            )
-            tracker.complete(f"Aggregated evidence for {result.get('genes_processed', 0)} genes")
-
-        except Exception as e:
-            logger.error(f"Evidence aggregation failed: {e}")
-            tracker.error(str(e))
-        finally:
-            tracker_db.close()
 
     async def shutdown(self):
         """Gracefully shutdown all running tasks"""

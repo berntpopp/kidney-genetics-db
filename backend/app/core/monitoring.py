@@ -17,9 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.cache_service import get_cache_service
 from app.core.cached_http_client import get_cached_http_client
 from app.core.hgnc_client import get_hgnc_client_cached
-from app.pipeline.sources.gencc_cached import get_gencc_client_cached
-from app.pipeline.sources.panelapp_cached import get_panelapp_manager_cached
-from app.pipeline.sources.pubtator_cached import get_pubtator_client_cached
+from app.pipeline.sources.gencc_unified import get_gencc_client
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +43,9 @@ class CacheMonitoringService:
         try:
             self.data_source_clients = {
                 'hgnc': get_hgnc_client_cached(db_session=self.db_session),
-                'pubtator': get_pubtator_client_cached(db_session=self.db_session),
-                'gencc': get_gencc_client_cached(db_session=self.db_session),
-                'panelapp': get_panelapp_manager_cached(db_session=self.db_session),
-                # Note: HPO uses unified cache through HPOAPIBase with namespace "hpo"
-                # Cache stats for HPO are retrieved via namespace in get_comprehensive_stats
+                'gencc': get_gencc_client(db_session=self.db_session),
+                # Note: Other data sources (PubTator, PanelApp, HPO) use unified cache through namespace
+                # Cache stats for these are retrieved via namespace in get_comprehensive_stats
             }
         except Exception as e:
             logger.error(f"Error initializing data source clients: {e}")
