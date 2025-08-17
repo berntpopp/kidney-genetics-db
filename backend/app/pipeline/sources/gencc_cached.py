@@ -86,7 +86,7 @@ class GenCCClientCached:
 
         logger.info(f"GenCCClientCached initialized with TTL: {self.ttl}s")
 
-    async def download_excel_file(self) -> Path | None:
+    async def download_excel_file(self) -> str | None:
         """
         Download GenCC submissions Excel file with intelligent caching.
         
@@ -102,13 +102,19 @@ class GenCCClientCached:
                 logger.info(f"📥 Downloading GenCC submissions from: {self.download_url}")
                 logger.info("🔄 Starting download... (this may take 30-60 seconds for ~3.6MB file)")
 
-                # Use cached HTTP client with file download support
-                content = await self.http_client.download_file(
+                # Download directly without caching binary content
+                # We'll cache the parsed data instead
+                response = await self.http_client.get(
                     self.download_url,
                     namespace=self.NAMESPACE,
-                    cache_key=cache_key,
-                    etag_check=True
+                    fallback_ttl=0  # Don't cache binary response
                 )
+                
+                if response.status_code != 200:
+                    logger.error(f"Failed to download GenCC file: HTTP {response.status_code}")
+                    return None
+                
+                content = response.content
 
                 # Save to temporary file
                 temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
@@ -124,13 +130,9 @@ class GenCCClientCached:
                 logger.error(f"❌ Error downloading GenCC file: {e}")
                 return None
 
-        return await cached(
-            cache_key,
-            fetch_excel_file,
-            self.NAMESPACE,
-            self.ttl,
-            self.cache_service.db_session
-        )
+        # Don't cache the file path itself - just download fresh each time
+        # We'll cache the parsed data instead
+        return await fetch_excel_file()
 
     async def parse_excel_file(self, file_path: Path | str) -> pd.DataFrame:
         """
