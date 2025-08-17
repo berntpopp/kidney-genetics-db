@@ -187,8 +187,33 @@ class BackgroundTaskManager:
 
     async def _run_hpo(self, resume: bool = False):
         """Run HPO update with progress tracking"""
-        # HPO integration needs fixing - marked as pending
-        logger.warning("HPO integration is currently disabled - needs fixing")
+        from app.pipeline.sources.hpo_async import update_hpo_async
+        
+        # Create a tracker for HPO
+        db = next(get_db())
+        tracker = ProgressTracker(db, "HPO", broadcast_callback=self.broadcast_callback)
+        tracker.start("HPO")
+        
+        try:
+            logger.info("Starting HPO data update...")
+            
+            # The tracker already has a database session, use it
+            try:
+                stats = await update_hpo_async(db, tracker)
+                
+                if stats.get("completed"):
+                    tracker.complete("HPO")
+                    logger.info(f"✅ HPO update completed: {stats}")
+                else:
+                    tracker.fail("HPO", stats.get("error", "Unknown error"))
+                    logger.error(f"❌ HPO update failed: {stats}")
+                    
+            finally:
+                db.close()
+                
+        except Exception as e:
+            logger.error(f"HPO update error: {e}", exc_info=True)
+            tracker.fail("HPO", str(e))
 
     async def _run_hgnc_normalization(self, resume: bool = False):
         """Run HGNC normalization with progress tracking"""

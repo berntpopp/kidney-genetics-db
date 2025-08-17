@@ -108,40 +108,6 @@ data_sources:
       - name: "Natera"
         file_path: "data/scraped/natera.json"
 
-  # COSMIC database configuration - Standalone source
-  COSMIC_Germline:
-    enabled: true
-    source_group: false  # This is a standalone source
-    category: "germline"
-    evidence_score: 0.9  # Base evidence score
-    source_type: "cosmic_germline"
-    # COSMIC Cancer Gene Census URL
-    census_url: "https://cancer.sanger.ac.uk/cosmic/file_download/GRCh38/cosmic/v97/cancer_gene_census.csv"
-    # Cache settings
-    cache_dir: ".cache/cosmic"
-    cache_expiry_days: 30
-    # Germline scoring configuration
-    germline_scoring:
-      enabled: true
-      tier_weights:
-        "1": 1.0
-        "2": 0.8
-        "": 0.4  # Unknown/unclassified
-
-  # ACMG incidental findings - Standalone source
-  ACMG_Incidental_Findings:
-    enabled: true
-    source_group: false  # This is a standalone source
-    category: "germline"
-    evidence_score: 1.5  # Higher weight for ACMG recommendations
-    # Primary source: Live URL (scraped dynamically)
-    url: "https://www.ncbi.nlm.nih.gov/clinvar/docs/acmg/"
-    # Fallback source: Local file (if URL scraping fails)
-    file_path: "data/acmg/acmg_incidental_findings.csv"
-    # Veto option: Always include genes from this source regardless of score
-    veto:
-      enabled: true
-      reason: "ACMG recommended for reporting of incidental findings"
 
   # Manual curation lists - Standalone source
   Manual_Curation:
@@ -229,8 +195,6 @@ scoring:
     PanelApp: 1.0
     Inhouse_Panels: 1.2
     Commercial_Panels: 0.8
-    COSMIC_Germline: 0.9
-    ACMG_Incidental_Findings: 1.5
     Manual_Curation: 1.1
     HPO_Neoplasm: 0.7
     ClinGen: 1.2

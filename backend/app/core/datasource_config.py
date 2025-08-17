@@ -43,10 +43,10 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
     },
     "HPO": {
         "display_name": "HPO",
-        "description": "Human Phenotype Ontology - Gene-phenotype associations (pending OMIM fix)",
-        "url": "https://hpo.jax.org/",
+        "description": "Human Phenotype Ontology - Kidney/urinary phenotypes and associated genes",
+        "url": "https://ontology.jax.org/",
         "documentation_url": "https://hpo.jax.org/app/data/annotations",
-        "auto_update": False,  # Disabled due to OMIM download issues
+        "auto_update": True,  # Using HPO API for gene-disease associations
         "priority": 5,
     },
     "Literature": {

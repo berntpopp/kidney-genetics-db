@@ -99,9 +99,7 @@ def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         else:
             # Source is configured but has no data
             stats = None
-            if source_name == "HPO":
-                status = "error"  # Known issue with OMIM download
-            elif source_name in ["Literature", "Diagnostic"]:
+            if source_name in ["Literature", "Diagnostic"]:
                 status = "pending"  # Not yet implemented
             else:
                 status = "inactive"

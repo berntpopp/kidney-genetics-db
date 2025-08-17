@@ -26,13 +26,11 @@ from ..core.snp_harmonizer import SNPHarmonizer
 from ..core.utils import normalize_count
 from ..engine.annotator import GeneAnnotator
 from ..engine.merger import PanelMerger
-from ..sources.a_incidental_findings import fetch_acmg_incidental_data
 from ..sources.b_manual_curation import fetch_manual_curation_data
 from ..sources.g00_inhouse_panels import fetch_inhouse_panels_data
 from ..sources.g01_panelapp import fetch_panelapp_data
 from ..sources.g02_hpo import fetch_hpo_neoplasm_data
 from ..sources.g03_commercial_panels import fetch_commercial_panels_data
-from ..sources.g04_cosmic_germline import fetch_cosmic_germline_data
 from ..sources.g05_clingen import fetch_clingen_data
 from ..sources.g06_gencc import fetch_gencc_data
 from ..sources.g07_regions import fetch_regions_data
@@ -324,11 +322,9 @@ class Pipeline:
         source_functions = {
             "PanelApp": fetch_panelapp_data,
             "Inhouse_Panels": fetch_inhouse_panels_data,
-            "ACMG_Incidental_Findings": fetch_acmg_incidental_data,
             "Manual_Curation": fetch_manual_curation_data,
             "HPO_Neoplasm": fetch_hpo_neoplasm_data,
             "Commercial_Panels": fetch_commercial_panels_data,
-            "COSMIC_Germline": fetch_cosmic_germline_data,
             "ClinGen": fetch_clingen_data,
             "TheGenCC": fetch_gencc_data,
         }

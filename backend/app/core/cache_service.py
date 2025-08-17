@@ -422,7 +422,12 @@ class CacheService:
             row = result.fetchone()
 
             if row:
-                return self._deserialize_value(row.data)
+                # JSONB columns are automatically deserialized by PostgreSQL
+                # Check if it's already a dict (JSONB) or a string (TEXT)
+                if isinstance(row.data, dict):
+                    return row.data
+                else:
+                    return self._deserialize_value(row.data)
             return None
 
         except Exception as e:
@@ -435,13 +440,15 @@ class CacheService:
             return False
 
         try:
-            serialized_data = self._serialize_value(entry.value)
-            data_size = len(serialized_data.encode('utf-8'))
+            # For JSONB column, we can store the value directly as dict/list
+            # No need to serialize to string
+            data_value = entry.value
+            data_size = len(json.dumps(data_value).encode('utf-8'))
 
             query = text("""
                 INSERT INTO cache_entries 
                 (cache_key, namespace, data, expires_at, data_size, metadata)
-                VALUES (:cache_key, :namespace, :data, :expires_at, :data_size, :metadata)
+                VALUES (:cache_key, :namespace, CAST(:data AS jsonb), :expires_at, :data_size, CAST(:metadata AS jsonb))
                 ON CONFLICT (cache_key) 
                 DO UPDATE SET 
                     data = EXCLUDED.data,
@@ -458,7 +465,7 @@ class CacheService:
                 await self.db_session.execute(query, {
                     "cache_key": cache_key,
                     "namespace": entry.namespace,
-                    "data": serialized_data,
+                    "data": json.dumps(data_value),  # Pass as JSON string for JSONB casting
                     "expires_at": entry.expires_at,
                     "data_size": data_size,
                     "metadata": json.dumps(entry.metadata)
@@ -468,7 +475,7 @@ class CacheService:
                 self.db_session.execute(query, {
                     "cache_key": cache_key,
                     "namespace": entry.namespace,
-                    "data": serialized_data,
+                    "data": json.dumps(data_value),  # Pass as JSON string for JSONB casting
                     "expires_at": entry.expires_at,
                     "data_size": data_size,
                     "metadata": json.dumps(entry.metadata)

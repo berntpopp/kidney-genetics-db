@@ -80,8 +80,14 @@ class Settings(BaseSettings):
     PANELAPP_AU_PANELS: list[int] = [217, 363]  # Australia Panel IDs (kidney related)
 
     # HPO Configuration
-    HPO_KIDNEY_ROOT_TERMS: list[str] = ["HP:0000077", "HP:0000079"]  # Kidney/urinary abnormalities
-    HPO_MIN_GENE_ASSOCIATIONS: int = 2  # Minimum associations for inclusion
+    HPO_API_URL: str = "https://ontology.jax.org/api"
+    HPO_BROWSER_URL: str = "https://hpo.jax.org"
+    HPO_KIDNEY_ROOT_TERM: str = "HP:0010935"  # Abnormality of the upper urinary tract
+    HPO_KIDNEY_ROOT_TERMS: list[str] = ["HP:0000077", "HP:0000079"]  # Legacy - kept for compatibility
+    HPO_MIN_GENE_ASSOCIATIONS: int = 1  # Minimum associations for inclusion
+    HPO_MAX_DEPTH: int = 10  # Maximum depth for descendant traversal
+    HPO_BATCH_SIZE: int = 5  # Number of concurrent requests (with exponential backoff)
+    HPO_REQUEST_DELAY: float = 0.2  # Small delay between batches (backoff handles rate limiting)
 
     # ClinGen Configuration
     CLINGEN_DOWNLOAD_URL: str = "https://search.clinicalgenome.org/kb/gene-validity/download"
@@ -96,7 +102,6 @@ class Settings(BaseSettings):
         "PanelApp": 0.25,
         "HPO": 0.15,
         "Literature": 0.20,
-        "OMIM": 0.20,
         "ClinGen": 0.10,
         "GenCC": 0.10,
     }

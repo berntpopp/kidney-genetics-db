@@ -134,7 +134,7 @@ def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[s
         elif evidence.source_name == "PubTator":
             pubtator_pmids.extend(evidence_data.get("pmids", []))
 
-        elif evidence.source_name == "OMIM":
+        elif evidence.source_name == "HPO":
             omim_data.update(evidence_data)
 
         elif evidence.source_name == "ClinVar":
