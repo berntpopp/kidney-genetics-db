@@ -140,14 +140,14 @@ class CacheService:
         # Normalize key to string
         if isinstance(key, str):
             normalized_key = key
-        elif isinstance(key, (int, float)):
+        elif isinstance(key, int | float):
             normalized_key = str(key)
-        elif isinstance(key, (list, dict, tuple)):
+        elif isinstance(key, list | dict | tuple):
             # Serialize complex types to JSON for consistent hashing
             normalized_key = json.dumps(key, sort_keys=True, default=str)
         else:
             normalized_key = str(key)
-            
+
         # Create a hash of the key for consistent length and safety
         key_hash = hashlib.sha256(f"{namespace}:{normalized_key}".encode()).hexdigest()
         return f"{namespace}:{key_hash}"
@@ -173,7 +173,7 @@ class CacheService:
             except ImportError:
                 # pandas not available, continue with regular serialization
                 pass
-            
+
             return json.dumps(value, default=str, ensure_ascii=False)
         except (TypeError, ValueError) as e:
             logger.error(f"Error serializing value: {e}")
@@ -187,7 +187,7 @@ class CacheService:
             # Handle None
             if serialized is None:
                 return None
-                
+
             # If it's already a dict/list/bool/number, check for DataFrame format
             if isinstance(serialized, dict):
                 if serialized.get('_type') == 'dataframe':
@@ -199,16 +199,16 @@ class CacheService:
                         # pandas not available, return as dict
                         return serialized
                 return serialized
-                
-            if isinstance(serialized, (list, bool, int, float)):
+
+            if isinstance(serialized, list | bool | int | float):
                 return serialized
-                
+
             # Handle string serialization
             if isinstance(serialized, str):
                 if not serialized or serialized.strip() == "":
                     logger.warning("Attempted to deserialize empty string value, returning None")
                     return None
-                
+
                 data = json.loads(serialized)
                 # Check if it's a serialized DataFrame
                 if isinstance(data, dict) and data.get('_type') == 'dataframe':
@@ -219,11 +219,11 @@ class CacheService:
                         # pandas not available, return as dict
                         return data
                 return data
-            
+
             # Handle other types by converting to string first
             logger.warning(f"Unexpected type {type(serialized)} for cache value, converting to string")
             return json.loads(str(serialized))
-            
+
         except (TypeError, ValueError) as e:
             logger.error(f"Error deserializing value: {e}")
             logger.debug(f"Failed to deserialize: {repr(str(serialized)[:100] if serialized else serialized)}")

@@ -1,7 +1,7 @@
 """Initial complete database schema with all tables and views
 
 Revision ID: 001_initial_complete
-Revises: 
+Revises:
 Create Date: 2025-08-17 11:45:00.000000
 
 """
@@ -21,9 +21,9 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Create complete database schema."""
-    
+
     # ========== CORE TABLES ==========
-    
+
     # Create genes table
     op.create_table('genes',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -37,7 +37,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_genes_approved_symbol'), 'genes', ['approved_symbol'], unique=False)
     op.create_index(op.f('ix_genes_hgnc_id'), 'genes', ['hgnc_id'], unique=True)
     op.create_index(op.f('ix_genes_id'), 'genes', ['id'], unique=False)
-    
+
     # Create pipeline_runs table
     op.create_table('pipeline_runs',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -51,7 +51,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_pipeline_runs_id'), 'pipeline_runs', ['id'], unique=False)
-    
+
     # Create users table
     op.create_table('users',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -64,7 +64,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
     op.create_index(op.f('ix_users_id'), 'users', ['id'], unique=False)
-    
+
     # Create gene_curations table
     op.create_table('gene_curations',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -90,7 +90,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_gene_curations_evidence_score'), 'gene_curations', ['evidence_score'], unique=False)
     op.create_index(op.f('ix_gene_curations_id'), 'gene_curations', ['id'], unique=False)
-    
+
     # Create gene_evidence table
     op.create_table('gene_evidence',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -109,7 +109,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_gene_evidence_source_name'), 'gene_evidence', ['source_name'], unique=False)
 
     # ========== PROGRESS TRACKING ==========
-    
+
     # Create data_source_progress table
     op.create_table('data_source_progress',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -139,7 +139,7 @@ def upgrade() -> None:
     op.create_index('idx_data_source_progress_source_name', 'data_source_progress', ['source_name'])
 
     # ========== NORMALIZATION TABLES ==========
-    
+
     # Create gene_normalization_staging table
     op.create_table('gene_normalization_staging',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -193,7 +193,7 @@ def upgrade() -> None:
     op.create_index('ix_gene_normalization_log_created_at', 'gene_normalization_log', ['created_at'])
 
     # ========== CACHE TABLES ==========
-    
+
     # Create cache_entries table
     op.create_table('cache_entries',
         sa.Column('id', postgresql.UUID(), server_default=sa.text('gen_random_uuid()'), nullable=False),
@@ -209,7 +209,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('cache_key', name='uq_cache_entries_cache_key')
     )
-    
+
     # Create cache indexes for performance
     op.create_index('idx_cache_entries_namespace', 'cache_entries', ['namespace'])
     op.create_index('idx_cache_entries_expires_at', 'cache_entries', ['expires_at'],
@@ -218,11 +218,11 @@ def upgrade() -> None:
     op.create_index('idx_cache_entries_namespace_key', 'cache_entries', ['namespace', 'cache_key'])
 
     # ========== VIEWS ==========
-    
+
     # Create cache statistics view
     op.execute("""
         CREATE VIEW cache_stats AS
-        SELECT 
+        SELECT
             namespace,
             COUNT(*) as total_entries,
             SUM(COALESCE(data_size, pg_column_size(data))) as total_size_bytes,
@@ -233,14 +233,14 @@ def upgrade() -> None:
             MAX(last_accessed) as last_access_time,
             MIN(created_at) as oldest_entry,
             MAX(created_at) as newest_entry
-        FROM cache_entries 
+        FROM cache_entries
         GROUP BY namespace;
     """)
 
     # Create evidence scoring views WITH HPO FIX
     op.execute("""
         CREATE OR REPLACE VIEW evidence_source_counts AS
-        SELECT 
+        SELECT
             ge.id as evidence_id,
             ge.gene_id,
             g.approved_symbol,
@@ -248,7 +248,7 @@ def upgrade() -> None:
             CASE ge.source_name
                 WHEN 'PanelApp' THEN COALESCE(jsonb_array_length(ge.evidence_data->'panels'), 0)
                 -- FIXED: HPO uses 'hpo_terms' and 'diseases' not 'phenotypes' and 'disease_associations'
-                WHEN 'HPO' THEN COALESCE(jsonb_array_length(ge.evidence_data->'hpo_terms'), 0) 
+                WHEN 'HPO' THEN COALESCE(jsonb_array_length(ge.evidence_data->'hpo_terms'), 0)
                     + COALESCE(jsonb_array_length(ge.evidence_data->'diseases'), 0)
                 WHEN 'PubTator' THEN COALESCE(
                     (ge.evidence_data->>'publication_count')::int,
@@ -264,14 +264,14 @@ def upgrade() -> None:
 
     op.execute("""
         CREATE OR REPLACE VIEW evidence_count_percentiles AS
-        SELECT 
+        SELECT
             evidence_id,
             gene_id,
             approved_symbol,
             source_name,
             source_count,
             PERCENT_RANK() OVER (
-                PARTITION BY source_name 
+                PARTITION BY source_name
                 ORDER BY source_count
             ) as percentile_score
         FROM evidence_source_counts
@@ -280,12 +280,12 @@ def upgrade() -> None:
 
     op.execute("""
         CREATE OR REPLACE VIEW evidence_classification_weights AS
-        SELECT 
+        SELECT
             ge.id as evidence_id,
             ge.gene_id,
             g.approved_symbol,
             ge.source_name,
-            CASE 
+            CASE
                 WHEN ge.source_name = 'ClinGen' THEN
                     CASE ge.evidence_data->>'classification'
                         WHEN 'Definitive' THEN 1.0
@@ -316,7 +316,7 @@ def upgrade() -> None:
     op.execute("""
         CREATE OR REPLACE VIEW evidence_normalized_scores AS
         -- Count-based sources (percentile normalization)
-        SELECT 
+        SELECT
             evidence_id,
             gene_id,
             approved_symbol,
@@ -327,7 +327,7 @@ def upgrade() -> None:
         UNION ALL
 
         -- Classification-based sources (weight mapping)
-        SELECT 
+        SELECT
             evidence_id,
             gene_id,
             approved_symbol,
@@ -343,7 +343,7 @@ def upgrade() -> None:
             FROM gene_evidence
         ),
         gene_source_scores AS (
-            SELECT 
+            SELECT
                 g.id as gene_id,
                 g.approved_symbol,
                 g.hgnc_id,
@@ -351,14 +351,14 @@ def upgrade() -> None:
                 COUNT(ens.*) as evidence_count,
                 COALESCE(SUM(ens.normalized_score), 0) as raw_score,
                 jsonb_object_agg(
-                    ens.source_name, 
+                    ens.source_name,
                     ROUND(ens.normalized_score::numeric, 3)
                 ) FILTER (WHERE ens.source_name IS NOT NULL) as source_scores
             FROM genes g
             LEFT JOIN evidence_normalized_scores ens ON g.id = ens.gene_id
             GROUP BY g.id, g.approved_symbol, g.hgnc_id
         )
-        SELECT 
+        SELECT
             gss.gene_id,
             gss.approved_symbol,
             gss.hgnc_id,
@@ -366,7 +366,7 @@ def upgrade() -> None:
             gss.evidence_count,
             gss.raw_score,
             -- Divide by total active sources in system, not evidence count
-            CASE 
+            CASE
                 WHEN ac.total_count > 0 THEN
                     ROUND((gss.raw_score / ac.total_count * 100)::numeric, 2)
                 ELSE 0
@@ -381,7 +381,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop complete database schema."""
-    
+
     # Drop views first
     op.execute("DROP VIEW IF EXISTS gene_scores CASCADE")
     op.execute("DROP VIEW IF EXISTS evidence_normalized_scores CASCADE")
@@ -400,7 +400,7 @@ def downgrade() -> None:
     # Drop normalization tables
     op.drop_table('gene_normalization_log')
     op.drop_table('gene_normalization_staging')
-    
+
     # Drop progress table
     op.drop_table('data_source_progress')
 
@@ -412,19 +412,19 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_gene_evidence_source_name'), table_name='gene_evidence')
     op.drop_index(op.f('ix_gene_evidence_id'), table_name='gene_evidence')
     op.drop_table('gene_evidence')
-    
+
     op.drop_index(op.f('ix_gene_curations_id'), table_name='gene_curations')
     op.drop_index(op.f('ix_gene_curations_evidence_score'), table_name='gene_curations')
     op.drop_table('gene_curations')
-    
+
     # Drop core tables
     op.drop_index(op.f('ix_users_id'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
-    
+
     op.drop_index(op.f('ix_pipeline_runs_id'), table_name='pipeline_runs')
     op.drop_table('pipeline_runs')
-    
+
     op.drop_index(op.f('ix_genes_id'), table_name='genes')
     op.drop_index(op.f('ix_genes_hgnc_id'), table_name='genes')
     op.drop_index(op.f('ix_genes_approved_symbol'), table_name='genes')

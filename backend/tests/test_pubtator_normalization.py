@@ -104,7 +104,7 @@ class TestPubTatorNormalization:
         with patch.object(client, '_fetch_pubtator_data') as mock_fetch:
             mock_fetch.return_value = mock_pubtator_response
 
-            result = client.process_genes(mock_db, list(mock_pubtator_response.keys()))
+            client.process_genes(mock_db, list(mock_pubtator_response.keys()))
 
         # Verify normalization was called with correct parameters
         mock_normalize_batch.assert_called_once()
@@ -215,7 +215,7 @@ class TestPubTatorNormalization:
         with patch.object(client, '_fetch_pubtator_data') as mock_fetch:
             mock_fetch.return_value = {gene: {"mentions": 10, "pmids": ["123"]} for gene in gene_list}
 
-            result = client.process_genes(mock_db, gene_list)
+            client.process_genes(mock_db, gene_list)
 
         # Only successfully normalized genes should be processed
         mock_create_gene.assert_called_once_with(mock_db, "PKD1", "HGNC:8945")
@@ -262,7 +262,7 @@ class TestPubTatorNormalization:
         with patch.object(client, '_fetch_pubtator_data') as mock_fetch:
             mock_fetch.return_value = {}
 
-            result = client.process_genes(mock_db, ["PKD1", "ABCA4"])
+            client.process_genes(mock_db, ["PKD1", "ABCA4"])
 
         # Should not call normalization with empty data
         mock_normalize_batch.assert_not_called()
@@ -317,7 +317,7 @@ class TestPubTatorNormalization:
                             for gene in large_gene_list
                         }
 
-                        result = client.process_genes(mock_db, large_gene_list)
+                        client.process_genes(mock_db, large_gene_list)
 
         # Should make only one batch normalization call, not 1000 individual calls
         mock_normalize.assert_called_once()

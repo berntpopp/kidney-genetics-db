@@ -303,7 +303,7 @@ class GenCCClientCached:
             # Clean up downloaded file
             try:
                 Path(file_path).unlink()
-            except:
+            except Exception:
                 pass
             return cached_data
 
@@ -373,7 +373,7 @@ class GenCCClientCached:
                     gene_data_map[symbol]["classifications"][classification] += 1
 
             # Finalize aggregated data
-            for symbol, data in gene_data_map.items():
+            for _symbol, data in gene_data_map.items():
                 data["disease_count"] = len(data["diseases"])
                 data["submitter_count"] = len(data["submitters"])
                 data["submission_count"] = len(data["submissions"])

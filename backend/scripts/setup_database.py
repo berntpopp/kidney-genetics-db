@@ -15,10 +15,10 @@ from pathlib import Path
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
-from sqlalchemy import text
+from sqlalchemy import text  # noqa: E402
 
-from app.core.database import engine, get_db
-from app.models.base import Base
+from app.core.database import engine, get_db  # noqa: E402
+from app.models.base import Base  # noqa: E402
 
 # Configure logging
 logging.basicConfig(
@@ -46,7 +46,7 @@ def create_views():
     views = {
         "gene_scores": """
         CREATE OR REPLACE VIEW gene_scores AS
-        SELECT 
+        SELECT
             g.id as gene_id,
             g.approved_symbol,
             COUNT(DISTINCT ge.source_name) as source_count,
@@ -137,7 +137,7 @@ def verify_database_integrity():
             # Check HGNC coverage
             try:
                 result = conn.execute(text("""
-                    SELECT 
+                    SELECT
                         COUNT(*) as total,
                         COUNT(CASE WHEN hgnc_id IS NOT NULL THEN 1 END) as with_hgnc,
                         ROUND(COUNT(CASE WHEN hgnc_id IS NOT NULL THEN 1 END) * 100.0 / COUNT(*), 1) as coverage
@@ -157,7 +157,7 @@ def verify_database_integrity():
 def setup_database(skip_aggregation=False):
     """
     Complete database setup process
-    
+
     Args:
         skip_aggregation: If True, skip running gene aggregation (for fresh setups)
     """

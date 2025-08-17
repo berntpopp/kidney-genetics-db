@@ -48,7 +48,7 @@ def upgrade() -> None:
     # Create cache statistics view
     op.execute("""
         CREATE VIEW cache_stats AS
-        SELECT 
+        SELECT
             namespace,
             COUNT(*) as total_entries,
             SUM(COALESCE(data_size, pg_column_size(data))) as total_size_bytes,
@@ -59,7 +59,7 @@ def upgrade() -> None:
             MAX(last_accessed) as last_access_time,
             MIN(created_at) as oldest_entry,
             MAX(created_at) as newest_entry
-        FROM cache_entries 
+        FROM cache_entries
         GROUP BY namespace;
     """)
 

@@ -164,13 +164,13 @@ class TestGeneNormalizationIntegration:
         # Test empty and None inputs
         assert clean_gene_text("") == ""
         assert clean_gene_text(None) == ""
-        assert is_likely_gene_symbol("") == False
+        assert not is_likely_gene_symbol("")
 
         # Test very long inputs
         long_text = "A" * 1000
         cleaned = clean_gene_text(long_text)
         assert len(cleaned) <= len(long_text)
-        assert is_likely_gene_symbol(cleaned) == False  # Too long
+        assert not is_likely_gene_symbol(cleaned)  # Too long
 
         # Test special characters and unicode
         special_cases = [

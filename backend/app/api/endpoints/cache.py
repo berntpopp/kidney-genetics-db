@@ -136,7 +136,7 @@ async def get_cache_stats(
 
     except Exception as e:
         logger.error(f"Error getting cache stats: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting cache stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting cache stats: {str(e)}") from e
 
 
 @router.get("/stats/{namespace}", response_model=NamespaceStatsResponse)
@@ -171,7 +171,7 @@ async def get_namespace_stats(
         raise
     except Exception as e:
         logger.error(f"Error getting namespace stats for {namespace}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting namespace stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting namespace stats: {str(e)}") from e
 
 
 @router.get("/health", response_model=CacheHealthResponse)
@@ -240,7 +240,7 @@ async def get_cache_health(
 
     except Exception as e:
         logger.error(f"Error getting cache health: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting cache health: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting cache health: {str(e)}") from e
 
 
 @router.get("/keys/{namespace}", response_model=CacheKeyListResponse)
@@ -272,7 +272,7 @@ async def list_cache_keys(
 
     except Exception as e:
         logger.error(f"Error listing cache keys for {namespace}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error listing cache keys: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error listing cache keys: {str(e)}") from e
 
 
 @router.delete("/{namespace}", response_model=CacheClearResponse)
@@ -296,7 +296,7 @@ async def clear_namespace(
 
     except Exception as e:
         logger.error(f"Error clearing namespace {namespace}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error clearing namespace: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error clearing namespace: {str(e)}") from e
 
 
 @router.delete("/{namespace}/{key}", response_model=CacheClearResponse)
@@ -321,7 +321,7 @@ async def delete_cache_key(
 
     except Exception as e:
         logger.error(f"Error deleting cache key {namespace}:{key}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error deleting cache key: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error deleting cache key: {str(e)}") from e
 
 
 @router.post("/cleanup")
@@ -344,7 +344,7 @@ async def cleanup_expired_entries(
 
     except Exception as e:
         logger.error(f"Error during cache cleanup: {e}")
-        raise HTTPException(status_code=500, detail=f"Error during cache cleanup: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error during cache cleanup: {str(e)}") from e
 
 
 @router.post("/warm", response_model=CacheWarmResponse)
@@ -388,7 +388,7 @@ async def warm_cache(
 
     except Exception as e:
         logger.error(f"Error during cache warming: {e}")
-        raise HTTPException(status_code=500, detail=f"Error during cache warming: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error during cache warming: {str(e)}") from e
 
 
 @router.get("/config")
@@ -460,7 +460,7 @@ async def get_prometheus_metrics(
 
     except Exception as e:
         logger.error(f"Error generating Prometheus metrics: {e}")
-        raise HTTPException(status_code=500, detail=f"Error generating metrics: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generating metrics: {str(e)}") from e
 
 
 @router.get("/monitoring/dashboard")
@@ -481,7 +481,7 @@ async def get_monitoring_dashboard(
 
     except Exception as e:
         logger.error(f"Error getting monitoring dashboard: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting dashboard data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting dashboard data: {str(e)}") from e
 
 
 @router.get("/monitoring/performance")
@@ -503,7 +503,7 @@ async def get_performance_metrics(
 
     except Exception as e:
         logger.error(f"Error getting performance metrics: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting performance metrics: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting performance metrics: {str(e)}") from e
 
 
 @router.post("/monitoring/warm-all")
@@ -528,7 +528,7 @@ async def warm_all_caches(
 
     except Exception as e:
         logger.error(f"Error warming all caches: {e}")
-        raise HTTPException(status_code=500, detail=f"Error warming caches: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error warming caches: {str(e)}") from e
 
 
 @router.post("/monitoring/clear-all")
@@ -553,7 +553,7 @@ async def clear_all_caches(
 
     except Exception as e:
         logger.error(f"Error clearing all caches: {e}")
-        raise HTTPException(status_code=500, detail=f"Error clearing caches: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error clearing caches: {str(e)}") from e
 
 
 @router.get("/monitoring/health")
@@ -589,4 +589,4 @@ async def get_cache_system_health(
 
     except Exception as e:
         logger.error(f"Error getting cache system health: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting health status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting health status: {str(e)}") from e

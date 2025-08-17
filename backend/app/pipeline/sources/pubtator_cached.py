@@ -331,7 +331,7 @@ class PubTatorClientCached:
             # Cache key for this batch
             cache_key = f"annotations_batch:{pmids_str[:50]}:{len(batch_pmids)}"
 
-            async def fetch_batch_annotations():
+            async def fetch_batch_annotations(pmids_str=pmids_str):
                 try:
                     url = "https://www.ncbi.nlm.nih.gov/research/pubtator3-api/publications/export/biocjson"
                     response = await self.http_client.get(

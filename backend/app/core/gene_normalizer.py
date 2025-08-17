@@ -6,7 +6,7 @@ replacing the duplicated sync/async implementations with a clean async-first des
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -30,7 +30,7 @@ def clean_gene_text(gene_text: str) -> str:
         return ""
 
     import re
-    
+
     # Remove extra whitespace and convert to uppercase
     cleaned = gene_text.strip().upper()
 
@@ -82,31 +82,31 @@ def is_likely_gene_symbol(gene_text: str) -> bool:
 
 class GeneNormalizer:
     """Unified async-first gene normalization service."""
-    
-    def __init__(self, db_session: Optional[Session] = None):
+
+    def __init__(self, db_session: Session | None = None):
         self.hgnc_client = get_hgnc_client_cached(db_session=db_session)
-        
+
     async def normalize_batch_async(
         self,
         db: Session,
-        gene_texts: List[str],
+        gene_texts: list[str],
         source_name: str,
-        original_data_list: Optional[List[Dict[str, Any]]] = None
-    ) -> Dict[str, Dict[str, Any]]:
+        original_data_list: list[dict[str, Any]] | None = None
+    ) -> dict[str, dict[str, Any]]:
         """Async batch normalization of gene symbols."""
         if not gene_texts:
             return {}
-            
+
         logger.info(f"[{source_name}] Normalizing {len(gene_texts)} gene texts")
-        
+
         # Clean and prepare
         cleaned_genes = []
         gene_mapping = {}
-        
+
         for i, gene_text in enumerate(gene_texts):
             if not gene_text:
                 continue
-                
+
             cleaned = clean_gene_text(gene_text)
             if cleaned and is_likely_gene_symbol(cleaned):
                 cleaned_genes.append(cleaned)
@@ -115,24 +115,24 @@ class GeneNormalizer:
                     "index": i,
                     "original_data": original_data_list[i] if original_data_list else None
                 }
-        
+
         if not cleaned_genes:
             return {}
-            
+
         # Check existing genes in database
         existing_genes = self._get_existing_genes(db, cleaned_genes)
-        
+
         # HGNC lookup for remaining genes
         genes_to_lookup = [g for g in cleaned_genes if g not in existing_genes]
         hgnc_results = {}
-        
+
         if genes_to_lookup:
             hgnc_results = await self.hgnc_client.standardize_symbols_parallel(genes_to_lookup)
-            
+
         # Compile results
         return self._compile_results(gene_mapping, existing_genes, hgnc_results, db, source_name)
-    
-    def _get_existing_genes(self, db: Session, symbols: List[str]) -> Dict[str, Dict[str, Any]]:
+
+    def _get_existing_genes(self, db: Session, symbols: list[str]) -> dict[str, dict[str, Any]]:
         """Get existing genes from database."""
         existing_genes = {}
         for symbol in symbols:
@@ -143,23 +143,23 @@ class GeneNormalizer:
                     "hgnc_id": existing_gene.hgnc_id
                 }
         return existing_genes
-        
+
     def _compile_results(
-        self, 
-        gene_mapping: Dict[str, Dict[str, Any]], 
-        existing_genes: Dict[str, Dict[str, Any]], 
-        hgnc_results: Dict[str, Dict[str, Any]],
+        self,
+        gene_mapping: dict[str, dict[str, Any]],
+        existing_genes: dict[str, dict[str, Any]],
+        hgnc_results: dict[str, dict[str, Any]],
         db: Session,
         source_name: str
-    ) -> Dict[str, Dict[str, Any]]:
+    ) -> dict[str, dict[str, Any]]:
         """Compile final normalization results."""
         results = {}
-        
+
         for cleaned in gene_mapping:
             mapping = gene_mapping[cleaned]
             original_text = mapping["original"]
             original_data = mapping["original_data"]
-            
+
             if cleaned in existing_genes:
                 # Use existing gene data
                 gene_data = existing_genes[cleaned]
@@ -200,7 +200,7 @@ class GeneNormalizer:
                     db, original_text, source_name, original_data,
                     reason="Unexpected error in batch processing"
                 )
-        
+
         # Log summary
         status_counts = {}
         for info in results.values():
@@ -213,7 +213,7 @@ class GeneNormalizer:
             f"{status_counts.get('requires_manual_review', 0)} staged for review, "
             f"{status_counts.get('error', 0)} errors"
         )
-        
+
         return results
 
     def _create_staging_record(
@@ -221,9 +221,9 @@ class GeneNormalizer:
         db: Session,
         gene_text: str,
         source_name: str,
-        original_data: Dict[str, Any] | None,
+        original_data: dict[str, Any] | None,
         reason: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a staging record for manual review."""
         try:
             staging_record = gene_staging.create_staging_record(
@@ -263,7 +263,7 @@ class GeneNormalizer:
 _normalizer = None
 
 
-def get_gene_normalizer(db_session: Optional[Session] = None) -> GeneNormalizer:
+def get_gene_normalizer(db_session: Session | None = None) -> GeneNormalizer:
     """Get or create gene normalizer instance."""
     global _normalizer
     if _normalizer is None:
@@ -274,16 +274,16 @@ def get_gene_normalizer(db_session: Optional[Session] = None) -> GeneNormalizer:
 # Convenience function - async only
 async def normalize_genes_batch_async(
     db: Session,
-    gene_texts: List[str], 
+    gene_texts: list[str],
     source_name: str,
-    original_data_list: Optional[List[Dict[str, Any]]] = None
-) -> Dict[str, Dict[str, Any]]:
+    original_data_list: list[dict[str, Any]] | None = None
+) -> dict[str, dict[str, Any]]:
     """Async batch gene normalization - the only correct implementation."""
     normalizer = get_gene_normalizer(db)
     return await normalizer.normalize_batch_async(db, gene_texts, source_name, original_data_list)
 
 
-async def get_normalization_stats(db: Session) -> Dict[str, Any]:
+async def get_normalization_stats(db: Session) -> dict[str, Any]:
     """Get statistics about gene normalization."""
     try:
         # Gene statistics

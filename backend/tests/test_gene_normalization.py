@@ -16,6 +16,7 @@ from app.core.gene_normalization import (
     normalize_gene_for_database,
     normalize_genes_batch,
 )
+from app.models.gene import Gene
 
 
 class TestGeneTextCleaning:

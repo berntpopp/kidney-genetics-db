@@ -1,7 +1,7 @@
 """Complete database schema with all models and views
 
 Revision ID: 09ca10c13c4a
-Revises: 
+Revises:
 Create Date: 2025-08-16 21:41:13.260055
 
 """
@@ -182,7 +182,7 @@ def upgrade() -> None:
     # Create evidence scoring views
     op.execute("""
         CREATE OR REPLACE VIEW evidence_source_counts AS
-        SELECT 
+        SELECT
             ge.id as evidence_id,
             ge.gene_id,
             g.approved_symbol,
@@ -208,14 +208,14 @@ def upgrade() -> None:
 
     op.execute("""
         CREATE OR REPLACE VIEW evidence_count_percentiles AS
-        SELECT 
+        SELECT
             evidence_id,
             gene_id,
             approved_symbol,
             source_name,
             source_count,
             PERCENT_RANK() OVER (
-                PARTITION BY source_name 
+                PARTITION BY source_name
                 ORDER BY source_count
             ) as percentile_score
         FROM evidence_source_counts
@@ -224,12 +224,12 @@ def upgrade() -> None:
 
     op.execute("""
         CREATE OR REPLACE VIEW evidence_classification_weights AS
-        SELECT 
+        SELECT
             ge.id as evidence_id,
             ge.gene_id,
             g.approved_symbol,
             ge.source_name,
-            CASE 
+            CASE
                 WHEN ge.source_name = 'ClinGen' THEN
                     CASE ge.evidence_data->>'classification'
                         WHEN 'Definitive' THEN 1.0
@@ -263,7 +263,7 @@ def upgrade() -> None:
     op.execute("""
         CREATE OR REPLACE VIEW evidence_normalized_scores AS
         -- Count-based sources (percentile normalization)
-        SELECT 
+        SELECT
             evidence_id,
             gene_id,
             approved_symbol,
@@ -274,7 +274,7 @@ def upgrade() -> None:
         UNION ALL
 
         -- Classification-based sources (weight mapping)
-        SELECT 
+        SELECT
             evidence_id,
             gene_id,
             approved_symbol,
@@ -290,7 +290,7 @@ def upgrade() -> None:
             FROM gene_evidence
         ),
         gene_source_scores AS (
-            SELECT 
+            SELECT
                 g.id as gene_id,
                 g.approved_symbol,
                 g.hgnc_id,
@@ -298,14 +298,14 @@ def upgrade() -> None:
                 COUNT(ens.*) as evidence_count,
                 COALESCE(SUM(ens.normalized_score), 0) as raw_score,
                 jsonb_object_agg(
-                    ens.source_name, 
+                    ens.source_name,
                     ROUND(ens.normalized_score::numeric, 3)
                 ) FILTER (WHERE ens.source_name IS NOT NULL) as source_scores
             FROM genes g
             LEFT JOIN evidence_normalized_scores ens ON g.id = ens.gene_id
             GROUP BY g.id, g.approved_symbol, g.hgnc_id
         )
-        SELECT 
+        SELECT
             gss.gene_id,
             gss.approved_symbol,
             gss.hgnc_id,
@@ -313,7 +313,7 @@ def upgrade() -> None:
             gss.evidence_count,
             gss.raw_score,
             -- CORRECTED: Divide by total active sources in system, not evidence count
-            CASE 
+            CASE
                 WHEN ac.total_count > 0 THEN
                     ROUND((gss.raw_score / ac.total_count * 100)::numeric, 2)
                 ELSE 0

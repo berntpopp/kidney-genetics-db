@@ -65,7 +65,7 @@ class BackgroundTaskManager(TaskMixin):
         # Dynamic task dispatch
         method_name = f"_run_{source_name.lower().replace('_', '_')}"
         task_method = getattr(self, method_name, None)
-        
+
         if not task_method:
             logger.error(f"Unknown source: {source_name}")
             return
