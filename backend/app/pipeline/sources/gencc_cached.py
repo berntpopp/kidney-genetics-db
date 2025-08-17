@@ -136,7 +136,7 @@ class GenCCClientCached:
 
     async def parse_excel_file(self, file_path: Path | str) -> pd.DataFrame:
         """
-        Parse GenCC Excel file with caching of parsed results.
+        Parse GenCC Excel file (without caching).
         
         Args:
             file_path: Path to Excel file
@@ -148,59 +148,28 @@ class GenCCClientCached:
         if isinstance(file_path, str):
             file_path = Path(file_path)
             
-        # Create cache key based on file content hash for data integrity
         try:
-            file_hash = hashlib.md5(file_path.read_bytes()).hexdigest()
-            cache_key = f"parsed_excel:{file_hash}"
-        except Exception:
-            # Fallback to timestamp-based key
-            cache_key = f"parsed_excel:{file_path.stat().st_mtime}"
+            # Read Excel file - usually first sheet contains the submissions
+            df = pd.read_excel(file_path)
+            logger.info(f"Parsed GenCC Excel file: {len(df)} total submissions")
 
-        async def parse_file():
+            # Debug: Log column names to understand the structure
+            logger.debug(f"GenCC columns: {list(df.columns)}")
+
+            # Replace NaN with None for cleaner processing
+            df = df.where(pd.notnull(df), None)
+            
+            return df
+
+        except Exception as e:
+            logger.error(f"Error parsing GenCC Excel file: {e}")
+            return pd.DataFrame()
+        finally:
+            # Clean up temporary file
             try:
-                # Read Excel file - usually first sheet contains the submissions
-                df = pd.read_excel(file_path)
-                logger.info(f"Parsed GenCC Excel file: {len(df)} total submissions")
-
-                # Debug: Log column names to understand the structure
-                logger.info(f"GenCC columns: {list(df.columns)}")
-
-                # Debug: Show first few rows of relevant columns
-                if len(df) > 0:
-                    # Try to find disease-related columns
-                    disease_cols = [col for col in df.columns if any(term in col.lower() for term in ['disease', 'condition', 'phenotype', 'disorder'])]
-                    if disease_cols:
-                        logger.info(f"Disease-related columns found: {disease_cols}")
-                        # Show some sample values
-                        for col in disease_cols[:2]:  # Limit to first 2 columns
-                            sample_values = df[col].dropna().head(10).tolist()
-                            logger.info(f"Sample {col} values: {sample_values}")
-
-                # Convert DataFrame to JSON-serializable format for caching
-                # Replace NaN with None for JSON serialization
-                df = df.where(pd.notnull(df), None)
-                return df.to_dict('records')
-
-            except Exception as e:
-                logger.error(f"Error parsing GenCC Excel file: {e}")
-                return []
-            finally:
-                # Clean up temporary file
-                try:
-                    file_path.unlink()
-                except OSError:
-                    pass
-
-        records = await cached(
-            cache_key,
-            parse_file,
-            self.NAMESPACE,
-            self.ttl,
-            self.cache_service.db_session
-        )
-
-        # Convert back to DataFrame
-        return pd.DataFrame(records) if records else pd.DataFrame()
+                file_path.unlink()
+            except OSError:
+                pass
 
     def is_kidney_related(self, row: pd.Series) -> bool:
         """Check if a GenCC submission is kidney-related"""
@@ -305,15 +274,21 @@ class GenCCClientCached:
             Dictionary mapping gene symbols to aggregated GenCC data
         """
         cache_key = "kidney_gene_data"
+        
+        # Check cache first for processed data
+        cached_data = await self.cache_service.get(cache_key, self.NAMESPACE)
+        if cached_data is not None:
+            logger.info(f"✅ Using cached kidney gene data: {len(cached_data)} genes")
+            return cached_data
 
         async def fetch_and_process_data():
-            # Download Excel file (cached)
+            # Download Excel file (NOT cached - always fresh)
             file_path = await self.download_excel_file()
             if not file_path:
                 logger.error("❌ Failed to download GenCC file")
                 return {}
 
-            # Parse Excel file (cached)
+            # Parse Excel file (NOT cached - parse fresh file)
             df = await self.parse_excel_file(file_path)
             if df.empty:
                 logger.error("❌ Failed to parse GenCC file or file is empty")
@@ -402,19 +377,22 @@ class GenCCClientCached:
 
             return gene_data_map
 
-        # Try to use cache, but if it fails, still return the data
-        try:
-            return await cached(
-                cache_key,
-                fetch_and_process_data,
-                self.NAMESPACE,
-                self.ttl,
-                self.cache_service.db_session
-            )
-        except Exception as e:
-            logger.warning(f"Cache failed for kidney_gene_data, fetching directly: {e}")
-            # If caching fails, just fetch the data directly
-            return await fetch_and_process_data()
+        # Fetch and process the data
+        logger.info("🔄 Fetching fresh GenCC data...")
+        gene_data = await fetch_and_process_data()
+        
+        # Cache the processed data if we got results
+        if gene_data:
+            try:
+                success = await self.cache_service.set(cache_key, gene_data, self.NAMESPACE, self.ttl)
+                if success:
+                    logger.info(f"✅ Cached {len(gene_data)} genes for future use")
+                else:
+                    logger.warning("⚠️ Failed to cache gene data, but continuing with results")
+            except Exception as e:
+                logger.warning(f"⚠️ Cache error (continuing anyway): {e}")
+        
+        return gene_data
 
     async def get_gene_evidence_score(self, symbol: str) -> float:
         """
