@@ -104,13 +104,40 @@ async def update_hpo_async(db: Session, tracker: ProgressTracker) -> dict[str, A
                 stats["errors"] += 1
                 continue
             
-            # Get or create gene
+            # Check if normalization was successful (has HGNC ID)
+            if gene_info.get("source") == "not_found" or not gene_info.get("hgnc_id"):
+                # Stage for manual review
+                from app.crud.gene_staging import staging_crud
+                
+                logger.info(f"Gene '{gene_symbol}' requires manual review - staging for normalization")
+                
+                staging_record = staging_crud.create_staging_record(
+                    db=db,
+                    original_text=gene_symbol,
+                    source_name=source_name,
+                    normalization_log={
+                        "reason": "HGNC ID not found",
+                        "normalization_result": gene_info,
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    },
+                    original_data={
+                        "evidence": evidence_data,
+                        "hpo_terms": evidence_data["hpo_terms"],
+                        "diseases": evidence_data["diseases"]
+                    }
+                )
+                
+                stats["genes_staged"] = stats.get("genes_staged", 0) + 1
+                logger.info(f"Gene '{gene_symbol}' staged with ID {staging_record.id}")
+                continue
+            
+            # Get or create gene (only if we have HGNC ID)
             approved_symbol = gene_info.get("approved_symbol", gene_symbol)
             
             # Check if gene exists
             gene = gene_crud.get_by_symbol(db, approved_symbol)
             if not gene:
-                # Create new gene
+                # Create new gene WITH HGNC ID
                 gene_create = GeneCreate(
                     approved_symbol=approved_symbol,
                     hgnc_id=gene_info.get("hgnc_id"),
@@ -154,9 +181,11 @@ async def update_hpo_async(db: Session, tracker: ProgressTracker) -> dict[str, A
         stats["completed_at"] = datetime.now(timezone.utc).isoformat()
         
         # Update tracker with final status
+        staged_count = stats.get('genes_staged', 0)
         tracker.update(
             operation=f"✅ Complete: {stats['genes_processed']} genes, "
-            f"{stats['evidence_created']} evidence entries"
+            f"{stats['evidence_created']} evidence entries" +
+            (f", {staged_count} staged for review" if staged_count > 0 else "")
         )
         
         logger.info(f"✅ {source_name} update completed successfully")
@@ -164,6 +193,8 @@ async def update_hpo_async(db: Session, tracker: ProgressTracker) -> dict[str, A
         logger.info(f"   - Genes found: {stats['total_genes_found']}")
         logger.info(f"   - Genes processed: {stats['genes_processed']}")
         logger.info(f"   - Evidence created: {stats['evidence_created']}")
+        if staged_count > 0:
+            logger.info(f"   - Genes staged for review: {staged_count}")
         
     except Exception as e:
         logger.error(f"Error during {source_name} update: {e}", exc_info=True)
