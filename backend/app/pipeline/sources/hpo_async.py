@@ -133,18 +133,32 @@ async def update_hpo_async(db: Session, tracker: ProgressTracker) -> dict[str, A
             
             # Get or create gene (only if we have HGNC ID)
             approved_symbol = gene_info.get("approved_symbol", gene_symbol)
+            hgnc_id = gene_info.get("hgnc_id")
             
-            # Check if gene exists
-            gene = gene_crud.get_by_symbol(db, approved_symbol)
+            # CRITICAL FIX: Check if gene exists by HGNC ID first to avoid duplicates
+            gene = None
+            if hgnc_id:
+                gene = gene_crud.get_by_hgnc_id(db, hgnc_id)
+                if gene:
+                    logger.debug(f"Found existing gene by HGNC ID {hgnc_id}: {gene.approved_symbol}")
+            
+            # If not found by HGNC ID, try by symbol
+            if not gene:
+                gene = gene_crud.get_by_symbol(db, approved_symbol)
+                if gene:
+                    logger.debug(f"Found existing gene by symbol: {approved_symbol}")
+            
+            # Create new gene only if it doesn't exist
             if not gene:
                 # Create new gene WITH HGNC ID
                 gene_create = GeneCreate(
                     approved_symbol=approved_symbol,
-                    hgnc_id=gene_info.get("hgnc_id"),
+                    hgnc_id=hgnc_id,
                     aliases=gene_info.get("alias_symbols", [])
                 )
                 gene = gene_crud.create(db, obj_in=gene_create)
                 stats["genes_created"] += 1
+                logger.debug(f"Created new gene: {approved_symbol} with HGNC ID {hgnc_id}")
             
             stats["genes_processed"] += 1
             
