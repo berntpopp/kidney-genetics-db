@@ -315,12 +315,16 @@ class DataSourceClient(ABC):
     ) -> None:
         """Create or update evidence record for a gene."""
         try:
-            # Check if evidence already exists
+            # Generate source detail for consistency
+            source_detail = self._get_source_detail(evidence_data)
+            
+            # Check if evidence already exists (must match unique constraint)
             existing = (
                 db.query(GeneEvidence)
                 .filter(
                     GeneEvidence.gene_id == gene.id,
                     GeneEvidence.source_name == self.source_name,
+                    GeneEvidence.source_detail == source_detail,
                 )
                 .first()
             )
@@ -335,16 +339,47 @@ class DataSourceClient(ABC):
                 db.add(existing)
                 stats["evidence_updated"] += 1
             else:
-                # Create new evidence
-                evidence = GeneEvidence(
-                    gene_id=gene.id,
-                    source_name=self.source_name,
-                    source_detail=self._get_source_detail(evidence_data),
-                    evidence_data=clean_evidence,
-                    evidence_date=datetime.now(timezone.utc).date(),
-                )
-                db.add(evidence)
-                stats["evidence_created"] += 1
+                # Create new evidence with proper constraint handling
+                try:
+                    evidence = GeneEvidence(
+                        gene_id=gene.id,
+                        source_name=self.source_name,
+                        source_detail=source_detail,
+                        evidence_data=clean_evidence,
+                        evidence_date=datetime.now(timezone.utc).date(),
+                    )
+                    db.add(evidence)
+                    db.flush()  # Force constraint check before commit
+                    stats["evidence_created"] += 1
+                except Exception as constraint_error:
+                    # Handle race condition: another task may have created the evidence
+                    if "unique constraint" in str(constraint_error).lower() or "duplicate key" in str(constraint_error).lower():
+                        db.rollback()  # Rollback failed transaction
+                        logger.debug(f"Evidence constraint violation, retrying fetch for gene {gene.approved_symbol}")
+                        # Try to get the evidence that was created by another task
+                        existing = (
+                            db.query(GeneEvidence)
+                            .filter(
+                                GeneEvidence.gene_id == gene.id,
+                                GeneEvidence.source_name == self.source_name,
+                                GeneEvidence.source_detail == source_detail,
+                            )
+                            .first()
+                        )
+                        if existing:
+                            # Update with our data
+                            existing.evidence_data = clean_evidence
+                            existing.evidence_date = datetime.now(timezone.utc).date()
+                            db.add(existing)
+                            stats["evidence_updated"] += 1
+                            logger.debug(f"Updated existing evidence after race condition for gene {gene.approved_symbol}")
+                        else:
+                            logger.error(f"Race condition: evidence still not found after creation attempt for gene {gene.approved_symbol}")
+                            stats["errors"] += 1
+                    else:
+                        logger.error(f"Constraint error creating evidence for gene {gene.approved_symbol}: {constraint_error}")
+                        stats["errors"] += 1
+                        raise
 
         except Exception as e:
             logger.error(f"Error creating evidence for gene {gene.approved_symbol}: {e}")

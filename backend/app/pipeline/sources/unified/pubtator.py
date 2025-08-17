@@ -125,7 +125,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             url = f"{self.pubmed_url}/esearch.fcgi"
             params = {
                 "db": "pubmed",
-                "term": f"{query} AND genetics[MeSH]",
+                "term": query,
                 "retmax": self.max_pages * 10,  # Approximate articles per page
                 "retmode": "json",
                 "sort": "relevance",
