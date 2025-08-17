@@ -27,7 +27,8 @@ async def update_gencc_async(db: Session, tracker: ProgressTracker) -> dict[str,
     from app.schemas.gene import GeneCreate
 
     source_name = "GenCC"
-    logger.info(f"🚀 Starting {source_name} data update with cached client...")
+    logger.info(f"🚀 [ENTRY] update_gencc_async called - Starting {source_name} data update with cached client...")
+    print(f"🚀 [ENTRY] update_gencc_async called - Starting {source_name} data update with cached client...")
 
     stats = {
         "source": source_name,

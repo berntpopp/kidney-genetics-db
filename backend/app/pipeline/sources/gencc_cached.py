@@ -268,27 +268,49 @@ class GenCCClientCached:
 
     async def get_kidney_gene_data(self) -> dict[str, Any]:
         """
-        Get processed kidney-related gene data with comprehensive caching.
+        Get processed kidney-related gene data with intelligent checksum-based caching.
+        
+        Logic:
+        1. Download Excel file and calculate checksum
+        2. Check if we have cached data for this checksum
+        3. If same file and successful run exists, return cached data
+        4. Otherwise process fresh and cache result with checksum
         
         Returns:
             Dictionary mapping gene symbols to aggregated GenCC data
         """
-        cache_key = "kidney_gene_data"
+        logger.info("🔄 Starting GenCC kidney gene data fetch...")
         
-        # Check cache first for processed data
+        # Step 1: Download Excel file to get checksum
+        file_path = await self.download_excel_file()
+        if not file_path:
+            logger.error("❌ Failed to download GenCC file")
+            return {}
+        
+        # Step 2: Calculate file checksum
+        try:
+            import hashlib
+            file_content = Path(file_path).read_bytes()
+            file_checksum = hashlib.md5(file_content).hexdigest()
+            logger.info(f"📁 GenCC file checksum: {file_checksum}")
+        except Exception as e:
+            logger.error(f"❌ Failed to calculate checksum: {e}")
+            file_checksum = "unknown"
+        
+        # Step 3: Check cache using checksum as key
+        cache_key = f"kidney_gene_data_{file_checksum}"
         cached_data = await self.cache_service.get(cache_key, self.NAMESPACE)
         if cached_data is not None:
-            logger.info(f"✅ Using cached kidney gene data: {len(cached_data)} genes")
+            logger.info(f"✅ Using cached data for checksum {file_checksum}: {len(cached_data)} genes")
+            # Clean up downloaded file
+            try:
+                Path(file_path).unlink()
+            except:
+                pass
             return cached_data
 
         async def fetch_and_process_data():
-            # Download Excel file (NOT cached - always fresh)
-            file_path = await self.download_excel_file()
-            if not file_path:
-                logger.error("❌ Failed to download GenCC file")
-                return {}
-
-            # Parse Excel file (NOT cached - parse fresh file)
+            # Parse Excel file
             df = await self.parse_excel_file(file_path)
             if df.empty:
                 logger.error("❌ Failed to parse GenCC file or file is empty")
@@ -377,20 +399,22 @@ class GenCCClientCached:
 
             return gene_data_map
 
-        # Fetch and process the data
-        logger.info("🔄 Fetching fresh GenCC data...")
+        # Step 4: Fetch and process fresh data
+        logger.info(f"🔄 Processing fresh GenCC data for checksum {file_checksum}...")
         gene_data = await fetch_and_process_data()
         
-        # Cache the processed data if we got results
+        # Step 5: Cache the processed data with checksum if we got results
         if gene_data:
             try:
                 success = await self.cache_service.set(cache_key, gene_data, self.NAMESPACE, self.ttl)
                 if success:
-                    logger.info(f"✅ Cached {len(gene_data)} genes for future use")
+                    logger.info(f"✅ Cached {len(gene_data)} genes for checksum {file_checksum}")
                 else:
                     logger.warning("⚠️ Failed to cache gene data, but continuing with results")
             except Exception as e:
                 logger.warning(f"⚠️ Cache error (continuing anyway): {e}")
+        else:
+            logger.warning("⚠️ No gene data to cache")
         
         return gene_data
 

@@ -154,21 +154,28 @@ class BackgroundTaskManager:
     async def _run_gencc(self, resume: bool = False):
         """Run GenCC update with progress tracking - fully async"""
         logger.info(f"🚀 [DEBUG] _run_gencc called with resume={resume}")
+        print(f"🚀 [DEBUG] _run_gencc called with resume={resume}")
 
         try:
             logger.info("🚀 [DEBUG] Importing update_gencc_async...")
+            print("🚀 [DEBUG] Importing update_gencc_async...")
             from app.pipeline.sources.gencc_async import update_gencc_async
             logger.info("🚀 [DEBUG] Import successful")
+            print("🚀 [DEBUG] Import successful")
 
             logger.info("🚀 [DEBUG] Getting database session...")
+            print("🚀 [DEBUG] Getting database session...")
             db = next(get_db())
             logger.info("🚀 [DEBUG] Creating ProgressTracker...")
+            print("🚀 [DEBUG] Creating ProgressTracker...")
             tracker = ProgressTracker(db, "GenCC", self.broadcast_callback)
             logger.info("🚀 [DEBUG] About to call update_gencc_async...")
+            print("🚀 [DEBUG] About to call update_gencc_async...")
 
             # Use fully async implementation
             result = await update_gencc_async(db, tracker)
             logger.info(f"GenCC async update completed: {result}")
+            print(f"GenCC async update completed: {result}")
 
         except Exception as e:
             logger.error(f"❌ [DEBUG] GenCC async update failed: {e}")
