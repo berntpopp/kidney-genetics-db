@@ -157,22 +157,40 @@ class CacheService:
         return self.namespace_ttls.get(namespace, self.namespace_ttls["default"])
 
     def _serialize_value(self, value: Any) -> str:
-        """Serialize a value for storage."""
+        """Serialize a value for storage with pandas DataFrame support."""
         try:
+            # Handle pandas DataFrames
+            import pandas as pd
+            if isinstance(value, pd.DataFrame):
+                # Convert DataFrame to JSON-serializable dict
+                return json.dumps({
+                    '_type': 'dataframe',
+                    'data': value.to_dict(orient='records'),
+                    'columns': list(value.columns),
+                    'index': list(value.index)
+                }, default=str, ensure_ascii=False)
+            
             return json.dumps(value, default=str, ensure_ascii=False)
         except (TypeError, ValueError) as e:
             logger.error(f"Error serializing value: {e}")
             raise
 
     def _deserialize_value(self, serialized: Any) -> Any:
-        """Deserialize a value from storage with type safety."""
+        """Deserialize a value from storage with type safety and DataFrame support."""
         try:
             # Handle None
             if serialized is None:
                 return None
                 
-            # If it's already a dict/list/bool/number, return it directly
-            if isinstance(serialized, (dict, list, bool, int, float)):
+            # If it's already a dict/list/bool/number, check for DataFrame format
+            if isinstance(serialized, dict):
+                if serialized.get('_type') == 'dataframe':
+                    # Reconstruct DataFrame
+                    import pandas as pd
+                    return pd.DataFrame(serialized['data'])
+                return serialized
+                
+            if isinstance(serialized, (list, bool, int, float)):
                 return serialized
                 
             # Handle string serialization
@@ -180,7 +198,13 @@ class CacheService:
                 if not serialized or serialized.strip() == "":
                     logger.warning("Attempted to deserialize empty string value, returning None")
                     return None
-                return json.loads(serialized)
+                
+                data = json.loads(serialized)
+                # Check if it's a serialized DataFrame
+                if isinstance(data, dict) and data.get('_type') == 'dataframe':
+                    import pandas as pd
+                    return pd.DataFrame(data['data'])
+                return data
             
             # Handle other types by converting to string first
             logger.warning(f"Unexpected type {type(serialized)} for cache value, converting to string")
