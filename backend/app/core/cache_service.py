@@ -135,10 +135,21 @@ class CacheService:
 
         logger.info(f"CacheService initialized - enabled: {self.enabled}")
 
-    def _generate_cache_key(self, key: str, namespace: str = "default") -> str:
-        """Generate a unique cache key."""
+    def _generate_cache_key(self, key: Any, namespace: str = "default") -> str:
+        """Generate a unique cache key with type normalization."""
+        # Normalize key to string
+        if isinstance(key, str):
+            normalized_key = key
+        elif isinstance(key, (int, float)):
+            normalized_key = str(key)
+        elif isinstance(key, (list, dict, tuple)):
+            # Serialize complex types to JSON for consistent hashing
+            normalized_key = json.dumps(key, sort_keys=True, default=str)
+        else:
+            normalized_key = str(key)
+            
         # Create a hash of the key for consistent length and safety
-        key_hash = hashlib.sha256(f"{namespace}:{key}".encode()).hexdigest()
+        key_hash = hashlib.sha256(f"{namespace}:{normalized_key}".encode()).hexdigest()
         return f"{namespace}:{key_hash}"
 
     def _get_ttl_for_namespace(self, namespace: str) -> int:
@@ -153,24 +164,37 @@ class CacheService:
             logger.error(f"Error serializing value: {e}")
             raise
 
-    def _deserialize_value(self, serialized: str) -> Any:
-        """Deserialize a value from storage."""
+    def _deserialize_value(self, serialized: Any) -> Any:
+        """Deserialize a value from storage with type safety."""
         try:
-            # Handle empty strings or None
-            if not serialized or serialized.strip() == "":
-                logger.warning("Attempted to deserialize empty value, returning None")
+            # Handle None
+            if serialized is None:
                 return None
-
-            return json.loads(serialized)
+                
+            # If it's already a dict/list/bool/number, return it directly
+            if isinstance(serialized, (dict, list, bool, int, float)):
+                return serialized
+                
+            # Handle string serialization
+            if isinstance(serialized, str):
+                if not serialized or serialized.strip() == "":
+                    logger.warning("Attempted to deserialize empty string value, returning None")
+                    return None
+                return json.loads(serialized)
+            
+            # Handle other types by converting to string first
+            logger.warning(f"Unexpected type {type(serialized)} for cache value, converting to string")
+            return json.loads(str(serialized))
+            
         except (TypeError, ValueError) as e:
             logger.error(f"Error deserializing value: {e}")
-            logger.debug(f"Failed to deserialize: {repr(serialized[:100] if serialized else serialized)}")
+            logger.debug(f"Failed to deserialize: {repr(str(serialized)[:100] if serialized else serialized)}")
             # Return None instead of raising to allow graceful recovery
             return None
 
     async def get(
         self,
-        key: str,
+        key: Any,
         namespace: str = "default",
         default: Any = None
     ) -> Any:
@@ -225,7 +249,7 @@ class CacheService:
 
     async def set(
         self,
-        key: str,
+        key: Any,
         value: Any,
         namespace: str = "default",
         ttl: int | None = None
@@ -263,7 +287,7 @@ class CacheService:
             logger.error(f"Error setting cache entry {namespace}:{key}: {e}")
             return False
 
-    async def delete(self, key: str, namespace: str = "default") -> bool:
+    async def delete(self, key: Any, namespace: str = "default") -> bool:
         """Delete a value from cache."""
         if not self.enabled:
             return False
@@ -290,7 +314,7 @@ class CacheService:
 
     async def get_or_set(
         self,
-        key: str,
+        key: Any,
         fetch_func: Callable[[], Any],
         namespace: str = "default",
         ttl: int | None = None
