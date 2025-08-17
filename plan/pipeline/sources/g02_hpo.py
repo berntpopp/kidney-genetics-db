@@ -1,4 +1,11 @@
 """
+DEPRECATED - REFERENCE IMPLEMENTATION ONLY
+
+This is the old implementation that downloads OMIM genemap2.txt and phenotype.hpoa files.
+The new implementation (backend/app/pipeline/sources/hpo_async.py) uses the HPO API 
+directly and does not require downloading these files.
+
+Original description:
 HPO/OMIM neoplasm data source extractor.
 
 This module identifies genes associated with neoplasia by processing HPO

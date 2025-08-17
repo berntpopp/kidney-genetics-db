@@ -14,7 +14,7 @@ from app.models.gene import PipelineRun
 from app.pipeline.aggregate import update_all_curations
 from app.pipeline.sources.clingen import update_clingen_data
 from app.pipeline.sources.gencc import update_gencc_data
-from app.pipeline.sources.hpo import update_hpo_data
+# HPO now uses async version in background_tasks.py - not available for sync CLI
 from app.pipeline.sources.panelapp import update_all_panelapp
 from app.pipeline.sources.pubtator import update_pubtator_data
 
@@ -66,9 +66,10 @@ def update(source: str):
             all_stats.append(stats)
 
         if source in ["all", "hpo"]:
-            logger.info("Updating HPO data...")
-            stats = update_hpo_data(db)
-            all_stats.append(stats)
+            logger.info("HPO update not available in sync CLI - use API endpoint instead")
+            # HPO now uses async implementation - see background_tasks.py
+            # stats = update_hpo_data(db)
+            # all_stats.append(stats)
 
         if source in ["all", "pubtator"]:
             logger.info("Updating PubTator data...")

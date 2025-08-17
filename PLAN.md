@@ -36,7 +36,7 @@ Modernization of the R-based kidney-genetics pipeline into a lean, scalable web 
 ### ✅ Phase 2: Data Pipeline (Complete)
 - ✅ Complete Python implementation of all major data sources:
   - ✅ **PanelApp**: Combined UK and Australia endpoints (395 genes, 27 panels)
-  - ✅ **HPO**: Direct API integration + file downloads (implemented, needs OMIM fix)
+  - ✅ **HPO**: Direct API integration (fully implemented via HPO API)
   - ✅ **PubTator**: Migrated to PubTator3 API (50 genes with evidence)
   - ✅ **ClinGen**: 5 kidney-specific expert panels (107 genes, 125 assessments)
   - ✅ **GenCC**: Harmonized worldwide submissions (352 genes, 952 submissions)
@@ -147,7 +147,7 @@ See [Development Workflow](DEV_WORKFLOW.md) for detailed guide.
 4. **GenCC** - Harmonized gene-disease relationships from 40+ submitters worldwide (352 genes, 952 submissions)
 
 ### ⚠️ Implemented but Issues
-5. **HPO** - Human Phenotype Ontology associations (implemented, needs OMIM genemap2.txt download fix)
+5. **HPO** - Human Phenotype Ontology associations (fully implemented via HPO API)
 
 ### ⏳ Pending Implementation
 6. **Literature** - Manual curation from research papers (upload API endpoint needed)

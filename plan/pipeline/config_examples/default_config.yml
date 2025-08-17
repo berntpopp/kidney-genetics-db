@@ -126,21 +126,26 @@ data_sources:
 
 
   # HPO/OMIM neoplasm gene identification - Standalone source
+  # NOTE: This configuration was for the old implementation that downloaded OMIM/HPOA files
+  # The new implementation (backend/app/pipeline/sources/hpo_async.py) uses the HPO API directly
+  # and does not require downloading OMIM genemap2.txt or phenotype.hpoa files
   HPO_Neoplasm:
     enabled: true
     source_group: false  # This is a standalone source
     category: "germline"
     evidence_score: 0.7  # Base evidence score
-    # OMIM genemap2.txt file configuration
-    # Option 1: Provide direct URL with your personal access token (recommended)
+    # DEPRECATED: The following OMIM configuration is no longer used
+    # The new implementation gets disease associations directly from HPO API
+    # OMIM genemap2.txt file configuration (DEPRECATED - NOT USED IN NEW IMPLEMENTATION)
+    # Option 1: Provide direct URL with your personal access token (not needed anymore)
     # Get your token from: https://omim.org/downloads
     # Example: "https://data.omim.org/downloads/YOUR_TOKEN/genemap2.txt"
-    omim_genemap2_url: null  # Set this in local config or environment
+    omim_genemap2_url: null  # DEPRECATED - not used in new implementation
     
-    # Option 2: Provide local file path if you've already downloaded it
-    omim_genemap2_path: "data/omim/genemap2.txt"
+    # Option 2: Provide local file path if you've already downloaded it (not needed anymore)
+    omim_genemap2_path: "data/omim/genemap2.txt"  # DEPRECATED - not used
     
-    # Cache settings for both phenotype.hpoa and genemap2 files
+    # Cache settings (only cache_dir is used for HPO API responses now)
     cache_dir: ".cache/hpo"
     cache_expiry_days: 30
     
