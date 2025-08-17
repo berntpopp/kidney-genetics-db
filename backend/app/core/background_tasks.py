@@ -213,7 +213,7 @@ class BackgroundTaskManager:
                 
         except Exception as e:
             logger.error(f"HPO update error: {e}", exc_info=True)
-            tracker.fail("HPO", str(e))
+            tracker.error(str(e))
 
     async def _run_hgnc_normalization(self, resume: bool = False):
         """Run HGNC normalization with progress tracking"""

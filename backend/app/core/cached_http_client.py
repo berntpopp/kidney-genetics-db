@@ -338,18 +338,28 @@ class CachedHttpClient:
 
         cached_response = await self.cache_service.get(cache_key, namespace)
 
-        if cached_response:
+        if cached_response and isinstance(cached_response, dict):
             logger.info(f"Using fallback cache for {url}")
             # Reconstruct response from cached data
+            content = cached_response.get("content", "")
+            # Handle content that might be string or bytes
+            if isinstance(content, str):
+                content = content.encode("utf-8")
+            elif not isinstance(content, bytes):
+                content = str(content).encode("utf-8")
+            
             response = httpx.Response(
                 status_code=cached_response.get("status_code", 200),
                 headers=cached_response.get("headers", {}),
-                content=cached_response.get("content", b""),
+                content=content,
                 request=httpx.Request("GET", url)
             )
             return response
         else:
-            # No cached data available
+            # No cached data available or corrupted
+            if cached_response is not None:
+                logger.warning(f"Corrupted fallback cache for {url}, clearing it")
+                await self.cache_service.delete(cache_key, namespace)
             logger.error(f"No fallback cache available for {url}")
             raise httpx.RequestError(f"No cached data available for {url}")
 

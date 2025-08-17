@@ -156,10 +156,17 @@ class CacheService:
     def _deserialize_value(self, serialized: str) -> Any:
         """Deserialize a value from storage."""
         try:
+            # Handle empty strings or None
+            if not serialized or serialized.strip() == "":
+                logger.warning("Attempted to deserialize empty value, returning None")
+                return None
+            
             return json.loads(serialized)
         except (TypeError, ValueError) as e:
             logger.error(f"Error deserializing value: {e}")
-            raise
+            logger.debug(f"Failed to deserialize: {repr(serialized[:100] if serialized else serialized)}")
+            # Return None instead of raising to allow graceful recovery
+            return None
 
     async def get(
         self,
@@ -427,7 +434,13 @@ class CacheService:
                 if isinstance(row.data, dict):
                     return row.data
                 else:
-                    return self._deserialize_value(row.data)
+                    # Deserialize and handle corrupted entries
+                    deserialized = self._deserialize_value(row.data)
+                    if deserialized is None:
+                        # Remove corrupted entry from database
+                        logger.warning(f"Removing corrupted cache entry: {cache_key}")
+                        await self._delete_from_db(cache_key)
+                    return deserialized
             return None
 
         except Exception as e:

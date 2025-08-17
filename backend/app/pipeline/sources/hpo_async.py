@@ -148,23 +148,38 @@ async def update_hpo_async(db: Session, tracker: ProgressTracker) -> dict[str, A
             
             stats["genes_processed"] += 1
             
-            # Create evidence entry
-            evidence = GeneEvidence(
+            # Check if evidence already exists for this gene
+            existing_evidence = db.query(GeneEvidence).filter_by(
                 gene_id=gene.id,
                 source_name=source_name,
-                source_detail=f"HPO kidney phenotypes",
-                evidence_data={
-                    "hpo_terms": evidence_data["hpo_terms"],
-                    "diseases": evidence_data["diseases"],
-                    "inheritance_patterns": evidence_data["inheritance_patterns"],
-                    "phenotype_count": len(evidence_data["hpo_terms"]),
-                    "disease_count": len(evidence_data["diseases"])
-                },
-                evidence_date=datetime.now(timezone.utc).date()
-            )
+                source_detail=f"HPO kidney phenotypes"
+            ).first()
             
-            db.add(evidence)
-            stats["evidence_created"] += 1
+            evidence_data_dict = {
+                "hpo_terms": evidence_data["hpo_terms"],
+                "diseases": evidence_data["diseases"],
+                "inheritance_patterns": evidence_data["inheritance_patterns"],
+                "phenotype_count": len(evidence_data["hpo_terms"]),
+                "disease_count": len(evidence_data["diseases"])
+            }
+            
+            if existing_evidence:
+                # Update existing evidence
+                existing_evidence.evidence_data = evidence_data_dict
+                existing_evidence.evidence_date = datetime.now(timezone.utc).date()
+                stats["evidence_updated"] = stats.get("evidence_updated", 0) + 1
+                logger.debug(f"Updated existing HPO evidence for gene {approved_symbol}")
+            else:
+                # Create new evidence entry
+                evidence = GeneEvidence(
+                    gene_id=gene.id,
+                    source_name=source_name,
+                    source_detail=f"HPO kidney phenotypes",
+                    evidence_data=evidence_data_dict,
+                    evidence_date=datetime.now(timezone.utc).date()
+                )
+                db.add(evidence)
+                stats["evidence_created"] += 1
             
             # Commit periodically
             if (i + 1) % 50 == 0:
