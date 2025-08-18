@@ -1,4 +1,6 @@
-# Kidney-Genetics Database
+# Kidney-Genetics Database (Alpha)
+
+⚠️ **WARNING: This is alpha software (v0.1.0). Not suitable for production use.**
 
 A modern web platform for curating and exploring kidney disease-related genes. This project modernizes the original [kidney-genetics](https://github.com/halbritter-lab/kidney-genetics) R-based pipeline into a scalable Python/FastAPI + Vue.js architecture.
 
@@ -76,12 +78,14 @@ cd backend && uv run ruff check . --fix
 cd frontend && npm run lint && npm run format
 ```
 
-## Status
+## Status: Alpha Development
 
-✅ **Phases 0-4 Complete**: Database, API, PanelApp integration, and Vue.js frontend functional.  
-🔄 **Phase 5 In Progress**: Adding HPO and PubTator data sources.
+🚧 **Version**: 0.1.0-alpha (2025-08-18)
+🔴 **Stage**: Alpha - Expect bugs and breaking changes
+✅ **Working**: Core features with 571 genes from 4 data sources
+⚠️ **Missing**: Tests, security, production readiness
 
-See `TODO.md` for detailed progress and `PLAN.md` for architecture.
+See `ROADMAP.md` for path to production, `TODO.md` for current tasks, and `PLAN.md` for pending features.
 
 ## License
 

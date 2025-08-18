@@ -1,80 +1,48 @@
-# Plan Folder - Schema Design and Examples
+# Planning Directory - Reference Materials
 
-This folder contains the planning artifacts for the kidney-genetics-db modernization project. These files are used for design, validation, and implementation planning - they are separate from the main repository to avoid contamination during parallel development.
+This directory contains reference implementations and planning documents for features under active development.
 
-## Structure
+## Current Contents
 
-```
-plan/
-├── README.md                    # This file
-├── schema/
-│   └── gene_curation.json      # Complete GenCC-compatible JSON schema
-├── examples/
-│   ├── gencc_mapping_example.json       # GenCC submission mapping
-│   └── refined_schema_example.json      # Complete PKD1 example
-└── docs/
-    └── schema_migration_guide.md        # Migration strategy and validation
-```
+### `pipeline/`
+Reference implementations from the original R pipeline and Python ports:
+- **R Functions** (`sources/*.R`) - Original kidney-genetics logic for comparison
+- **Python Modules** (`sources/g*.py`) - Reference Python implementations
+- **Config Examples** - Sample configuration files
 
-## Purpose
+### `schema/`
+JSON schema definitions for data validation:
+- `gene_curation.json` - Complete GenCC-compatible schema
+- `enhanced_gene_curation.json` - Extended schema with additional fields
 
-These planning files serve as:
+### `examples/`
+Example data and configuration files:
+- `gencc_mapping_example.json` - GenCC submission mapping
+- `refined_schema_example.json` - Complete gene example
+- `enhanced_schema_example.json` - Extended schema example
 
-1. **Schema Definition**: The single source of truth for data structure
-2. **Implementation Reference**: Examples showing the schema in action
-3. **Migration Strategy**: Documentation for transforming existing data
-4. **Validation Examples**: Test cases for schema compliance
+### Legacy Planning Documents
+- `STYLE-GUIDE.md` - Code style guidelines (for reference)
+- Other planning documents that may be useful for future features
 
-## Key Design Principles
+## Completed Documentation
+✅ **Moved to `/docs`**: All documentation for implemented features has been relocated to the main documentation directory:
+- `/docs/architecture/` - Database and backend architecture
+- `/docs/development/` - Setup and development guides  
+- `/docs/data-sources/` - Data source documentation
+- `/docs/implementation/` - Implementation details
 
-### 1. Scientific Rigor
-- Complete provenance tracking for all data points
-- Every value traceable to source and version
-- Professional multi-stage curation workflow
+## Usage
 
-### 2. GenCC Compatibility
-- Uses standardized clinical validity terms
-- Direct submission capability to international databases
-- Compatible with ClinGen, OMIM, Orphanet workflows
+### For New Feature Development
+1. Reference the original R implementations in `pipeline/sources/`
+2. Use schema definitions for data validation
+3. Check examples for data structure patterns
 
-### 3. Flexible Architecture
-- Generic evidence structure accommodates any source type
-- Plugin-based approach for new data sources
-- No schema changes required for new sources
+### For Bug Fixes
+- Compare current implementation with reference R code
+- Validate data against schema definitions
+- Use example files for testing
 
-### 4. Data Integration
-- Structured evidence arrays instead of concatenated strings
-- Rich, queryable knowledge graph
-- Complex analytical queries enabled
-
-## Usage During Implementation
-
-### For Backend Development
-- Reference `schema/gene_curation.json` for Pydantic model generation
-- Use `examples/refined_schema_example.json` for test data
-- Follow `docs/schema_migration_guide.md` for data transformation
-
-### For Frontend Development
-- Use examples to understand data structure
-- Reference schema for TypeScript interface generation
-- Plan UI components around evidence arrays and workflow states
-
-### For Pipeline Development
-- Each source module should produce evidence objects matching the schema
-- Use ancillary_data structure for constraint metrics, expression data, etc.
-- Implement curation_workflow state machine
-
-### For Database Setup
-- Schema defines JSONB structure for PostgreSQL
-- Use for database constraint generation
-- Reference for index planning on nested JSON queries
-
-## Schema Evolution
-
-As the project develops, this folder will be updated with:
-- Schema version increments
-- New example data
-- Updated migration strategies
-- Additional validation tools
-
-The main repository remains clean while this folder provides the detailed specification for implementation teams working in parallel.
+## Note
+This directory should only contain reference materials and planning for **unimplemented features**. Once a feature is complete, move its documentation to `/docs`.
