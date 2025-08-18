@@ -8,6 +8,7 @@ from typing import Any
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.config import settings
+from app.core.datasource_config import get_source_parameter
 from app.core.hpo.annotations import HPOAnnotations
 from app.core.hpo.terms import HPOTerms
 from app.core.progress_tracker import ProgressTracker
@@ -85,7 +86,8 @@ class HPOPipeline:
             tracker.update(operation="Fetching gene-disease associations...")
 
         annotations_map = await self.annotations.batch_get_annotations(
-            list(descendants), batch_size=self.batch_size, delay=settings.HPO_REQUEST_DELAY
+            list(descendants), batch_size=self.batch_size, 
+            delay=get_source_parameter("HPO", "request_delay", 0.2)
         )
 
         logger.info(f"Fetched annotations for {len(annotations_map)} terms")

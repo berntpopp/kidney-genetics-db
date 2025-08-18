@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.config import settings
+from app.core.datasource_config import get_source_parameter
 from app.pipeline.sources.unified.base import UnifiedDataSource
 
 if TYPE_CHECKING:
@@ -98,7 +99,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
 
     def _get_default_ttl(self) -> int:
         """Get default TTL for ClinGen data."""
-        return settings.CACHE_TTL_CLINGEN if hasattr(settings, "CACHE_TTL_CLINGEN") else 86400
+        return get_source_parameter("ClinGen", "cache_ttl", 86400)
 
     async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> dict[str, Any]:
         """

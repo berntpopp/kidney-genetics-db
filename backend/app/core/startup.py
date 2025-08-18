@@ -134,19 +134,20 @@ def validate_dependencies() -> None:
 
     try:
         from app.core.config import settings
+        from app.core.datasource_config import get_source_parameter
 
-        # Validate required API URLs
+        # Validate required API URLs from datasource config
         required_urls = {
-            "PUBTATOR_API_URL": settings.PUBTATOR_API_URL,
-            "PANELAPP_UK_URL": settings.PANELAPP_UK_URL,
-            "PANELAPP_AU_URL": settings.PANELAPP_AU_URL,
-            "HPO_API_URL": settings.HPO_API_URL,
-            "HGNC_API_URL": settings.HGNC_API_URL,
+            "PubTator API": get_source_parameter("PubTator", "api_url"),
+            "PanelApp UK API": get_source_parameter("PanelApp", "uk_api_url"),
+            "PanelApp AU API": get_source_parameter("PanelApp", "au_api_url"),
+            "HPO API": get_source_parameter("HPO", "api_url"),
+            "HGNC API": get_source_parameter("HGNC", "api_url"),
         }
 
-        for setting_name, url in required_urls.items():
+        for source_name, url in required_urls.items():
             if not url or not url.startswith("http"):
-                logger.warning(f"Invalid {setting_name}: {url}")
+                logger.warning(f"Invalid {source_name} URL: {url}")
 
         # Test cache service initialization
         try:

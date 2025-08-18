@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.config import settings
+from app.core.datasource_config import get_source_parameter
 from app.pipeline.sources.unified.base import UnifiedDataSource
 
 if TYPE_CHECKING:
@@ -54,9 +55,9 @@ class PanelAppUnifiedSource(UnifiedDataSource):
         """Initialize PanelApp client with multi-region support."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
 
-        # PanelApp endpoints
-        self.uk_base_url = settings.PANELAPP_UK_URL
-        self.au_base_url = settings.PANELAPP_AU_URL
+        # PanelApp endpoints from datasource config
+        self.uk_base_url = get_source_parameter("PanelApp", "uk_api_url", "https://panelapp.genomicsengland.co.uk/api/v1")
+        self.au_base_url = get_source_parameter("PanelApp", "au_api_url", "https://panelapp-aus.org/api/v1")
 
         # Regions to fetch from
         self.regions = regions or ["UK", "Australia"]
@@ -89,7 +90,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
 
     def _get_default_ttl(self) -> int:
         """Get default TTL for PanelApp data."""
-        return settings.CACHE_TTL_PANELAPP
+        return get_source_parameter("PanelApp", "cache_ttl", 21600)
 
     async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> dict[str, Any]:
         """

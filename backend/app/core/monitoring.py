@@ -74,8 +74,13 @@ class CacheMonitoringService:
             overall_stats = await self.cache_service.get_stats()
             stats["overall"] = overall_stats
 
-            # Namespace-specific statistics
-            namespaces = ["hgnc", "pubtator", "gencc", "panelapp", "hpo", "http", "files"]
+            # Namespace-specific statistics - get dynamically from database
+            namespaces = await self.cache_service.get_distinct_namespaces()
+            if not namespaces:
+                # Fallback to common namespaces if database query fails
+                logger.warning("Using fallback namespace list for monitoring stats")
+                namespaces = ["hgnc", "pubtator", "gencc", "panelapp", "hpo", "http", "files"]
+            
             for namespace in namespaces:
                 try:
                     ns_stats = await self.cache_service.get_stats(namespace)
@@ -198,9 +203,13 @@ class CacheMonitoringService:
                 "response_time_estimate": self._estimate_response_time_improvement(hit_rate),
             }
 
-            # Add namespace-specific performance
+            # Add namespace-specific performance - get dynamically from database
             namespace_performance = {}
-            namespaces = ["hgnc", "pubtator", "gencc", "panelapp", "hpo"]
+            namespaces = await self.cache_service.get_distinct_namespaces()
+            if not namespaces:
+                # Fallback to core data source namespaces if database query fails
+                logger.warning("Using fallback namespace list for performance metrics")
+                namespaces = ["hgnc", "pubtator", "gencc", "panelapp", "hpo"]
 
             for namespace in namespaces:
                 try:

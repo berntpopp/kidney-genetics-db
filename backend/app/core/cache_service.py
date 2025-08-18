@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.datasource_config import get_source_cache_ttl
 
 logger = logging.getLogger(__name__)
 
@@ -119,14 +120,14 @@ class CacheService:
         # Cache statistics
         self.stats = CacheStats()
 
-        # TTL mapping per namespace
+        # TTL mapping per namespace from datasource config
         self.namespace_ttls = {
-            "hgnc": settings.CACHE_TTL_HGNC,
-            "pubtator": settings.CACHE_TTL_PUBTATOR,
-            "gencc": settings.CACHE_TTL_GENCC,
-            "panelapp": settings.CACHE_TTL_PANELAPP,
-            "hpo": settings.CACHE_TTL_HPO,
-            "clingen": settings.CACHE_TTL_CLINGEN,
+            "hgnc": get_source_cache_ttl("HGNC"),
+            "pubtator": get_source_cache_ttl("PubTator"),
+            "gencc": get_source_cache_ttl("GenCC"),
+            "panelapp": get_source_cache_ttl("PanelApp"),
+            "hpo": get_source_cache_ttl("HPO"),
+            "clingen": get_source_cache_ttl("ClinGen"),
             "default": settings.CACHE_DEFAULT_TTL,
         }
 
@@ -732,6 +733,29 @@ class CacheService:
         except Exception as e:
             logger.error(f"Database namespace stats error: {e}")
             return {}
+
+    async def get_distinct_namespaces(self) -> list[str]:
+        """Get all distinct cache namespaces from database."""
+        if not self.db_session:
+            logger.debug("No database session available for namespaces query")
+            return []
+
+        try:
+            from sqlalchemy.ext.asyncio import AsyncSession
+
+            query = text("SELECT DISTINCT namespace FROM cache_entries ORDER BY namespace")
+            if isinstance(self.db_session, AsyncSession):
+                result = await self.db_session.execute(query)
+            else:
+                result = self.db_session.execute(query)
+
+            namespaces = [row[0] for row in result.fetchall()]
+            logger.debug(f"Found {len(namespaces)} distinct namespaces: {namespaces}")
+            return namespaces
+
+        except Exception as e:
+            logger.error(f"Error fetching distinct namespaces: {e}")
+            return []
 
 
 # Global cache service instance

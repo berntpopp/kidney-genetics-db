@@ -21,6 +21,7 @@ from app.core.cache_service import get_cache_service
 from app.core.cached_http_client import get_cached_http_client
 from app.core.config import settings
 from app.core.database import get_pool_status
+from app.core.datasource_config import get_source_cache_ttl
 from app.core.monitoring import get_monitoring_service
 
 logger = logging.getLogger(__name__)
@@ -232,9 +233,12 @@ async def get_cache_health(db: AsyncSession = Depends(get_db)) -> CacheHealthRes
         else:
             status = "healthy"
 
-        # Get namespace list
-        # This would require a query to get all distinct namespaces
-        namespaces = ["hgnc", "pubtator", "gencc", "panelapp", "hpo", "clingen", "http", "files"]
+        # Get namespace list dynamically from database
+        namespaces = await cache_service.get_distinct_namespaces()
+        if not namespaces:
+            # Fallback to known namespaces if database query fails
+            logger.warning("Using fallback namespace list")
+            namespaces = ["hgnc", "pubtator", "gencc", "panelapp", "hpo", "clingen", "http", "files"]
 
         return CacheHealthResponse(
             status=status,
@@ -403,12 +407,12 @@ async def get_cache_config() -> dict[str, Any]:
         "max_memory_size": settings.CACHE_MAX_MEMORY_SIZE,
         "cleanup_interval": settings.CACHE_CLEANUP_INTERVAL,
         "namespace_ttls": {
-            "hgnc": settings.CACHE_TTL_HGNC,
-            "pubtator": settings.CACHE_TTL_PUBTATOR,
-            "gencc": settings.CACHE_TTL_GENCC,
-            "panelapp": settings.CACHE_TTL_PANELAPP,
-            "hpo": settings.CACHE_TTL_HPO,
-            "clingen": settings.CACHE_TTL_CLINGEN,
+            "hgnc": get_source_cache_ttl("HGNC"),
+            "pubtator": get_source_cache_ttl("PubTator"),
+            "gencc": get_source_cache_ttl("GenCC"),
+            "panelapp": get_source_cache_ttl("PanelApp"),
+            "hpo": get_source_cache_ttl("HPO"),
+            "clingen": get_source_cache_ttl("ClinGen"),
         },
         "http_cache": {
             "enabled": settings.HTTP_CACHE_ENABLED,

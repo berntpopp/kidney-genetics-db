@@ -10,6 +10,18 @@ from typing import Any
 
 # Data source configurations with display metadata
 DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
+    "HGNC": {
+        "display_name": "HGNC",
+        "description": "HUGO Gene Nomenclature Committee - Gene symbols and nomenclature",
+        "url": "https://www.genenames.org/",
+        "documentation_url": "https://www.genenames.org/help/rest/",
+        "auto_update": False,  # Used as reference data, not a primary source
+        "priority": 8,
+        # API settings
+        "api_url": "http://rest.genenames.org",
+        # Cache settings
+        "cache_ttl": 86400,  # 24 hours - stable reference data
+    },
     "PanelApp": {
         "display_name": "PanelApp",
         "description": "Expert-curated gene panels from UK Genomics England and Australian Genomics",

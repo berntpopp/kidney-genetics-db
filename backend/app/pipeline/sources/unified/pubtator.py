@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.config import settings
+from app.core.datasource_config import get_source_parameter
 from app.pipeline.sources.unified.base import UnifiedDataSource
 
 if TYPE_CHECKING:
@@ -55,15 +56,16 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         """Initialize PubTator client with literature mining capabilities."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
 
-        # PubTator configuration
-        self.base_url = settings.PUBTATOR_API_URL
+        # PubTator configuration from datasource config
+        self.base_url = get_source_parameter("PubTator", "api_url", "https://www.ncbi.nlm.nih.gov/research/pubtator-api")
 
-        # Search configuration
-        self.kidney_query = settings.PUBTATOR_SEARCH_QUERY
-        self.max_pages = settings.PUBTATOR_MAX_PAGES  # None = fetch all, or specific number
-        self.rate_limit_delay = max(settings.PUBTATOR_RATE_LIMIT_DELAY, 0.5)  # Min 0.5s delay between pages
+        # Search configuration from datasource config
+        self.kidney_query = get_source_parameter("PubTator", "search_query", 
+            '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)')
+        self.max_pages = get_source_parameter("PubTator", "max_pages", 100)  # Default to 100 pages
+        self.rate_limit_delay = max(get_source_parameter("PubTator", "rate_limit_delay", 0.3), 0.5)  # Min 0.5s delay
         # Sort order: "score desc" for relevance, "date desc" for recency
-        self.sort_order = getattr(settings, 'PUBTATOR_SORT_ORDER', 'score desc')
+        self.sort_order = "score desc"  # Fixed value as per datasource_config
 
         # Gene annotation types to extract
         self.annotation_types = ["Gene", "GeneID"]
@@ -73,7 +75,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
     def _get_default_ttl(self) -> int:
         """Get default TTL for PubTator data."""
-        return settings.CACHE_TTL_PUBTATOR
+        return get_source_parameter("PubTator", "cache_ttl", 604800)
 
     async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> dict[str, Any]:
         """
