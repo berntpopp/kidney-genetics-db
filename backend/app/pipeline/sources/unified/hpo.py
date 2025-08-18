@@ -219,21 +219,12 @@ class HPOUnifiedSource(UnifiedDataSource):
             if not gene_symbol or len(gene_symbol) < 2:
                 continue
 
-            # Structure the evidence data
+            # Structure the evidence data - only HPO terms now
             gene_data_map[gene_symbol] = {
                 "hpo_terms": evidence_data.get("hpo_terms", []),
-                "diseases": evidence_data.get("diseases", []),
-                "phenotypes": evidence_data.get("phenotypes", []),
-                "inheritance_patterns": evidence_data.get("inheritance_patterns", set()),
                 "evidence_score": self._calculate_hpo_score(evidence_data),
                 "last_updated": datetime.now(timezone.utc).isoformat(),
             }
-
-            # Convert sets to lists for JSON serialization
-            if isinstance(gene_data_map[gene_symbol]["inheritance_patterns"], set):
-                gene_data_map[gene_symbol]["inheritance_patterns"] = list(
-                    gene_data_map[gene_symbol]["inheritance_patterns"]
-                )
 
         logger.info(
             f"🎯 HPO processing complete: {len(gene_data_map)} genes with kidney phenotypes"
@@ -244,6 +235,9 @@ class HPOUnifiedSource(UnifiedDataSource):
     def _calculate_hpo_score(self, evidence_data: dict[str, Any]) -> float:
         """
         Calculate evidence score based on HPO data.
+        
+        Note: Score is now based purely on phenotype count since
+        disease associations are handled by disease-specific sources.
 
         Args:
             evidence_data: Evidence data for a gene
@@ -251,27 +245,22 @@ class HPOUnifiedSource(UnifiedDataSource):
         Returns:
             Calculated score (0-100)
         """
-        score = 0.0
-
         # Score based on number of HPO terms
+        # Using a logarithmic scale to avoid oversaturation
         hpo_count = len(evidence_data.get("hpo_terms", []))
-        score += min(hpo_count * 5, 30)  # Max 30 points for HPO terms
-
-        # Score based on number of diseases
-        disease_count = len(evidence_data.get("diseases", []))
-        score += min(disease_count * 10, 40)  # Max 40 points for diseases
-
-        # Score based on inheritance patterns
-        inheritance_patterns = evidence_data.get("inheritance_patterns", set())
-        if inheritance_patterns:
-            score += 20  # 20 points for having inheritance info
-
-        # Bonus for specific high-confidence patterns
-        if "Autosomal dominant" in inheritance_patterns:
-            score += 5
-        if "Autosomal recessive" in inheritance_patterns:
-            score += 5
-
+        
+        if hpo_count == 0:
+            return 0.0
+        elif hpo_count <= 5:
+            score = hpo_count * 20  # 1-5 terms: 20-100 points
+        elif hpo_count <= 10:
+            score = 100 + (hpo_count - 5) * 10  # 6-10 terms: 100-150 points
+        else:
+            # Diminishing returns for many terms
+            import math
+            score = 150 + math.log(hpo_count - 9) * 20
+        
+        # Cap at 100 - actual normalization happens via percentile ranking
         return min(score, 100.0)
 
     def is_kidney_related(self, record: dict[str, Any]) -> bool:
@@ -293,9 +282,8 @@ class HPOUnifiedSource(UnifiedDataSource):
             Source detail string
         """
         hpo_count = len(evidence_data.get("hpo_terms", []))
-        disease_count = len(evidence_data.get("diseases", []))
-
-        return f"HPO: {hpo_count} phenotypes, {disease_count} diseases"
+        
+        return f"HPO: {hpo_count} phenotypes"
 
     async def fetch_disease_info(self, disease_id: str) -> dict[str, Any] | None:
         """

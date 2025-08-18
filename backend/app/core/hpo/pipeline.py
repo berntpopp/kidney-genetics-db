@@ -48,8 +48,7 @@ class HPOPipeline:
         Process flow:
         1. Get descendants of HP:0010935 (Abnormality of the upper urinary tract)
         2. Fetch annotations for all descendant terms
-        3. Process diseases to extract inheritance patterns
-        4. Aggregate gene evidence with HPO terms and inheritance
+        3. Aggregate gene evidence with HPO terms
 
         Args:
             tracker: Progress tracker for status updates
@@ -59,9 +58,7 @@ class HPOPipeline:
             {
                 "gene_symbol": {
                     "entrez_id": int,
-                    "hpo_terms": [str],
-                    "diseases": [str],
-                    "inheritance_patterns": [str]
+                    "hpo_terms": [str]
                 }
             }
         """
@@ -124,23 +121,14 @@ class HPOPipeline:
                     gene_evidence[gene_symbol] = {
                         "entrez_id": gene.entrez_id,
                         "hpo_terms": set(),
-                        "diseases": set(),
-                        "inheritance_patterns": set(),
                     }
 
                 # Add HPO term
                 gene_evidence[gene_symbol]["hpo_terms"].add(hpo_id)
 
-            # Skip disease annotation fetching for now - too slow with thousands of diseases
-            # Just record the disease IDs associated with this HPO term
-            # TODO: Optimize this with batch fetching or background processing
-            pass
-
         # Step 4: Convert sets to lists for JSON serialization
         for gene_data in gene_evidence.values():
             gene_data["hpo_terms"] = sorted(gene_data["hpo_terms"])
-            gene_data["diseases"] = sorted(gene_data["diseases"])
-            gene_data["inheritance_patterns"] = sorted(gene_data["inheritance_patterns"])
 
         logger.info(f"Processed {len(gene_evidence)} genes with kidney phenotypes")
 
