@@ -5,6 +5,7 @@ Gene API endpoints
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -82,6 +83,21 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
     evidence = gene_crud.get_evidence(db, gene.id)  # type: ignore[arg-type]
     sources = list({e.source_name for e in evidence})
 
+    # Get normalized scores breakdown
+    score_breakdown = {}
+    if gene.id:
+        result = db.execute(
+            text("""
+                SELECT source_name, normalized_score
+                FROM evidence_normalized_scores
+                WHERE gene_id = :gene_id
+                ORDER BY source_name
+            """),
+            {"gene_id": gene.id}
+        )
+        for row in result:
+            score_breakdown[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
+
     # Build response
     result = {
         "id": gene.id,
@@ -93,6 +109,7 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
         "evidence_count": score_data["evidence_count"] if score_data else 0,
         "evidence_score": score_data["percentage_score"] if score_data else None,
         "sources": sources,
+        "score_breakdown": score_breakdown,  # Raw normalized scores per source
     }
 
     return result
@@ -101,13 +118,27 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
 @router.get("/{gene_symbol}/evidence")
 async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
-    Get all evidence for a gene
+    Get all evidence for a gene with normalized scores
     """
     gene = gene_crud.get_by_symbol(db, gene_symbol)
     if not gene:
         raise HTTPException(status_code=404, detail=f"Gene '{gene_symbol}' not found")
 
     evidence = gene_crud.get_evidence(db, gene.id)  # type: ignore[arg-type]
+
+    # Get normalized scores for each evidence
+    normalized_scores = {}
+    if gene.id:
+        result = db.execute(
+            text("""
+                SELECT evidence_id, normalized_score
+                FROM evidence_normalized_scores
+                WHERE gene_id = :gene_id
+            """),
+            {"gene_id": gene.id}
+        )
+        for row in result:
+            normalized_scores[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
 
     return {
         "gene_symbol": gene.approved_symbol,
@@ -121,6 +152,7 @@ async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> 
                 "evidence_data": e.evidence_data,
                 "evidence_date": e.evidence_date,
                 "created_at": e.created_at,
+                "normalized_score": normalized_scores.get(e.id, 0.0),  # Raw normalized score (0-1)
             }
             for e in evidence
         ],

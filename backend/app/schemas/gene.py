@@ -47,6 +47,7 @@ class Gene(GeneInDB):
     evidence_count: int | None = 0
     evidence_score: float | None = None
     sources: list[str] | None = []
+    score_breakdown: dict[str, float] | None = None  # Raw normalized scores per source
 
 
 class GeneList(BaseModel):
