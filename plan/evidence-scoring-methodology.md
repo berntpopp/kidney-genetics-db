@@ -95,11 +95,14 @@ CASE evidence_data->>'classification'
 END
 ```
 
-#### GenCC Classification Weights (Weighted 3-Component System)
+#### GenCC Classification Weights (Weighted 3-Component System with Percentile Normalization)
 
-**As of Migration 1c0a4ff21798 (August 18, 2025)**
+**As of Migration 2d3f4a5b6c7e (August 18, 2025)**  
+*Previous: Migration 1c0a4ff21798 (weighted scoring without normalization)*
 
-GenCC scoring uses a sophisticated weighted system that considers both quality and quantity of evidence:
+GenCC scoring uses a sophisticated two-stage system:
+1. **Weighted scoring** that considers both quality and quantity of evidence
+2. **Percentile normalization** to spread scores across the full 0-1 range
 
 **Components:**
 1. **Quality Score (50% weight)**: Uses quadratic weighting to emphasize higher classifications
@@ -144,10 +147,23 @@ final_score = quality_score + quantity_score + confidence_score
 - Confidence: 2/4 × 0.2 = 0.1000
 - **Total: 0.748**
 
-This approach better reflects the true confidence in gene-disease associations by considering:
-- Higher quality classifications have quadratically more weight
-- Multiple submissions increase confidence with diminishing returns
-- High proportion of strong evidence increases overall confidence
+**Stage 2: Percentile Normalization**
+
+After weighted scoring, GenCC scores are normalized using `PERCENT_RANK()` to ensure:
+- The full 0-1 range is utilized
+- Genes are ranked relative to each other
+- Top genes (e.g., DPAGT1 with 2x Definitive) score near 1.0
+
+**Real-World Results After Normalization:**
+- DPAGT1 (2x Definitive): 0.937 (93.7th percentile)
+- HNF1B (Strong+Definitive+Supportive): 0.735 (73.5th percentile)
+- PKD2 (Strong+Definitive+Supportive+Limited): 0.681 (68.1st percentile)
+
+This approach better reflects the true confidence in gene-disease associations by:
+- Considering both quality and quantity of classifications
+- Using quadratic weighting to emphasize higher quality evidence
+- Normalizing scores to enable fair comparison with other sources
+- Ensuring the full scoring range is utilized
 
 ### Final Score Calculation
 
@@ -248,6 +264,16 @@ This migration enhances GenCC scoring from simple first-classification to weight
 3. Applies diminishing returns for quantity using square root normalization
 4. Measures consensus through proportion of high-quality classifications
 5. Supports all GenCC classification levels including "Supportive"
+
+### GenCC Percentile Normalization
+**Migration**: `2d3f4a5b6c7e_normalize_gencc_weighted_scores_with_.py` (August 18, 2025)
+
+This migration adds percentile normalization to GenCC weighted scores:
+1. Applies `PERCENT_RANK()` to weighted GenCC scores
+2. Spreads scores across the full 0-1 range (was capped at ~0.85)
+3. Ensures top genes (2x Definitive) score near 1.0
+4. Makes GenCC scores comparable to other percentile-normalized sources
+5. Maintains relative ranking while improving score distribution
 
 ## Validation Against Original Implementation
 
