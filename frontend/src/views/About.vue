@@ -297,7 +297,7 @@ const dataSources = ref([
   },
   {
     name: 'PubTator',
-    description: 'Automated literature mining for gene-disease associations from PubMed',
+    description: 'Automated literature mining for gene-disease associations from PubTator',
     color: 'info',
     icon: 'mdi-file-document',
     coverage: '10K+ papers',

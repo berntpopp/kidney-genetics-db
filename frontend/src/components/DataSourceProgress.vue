@@ -3,7 +3,34 @@
     <v-card-title class="d-flex align-center pa-4">
       <v-icon class="mr-2" color="primary">mdi-database-sync</v-icon>
       <span class="text-h6">Data Source Updates</span>
+      <v-chip 
+        v-if="summary.running > 0" 
+        size="x-small" 
+        color="primary" 
+        label 
+        class="ml-2 pulse"
+      >
+        <v-icon size="x-small" start>mdi-circle</v-icon>
+        Live
+      </v-chip>
       <v-spacer />
+      <span v-if="lastUpdate" class="text-caption text-medium-emphasis mr-2">
+        Updated {{ getRelativeTime(lastUpdate) }}
+      </span>
+      <v-tooltip text="Auto-refresh">
+        <template #activator="{ props }">
+          <v-btn 
+            icon 
+            variant="text" 
+            size="small" 
+            v-bind="props"
+            :color="autoRefresh ? 'primary' : 'grey'"
+            @click="toggleAutoRefresh"
+          >
+            <v-icon>{{ autoRefresh ? 'mdi-refresh-auto' : 'mdi-refresh' }}</v-icon>
+          </v-btn>
+        </template>
+      </v-tooltip>
       <v-btn icon variant="text" size="small" @click="toggleExpanded">
         <v-icon>{{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
       </v-btn>
@@ -65,6 +92,7 @@
                   height="18"
                   rounded
                   class="my-2"
+                  :indeterminate="source.status === 'running' && source.progress_percentage === 0"
                 >
                   <template #default>
                     <span class="text-caption font-weight-medium">
@@ -154,6 +182,7 @@
                   height="18"
                   rounded
                   class="my-2"
+                  :indeterminate="source.status === 'running' && source.progress_percentage === 0"
                 >
                   <template #default>
                     <span class="text-caption font-weight-medium">
@@ -200,25 +229,32 @@ const sources = ref([])
 const triggering = ref({})
 const ws = ref(null)
 const reconnectInterval = ref(null)
+const pollInterval = ref(null)
+const autoRefresh = ref(true)
+const lastUpdate = ref(new Date())
 
 // Computed
 const dataSources = computed(() => {
-  return sources.value.filter(
-    s =>
-      s.category === 'data_source' ||
-      (!s.category &&
-        ['PubTator', 'PanelApp', 'HPO', 'ClinGen', 'GenCC', 'OMIM', 'Literature'].includes(
-          s.source_name
-        ))
-  )
+  return sources.value
+    .filter(
+      s =>
+        s.category === 'data_source' ||
+        (!s.category &&
+          ['PubTator', 'PanelApp', 'HPO', 'ClinGen', 'GenCC', 'OMIM', 'Literature'].includes(
+            s.source_name
+          ))
+    )
+    .sort((a, b) => a.source_name.localeCompare(b.source_name)) // Stable alphabetical sort
 })
 
 const internalProcesses = computed(() => {
-  return sources.value.filter(
-    s =>
-      s.category === 'internal_process' ||
-      (!s.category && ['Evidence_Aggregation', 'HGNC_Normalization'].includes(s.source_name))
-  )
+  return sources.value
+    .filter(
+      s =>
+        s.category === 'internal_process' ||
+        (!s.category && ['Evidence_Aggregation', 'HGNC_Normalization'].includes(s.source_name))
+    )
+    .sort((a, b) => a.source_name.localeCompare(b.source_name)) // Stable alphabetical sort
 })
 
 const summary = computed(() => {
@@ -244,16 +280,65 @@ const getStatusColor = status => {
   return colors[status] || 'grey'
 }
 
+const getRelativeTime = date => {
+  const seconds = Math.floor((new Date() - date) / 1000)
+  
+  if (seconds < 5) return 'just now'
+  if (seconds < 60) return `${seconds}s ago`
+  
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
 const toggleExpanded = () => {
   expanded.value = !expanded.value
+}
+
+const toggleAutoRefresh = () => {
+  autoRefresh.value = !autoRefresh.value
+  if (autoRefresh.value) {
+    startPolling()
+  } else {
+    stopPolling()
+  }
 }
 
 const fetchStatus = async () => {
   try {
     const response = await axios.get('http://localhost:8000/api/progress/status')
     sources.value = response.data
+    lastUpdate.value = new Date()
+    
+    // Auto-expand if sources are running
+    if (summary.value.running > 0 && !expanded.value) {
+      expanded.value = true
+    }
   } catch (error) {
     console.error('Failed to fetch status:', error)
+  }
+}
+
+const startPolling = () => {
+  stopPolling() // Clear any existing interval
+  
+  // Start polling every 3 seconds when any source is running
+  pollInterval.value = setInterval(() => {
+    if (summary.value.running > 0 || autoRefresh.value) {
+      fetchStatus()
+    }
+  }, 3000)
+}
+
+const stopPolling = () => {
+  if (pollInterval.value) {
+    clearInterval(pollInterval.value)
+    pollInterval.value = null
   }
 }
 
@@ -338,6 +423,11 @@ const resumeSource = async sourceName => {
 onMounted(() => {
   fetchStatus()
   connectWebSocket()
+  
+  // Start auto-refresh by default
+  if (autoRefresh.value) {
+    startPolling()
+  }
 })
 
 onUnmounted(() => {
@@ -346,6 +436,9 @@ onUnmounted(() => {
   }
   if (reconnectInterval.value) {
     clearInterval(reconnectInterval.value)
+  }
+  if (pollInterval.value) {
+    clearInterval(pollInterval.value)
   }
 })
 </script>
@@ -366,5 +459,40 @@ onUnmounted(() => {
 /* Ensure progress bar text is visible */
 .v-progress-linear {
   font-variant-numeric: tabular-nums;
+}
+
+/* Pulsing animation for live indicator */
+.pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Smooth transitions for progress bars */
+.v-progress-linear {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover effect for expandable card */
+.data-source-progress:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Respect motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+  
+  .v-progress-linear {
+    transition-duration: 0.01ms !important;
+  }
 }
 </style>
