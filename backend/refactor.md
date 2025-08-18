@@ -3,12 +3,53 @@
 ## Overview
 This document outlines minimally invasive refactoring strategies to address code review recommendations while maintaining system stability and following DRY, KISS, and modularity principles.
 
+## Current Implementation Status (2025-08-18)
+
+### Summary
+- ❌ **Async/Sync Consistency**: Not implemented - CLI still uses sync_wrappers.py with new event loops
+- ✅ **Dependency Management**: Partially complete - uv.lock exists but no documentation/CI updates
+- ⚠️ **Configuration Centralization**: Partially complete - datasource_config.py created but config.py still has duplicates
+- ❌ **Stale Data Fix**: Not implemented - No database trigger for gene_curations updates
+- ❌ **Hardcoded Namespaces**: Not fixed - Still hardcoded in multiple files
+- ❌ **Evidence Deduplication**: Not improved - Still uses simple "keep newest" approach
+
+### Immediate Action Items
+
+#### Quick Wins (Can be done immediately):
+1. **Fix hardcoded namespaces** (15 mins)
+   - Add `get_distinct_namespaces()` method to CacheService
+   - Update 3 files to use dynamic query
+   
+2. **Clean up config duplication** (30 mins)
+   - Remove lines 36-103 from config.py
+   - Update imports to use datasource_config.py
+   
+3. **Document uv.lock usage** (10 mins)
+   - Update README with `uv sync --frozen` instructions
+   - Add CI/CD configuration example
+
+#### Medium Priority (1-2 days):
+4. **Convert CLI to AsyncClick**
+   - Install asyncclick
+   - Update pipeline/run.py to use async functions
+   - Delete sync_wrappers.py
+   
+5. **Add gene_curations trigger**
+   - Create new Alembic migration
+   - Add PostgreSQL trigger for automatic updates
+
+#### Lower Priority (Nice to have):
+6. **Improve evidence merging**
+   - Create migration with intelligent JSONB merging
+   - Preserve historical data in merge_history
+
 ## 1. Async/Sync Code Consistency
 
-### Current State
+### Current State (UNCHANGED - Still Needs Implementation)
 - Mixed async/sync code: FastAPI (async), Alembic migrations (sync), pipeline/run.py CLI (sync)
 - `sync_wrappers.py` bridges async sources to sync CLI using `asyncio.new_event_loop()`
 - Creates new event loops for each sync call, which is inefficient
+- **Files to update**: backend/app/pipeline/run.py, backend/app/pipeline/sources/sync_wrappers.py
 
 ### Proposed Solution: Gradual Async Migration
 **Phase 1: Upgrade CLI to AsyncClick (Minimal Change)**
@@ -48,10 +89,12 @@ async def update(source: str):
 
 ## 2. Dependency Management
 
-### Current State
-- `pyproject.toml` has loose version constraints
-- `uv.lock` file exists (good!)
-- Risk of non-deterministic builds in CI/CD
+### Current State (PARTIALLY COMPLETE)
+- `pyproject.toml` has loose version constraints ✅
+- `uv.lock` file exists (good!) ✅
+- Risk of non-deterministic builds in CI/CD ⚠️
+- **What's done**: uv.lock file exists and is maintained
+- **Still needed**: Documentation updates, CI/CD configuration for --frozen flag
 
 ### Proposed Solution: Leverage Existing uv.lock
 **No code changes needed - just documentation and CI/CD updates:**
@@ -93,10 +136,12 @@ uv sync
 
 ## 3. Configuration Centralization
 
-### Current State
-- Core settings in `app/core/config.py`
-- Data source settings split between `config.py` and `datasource_config.py`
-- Some API URLs defined in both places
+### Current State (PARTIALLY COMPLETE)
+- Core settings in `app/core/config.py` ✅
+- Data source settings split between `config.py` and `datasource_config.py` ⚠️
+- Some API URLs defined in both places ⚠️
+- **What's done**: datasource_config.py created with centralized configs
+- **Still needed**: Remove duplicate settings from config.py (lines 36-103)
 
 ### Proposed Solution: Complete Migration to datasource_config.py
 **Move remaining source-specific settings from config.py:**
@@ -146,9 +191,11 @@ class Settings(BaseSettings):
 
 ### 4.1 Stale Data in gene_curations
 
-### Current State
-- `gene_curations` updated via separate aggregation step
-- Potential for stale data between evidence updates and curation updates
+### Current State (NOT IMPLEMENTED)
+- `gene_curations` updated via separate aggregation step ❌
+- Potential for stale data between evidence updates and curation updates ❌
+- **Status**: No database trigger implemented
+- **Files to create**: New migration file in backend/alembic/versions/
 
 ### Proposed Solution: Database Trigger for Real-time Updates
 ```sql
@@ -192,9 +239,13 @@ def upgrade():
 
 ### 4.2 Hardcoded Namespace List
 
-### Current State
-- `/health` endpoint has hardcoded namespace list
-- Will become outdated when new sources added
+### Current State (NOT FIXED)
+- `/health` endpoint has hardcoded namespace list ❌
+- Will become outdated when new sources added ❌
+- **Files with hardcoded namespaces**:
+  - backend/app/api/endpoints/cache.py:237
+  - backend/app/core/monitoring.py:78, 203
+- **Status**: Still hardcoded, dynamic query not implemented
 
 ### Proposed Solution: Dynamic Namespace Query
 ```python
@@ -226,9 +277,11 @@ async def get_cache_health(db: AsyncSession = Depends(get_db)) -> CacheHealthRes
 
 ### 4.3 Evidence Deduplication Logic
 
-### Current State
-- Migration `1e0dd188d993` keeps most recent evidence when merging duplicates
-- Could lose valuable data from older, higher-quality sources
+### Current State (NOT IMPROVED)
+- Migration `1e0dd188d993` keeps most recent evidence when merging duplicates ❌
+- Could lose valuable data from older, higher-quality sources ❌
+- **Current implementation**: Simple DELETE keeping newest (line 46 in migration)
+- **Status**: Intelligent merging not implemented
 
 ### Proposed Solution: Intelligent Evidence Merging
 ```python
