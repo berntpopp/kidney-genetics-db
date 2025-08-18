@@ -395,11 +395,21 @@ class GenCCUnifiedSource(UnifiedDataSource):
         """Generate GenCC-specific source detail string."""
         submission_count = evidence_data.get("submission_count", 0)
         submitter_count = len(evidence_data.get("submitters", []))
+        classifications = evidence_data.get("classifications", [])
 
-        return (
-            f"{submission_count} submissions from {submitter_count} submitters "
-            f"(evidence score: {evidence_data.get('evidence_score', 0.0):.2f})"
-        )
+        # Add classification summary
+        if classifications:
+            # Get unique classifications and sort by weight
+            unique_classifications = sorted(
+                set(classifications),
+                key=lambda c: self.classification_weights.get(c, 0),
+                reverse=True
+            )
+            classification_str = f" ({', '.join(unique_classifications[:2])})"  # Show top 2
+        else:
+            classification_str = ""
+
+        return f"{submission_count} submissions from {submitter_count} submitters{classification_str}"
 
 
 def get_gencc_client(**kwargs) -> GenCCUnifiedSource:

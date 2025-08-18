@@ -4,12 +4,7 @@
       <v-icon class="mr-2" color="primary">mdi-database-sync</v-icon>
       <span class="text-h6">Data Source Updates</span>
       <v-spacer />
-      <v-btn
-        icon
-        variant="text"
-        size="small"
-        @click="toggleExpanded"
-      >
+      <v-btn icon variant="text" size="small" @click="toggleExpanded">
         <v-icon>{{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
       </v-btn>
     </v-card-title>
@@ -21,46 +16,26 @@
           <v-row class="mb-4">
             <v-col cols="6" sm="3">
               <div class="text-center">
-                <v-chip 
-                  color="success" 
-                  size="x-small"
-                  label
-                >
+                <v-chip color="success" size="x-small" label>
                   {{ summary.completed }} Completed
                 </v-chip>
               </div>
             </v-col>
             <v-col cols="6" sm="3">
               <div class="text-center">
-                <v-chip 
-                  color="primary" 
-                  size="x-small"
-                  label
-                >
+                <v-chip color="primary" size="x-small" label>
                   {{ summary.running }} Running
                 </v-chip>
               </div>
             </v-col>
             <v-col cols="6" sm="3">
               <div class="text-center">
-                <v-chip 
-                  color="error" 
-                  size="x-small"
-                  label
-                >
-                  {{ summary.failed }} Failed
-                </v-chip>
+                <v-chip color="error" size="x-small" label> {{ summary.failed }} Failed </v-chip>
               </div>
             </v-col>
             <v-col cols="6" sm="3">
               <div class="text-center">
-                <v-chip 
-                  color="grey" 
-                  size="x-small"
-                  label
-                >
-                  {{ summary.idle }} Idle
-                </v-chip>
+                <v-chip color="grey" size="x-small" label> {{ summary.idle }} Idle </v-chip>
               </div>
             </v-col>
           </v-row>
@@ -74,91 +49,86 @@
                 :key="source.source_name"
                 class="px-0 py-2"
               >
-              <v-list-item-title class="d-flex align-center mb-1">
-                <span class="font-weight-medium">{{ source.source_name }}</span>
-                <v-chip
-                  :color="getStatusColor(source.status)"
-                  size="x-small"
-                  label
-                  class="ml-2"
-                >
-                  {{ source.status }}
-                </v-chip>
-                <span v-if="source.current_operation" class="text-caption ml-2 text-grey">
-                  {{ source.current_operation }}
-                </span>
-              </v-list-item-title>
-              
-              <v-progress-linear
-                :model-value="source.progress_percentage"
-                :color="getStatusColor(source.status)"
-                height="18"
-                rounded
-                class="my-2"
-              >
-                <template v-slot:default>
-                  <span class="text-caption font-weight-medium">
-                    {{ Math.ceil(source.progress_percentage) }}%
+                <v-list-item-title class="d-flex align-center mb-1">
+                  <span class="font-weight-medium">{{ source.source_name }}</span>
+                  <v-chip :color="getStatusColor(source.status)" size="x-small" label class="ml-2">
+                    {{ source.status }}
+                  </v-chip>
+                  <span v-if="source.current_operation" class="text-caption ml-2 text-grey">
+                    {{ source.current_operation }}
                   </span>
-                </template>
-              </v-progress-linear>
+                </v-list-item-title>
 
-              <div class="d-flex align-center text-caption">
-                <span v-if="source.items_added > 0" class="mr-3">
-                  <v-icon size="x-small" color="success" class="mr-1">mdi-plus</v-icon>
-                  {{ source.items_added }}
-                </span>
-                <span v-if="source.items_updated > 0" class="mr-3">
-                  <v-icon size="x-small" color="info" class="mr-1">mdi-update</v-icon>
-                  {{ source.items_updated }}
-                </span>
-                <span v-if="source.items_failed > 0" class="mr-3">
-                  <v-icon size="x-small" color="error" class="mr-1">mdi-alert</v-icon>
-                  {{ source.items_failed }}
-                </span>
-                <v-spacer />
-                <!-- Action buttons -->
-                <v-btn
-                  v-if="source.status === 'idle' || source.status === 'failed'"
-                  icon
-                  size="x-small"
-                  variant="text"
-                  color="primary"
-                  @click="triggerUpdate(source.source_name)"
-                  :loading="triggering[source.source_name]"
+                <v-progress-linear
+                  :model-value="source.progress_percentage"
+                  :color="getStatusColor(source.status)"
+                  height="18"
+                  rounded
+                  class="my-2"
                 >
-                  <v-icon size="small">mdi-play</v-icon>
-                </v-btn>
-                <v-btn
-                  v-else-if="source.status === 'running'"
-                  icon
-                  size="x-small"
-                  variant="text"
-                  color="warning"
-                  @click="pauseSource(source.source_name)"
-                >
-                  <v-icon size="small">mdi-pause</v-icon>
-                </v-btn>
-                <v-btn
-                  v-else-if="source.status === 'paused'"
-                  icon
-                  size="x-small"
-                  variant="text"
-                  color="success"
-                  @click="resumeSource(source.source_name)"
-                >
-                  <v-icon size="small">mdi-play</v-icon>
-                </v-btn>
-              </div>
-              
-              <!-- Error message if exists -->
-              <div v-if="source.last_error" class="text-caption text-error mt-1">
-                Error: {{ source.last_error }}
-              </div>
-            </v-list-item>
-          </v-list>
+                  <template #default>
+                    <span class="text-caption font-weight-medium">
+                      {{ Math.ceil(source.progress_percentage) }}%
+                    </span>
+                  </template>
+                </v-progress-linear>
+
+                <div class="d-flex align-center text-caption">
+                  <span v-if="source.items_added > 0" class="mr-3">
+                    <v-icon size="x-small" color="success" class="mr-1">mdi-plus</v-icon>
+                    {{ source.items_added }}
+                  </span>
+                  <span v-if="source.items_updated > 0" class="mr-3">
+                    <v-icon size="x-small" color="info" class="mr-1">mdi-update</v-icon>
+                    {{ source.items_updated }}
+                  </span>
+                  <span v-if="source.items_failed > 0" class="mr-3">
+                    <v-icon size="x-small" color="error" class="mr-1">mdi-alert</v-icon>
+                    {{ source.items_failed }}
+                  </span>
+                  <v-spacer />
+                  <!-- Action buttons -->
+                  <v-btn
+                    v-if="source.status === 'idle' || source.status === 'failed'"
+                    icon
+                    size="x-small"
+                    variant="text"
+                    color="primary"
+                    :loading="triggering[source.source_name]"
+                    @click="triggerUpdate(source.source_name)"
+                  >
+                    <v-icon size="small">mdi-play</v-icon>
+                  </v-btn>
+                  <v-btn
+                    v-else-if="source.status === 'running'"
+                    icon
+                    size="x-small"
+                    variant="text"
+                    color="warning"
+                    @click="pauseSource(source.source_name)"
+                  >
+                    <v-icon size="small">mdi-pause</v-icon>
+                  </v-btn>
+                  <v-btn
+                    v-else-if="source.status === 'paused'"
+                    icon
+                    size="x-small"
+                    variant="text"
+                    color="success"
+                    @click="resumeSource(source.source_name)"
+                  >
+                    <v-icon size="small">mdi-play</v-icon>
+                  </v-btn>
+                </div>
+
+                <!-- Error message if exists -->
+                <div v-if="source.last_error" class="text-caption text-error mt-1">
+                  Error: {{ source.last_error }}
+                </div>
+              </v-list-item>
+            </v-list>
           </div>
-          
+
           <!-- Internal Processes -->
           <div v-if="internalProcesses.length > 0">
             <div class="text-subtitle-2 text-grey-darken-1 mb-2">Internal Processes</div>
@@ -170,19 +140,14 @@
               >
                 <v-list-item-title class="d-flex align-center mb-1">
                   <span class="font-weight-medium">{{ source.source_name.replace('_', ' ') }}</span>
-                  <v-chip
-                    :color="getStatusColor(source.status)"
-                    size="x-small"
-                    label
-                    class="ml-2"
-                  >
+                  <v-chip :color="getStatusColor(source.status)" size="x-small" label class="ml-2">
                     {{ source.status }}
                   </v-chip>
                   <span v-if="source.current_operation" class="text-caption ml-2 text-grey">
                     {{ source.current_operation }}
                   </span>
                 </v-list-item-title>
-                
+
                 <v-progress-linear
                   :model-value="source.progress_percentage"
                   :color="getStatusColor(source.status)"
@@ -190,7 +155,7 @@
                   rounded
                   class="my-2"
                 >
-                  <template v-slot:default>
+                  <template #default>
                     <span class="text-caption font-weight-medium">
                       {{ Math.ceil(source.progress_percentage) }}%
                     </span>
@@ -209,7 +174,7 @@
                     Complete
                   </v-chip>
                 </div>
-                
+
                 <!-- Error message if exists -->
                 <div v-if="source.last_error" class="text-caption text-error mt-1">
                   Error: {{ source.last_error }}
@@ -227,6 +192,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 
+/* global WebSocket, clearInterval, setInterval */
+
 // State
 const expanded = ref(false)
 const sources = ref([])
@@ -236,13 +203,22 @@ const reconnectInterval = ref(null)
 
 // Computed
 const dataSources = computed(() => {
-  return sources.value.filter(s => s.category === 'data_source' || 
-    (!s.category && ['PubTator', 'PanelApp', 'HPO', 'ClinGen', 'GenCC', 'OMIM', 'Literature'].includes(s.source_name)))
+  return sources.value.filter(
+    s =>
+      s.category === 'data_source' ||
+      (!s.category &&
+        ['PubTator', 'PanelApp', 'HPO', 'ClinGen', 'GenCC', 'OMIM', 'Literature'].includes(
+          s.source_name
+        ))
+  )
 })
 
 const internalProcesses = computed(() => {
-  return sources.value.filter(s => s.category === 'internal_process' || 
-    (!s.category && ['Evidence_Aggregation', 'HGNC_Normalization'].includes(s.source_name)))
+  return sources.value.filter(
+    s =>
+      s.category === 'internal_process' ||
+      (!s.category && ['Evidence_Aggregation', 'HGNC_Normalization'].includes(s.source_name))
+  )
 })
 
 const summary = computed(() => {
@@ -251,19 +227,19 @@ const summary = computed(() => {
     completed: sources.value.filter(s => s.status === 'completed').length,
     failed: sources.value.filter(s => s.status === 'failed').length,
     idle: sources.value.filter(s => s.status === 'idle').length,
-    paused: sources.value.filter(s => s.status === 'paused').length,
+    paused: sources.value.filter(s => s.status === 'paused').length
   }
 })
 
 // Methods
-const getStatusColor = (status) => {
+const getStatusColor = status => {
   // Following style guide color system
   const colors = {
-    running: 'primary',    // #0EA5E9
-    completed: 'success',  // #10B981
-    failed: 'error',       // #EF4444
+    running: 'primary', // #0EA5E9
+    completed: 'success', // #10B981
+    failed: 'error', // #EF4444
     idle: 'grey',
-    paused: 'warning',     // #F59E0B
+    paused: 'warning' // #F59E0B
   }
   return colors[status] || 'grey'
 }
@@ -284,7 +260,7 @@ const fetchStatus = async () => {
 const connectWebSocket = () => {
   const wsUrl = 'ws://localhost:8000/api/progress/ws'
   ws.value = new WebSocket(wsUrl)
-  
+
   ws.value.onopen = () => {
     console.log('WebSocket connected for progress updates')
     if (reconnectInterval.value) {
@@ -292,10 +268,10 @@ const connectWebSocket = () => {
       reconnectInterval.value = null
     }
   }
-  
-  ws.value.onmessage = (event) => {
+
+  ws.value.onmessage = event => {
     const message = JSON.parse(event.data)
-    
+
     if (message.type === 'initial_status') {
       sources.value = message.data
     } else if (message.type === 'progress_update') {
@@ -314,11 +290,11 @@ const connectWebSocket = () => {
       }
     }
   }
-  
-  ws.value.onerror = (error) => {
+
+  ws.value.onerror = error => {
     console.error('WebSocket error:', error)
   }
-  
+
   ws.value.onclose = () => {
     console.log('WebSocket disconnected')
     // Try to reconnect after 5 seconds
@@ -331,7 +307,7 @@ const connectWebSocket = () => {
   }
 }
 
-const triggerUpdate = async (sourceName) => {
+const triggerUpdate = async sourceName => {
   triggering.value[sourceName] = true
   try {
     await axios.post(`http://localhost:8000/api/progress/trigger/${sourceName}`)
@@ -342,7 +318,7 @@ const triggerUpdate = async (sourceName) => {
   }
 }
 
-const pauseSource = async (sourceName) => {
+const pauseSource = async sourceName => {
   try {
     await axios.post(`http://localhost:8000/api/progress/pause/${sourceName}`)
   } catch (error) {
@@ -350,7 +326,7 @@ const pauseSource = async (sourceName) => {
   }
 }
 
-const resumeSource = async (sourceName) => {
+const resumeSource = async sourceName => {
   try {
     await axios.post(`http://localhost:8000/api/progress/resume/${sourceName}`)
   } catch (error) {

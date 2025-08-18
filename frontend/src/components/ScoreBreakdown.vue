@@ -3,41 +3,39 @@
     <!-- Compact inline display for tables -->
     <div v-if="variant === 'inline'" class="d-inline-flex align-center">
       <v-tooltip location="bottom" max-width="320">
-        <template #activator="{ props }">
+        <template #activator="{ props: tooltipProps }">
           <v-chip
             :color="scoreColor"
             :size="size"
             variant="flat"
             class="font-weight-medium score-chip"
-            v-bind="props"
+            v-bind="tooltipProps"
           >
             <v-icon :icon="scoreIcon" size="small" start />
             {{ formattedScore }}
           </v-chip>
         </template>
         <div class="pa-3">
-          <div class="text-subtitle-2 font-weight-bold mb-2">
-            Evidence Score Breakdown
-          </div>
+          <div class="text-subtitle-2 font-weight-bold mb-2">Evidence Score Breakdown</div>
           <div class="score-details">
-            <div v-for="(score, source) in sortedBreakdown" :key="source" class="score-item">
+            <div v-for="(sourceScore, source) in sortedBreakdown" :key="source" class="score-item">
               <div class="d-flex align-center justify-space-between mb-1">
                 <span class="text-caption">
                   <v-icon :icon="getSourceIcon(source)" size="x-small" class="mr-1" />
                   {{ source }}
                 </span>
                 <v-chip
-                  :color="getSubScoreColor(score)"
+                  :color="getSubScoreColor(sourceScore)"
                   size="x-small"
                   variant="tonal"
                   class="font-weight-medium ml-2"
                 >
-                  {{ (score * 100).toFixed(1) }}
+                  {{ (sourceScore * 100).toFixed(1) }}
                 </v-chip>
               </div>
               <v-progress-linear
-                :model-value="score * 100"
-                :color="getSubScoreColor(score)"
+                :model-value="sourceScore * 100"
+                :color="getSubScoreColor(sourceScore)"
                 height="2"
                 rounded
                 class="mb-2"
@@ -47,7 +45,8 @@
           <v-divider class="my-2" />
           <div class="text-caption text-medium-emphasis">
             <strong>Classification:</strong> {{ classification }}<br />
-            Evidence strength based on {{ Object.keys(breakdown || {}).length }} curated data sources
+            Evidence strength based on {{ Object.keys(breakdown || {}).length }} curated data
+            sources
           </div>
         </div>
       </v-tooltip>
@@ -83,38 +82,35 @@
             </v-progress-circular>
           </div>
           <div class="mt-3">
-            <v-chip
-              :color="scoreColor"
-              variant="tonal"
-              size="small"
-            >
+            <v-chip :color="scoreColor" variant="tonal" size="small">
               {{ classification }}
             </v-chip>
           </div>
-          
+
           <!-- Compact Breakdown Below -->
           <v-divider class="my-3" />
           <div class="score-breakdown-mini">
             <div class="text-caption text-medium-emphasis mb-2">Score Breakdown</div>
             <div class="d-flex flex-wrap justify-center ga-1">
               <v-tooltip
-                v-for="(score, source) in sortedBreakdown"
+                v-for="(sourceScore, source) in sortedBreakdown"
                 :key="source"
                 location="bottom"
               >
-                <template #activator="{ props }">
+                <template #activator="{ props: tooltipProps }">
                   <v-chip
-                    :color="getSubScoreColor(score)"
+                    :color="getSubScoreColor(sourceScore)"
                     size="x-small"
                     variant="tonal"
-                    v-bind="props"
+                    v-bind="tooltipProps"
                   >
-                    {{ sourceAbbreviation(source) }}: {{ (score * 100).toFixed(0) }}
+                    {{ sourceAbbreviation(source) }}: {{ (sourceScore * 100).toFixed(0) }}
                   </v-chip>
                 </template>
                 <div>
-                  <strong>{{ source }}</strong><br />
-                  {{ getSourceDescription(source, score) }}
+                  <strong>{{ source }}</strong
+                  ><br />
+                  {{ getSourceDescription(source, sourceScore) }}
                 </div>
               </v-tooltip>
             </div>
@@ -130,37 +126,24 @@
     <!-- Compact display for lists -->
     <div v-else-if="variant === 'compact'" class="score-compact">
       <div class="d-flex align-center justify-space-between">
-        <v-chip
-          :color="scoreColor"
-          :size="size"
-          variant="flat"
-          class="font-weight-medium"
-        >
+        <v-chip :color="scoreColor" :size="size" variant="flat" class="font-weight-medium">
           {{ formattedScore }}
         </v-chip>
         <div class="d-flex ga-1">
-          <v-tooltip
-            v-for="(score, source) in topSources"
-            :key="source"
-            location="bottom"
-          >
-            <template #activator="{ props }">
+          <v-tooltip v-for="(sourceScore, source) in topSources" :key="source" location="bottom">
+            <template #activator="{ props: tooltipProps }">
               <v-chip
-                :color="getSubScoreColor(score)"
+                :color="getSubScoreColor(sourceScore)"
                 size="x-small"
                 variant="tonal"
-                v-bind="props"
+                v-bind="tooltipProps"
               >
                 {{ sourceAbbreviation(source) }}
               </v-chip>
             </template>
-            <span>{{ source }}: {{ (score * 100).toFixed(1) }}%</span>
+            <span>{{ source }}: {{ (sourceScore * 100).toFixed(1) }}%</span>
           </v-tooltip>
-          <v-chip
-            v-if="remainingSourceCount > 0"
-            size="x-small"
-            variant="outlined"
-          >
+          <v-chip v-if="remainingSourceCount > 0" size="x-small" variant="outlined">
             +{{ remainingSourceCount }}
           </v-chip>
         </div>
@@ -233,7 +216,7 @@ const classification = computed(() => {
 
 const sortedBreakdown = computed(() => {
   if (!props.breakdown) return {}
-  
+
   // Sort by score value descending
   return Object.entries(props.breakdown)
     .sort(([, a], [, b]) => b - a)
@@ -257,7 +240,7 @@ const remainingSourceCount = computed(() => {
 })
 
 // Methods
-const getSubScoreColor = (score) => {
+const getSubScoreColor = score => {
   const percentage = score * 100
   if (percentage >= 90) return 'success'
   if (percentage >= 70) return 'info'
@@ -266,7 +249,7 @@ const getSubScoreColor = (score) => {
   return 'error'
 }
 
-const getSourceIcon = (source) => {
+const getSourceIcon = source => {
   const icons = {
     PanelApp: 'mdi-view-dashboard',
     HPO: 'mdi-human',
@@ -278,7 +261,7 @@ const getSourceIcon = (source) => {
   return icons[source] || 'mdi-database'
 }
 
-const sourceAbbreviation = (source) => {
+const sourceAbbreviation = source => {
   const abbreviations = {
     PanelApp: 'PA',
     HPO: 'HPO',

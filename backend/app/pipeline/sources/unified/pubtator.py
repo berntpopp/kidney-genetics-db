@@ -301,15 +301,17 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                         "total_mentions": 0,
                     }
 
-                # Add publication and mention
+                # Add publication and mention with enhanced details
                 gene_data_map[gene_symbol]["pmids"].add(pmid)
-                gene_data_map[gene_symbol]["mentions"].append(
-                    {
-                        "pmid": pmid,
-                        "text": gene_text,
-                        "context": doc_data.get("title", "")[:200],
-                    }
-                )
+
+                # Create a more informative mention record
+                mention_record = {
+                    "pmid": pmid,
+                    "text": gene_text,
+                    "title": doc_data.get("title", "")[:200],
+                    "context": doc_data.get("abstract", "")[:150] if doc_data.get("abstract") else doc_data.get("title", "")[:200],
+                }
+                gene_data_map[gene_symbol]["mentions"].append(mention_record)
 
                 if gene_id:
                     gene_data_map[gene_symbol]["identifiers"].add(gene_id)
@@ -321,8 +323,12 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             data["publication_count"] = len(data["pmids"])
             data["total_mentions"] = len(data["mentions"])
 
-            # Limit mentions to most recent
-            data["mentions"] = data["mentions"][:10]
+            # Sort mentions by PMID (newer first)
+            data["mentions"] = sorted(data["mentions"], key=lambda x: x["pmid"], reverse=True)
+
+            # Add top mentions for quick display (keep limited full list)
+            data["top_mentions"] = data["mentions"][:5]  # Top 5 for display
+            data["mentions"] = data["mentions"][:10]  # Keep 10 total
 
             # Add metadata
             data["last_updated"] = datetime.now(timezone.utc).isoformat()

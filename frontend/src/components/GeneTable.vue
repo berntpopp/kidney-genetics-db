@@ -180,9 +180,9 @@
                 {{ totalItems === 1 ? 'Gene Found' : 'Genes Found' }}
               </div>
             </div>
-            
+
             <v-divider vertical />
-            
+
             <div class="page-info">
               <div class="text-body-1 font-weight-medium">
                 {{ ((page - 1) * itemsPerPage + 1).toLocaleString() }}–{{
@@ -198,7 +198,20 @@
             <div v-if="hasActiveFilters" class="d-flex align-center ga-2">
               <v-divider vertical />
               <div class="d-flex flex-wrap ga-1">
-                <v-chip v-if="search" size="small" variant="tonal" color="primary" prepend-icon="mdi-magnify" closable @click:close="search = ''; debouncedSearch()">
+                <v-chip
+                  v-if="search"
+                  size="small"
+                  variant="tonal"
+                  color="primary"
+                  prepend-icon="mdi-magnify"
+                  closable
+                  @click:close="
+                    () => {
+                      search = ''
+                      debouncedSearch()
+                    }
+                  "
+                >
                   "{{ search }}"
                 </v-chip>
                 <v-chip
@@ -208,7 +221,12 @@
                   color="info"
                   prepend-icon="mdi-chart-line"
                   closable
-                  @click:close="scoreRange = [0, 100]; debouncedSearch()"
+                  @click:close="
+                    () => {
+                      scoreRange = [0, 100]
+                      debouncedSearch()
+                    }
+                  "
                 >
                   Score: {{ scoreRange[0] }}–{{ scoreRange[1] }}
                 </v-chip>
@@ -219,7 +237,12 @@
                   color="success"
                   prepend-icon="mdi-database"
                   closable
-                  @click:close="selectedSources = []; debouncedSearch()"
+                  @click:close="
+                    () => {
+                      selectedSources = []
+                      debouncedSearch()
+                    }
+                  "
                 >
                   {{ selectedSources.length }} Source{{ selectedSources.length !== 1 ? 's' : '' }}
                 </v-chip>
@@ -299,9 +322,7 @@
           <code v-if="item.hgnc_id" class="text-caption bg-surface-variant pa-1 rounded">
             {{ item.hgnc_id }}
           </code>
-          <v-chip v-else color="grey" variant="tonal" size="x-small">
-            N/A
-          </v-chip>
+          <v-chip v-else color="grey" variant="tonal" size="x-small"> N/A </v-chip>
         </template>
 
         <!-- Evidence Count with Visual Indicator -->
@@ -601,29 +622,7 @@ const getSourceIcon = source => {
   return icons[source] || 'mdi-database'
 }
 
-const getScoreColor = score => {
-  if (score >= 95) return 'success'
-  if (score >= 80) return 'success'
-  if (score >= 70) return 'info'
-  if (score >= 50) return 'warning'
-  if (score >= 30) return 'orange'
-  return 'error'
-}
-
-const getScoreIcon = score => {
-  if (score >= 80) return 'mdi-check-circle'
-  if (score >= 50) return 'mdi-alert-circle'
-  return 'mdi-close-circle'
-}
-
-const getScoreLabel = score => {
-  if (score >= 95) return 'Definitive'
-  if (score >= 80) return 'Strong'
-  if (score >= 70) return 'Moderate'
-  if (score >= 50) return 'Limited'
-  if (score >= 30) return 'Minimal'
-  return 'Disputed'
-}
+// Removed unused score functions - these are now handled by ScoreBreakdown component
 
 const getEvidenceCountColor = count => {
   if (count >= 10) return 'success'
@@ -734,7 +733,7 @@ onMounted(() => {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .gene-count-display,
   .page-info {
     text-align: center;
@@ -752,7 +751,9 @@ onMounted(() => {
 
 /* Smooth Transitions */
 * {
-  transition: color 0.2s ease, background-color 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 /* Focus States */

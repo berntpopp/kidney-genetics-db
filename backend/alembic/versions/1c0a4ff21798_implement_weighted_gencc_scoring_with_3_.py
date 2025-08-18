@@ -15,26 +15,25 @@ The new scoring formula consists of three components:
 
 This replaces the previous simplistic approach of only using the first classification.
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision: str = '1c0a4ff21798'
-down_revision: Union[str, Sequence[str], None] = '443aa8a1ddf7'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = '443aa8a1ddf7'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     """Implement weighted GenCC scoring with 3-component formula."""
-    
+
     # Drop dependent views first (in reverse dependency order)
     op.execute("DROP VIEW IF EXISTS gene_scores CASCADE")
     op.execute("DROP VIEW IF EXISTS evidence_normalized_scores CASCADE")
     op.execute("DROP VIEW IF EXISTS evidence_classification_weights CASCADE")
-    
+
     # Recreate evidence_classification_weights with weighted GenCC scoring
     op.execute("""
         CREATE OR REPLACE VIEW evidence_classification_weights AS
@@ -53,7 +52,7 @@ def upgrade() -> None:
                         0.5 * (
                             SUM(
                                 POWER(
-                                    CASE 
+                                    CASE
                                         WHEN LOWER(elem::text) = '"definitive"' THEN 1.0
                                         WHEN LOWER(elem::text) = '"strong"' THEN 0.8
                                         WHEN LOWER(elem::text) = '"moderate"' THEN 0.6
@@ -66,7 +65,7 @@ def upgrade() -> None:
                                 )
                             ) / NULLIF(
                                 SUM(
-                                    CASE 
+                                    CASE
                                         WHEN LOWER(elem::text) = '"definitive"' THEN 1.0
                                         WHEN LOWER(elem::text) = '"strong"' THEN 0.8
                                         WHEN LOWER(elem::text) = '"moderate"' THEN 0.6
@@ -87,7 +86,7 @@ def upgrade() -> None:
                         -- Measures proportion of high-quality classifications (Definitive/Strong)
                         0.2 * (
                             SUM(
-                                CASE 
+                                CASE
                                     WHEN LOWER(elem::text) IN ('"definitive"', '"strong"') THEN 1
                                     ELSE 0
                                 END
@@ -108,7 +107,7 @@ def upgrade() -> None:
                 g.id as gene_id,
                 g.approved_symbol,
                 ge.source_name,
-                CASE 
+                CASE
                     -- Handle array format: extract first element
                     WHEN jsonb_typeof(ge.evidence_data->'classifications') = 'array' THEN
                         CASE (ge.evidence_data->'classifications'->>0)::text
@@ -142,7 +141,7 @@ def upgrade() -> None:
         UNION ALL
         SELECT * FROM gencc_weighted
     """)
-    
+
     # Recreate evidence_normalized_scores (unchanged, but needed for dependencies)
     op.execute("""
         CREATE OR REPLACE VIEW evidence_normalized_scores AS
@@ -154,9 +153,9 @@ def upgrade() -> None:
             source_name,
             percentile_score as normalized_score
         FROM evidence_count_percentiles
-        
+
         UNION ALL
-        
+
         -- Classification-based sources (weight mapping with new GenCC weights)
         SELECT
             evidence_id,
@@ -166,7 +165,7 @@ def upgrade() -> None:
             classification_weight as normalized_score
         FROM evidence_classification_weights
     """)
-    
+
     # Recreate gene_scores (unchanged, but needed for dependencies)
     op.execute("""
         CREATE OR REPLACE VIEW gene_scores AS
@@ -213,12 +212,12 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Revert to simple first-classification scoring for GenCC."""
-    
+
     # Drop dependent views first
     op.execute("DROP VIEW IF EXISTS gene_scores CASCADE")
     op.execute("DROP VIEW IF EXISTS evidence_normalized_scores CASCADE")
     op.execute("DROP VIEW IF EXISTS evidence_classification_weights CASCADE")
-    
+
     # Recreate with original simple GenCC scoring (from previous migration)
     op.execute("""
         CREATE OR REPLACE VIEW evidence_classification_weights AS
@@ -230,7 +229,7 @@ def downgrade() -> None:
             -- Extract first classification from array and map to weight
             CASE ge.source_name
                 WHEN 'ClinGen' THEN
-                    CASE 
+                    CASE
                         -- Handle array format: extract first element
                         WHEN jsonb_typeof(ge.evidence_data->'classifications') = 'array' THEN
                             CASE (ge.evidence_data->'classifications'->>0)::text
@@ -256,7 +255,7 @@ def downgrade() -> None:
                         ELSE 0.3
                     END
                 WHEN 'GenCC' THEN
-                    CASE 
+                    CASE
                         -- Handle array format: extract first element (case-insensitive)
                         WHEN jsonb_typeof(ge.evidence_data->'classifications') = 'array' THEN
                             CASE LOWER((ge.evidence_data->'classifications'->>0)::text)
@@ -287,7 +286,7 @@ def downgrade() -> None:
         JOIN genes g ON ge.gene_id = g.id
         WHERE ge.source_name IN ('ClinGen', 'GenCC')
     """)
-    
+
     # Recreate evidence_normalized_scores
     op.execute("""
         CREATE OR REPLACE VIEW evidence_normalized_scores AS
@@ -299,9 +298,9 @@ def downgrade() -> None:
             source_name,
             percentile_score as normalized_score
         FROM evidence_count_percentiles
-        
+
         UNION ALL
-        
+
         -- Classification-based sources (weight mapping)
         SELECT
             evidence_id,
@@ -311,7 +310,7 @@ def downgrade() -> None:
             classification_weight as normalized_score
         FROM evidence_classification_weights
     """)
-    
+
     # Recreate gene_scores
     op.execute("""
         CREATE OR REPLACE VIEW gene_scores AS

@@ -323,12 +323,28 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             Source detail string
         """
         validity_count = evidence_data.get("validity_count", 0)
-        panels = evidence_data.get("expert_panels", [])
+        classifications = evidence_data.get("classifications", [])
+        diseases = evidence_data.get("diseases", [])
 
-        if panels:
-            panel_str = ", ".join(panels[:2])  # Show first 2 panels
-            if len(panels) > 2:
-                panel_str += f" +{len(panels) - 2} more"
-            return f"ClinGen ({panel_str}): {validity_count} assessments"
+        # Build classification summary
+        if classifications:
+            # Sort by weight to show best classification first
+            sorted_classifications = sorted(
+                set(classifications),
+                key=lambda c: self.classification_weights.get(c, 0),
+                reverse=True
+            )
+            class_str = sorted_classifications[0] if sorted_classifications else ""
+        else:
+            class_str = ""
 
-        return f"ClinGen: {validity_count} validity assessments"
+        # Build disease summary (show first disease)
+        disease_str = diseases[0][:30] + "..." if diseases and len(diseases[0]) > 30 else diseases[0] if diseases else ""
+
+        # Combine details
+        if class_str and disease_str:
+            return f"ClinGen: {validity_count} assessments ({class_str} for {disease_str})"
+        elif class_str:
+            return f"ClinGen: {validity_count} assessments ({class_str})"
+        else:
+            return f"ClinGen: {validity_count} validity assessments"

@@ -9,28 +9,27 @@ which doesn't utilize the full 0-1 scale. This migration adds percentile
 normalization to spread GenCC scores across the full range, making them
 comparable to other evidence sources.
 
-This ensures that the best GenCC genes (like DPAGT1 with 2x Definitive) 
+This ensures that the best GenCC genes (like DPAGT1 with 2x Definitive)
 score 1.0, and scores are distributed properly across the full range.
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision: str = '2d3f4a5b6c7e'
-down_revision: Union[str, Sequence[str], None] = '1c0a4ff21798'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = '1c0a4ff21798'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     """Add percentile normalization to GenCC weighted scores."""
-    
+
     # Drop dependent views first (in reverse dependency order)
     op.execute("DROP VIEW IF EXISTS gene_scores CASCADE")
     op.execute("DROP VIEW IF EXISTS evidence_normalized_scores CASCADE")
-    
+
     # Create new view that applies percentile normalization to GenCC scores
     op.execute("""
         CREATE OR REPLACE VIEW evidence_normalized_scores AS
@@ -56,9 +55,9 @@ def upgrade() -> None:
             source_name,
             percentile_score as normalized_score
         FROM evidence_count_percentiles
-        
+
         UNION ALL
-        
+
         -- ClinGen (direct weight mapping, already 0-1 range)
         SELECT
             evidence_id,
@@ -68,9 +67,9 @@ def upgrade() -> None:
             classification_weight as normalized_score
         FROM evidence_classification_weights
         WHERE source_name = 'ClinGen'
-        
+
         UNION ALL
-        
+
         -- GenCC (percentile normalization of weighted scores)
         SELECT
             evidence_id,
@@ -80,7 +79,7 @@ def upgrade() -> None:
             percentile_score as normalized_score
         FROM gencc_percentiles
     """)
-    
+
     # Recreate gene_scores (unchanged, but needed for dependencies)
     op.execute("""
         CREATE OR REPLACE VIEW gene_scores AS
@@ -127,11 +126,11 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Revert to non-normalized GenCC scores."""
-    
+
     # Drop dependent views first
     op.execute("DROP VIEW IF EXISTS gene_scores CASCADE")
     op.execute("DROP VIEW IF EXISTS evidence_normalized_scores CASCADE")
-    
+
     # Recreate without percentile normalization for GenCC
     op.execute("""
         CREATE OR REPLACE VIEW evidence_normalized_scores AS
@@ -143,9 +142,9 @@ def downgrade() -> None:
             source_name,
             percentile_score as normalized_score
         FROM evidence_count_percentiles
-        
+
         UNION ALL
-        
+
         -- Classification-based sources (weight mapping with new GenCC weights)
         SELECT
             evidence_id,
@@ -155,7 +154,7 @@ def downgrade() -> None:
             classification_weight as normalized_score
         FROM evidence_classification_weights
     """)
-    
+
     # Recreate gene_scores
     op.execute("""
         CREATE OR REPLACE VIEW gene_scores AS

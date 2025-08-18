@@ -235,7 +235,7 @@ class HPOUnifiedSource(UnifiedDataSource):
     def _calculate_hpo_score(self, evidence_data: dict[str, Any]) -> float:
         """
         Calculate evidence score based on HPO data.
-        
+
         Note: Score is now based purely on phenotype count since
         disease associations are handled by disease-specific sources.
 
@@ -248,7 +248,7 @@ class HPOUnifiedSource(UnifiedDataSource):
         # Score based on number of HPO terms
         # Using a logarithmic scale to avoid oversaturation
         hpo_count = len(evidence_data.get("hpo_terms", []))
-        
+
         if hpo_count == 0:
             return 0.0
         elif hpo_count <= 5:
@@ -259,7 +259,7 @@ class HPOUnifiedSource(UnifiedDataSource):
             # Diminishing returns for many terms
             import math
             score = 150 + math.log(hpo_count - 9) * 20
-        
+
         # Cap at 100 - actual normalization happens via percentile ranking
         return min(score, 100.0)
 
@@ -282,7 +282,7 @@ class HPOUnifiedSource(UnifiedDataSource):
             Source detail string
         """
         hpo_count = len(evidence_data.get("hpo_terms", []))
-        
+
         return f"HPO: {hpo_count} phenotypes"
 
     async def fetch_disease_info(self, disease_id: str) -> dict[str, Any] | None:

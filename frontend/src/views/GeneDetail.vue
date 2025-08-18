@@ -270,211 +270,11 @@
           <!-- Evidence Content -->
           <div v-else-if="filteredEvidence?.length" class="evidence-section">
             <v-expansion-panels variant="accordion" class="mb-4">
-              <v-expansion-panel
+              <EvidenceCard
                 v-for="(item, index) in filteredEvidence"
-                :key="index"
-                class="evidence-panel"
-              >
-                <v-expansion-panel-title class="py-4">
-                  <div class="d-flex align-center justify-space-between w-100">
-                    <div class="d-flex align-center">
-                      <v-avatar :color="getSourceColor(item.source_name)" size="32" class="mr-3">
-                        <v-icon
-                          :icon="getSourceIcon(item.source_name)"
-                          size="small"
-                          color="white"
-                        />
-                      </v-avatar>
-                      <div>
-                        <div class="text-h6 font-weight-medium">{{ item.source_name }}</div>
-                        <div class="text-body-2 text-medium-emphasis">{{ item.source_detail }}</div>
-                      </div>
-                    </div>
-                    <div class="d-flex align-center ga-2">
-                      <v-chip
-                        v-if="item.evidence_data?.panels?.length"
-                        size="small"
-                        variant="tonal"
-                        color="primary"
-                      >
-                        {{ item.evidence_data.panels.length }} panel{{
-                          item.evidence_data.panels.length !== 1 ? 's' : ''
-                        }}
-                      </v-chip>
-                      <v-chip
-                        v-if="item.evidence_data?.phenotypes?.length"
-                        size="small"
-                        variant="tonal"
-                        color="secondary"
-                      >
-                        {{ item.evidence_data.phenotypes.length }} phenotype{{
-                          item.evidence_data.phenotypes.length !== 1 ? 's' : ''
-                        }}
-                      </v-chip>
-                    </div>
-                  </div>
-                </v-expansion-panel-title>
-
-                <v-expansion-panel-text class="py-4">
-                  <v-row>
-                    <!-- Gene Panels -->
-                    <v-col v-if="item.evidence_data?.panels?.length" cols="12" md="6">
-                      <h4 class="text-h6 mb-3 d-flex align-center">
-                        <v-icon icon="mdi-view-dashboard" size="small" class="mr-2" />
-                        Gene Panels
-                      </h4>
-                      <div class="d-flex flex-column ga-2">
-                        <v-card
-                          v-for="panel in item.evidence_data.panels.slice(0, 5)"
-                          :key="panel.id"
-                          variant="outlined"
-                          density="compact"
-                        >
-                          <v-card-text class="py-2">
-                            <div class="d-flex align-center justify-space-between">
-                              <div>
-                                <div class="text-body-2 font-weight-medium">{{ panel.name }}</div>
-                                <div class="text-caption text-medium-emphasis">
-                                  {{ panel.source }} • Version {{ panel.version }}
-                                </div>
-                              </div>
-                              <v-chip
-                                :color="panel.source === 'AU' ? 'success' : 'primary'"
-                                size="x-small"
-                                variant="flat"
-                              >
-                                {{ panel.source }}
-                              </v-chip>
-                            </div>
-                          </v-card-text>
-                        </v-card>
-                        <v-btn
-                          v-if="item.evidence_data.panels.length > 5"
-                          variant="text"
-                          size="small"
-                          @click="showAllPanels(item)"
-                        >
-                          Show {{ item.evidence_data.panels.length - 5 }} more panels
-                        </v-btn>
-                      </div>
-                    </v-col>
-
-                    <!-- Phenotypes -->
-                    <v-col v-if="item.evidence_data?.phenotypes?.length" cols="12" md="6">
-                      <h4 class="text-h6 mb-3 d-flex align-center">
-                        <v-icon icon="mdi-human" size="small" class="mr-2" />
-                        Associated Phenotypes
-                      </h4>
-                      <div class="phenotypes-grid">
-                        <v-chip
-                          v-for="(phenotype, idx) in item.evidence_data.phenotypes.slice(0, 10)"
-                          :key="idx"
-                          size="small"
-                          variant="outlined"
-                          class="mb-2 mr-2"
-                        >
-                          {{ phenotype }}
-                        </v-chip>
-                        <v-menu v-if="item.evidence_data.phenotypes.length > 10" location="bottom">
-                          <template #activator="{ props }">
-                            <v-chip size="small" variant="outlined" v-bind="props" class="mb-2">
-                              +{{ item.evidence_data.phenotypes.length - 10 }} more
-                            </v-chip>
-                          </template>
-                          <v-card max-width="400">
-                            <v-card-text>
-                              <div class="d-flex flex-wrap ga-1">
-                                <v-chip
-                                  v-for="(phenotype, idx) in item.evidence_data.phenotypes.slice(
-                                    10
-                                  )"
-                                  :key="idx"
-                                  size="x-small"
-                                  variant="outlined"
-                                >
-                                  {{ phenotype }}
-                                </v-chip>
-                              </div>
-                            </v-card-text>
-                          </v-card>
-                        </v-menu>
-                      </div>
-                    </v-col>
-
-                    <!-- Inheritance Modes -->
-                    <v-col v-if="item.evidence_data?.modes_of_inheritance?.length" cols="12" md="6">
-                      <h4 class="text-h6 mb-3 d-flex align-center">
-                        <v-icon icon="mdi-family-tree" size="small" class="mr-2" />
-                        Inheritance Modes
-                      </h4>
-                      <div class="d-flex flex-wrap ga-2">
-                        <v-chip
-                          v-for="(mode, idx) in item.evidence_data.modes_of_inheritance"
-                          :key="idx"
-                          size="small"
-                          color="info"
-                          variant="tonal"
-                        >
-                          {{ mode }}
-                        </v-chip>
-                      </div>
-                    </v-col>
-
-                    <!-- Supporting Evidence -->
-                    <v-col v-if="item.evidence_data?.evidence?.length" cols="12" md="6">
-                      <h4 class="text-h6 mb-3 d-flex align-center">
-                        <v-icon icon="mdi-file-document-check" size="small" class="mr-2" />
-                        Supporting Evidence
-                      </h4>
-                      <div class="d-flex flex-wrap ga-1">
-                        <v-chip
-                          v-for="(ev, idx) in [...new Set(item.evidence_data.evidence)].slice(0, 8)"
-                          :key="idx"
-                          size="small"
-                          variant="tonal"
-                          color="success"
-                        >
-                          {{ ev }}
-                        </v-chip>
-                        <v-chip
-                          v-if="item.evidence_data.evidence.length > 8"
-                          size="small"
-                          variant="outlined"
-                        >
-                          +{{ item.evidence_data.evidence.length - 8 }}
-                        </v-chip>
-                      </div>
-                    </v-col>
-                  </v-row>
-
-                  <!-- Metadata -->
-                  <v-divider class="my-4" />
-                  <div class="d-flex align-center justify-space-between">
-                    <div class="text-caption text-medium-emphasis">
-                      <v-icon icon="mdi-clock-outline" size="small" class="mr-1" />
-                      Last updated: {{ formatDate(item.evidence_data?.last_updated) }}
-                    </div>
-                    <div class="d-flex ga-2">
-                      <v-btn
-                        size="small"
-                        variant="text"
-                        prepend-icon="mdi-open-in-new"
-                        @click="viewExternalSource(item)"
-                      >
-                        View Source
-                      </v-btn>
-                      <v-btn
-                        size="small"
-                        variant="text"
-                        prepend-icon="mdi-download"
-                        @click="exportEvidence(item)"
-                      >
-                        Export
-                      </v-btn>
-                    </div>
-                  </div>
-                </v-expansion-panel-text>
-              </v-expansion-panel>
+                :key="`${item.source_name}-${index}`"
+                :evidence="item"
+              />
             </v-expansion-panels>
           </div>
 
@@ -556,6 +356,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { geneApi } from '../api/genes'
 import ScoreBreakdown from '../components/ScoreBreakdown.vue'
+import EvidenceCard from '../components/evidence/EvidenceCard.vue'
 
 const route = useRoute()
 
@@ -687,38 +488,7 @@ const getScoreColor = score => {
   return 'error'
 }
 
-const getScoreIcon = score => {
-  if (score >= 80) return 'mdi-check-circle'
-  if (score >= 50) return 'mdi-alert-circle'
-  return 'mdi-close-circle'
-}
-
-const getScoreLabel = score => {
-  if (score >= 95) return 'Definitive'
-  if (score >= 80) return 'Strong'
-  if (score >= 70) return 'Moderate'
-  if (score >= 50) return 'Limited'
-  if (score >= 30) return 'Minimal'
-  return 'Disputed'
-}
-
-const getScoreDescription = score => {
-  if (score >= 95) return 'Very strong evidence for disease association'
-  if (score >= 80) return 'Strong evidence supporting disease association'
-  if (score >= 70) return 'Moderate evidence for disease association'
-  if (score >= 50) return 'Limited evidence for disease association'
-  if (score >= 30) return 'Minimal evidence for disease association'
-  return 'Disputed or conflicting evidence'
-}
-
-const formatDate = dateString => {
-  if (!dateString) return 'Unknown'
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
+// Removed unused score and format functions - handled by ScoreBreakdown component
 
 const clearEvidenceFilters = () => {
   selectedEvidenceSources.value = []
@@ -755,17 +525,7 @@ const exportGene = () => {
   console.log('Export gene:', gene.value.approved_symbol)
 }
 
-const showAllPanels = item => {
-  console.log('Show all panels for:', item)
-}
-
-const viewExternalSource = item => {
-  console.log('View external source:', item)
-}
-
-const exportEvidence = item => {
-  console.log('Export evidence:', item)
-}
+// Removed unused functions - will implement when needed
 
 // Lifecycle
 onMounted(async () => {
