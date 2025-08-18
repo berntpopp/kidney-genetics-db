@@ -95,20 +95,59 @@ CASE evidence_data->>'classification'
 END
 ```
 
-#### GenCC Classification Weights
+#### GenCC Classification Weights (Weighted 3-Component System)
+
+**As of Migration 1c0a4ff21798 (August 18, 2025)**
+
+GenCC scoring uses a sophisticated weighted system that considers both quality and quantity of evidence:
+
+**Components:**
+1. **Quality Score (50% weight)**: Uses quadratic weighting to emphasize higher classifications
+2. **Quantity Score (30% weight)**: Rewards multiple submissions with diminishing returns (√(n/5))
+3. **Confidence Score (20% weight)**: Proportion of high-quality classifications (Definitive/Strong)
+
+**Classification Values:**
+- Definitive: 1.0
+- Strong: 0.8
+- Moderate: 0.6
+- Supportive: 0.5
+- Limited: 0.4
+- Disputed: 0.2
+- Refuted: 0.1
+
+**Formula:**
 ```sql
-CASE evidence_data->>'classification'
-    WHEN 'Definitive' THEN 1.0
-    WHEN 'Strong' THEN 0.8
-    WHEN 'Moderate' THEN 0.6
-    WHEN 'Supportive' THEN 0.5
-    WHEN 'Limited' THEN 0.3
-    WHEN 'Disputed Evidence' THEN 0.1
-    WHEN 'No Known Disease Relationship' THEN 0.0
-    WHEN 'Refuted Evidence' THEN 0.0
-    ELSE 0.5  -- Unknown classifications
-END
+-- Component 1: Quality Score (50%)
+quality_score = SUM(weight²) / SUM(weight) × 0.5
+
+-- Component 2: Quantity Score (30%)
+quantity_score = MIN(1.0, √(count/5)) × 0.3
+
+-- Component 3: Confidence Score (20%)
+confidence_score = (count_definitive_strong / total_count) × 0.2
+
+-- Final Score
+final_score = quality_score + quantity_score + confidence_score
 ```
+
+**Example Calculations:**
+
+*HNF1B with ["Strong", "Definitive", "Supportive"]:*
+- Quality: (0.64 + 1.0 + 0.25) / (0.8 + 1.0 + 0.5) = 0.8217 × 0.5 = 0.4109
+- Quantity: √(3/5) × 0.3 = 0.2324
+- Confidence: 2/3 × 0.2 = 0.1333
+- **Total: 0.7766**
+
+*PKD2 with ["Strong", "Definitive", "Supportive", "Limited"]:*
+- Quality: (0.64 + 1.0 + 0.25 + 0.16) / (0.8 + 1.0 + 0.5 + 0.4) = 0.7593 × 0.5 = 0.3796
+- Quantity: √(4/5) × 0.3 = 0.2683
+- Confidence: 2/4 × 0.2 = 0.1000
+- **Total: 0.748**
+
+This approach better reflects the true confidence in gene-disease associations by considering:
+- Higher quality classifications have quadratically more weight
+- Multiple submissions increase confidence with diminishing returns
+- High proportion of strong evidence increases overall confidence
 
 ### Final Score Calculation
 
@@ -191,6 +230,7 @@ ORDER BY percentage_score DESC NULLS LAST, g.approved_symbol;
 
 ## Migration Implementation
 
+### Original Implementation
 **Migration**: `eb908f8d6701_implement_correct_postgresql_based_.py`
 
 This migration:
@@ -198,6 +238,16 @@ This migration:
 2. Creates the PostgreSQL view-based scoring system
 3. Implements both count-based and classification-based normalization
 4. Provides rollback capability
+
+### Weighted GenCC Scoring Update
+**Migration**: `1c0a4ff21798_implement_weighted_gencc_scoring_with_3_.py` (August 18, 2025)
+
+This migration enhances GenCC scoring from simple first-classification to weighted multi-component:
+1. Implements 3-component weighted scoring (Quality 50%, Quantity 30%, Confidence 20%)
+2. Uses quadratic weighting for quality to emphasize higher classifications
+3. Applies diminishing returns for quantity using square root normalization
+4. Measures consensus through proportion of high-quality classifications
+5. Supports all GenCC classification levels including "Supportive"
 
 ## Validation Against Original Implementation
 
