@@ -1,38 +1,23 @@
 """
-CLI for running pipeline updates
+CLI for running pipeline updates - Now using AsyncClick for native async support
 """
 
 import logging
 import sys
 from datetime import datetime, timezone
 
-import click
+import asyncclick as click
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.progress_tracker import ProgressTracker
 from app.models.gene import PipelineRun
 from app.pipeline.aggregate import update_all_curations
-from app.pipeline.sources.sync_wrappers import (
-    update_clingen_sync as update_clingen_data,
-)
-
-# REFACTORED: Old sync sources have been replaced with unified async sources
-# These imports are commented out as the old files have been deleted
-# TODO: Migrate CLI to use unified sources or async execution
-# from app.pipeline.sources.clingen import update_clingen_data
-# from app.pipeline.sources.gencc import update_gencc_data
-# from app.pipeline.sources.panelapp import update_all_panelapp
-# from app.pipeline.sources.pubtator import update_pubtator_data
-# REFACTORED: Import sync wrappers for unified sources
-from app.pipeline.sources.sync_wrappers import (
-    update_gencc_sync as update_gencc_data,
-)
-from app.pipeline.sources.sync_wrappers import (
-    update_panelapp_sync as update_all_panelapp,
-)
-from app.pipeline.sources.sync_wrappers import (
-    update_pubtator_sync as update_pubtator_data,
-)
+from app.pipeline.sources.unified.clingen import ClinGenUnifiedSource
+from app.pipeline.sources.unified.gencc import GenCCUnifiedSource
+from app.pipeline.sources.unified.hpo import HPOUnifiedSource
+from app.pipeline.sources.unified.panelapp import PanelAppUnifiedSource
+from app.pipeline.sources.unified.pubtator import PubTatorUnifiedSource
 
 # Configure logging
 logging.basicConfig(
@@ -45,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 
 @click.group()
-def cli():
-    """Kidney Genetics Pipeline CLI"""
+async def cli():
+    """Kidney Genetics Pipeline CLI - Async version"""
     pass
 
 
@@ -57,52 +42,63 @@ def cli():
     default="all",
     help="Which data source to update",
 )
-def update(source: str):
-    """Update gene data from external sources"""
+async def update(source: str):
+    """Update gene data from external sources - now fully async"""
     logger.info(f"Starting pipeline update for source: {source}")
 
-    # Get database session
+    # Get database session - unified sources work with both sync and async
     db: Session = next(get_db())
-
-    # Create pipeline run record
-    run = PipelineRun(
-        status="running",
-        started_at=datetime.now(timezone.utc),
-        stats={},
-    )
-    db.add(run)
-    db.commit()
-
+    
     try:
-        all_stats = []
+        # Create pipeline run record
+        run = PipelineRun(
+            status="running",
+            started_at=datetime.now(timezone.utc),
+            stats={},
+        )
+        db.add(run)
+        db.commit()
 
+        all_stats = []
+        tracker = ProgressTracker(source_name=source)
+
+        # The unified sources handle async internally even with sync session
         if source in ["all", "panelapp"]:
             logger.info("Updating PanelApp data...")
-            stats = update_all_panelapp(db)
+            source_obj = PanelAppUnifiedSource(db_session=db)
+            stats = await source_obj.update_data(db, tracker)
             all_stats.append(stats)
+            logger.info(f"PanelApp update complete: {stats}")
 
         if source in ["all", "hpo"]:
-            logger.info("HPO update not available in sync CLI - use API endpoint instead")
-            # HPO now uses async implementation - see background_tasks.py
-            # stats = update_hpo_data(db)
-            # all_stats.append(stats)
+            logger.info("Updating HPO data...")
+            source_obj = HPOUnifiedSource(db_session=db)
+            stats = await source_obj.update_data(db, tracker)
+            all_stats.append(stats)
+            logger.info(f"HPO update complete: {stats}")
 
         if source in ["all", "pubtator"]:
             logger.info("Updating PubTator data...")
-            stats = update_pubtator_data(db)
+            source_obj = PubTatorUnifiedSource(db_session=db)
+            stats = await source_obj.update_data(db, tracker)
             all_stats.append(stats)
+            logger.info(f"PubTator update complete: {stats}")
 
         if source in ["all", "clingen"]:
             logger.info("Updating ClinGen data...")
-            stats = update_clingen_data(db)
+            source_obj = ClinGenUnifiedSource(db_session=db)
+            stats = await source_obj.update_data(db, tracker)
             all_stats.append(stats)
+            logger.info(f"ClinGen update complete: {stats}")
 
         if source in ["all", "gencc"]:
             logger.info("Updating GenCC data...")
-            stats = update_gencc_data(db)
+            source_obj = GenCCUnifiedSource(db_session=db)
+            stats = await source_obj.update_data(db, tracker)
             all_stats.append(stats)
+            logger.info(f"GenCC update complete: {stats}")
 
-        # Always update curations after source updates
+        # Update curations after source updates
         if all_stats:
             logger.info("Updating gene curations and scores...")
             curation_stats = update_all_curations(db)
@@ -116,25 +112,25 @@ def update(source: str):
         db.commit()
 
         logger.info("Pipeline update completed successfully")
+        logger.info(f"Summary: {len(all_stats)} sources updated")
 
     except Exception as e:
-        logger.error(f"Pipeline error: {e}")
+        logger.error(f"Pipeline error: {e}", exc_info=True)
         run.status = "failed"
         run.completed_at = datetime.now(timezone.utc)
         run.error_log = str(e)
         db.add(run)
         db.commit()
         raise
-
     finally:
         db.close()
 
 
 @cli.command()
-def list_runs():
+async def list_runs():
     """List recent pipeline runs"""
     db: Session = next(get_db())
-
+    
     try:
         runs = db.query(PipelineRun).order_by(PipelineRun.id.desc()).limit(10).all()
 
@@ -156,7 +152,6 @@ def list_runs():
             if run.error_log:
                 click.echo(f"Error: {run.error_log[:100]}...")
             click.echo("-" * 60)
-
     finally:
         db.close()
 

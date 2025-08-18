@@ -65,6 +65,39 @@ wheels = [
 ]
 
 [[package]]
+name = "asyncclick"
+version = "8.1.8"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.11'",
+]
+dependencies = [
+    { name = "anyio", marker = "python_full_version < '3.11'" },
+    { name = "colorama", marker = "python_full_version < '3.11' and sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cb/b5/e1e5fdf1c1bb7e6e614987c120a98d9324bf8edfaa5f5cd16a6235c9d91b/asyncclick-8.1.8.tar.gz", hash = "sha256:0f0eb0f280e04919d67cf71b9fcdfb4db2d9ff7203669c40284485c149578e4c", size = 232900, upload-time = "2025-01-06T09:46:52.694Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/14/cc/a436f0fc2d04e57a0697e0f87a03b9eaed03ad043d2d5f887f8eebcec95f/asyncclick-8.1.8-py3-none-any.whl", hash = "sha256:eb1ccb44bc767f8f0695d592c7806fdf5bd575605b4ee246ffd5fadbcfdbd7c6", size = 99093, upload-time = "2025-01-06T09:46:51.046Z" },
+    { url = "https://files.pythonhosted.org/packages/92/c4/ae9e9d25522c6dc96ff167903880a0fe94d7bd31ed999198ee5017d977ed/asyncclick-8.1.8.0-py3-none-any.whl", hash = "sha256:be146a2d8075d4fe372ff4e877f23c8b5af269d16705c1948123b9415f6fd678", size = 99115, upload-time = "2025-01-06T09:50:52.72Z" },
+]
+
+[[package]]
+name = "asyncclick"
+version = "8.2.2.2"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12'",
+    "python_full_version == '3.11.*'",
+]
+dependencies = [
+    { name = "colorama", marker = "python_full_version >= '3.11' and sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/35/51/b01dd77c9a14fb0b312d799fd8c10b145b882535dbaa9ac055a52515b390/asyncclick-8.2.2.2.tar.gz", hash = "sha256:014f6b7bfb1ef34a2215bc36aebd5150d5d2e50668b12eceb749961e32c24660", size = 1258539, upload-time = "2025-08-15T03:00:05.607Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c9/20/9ac7bd10ae00075a2b7620e9f29b479d8ef677ba3616ce6a2e8efde80f70/asyncclick-8.2.2.2-py3-none-any.whl", hash = "sha256:ee500f57923e2588d624227d80b568546325a758b902a89519913926454187d9", size = 105081, upload-time = "2025-08-15T03:00:03.721Z" },
+]
+
+[[package]]
 name = "asyncpg"
 version = "0.30.0"
 source = { registry = "https://pypi.org/simple" }
@@ -749,6 +782,8 @@ source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
     { name = "alembic" },
+    { name = "asyncclick", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "asyncclick", version = "8.2.2.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "asyncpg" },
     { name = "beautifulsoup4" },
     { name = "cachetools" },
@@ -793,6 +828,7 @@ test = [
 requires-dist = [
     { name = "aiofiles", specifier = ">=23.0.0,<24.0.0" },
     { name = "alembic", specifier = ">=1.12,<2.0" },
+    { name = "asyncclick", specifier = ">=8.1.8" },
     { name = "asyncpg", specifier = ">=0.29.0,<1.0" },
     { name = "beautifulsoup4", specifier = ">=4.12.0,<5.0.0" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
