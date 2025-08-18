@@ -230,7 +230,7 @@ async def update_datasource(source_name: str, db: Session = Depends(get_db)) -> 
         await task_manager.run_source(source_name)
         return {"message": f"Update triggered for {source_name}", "status": "started"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to start update: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to start update: {e!s}") from e
 
 
 @router.post("/update-all")
@@ -249,4 +249,4 @@ async def update_all_datasources(db: Session = Depends(get_db)) -> dict[str, Any
             "status": "started",
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to start updates: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Failed to start updates: {e!s}") from e

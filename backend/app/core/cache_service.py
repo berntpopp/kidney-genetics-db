@@ -234,7 +234,7 @@ class CacheService:
         except (TypeError, ValueError) as e:
             logger.error(f"Error deserializing value: {e}")
             logger.debug(
-                f"Failed to deserialize: {repr(str(serialized)[:100] if serialized else serialized)}"
+                f"Failed to deserialize: {str(serialized)[:100] if serialized else serialized!r}"
             )
             # Return None instead of raising to allow graceful recovery
             return None

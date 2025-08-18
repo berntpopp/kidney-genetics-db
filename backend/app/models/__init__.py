@@ -10,14 +10,14 @@ from app.models.user import User
 
 __all__ = [
     "Base",
+    "DataSourceProgress",
+    "Gene",
+    "GeneCuration",
+    "GeneEvidence",
+    "GeneNormalizationLog",
+    "GeneNormalizationStaging",
+    "PipelineRun",
+    "SourceStatus",
     "TimestampMixin",
     "User",
-    "Gene",
-    "GeneEvidence",
-    "GeneCuration",
-    "PipelineRun",
-    "GeneNormalizationStaging",
-    "GeneNormalizationLog",
-    "DataSourceProgress",
-    "SourceStatus",
 ]

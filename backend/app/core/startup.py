@@ -133,7 +133,6 @@ def validate_dependencies() -> None:
     logger.info("Validating application dependencies...")
 
     try:
-        from app.core.config import settings
         from app.core.datasource_config import get_source_parameter
 
         # Validate required API URLs from datasource config

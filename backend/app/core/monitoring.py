@@ -80,7 +80,7 @@ class CacheMonitoringService:
                 # Fallback to common namespaces if database query fails
                 logger.warning("Using fallback namespace list for monitoring stats")
                 namespaces = ["hgnc", "pubtator", "gencc", "panelapp", "hpo", "http", "files"]
-            
+
             for namespace in namespaces:
                 try:
                     ns_stats = await self.cache_service.get_stats(namespace)

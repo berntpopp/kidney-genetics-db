@@ -48,7 +48,7 @@ async def update(source: str):
 
     # Get database session - unified sources work with both sync and async
     db: Session = next(get_db())
-    
+
     try:
         # Create pipeline run record
         run = PipelineRun(
@@ -130,7 +130,7 @@ async def update(source: str):
 async def list_runs():
     """List recent pipeline runs"""
     db: Session = next(get_db())
-    
+
     try:
         runs = db.query(PipelineRun).order_by(PipelineRun.id.desc()).limit(10).all()
 

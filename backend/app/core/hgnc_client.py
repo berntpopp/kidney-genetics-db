@@ -22,7 +22,6 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService, cached, get_cache_service
 from app.core.cached_http_client import CachedHttpClient, get_cached_http_client
-from app.core.config import settings
 from app.core.datasource_config import get_source_cache_ttl
 
 logger = logging.getLogger(__name__)

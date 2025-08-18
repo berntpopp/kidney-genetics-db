@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
-from app.core.config import settings
 from app.core.datasource_config import get_source_parameter
 from app.pipeline.sources.unified.base import UnifiedDataSource
 

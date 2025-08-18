@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
-from app.core.config import settings
 from app.core.datasource_config import get_source_parameter
 from app.pipeline.sources.unified.base import UnifiedDataSource
 
@@ -60,7 +59,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         self.base_url = get_source_parameter("PubTator", "api_url", "https://www.ncbi.nlm.nih.gov/research/pubtator-api")
 
         # Search configuration from datasource config
-        self.kidney_query = get_source_parameter("PubTator", "search_query", 
+        self.kidney_query = get_source_parameter("PubTator", "search_query",
             '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)')
         self.max_pages = get_source_parameter("PubTator", "max_pages", 100)  # Default to 100 pages
         self.rate_limit_delay = max(get_source_parameter("PubTator", "rate_limit_delay", 0.3), 0.5)  # Min 0.5s delay

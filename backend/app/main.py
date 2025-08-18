@@ -120,7 +120,7 @@ async def health_check() -> dict[str, str]:
         db.execute(text("SELECT 1"))
         db_status = "connected"
     except Exception as e:
-        db_status = f"error: {str(e)}"
+        db_status = f"error: {e!s}"
     finally:
         if "db" in locals():
             db.close()

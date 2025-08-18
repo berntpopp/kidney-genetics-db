@@ -86,7 +86,7 @@ class HPOPipeline:
             tracker.update(operation="Fetching gene-disease associations...")
 
         annotations_map = await self.annotations.batch_get_annotations(
-            list(descendants), batch_size=self.batch_size, 
+            list(descendants), batch_size=self.batch_size,
             delay=get_source_parameter("HPO", "request_delay", 0.2)
         )
 

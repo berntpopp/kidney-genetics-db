@@ -14,12 +14,12 @@ from app.pipeline.sources.unified.panelapp import PanelAppUnifiedSource
 from app.pipeline.sources.unified.pubtator import PubTatorUnifiedSource
 
 __all__ = [
-    "UnifiedDataSource",
+    "ClinGenUnifiedSource",
     "GenCCUnifiedSource",
+    "HPOUnifiedSource",
     "PanelAppUnifiedSource",
     "PubTatorUnifiedSource",
-    "HPOUnifiedSource",
-    "ClinGenUnifiedSource",
+    "UnifiedDataSource",
     "get_unified_source",
 ]
 
