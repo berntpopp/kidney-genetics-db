@@ -325,33 +325,17 @@
           </div>
         </template>
 
-        <!-- Enhanced Evidence Score -->
+        <!-- Enhanced Evidence Score with Breakdown -->
         <template #[`item.evidence_score`]="{ item }">
-          <div
-            v-if="item.evidence_score !== null && item.evidence_score !== undefined"
-            class="text-center"
-          >
-            <v-tooltip location="bottom">
-              <template #activator="{ props }">
-                <v-chip
-                  :color="getScoreColor(item.evidence_score)"
-                  variant="flat"
-                  size="small"
-                  class="font-weight-medium"
-                  v-bind="props"
-                >
-                  <v-icon :icon="getScoreIcon(item.evidence_score)" size="small" start />
-                  {{ item.evidence_score.toFixed(1) }}
-                </v-chip>
-              </template>
-              <div class="pa-2">
-                <strong>Classification:</strong> {{ getScoreLabel(item.evidence_score) }}<br />
-                <span class="text-caption"> Evidence strength based on curated data sources </span>
-              </div>
-            </v-tooltip>
-          </div>
-          <div v-else class="text-center">
-            <v-chip color="grey" variant="tonal" size="x-small"> N/A </v-chip>
+          <div class="text-center">
+            <ScoreBreakdown
+              v-if="item.evidence_score !== null && item.evidence_score !== undefined"
+              :score="item.evidence_score"
+              :breakdown="item.score_breakdown"
+              variant="inline"
+              size="small"
+            />
+            <v-chip v-else color="grey" variant="tonal" size="x-small"> N/A </v-chip>
           </div>
         </template>
 
@@ -422,6 +406,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { geneApi } from '../api/genes'
+import ScoreBreakdown from './ScoreBreakdown.vue'
 
 // Data
 const genes = ref([])

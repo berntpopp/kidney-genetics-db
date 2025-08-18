@@ -41,26 +41,6 @@
                 </p>
               </div>
             </div>
-            <div class="d-flex align-center flex-wrap ga-2">
-              <v-chip prepend-icon="mdi-identifier" variant="tonal" color="primary">
-                {{ gene.hgnc_id }}
-              </v-chip>
-              <v-chip
-                v-if="gene.evidence_score"
-                :prepend-icon="getScoreIcon(gene.evidence_score)"
-                :color="getScoreColor(gene.evidence_score)"
-                variant="flat"
-              >
-                {{ gene.evidence_score.toFixed(1) }} - {{ getScoreLabel(gene.evidence_score) }}
-              </v-chip>
-              <v-chip
-                v-if="gene.evidence_count"
-                prepend-icon="mdi-file-document-multiple"
-                variant="tonal"
-              >
-                {{ gene.evidence_count }} evidence{{ gene.evidence_count !== 1 ? 's' : '' }}
-              </v-chip>
-            </div>
           </div>
 
           <!-- Action Buttons -->
@@ -176,54 +156,13 @@
             </v-card>
           </v-col>
 
-          <!-- Evidence Score Visualization -->
+          <!-- Evidence Score Visualization with Breakdown -->
           <v-col cols="12" md="6" lg="4">
-            <v-card height="100%" class="score-card">
-              <v-card-item>
-                <template #prepend>
-                  <v-avatar :color="getScoreColor(gene.evidence_score || 0)" size="40">
-                    <v-icon :icon="getScoreIcon(gene.evidence_score || 0)" color="white" />
-                  </v-avatar>
-                </template>
-                <v-card-title>Evidence Score</v-card-title>
-              </v-card-item>
-              <v-card-text>
-                <div v-if="gene.evidence_score" class="text-center">
-                  <div class="position-relative d-inline-block">
-                    <v-progress-circular
-                      :model-value="gene.evidence_score"
-                      :color="getScoreColor(gene.evidence_score)"
-                      size="120"
-                      width="8"
-                      class="score-circle"
-                    >
-                      <div class="text-center">
-                        <div class="text-h4 font-weight-bold">
-                          {{ gene.evidence_score.toFixed(1) }}
-                        </div>
-                        <div class="text-caption text-medium-emphasis">/ 100</div>
-                      </div>
-                    </v-progress-circular>
-                  </div>
-                  <div class="mt-3">
-                    <v-chip
-                      :color="getScoreColor(gene.evidence_score)"
-                      variant="tonal"
-                      size="small"
-                    >
-                      {{ getScoreLabel(gene.evidence_score) }}
-                    </v-chip>
-                  </div>
-                  <p class="text-body-2 text-medium-emphasis mt-2">
-                    {{ getScoreDescription(gene.evidence_score) }}
-                  </p>
-                </div>
-                <div v-else class="text-center py-4">
-                  <v-icon icon="mdi-help-circle" size="large" class="text-medium-emphasis mb-2" />
-                  <p class="text-body-2 text-medium-emphasis">No evidence score available</p>
-                </div>
-              </v-card-text>
-            </v-card>
+            <ScoreBreakdown
+              :score="gene.evidence_score"
+              :breakdown="gene.score_breakdown"
+              variant="card"
+            />
           </v-col>
 
           <!-- Data Sources -->
@@ -616,6 +555,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { geneApi } from '../api/genes'
+import ScoreBreakdown from '../components/ScoreBreakdown.vue'
 
 const route = useRoute()
 
