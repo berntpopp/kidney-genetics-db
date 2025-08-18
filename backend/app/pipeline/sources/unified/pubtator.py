@@ -8,7 +8,9 @@ pubtator_cache.py, pubtator_cached.py) with a single, async-first implementation
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Any
+
+# Import for type hint only
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import Session
 
@@ -16,6 +18,9 @@ from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.config import settings
 from app.pipeline.sources.unified.base import UnifiedDataSource
+
+if TYPE_CHECKING:
+    from app.core.progress_tracker import ProgressTracker
 
 logger = logging.getLogger(__name__)
 
@@ -52,27 +57,28 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         # PubTator configuration
         self.base_url = settings.PUBTATOR_API_URL
-        self.pubmed_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 
         # Search configuration
         self.kidney_query = settings.PUBTATOR_SEARCH_QUERY
-        self.max_pages = settings.PUBTATOR_MAX_PAGES
-        self.batch_size = settings.PUBTATOR_BATCH_SIZE
-        self.rate_limit_delay = settings.PUBTATOR_RATE_LIMIT_DELAY
-        self.min_date = settings.PUBTATOR_MIN_DATE
+        self.max_pages = settings.PUBTATOR_MAX_PAGES  # None = fetch all, or specific number
+        self.rate_limit_delay = max(settings.PUBTATOR_RATE_LIMIT_DELAY, 0.5)  # Min 0.5s delay between pages
+        # Sort order: "score desc" for relevance, "date desc" for recency
+        self.sort_order = getattr(settings, 'PUBTATOR_SORT_ORDER', 'score desc')
 
         # Gene annotation types to extract
         self.annotation_types = ["Gene", "GeneID"]
 
-        logger.info(f"PubTatorUnifiedSource initialized with max pages: {self.max_pages}")
+        max_pages_str = "ALL" if self.max_pages is None else str(self.max_pages)
+        logger.info(f"PubTatorUnifiedSource initialized with max pages: {max_pages_str}, sort: {self.sort_order}")
 
     def _get_default_ttl(self) -> int:
         """Get default TTL for PubTator data."""
         return settings.CACHE_TTL_PUBTATOR
 
-    async def fetch_raw_data(self) -> dict[str, Any]:
+    async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> dict[str, Any]:
         """
-        Fetch kidney disease-related publications and gene annotations.
+        Fetch kidney disease-related publications directly from PubTator3.
+        Uses PubTator3's native search API which returns annotations directly.
 
         Returns:
             Dictionary with PMIDs and gene annotations
@@ -80,188 +86,221 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         logger.info("🧬 PUBTATOR SOURCE: fetch_raw_data() METHOD CALLED")
         logger.info(f"🧬 PUBTATOR SOURCE: kidney_query = '{self.kidney_query}'")
 
-        # Search for relevant publications
-        logger.info("🧬 PUBTATOR SOURCE: Calling _search_publications()...")
-        pmids = await self._search_publications(self.kidney_query)
-        logger.info(f"🧬 PUBTATOR SOURCE: Search returned {len(pmids) if pmids else 0} PMIDs")
+        # Search PubTator3 directly - returns complete results with annotations
+        logger.info("🧬 PUBTATOR SOURCE: Calling _search_pubtator3()...")
+        search_results = await self._search_pubtator3(self.kidney_query, tracker)
+        logger.info(f"🧬 PUBTATOR SOURCE: Search returned {len(search_results)} articles")
 
-        if not pmids:
+        if not search_results:
             logger.warning("No publications found for kidney disease query")
             return {}
 
-        logger.info(f"Found {len(pmids)} relevant publications")
+        # Process search results into our annotation format
+        annotations = self._process_search_results(search_results)
+        pmids = list(annotations.keys())
 
-        # Fetch annotations for PMIDs in batches
-        all_annotations = {}
-        for i in range(0, len(pmids), self.batch_size):
-            batch = pmids[i : i + self.batch_size]
-            annotations = await self._fetch_annotations_batch(batch)
-            all_annotations.update(annotations)
-
-            # Rate limiting
-            if i + self.batch_size < len(pmids):
-                await asyncio.sleep(self.rate_limit_delay)
+        logger.info(f"🎯 Processed {len(annotations)} articles with gene annotations")
 
         return {
             "pmids": pmids,
-            "annotations": all_annotations,
+            "annotations": annotations,
             "query": self.kidney_query,
             "fetch_date": datetime.now(timezone.utc).isoformat(),
+            "total_results": len(search_results),
         }
 
-    async def _search_publications(self, query: str) -> list[str]:
+    def _process_search_results(self, results: list[dict]) -> dict[str, Any]:
         """
-        Search PubMed for relevant publications.
+        Process PubTator3 search results into gene annotations.
+        Extracts genes from the text_hl field.
+
+        Args:
+            results: List of search results from PubTator3
+
+        Returns:
+            Dictionary mapping PMIDs to annotations
+        """
+        annotations = {}
+
+        for result in results:
+            pmid = str(result.get("pmid", ""))
+            if not pmid:
+                continue
+
+            # Extract genes from highlighted text
+            genes = self._extract_genes_from_highlight(result.get("text_hl", ""))
+
+            # Include all results with their scores
+            annotations[pmid] = {
+                "pmid": pmid,
+                "title": result.get("title", ""),
+                "abstract": result.get("text_hl", ""),  # Contains highlighted annotations
+                "journal": result.get("journal", ""),
+                "authors": result.get("authors", []),
+                "date": result.get("date", ""),
+                "score": result.get("score", 0),
+                "genes": genes,
+                "doi": result.get("doi", ""),
+            }
+
+        return annotations
+
+    def _extract_genes_from_highlight(self, text_hl: str | None) -> list[dict]:
+        """
+        Extract gene annotations from PubTator3's highlighted text.
+
+        Format: @GENE_[symbol] @GENE_[id] @@@[display]@@@
+        Example: @GENE_PAX2 @GENE_5076 @@@PAX2@@@
+
+        Args:
+            text_hl: Highlighted text with annotations (can be None)
+
+        Returns:
+            List of gene dictionaries
+        """
+        import re
+
+        # Handle None or empty text
+        if not text_hl:
+            return []
+
+        genes = []
+        seen = set()  # Deduplicate
+
+        # Pattern to match gene annotations
+        # @GENE_symbol @GENE_id @@@display@@@
+        pattern = r'@GENE_(\w+)\s+@GENE_(\d+)\s+@@@([^@]+)@@@'
+
+        for match in re.finditer(pattern, text_hl):
+            symbol = match.group(1)
+            gene_id = match.group(2)
+            display = match.group(3)
+
+            # Create unique key for deduplication
+            key = f"{symbol}:{gene_id}"
+            if key not in seen:
+                seen.add(key)
+                genes.append({
+                    "text": display,
+                    "identifier": gene_id,
+                    "type": "Gene",
+                    "symbol": symbol,
+                })
+
+        return genes
+
+    async def _search_pubtator3(self, query: str, tracker: "ProgressTracker" = None) -> list[dict]:
+        """
+        Search PubTator3 directly using its native search API.
 
         Args:
             query: Search query
 
         Returns:
-            List of PMIDs
+            List of article results with annotations
         """
+        all_results = []
+        page = 1
+        total_fetched = 0
+        total_pages = None  # Will be set from API response
 
-        async def _fetch_pmids():
-            """Internal function to fetch PMIDs."""
-            url = f"{self.pubmed_url}/esearch.fcgi"
+        while True:
+            # Use PubTator3's native search endpoint
+            search_url = f"{self.base_url}/search/"
             params = {
-                "db": "pubmed",
-                "term": query,
-                "retmax": self.max_pages * 10,  # Approximate articles per page
-                "retmode": "json",
-                "sort": "relevance",
-                "mindate": self.min_date,
+                "text": query,
+                "filters": "{}",  # Empty filters object
+                "page": page,
+                "sort": self.sort_order,  # Configurable: "score desc" or "date desc"
             }
 
-            logger.info(f"PubMed search URL: {url}")
-            logger.info(f"PubMed search params: {params}")
-
-            response = await self.http_client.get(url, params=params, timeout=30)
-
-            logger.info(f"PubMed response status: {response.status_code}")
-
-            if response.status_code == 200:
-                data = response.json()
-                count = data.get("esearchresult", {}).get("count", "0")
-                idlist = data.get("esearchresult", {}).get("idlist", [])
-                logger.info(f"PubMed found {count} total results, returning {len(idlist)} PMIDs")
-                return idlist
-
-            logger.error(f"Failed to search PubMed: HTTP {response.status_code}")
-            logger.error(f"Response content: {response.text[:500]}")
-            return []
-
-        # Use unified caching
-        cache_key = f"search:{query}:{self.max_pages}"
-        pmids = await self.fetch_with_cache(
-            cache_key=cache_key, fetch_func=_fetch_pmids, ttl=self.cache_ttl
-        )
-
-        return pmids or []
-
-    async def _fetch_annotations_batch(self, pmids: list[str]) -> dict[str, Any]:
-        """
-        Fetch PubTator annotations for a batch of PMIDs.
-
-        Args:
-            pmids: List of PMIDs
-
-        Returns:
-            Dictionary of annotations by PMID
-        """
-        if not pmids:
-            return {}
-
-        async def _fetch_batch():
-            """Internal function to fetch annotations."""
-            pmid_str = ",".join(pmids)
-            url = f"{self.base_url}/publications/export/biocjson"
-            params = {"pmids": pmid_str}
+            # Log progress
+            if self.max_pages is not None:
+                logger.info(f"🔍 PubTator3 search page {page}/{self.max_pages}")
+            else:
+                logger.info(f"🔍 PubTator3 search page {page}/{total_pages if total_pages else '?'}")
 
             try:
-                response = await self.http_client.get(url, params=params, timeout=60)
+                logger.debug(f"🔍 Making request to: {search_url} with params: {params}")
+                response = await self.retry_strategy.execute_async(
+                    lambda url=search_url, p=params: self.http_client.get(url, params=p, timeout=60)
+                )
+                logger.debug(f"🔍 Response status: {response.status_code}")
 
-                if response.status_code == 200:
-                    return self._parse_biocjson(response.json())
-                else:
-                    logger.error(f"Failed to fetch annotations: HTTP {response.status_code}")
-                    return {}
+                if response.status_code != 200:
+                    logger.error(f"PubTator3 search failed: HTTP {response.status_code}")
+                    logger.error(f"Response content: {response.text[:500]}")
+                    break
+
+                logger.debug("🔍 Parsing JSON response...")
+                data = response.json()
+                logger.debug(f"🔍 JSON parsed, keys: {list(data.keys())}")
+                results = data.get("results", [])
+
+                # Get total pages from API response
+                if total_pages is None:
+                    total_pages = data.get("total_pages", 0)
+                    total_available = data.get("count", 0)
+                    logger.info(f"📊 Total available: {total_available} articles across {total_pages} pages")
+
+                    # Initialize tracker with actual limit we'll process
+                    if tracker:
+                        actual_pages = min(self.max_pages, total_pages) if self.max_pages else total_pages
+                        actual_items = min(self.max_pages * 10, total_available) if self.max_pages else total_available
+                        tracker.update(total_pages=actual_pages, total_items=actual_items)
+
+                if not results:
+                    logger.info(f"No more results at page {page}")
+                    break
+
+                all_results.extend(results)
+                total_fetched += len(results)
+
+                # Progress logging and tracker update
+                total_available = data.get("count", 0)
+                logger.info(f"Page {page}: {len(results)} results (total fetched: {total_fetched}/{total_available})")
+
+                # Update tracker with current progress
+                if tracker:
+                    actual_pages = min(self.max_pages, total_pages) if self.max_pages else total_pages
+                    tracker.update(
+                        current_page=page,
+                        current_item=total_fetched,
+                        operation=f"Fetching PubTator data: page {page}/{actual_pages} ({total_fetched} articles)"
+                    )
+
+                # Check stopping conditions
+                # 1. If we have a max_pages limit and reached it
+                if self.max_pages is not None and page >= self.max_pages:
+                    logger.info(f"Reached configured max pages limit ({self.max_pages})")
+                    break
+
+                # 2. If we've reached the last page available from API
+                if page >= total_pages:
+                    logger.info(f"Reached last available page ({page}/{total_pages})")
+                    break
+
+                # Rate limiting
+                await asyncio.sleep(self.rate_limit_delay)
+                page += 1
+
+                # Progress indicator every 100 pages
+                if page % 100 == 0:
+                    logger.info(f"📈 Progress: Fetched {total_fetched} articles from {page-1} pages...")
 
             except Exception as e:
-                logger.error(f"Error fetching annotations for batch: {e}")
-                return {}
+                logger.error(f"❌ Error on page {page}: {type(e).__name__}: {e}")
+                logger.exception("Full exception details:")
+                break
 
-        # Cache each batch
-        cache_key = f"annotations:{','.join(sorted(pmids[:5]))}"  # Use first 5 PMIDs as key
-        annotations = await self.fetch_with_cache(
-            cache_key=cache_key, fetch_func=_fetch_batch, ttl=self.cache_ttl
-        )
+        logger.info(f"✅ PubTator3 search complete: {total_fetched} articles from {page-1} pages")
+        return all_results
 
-        return annotations or {}
-
-    def _parse_biocjson(self, bioc_data: Any) -> dict[str, Any]:
-        """
-        Parse BioC JSON format from PubTator.
-
-        Args:
-            bioc_data: BioC JSON data
-
-        Returns:
-            Parsed annotations by PMID
-        """
-        annotations = {}
-
-        if not isinstance(bioc_data, list):
-            bioc_data = [bioc_data]
-
-        for _i, doc in enumerate(bioc_data):
-            if not isinstance(doc, dict):
-                continue
-
-            # Check if this is the new PubTator3 format
-            if "PubTator3" in doc:
-                pubtator3_data = doc["PubTator3"]
-
-                # If PubTator3 contains a list of documents, process them
-                if isinstance(pubtator3_data, list):
-                    # Recursively process the PubTator3 documents
-                    return self._parse_biocjson(pubtator3_data)
-
-            pmid = doc.get("id", "")
-            if not pmid:
-                continue
-
-            doc_annotations = {
-                "pmid": pmid,
-                "genes": [],
-                "title": "",
-                "abstract": "",
-            }
-
-            # Extract title and abstract
-            for passage in doc.get("passages", []):
-                if passage.get("infons", {}).get("type") == "title":
-                    doc_annotations["title"] = passage.get("text", "")
-                elif passage.get("infons", {}).get("type") == "abstract":
-                    doc_annotations["abstract"] = passage.get("text", "")
-
-                # Extract gene annotations
-                for annotation in passage.get("annotations", []):
-                    if annotation.get("infons", {}).get("type") in self.annotation_types:
-                        gene_info = {
-                            "text": annotation.get("text", ""),
-                            "identifier": annotation.get("infons", {}).get("identifier", ""),
-                            "type": annotation.get("infons", {}).get("type", ""),
-                            "locations": annotation.get("locations", []),
-                        }
-                        doc_annotations["genes"].append(gene_info)
-
-            if doc_annotations["genes"]:
-                annotations[pmid] = doc_annotations
-        return annotations
 
     async def process_data(self, raw_data: dict[str, Any]) -> dict[str, Any]:
         """
-        Process PubTator annotations into structured gene information.
+        Process PubTator3 annotations into structured gene information.
+        Now works with complete data from search API including relevance scores.
 
         Args:
             raw_data: Raw data with PMIDs and annotations
@@ -278,18 +317,17 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         logger.info(f"🔄 Processing annotations from {total_pmids} publications...")
 
-        for pmid, doc_data in raw_data["annotations"].items():
-            for gene_annotation in doc_data.get("genes", []):
+        for pmid, article_data in raw_data["annotations"].items():
+            for gene in article_data.get("genes", []):
                 total_annotations += 1
 
-                # Extract gene symbol (handle various formats)
-                gene_text = gene_annotation.get("text", "")
-                gene_id = gene_annotation.get("identifier", "")
-
-                # Clean up gene symbol
-                gene_symbol = self._normalize_gene_symbol(gene_text)
+                # Get gene symbol from the new structure
+                gene_symbol = gene.get("symbol", "")
                 if not gene_symbol:
-                    continue
+                    # Fallback to extracting from text
+                    gene_symbol = self._normalize_gene_symbol(gene.get("text", ""))
+                    if not gene_symbol:
+                        continue
 
                 # Initialize gene entry if new
                 if gene_symbol not in gene_data_map:
@@ -299,22 +337,31 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                         "identifiers": set(),
                         "publication_count": 0,
                         "total_mentions": 0,
+                        "evidence_score": 0,  # Sum of relevance scores
                     }
 
-                # Add publication and mention with enhanced details
+                # Add publication
                 gene_data_map[gene_symbol]["pmids"].add(pmid)
 
-                # Create a more informative mention record
+                # Add gene ID if available
+                gene_id = gene.get("identifier")
+                if gene_id:
+                    gene_data_map[gene_symbol]["identifiers"].add(gene_id)
+
+                # Create mention record with article metadata
                 mention_record = {
                     "pmid": pmid,
-                    "text": gene_text,
-                    "title": doc_data.get("title", "")[:200],
-                    "context": doc_data.get("abstract", "")[:150] if doc_data.get("abstract") else doc_data.get("title", "")[:200],
+                    "title": article_data.get("title", ""),
+                    "journal": article_data.get("journal", ""),
+                    "date": article_data.get("date", ""),
+                    "score": article_data.get("score", 0),  # Relevance score
+                    "doi": article_data.get("doi", ""),
+                    "text": gene.get("text", ""),
                 }
                 gene_data_map[gene_symbol]["mentions"].append(mention_record)
 
-                if gene_id:
-                    gene_data_map[gene_symbol]["identifiers"].add(gene_id)
+                # Add to evidence score
+                gene_data_map[gene_symbol]["evidence_score"] += article_data.get("score", 0)
 
         # Convert sets to lists and calculate stats
         for _symbol, data in gene_data_map.items():
@@ -323,12 +370,20 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             data["publication_count"] = len(data["pmids"])
             data["total_mentions"] = len(data["mentions"])
 
-            # Sort mentions by PMID (newer first)
-            data["mentions"] = sorted(data["mentions"], key=lambda x: x["pmid"], reverse=True)
+            # Calculate average evidence score
+            if data["publication_count"] > 0:
+                data["evidence_score"] = data["evidence_score"] / data["publication_count"]
 
-            # Add top mentions for quick display (keep limited full list)
+            # Sort mentions by relevance score (highest first)
+            data["mentions"] = sorted(
+                data["mentions"],
+                key=lambda x: x.get("score", 0),
+                reverse=True
+            )
+
+            # Keep top mentions for display
             data["top_mentions"] = data["mentions"][:5]  # Top 5 for display
-            data["mentions"] = data["mentions"][:10]  # Keep 10 total
+            data["mentions"] = data["mentions"][:20]  # Keep top 20
 
             # Add metadata
             data["last_updated"] = datetime.now(timezone.utc).isoformat()

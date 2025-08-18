@@ -58,7 +58,7 @@ class DataSourceClient(ABC):
         pass
 
     @abstractmethod
-    async def fetch_raw_data(self) -> Any:
+    async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> Any:
         """
         Fetch raw data from the external source.
 
@@ -120,7 +120,7 @@ class DataSourceClient(ABC):
             # Step 1: Fetch raw data
             tracker.update(operation="Fetching data from source")
             logger.info(f"📥 Fetching {self.source_name} data...")
-            raw_data = await self.fetch_raw_data()
+            raw_data = await self.fetch_raw_data(tracker=tracker)
             stats["data_fetched"] = True
 
             # Step 2: Process data

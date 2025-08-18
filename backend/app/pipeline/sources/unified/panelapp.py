@@ -8,7 +8,7 @@ with a single, async-first implementation using the unified data source architec
 import logging
 import re
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,9 @@ from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.config import settings
 from app.pipeline.sources.unified.base import UnifiedDataSource
+
+if TYPE_CHECKING:
+    from app.core.progress_tracker import ProgressTracker
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +91,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
         """Get default TTL for PanelApp data."""
         return settings.CACHE_TTL_PANELAPP
 
-    async def fetch_raw_data(self) -> dict[str, Any]:
+    async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> dict[str, Any]:
         """
         Fetch all kidney-related panels from configured regions.
 

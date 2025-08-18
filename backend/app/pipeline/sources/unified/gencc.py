@@ -9,7 +9,7 @@ data source architecture.
 import logging
 from datetime import datetime, timezone
 from io import BytesIO
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 from sqlalchemy.orm import Session
@@ -18,6 +18,9 @@ from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.config import settings
 from app.pipeline.sources.unified.base import UnifiedDataSource
+
+if TYPE_CHECKING:
+    from app.core.progress_tracker import ProgressTracker
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +91,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
         """Get default TTL for GenCC data."""
         return settings.CACHE_TTL_GENCC
 
-    async def fetch_raw_data(self) -> pd.DataFrame:
+    async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> pd.DataFrame:
         """
         Fetch GenCC submissions Excel file with intelligent caching.
 

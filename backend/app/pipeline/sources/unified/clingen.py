@@ -7,7 +7,7 @@ async-first implementation using the unified data source architecture.
 
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,9 @@ from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.config import settings
 from app.pipeline.sources.unified.base import UnifiedDataSource
+
+if TYPE_CHECKING:
+    from app.core.progress_tracker import ProgressTracker
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +100,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         """Get default TTL for ClinGen data."""
         return settings.CACHE_TTL_CLINGEN if hasattr(settings, "CACHE_TTL_CLINGEN") else 86400
 
-    async def fetch_raw_data(self) -> dict[str, Any]:
+    async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> dict[str, Any]:
         """
         Fetch gene validity assessments from kidney expert panels.
 

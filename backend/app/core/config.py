@@ -65,15 +65,14 @@ class Settings(BaseSettings):
     AUTO_UPDATE_ENABLED: bool = True
 
     # PubTator Configuration
-    PUBTATOR_MAX_PAGES: int = 500  # Maximum pages to fetch per run
+    PUBTATOR_MAX_PAGES: int | None = 500  # None = fetch all available pages, or set a number to limit
     PUBTATOR_USE_CACHE: bool = True  # Enable caching of PubTator results
     PUBTATOR_MIN_PUBLICATIONS: int = 3  # Minimum publications for gene inclusion
     PUBTATOR_SEARCH_QUERY: str = (
         '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)'
     )
-    PUBTATOR_MIN_DATE: str = "2010"  # Focus on recent literature
-    PUBTATOR_BATCH_SIZE: int = 100  # PMIDs per batch for annotation fetching
-    PUBTATOR_RATE_LIMIT_DELAY: float = 0.3  # Seconds between API calls
+    PUBTATOR_SORT_ORDER: str = "score desc"  # Sort by relevance ("score desc") or recency ("date desc")
+    PUBTATOR_RATE_LIMIT_DELAY: float = 0.1  # Seconds between API calls
 
     # PanelApp Configuration
     PANELAPP_CONFIDENCE_LEVELS: list[str] = ["green", "amber"]  # Confidence levels to include

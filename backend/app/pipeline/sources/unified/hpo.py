@@ -7,7 +7,7 @@ async-first implementation using the unified data source architecture.
 
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,9 @@ from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.datasource_config import get_source_cache_ttl, get_source_parameter
 from app.pipeline.sources.unified.base import UnifiedDataSource
+
+if TYPE_CHECKING:
+    from app.core.progress_tracker import ProgressTracker
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +82,7 @@ class HPOUnifiedSource(UnifiedDataSource):
         """Get default TTL for HPO data."""
         return get_source_cache_ttl("HPO")
 
-    async def fetch_raw_data(self) -> dict[str, Any]:
+    async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> dict[str, Any]:
         """
         Fetch kidney-related phenotypes and associated genes from HPO.
 
