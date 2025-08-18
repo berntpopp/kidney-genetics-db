@@ -131,10 +131,19 @@ class HPOPipeline:
                 # Add HPO term
                 gene_evidence[gene_symbol]["hpo_terms"].add(hpo_id)
 
-            # Skip disease annotation fetching for now - too slow with thousands of diseases
-            # Just record the disease IDs associated with this HPO term
-            # TODO: Optimize this with batch fetching or background processing
-            pass
+            # Process diseases associated with this HPO term
+            # Link diseases to genes that share the same phenotype
+            for disease in term_annotations.diseases:
+                # Add disease to all genes associated with this HPO term
+                # This creates a gene-disease link through shared phenotypes
+                for gene in term_annotations.genes:
+                    gene_symbol = gene.name
+                    if gene_symbol in gene_evidence:
+                        gene_evidence[gene_symbol]["diseases"].add(disease.id)
+                        
+            # TODO: Future optimization - fetch disease details for inheritance patterns
+            # This would require batch fetching disease annotations which is slow
+            # For now, we just collect disease IDs which gives us counts for scoring
 
         # Step 4: Convert sets to lists for JSON serialization
         for gene_data in gene_evidence.values():
