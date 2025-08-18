@@ -17,11 +17,11 @@ The kidney-genetics-db implements a sophisticated evidence scoring system that n
 
 ## Scoring Methodology
 
-### Two-Track Scoring System
+### Overview of Scoring Tracks
 
-The system handles two distinct types of evidence sources:
+The system implements three distinct scoring approaches based on evidence type:
 
-#### 1. Count-Based Sources (Percentile Normalization)
+#### 1. Count-Based Sources (Direct Percentile Normalization)
 Used for sources where evidence strength is determined by quantity of sub-evidence:
 
 - **PanelApp**: Number of clinical panels containing the gene
@@ -29,15 +29,27 @@ Used for sources where evidence strength is determined by quantity of sub-eviden
 - **PubTator**: Number of publications mentioning the gene
 - **Literature**: Number of literature references
 
-**Method**: Uses PostgreSQL `PERCENT_RANK()` function to convert counts to percentiles (0-1) within each source.
+**Method**: Uses PostgreSQL `PERCENT_RANK()` function to convert counts directly to percentiles (0-1) within each source.
 
-#### 2. Classification-Based Sources (Weight Mapping)
-Used for sources that provide expert-curated classification levels:
+#### 2. ClinGen (Direct Weight Mapping)
+Expert-curated classifications that map directly to 0-1 weights:
 
-- **ClinGen**: Gene-disease validity classifications
-- **GenCC**: Gene-disease relationship classifications
+- Classifications already span the full range (Definitive=1.0 to Refuted=0.1)
+- No normalization needed as weights are well-distributed
+- Single classification per gene ensures straightforward mapping
 
-**Method**: Maps classification strings to predetermined weights (0-1).
+**Method**: Direct mapping of classification strings to predetermined weights (0-1).
+
+#### 3. GenCC (Two-Stage: Weighted Scoring + Percentile Normalization)
+Complex multi-classification system requiring sophisticated handling:
+
+- Multiple classifications per gene from different submitters
+- Raw weighted scores have limited range (~0.28-0.85)
+- Requires both quality/quantity evaluation AND normalization
+
+**Method**: 
+1. Calculate weighted score using 3-component formula
+2. Apply percentile normalization to spread scores across 0-1 range
 
 ### Source-Specific Implementation
 
@@ -95,75 +107,124 @@ CASE evidence_data->>'classification'
 END
 ```
 
-#### GenCC Classification Weights (Weighted 3-Component System with Percentile Normalization)
+#### GenCC Classification Weights (Two-Stage Weighted and Normalized System)
 
-**As of Migration 2d3f4a5b6c7e (August 18, 2025)**  
+**Current Implementation: Migration 2d3f4a5b6c7e (August 18, 2025)**  
 *Previous: Migration 1c0a4ff21798 (weighted scoring without normalization)*
 
-GenCC scoring uses a sophisticated two-stage system:
-1. **Weighted scoring** that considers both quality and quantity of evidence
-2. **Percentile normalization** to spread scores across the full 0-1 range
+GenCC scoring uses a sophisticated two-stage system that addresses the complexity of multiple classifications per gene:
+
+##### Stage 1: Weighted 3-Component Scoring
+
+Unlike simple classification mapping, GenCC genes often have multiple classifications from different submitters. The weighted scoring system evaluates these comprehensively:
 
 **Components:**
 1. **Quality Score (50% weight)**: Uses quadratic weighting to emphasize higher classifications
-2. **Quantity Score (30% weight)**: Rewards multiple submissions with diminishing returns (√(n/5))
-3. **Confidence Score (20% weight)**: Proportion of high-quality classifications (Definitive/Strong)
+   - Definitive classifications contribute disproportionately more than lower ones
+   - Formula: `SUM(weight²) / SUM(weight) × 0.5`
+   
+2. **Quantity Score (30% weight)**: Rewards multiple submissions with diminishing returns
+   - More submissions increase confidence, but with square root scaling
+   - Formula: `MIN(1.0, √(count/5)) × 0.3`
+   - Normalized to 5 as a "good evidence" baseline
+   
+3. **Confidence Score (20% weight)**: Proportion of high-quality classifications
+   - Measures consensus on Definitive/Strong classifications
+   - Formula: `(count_definitive_strong / total_count) × 0.2`
 
-**Classification Values:**
-- Definitive: 1.0
-- Strong: 0.8
-- Moderate: 0.6
-- Supportive: 0.5
-- Limited: 0.4
-- Disputed: 0.2
-- Refuted: 0.1
+**Classification Weight Values:**
+| Classification | Weight | Rationale |
+|---------------|--------|-----------|
+| Definitive | 1.0 | Highest confidence level |
+| Strong | 0.8 | Well-established association |
+| Moderate | 0.6 | Good evidence with some limitations |
+| Supportive | 0.5 | Supporting but not conclusive |
+| Limited | 0.4 | Weak evidence |
+| Disputed | 0.2 | Conflicting evidence |
+| Refuted | 0.1 | Evidence against association |
 
-**Formula:**
+**Stage 1 Formula Implementation:**
 ```sql
 -- Component 1: Quality Score (50%)
+-- Quadratic weighting emphasizes higher quality
 quality_score = SUM(weight²) / SUM(weight) × 0.5
 
--- Component 2: Quantity Score (30%)
+-- Component 2: Quantity Score (30%)  
+-- Square root for diminishing returns
 quantity_score = MIN(1.0, √(count/5)) × 0.3
 
 -- Component 3: Confidence Score (20%)
+-- Proportion of high-quality classifications
 confidence_score = (count_definitive_strong / total_count) × 0.2
 
--- Final Score
-final_score = quality_score + quantity_score + confidence_score
+-- Raw weighted score (ranges ~0.28 to ~0.85)
+raw_score = quality_score + quantity_score + confidence_score
 ```
 
-**Example Calculations:**
+**Stage 1 Example Calculations:**
 
-*HNF1B with ["Strong", "Definitive", "Supportive"]:*
-- Quality: (0.64 + 1.0 + 0.25) / (0.8 + 1.0 + 0.5) = 0.8217 × 0.5 = 0.4109
-- Quantity: √(3/5) × 0.3 = 0.2324
-- Confidence: 2/3 × 0.2 = 0.1333
-- **Total: 0.7766**
+*Gene with ["Strong", "Definitive", "Supportive"] (e.g., HNF1B):*
+- Quality: (0.8² + 1.0² + 0.5²) / (0.8 + 1.0 + 0.5) = 1.89/2.3 = 0.8217 × 0.5 = 0.4109
+- Quantity: √(3/5) × 0.3 = 0.7746 × 0.3 = 0.2324
+- Confidence: 2/3 × 0.2 = 0.6667 × 0.2 = 0.1333
+- **Raw Score: 0.7766**
 
-*PKD2 with ["Strong", "Definitive", "Supportive", "Limited"]:*
-- Quality: (0.64 + 1.0 + 0.25 + 0.16) / (0.8 + 1.0 + 0.5 + 0.4) = 0.7593 × 0.5 = 0.3796
-- Quantity: √(4/5) × 0.3 = 0.2683
-- Confidence: 2/4 × 0.2 = 0.1000
-- **Total: 0.748**
+*Gene with ["Strong", "Definitive"] (e.g., DPAGT1):*
+- Quality: (0.8² + 1.0²) / (0.8 + 1.0) = 1.64/1.8 = 0.9111 × 0.5 = 0.4556
+- Quantity: √(2/5) × 0.3 = 0.6325 × 0.3 = 0.1897
+- Confidence: 2/2 × 0.2 = 1.0 × 0.2 = 0.2000
+- **Raw Score: 0.8453** (maximum achievable with 2 classifications)
 
-**Stage 2: Percentile Normalization**
+##### Stage 2: Percentile Normalization
 
-After weighted scoring, GenCC scores are normalized using `PERCENT_RANK()` to ensure:
-- The full 0-1 range is utilized
-- Genes are ranked relative to each other
-- Top genes (e.g., DPAGT1 with 2x Definitive) score near 1.0
+The raw weighted scores have a limited range (~0.28 to ~0.85) because:
+- Most genes have only 2-4 classifications (limiting quantity score)
+- Perfect scores require 5+ Definitive classifications (rare in practice)
+- The formula was designed for theoretical perfection, not real-world distribution
 
-**Real-World Results After Normalization:**
-- DPAGT1 (2x Definitive): 0.937 (93.7th percentile)
-- HNF1B (Strong+Definitive+Supportive): 0.735 (73.5th percentile)
-- PKD2 (Strong+Definitive+Supportive+Limited): 0.681 (68.1st percentile)
+To address this, percentile normalization is applied:
 
-This approach better reflects the true confidence in gene-disease associations by:
-- Considering both quality and quantity of classifications
-- Using quadratic weighting to emphasize higher quality evidence
-- Normalizing scores to enable fair comparison with other sources
-- Ensuring the full scoring range is utilized
+**Stage 2 Implementation:**
+```sql
+-- Apply percentile ranking to weighted scores
+WITH gencc_percentiles AS (
+    SELECT 
+        gene_id,
+        classification_weight as raw_score,
+        PERCENT_RANK() OVER (ORDER BY classification_weight) as percentile
+    FROM evidence_classification_weights
+    WHERE source_name = 'GenCC'
+)
+SELECT percentile as normalized_score
+FROM gencc_percentiles
+```
+
+**Benefits of Percentile Normalization:**
+- Spreads scores across full 0-1 range (instead of 0.28-0.85)
+- Top genes achieve scores near 1.0
+- Maintains relative ranking while improving distribution
+- Makes GenCC scores comparable to other percentile-normalized sources
+
+**Real-World Results After Both Stages:**
+
+| Gene | Classifications | Raw Score | Percentile | Final Score |
+|------|----------------|-----------|------------|-------------|
+| DPAGT1 | ["Strong", "Definitive"] | 0.8453 | 93.7% | 0.937 |
+| HNF1B | ["Strong", "Definitive", "Supportive"] | 0.7766 | 73.5% | 0.735 |
+| PKD1 | ["Strong", "Definitive", "Supportive"] | 0.7766 | 73.5% | 0.735 |
+| PKD2 | ["Strong", "Definitive", "Supportive", "Limited"] | 0.7480 | 68.1% | 0.681 |
+
+**Impact on Overall Gene Scores:**
+- IFT140: 96.4% (top gene with strong evidence across all sources)
+- HNF1B: 90.8% (8th overall, appropriate for important kidney gene)
+- PKD2: 90.0% (strong kidney disease gene)
+- PKD1: 84.6% (well-established polycystic kidney disease gene)
+
+This two-stage approach ensures:
+1. **Meaningful differentiation**: Weighted scoring creates meaningful differences based on quality/quantity
+2. **Full range utilization**: Percentile normalization uses the complete 0-1 scale
+3. **Fair comparison**: All evidence sources now use comparable 0-1 normalized scores
+4. **Accurate ranking**: Important genes score appropriately high
 
 ### Final Score Calculation
 
