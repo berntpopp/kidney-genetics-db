@@ -12,7 +12,7 @@
 
 #### Tasks
 - [ ] **Ingestion API**
-  - [ ] Create `/api/ingest` endpoint with validation
+  - [ ] Create `/api/ingest/diagnostic-panels` endpoint with validation
   - [ ] Add API key authentication
   - [ ] Implement background processing queue
   
@@ -22,13 +22,21 @@
   - [ ] Process Excel/CSV files
   - [ ] Show upload history
   
-- [ ] **Web Scraping Service**
-  - [ ] Create separate `scrapers/` directory
-  - [ ] Implement Blueprint Genetics scraper
-  - [ ] Add Natera panel scraper
-  - [ ] Add Invitae panel scraper
-  - [ ] Error handling and retry logic
+- [ ] **Web Scraping Service** ✅ PLANNED
+  - [✅] Design comprehensive scraping architecture
+  - [✅] Document all 10 diagnostic panel providers
+  - [✅] Create unified output schema (ProviderData/SubPanel)
+  - [ ] Implement `scrapers/diagnostics/` directory structure
+  - [ ] Create base scraper class with Playwright support
+  - [ ] Implement provider scrapers:
+    - [ ] Blueprint Genetics (24 sub-panels)
+    - [ ] Mayo Clinic (Playwright required)
+    - [ ] Invitae (2 panels)
+    - [ ] Natera (pagination)
+    - [ ] 5 other providers
   - [ ] Push data to ingestion API
+  
+  **📚 Documentation**: See `/plan/scraping/` for complete implementation plan
 
 ### Phase 8: Performance Optimization
 *Goal: Optimize response times and scalability*

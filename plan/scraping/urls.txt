@@ -1,0 +1,61 @@
+# Diagnostic Panel URLs - Updated 2025-08-18
+
+## Main Panel URLs (10 providers)
+
+1. Centogene CentoNephro
+   https://www.centoportal.com/order/new/products/analysis-method?queryType=TEST&query=CentoNephro
+
+2. CeGaT Kidney Diseases
+   https://cegat.com/diagnostics/rare-diseases/kidney-diseases/
+
+3. PreventionGenetics Comprehensive Inherited Kidney Diseases
+   https://www.preventiongenetics.com/testInfo?val=PGmaxTM-%252D-Comprehensive-Inherited-Kidney-Diseases-Panel
+
+4. Invitae Progressive Renal Disease Panel
+   https://www.invitae.com/us/providers/test-catalog/test-75000
+
+5. Invitae Expanded Renal Disease Panel
+   https://www.invitae.com/us/providers/test-catalog/test-633100
+
+6. MGZ München Nephrology
+   https://www.mgz-muenchen.de/gen-panels/section/nephrologie-endokrinologie-und-elektrolyte/tag/14.html
+
+7. MVZ Medicover Kidney Diseases
+   https://www.medicover-diagnostics.de/lvz/panels/nierenerkrankungen-2806
+
+8. Natera Renasight Comprehensive Kidney Gene Panel
+   Main: https://www.natera.com/organ-health/renasight-genetic-testing/gene-conditions-list/
+   API: https://www.natera.com/wp-admin/admin-ajax.php
+
+9. Mayo Clinic Labs Renal Genetics (403 - Blocked)
+   https://www.mayocliniclabs.com/test-catalog/Overview/618086
+
+10. Blueprint Genetics Nephrology
+    https://blueprintgenetics.com/tests/panels/nephrology/
+
+## Blueprint Genetics Sub-panels (24 panels)
+
+https://blueprintgenetics.com/tests/panels/nephrology/alport-syndrome-panel
+https://blueprintgenetics.com/tests/panels/nephrology/bartter-syndrome-panel
+https://blueprintgenetics.com/tests/panels/nephrology/ciliopathy-panel
+https://blueprintgenetics.com/tests/panels/nephrology/diabetes-insipidus-panel
+https://blueprintgenetics.com/tests/panels/nephrology/hypomagnesemia-panel
+https://blueprintgenetics.com/tests/panels/nephrology/joubert-syndrome-panel
+https://blueprintgenetics.com/tests/panels/nephrology/meckel-syndrome-panel
+https://blueprintgenetics.com/tests/panels/nephrology/nephrolithiasis-panel
+https://blueprintgenetics.com/tests/panels/nephrology/nephrotic-syndrome-panel
+https://blueprintgenetics.com/tests/panels/nephrology/primary-ciliary-dyskinesia-panel
+https://blueprintgenetics.com/tests/panels/nephrology/pseudohypoaldosteronism-panel
+https://blueprintgenetics.com/tests/panels/nephrology/renal-tubular-acidosis-panel
+https://blueprintgenetics.com/tests/panels/nephrology/bardet-biedl-syndrome-panel
+https://blueprintgenetics.com/tests/panels/nephrology/branchio-oto-renal-bor-syndrome-panel
+https://blueprintgenetics.com/tests/panels/nephrology/cystic-kidney-disease-panel
+https://blueprintgenetics.com/tests/panels/nephrology/hemolytic-uremic-syndrome-panel
+https://blueprintgenetics.com/tests/panels/nephrology/hypophosphatemic-rickets-panel
+https://blueprintgenetics.com/tests/panels/nephrology/liddle-syndrome-panel
+https://blueprintgenetics.com/tests/panels/nephrology/monogenic-obesity-panel
+https://blueprintgenetics.com/tests/panels/nephrology/nephronophthisis-panel
+https://blueprintgenetics.com/tests/panels/nephrology/polycystic-kidney-disease-panel
+https://blueprintgenetics.com/tests/panels/nephrology/primary-hyperoxaluria-panel
+https://blueprintgenetics.com/tests/panels/nephrology/renal-malformation-panel
+https://blueprintgenetics.com/tests/panels/nephrology/senior-loken-syndrome-panel
