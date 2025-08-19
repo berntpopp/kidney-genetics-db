@@ -1,7 +1,8 @@
 """
-Mayo Clinic Labs scraper - requires Playwright for Akamai protection bypass.
+Mayo Clinic Labs scraper - uses Botright to bypass Akamai protection.
 """
 
+import asyncio
 import logging
 import os
 import re
@@ -23,13 +24,131 @@ class MayoClinicScraper(BaseDiagnosticScraper):
     def __init__(self, config: Optional[Dict] = None):
         super().__init__(config)
         self.provider_id = "mayo_clinic"  # Override auto-generated ID
-        # Re-fetch config with correct provider_id
+        # Re-fetch config with correct provider_id and override URL
         self.scraper_config = self.config.get("scrapers", {}).get(self.provider_id, {})
-        self.url = self.scraper_config.get("url", "")
+        self.url = self.scraper_config.get("url", "https://www.mayocliniclabs.com/test-catalog/Overview/618086")
         self.provider_name = "Mayo Clinic Labs"
         self.provider_type = "single_panel"
-        self.use_browser = True  # Requires Playwright
+        self.use_browser = True  # Use Playwright Stealth for Akamai bypass
         self.logger.debug(f"Initialized Mayo Clinic scraper with URL: {self.url}")
+
+    async def _fetch_with_stealth(self, url: str) -> str:
+        """Fetch content using Playwright Stealth to bypass Akamai protection.
+        
+        Args:
+            url: URL to fetch
+            
+        Returns:
+            HTML content as string
+            
+        Raises:
+            RuntimeError: If Playwright Stealth is not installed or fails
+        """
+        try:
+            from playwright.async_api import async_playwright
+            from playwright_stealth import Stealth
+            
+            self.logger.info("Using Playwright Stealth to bypass Akamai protection")
+            
+            # Use stealth configuration with custom languages
+            stealth = Stealth(
+                navigator_languages_override=("en-US", "en"),
+                init_scripts_only=True
+            )
+            
+            async with stealth.use_async(async_playwright()) as p:
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=[
+                        "--no-first-run",
+                        "--no-default-browser-check",
+                        "--disable-blink-features=AutomationControlled",
+                        "--disable-web-security",
+                        "--disable-features=VizDisplayCompositor"
+                    ]
+                )
+                
+                try:
+                    # Create browser context with realistic settings
+                    context = await browser.new_context(
+                        user_agent=(
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                            "AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/120.0.0.0 Safari/537.36"
+                        ),
+                        viewport={"width": 1920, "height": 1080},
+                        extra_http_headers={
+                            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                            "Accept-Language": "en-US,en;q=0.5",
+                            "Accept-Encoding": "gzip, deflate, br",
+                            "DNT": "1",
+                            "Connection": "keep-alive",
+                            "Upgrade-Insecure-Requests": "1"
+                        }
+                    )
+                    
+                    page = await context.new_page()
+                    
+                    self.logger.debug(f"Playwright Stealth navigating to: {url}")
+                    
+                    # Navigate to the page with realistic timing
+                    await page.goto(url, wait_until="networkidle", timeout=60000)
+                    self.logger.debug("Page loaded successfully with Playwright Stealth")
+                    
+                    # Wait for dynamic content with realistic timing
+                    await page.wait_for_timeout(3000)
+                    
+                    # Try to wait for specific elements that might indicate content is loaded
+                    try:
+                        await page.wait_for_selector("body", timeout=10000)
+                    except Exception:
+                        self.logger.debug("Body selector not found, continuing...")
+                    
+                    # Get page content
+                    content = await page.content()
+                    self.logger.debug(f"Playwright Stealth fetched {len(content)} characters")
+                    
+                    return content
+                    
+                finally:
+                    await browser.close()
+                    
+        except ImportError as err:
+            self.logger.error("Playwright Stealth not installed. Install with: pip install playwright-stealth")
+            raise RuntimeError(
+                "Playwright Stealth is required to bypass Mayo Clinic's Akamai protection. "
+                "Install with: pip install playwright-stealth && playwright install chromium"
+            ) from err
+        except Exception as e:
+            self.logger.error(f"Error fetching {url} with Playwright Stealth: {e}")
+            raise
+
+    def fetch_content(self, url: str) -> str:
+        """Override fetch_content to use Playwright Stealth for Mayo Clinic.
+        
+        Args:
+            url: URL to fetch
+            
+        Returns:
+            HTML content as string
+        """
+        self.logger.debug(f"Fetching content from: {url}")
+        
+        # Use Playwright Stealth for Mayo Clinic to bypass Akamai
+        try:
+            # Run the async Playwright Stealth method
+            content = asyncio.run(self._fetch_with_stealth(url))
+            
+            # Save raw content for debugging
+            self._save_raw_data(content, url)
+            
+            return content
+            
+        except Exception as e:
+            self.logger.error(f"Failed to fetch content with Playwright Stealth: {e}")
+            # Fall back to regular browser method
+            self.logger.info("Falling back to regular Playwright...")
+            return super().fetch_content(url)
 
     def extract_genes(self, content: str) -> List[str]:
         """Extract genes from Mayo Clinic page content"""
@@ -170,8 +289,9 @@ class MayoClinicScraper(BaseDiagnosticScraper):
             metadata={
                 'panel_name': 'Comprehensive Nephrology Gene Panel (NEPHP)',
                 'test_id': '618086',
-                'scraper_version': '1.0.0',
-                'note': 'Mayo Clinic has Akamai protection that blocks automated access'
+                'scraper_version': '2.0.0',
+                'akamai_bypass': 'playwright-stealth',
+                'stealth_features': ['navigator_webdriver_hidden', 'custom_languages', 'realistic_headers']
             },
             errors=errors if errors else None
         )

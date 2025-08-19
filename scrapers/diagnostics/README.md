@@ -19,15 +19,15 @@ python3 run_scrapers.py --dry-run
 
 | Provider | Genes | Type | Status |
 |----------|-------|------|--------|
-| Blueprint Genetics | 370 | Multi-panel (24 panels) | ✅ Working |
-| Natera RenaSight | 407 | Single panel | ✅ Working |
-| Invitae | 400 | Single panel | ✅ Working |
 | Centogene | 493 | Single panel | ✅ Working |
 | MGZ München | 481 | Single panel | ✅ Working |  
+| Natera RenaSight | 407 | Single panel | ✅ Working |
+| Invitae | 400 | Single panel | ✅ Working |
+| Blueprint Genetics | 370 | Multi-panel (24 panels) | ✅ Working |
 | CeGaT | 336 | Single panel | ✅ Working |
 | PreventionGenetics | 330 | Single panel | ✅ Working |
+| Mayo Clinic | 303 | Single panel | ✅ Working (Stealth) |
 | MVZ Medicover | 125 | Single panel | ✅ Working |
-| Mayo Clinic | 0 | Single panel | ⚠️ Blocked (Akamai) |
 
 ## Configuration
 
@@ -91,6 +91,29 @@ python3 run_scrapers.py --provider natera  # Via orchestrator
 ```
 
 Raw HTML data saved to `data/provider_name/` for debugging.
+
+## Mayo Clinic Akamai Bypass
+
+Mayo Clinic uses advanced Akamai protection that blocks standard automation. We bypass this using **Playwright Stealth**:
+
+```python
+# Mayo Clinic specific implementation
+from playwright_stealth import Stealth
+
+stealth = Stealth(
+    navigator_languages_override=("en-US", "en"),
+    init_scripts_only=True
+)
+
+# Advanced browser args to avoid detection
+args = [
+    "--disable-blink-features=AutomationControlled",
+    "--disable-web-security", 
+    "--no-default-browser-check"
+]
+```
+
+**Dependencies**: `pip install playwright-stealth && playwright install chromium`
 
 ## Architecture
 
