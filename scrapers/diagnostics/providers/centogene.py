@@ -2,12 +2,14 @@
 Centogene scraper - CentoNephro panel.
 """
 
-from bs4 import BeautifulSoup
-import re
-from typing import List, Optional, Dict
 import logging
-import sys
 import os
+import re
+import sys
+from typing import Dict, List, Optional
+
+from bs4 import BeautifulSoup
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from base_scraper import BaseDiagnosticScraper
@@ -19,20 +21,23 @@ logger = logging.getLogger(__name__)
 
 class CentogeneScraper(BaseDiagnosticScraper):
     """Scraper for Centogene - CentoNephro panel"""
-    
+
     def __init__(self, config: Optional[Dict] = None):
         super().__init__(config)
-        self.provider_id = "centogene"
+        self.provider_id = "centogene"  # Override auto-generated ID
+        # Re-fetch config with correct provider_id
+        self.scraper_config = self.config.get("scrapers", {}).get(self.provider_id, {})
+        self.url = self.scraper_config.get("url", "")
         self.provider_name = "Centogene"
         self.provider_type = "single_panel"
-        self.url = "https://www.centoportal.com/order/new/products/analysis-method?queryType=TEST&query=CentoNephro"
         self.use_browser = True  # JavaScript-heavy page
-        
+        self.logger.debug(f"Initialized Centogene scraper with URL: {self.url}")
+
     def extract_genes(self, content: str) -> List[str]:
         """Extract genes from Centogene page"""
         soup = BeautifulSoup(content, 'html.parser')
         genes = []
-        
+
         # Look for gene list in various contexts
         # Try to find gene table or list
         selectors = [
@@ -43,7 +48,7 @@ class CentogeneScraper(BaseDiagnosticScraper):
             'table tbody tr',
             'div[class*="gene"]'
         ]
-        
+
         for selector in selectors:
             elements = soup.select(selector)
             if elements:
@@ -56,7 +61,7 @@ class CentogeneScraper(BaseDiagnosticScraper):
                             cleaned = clean_gene_symbol(gene)
                             if cleaned:
                                 genes.append(cleaned)
-        
+
         # If no structured data found, search for gene patterns in text
         if not genes:
             # Look for sections mentioning genes
@@ -69,26 +74,26 @@ class CentogeneScraper(BaseDiagnosticScraper):
                             cleaned = clean_gene_symbol(gene)
                             if cleaned:
                                 genes.append(cleaned)
-        
+
         return list(set(genes))
-    
+
     def run(self) -> ProviderData:
         """Run Centogene scraper"""
         logger.info("Starting Centogene scraper")
-        
+
         errors = []
         gene_entries = []
-        
+
         try:
             # Fetch content
             content = self.fetch_content(self.url)
-            
+
             # Extract genes
             genes = self.extract_genes(content)
-            
+
             if not genes:
                 logger.warning("No genes found for Centogene CentoNephro panel")
-            
+
             # Create gene entries
             gene_entries = [
                 GeneEntry(
@@ -99,14 +104,14 @@ class CentogeneScraper(BaseDiagnosticScraper):
                 )
                 for gene in genes
             ]
-            
+
             # Normalize genes
             gene_entries = self.normalize_genes(gene_entries)
-            
+
         except Exception as e:
             logger.error(f"Error scraping Centogene: {e}")
             errors.append(str(e))
-        
+
         # Create provider data
         provider_data = ProviderData(
             provider_id=self.provider_id,
@@ -123,10 +128,10 @@ class CentogeneScraper(BaseDiagnosticScraper):
             },
             errors=errors if errors else None
         )
-        
+
         # Save output
         self.save_output(provider_data)
-        
+
         logger.info(f"Centogene scraping complete: {len(gene_entries)} genes")
         return provider_data
 

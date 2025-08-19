@@ -30,10 +30,8 @@ class NateraScraper(BaseDiagnosticScraper):
         self.provider_id = "natera"
         self.provider_name = "Natera"
         self.provider_type = "single_panel"
-        self.url = (
-            "https://www.natera.com/organ-health/renasight-genetic-testing/gene-conditions-list/"
-        )
-        self.api_url = "https://www.natera.com/wp-admin/admin-ajax.php"
+        # URLs from config only - no hardcoding
+        self.api_url = self.scraper_config.get("api_url", "")
         self.use_browser = False  # We'll use the API directly
 
     def fetch_all_genes_via_api(self) -> List[str]:
@@ -42,11 +40,14 @@ class NateraScraper(BaseDiagnosticScraper):
         page = 1
         max_pages = 45  # Safety limit - User confirmed 41 pages as of now
 
+        self.logger.debug(f"Starting API fetch from: {self.api_url}")
+        self.logger.debug(f"Using referer URL: {self.url}")
+
         # Headers for the API request
         headers = {
             "accept": "*/*",
             "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "origin": "https://www.natera.com",
+            "Origin": f"https://{urllib.parse.urlparse(self.api_url).netloc}" if self.api_url else "",
             "referer": self.url,
             "user-agent": (
                 "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
@@ -77,15 +78,22 @@ class NateraScraper(BaseDiagnosticScraper):
                 with urllib.request.urlopen(req, timeout=30) as response:
                     content = response.read().decode("utf-8", errors="ignore")
 
+                # Save raw API response for debugging
+                self._save_raw_data(content, self.api_url, f"api_page_{page}")
+                self.logger.debug(f"Saved API response for page {page}")
+
                 # Check if we got any content
                 if not content or "No results found" in content or "<tr" not in content:
+                    self.logger.debug(f"No more content on page {page}, stopping")
                     # No more pages
                     break
 
                 # Extract genes from the HTML response
                 page_genes = self.extract_genes_from_api_response(content)
+                self.logger.debug(f"Extracted {len(page_genes)} genes from page {page}")
 
                 if not page_genes:
+                    self.logger.debug(f"No genes found on page {page}, stopping")
                     # No genes found on this page, we're done
                     break
 

@@ -2,12 +2,14 @@
 CeGaT scraper - CeGaT Kidney disease panel.
 """
 
-from bs4 import BeautifulSoup
-import re
-from typing import List, Optional, Dict
 import logging
-import sys
 import os
+import re
+import sys
+from typing import Dict, List, Optional
+
+from bs4 import BeautifulSoup
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from base_scraper import BaseDiagnosticScraper
@@ -19,19 +21,22 @@ logger = logging.getLogger(__name__)
 
 class CegatScraper(BaseDiagnosticScraper):
     """Scraper for CeGaT - Kidney disease panel"""
-    
+
     def __init__(self, config: Optional[Dict] = None):
         super().__init__(config)
-        self.provider_id = "cegat"
+        self.provider_id = "cegat"  # Override auto-generated ID
+        # Re-fetch config with correct provider_id
+        self.scraper_config = self.config.get("scrapers", {}).get(self.provider_id, {})
+        self.url = self.scraper_config.get("url", "")
         self.provider_name = "CeGaT"
         self.provider_type = "single_panel"
-        self.url = "https://cegat.com/diagnostics/rare-diseases/kidney-diseases/"
-        
+        self.logger.debug(f"Initialized CeGaT scraper with URL: {self.url}")
+
     def extract_genes(self, content: str) -> List[str]:
         """Extract genes from CeGaT page"""
         soup = BeautifulSoup(content, 'html.parser')
         genes = []
-        
+
         # CeGaT typically lists genes in a structured format
         # Try to find gene table or list
         selectors = [
@@ -42,7 +47,7 @@ class CegatScraper(BaseDiagnosticScraper):
             'div[class*="gene-list"]',
             'ul.gene-list li'
         ]
-        
+
         for selector in selectors:
             elements = soup.select(selector)
             if elements:
@@ -55,7 +60,7 @@ class CegatScraper(BaseDiagnosticScraper):
                             cleaned = clean_gene_symbol(gene)
                             if cleaned:
                                 genes.append(cleaned)
-        
+
         # If no structured data, look for genes in paragraphs
         if not genes:
             # Look for content sections that might contain gene lists
@@ -70,26 +75,26 @@ class CegatScraper(BaseDiagnosticScraper):
                             cleaned = clean_gene_symbol(gene)
                             if cleaned:
                                 genes.append(cleaned)
-        
+
         return list(set(genes))
-    
+
     def run(self) -> ProviderData:
         """Run CeGaT scraper"""
         logger.info("Starting CeGaT scraper")
-        
+
         errors = []
         gene_entries = []
-        
+
         try:
             # Fetch content
             content = self.fetch_content(self.url)
-            
+
             # Extract genes
             genes = self.extract_genes(content)
-            
+
             if not genes:
                 logger.warning("No genes found for CeGaT Kidney disease panel")
-            
+
             # Create gene entries
             gene_entries = [
                 GeneEntry(
@@ -100,14 +105,14 @@ class CegatScraper(BaseDiagnosticScraper):
                 )
                 for gene in genes
             ]
-            
+
             # Normalize genes
             gene_entries = self.normalize_genes(gene_entries)
-            
+
         except Exception as e:
             logger.error(f"Error scraping CeGaT: {e}")
             errors.append(str(e))
-        
+
         # Create provider data
         provider_data = ProviderData(
             provider_id=self.provider_id,
@@ -124,10 +129,10 @@ class CegatScraper(BaseDiagnosticScraper):
             },
             errors=errors if errors else None
         )
-        
+
         # Save output
         self.save_output(provider_data)
-        
+
         logger.info(f"CeGaT scraping complete: {len(gene_entries)} genes")
         return provider_data
 

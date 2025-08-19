@@ -82,7 +82,7 @@ class DiagnosticPanelBatch:
         self.total_providers = len(self.providers)
         self.successful_providers = sum(1 for p in self.providers if not p.errors)
         self.failed_providers = self.total_providers - self.successful_providers
-        
+
         # Calculate unique genes across all providers
         all_genes = set()
         for provider in self.providers:

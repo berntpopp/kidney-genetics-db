@@ -3,49 +3,103 @@
 # Output directory for scraped data
 output_dir: output
 
+# Data directory for raw HTML/responses (debugging)
+data_dir: data
+
 # Rate limiting (seconds between requests)
 rate_limit: 2
 
 # Enable browser automation for protected sites
 enable_browser: true
 
-# Individual scraper configuration
+# Individual scraper configuration with URLs
 scrapers:
-  blueprint_genetics:
+  natera:
     enabled: true
-    # Blueprint has 24 sub-panels, all handled by one scraper
-    
-  mayo_clinic:
-    enabled: true
-    # Requires Playwright due to Akamai protection
-    
-  centogene:
-    enabled: true
-    # Updated URL for CentoNephro panel
-    
-  cegat:
-    enabled: true
-    # German provider - kidney disease panel
-    
-  invitae:
-    enabled: true
-    # May require browser for JavaScript content
-    
-  mgz_muenchen:
-    enabled: true
-    # German provider - molecular genetics
+    url: https://www.natera.com/organ-health/renasight-genetic-testing/gene-conditions-list/
+    api_url: https://www.natera.com/wp-admin/admin-ajax.php
     
   mvz_medicover:
     enabled: true
-    # Medicover genetics kidney panel
+    url: https://www.medicover-diagnostics.de/leistungsverzeichnis/humangenetik/nierenerkrankungen
     
-  natera:
+  mgz_muenchen:
     enabled: true
-    # Renasight kidney gene panel
+    url: https://www.mgz-muenchen.de/gen-panels/section/nephrologie-endokrinologie-und-elektrolyte/tag/14.html
+    
+  cegat:
+    enabled: true
+    url: https://cegat.com/diagnostics/rare-diseases/kidney-diseases/
+    
+  mayo_clinic:
+    enabled: true
+    url: https://www.mayocliniclabs.com/test-catalog/Overview/618086
     
   prevention_genetics:
     enabled: true
-    # Comprehensive kidney disease panel
+    url: https://www.preventiongenetics.com/testInfo?val=PGmaxTM-%252D-Comprehensive-Inherited-Kidney-Diseases-Panel
+    
+  invitae:
+    enabled: true
+    url: https://www.invitae.com/us/providers/test-catalog/test-633100
+    
+  centogene:
+    enabled: true
+    url: https://www.centoportal.com/order/new/products/analysis-method?queryType=TEST&query=CentoNephro
+    
+  blueprint_genetics:
+    enabled: true
+    url: https://blueprintgenetics.com/tests/panels/nephrology/
+    base_url: https://blueprintgenetics.com/tests/panels/nephrology/
+    panels:
+      - name: "Alport Syndrome Panel"
+        url_suffix: "alport-syndrome-panel"
+      - name: "Bartter Syndrome Panel"
+        url_suffix: "bartter-syndrome-panel"
+      - name: "Bardet-Biedl Syndrome Panel"
+        url_suffix: "bardet-biedl-syndrome-panel"
+      - name: "Branchio-Oto-Renal Syndrome Panel"
+        url_suffix: "branchio-oto-renal-bor-syndrome-panel"
+      - name: "Ciliopathy Panel"
+        url_suffix: "ciliopathy-panel"
+      - name: "Cystic Kidney Disease Panel"
+        url_suffix: "cystic-kidney-disease-panel"
+      - name: "Diabetes Insipidus Panel"
+        url_suffix: "diabetes-insipidus-panel"
+      - name: "Hemolytic Uremic Syndrome Panel"
+        url_suffix: "hemolytic-uremic-syndrome-panel"
+      - name: "Hypomagnesemia Panel"
+        url_suffix: "hypomagnesemia-panel"
+      - name: "Hypophosphatemic Rickets Panel"
+        url_suffix: "hypophosphatemic-rickets-panel"
+      - name: "Joubert Syndrome Panel"
+        url_suffix: "joubert-syndrome-panel"
+      - name: "Liddle Syndrome Panel"
+        url_suffix: "liddle-syndrome-panel"
+      - name: "Meckel Syndrome Panel"
+        url_suffix: "meckel-syndrome-panel"
+      - name: "Monogenic Obesity Panel"
+        url_suffix: "monogenic-obesity-panel"
+      - name: "Nephrolithiasis Panel"
+        url_suffix: "nephrolithiasis-panel"
+      - name: "Nephronophthisis Panel"
+        url_suffix: "nephronophthisis-panel"
+      - name: "Nephrotic Syndrome Panel"
+        url_suffix: "nephrotic-syndrome-panel"
+      - name: "Polycystic Kidney Disease Panel"
+        url_suffix: "polycystic-kidney-disease-panel"
+      - name: "Primary Ciliary Dyskinesia Panel"
+        url_suffix: "primary-ciliary-dyskinesia-panel"
+      - name: "Primary Hyperoxaluria Panel"
+        url_suffix: "primary-hyperoxaluria-panel"
+      - name: "Pseudohypoaldosteronism Panel"
+        url_suffix: "pseudohypoaldosteronism-panel"
+      - name: "Renal Malformation Panel"
+        url_suffix: "renal-malformation-panel"
+      - name: "Renal Tubular Acidosis Panel"
+        url_suffix: "renal-tubular-acidosis-panel"
+      - name: "Senior-Loken Syndrome Panel"
+        url_suffix: "senior-loken-syndrome-panel"
 
 # HGNC normalization settings
 hgnc:
@@ -54,10 +108,5 @@ hgnc:
 
 # Logging configuration
 logging:
-  level: INFO
+  level: DEBUG  # Changed to DEBUG for better debugging
   format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-  
-# API ingestion endpoint (for future integration)
-api:
-  endpoint: http://localhost:8000/api/v1/diagnostic-panels/ingest
-  auth_token: null  # Set when API is ready

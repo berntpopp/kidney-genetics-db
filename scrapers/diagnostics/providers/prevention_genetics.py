@@ -2,12 +2,14 @@
 PreventionGenetics scraper - Comprehensive Kidney Disease Panel.
 """
 
-from bs4 import BeautifulSoup
-import re
-from typing import List, Optional, Dict
 import logging
-import sys
 import os
+import re
+import sys
+from typing import Dict, List, Optional
+
+from bs4 import BeautifulSoup
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from base_scraper import BaseDiagnosticScraper
@@ -19,31 +21,33 @@ logger = logging.getLogger(__name__)
 
 class PreventionGeneticsScraper(BaseDiagnosticScraper):
     """Scraper for PreventionGenetics - Comprehensive Kidney Disease Panel"""
-    
+
     def __init__(self, config: Optional[Dict] = None):
         super().__init__(config)
-        self.provider_id = "prevention_genetics"
+        self.provider_id = "prevention_genetics"  # Override auto-generated ID
+        # Re-fetch config with correct provider_id
+        self.scraper_config = self.config.get("scrapers", {}).get(self.provider_id, {})
+        self.url = self.scraper_config.get("url", "")
         self.provider_name = "PreventionGenetics"
         self.provider_type = "single_panel"
-        # Use the correctly encoded URL
-        self.url = "https://www.preventiongenetics.com/testInfo?val=PGmaxTM-%2D-Comprehensive-Inherited-Kidney-Diseases-Panel"
         self.use_browser = False  # Try without browser first
-        
+        self.logger.debug(f"Initialized PreventionGenetics scraper with URL: {self.url}")
+
     def fetch_with_custom_browser(self):
         """Custom browser fetch that waits for gene table to load."""
         from playwright.sync_api import sync_playwright
-        
+
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
-            
+
             # Navigate to the page
             page.goto(self.url, wait_until='networkidle', timeout=60000)
-            
+
             # Wait for the gene table to appear
             # PreventionGenetics loads content dynamically
             page.wait_for_timeout(5000)  # Wait 5 seconds for JavaScript
-            
+
             # Try clicking on "Show Genes" or similar button if it exists
             try:
                 # Look for expandable sections
@@ -51,7 +55,7 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
                 page.wait_for_timeout(2000)
             except:
                 pass
-            
+
             # Try to wait for gene table - using the exact selector user provided
             try:
                 page.wait_for_selector('td.italic.geneSymbol', timeout=5000)
@@ -61,16 +65,21 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
                     page.wait_for_selector('table', timeout=5000)
                 except:
                     pass
-            
+
             content = page.content()
             browser.close()
+
+            # Save raw HTML for debugging
+            self._save_raw_data(content, self.url, "prevention_genetics_page")
+            self.logger.debug(f"Saved raw HTML, {len(content)} characters")
+
             return content
-    
+
     def extract_genes(self, content: str) -> List[str]:
         """Extract genes from PreventionGenetics page"""
         soup = BeautifulSoup(content, 'html.parser')
         genes = []
-        
+
         # PreventionGenetics lists genes in a table with class="italic geneSymbol"
         # Look specifically for these table cells
         gene_cells = soup.find_all('td', class_='italic geneSymbol')
@@ -82,7 +91,7 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
                     if cleaned:
                         genes.append(cleaned)
             return list(set(genes))  # Return if we found genes this way
-        
+
         # Fallback: look for other gene formats
         selectors = [
             'td.geneSymbol',  # Gene symbol table cells
@@ -94,7 +103,7 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
             'ul.genes li',
             'div.test-details'
         ]
-        
+
         for selector in selectors:
             elements = soup.select(selector)
             if elements:
@@ -107,7 +116,7 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
                             cleaned = clean_gene_symbol(gene)
                             if cleaned:
                                 genes.append(cleaned)
-        
+
         # Look for genes in links (often genes are linked)
         for link in soup.find_all('a'):
             text = link.get_text().strip()
@@ -116,7 +125,7 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
                 cleaned = clean_gene_symbol(text)
                 if cleaned and 2 <= len(cleaned) <= 15:
                     genes.append(cleaned)
-        
+
         # Check for genes in specific containers
         for container in soup.find_all(['div', 'section', 'article']):
             # Look for containers that might have gene lists
@@ -126,12 +135,12 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
                     text = container.get_text()
                     potential_genes = re.findall(r'\b[A-Z][A-Z0-9]{1,}[0-9]*[A-Z]*\b', text)
                     for gene in potential_genes:
-                        if (2 <= len(gene) <= 15 and 
+                        if (2 <= len(gene) <= 15 and
                             not gene.startswith(('HTTP', 'DNA', 'RNA', 'TEST'))):
                             cleaned = clean_gene_symbol(gene)
                             if cleaned:
                                 genes.append(cleaned)
-        
+
         # Fallback: general search
         if not genes:
             for element in soup.find_all(['p', 'div', 'span', 'li']):
@@ -139,31 +148,31 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
                 if 'kidney' in text.lower() or 'renal' in text.lower():
                     potential_genes = re.findall(r'\b[A-Z][A-Z0-9]{1,}[0-9]*[A-Z]*\b', text)
                     for gene in potential_genes:
-                        if (2 <= len(gene) <= 15 and 
+                        if (2 <= len(gene) <= 15 and
                             not gene.startswith(('HTTP', 'DNA', 'RNA', 'NGS', 'PDF'))):
                             cleaned = clean_gene_symbol(gene)
                             if cleaned:
                                 genes.append(cleaned)
-        
+
         return list(set(genes))
-    
+
     def run(self) -> ProviderData:
         """Run PreventionGenetics scraper"""
         logger.info("Starting PreventionGenetics scraper")
-        
+
         errors = []
         gene_entries = []
-        
+
         try:
             # Use custom browser fetch for PreventionGenetics
             content = self.fetch_with_custom_browser()
-            
+
             # Extract genes
             genes = self.extract_genes(content)
-            
+
             if not genes:
                 logger.warning("No genes found for PreventionGenetics kidney panel")
-            
+
             # Create gene entries
             gene_entries = [
                 GeneEntry(
@@ -174,14 +183,14 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
                 )
                 for gene in genes
             ]
-            
+
             # Normalize genes
             gene_entries = self.normalize_genes(gene_entries)
-            
+
         except Exception as e:
             logger.error(f"Error scraping PreventionGenetics: {e}")
             errors.append(str(e))
-        
+
         # Create provider data
         provider_data = ProviderData(
             provider_id=self.provider_id,
@@ -198,10 +207,10 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
             },
             errors=errors if errors else None
         )
-        
+
         # Save output
         self.save_output(provider_data)
-        
+
         logger.info(f"PreventionGenetics scraping complete: {len(gene_entries)} genes")
         return provider_data
 

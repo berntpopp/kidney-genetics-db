@@ -2,12 +2,14 @@
 MGZ München scraper - Molecular genetics kidney diseases panel.
 """
 
-from bs4 import BeautifulSoup
-import re
-from typing import List, Optional, Dict
 import logging
-import sys
 import os
+import re
+import sys
+from typing import Dict, List, Optional
+
+from bs4 import BeautifulSoup
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from base_scraper import BaseDiagnosticScraper
@@ -19,19 +21,21 @@ logger = logging.getLogger(__name__)
 
 class MGZMuenchenScraper(BaseDiagnosticScraper):
     """Scraper for MGZ München - Kidney diseases panel"""
-    
+
     def __init__(self, config: Optional[Dict] = None):
         super().__init__(config)
-        self.provider_id = "mgz_muenchen"
+        self.provider_id = "mgz_muenchen"  # Override auto-generated ID
+        # Re-fetch config with correct provider_id
+        self.scraper_config = self.config.get("scrapers", {}).get(self.provider_id, {})
+        self.url = self.scraper_config.get("url", "")
         self.provider_name = "MGZ München"
         self.provider_type = "single_panel"
-        self.url = "https://www.mgz-muenchen.de/gen-panels/section/nephrologie-endokrinologie-und-elektrolyte/tag/14.html"
-        
+
     def extract_genes(self, content: str) -> List[str]:
         """Extract genes from MGZ München page"""
         soup = BeautifulSoup(content, 'html.parser')
         genes = []
-        
+
         # German site - look for gene lists in various formats
         # MGZ typically lists genes in tables or lists
         selectors = [
@@ -42,7 +46,7 @@ class MGZMuenchenScraper(BaseDiagnosticScraper):
             'ul.genes li',
             'div[class*="gen"]'
         ]
-        
+
         for selector in selectors:
             elements = soup.select(selector)
             if elements:
@@ -55,7 +59,7 @@ class MGZMuenchenScraper(BaseDiagnosticScraper):
                             cleaned = clean_gene_symbol(gene)
                             if cleaned:
                                 genes.append(cleaned)
-        
+
         # Look for genes in table cells specifically
         for td in soup.find_all('td'):
             text = td.get_text().strip()
@@ -64,7 +68,7 @@ class MGZMuenchenScraper(BaseDiagnosticScraper):
                 cleaned = clean_gene_symbol(text)
                 if cleaned and 2 <= len(cleaned) <= 15:
                     genes.append(cleaned)
-        
+
         # Fallback: search in paragraphs and divs
         if not genes:
             for element in soup.find_all(['p', 'div', 'li']):
@@ -74,31 +78,31 @@ class MGZMuenchenScraper(BaseDiagnosticScraper):
                     potential_genes = re.findall(r'\b[A-Z][A-Z0-9]{1,}[0-9]*[A-Z]*\b', text)
                     for gene in potential_genes:
                         # Filter out common German abbreviations
-                        if (2 <= len(gene) <= 15 and 
+                        if (2 <= len(gene) <= 15 and
                             not gene.startswith(('HTTP', 'DNA', 'RNA', 'NGS', 'PDF', 'FAQ'))):
                             cleaned = clean_gene_symbol(gene)
                             if cleaned:
                                 genes.append(cleaned)
-        
+
         return list(set(genes))
-    
+
     def run(self) -> ProviderData:
         """Run MGZ München scraper"""
         logger.info("Starting MGZ München scraper")
-        
+
         errors = []
         gene_entries = []
-        
+
         try:
             # Fetch content
             content = self.fetch_content(self.url)
-            
+
             # Extract genes
             genes = self.extract_genes(content)
-            
+
             if not genes:
                 logger.warning("No genes found for MGZ München kidney panel")
-            
+
             # Create gene entries
             gene_entries = [
                 GeneEntry(
@@ -109,14 +113,14 @@ class MGZMuenchenScraper(BaseDiagnosticScraper):
                 )
                 for gene in genes
             ]
-            
+
             # Normalize genes
             gene_entries = self.normalize_genes(gene_entries)
-            
+
         except Exception as e:
             logger.error(f"Error scraping MGZ München: {e}")
             errors.append(str(e))
-        
+
         # Create provider data
         provider_data = ProviderData(
             provider_id=self.provider_id,
@@ -134,10 +138,10 @@ class MGZMuenchenScraper(BaseDiagnosticScraper):
             },
             errors=errors if errors else None
         )
-        
+
         # Save output
         self.save_output(provider_data)
-        
+
         logger.info(f"MGZ München scraping complete: {len(gene_entries)} genes")
         return provider_data
 
