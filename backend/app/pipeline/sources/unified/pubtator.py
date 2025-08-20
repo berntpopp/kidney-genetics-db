@@ -24,7 +24,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 class PubTatorUnifiedSource(UnifiedDataSource):
     """
     Unified PubTator client with intelligent caching and async processing.
@@ -296,7 +295,6 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         logger.info(f"✅ PubTator3 search complete: {total_fetched} articles from {page-1} pages")
         return all_results
-
 
     async def process_data(self, raw_data: dict[str, Any]) -> dict[str, Any]:
         """

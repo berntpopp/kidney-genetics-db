@@ -6,7 +6,6 @@ from sqlalchemy import Boolean, Column, Integer, String
 
 from app.models.base import Base, TimestampMixin
 
-
 class User(Base, TimestampMixin):
     """User model"""
 

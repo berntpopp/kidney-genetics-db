@@ -16,16 +16,11 @@ from utils import clean_gene_symbol
 
 logger = logging.getLogger(__name__)
 
-
 class MVZMedicoverScraper(BaseDiagnosticScraper):
     """Scraper for MVZ Medicover - Kidney genetic testing"""
 
     def __init__(self, config: Optional[Dict] = None):
-        super().__init__(config)
-        self.provider_id = "mvz_medicover"  # Override auto-generated ID
-        # Re-fetch config with correct provider_id
-        self.scraper_config = self.config.get("scrapers", {}).get(self.provider_id, {})
-        self.url = self.scraper_config.get("url", "")
+        super().__init__(config, provider_id="mvz_medicover")
         self.provider_name = "MVZ Medicover"
         self.provider_type = "single_panel"
         self.use_browser = True  # Page may use JavaScript
@@ -205,7 +200,6 @@ class MVZMedicoverScraper(BaseDiagnosticScraper):
 
         logger.info(f"MVZ Medicover scraping complete: {len(gene_entries)} genes")
         return provider_data
-
 
 if __name__ == "__main__":
     # Test the scraper

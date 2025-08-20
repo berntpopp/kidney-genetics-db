@@ -13,17 +13,17 @@ from typing import Any, Dict, List, Optional
 import yaml
 
 from schemas import GeneEntry, ProviderData
-from utils import resolve_hgnc_symbol
-
+from utils import get_hgnc_normalizer, resolve_hgnc_symbol
 
 class BaseDiagnosticScraper(ABC):
     """Abstract base class for all diagnostic panel scrapers."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None, provider_id: Optional[str] = None):
         """Initialize the scraper.
 
         Args:
             config: Configuration dictionary
+            provider_id: Override provider ID (if not provided, auto-generated from class name)
         """
         # Load config from file if not provided
         if config is None:
@@ -35,7 +35,13 @@ class BaseDiagnosticScraper(ABC):
                 config = {}
 
         self.config = config
-        self.provider_id = self.__class__.__name__.lower().replace("scraper", "")
+
+        # Use provided provider_id or auto-generate from class name
+        if provider_id:
+            self.provider_id = provider_id
+        else:
+            self.provider_id = self.__class__.__name__.lower().replace("scraper", "")
+
         self.logger = logging.getLogger(self.__class__.__name__)
 
         # Set up logging level from config
@@ -87,7 +93,7 @@ class BaseDiagnosticScraper(ABC):
 
     def _save_raw_data(self, content: str, url: str, suffix: str = ""):
         """Save raw content to data directory for debugging.
-        
+
         Args:
             content: Raw content to save
             url: Source URL (for filename)
@@ -224,11 +230,41 @@ class BaseDiagnosticScraper(ABC):
         Returns:
             List of normalized GeneEntry objects
         """
+        if not genes:
+            return genes
+
+        # Get normalizer and process in batch for efficiency
+        normalizer = get_hgnc_normalizer()
+        symbols = [gene.symbol for gene in genes]
+
+        self.logger.info(f"Normalizing {len(symbols)} gene symbols via HGNC API")
+        normalized_data = normalizer.normalize_batch(symbols)
+
+        # Update gene entries with normalized data
         for gene in genes:
-            hgnc_data = resolve_hgnc_symbol(gene.symbol)
-            if hgnc_data:
-                gene.hgnc_id = hgnc_data.get("hgnc_id")
-                gene.approved_symbol = hgnc_data.get("approved_symbol")
+            # Store the original symbol as reported
+            gene.reported_symbol = gene.symbol
+
+            # Get normalization result
+            norm_result = normalized_data.get(gene.symbol, {})
+
+            if norm_result.get("found"):
+                # Use HGNC-approved symbol
+                gene.approved_symbol = norm_result.get("approved_symbol")
+                gene.hgnc_id = norm_result.get("hgnc_id")
+                # Update display symbol to approved version
+                gene.symbol = gene.approved_symbol
+            else:
+                # Keep original symbol if not found in HGNC
+                gene.approved_symbol = None
+                gene.hgnc_id = None
+
+        # Log statistics
+        stats = normalizer.get_stats()
+        self.logger.info(
+            f"HGNC normalization complete - API calls: {stats['api_calls']}, "
+            f"Cache hits: {stats['cache_hits']}, Cache misses: {stats['cache_misses']}"
+        )
 
         return genes
 

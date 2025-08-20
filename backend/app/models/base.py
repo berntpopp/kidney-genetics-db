@@ -7,7 +7,6 @@ from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
-
 class TimestampMixin:
     """Mixin to add created_at and updated_at timestamps"""
 

@@ -7,7 +7,6 @@ from typing import Any
 
 from pydantic import BaseModel
 
-
 class DataSourceStats(BaseModel):
     """Statistics for a data source"""
 
@@ -15,7 +14,6 @@ class DataSourceStats(BaseModel):
     evidence_count: int
     last_updated: datetime | None
     metadata: dict[str, Any] | None = None
-
 
 class DataSource(BaseModel):
     """Data source information"""
@@ -27,7 +25,6 @@ class DataSource(BaseModel):
     stats: DataSourceStats | None = None
     url: str | None = None
     documentation_url: str | None = None
-
 
 class DataSourceList(BaseModel):
     """List of data sources"""

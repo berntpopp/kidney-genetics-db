@@ -18,7 +18,6 @@ from app.core.gene_normalization import (
 )
 from app.models.gene import Gene
 
-
 class TestGeneTextCleaning:
     """Test gene text cleaning and validation functions."""
 
@@ -80,7 +79,6 @@ class TestGeneTextCleaning:
         """Test gene symbol validation."""
         result = is_likely_gene_symbol(gene_text)
         assert result == expected
-
 
 class TestGeneNormalization:
     """Test gene normalization functions."""
@@ -490,7 +488,6 @@ class TestGeneNormalization:
             "error": "Staging creation failed: Staging error"
         }
         assert result == expected
-
 
 class TestIntegration:
     """Integration tests for gene normalization."""

@@ -20,7 +20,6 @@ from utils import clean_gene_symbol
 
 logger = logging.getLogger(__name__)
 
-
 class NateraScraper(BaseDiagnosticScraper):
     """Scraper for Natera - Renasight panel."""
 
@@ -258,7 +257,6 @@ class NateraScraper(BaseDiagnosticScraper):
 
         logger.info(f"Natera scraping complete: {len(gene_entries)} genes")
         return provider_data
-
 
 if __name__ == "__main__":
     # Test the scraper

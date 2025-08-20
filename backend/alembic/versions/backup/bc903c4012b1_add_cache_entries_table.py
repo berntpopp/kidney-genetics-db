@@ -18,7 +18,6 @@ down_revision: str | Sequence[str] | None = '09ca10c13c4a'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-
 def upgrade() -> None:
     """Upgrade schema."""
     # Create cache_entries table
@@ -62,7 +61,6 @@ def upgrade() -> None:
         FROM cache_entries
         GROUP BY namespace;
     """)
-
 
 def downgrade() -> None:
     """Downgrade schema."""

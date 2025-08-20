@@ -17,7 +17,6 @@ from app.core.hpo.models import (
 
 logger = logging.getLogger(__name__)
 
-
 class HPOAnnotations(HPOAPIBase):
     """Phenotype annotation operations for terms, genes, and diseases."""
 

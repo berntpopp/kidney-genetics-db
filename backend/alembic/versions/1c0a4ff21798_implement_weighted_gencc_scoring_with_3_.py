@@ -25,7 +25,6 @@ down_revision: str | Sequence[str] | None = '443aa8a1ddf7'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-
 def upgrade() -> None:
     """Implement weighted GenCC scoring with 3-component formula."""
 
@@ -208,7 +207,6 @@ def upgrade() -> None:
         CROSS JOIN active_sources ac
         ORDER BY percentage_score DESC NULLS LAST, gss.approved_symbol
     """)
-
 
 def downgrade() -> None:
     """Revert to simple first-classification scoring for GenCC."""

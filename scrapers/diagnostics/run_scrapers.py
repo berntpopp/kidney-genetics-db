@@ -42,14 +42,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 class ScraperOrchestrator:
     """Orchestrates running all diagnostic panel scrapers."""
 
     def __init__(self, config_path: str = None):
         """
         Initialize the orchestrator.
-        
+
         Args:
             config_path: Path to configuration file
         """
@@ -60,13 +59,20 @@ class ScraperOrchestrator:
     def _load_config(self, config_path: str = None) -> Dict[str, Any]:
         """
         Load configuration from file or use defaults.
-        
+
         Args:
             config_path: Path to config file
-            
+
         Returns:
             Configuration dictionary
         """
+        # If no config path provided, try default location
+        if not config_path:
+            default_config_path = Path(__file__).parent / "config" / "config.yaml"
+            if default_config_path.exists():
+                config_path = str(default_config_path)
+
+        # Load config from file
         if config_path and Path(config_path).exists():
             with open(config_path) as f:
                 if config_path.endswith('.yaml') or config_path.endswith('.yml'):
@@ -74,28 +80,19 @@ class ScraperOrchestrator:
                 elif config_path.endswith('.json'):
                     return json.load(f)
 
-        # Default configuration
+        # Fallback to minimal default configuration
+        logger.warning("No config file found, using minimal defaults")
         return {
             'output_dir': 'output',
             'rate_limit': 2,
             'enable_browser': True,
-            'scrapers': {
-                'blueprint_genetics': {'enabled': True},
-                'mayo_clinic': {'enabled': True},
-                'centogene': {'enabled': True},
-                'cegat': {'enabled': True},
-                'invitae': {'enabled': True},
-                'mgz_muenchen': {'enabled': True},
-                'mvz_medicover': {'enabled': True},
-                'natera': {'enabled': True},
-                'prevention_genetics': {'enabled': True}
-            }
+            'scrapers': {}
         }
 
     def _initialize_scrapers(self) -> List:
         """
         Initialize all enabled scrapers.
-        
+
         Returns:
             List of scraper instances
         """
@@ -126,7 +123,7 @@ class ScraperOrchestrator:
     def run_all(self) -> DiagnosticPanelBatch:
         """
         Run all enabled scrapers.
-        
+
         Returns:
             DiagnosticPanelBatch with all results
         """
@@ -165,7 +162,7 @@ class ScraperOrchestrator:
     def _save_batch(self, batch: DiagnosticPanelBatch):
         """
         Save batch results to file.
-        
+
         Args:
             batch: Batch results to save
         """
@@ -181,10 +178,10 @@ class ScraperOrchestrator:
     def generate_summary(self, batch: DiagnosticPanelBatch) -> str:
         """
         Generate a summary report of the scraping run.
-        
+
         Args:
             batch: Batch results
-            
+
         Returns:
             Summary report string
         """
@@ -219,12 +216,8 @@ class ScraperOrchestrator:
 
             if provider.errors:
                 report.append(f"  - Errors: {len(provider.errors)}")
-
-        if batch.errors:
-            report.append("\nERRORS:")
-            report.append("-" * 80)
-            for error in batch.errors:
-                report.append(f"  - {error}")
+                for error in provider.errors:
+                    report.append(f"    • {error}")
 
         report.append("\n" + "=" * 80)
 
@@ -236,7 +229,6 @@ class ScraperOrchestrator:
             f.write(summary)
 
         return summary
-
 
 def main():
     """Main entry point."""
@@ -288,7 +280,6 @@ def main():
         print(summary)
 
         logger.info(f"Scraping complete! Results saved in {orchestrator.output_dir}")
-
 
 if __name__ == "__main__":
     main()

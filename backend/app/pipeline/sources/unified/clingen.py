@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 class ClinGenUnifiedSource(UnifiedDataSource):
     """
     Unified ClinGen client with intelligent caching and async processing.

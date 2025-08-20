@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 
 from app.pipeline.sources.pubtator import PubTatorClient
 
-
 class TestPubTatorNormalization:
     """Test PubTator integration with gene normalization system."""
 
@@ -326,7 +325,6 @@ class TestPubTatorNormalization:
         args, kwargs = mock_normalize.call_args
         assert len(kwargs['gene_texts']) == 1000
         assert len(kwargs['original_data_list']) == 1000
-
 
 class TestNormalizationIntegration:
     """Integration tests for normalization with PubTator pipeline."""

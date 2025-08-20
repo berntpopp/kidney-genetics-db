@@ -28,12 +28,10 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-
 @click.group()
 async def cli():
     """Kidney Genetics Pipeline CLI - Async version"""
     pass
-
 
 @cli.command()
 @click.option(
@@ -125,7 +123,6 @@ async def update(source: str):
     finally:
         db.close()
 
-
 @cli.command()
 async def list_runs():
     """List recent pipeline runs"""
@@ -154,7 +151,6 @@ async def list_runs():
             click.echo("-" * 60)
     finally:
         db.close()
-
 
 if __name__ == "__main__":
     cli()

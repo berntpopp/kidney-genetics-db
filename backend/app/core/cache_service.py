@@ -28,7 +28,6 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-
 class CacheEntry:
     """Represents a cache entry with metadata."""
 
@@ -60,7 +59,6 @@ class CacheEntry:
         """Update access statistics."""
         self.last_accessed = datetime.now(timezone.utc)
         self.access_count += 1
-
 
 class CacheStats:
     """Cache statistics container."""
@@ -94,7 +92,6 @@ class CacheStats:
             "memory_entries": self.memory_entries,
             "db_entries": self.db_entries,
         }
-
 
 class CacheService:
     """
@@ -757,10 +754,8 @@ class CacheService:
             logger.error(f"Error fetching distinct namespaces: {e}")
             return []
 
-
 # Global cache service instance
 cache_service: CacheService | None = None
-
 
 def get_cache_service(db_session: Session | AsyncSession | None = None) -> CacheService:
     """Get or create the global cache service instance."""
@@ -775,9 +770,7 @@ def get_cache_service(db_session: Session | AsyncSession | None = None) -> Cache
 
     return cache_service
 
-
 # Convenience functions
-
 
 async def cached(
     key: str,
@@ -795,7 +788,6 @@ async def cached(
     cache = get_cache_service(db_session)
     return await cache.get_or_set(key, fetch_func, namespace, ttl)
 
-
 async def cache_get(
     key: str,
     namespace: str = "default",
@@ -805,7 +797,6 @@ async def cache_get(
     """Get a value from cache."""
     cache = get_cache_service(db_session)
     return await cache.get(key, namespace, default)
-
 
 async def cache_set(
     key: str,
@@ -817,7 +808,6 @@ async def cache_set(
     """Set a value in cache."""
     cache = get_cache_service(db_session)
     return await cache.set(key, value, namespace, ttl)
-
 
 async def cache_delete(
     key: str, namespace: str = "default", db_session: Session | AsyncSession | None = None

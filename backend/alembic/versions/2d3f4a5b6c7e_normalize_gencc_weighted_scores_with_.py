@@ -22,7 +22,6 @@ down_revision: str | Sequence[str] | None = '1c0a4ff21798'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-
 def upgrade() -> None:
     """Add percentile normalization to GenCC weighted scores."""
 
@@ -122,7 +121,6 @@ def upgrade() -> None:
         CROSS JOIN active_sources ac
         ORDER BY percentage_score DESC NULLS LAST, gss.approved_symbol
     """)
-
 
 def downgrade() -> None:
     """Revert to non-normalized GenCC scores."""

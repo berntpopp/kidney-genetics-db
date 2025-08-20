@@ -15,7 +15,6 @@ down_revision: str | Sequence[str] | None = '1913be50fe24'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-
 def upgrade() -> None:
     """
     Improve evidence deduplication by intelligently merging JSONB data
@@ -186,7 +185,6 @@ def upgrade() -> None:
     """)
 
     print("✅ Improved evidence deduplication with intelligent JSONB merging")
-
 
 def downgrade() -> None:
     """

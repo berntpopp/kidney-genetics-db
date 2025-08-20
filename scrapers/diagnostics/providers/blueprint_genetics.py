@@ -17,18 +17,14 @@ from utils import clean_gene_symbol
 
 logger = logging.getLogger(__name__)
 
-
 class BlueprintGeneticsScraper(BaseDiagnosticScraper):
     """Scraper for Blueprint Genetics - handles all 24 kidney sub-panels"""
 
     def __init__(self, config: Optional[Dict] = None):
-        super().__init__(config)
-        self.provider_id = "blueprint_genetics"
+        super().__init__(config, provider_id="blueprint_genetics")
         self.provider_name = "Blueprint Genetics"
         self.provider_type = "multi_panel"
-        # Re-fetch config with correct provider_id
-        self.scraper_config = self.config.get("scrapers", {}).get(self.provider_id, {})
-        self.base_url = self.scraper_config.get("url", "https://blueprintgenetics.com/tests/")
+        self.base_url = self.scraper_config.get("base_url", self.url)
 
     def get_sub_panels(self) -> List[Dict[str, str]]:
         """Return all Blueprint Genetics kidney sub-panel URLs from config"""
@@ -36,7 +32,7 @@ class BlueprintGeneticsScraper(BaseDiagnosticScraper):
         if not panels_config:
             logger.warning("No panels configured for Blueprint Genetics")
             return []
-        
+
         # Build full URLs from config
         panels = []
         base_url = self.scraper_config.get("base_url", self.base_url)
@@ -45,7 +41,7 @@ class BlueprintGeneticsScraper(BaseDiagnosticScraper):
                 "name": panel["name"],
                 "url": f"{base_url}{panel['url_suffix']}"
             })
-        
+
         return panels
 
     def extract_genes_from_panel(self, content: str) -> List[str]:
@@ -194,7 +190,6 @@ class BlueprintGeneticsScraper(BaseDiagnosticScraper):
         logger.info(f"Blueprint Genetics scraping complete: {len(gene_entries)} unique genes from {len(sub_panels_data)} panels")
 
         return provider_data
-
 
 if __name__ == "__main__":
     # Test the scraper

@@ -26,7 +26,6 @@ from app.core.datasource_config import get_source_cache_ttl
 
 logger = logging.getLogger(__name__)
 
-
 class HGNCClientCached:
     """
     Enhanced HGNC client with unified cache system integration.
@@ -474,10 +473,8 @@ class HGNCClientCached:
         logger.info("HGNC cache warming completed")
         return len(common_symbols)
 
-
 # Global cached client instance
 _hgnc_client_cached: HGNCClientCached | None = None
-
 
 def get_hgnc_client_cached(
     cache_service: CacheService | None = None, db_session: Session | AsyncSession | None = None
@@ -490,9 +487,7 @@ def get_hgnc_client_cached(
 
     return _hgnc_client_cached
 
-
 # Convenience functions for backward compatibility
-
 
 async def standardize_gene_symbols_cached(
     symbols: list[str], db_session: Session | AsyncSession | None = None
@@ -509,7 +504,6 @@ async def standardize_gene_symbols_cached(
     """
     client = get_hgnc_client_cached(db_session=db_session)
     return await client.standardize_symbols_batch(symbols)
-
 
 async def get_gene_info_cached(
     symbol: str, db_session: Session | AsyncSession | None = None

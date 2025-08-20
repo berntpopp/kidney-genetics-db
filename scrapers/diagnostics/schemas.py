@@ -4,22 +4,21 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-
 @dataclass
 class GeneEntry:
     """Gene entry with panel information."""
 
-    symbol: str
+    symbol: str  # Display symbol (HGNC-approved if available, else reported)
     panels: List[str]
     occurrence_count: int = 1
     confidence: str = "medium"
     hgnc_id: Optional[str] = None
-    approved_symbol: Optional[str] = None
+    approved_symbol: Optional[str] = None  # HGNC-approved symbol
+    reported_symbol: Optional[str] = None  # Original symbol from provider
 
     def model_dump(self) -> dict:
         """Convert to dictionary."""
         return asdict(self)
-
 
 @dataclass
 class SubPanel:
@@ -32,7 +31,6 @@ class SubPanel:
     def model_dump(self) -> dict:
         """Convert to dictionary."""
         return asdict(self)
-
 
 @dataclass
 class ProviderData:
@@ -63,7 +61,6 @@ class ProviderData:
                 for p in self.sub_panels
             ]
         return data
-
 
 @dataclass
 class DiagnosticPanelBatch:

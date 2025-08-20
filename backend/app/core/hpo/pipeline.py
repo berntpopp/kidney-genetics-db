@@ -15,7 +15,6 @@ from app.core.progress_tracker import ProgressTracker
 
 logger = logging.getLogger(__name__)
 
-
 class HPOPipeline:
     """Main HPO data processing pipeline for kidney/urinary phenotypes."""
 

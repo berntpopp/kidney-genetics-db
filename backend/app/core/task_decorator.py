@@ -16,7 +16,6 @@ from app.core.progress_tracker import ProgressTracker
 
 logger = logging.getLogger(__name__)
 
-
 def managed_task(source_name: str):
     """
     Decorator for background tasks with common setup/teardown.
@@ -54,7 +53,6 @@ def managed_task(source_name: str):
         return wrapper
 
     return decorator
-
 
 def executor_task(source_name: str):
     """
@@ -96,7 +94,6 @@ def executor_task(source_name: str):
         return wrapper
 
     return decorator
-
 
 class TaskMixin:
     """Mixin providing common task functionality with unified client architecture."""

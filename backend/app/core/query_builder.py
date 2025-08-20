@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-
 class QueryBuilder(Generic[T]):
     """
     Enhanced reusable query builder for complex patterns.
@@ -410,7 +409,6 @@ class QueryBuilder(Generic[T]):
             result[column.name] = getattr(model_instance, column.name)
         return result
 
-
 class QueryOptimizer:
     """
     Utilities for query optimization and analysis.
@@ -519,7 +517,6 @@ class QueryOptimizer:
 
         return suggestions
 
-
 # Example usage functions
 def get_genes_optimized(
     db: Session,
@@ -541,7 +538,6 @@ def get_genes_optimized(
     if min_score:
         builder = builder.filter_by_score(min_score)
     return builder.paginate(skip, limit).sort(sort_by, sort_desc).all()
-
 
 def analyze_slow_query(db: Session, query: Query) -> dict:
     """

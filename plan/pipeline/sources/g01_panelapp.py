@@ -16,7 +16,6 @@ from ..core.io import create_standard_dataframe
 
 logger = logging.getLogger(__name__)
 
-
 class PanelAppClient:
     """Client for fetching data from PanelApp APIs with caching support."""
 
@@ -142,7 +141,6 @@ class PanelAppClient:
         """
         url = f"{base_url}/{panel_id}/"
         return self._make_request(url)
-
 
 def fetch_panelapp_data(config: dict[str, Any]) -> pd.DataFrame:
     """
@@ -303,7 +301,6 @@ def fetch_panelapp_data(config: dict[str, Any]) -> pd.DataFrame:
     else:
         logger.warning("No PanelApp data was successfully fetched")
         return pd.DataFrame()
-
 
 def search_panelapp_panels(
     config: dict[str, Any], search_term: str

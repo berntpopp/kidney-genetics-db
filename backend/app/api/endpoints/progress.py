@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-
 # Store active WebSocket connections with event-driven updates
 class ConnectionManager:
     def __init__(self):
@@ -78,9 +77,7 @@ class ConnectionManager:
             if conn in self.active_connections:
                 self.active_connections.remove(conn)
 
-
 manager = ConnectionManager()
-
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
@@ -120,7 +117,6 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
         logger.error(f"WebSocket error: {e}")
         manager.disconnect(websocket)
 
-
 @router.get("/status")
 async def get_all_status(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
     """
@@ -149,7 +145,6 @@ async def get_all_status(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
 
     return result
 
-
 @router.get("/status/{source_name}")
 async def get_source_status(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
@@ -167,7 +162,6 @@ async def get_source_status(source_name: str, db: Session = Depends(get_db)) -> 
         raise HTTPException(status_code=404, detail=f"Source {source_name} not found")
 
     return progress.to_dict()
-
 
 @router.post("/trigger/{source_name}")
 async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dict[str, str]:
@@ -213,7 +207,6 @@ async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dic
     logger.info(f"🚀 API: Returning success response for {source_name}")
     return {"status": "triggered", "message": f"Update triggered for {source_name}"}
 
-
 @router.post("/pause/{source_name}")
 def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, str]:
     """
@@ -246,7 +239,6 @@ def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, s
 
     return {"status": "paused", "message": f"{source_name} has been paused"}
 
-
 @router.post("/resume/{source_name}")
 async def resume_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, str]:
     """
@@ -272,7 +264,6 @@ async def resume_source(source_name: str, db: Session = Depends(get_db)) -> dict
     asyncio.create_task(task_manager.run_source(source_name, resume=True))
 
     return {"status": "resumed", "message": f"{source_name} has been resumed"}
-
 
 @router.get("/dashboard")
 async def get_dashboard_data(db: Session = Depends(get_db)) -> dict[str, Any]:
@@ -309,7 +300,6 @@ async def get_dashboard_data(db: Session = Depends(get_db)) -> dict[str, Any]:
         "sources": [p.to_dict() for p in all_progress],
         "last_update": datetime.utcnow().isoformat(),
     }
-
 
 # Export the connection manager for use by background tasks
 def get_connection_manager():

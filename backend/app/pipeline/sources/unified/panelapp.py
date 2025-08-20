@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 class PanelAppUnifiedSource(UnifiedDataSource):
     """
     Unified PanelApp client with intelligent caching and async processing.

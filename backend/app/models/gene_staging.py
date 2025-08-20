@@ -9,7 +9,6 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from app.core.database import Base
 
-
 class GeneNormalizationStaging(Base):
     """
     Staging table for genes that couldn't be automatically normalized
@@ -60,7 +59,6 @@ class GeneNormalizationStaging(Base):
 
     def __repr__(self):
         return f"<GeneNormalizationStaging(id={self.id}, original_text='{self.original_text}', source='{self.source_name}', status='{self.status}')>"
-
 
 class GeneNormalizationLog(Base):
     """

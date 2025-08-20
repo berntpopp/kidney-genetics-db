@@ -16,7 +16,6 @@ from app.schemas.datasource import DataSource, DataSourceList, DataSourceStats
 
 router = APIRouter()
 
-
 @router.get("/", response_model=DataSourceList)
 async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
@@ -135,7 +134,6 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         last_pipeline_run=last_run.completed_at if last_run else None,
     )
 
-
 @router.get("/{source_name}")
 async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
@@ -217,7 +215,6 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
             "message": "No data available for this source",
         }
 
-
 @router.post("/{source_name}/update")
 async def update_datasource(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
@@ -231,7 +228,6 @@ async def update_datasource(source_name: str, db: Session = Depends(get_db)) -> 
         return {"message": f"Update triggered for {source_name}", "status": "started"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start update: {e!s}") from e
-
 
 @router.post("/update-all")
 async def update_all_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:

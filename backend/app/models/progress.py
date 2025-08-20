@@ -9,7 +9,6 @@ from sqlalchemy.sql import func
 
 from app.core.database import Base
 
-
 class SourceStatus(PyEnum):
     """Enumeration for data source status"""
 
@@ -18,7 +17,6 @@ class SourceStatus(PyEnum):
     completed = "completed"
     failed = "failed"
     paused = "paused"
-
 
 class DataSourceProgress(Base):
     """Model for tracking data source update progress"""

@@ -15,7 +15,6 @@ down_revision: str | Sequence[str] | None = '3a4b5c6d7e8f'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-
 def upgrade() -> None:
     """
     Add database trigger to automatically update gene_curations when evidence changes.
@@ -89,7 +88,6 @@ def upgrade() -> None:
         COMMENT ON TRIGGER update_curation_on_evidence_change ON gene_evidence
         IS 'Automatically updates gene_curations when evidence changes to maintain data consistency';
     """)
-
 
 def downgrade() -> None:
     """Remove the gene curation update trigger and function."""

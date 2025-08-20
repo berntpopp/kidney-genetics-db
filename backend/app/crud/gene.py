@@ -12,7 +12,6 @@ from app.schemas.gene import GeneCreate, GeneUpdate
 
 logger = logging.getLogger(__name__)
 
-
 class CRUDGene:
     """CRUD operations for genes"""
 
@@ -460,7 +459,6 @@ class CRUDGene:
         db.commit()
         db.refresh(evidence)
         return evidence.id
-
 
 # Create singleton instance
 gene_crud = CRUDGene()

@@ -18,16 +18,11 @@ from utils import clean_gene_symbol
 
 logger = logging.getLogger(__name__)
 
-
 class PreventionGeneticsScraper(BaseDiagnosticScraper):
     """Scraper for PreventionGenetics - Comprehensive Kidney Disease Panel"""
 
     def __init__(self, config: Optional[Dict] = None):
-        super().__init__(config)
-        self.provider_id = "prevention_genetics"  # Override auto-generated ID
-        # Re-fetch config with correct provider_id
-        self.scraper_config = self.config.get("scrapers", {}).get(self.provider_id, {})
-        self.url = self.scraper_config.get("url", "")
+        super().__init__(config, provider_id="prevention_genetics")
         self.provider_name = "PreventionGenetics"
         self.provider_type = "single_panel"
         self.use_browser = False  # Try without browser first
@@ -213,7 +208,6 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
 
         logger.info(f"PreventionGenetics scraping complete: {len(gene_entries)} genes")
         return provider_data
-
 
 if __name__ == "__main__":
     # Test the scraper

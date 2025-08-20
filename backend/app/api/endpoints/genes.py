@@ -14,7 +14,6 @@ from app.schemas.gene import Gene, GeneCreate, GeneList
 
 router = APIRouter()
 
-
 @router.get("/", response_model=GeneList)
 async def get_genes(
     skip: int = Query(0, ge=0, description="Number of items to skip"),
@@ -66,7 +65,6 @@ async def get_genes(
 
     return GeneList(items=items, total=total, page=(skip // limit) + 1, per_page=limit)
 
-
 @router.get("/{gene_symbol}", response_model=Gene)
 async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
@@ -114,7 +112,6 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
 
     return result
 
-
 @router.get("/{gene_symbol}/evidence")
 async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
@@ -157,7 +154,6 @@ async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> 
             for e in evidence
         ],
     }
-
 
 @router.post("/", response_model=Gene)
 def create_gene(gene_in: GeneCreate, db: Session = Depends(get_db)) -> dict[str, Any]:

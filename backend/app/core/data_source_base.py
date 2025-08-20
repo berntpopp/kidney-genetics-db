@@ -21,7 +21,6 @@ from app.schemas.gene import GeneCreate
 
 logger = logging.getLogger(__name__)
 
-
 class DataSourceClient(ABC):
     """
     Abstract base class for all data source clients.
@@ -415,7 +414,6 @@ class DataSourceClient(ABC):
         Subclasses can override this to provide source-specific details.
         """
         return f"Data from {self.source_name}"
-
 
 def get_data_source_client(source_name: str, **kwargs) -> DataSourceClient:
     """

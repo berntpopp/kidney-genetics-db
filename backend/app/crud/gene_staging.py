@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 
 from app.models.gene_staging import GeneNormalizationLog, GeneNormalizationStaging
 
-
 class GeneNormalizationStagingCRUD:
     """CRUD operations for gene normalization staging"""
 
@@ -241,7 +240,6 @@ class GeneNormalizationStagingCRUD:
 
         return False
 
-
 class GeneNormalizationLogCRUD:
     """CRUD operations for gene normalization logs"""
 
@@ -320,7 +318,6 @@ class GeneNormalizationLogCRUD:
             "success_rate": round(success_rate, 1),
             "by_source": source_stats,
         }
-
 
 # Create singleton instances
 staging_crud = GeneNormalizationStagingCRUD()

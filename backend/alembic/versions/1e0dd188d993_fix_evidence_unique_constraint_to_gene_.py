@@ -15,7 +15,6 @@ down_revision: str | Sequence[str] | None = '001_initial_complete'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-
 def upgrade() -> None:
     """
     Fix the evidence unique constraint to enforce ONE evidence record per source per gene.
@@ -61,7 +60,6 @@ def upgrade() -> None:
     )
 
     print("✅ Fixed evidence constraint - removed duplicates and enforced one evidence per source per gene")
-
 
 def downgrade() -> None:
     """

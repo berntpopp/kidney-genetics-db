@@ -15,7 +15,6 @@ from app.crud import gene_crud, gene_staging
 
 logger = logging.getLogger(__name__)
 
-
 def clean_gene_text(gene_text: str) -> str:
     """
     Clean and preprocess gene text for HGNC lookup.
@@ -44,7 +43,6 @@ def clean_gene_text(gene_text: str) -> str:
     cleaned = re.sub(r"[^\w-]", "", cleaned)  # Keep only alphanumeric and hyphens
 
     return cleaned.strip()
-
 
 def is_likely_gene_symbol(gene_text: str) -> bool:
     """
@@ -93,7 +91,6 @@ def is_likely_gene_symbol(gene_text: str) -> bool:
         return False
 
     return True
-
 
 class GeneNormalizer:
     """Unified async-first gene normalization service."""
@@ -279,10 +276,8 @@ class GeneNormalizer:
                 "original_data": original_data,
             }
 
-
 # Global instance
 _normalizer = None
-
 
 def get_gene_normalizer(db_session: Session | None = None) -> GeneNormalizer:
     """Get or create gene normalizer instance."""
@@ -290,7 +285,6 @@ def get_gene_normalizer(db_session: Session | None = None) -> GeneNormalizer:
     if _normalizer is None:
         _normalizer = GeneNormalizer(db_session)
     return _normalizer
-
 
 # Convenience function - async only
 async def normalize_genes_batch_async(
@@ -302,7 +296,6 @@ async def normalize_genes_batch_async(
     """Async batch gene normalization - the only correct implementation."""
     normalizer = get_gene_normalizer(db)
     return await normalizer.normalize_batch_async(db, gene_texts, source_name, original_data_list)
-
 
 async def get_normalization_stats(db: Session) -> dict[str, Any]:
     """Get statistics about gene normalization."""
@@ -336,7 +329,6 @@ async def get_normalization_stats(db: Session) -> dict[str, Any]:
     except Exception as e:
         logger.error(f"Error getting normalization stats: {e}")
         return {"error": str(e)}
-
 
 async def clear_normalization_cache():
     """Clear HGNC client cache."""

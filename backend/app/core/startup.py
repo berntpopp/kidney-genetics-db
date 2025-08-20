@@ -14,7 +14,6 @@ from app.models.progress import DataSourceProgress, SourceStatus
 
 logger = logging.getLogger(__name__)
 
-
 def register_data_sources() -> None:
     """
     Register all configured data sources in the database if they don't exist.
@@ -84,7 +83,6 @@ def register_data_sources() -> None:
     finally:
         db.close()
 
-
 def cleanup_orphaned_sources() -> None:
     """
     Remove progress records for data sources that are no longer configured.
@@ -122,7 +120,6 @@ def cleanup_orphaned_sources() -> None:
         raise
     finally:
         db.close()
-
 
 def validate_dependencies() -> None:
     """
@@ -171,7 +168,6 @@ def validate_dependencies() -> None:
     except Exception as e:
         logger.error(f"Dependency validation failed: {e}")
         # Don't re-raise - log the issue but continue startup
-
 
 def run_startup_tasks() -> None:
     """

@@ -18,7 +18,6 @@ down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-
 def upgrade() -> None:
     """Create complete database schema."""
 
@@ -377,7 +376,6 @@ def upgrade() -> None:
         CROSS JOIN active_sources ac
         ORDER BY percentage_score DESC NULLS LAST, gss.approved_symbol
     """)
-
 
 def downgrade() -> None:
     """Drop complete database schema."""

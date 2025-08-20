@@ -153,26 +153,21 @@ PRIORITY_ORDERED_SOURCES = sorted(
     DATA_SOURCE_CONFIG.keys(), key=lambda x: DATA_SOURCE_CONFIG[x].get("priority", 999)
 )
 
-
 def get_source_config(source_name: str) -> dict[str, Any] | None:
     """Get configuration for a specific data source"""
     return DATA_SOURCE_CONFIG.get(source_name)
-
 
 def get_all_source_names() -> list[str]:
     """Get list of all configured data source names"""
     return list(DATA_SOURCE_CONFIG.keys())
 
-
 def get_auto_update_sources() -> list[str]:
     """Get list of sources that support automatic updates"""
     return AUTO_UPDATE_SOURCES.copy()
 
-
 def is_source_configured(source_name: str) -> bool:
     """Check if a data source is configured"""
     return source_name in DATA_SOURCE_CONFIG
-
 
 def get_source_parameter(source_name: str, param_name: str, default: Any = None) -> Any:
     """
@@ -191,7 +186,6 @@ def get_source_parameter(source_name: str, param_name: str, default: Any = None)
         return config.get(param_name, default)
     return default
 
-
 def get_source_cache_ttl(source_name: str) -> int:
     """
     Get cache TTL for a data source.
@@ -203,7 +197,6 @@ def get_source_cache_ttl(source_name: str) -> int:
         Cache TTL in seconds, defaults to 3600 (1 hour)
     """
     return get_source_parameter(source_name, "cache_ttl", 3600)
-
 
 def get_source_api_url(source_name: str) -> str | None:
     """

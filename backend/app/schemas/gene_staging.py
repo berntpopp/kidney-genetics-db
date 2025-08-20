@@ -7,7 +7,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 class GeneNormalizationStagingResponse(BaseModel):
     """Response schema for gene normalization staging records"""
 
@@ -35,7 +34,6 @@ class GeneNormalizationStagingResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
 class GeneNormalizationLogResponse(BaseModel):
     """Response schema for gene normalization logs"""
 
@@ -53,7 +51,6 @@ class GeneNormalizationLogResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
 class StagingApprovalRequest(BaseModel):
     """Request schema for approving staging records"""
 
@@ -63,13 +60,11 @@ class StagingApprovalRequest(BaseModel):
     reviewer: str = Field(default="system", description="Name of reviewer")
     notes: str | None = Field(None, description="Review notes")
 
-
 class StagingRejectionRequest(BaseModel):
     """Request schema for rejecting staging records"""
 
     reviewer: str = Field(default="system", description="Name of reviewer")
     notes: str | None = Field(None, description="Rejection reason")
-
 
 class StagingStatsResponse(BaseModel):
     """Response schema for staging statistics"""
@@ -79,7 +74,6 @@ class StagingStatsResponse(BaseModel):
     total_rejected: int
     by_source: dict[str, int]
 
-
 class NormalizationStatsResponse(BaseModel):
     """Response schema for normalization statistics"""
 
@@ -88,13 +82,11 @@ class NormalizationStatsResponse(BaseModel):
     success_rate: float
     by_source: dict[str, dict[str, Any]]
 
-
 class TestNormalizationRequest(BaseModel):
     """Request schema for testing gene normalization"""
 
     gene_text: str = Field(..., description="Gene text to normalize")
     source_name: str = Field(default="Manual Test", description="Source name")
-
 
 class TestNormalizationResponse(BaseModel):
     """Response schema for testing gene normalization"""

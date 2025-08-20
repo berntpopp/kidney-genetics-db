@@ -13,7 +13,6 @@ from app.models.progress import DataSourceProgress, SourceStatus
 
 logger = logging.getLogger(__name__)
 
-
 class BackgroundTaskManager(TaskMixin):
     """Manages background tasks for all data sources"""
 
@@ -135,7 +134,6 @@ class BackgroundTaskManager(TaskMixin):
         # Shutdown executor
         self.executor.shutdown(wait=True)
         logger.info("Background tasks shutdown complete")
-
 
 # Global task manager instance
 task_manager = BackgroundTaskManager()

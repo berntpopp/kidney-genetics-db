@@ -17,7 +17,6 @@ down_revision: str | Sequence[str] | None = '2d3f4a5b6c7e'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-
 def upgrade() -> None:
     """
     Add evidence_score column to gene_evidence table for PubTator relevance scores.
@@ -104,7 +103,6 @@ def upgrade() -> None:
         CREATE INDEX idx_pubtator_evidence_summary_score
         ON pubtator_evidence_summary(evidence_score DESC NULLS LAST);
     """)
-
 
 def downgrade() -> None:
     """

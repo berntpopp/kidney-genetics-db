@@ -21,7 +21,6 @@ from app.pipeline.sources.unified.gencc import get_gencc_client
 
 logger = logging.getLogger(__name__)
 
-
 class CacheMonitoringService:
     """
     Comprehensive cache monitoring service providing detailed metrics
@@ -500,10 +499,8 @@ class CacheMonitoringService:
 
         return results
 
-
 # Global monitoring service instance
 _monitoring_service: CacheMonitoringService | None = None
-
 
 def get_monitoring_service(
     db_session: Session | AsyncSession | None = None,

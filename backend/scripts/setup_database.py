@@ -27,7 +27,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 def create_all_tables():
     """Create all tables defined in models"""
     logger.info("Creating all database tables...")
@@ -37,7 +36,6 @@ def create_all_tables():
     except Exception as e:
         logger.error(f"❌ Error creating tables: {e}")
         raise
-
 
 def create_views():
     """Create all necessary database views"""
@@ -74,7 +72,6 @@ def create_views():
         logger.error(f"❌ Error creating views: {e}")
         raise
 
-
 def create_indexes():
     """Create performance indexes"""
     logger.info("Creating database indexes...")
@@ -102,7 +99,6 @@ def create_indexes():
     except Exception as e:
         logger.error(f"❌ Error creating indexes: {e}")
         raise
-
 
 def verify_database_integrity():
     """Verify database integrity and report status"""
@@ -153,7 +149,6 @@ def verify_database_integrity():
         logger.error(f"❌ Error verifying database: {e}")
         raise
 
-
 def setup_database(skip_aggregation=False):
     """
     Complete database setup process
@@ -196,7 +191,6 @@ def setup_database(skip_aggregation=False):
     except Exception as e:
         logger.error(f"💥 Database setup failed: {e}")
         return False
-
 
 if __name__ == "__main__":
     import argparse

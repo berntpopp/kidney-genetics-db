@@ -13,7 +13,6 @@ from app.core.retry_utils import RetryConfig, retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
-
 class HPOAPIBase:
     """Base class for HPO API interactions with caching and resilience."""
 

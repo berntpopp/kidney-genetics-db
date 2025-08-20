@@ -18,16 +18,11 @@ from utils import clean_gene_symbol
 
 logger = logging.getLogger(__name__)
 
-
 class CentogeneScraper(BaseDiagnosticScraper):
     """Scraper for Centogene - CentoNephro panel"""
 
     def __init__(self, config: Optional[Dict] = None):
-        super().__init__(config)
-        self.provider_id = "centogene"  # Override auto-generated ID
-        # Re-fetch config with correct provider_id
-        self.scraper_config = self.config.get("scrapers", {}).get(self.provider_id, {})
-        self.url = self.scraper_config.get("url", "")
+        super().__init__(config, provider_id="centogene")
         self.provider_name = "Centogene"
         self.provider_type = "single_panel"
         self.use_browser = True  # JavaScript-heavy page
@@ -134,7 +129,6 @@ class CentogeneScraper(BaseDiagnosticScraper):
 
         logger.info(f"Centogene scraping complete: {len(gene_entries)} genes")
         return provider_data
-
 
 if __name__ == "__main__":
     # Test the scraper

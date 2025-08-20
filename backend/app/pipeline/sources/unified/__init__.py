@@ -32,7 +32,6 @@ SOURCE_MAP = {
     "ClinGen": ClinGenUnifiedSource,
 }
 
-
 def get_unified_source(source_name: str, **kwargs) -> UnifiedDataSource:
     """
     Factory function to get appropriate unified data source client.

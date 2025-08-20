@@ -4,7 +4,6 @@ Configuration settings for the application
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 class Settings(BaseSettings):
     """Application settings"""
 
@@ -77,7 +76,6 @@ class Settings(BaseSettings):
 
     # API Keys (optional)
     OPENAI_API_KEY: str | None = None
-
 
 # Create settings instance
 settings = Settings()

@@ -13,7 +13,6 @@ from app.core.gene_normalization import (
     is_likely_gene_symbol,
 )
 
-
 class TestGeneTextCleaning:
     """Test gene text cleaning and validation functions."""
 
@@ -76,7 +75,6 @@ class TestGeneTextCleaning:
         result = is_likely_gene_symbol(gene_text)
         assert result == expected
 
-
 class TestHGNCClientIntegration:
     """Test HGNC client integration functions."""
 
@@ -109,7 +107,6 @@ class TestHGNCClientIntegration:
         assert client.retry_delay == 1.0
         assert client.batch_size == 100
         assert client.max_workers == 4
-
 
 class TestGeneNormalizationIntegration:
     """Integration tests for the complete normalization workflow."""
@@ -198,7 +195,6 @@ class TestGeneNormalizationIntegration:
             assert isinstance(cleaned, str)
             assert isinstance(is_valid, bool)
             assert cleaned == gene_text  # These should not be modified
-
 
 class TestNormalizationPatterns:
     """Test normalization patterns based on real-world data sources."""

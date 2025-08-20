@@ -44,7 +44,6 @@ from ..sources_snp.prs_snps import fetch_prs_snps
 logger = logging.getLogger(__name__)
 console = Console()
 
-
 class Pipeline:
     """Orchestrates the gene panel curation pipeline with improved modularity."""
 

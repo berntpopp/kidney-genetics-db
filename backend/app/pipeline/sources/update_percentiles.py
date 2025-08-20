@@ -13,7 +13,6 @@ from app.models.gene import GeneEvidence
 
 logger = logging.getLogger(__name__)
 
-
 def update_source_percentiles(db: Session, source_name: str) -> dict[str, Any]:
     """Update percentiles for all evidence records from a source
 
@@ -99,7 +98,6 @@ def update_source_percentiles(db: Session, source_name: str) -> dict[str, Any]:
 
     return stats
 
-
 def _get_count_for_evidence(evidence: GeneEvidence) -> int:
     """Extract the relevant count from evidence data
 
@@ -136,7 +134,6 @@ def _get_count_for_evidence(evidence: GeneEvidence) -> int:
             + len(data.get("references", []))
             + len(data.get("items", []))
         )
-
 
 def update_all_source_percentiles(db: Session) -> dict[str, Any]:
     """Update percentiles for all sources

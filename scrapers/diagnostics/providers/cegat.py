@@ -18,16 +18,11 @@ from utils import clean_gene_symbol
 
 logger = logging.getLogger(__name__)
 
-
 class CegatScraper(BaseDiagnosticScraper):
     """Scraper for CeGaT - Kidney disease panel"""
 
     def __init__(self, config: Optional[Dict] = None):
-        super().__init__(config)
-        self.provider_id = "cegat"  # Override auto-generated ID
-        # Re-fetch config with correct provider_id
-        self.scraper_config = self.config.get("scrapers", {}).get(self.provider_id, {})
-        self.url = self.scraper_config.get("url", "")
+        super().__init__(config, provider_id="cegat")
         self.provider_name = "CeGaT"
         self.provider_type = "single_panel"
         self.logger.debug(f"Initialized CeGaT scraper with URL: {self.url}")
@@ -135,7 +130,6 @@ class CegatScraper(BaseDiagnosticScraper):
 
         logger.info(f"CeGaT scraping complete: {len(gene_entries)} genes")
         return provider_data
-
 
 if __name__ == "__main__":
     # Test the scraper
