@@ -1,3 +1,0 @@
-- HGNC normalisation
-- original symbol found --> approved symbol, hgnc id
-- integrate further sources and scarpers after extensive review
