@@ -51,7 +51,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         text("""
             SELECT COUNT(DISTINCT panel_name) as panel_count
             FROM (
-                SELECT jsonb_array_elements(evidence_data->'panels')->>'name' as panel_name
+                SELECTjsonb_array_elements(evidence_data->'panels')->>'name' as panel_name
                 FROM gene_evidence
                 WHERE source_name = 'PanelApp'
             ) panels
@@ -63,7 +63,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             SELECT
                 SUM((evidence_data->>'publication_count')::int) as total_publications,
                 (SELECT COUNT(DISTINCT pmid) FROM (
-                    SELECT jsonb_array_elements_text(evidence_data->'pmids') as pmid
+                    SELECTjsonb_array_elements_text(evidence_data->'pmids') as pmid
                     FROM gene_evidence
                     WHERE source_name = 'PubTator'
                 ) pmids) as unique_pmids
@@ -76,13 +76,26 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     static_sources = db.execute(
         text("""
             SELECT
-                'static_' || id::text as source_name,
-                display_name,
-                description,
-                cached_upload_count as upload_count,
-                cached_total_genes as gene_count
-            FROM static_sources
-            WHERE is_active = true
+                'static_' || ss.id::text as source_name,
+                ss.display_name,
+                ss.description,
+                COALESCE(uploads.upload_count, 0) as upload_count,
+                COALESCE(gene_counts.gene_count, 0) as gene_count
+            FROM static_sources ss
+            LEFT JOIN (
+                SELECTsource_id, COUNT(*) as upload_count
+                FROM static_evidence_uploads
+                GROUP BY source_id
+            ) uploads ON ss.id = uploads.source_id
+            LEFT JOIN (
+                SELECT
+                    SUBSTRING(ge.source_name FROM 8)::integer as source_id,
+                    COUNT(DISTINCT ge.gene_id) as gene_count
+                FROM gene_evidence ge
+                WHERE ge.source_name LIKE 'static_%'
+                GROUP BY SUBSTRING(ge.source_name FROM 8)::integer
+            ) gene_counts ON ss.id = gene_counts.source_id
+            WHERE ss.is_active = true
         """)
     ).fetchall()
 
@@ -92,7 +105,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             # Get last updated from evidence
             last_updated = db.execute(
                 text("""
-                    SELECT MAX(updated_at)
+                    SELECTMAX(updated_at)
                     FROM gene_evidence
                     WHERE source_name = :source_name
                 """),
@@ -199,7 +212,7 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
         # Get static source info
         source_info = db.execute(
             text("""
-                SELECT display_name, description
+                SELECTdisplay_name, description
                 FROM static_sources
                 WHERE 'static_' || id::text = :source_name
                 AND is_active = true

@@ -24,10 +24,6 @@ class StaticSource(Base, TimestampMixin):
     is_active = Column(Boolean, default=True, index=True)
     created_by = Column(String(255))
 
-    # Cached statistics for performance
-    cached_upload_count = Column(Integer, default=0)
-    cached_total_genes = Column(Integer, default=0)
-
     # Relationships
     uploads = relationship("StaticEvidenceUpload", back_populates="source", cascade="all, delete-orphan")
     audit_logs = relationship("StaticSourceAudit", back_populates="source", cascade="all, delete-orphan")

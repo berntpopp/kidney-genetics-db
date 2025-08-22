@@ -9,6 +9,7 @@ import requests
 
 from app.core.hgnc_client import HGNCClientCached as HGNCClient
 
+
 class TestHGNCClient:
     """Test cases for HGNCClient class."""
 

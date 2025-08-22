@@ -13,6 +13,7 @@ from app.core.gene_normalization import (
     is_likely_gene_symbol,
 )
 
+
 class TestGeneTextCleaning:
     """Test gene text cleaning and validation functions."""
 

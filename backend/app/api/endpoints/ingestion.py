@@ -95,10 +95,16 @@ async def list_sources(
 
     sources = query.all()
 
-    # Use cached statistics for performance
+    # Compute statistics dynamically
     for source in sources:
-        source.upload_count = source.cached_upload_count
-        source.total_genes = source.cached_total_genes
+        source.upload_count = db.query(func.count(StaticEvidenceUpload.id)).filter(
+            StaticEvidenceUpload.source_id == source.id,
+            StaticEvidenceUpload.upload_status == 'completed'
+        ).scalar() or 0
+        source.total_genes = db.query(func.sum(StaticEvidenceUpload.genes_normalized)).filter(
+            StaticEvidenceUpload.source_id == source.id,
+            StaticEvidenceUpload.upload_status == 'completed'
+        ).scalar() or 0
 
     return sources
 
@@ -119,9 +125,15 @@ async def get_source(
             detail="Source not found"
         )
 
-    # Use cached statistics for performance
-    source.upload_count = source.cached_upload_count
-    source.total_genes = source.cached_total_genes
+    # Compute statistics dynamically
+    source.upload_count = db.query(func.count(StaticEvidenceUpload.id)).filter(
+        StaticEvidenceUpload.source_id == source.id,
+        StaticEvidenceUpload.upload_status == 'completed'
+    ).scalar() or 0
+    source.total_genes = db.query(func.sum(StaticEvidenceUpload.genes_normalized)).filter(
+        StaticEvidenceUpload.source_id == source.id,
+        StaticEvidenceUpload.upload_status == 'completed'
+    ).scalar() or 0
 
     return source
 
@@ -285,16 +297,7 @@ async def upload_evidence(
         )
         db.add(audit)
 
-        # Update cached statistics
-        source.cached_upload_count = db.query(func.count(StaticEvidenceUpload.id)).filter(
-            StaticEvidenceUpload.source_id == source_id,
-            StaticEvidenceUpload.upload_status == 'completed'
-        ).scalar()
-
-        source.cached_total_genes = db.query(func.sum(StaticEvidenceUpload.genes_normalized)).filter(
-            StaticEvidenceUpload.source_id == source_id,
-            StaticEvidenceUpload.upload_status == 'completed'
-        ).scalar() or 0
+        # Statistics are computed dynamically in queries
 
         db.commit()
 
