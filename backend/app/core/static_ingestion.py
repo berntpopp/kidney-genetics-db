@@ -228,7 +228,7 @@ class StaticContentProcessor:
                 gene_texts=chunk,
                 source_name=f"StaticUpload_{source_id}"
             )
-            
+
             if len(batch_results) != len(chunk):
                 logger.warning(f"  ⚠️ Normalization mismatch: sent {len(chunk)} symbols, got {len(batch_results)} results")
 
@@ -324,7 +324,7 @@ class StaticContentProcessor:
 
         # Parse content and extract metadata
         genes_data, file_metadata = self._parse_file_content(content, file_type)
-        
+
         logger.info(f"📊 Parsed file: got {len(genes_data) if genes_data else 0} gene entries")
 
         if not genes_data:
@@ -345,7 +345,7 @@ class StaticContentProcessor:
         logger.info(f"📝 Extracted {len(symbol_to_entries)} unique symbols from {len(genes_data)} entries")
         # Log PKD1 presence only if relevant
         if 'PKD1' in symbol_to_entries:
-            logger.debug(f"  ✅ PKD1 found in extracted symbols")
+            logger.debug("  ✅ PKD1 found in extracted symbols")
 
         if not symbol_to_entries:
             return {
@@ -361,7 +361,7 @@ class StaticContentProcessor:
         normalization_map = await self._batch_normalize_all_symbols(
             unique_symbols, source_id
         )
-        
+
         normalized_count = sum(1 for r in normalization_map.values() if r.get('status') == 'normalized')
         staged_count = sum(1 for r in normalization_map.values() if r.get('status') == 'staged')
         logger.info(f"🔬 Normalization complete: {normalized_count} normalized, {staged_count} staged")
@@ -387,7 +387,7 @@ class StaticContentProcessor:
 
         # Process with deduplication - merge multiple entries for same gene
         gene_evidence_map = {}  # gene_id -> merged evidence
-        
+
         for symbol, entries in symbol_to_entries.items():
             result = normalization_map.get(symbol, {"status": "failed"})
 
@@ -402,7 +402,7 @@ class StaticContentProcessor:
 
                 if gene_id:
                     # Count all entries for stats
-                    for _unique_key, entry in entries:
+                    for _unique_key, _entry in entries:
                         total_stats["normalized"] += 1
 
                     if not dry_run:
@@ -411,32 +411,32 @@ class StaticContentProcessor:
                         merged_metadata = {}
                         max_confidence = "medium"
                         total_occurrence = 0
-                        
+
                         for _unique_key, entry in entries:
                             # Collect panels
                             if "panels" in entry:
                                 if isinstance(entry["panels"], list):
                                     merged_panels.extend(entry["panels"])
-                            
+
                             # Sum occurrences
                             if "occurrence_count" in entry:
                                 total_occurrence += entry["occurrence_count"]
-                            
+
                             # Keep highest confidence
                             conf = entry.get("confidence", "medium")
                             if conf == "high":
                                 max_confidence = "high"
-                            
+
                             # Merge metadata
                             for k, v in entry.items():
                                 if k not in ['symbol', 'gene_symbol', 'gene', 'panels',
                                            'confidence', 'occurrence_count']:
                                     if k not in merged_metadata:
                                         merged_metadata[k] = v
-                        
+
                         # Deduplicate panels
                         unique_panels = list(dict.fromkeys(str(p) for p in merged_panels))
-                        
+
                         evidence_data = {
                             "original_symbol": symbol,
                             "confidence": max_confidence,
@@ -445,7 +445,7 @@ class StaticContentProcessor:
                             "occurrence_count": total_occurrence if total_occurrence > 0 else len(entries),
                             "metadata": merged_metadata
                         }
-                        
+
                         # Store only one entry per gene
                         gene_evidence_map[gene_id] = {
                             "gene_id": gene_id,
@@ -473,7 +473,7 @@ class StaticContentProcessor:
         # Convert map to list for bulk insert
         if not dry_run:
             evidence_batch = list(gene_evidence_map.values())
-        
+
         # Bulk insert with transaction
         if not dry_run:
             try:
