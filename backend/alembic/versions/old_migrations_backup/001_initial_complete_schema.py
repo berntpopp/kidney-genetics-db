@@ -1,0 +1,429 @@
+"""Initial complete database schema with all tables and views
+
+Revision ID: 001_initial_complete
+Revises:
+Create Date: 2025-08-17 11:45:00.000000
+
+"""
+from collections.abc import Sequence
+
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision: str = '001_initial_complete'
+down_revision: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
+
+def upgrade() -> None:
+    """Create complete database schema."""
+
+    # ========== CORE TABLES ==========
+
+    # Create genes table
+    op.create_table('genes',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('hgnc_id', sa.String(length=50), nullable=True),
+        sa.Column('approved_symbol', sa.String(length=100), nullable=False),
+        sa.Column('aliases', sa.ARRAY(sa.Text()), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_genes_approved_symbol'), 'genes', ['approved_symbol'], unique=False)
+    op.create_index(op.f('ix_genes_hgnc_id'), 'genes', ['hgnc_id'], unique=True)
+    op.create_index(op.f('ix_genes_id'), 'genes', ['id'], unique=False)
+
+    # Create pipeline_runs table
+    op.create_table('pipeline_runs',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('status', sa.String(length=50), nullable=True),
+        sa.Column('started_at', sa.DateTime(), nullable=True),
+        sa.Column('completed_at', sa.DateTime(), nullable=True),
+        sa.Column('stats', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column('error_log', sa.Text(), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_pipeline_runs_id'), 'pipeline_runs', ['id'], unique=False)
+
+    # Create users table
+    op.create_table('users',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('email', sa.String(length=255), nullable=False),
+        sa.Column('hashed_password', sa.String(length=255), nullable=False),
+        sa.Column('is_admin', sa.Boolean(), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
+    op.create_index(op.f('ix_users_id'), 'users', ['id'], unique=False)
+
+    # Create gene_curations table
+    op.create_table('gene_curations',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('gene_id', sa.Integer(), nullable=False),
+        sa.Column('evidence_count', sa.Integer(), nullable=True),
+        sa.Column('source_count', sa.Integer(), nullable=True),
+        sa.Column('panelapp_panels', sa.ARRAY(sa.Text()), nullable=True),
+        sa.Column('literature_refs', sa.ARRAY(sa.Text()), nullable=True),
+        sa.Column('diagnostic_panels', sa.ARRAY(sa.Text()), nullable=True),
+        sa.Column('hpo_terms', sa.ARRAY(sa.Text()), nullable=True),
+        sa.Column('pubtator_pmids', sa.ARRAY(sa.Text()), nullable=True),
+        sa.Column('omim_data', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column('clinvar_data', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column('constraint_scores', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column('expression_data', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column('evidence_score', sa.Float(), nullable=True),
+        sa.Column('classification', sa.String(length=50), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.ForeignKeyConstraint(['gene_id'], ['genes.id'], ),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('gene_id')
+    )
+    op.create_index(op.f('ix_gene_curations_evidence_score'), 'gene_curations', ['evidence_score'], unique=False)
+    op.create_index(op.f('ix_gene_curations_id'), 'gene_curations', ['id'], unique=False)
+
+    # Create gene_evidence table
+    op.create_table('gene_evidence',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('gene_id', sa.Integer(), nullable=False),
+        sa.Column('source_name', sa.String(length=100), nullable=False),
+        sa.Column('source_detail', sa.String(length=255), nullable=True),
+        sa.Column('evidence_data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column('evidence_date', sa.Date(), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.ForeignKeyConstraint(['gene_id'], ['genes.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('gene_id', 'source_name', 'source_detail', name='gene_evidence_source_idx')
+    )
+    op.create_index(op.f('ix_gene_evidence_id'), 'gene_evidence', ['id'], unique=False)
+    op.create_index(op.f('ix_gene_evidence_source_name'), 'gene_evidence', ['source_name'], unique=False)
+
+    # ========== PROGRESS TRACKING ==========
+
+    # Create data_source_progress table
+    op.create_table('data_source_progress',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('source_name', sa.String(), nullable=False),
+        sa.Column('status', sa.Enum('idle', 'running', 'completed', 'failed', 'paused', name='source_status'), nullable=False, server_default='idle'),
+        sa.Column('current_page', sa.Integer(), nullable=True, server_default='0'),
+        sa.Column('total_pages', sa.Integer(), nullable=True),
+        sa.Column('current_item', sa.Integer(), nullable=True, server_default='0'),
+        sa.Column('total_items', sa.Integer(), nullable=True),
+        sa.Column('items_processed', sa.Integer(), nullable=True, server_default='0'),
+        sa.Column('items_added', sa.Integer(), nullable=True, server_default='0'),
+        sa.Column('items_updated', sa.Integer(), nullable=True, server_default='0'),
+        sa.Column('items_failed', sa.Integer(), nullable=True, server_default='0'),
+        sa.Column('progress_percentage', sa.Float(), nullable=True, server_default='0.0'),
+        sa.Column('current_operation', sa.String(), nullable=True),
+        sa.Column('last_error', sa.Text(), nullable=True),
+        sa.Column('metadata', postgresql.JSONB(astext_type=sa.Text()), nullable=True, server_default='{}'),
+        sa.Column('started_at', sa.DateTime(timezone=True), nullable=True),
+        sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
+        sa.Column('last_update_at', sa.DateTime(timezone=True), nullable=True, server_default=sa.text('now()')),
+        sa.Column('estimated_completion', sa.DateTime(timezone=True), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=True, server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True, server_default=sa.text('now()')),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('source_name')
+    )
+    op.create_index('idx_data_source_progress_source_name', 'data_source_progress', ['source_name'])
+
+    # ========== NORMALIZATION TABLES ==========
+
+    # Create gene_normalization_staging table
+    op.create_table('gene_normalization_staging',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('original_text', sa.String(), nullable=False),
+        sa.Column('source_name', sa.String(), nullable=False),
+        sa.Column('original_data', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column('normalization_log', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column('status', sa.String(), nullable=False, server_default='pending_review'),
+        sa.Column('reviewed_by', sa.String(), nullable=True),
+        sa.Column('reviewed_at', sa.DateTime(), nullable=True),
+        sa.Column('review_notes', sa.Text(), nullable=True),
+        sa.Column('manual_approved_symbol', sa.String(), nullable=True),
+        sa.Column('manual_hgnc_id', sa.String(), nullable=True),
+        sa.Column('manual_aliases', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column('resolved_gene_id', sa.Integer(), nullable=True),
+        sa.Column('resolution_method', sa.String(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('updated_at', sa.DateTime(), nullable=False),
+        sa.Column('priority_score', sa.Integer(), nullable=False, server_default='0'),
+        sa.Column('requires_expert_review', sa.Boolean(), nullable=False, server_default='false'),
+        sa.Column('is_duplicate_submission', sa.Boolean(), nullable=False, server_default='false'),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index('ix_gene_normalization_staging_original_text', 'gene_normalization_staging', ['original_text'])
+    op.create_index('ix_gene_normalization_staging_source_name', 'gene_normalization_staging', ['source_name'])
+    op.create_index('ix_gene_normalization_staging_status', 'gene_normalization_staging', ['status'])
+    op.create_index('ix_gene_normalization_staging_created_at', 'gene_normalization_staging', ['created_at'])
+    op.create_index('ix_gene_normalization_staging_priority_score', 'gene_normalization_staging', ['priority_score'])
+
+    # Create gene_normalization_log table
+    op.create_table('gene_normalization_log',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('original_text', sa.String(), nullable=False),
+        sa.Column('source_name', sa.String(), nullable=False),
+        sa.Column('success', sa.Boolean(), nullable=False),
+        sa.Column('approved_symbol', sa.String(), nullable=True),
+        sa.Column('hgnc_id', sa.String(), nullable=True),
+        sa.Column('normalization_log', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column('final_gene_id', sa.Integer(), nullable=True),
+        sa.Column('staging_id', sa.Integer(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('api_calls_made', sa.Integer(), nullable=False, server_default='0'),
+        sa.Column('processing_time_ms', sa.Integer(), nullable=True),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index('ix_gene_normalization_log_original_text', 'gene_normalization_log', ['original_text'])
+    op.create_index('ix_gene_normalization_log_source_name', 'gene_normalization_log', ['source_name'])
+    op.create_index('ix_gene_normalization_log_success', 'gene_normalization_log', ['success'])
+    op.create_index('ix_gene_normalization_log_approved_symbol', 'gene_normalization_log', ['approved_symbol'])
+    op.create_index('ix_gene_normalization_log_hgnc_id', 'gene_normalization_log', ['hgnc_id'])
+    op.create_index('ix_gene_normalization_log_created_at', 'gene_normalization_log', ['created_at'])
+
+    # ========== CACHE TABLES ==========
+
+    # Create cache_entries table
+    op.create_table('cache_entries',
+        sa.Column('id', postgresql.UUID(), server_default=sa.text('gen_random_uuid()'), nullable=False),
+        sa.Column('cache_key', sa.Text(), nullable=False),
+        sa.Column('namespace', sa.Text(), nullable=False),
+        sa.Column('data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('expires_at', sa.DateTime(timezone=True), nullable=True),
+        sa.Column('last_accessed', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('access_count', sa.Integer(), server_default=sa.text('1'), nullable=False),
+        sa.Column('data_size', sa.Integer(), nullable=True),
+        sa.Column('metadata', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'::jsonb"), nullable=False),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('cache_key', name='uq_cache_entries_cache_key')
+    )
+
+    # Create cache indexes for performance
+    op.create_index('idx_cache_entries_namespace', 'cache_entries', ['namespace'])
+    op.create_index('idx_cache_entries_expires_at', 'cache_entries', ['expires_at'],
+                   postgresql_where=sa.text('expires_at IS NOT NULL'))
+    op.create_index('idx_cache_entries_last_accessed', 'cache_entries', ['last_accessed'])
+    op.create_index('idx_cache_entries_namespace_key', 'cache_entries', ['namespace', 'cache_key'])
+
+    # ========== VIEWS ==========
+
+    # Create cache statistics view
+    op.execute("""
+        CREATE VIEW cache_stats AS
+        SELECT
+            namespace,
+            COUNT(*) as total_entries,
+            SUM(COALESCE(data_size, pg_column_size(data))) as total_size_bytes,
+            SUM(access_count) as total_accesses,
+            AVG(access_count) as avg_accesses,
+            COUNT(*) FILTER (WHERE expires_at IS NULL OR expires_at > NOW()) as active_entries,
+            COUNT(*) FILTER (WHERE expires_at IS NOT NULL AND expires_at <= NOW()) as expired_entries,
+            MAX(last_accessed) as last_access_time,
+            MIN(created_at) as oldest_entry,
+            MAX(created_at) as newest_entry
+        FROM cache_entries
+        GROUP BY namespace;
+    """)
+
+    # Create evidence scoring views WITH HPO FIX
+    op.execute("""
+        CREATE OR REPLACE VIEW evidence_source_counts AS
+        SELECT
+            ge.id as evidence_id,
+            ge.gene_id,
+            g.approved_symbol,
+            ge.source_name,
+            CASE ge.source_name
+                WHEN 'PanelApp' THEN COALESCE(jsonb_array_length(ge.evidence_data->'panels'), 0)
+                -- FIXED: HPO uses 'hpo_terms' and 'diseases' not 'phenotypes' and 'disease_associations'
+                WHEN 'HPO' THEN COALESCE(jsonb_array_length(ge.evidence_data->'hpo_terms'), 0)
+                    + COALESCE(jsonb_array_length(ge.evidence_data->'diseases'), 0)
+                WHEN 'PubTator' THEN COALESCE(
+                    (ge.evidence_data->>'publication_count')::int,
+                    jsonb_array_length(ge.evidence_data->'pmids')
+                )
+                WHEN 'Literature' THEN COALESCE(jsonb_array_length(ge.evidence_data->'references'), 0)
+                ELSE 0
+            END as source_count
+        FROM gene_evidence ge
+        JOIN genes g ON ge.gene_id = g.id
+        WHERE ge.source_name IN ('PanelApp', 'HPO', 'PubTator', 'Literature')
+    """)
+
+    op.execute("""
+        CREATE OR REPLACE VIEW evidence_count_percentiles AS
+        SELECT
+            evidence_id,
+            gene_id,
+            approved_symbol,
+            source_name,
+            source_count,
+            PERCENT_RANK() OVER (
+                PARTITION BY source_name
+                ORDER BY source_count
+            ) as percentile_score
+        FROM evidence_source_counts
+        WHERE source_count > 0
+    """)
+
+    op.execute("""
+        CREATE OR REPLACE VIEW evidence_classification_weights AS
+        SELECT
+            ge.id as evidence_id,
+            ge.gene_id,
+            g.approved_symbol,
+            ge.source_name,
+            CASE
+                WHEN ge.source_name = 'ClinGen' THEN
+                    CASE ge.evidence_data->>'classification'
+                        WHEN 'Definitive' THEN 1.0
+                        WHEN 'Strong' THEN 0.9
+                        WHEN 'Moderate' THEN 0.7
+                        WHEN 'Limited' THEN 0.5
+                        WHEN 'Disputed' THEN 0.2
+                        WHEN 'Refuted' THEN 0.1
+                        ELSE 0.3
+                    END
+                WHEN ge.source_name = 'GenCC' THEN
+                    CASE ge.evidence_data->>'classification'
+                        WHEN 'definitive' THEN 1.0
+                        WHEN 'strong' THEN 0.8
+                        WHEN 'moderate' THEN 0.6
+                        WHEN 'limited' THEN 0.4
+                        WHEN 'disputed' THEN 0.2
+                        WHEN 'refuted' THEN 0.1
+                        ELSE 0.3
+                    END
+                ELSE 0.5
+            END as classification_weight
+        FROM gene_evidence ge
+        JOIN genes g ON ge.gene_id = g.id
+        WHERE ge.source_name IN ('ClinGen', 'GenCC')
+    """)
+
+    op.execute("""
+        CREATE OR REPLACE VIEW evidence_normalized_scores AS
+        -- Count-based sources (percentile normalization)
+        SELECT
+            evidence_id,
+            gene_id,
+            approved_symbol,
+            source_name,
+            percentile_score as normalized_score
+        FROM evidence_count_percentiles
+
+        UNION ALL
+
+        -- Classification-based sources (weight mapping)
+        SELECT
+            evidence_id,
+            gene_id,
+            approved_symbol,
+            source_name,
+            classification_weight as normalized_score
+        FROM evidence_classification_weights
+    """)
+
+    op.execute("""
+        CREATE OR REPLACE VIEW gene_scores AS
+        WITH active_sources AS (
+            SELECT COUNT(DISTINCT source_name) as total_count
+            FROM gene_evidence
+        ),
+        gene_source_scores AS (
+            SELECT
+                g.id as gene_id,
+                g.approved_symbol,
+                g.hgnc_id,
+                COUNT(DISTINCT ens.source_name) as source_count,
+                COUNT(ens.*) as evidence_count,
+                COALESCE(SUM(ens.normalized_score), 0) as raw_score,
+                jsonb_object_agg(
+                    ens.source_name,
+                    ROUND(ens.normalized_score::numeric, 3)
+                ) FILTER (WHERE ens.source_name IS NOT NULL) as source_scores
+            FROM genes g
+            LEFT JOIN evidence_normalized_scores ens ON g.id = ens.gene_id
+            GROUP BY g.id, g.approved_symbol, g.hgnc_id
+        )
+        SELECT
+            gss.gene_id,
+            gss.approved_symbol,
+            gss.hgnc_id,
+            gss.source_count,
+            gss.evidence_count,
+            gss.raw_score,
+            -- Divide by total active sources in system, not evidence count
+            CASE
+                WHEN ac.total_count > 0 THEN
+                    ROUND((gss.raw_score / ac.total_count * 100)::numeric, 2)
+                ELSE 0
+            END as percentage_score,
+            ac.total_count as total_active_sources,
+            COALESCE(gss.source_scores, '{}'::jsonb) as source_scores
+        FROM gene_source_scores gss
+        CROSS JOIN active_sources ac
+        ORDER BY percentage_score DESC NULLS LAST, gss.approved_symbol
+    """)
+
+def downgrade() -> None:
+    """Drop complete database schema."""
+
+    # Drop views first
+    op.execute("DROP VIEW IF EXISTS gene_scores CASCADE")
+    op.execute("DROP VIEW IF EXISTS evidence_normalized_scores CASCADE")
+    op.execute("DROP VIEW IF EXISTS evidence_classification_weights CASCADE")
+    op.execute("DROP VIEW IF EXISTS evidence_count_percentiles CASCADE")
+    op.execute("DROP VIEW IF EXISTS evidence_source_counts CASCADE")
+    op.execute("DROP VIEW IF EXISTS cache_stats CASCADE")
+
+    # Drop cache table indexes and table
+    op.drop_index('idx_cache_entries_namespace_key', table_name='cache_entries')
+    op.drop_index('idx_cache_entries_last_accessed', table_name='cache_entries')
+    op.drop_index('idx_cache_entries_expires_at', table_name='cache_entries')
+    op.drop_index('idx_cache_entries_namespace', table_name='cache_entries')
+    op.drop_table('cache_entries')
+
+    # Drop normalization tables
+    op.drop_table('gene_normalization_log')
+    op.drop_table('gene_normalization_staging')
+
+    # Drop progress table
+    op.drop_table('data_source_progress')
+
+    # Drop enum
+    source_status_enum = postgresql.ENUM(name='source_status')
+    source_status_enum.drop(op.get_bind())
+
+    # Drop evidence and curation tables
+    op.drop_index(op.f('ix_gene_evidence_source_name'), table_name='gene_evidence')
+    op.drop_index(op.f('ix_gene_evidence_id'), table_name='gene_evidence')
+    op.drop_table('gene_evidence')
+
+    op.drop_index(op.f('ix_gene_curations_id'), table_name='gene_curations')
+    op.drop_index(op.f('ix_gene_curations_evidence_score'), table_name='gene_curations')
+    op.drop_table('gene_curations')
+
+    # Drop core tables
+    op.drop_index(op.f('ix_users_id'), table_name='users')
+    op.drop_index(op.f('ix_users_email'), table_name='users')
+    op.drop_table('users')
+
+    op.drop_index(op.f('ix_pipeline_runs_id'), table_name='pipeline_runs')
+    op.drop_table('pipeline_runs')
+
+    op.drop_index(op.f('ix_genes_id'), table_name='genes')
+    op.drop_index(op.f('ix_genes_hgnc_id'), table_name='genes')
+    op.drop_index(op.f('ix_genes_approved_symbol'), table_name='genes')
+    op.drop_table('genes')

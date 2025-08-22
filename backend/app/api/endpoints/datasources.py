@@ -51,7 +51,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         text("""
             SELECT COUNT(DISTINCT panel_name) as panel_count
             FROM (
-                SELECTjsonb_array_elements(evidence_data->'panels')->>'name' as panel_name
+                SELECT jsonb_array_elements(evidence_data->'panels')->>'name' as panel_name
                 FROM gene_evidence
                 WHERE source_name = 'PanelApp'
             ) panels
@@ -63,7 +63,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             SELECT
                 SUM((evidence_data->>'publication_count')::int) as total_publications,
                 (SELECT COUNT(DISTINCT pmid) FROM (
-                    SELECTjsonb_array_elements_text(evidence_data->'pmids') as pmid
+                    SELECT jsonb_array_elements_text(evidence_data->'pmids') as pmid
                     FROM gene_evidence
                     WHERE source_name = 'PubTator'
                 ) pmids) as unique_pmids
@@ -83,7 +83,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
                 COALESCE(gene_counts.gene_count, 0) as gene_count
             FROM static_sources ss
             LEFT JOIN (
-                SELECTsource_id, COUNT(*) as upload_count
+                SELECT source_id, COUNT(*) as upload_count
                 FROM static_evidence_uploads
                 GROUP BY source_id
             ) uploads ON ss.id = uploads.source_id
@@ -105,7 +105,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             # Get last updated from evidence
             last_updated = db.execute(
                 text("""
-                    SELECTMAX(updated_at)
+                    SELECT MAX(updated_at)
                     FROM gene_evidence
                     WHERE source_name = :source_name
                 """),
@@ -212,7 +212,7 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
         # Get static source info
         source_info = db.execute(
             text("""
-                SELECTdisplay_name, description
+                SELECT display_name, description
                 FROM static_sources
                 WHERE 'static_' || id::text = :source_name
                 AND is_active = true

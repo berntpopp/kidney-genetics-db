@@ -30,6 +30,9 @@ help:
 	@echo "🗄️  DATABASE MANAGEMENT:"
 	@echo "  make db-reset        - Complete database reset (structure + data)"
 	@echo "  make db-clean        - Remove all data (keep structure)"
+	@echo "  make db-verify-complete - Verify complete schema (tables + views)"
+	@echo "  make db-refresh-views - Recreate all database views"
+	@echo "  make db-show-view-deps - Show view dependency hierarchy"
 	@echo ""
 	@echo "📊 MONITORING:"
 	@echo "  make status          - Show system status and statistics"
@@ -242,6 +245,206 @@ clean-backend:
 	@echo "  Removing mypy cache..."
 	@rm -rf backend/.mypy_cache 2>/dev/null || true
 	@echo "✅ Backend cache cleaned!"
+
+# ════════════════════════════════════════════════════════════════════
+# MIGRATION MANAGEMENT
+# ════════════════════════════════════════════════════════════════════
+
+.PHONY: db-squash-migrations db-migration-backup db-backup-full db-migration-restore db-restore-full db-verify-views db-verify-tables db-verify-complete db-show-view-deps db-refresh-views
+
+# Create a quick backup of current migrations
+db-migration-backup:
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	mkdir -p backups/$$TIMESTAMP && \
+	cp -r backend/alembic/versions backups/$$TIMESTAMP/migrations && \
+	echo "✅ Migrations backed up to: backups/$$TIMESTAMP/migrations"
+
+# Create a comprehensive backup (migrations + schema + history)
+db-backup-full:
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	echo "🔄 Creating comprehensive backup..." && \
+	mkdir -p backups/$$TIMESTAMP && \
+	cp -r backend/alembic/versions backups/$$TIMESTAMP/migrations 2>/dev/null && \
+	docker exec kidney_genetics_postgres pg_dump -U kidney_user -d kidney_genetics > backups/$$TIMESTAMP/database_full.sql && \
+	docker exec kidney_genetics_postgres pg_dump -U kidney_user -d kidney_genetics --schema-only > backups/$$TIMESTAMP/schema.sql && \
+	cd backend && uv run alembic history > ../backups/$$TIMESTAMP/migration_history.txt && \
+	cd backend && uv run alembic current > ../backups/$$TIMESTAMP/current_revision.txt && \
+	echo "✅ Full backup created in: backups/$$TIMESTAMP/" && \
+	echo "   Contents:" && \
+	echo "   - Migration files: backups/$$TIMESTAMP/migrations/" && \
+	echo "   - Full database: backups/$$TIMESTAMP/database_full.sql" && \
+	echo "   - Schema only: backups/$$TIMESTAMP/schema.sql" && \
+	echo "   - Migration history: backups/$$TIMESTAMP/migration_history.txt" && \
+	echo "   - Current revision: backups/$$TIMESTAMP/current_revision.txt"
+
+# Squash all migrations into a single initial migration
+db-squash-migrations: db-migration-backup
+	@echo "╔════════════════════════════════════════════════════════════════╗"
+	@echo "║           MIGRATION SQUASHING - DEVELOPMENT ONLY                ║"
+	@echo "╚════════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "⚠️  WARNING: This will:"
+	@echo "  • Delete all existing migration history"
+	@echo "  • Reset the development database completely"
+	@echo "  • Generate a new single migration from models"
+	@echo ""
+	@echo "This should ONLY be used in development environments!"
+	@echo ""
+	@read -p "Type 'squash' to confirm: " confirm; \
+	if [ "$$confirm" != "squash" ]; then \
+		echo "❌ Operation cancelled"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "📦 Step 1/7: Creating comprehensive backup..."
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	mkdir -p backups/$$TIMESTAMP && \
+	cp -r backend/alembic/versions backups/$$TIMESTAMP/migrations 2>/dev/null || true && \
+	docker exec kidney_genetics_postgres pg_dump -U kidney_user -d kidney_genetics --schema-only > backups/$$TIMESTAMP/schema.sql 2>/dev/null || true && \
+	cd backend && uv run alembic history > ../backups/$$TIMESTAMP/migration_history.txt 2>/dev/null || true && \
+	echo "   ✓ Full backup created in: backups/$$TIMESTAMP/" && \
+	echo "     - Migration files: backups/$$TIMESTAMP/migrations/" && \
+	echo "     - Database schema: backups/$$TIMESTAMP/schema.sql" && \
+	echo "     - Migration history: backups/$$TIMESTAMP/migration_history.txt"
+	@echo ""
+	@echo "🔄 Step 2/7: Resetting database..."
+	@$(DOCKER_COMPOSE) -f docker-compose.services.yml down -v
+	@$(DOCKER_COMPOSE) -f docker-compose.services.yml up -d postgres
+	@sleep 5
+	@docker exec kidney_genetics_postgres pg_isready -U kidney_user -d kidney_genetics >/dev/null 2>&1 || \
+		(echo "   ⚠️  Waiting for database..." && sleep 5)
+	@echo "   ✓ Database reset complete"
+	@echo ""
+	@echo "🧹 Step 3/7: Cleaning migration directory..."
+	@rm -rf backend/alembic/versions/*.py
+	@echo "   ✓ Migration directory cleaned"
+	@echo ""
+	@echo "🔨 Step 4/7: Generating new squashed migration..."
+	@cd backend && uv run alembic revision --autogenerate \
+		-m "squashed_complete_schema_$$(date +%Y%m%d)" 2>&1 | \
+		grep -E "(Generating|Detected)" || echo "   ✓ Migration generated"
+	@echo ""
+	@echo "📝 Step 5/7: Review the generated migration"
+	@echo "   Location: backend/alembic/versions/"
+	@ls -la backend/alembic/versions/*.py | tail -1
+	@echo ""
+	@read -p "Press Enter to apply the migration, or Ctrl+C to abort: "
+	@echo ""
+	@echo "🚀 Step 6/7: Applying migration..."
+	@cd backend && uv run alembic upgrade head
+	@echo ""
+	@echo "✅ Step 7/7: Validating schema..."
+	@$(MAKE) db-validate-schema
+	@echo ""
+	@echo "✅ Migration squashing complete!"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. Review the generated migration file"
+	@echo "  2. Test with: make test"
+	@echo "  3. Verify API: make backend (then check http://localhost:8000/docs)"
+	@echo "  4. If issues occur, restore with: make db-restore-full"
+
+# Restore migrations from a backup
+db-migration-restore:
+	@echo "Available backups:"
+	@ls -d backups/*/migrations 2>/dev/null | sed 's|backups/||;s|/migrations||' | sed 's/^/  - /' || echo "  No backups found"
+	@echo ""
+	@read -p "Enter backup timestamp to restore (e.g., 20250822_143022): " timestamp; \
+	if [ -d "backups/$$timestamp/migrations" ]; then \
+		rm -rf backend/alembic/versions/*.py && \
+		cp -r backups/$$timestamp/migrations/* backend/alembic/versions/ && \
+		echo "✅ Restored migrations from backup: $$timestamp"; \
+		echo "   Run 'make db-reset' to apply the restored migrations"; \
+	else \
+		echo "❌ Backup not found: backups/$$timestamp"; \
+		exit 1; \
+	fi
+
+# Restore complete database from backup
+db-restore-full:
+	@echo "Available full backups:"
+	@ls -f backups/*/database_full.sql 2>/dev/null | sed 's|backups/||;s|/database_full.sql||' | sed 's/^/  - /' || echo "  No full backups found"
+	@echo ""
+	@read -p "Enter backup timestamp to restore (e.g., 20250822_143022): " timestamp; \
+	if [ -f "backups/$$timestamp/database_full.sql" ]; then \
+		echo "🔄 Restoring database from backup..."; \
+		docker exec -i kidney_genetics_postgres psql -U kidney_user -d postgres -c "DROP DATABASE IF EXISTS kidney_genetics;" && \
+		docker exec -i kidney_genetics_postgres psql -U kidney_user -d postgres -c "CREATE DATABASE kidney_genetics;" && \
+		docker exec -i kidney_genetics_postgres psql -U kidney_user -d kidney_genetics < backups/$$timestamp/database_full.sql && \
+		if [ -d "backups/$$timestamp/migrations" ]; then \
+			rm -rf backend/alembic/versions/*.py && \
+			cp -r backups/$$timestamp/migrations/* backend/alembic/versions/ && \
+			echo "   ✓ Migrations restored"; \
+		fi && \
+		echo "✅ Full restoration complete from backup: $$timestamp"; \
+	else \
+		echo "❌ Full backup not found: backups/$$timestamp"; \
+		exit 1; \
+	fi
+
+# Validate database schema against models
+db-validate-schema:
+	@echo "🔍 Validating database schema..."
+	@cd backend && uv run python -c "from sqlalchemy import create_engine, inspect; from app.core.config import settings; from app.models import Base; engine = create_engine(settings.DATABASE_URL); inspector = inspect(engine); db_tables = set(inspector.get_table_names()); model_tables = set(Base.metadata.tables.keys()); missing = model_tables - db_tables; extra = db_tables - model_tables - {'alembic_version'}; missing and print('Missing tables:', missing); extra and print('Extra tables:', extra); (not missing and not extra) and print('Schema is in sync')"
+
+# Verify all database views are created
+db-verify-views:
+	@echo "🔍 Verifying database views..."
+	@cd backend && uv run python -c "from sqlalchemy import create_engine, inspect; from app.core.config import settings; from app.db.views import ALL_VIEWS; engine = create_engine(settings.DATABASE_URL); inspector = inspect(engine); db_views = set(inspector.get_view_names()); expected_views = {view.name for view in ALL_VIEWS}; missing = expected_views - db_views; extra = db_views - expected_views; missing and print('Missing views:', missing); extra and print('Extra views:', extra); (not missing and not extra) and print('All', len(expected_views), 'views present')"
+
+# Verify all database tables are created
+db-verify-tables:
+	@echo "🔍 Verifying database tables..."
+	@COUNT=$$(docker exec kidney_genetics_postgres psql -U kidney_user -d kidney_genetics -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';"); \
+	if [ "$$COUNT" -eq "13" ]; then \
+		echo "✅ All 13 tables present"; \
+	else \
+		echo "❌ Table count mismatch: found $$COUNT tables, expected 13"; \
+		docker exec kidney_genetics_postgres psql -U kidney_user -d kidney_genetics -c "\dt"; \
+	fi
+
+# Verify complete database schema (tables + views)
+db-verify-complete: db-verify-tables db-verify-views db-validate-schema
+	@echo "✅ Complete schema verification done"
+
+# Show detailed view dependencies
+db-show-view-deps:
+	@echo "📊 View dependency hierarchy:"
+	@cd backend && uv run python -c "\
+from app.db.views import ALL_VIEWS; \
+from app.db.replaceable_objects import topological_sort; \
+sorted_views = topological_sort(ALL_VIEWS); \
+print('  Tier 1 (no dependencies):'); \
+[print(f'    - {v.name}') for v in sorted_views if not v.dependencies]; \
+print('  Tier 2:'); \
+[print(f'    - {v.name} (depends on: {v.dependencies})') for v in sorted_views if v.dependencies and not any(dep in v.dependencies for v2 in sorted_views for dep in v2.dependencies if v2.name in v.dependencies)]; \
+"
+
+# Refresh all database views
+db-refresh-views:
+	@echo "🔄 Refreshing all database views..."
+	@cd backend && uv run python -c "\
+from sqlalchemy import create_engine, text; \
+from app.core.config import settings; \
+from app.db.views import ALL_VIEWS; \
+from app.db.replaceable_objects import topological_sort; \
+engine = create_engine(settings.DATABASE_URL); \
+sorted_views = topological_sort(ALL_VIEWS); \
+with engine.connect() as conn: \
+    trans = conn.begin(); \
+    try: \
+        for view in reversed(sorted_views): \
+            conn.execute(text(view.drop_statement())); \
+            print(f'  Dropped: {view.name}'); \
+        for view in sorted_views: \
+            conn.execute(text(view.create_statement())); \
+            print(f'  Created: {view.name}'); \
+        trans.commit(); \
+        print('All views refreshed successfully'); \
+    except Exception as e: \
+        trans.rollback(); \
+        print(f'Error refreshing views: {e}'); \
+"
 
 # Create log directory if it doesn't exist
 $(shell mkdir -p logs)

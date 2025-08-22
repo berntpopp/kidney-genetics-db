@@ -1,5 +1,5 @@
 """
-Alembic environment configuration
+Alembic environment configuration with view management support
 """
 
 import sys
@@ -17,6 +17,10 @@ sys.path.append(str(Path(__file__).parent.parent))
 # Import all models to ensure they're registered with Base.metadata
 from app.core.config import settings
 from app.models import Base
+
+# Import custom operations for view management
+# This registers the custom operations with Alembic
+import app.db.alembic_ops  # noqa: F401
 
 # this is the Alembic Config object
 config = context.config
@@ -44,6 +48,36 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+def include_object(object, name, type_, reflected, compare_to):
+    """
+    Filter objects during autogenerate.
+    Exclude views as they are managed separately via ReplaceableObjects.
+    """
+    # Exclude views from autogenerate
+    if type_ == "table" and reflected and hasattr(object, 'info'):
+        # Check if this is marked as a view
+        if object.info.get('is_view', False):
+            return False
+    
+    # Exclude reflected views
+    if type_ == "table" and reflected and compare_to is None:
+        # This is a table in the database but not in metadata
+        # Could be a view, check the name against known views
+        from app.db.views import ALL_VIEWS
+        view_names = {view.name for view in ALL_VIEWS}
+        if name in view_names:
+            return False
+    
+    return True
+
+def process_revision_directives(context, revision, directives):
+    """Prevent empty migrations from being generated."""
+    if config.cmd_opts and getattr(config.cmd_opts, 'autogenerate', False):
+        script = directives[0]
+        if script.upgrade_ops and script.upgrade_ops.is_empty():
+            directives[:] = []
+            print("No changes detected, skipping migration generation.")
+
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
     connectable = engine_from_config(
@@ -53,7 +87,15 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection, 
+            target_metadata=target_metadata,
+            include_object=include_object,  # Filter out views
+            process_revision_directives=process_revision_directives,
+            compare_type=True,  # Enable type comparison
+            compare_server_default=True,  # Compare server defaults
+            include_schemas=False,  # Single schema for this project
+        )
 
         with context.begin_transaction():
             context.run_migrations()
