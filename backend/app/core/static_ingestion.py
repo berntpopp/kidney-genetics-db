@@ -229,12 +229,8 @@ class StaticContentProcessor:
                 source_name=f"StaticUpload_{source_id}"
             )
             
-            logger.info(f"  Batch returned {len(batch_results)} results")
             if len(batch_results) != len(chunk):
-                logger.warning(f"  ⚠️ Mismatch: sent {len(chunk)} symbols, got {len(batch_results)} results")
-                missing = set(chunk) - set(batch_results.keys())
-                if missing:
-                    logger.warning(f"  Missing symbols: {list(missing)[:5]}...")
+                logger.warning(f"  ⚠️ Normalization mismatch: sent {len(chunk)} symbols, got {len(batch_results)} results")
 
             normalization_map.update(batch_results)
 
@@ -330,9 +326,6 @@ class StaticContentProcessor:
         genes_data, file_metadata = self._parse_file_content(content, file_type)
         
         logger.info(f"📊 Parsed file: got {len(genes_data) if genes_data else 0} gene entries")
-        if genes_data and len(genes_data) > 0:
-            logger.info(f"  First entry keys: {list(genes_data[0].keys()) if isinstance(genes_data[0], dict) else 'Not a dict'}")
-            logger.info(f"  First entry: {genes_data[0]}")
 
         if not genes_data:
             return {
@@ -350,13 +343,9 @@ class StaticContentProcessor:
                 logger.warning(f"  Could not extract symbol from entry {i}: {entry}")
 
         logger.info(f"📝 Extracted {len(symbol_to_entries)} unique symbols from {len(genes_data)} entries")
-        if symbol_to_entries:
-            symbols_list = list(symbol_to_entries.keys())[:10]  # First 10
-            logger.info(f"  Sample symbols: {symbols_list}")
-            if 'PKD1' in symbol_to_entries:
-                logger.info(f"  ✅ PKD1 found in extracted symbols")
-            else:
-                logger.warning(f"  ❌ PKD1 NOT found in extracted symbols")
+        # Log PKD1 presence only if relevant
+        if 'PKD1' in symbol_to_entries:
+            logger.debug(f"  ✅ PKD1 found in extracted symbols")
 
         if not symbol_to_entries:
             return {
@@ -373,13 +362,9 @@ class StaticContentProcessor:
             unique_symbols, source_id
         )
         
-        logger.info(f"🔬 Normalization results: {len(normalization_map)} symbols processed")
         normalized_count = sum(1 for r in normalization_map.values() if r.get('status') == 'normalized')
         staged_count = sum(1 for r in normalization_map.values() if r.get('status') == 'staged')
-        logger.info(f"  Normalized: {normalized_count}, Staged: {staged_count}")
-        
-        if 'PKD1' in normalization_map:
-            logger.info(f"  PKD1 normalization result: {normalization_map['PKD1']}")
+        logger.info(f"🔬 Normalization complete: {normalized_count} normalized, {staged_count} staged")
 
         # Process results
         total_stats = {
@@ -427,7 +412,8 @@ class StaticContentProcessor:
                             # Preserve panels from scraper data
                             if "panels" in entry:
                                 evidence_data["panels"] = entry["panels"]
-                                logger.debug(f"Gene {symbol} (ID: {result.get('gene_id', 'N/A')}): panels={entry['panels']}, provider={evidence_name}, source={source_name}")
+                                # Removed per-gene debug logging to prevent excessive output with large datasets
+                                pass
 
                             # Preserve occurrence count
                             if "occurrence_count" in entry:
