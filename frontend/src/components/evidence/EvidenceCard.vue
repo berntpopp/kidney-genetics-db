@@ -196,7 +196,7 @@ const getSourceUrl = sourceName => {
     PubTator: 'https://www.ncbi.nlm.nih.gov/research/pubtator/',
     ClinGen: 'https://clinicalgenome.org/',
     PanelApp: 'https://panelapp.genomicsengland.co.uk/',
-    'Diagnostic Panels': '#'  // No single source URL for aggregated panels
+    'Diagnostic Panels': '#' // No single source URL for aggregated panels
   }
   return urls[sourceName] || '#'
 }

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.models.gene_staging import GeneNormalizationLog, GeneNormalizationStaging
 
+
 class GeneNormalizationStagingCRUD:
     """CRUD operations for gene normalization staging"""
 

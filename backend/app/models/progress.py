@@ -9,6 +9,7 @@ from sqlalchemy.sql import func
 
 from app.core.database import Base
 
+
 class SourceStatus(PyEnum):
     """Enumeration for data source status"""
 

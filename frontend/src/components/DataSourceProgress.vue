@@ -3,13 +3,7 @@
     <v-card-title class="d-flex align-center pa-4">
       <v-icon class="mr-2" color="primary">mdi-database-sync</v-icon>
       <span class="text-h6">Data Source Updates</span>
-      <v-chip 
-        v-if="summary.running > 0" 
-        size="x-small" 
-        color="primary" 
-        label 
-        class="ml-2 pulse"
-      >
+      <v-chip v-if="summary.running > 0" size="x-small" color="primary" label class="ml-2 pulse">
         <v-icon size="x-small" start>mdi-circle</v-icon>
         Live
       </v-chip>
@@ -19,10 +13,10 @@
       </span>
       <v-tooltip text="Auto-refresh">
         <template #activator="{ props }">
-          <v-btn 
-            icon 
-            variant="text" 
-            size="small" 
+          <v-btn
+            icon
+            variant="text"
+            size="small"
             v-bind="props"
             :color="autoRefresh ? 'primary' : 'grey'"
             @click="toggleAutoRefresh"
@@ -282,16 +276,16 @@ const getStatusColor = status => {
 
 const getRelativeTime = date => {
   const seconds = Math.floor((new Date() - date) / 1000)
-  
+
   if (seconds < 5) return 'just now'
   if (seconds < 60) return `${seconds}s ago`
-  
+
   const minutes = Math.floor(seconds / 60)
   if (minutes < 60) return `${minutes}m ago`
-  
+
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h ago`
-  
+
   const days = Math.floor(hours / 24)
   return `${days}d ago`
 }
@@ -314,7 +308,7 @@ const fetchStatus = async () => {
     const response = await axios.get('http://localhost:8000/api/progress/status')
     sources.value = response.data
     lastUpdate.value = new Date()
-    
+
     // Auto-expand if sources are running
     if (summary.value.running > 0 && !expanded.value) {
       expanded.value = true
@@ -326,7 +320,7 @@ const fetchStatus = async () => {
 
 const startPolling = () => {
   stopPolling() // Clear any existing interval
-  
+
   // Start polling every 3 seconds when any source is running
   pollInterval.value = setInterval(() => {
     if (summary.value.running > 0 || autoRefresh.value) {
@@ -423,7 +417,7 @@ const resumeSource = async sourceName => {
 onMounted(() => {
   fetchStatus()
   connectWebSocket()
-  
+
   // Start auto-refresh by default
   if (autoRefresh.value) {
     startPolling()
@@ -467,7 +461,8 @@ onUnmounted(() => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -482,7 +477,9 @@ onUnmounted(() => {
 
 /* Hover effect for expandable card */
 .data-source-progress:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 /* Respect motion preferences */
@@ -490,7 +487,7 @@ onUnmounted(() => {
   .pulse {
     animation: none;
   }
-  
+
   .v-progress-linear {
     transition-duration: 0.01ms !important;
   }

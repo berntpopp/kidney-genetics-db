@@ -19,6 +19,7 @@ from sqlalchemy.orm import relationship
 
 from app.models.base import Base, TimestampMixin
 
+
 class Gene(Base, TimestampMixin):
     """Gene master table"""
 
