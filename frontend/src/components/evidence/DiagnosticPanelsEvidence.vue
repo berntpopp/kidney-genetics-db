@@ -1,21 +1,63 @@
 <template>
   <div class="diagnostic-panels-evidence">
-    <!-- Panels Section -->
-    <div v-if="panels && panels.length > 0" class="mb-4">
+    <!-- Providers with Panels -->
+    <div v-if="Object.keys(providerPanels).length > 0" class="mb-4">
       <div class="text-subtitle-2 font-weight-medium mb-2">
-        <v-icon icon="mdi-view-list" size="small" class="mr-1" />
-        Diagnostic Panels ({{ panels.length }})
+        <v-icon icon="mdi-domain" size="small" class="mr-1" />
+        Providers ({{ uniqueProviders }})
       </div>
-      <div class="panels-grid">
-        <v-chip
-          v-for="(panel, index) in panels"
-          :key="index"
-          size="small"
-          variant="outlined"
-          class="ma-1"
+
+      <v-expansion-panels v-if="uniqueProviders > 1" variant="accordion" class="mb-2">
+        <v-expansion-panel
+          v-for="(panelList, provider) in providerPanels"
+          :key="provider"
+          class="mb-1"
         >
-          {{ panel }}
-        </v-chip>
+          <v-expansion-panel-title class="text-body-2">
+            <div class="d-flex align-center">
+              <v-icon icon="mdi-hospital-building" size="small" class="mr-2" />
+              <strong>{{ provider }}</strong>
+              <v-chip size="x-small" variant="outlined" class="ml-2">
+                {{ panelList.length }} panel{{ panelList.length > 1 ? 's' : '' }}
+              </v-chip>
+            </div>
+          </v-expansion-panel-title>
+          <v-expansion-panel-text>
+            <div class="panels-grid">
+              <v-chip
+                v-for="(panel, index) in panelList"
+                :key="index"
+                size="small"
+                variant="tonal"
+                color="primary"
+                class="ma-1"
+              >
+                {{ panel }}
+              </v-chip>
+            </div>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
+
+      <!-- Single provider - show directly -->
+      <div v-else-if="uniqueProviders === 1">
+        <div v-for="(panelList, provider) in providerPanels" :key="provider">
+          <div class="text-body-2 font-weight-medium mb-2">
+            <v-icon icon="mdi-hospital-building" size="small" class="mr-1" />
+            {{ provider }}
+          </div>
+          <div class="panels-grid">
+            <v-chip
+              v-for="(panel, index) in panelList"
+              :key="index"
+              size="small"
+              variant="outlined"
+              class="ma-1"
+            >
+              {{ panel }}
+            </v-chip>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -63,22 +105,11 @@
       </v-list>
     </div>
 
-    <!-- Panel Providers Summary -->
-    <div v-if="panelProviders.length > 0" class="mb-4">
-      <div class="text-subtitle-2 font-weight-medium mb-2">
-        <v-icon icon="mdi-domain" size="small" class="mr-1" />
-        Panel Providers
-      </div>
-      <div class="text-body-2 text-medium-emphasis">
-        {{ panelProviders.join(', ') }}
-      </div>
-    </div>
-
     <!-- Statistics -->
-    <v-row v-if="panels && panels.length > 0" class="mt-4">
+    <v-row v-if="Object.keys(providerPanels).length > 0" class="mt-4">
       <v-col cols="4">
         <div class="text-center">
-          <div class="text-h6 font-weight-bold text-primary">{{ panels.length }}</div>
+          <div class="text-h6 font-weight-bold text-primary">{{ totalPanels }}</div>
           <div class="text-caption text-medium-emphasis">Total Panels</div>
         </div>
       </v-col>
@@ -117,42 +148,36 @@ const props = defineProps({
   }
 })
 
-// Extract panels array
-const panels = computed(() => {
-  return props.evidenceData?.panels || []
-})
+// Extract providers directly from the new structure
+const providerPanels = computed(() => {
+  // New structure has providers as a direct object
+  if (props.evidenceData?.providers) {
+    const providers = {}
 
-// Extract unique panel providers from panel names
-const panelProviders = computed(() => {
-  const providers = new Set()
+    // Process each provider and their panels
+    for (const [provider, panels] of Object.entries(props.evidenceData.providers)) {
+      providers[provider] = panels.map(panel =>
+        typeof panel === 'string' ? panel : panel.name || ''
+      )
+    }
 
-  // Common provider patterns in panel names
-  const providerPatterns = [
-    'Mayo',
-    'Blueprint',
-    'Invitae',
-    'CEGAT',
-    'Centogene',
-    'MGZ',
-    'MVZ',
-    'Natera',
-    'Prevention Genetics',
-    'Genomics England'
-  ]
+    return providers
+  }
 
-  panels.value.forEach(panel => {
-    providerPatterns.forEach(provider => {
-      if (panel.toLowerCase().includes(provider.toLowerCase())) {
-        providers.add(provider)
-      }
-    })
-  })
-
-  return Array.from(providers)
+  // Fallback for old structure (if any)
+  return {}
 })
 
 const uniqueProviders = computed(() => {
-  return panelProviders.value.length || 'Multiple'
+  return Object.keys(providerPanels.value).length
+})
+
+const totalPanels = computed(() => {
+  let total = 0
+  for (const panels of Object.values(providerPanels.value)) {
+    total += panels.length
+  }
+  return total
 })
 
 // Helper functions
@@ -191,4 +216,3 @@ const capitalizeFirst = str => {
   padding: 4px 0;
 }
 </style>
-

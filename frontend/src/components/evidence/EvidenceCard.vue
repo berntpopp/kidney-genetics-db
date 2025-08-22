@@ -109,10 +109,23 @@ const evidenceSummary = computed(() => {
     return classification
   }
 
-  if (source === 'Diagnostic Panels' && data?.panels?.length) {
-    const panelCount = data.panels.length
-    const confidence = data.confidence ? ` (${data.confidence} confidence)` : ''
-    return `${panelCount} diagnostic panel${panelCount > 1 ? 's' : ''}${confidence}`
+  if (source === 'Diagnostic Panels') {
+    // New structure with providers
+    if (data?.providers) {
+      const providerCount = Object.keys(data.providers).length
+      const panelCount = Object.values(data.providers).reduce(
+        (sum, panels) => sum + panels.length,
+        0
+      )
+      const confidence = data.confidence ? ` (${data.confidence} confidence)` : ''
+      return `${providerCount} provider${providerCount > 1 ? 's' : ''}, ${panelCount} panel${panelCount > 1 ? 's' : ''}${confidence}`
+    }
+    // Fallback for old structure
+    else if (data?.panels?.length) {
+      const panelCount = data.panels.length
+      const confidence = data.confidence ? ` (${data.confidence} confidence)` : ''
+      return `${panelCount} diagnostic panel${panelCount > 1 ? 's' : ''}${confidence}`
+    }
   }
 
   return props.evidence.source_detail
@@ -132,6 +145,12 @@ const primaryCount = computed(() => {
     return `${data?.panel_count || 0} panels`
   }
   if (props.evidence.source_name === 'Diagnostic Panels') {
+    // New structure with providers
+    if (data?.providers) {
+      const providerCount = Object.keys(data.providers).length
+      return `${providerCount} providers`
+    }
+    // Fallback for old structure
     return `${data?.panels?.length || 0} panels`
   }
 

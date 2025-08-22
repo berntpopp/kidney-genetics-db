@@ -260,30 +260,49 @@ class StaticContentProcessor:
         if genes_to_lookup:
             from app.models import Gene
 
-            # Get all existing genes in one query
+            # Get all existing genes in one query - check both symbol and HGNC ID
             approved_symbols = [g[1] for g in genes_to_lookup]
+            hgnc_ids = [g[2] for g in genes_to_lookup if g[2]]
+
+            # Query by both approved_symbol and hgnc_id
+            from sqlalchemy import or_
             existing_genes = self.db.query(Gene).filter(
-                Gene.approved_symbol.in_(approved_symbols)
+                or_(
+                    Gene.approved_symbol.in_(approved_symbols),
+                    Gene.hgnc_id.in_(hgnc_ids) if hgnc_ids else False
+                )
             ).all()
 
+            # Map both by symbol and HGNC ID
+            hgnc_to_gene = {}
             for gene in existing_genes:
                 gene_id_map[gene.approved_symbol] = gene.id
+                if gene.hgnc_id:
+                    hgnc_to_gene[gene.hgnc_id] = gene
 
             # Create missing genes in batch
             genes_to_create = []
             for _symbol, approved_symbol, hgnc_id in genes_to_lookup:
-                if approved_symbol not in gene_id_map and hgnc_id:
-                    genes_to_create.append(Gene(
-                        approved_symbol=approved_symbol,
-                        hgnc_id=hgnc_id
-                    ))
+                # Check if gene exists by symbol or HGNC ID
+                if approved_symbol not in gene_id_map:
+                    if hgnc_id and hgnc_id in hgnc_to_gene:
+                        # Gene exists with this HGNC ID but different symbol
+                        # Use the existing gene
+                        gene_id_map[approved_symbol] = hgnc_to_gene[hgnc_id].id
+                    elif hgnc_id:
+                        # Gene doesn't exist, create it
+                        genes_to_create.append(Gene(
+                            approved_symbol=approved_symbol,
+                            hgnc_id=hgnc_id
+                        ))
 
             if genes_to_create:
-                self.db.bulk_save_objects(genes_to_create, return_defaults=True)
-                self.db.flush()
-                # Refresh to get IDs
+                # Add genes one by one to avoid session issues
                 for gene in genes_to_create:
-                    self.db.refresh(gene)
+                    self.db.add(gene)
+                self.db.flush()
+                # Now get IDs
+                for gene in genes_to_create:
                     gene_id_map[gene.approved_symbol] = gene.id
 
         return gene_id_map
@@ -371,12 +390,13 @@ class StaticContentProcessor:
                             evidence_data = {
                                 "original_symbol": symbol,
                                 "confidence": entry.get("confidence", "medium"),
+                                "provider": evidence_name,  # Store provider name
                             }
 
                             # Preserve panels from scraper data
                             if "panels" in entry:
                                 evidence_data["panels"] = entry["panels"]
-                                logger.debug(f"Gene {symbol} (ID: {result.get('gene_id', 'N/A')}): panels={entry['panels']}, source={source_name}")
+                                logger.debug(f"Gene {symbol} (ID: {result.get('gene_id', 'N/A')}): panels={entry['panels']}, provider={evidence_name}, source={source_name}")
 
                             # Preserve occurrence count
                             if "occurrence_count" in entry:
@@ -763,11 +783,45 @@ class StaticContentProcessor:
         """Merge new evidence data with existing data"""
         merged = existing_data.copy() if existing_data else {}
 
-        # Merge panels (combine unique values)
+        # Merge panels - preserve provider information
         if "panels" in new_data:
-            existing_panels = set(merged.get("panels", []))
-            new_panels = set(new_data["panels"])
-            merged["panels"] = list(existing_panels | new_panels)
+            # Migrate old format to new provider-based format
+            if "providers" not in merged:
+                merged["providers"] = {}
+
+                # Convert existing panels to provider format if needed
+                if "panels" in merged:
+                    # This is legacy data, we'll keep it for now
+                    pass
+
+            # Add new panels under their provider
+            # The source_detail should contain the provider name
+            provider_name = new_data.get("provider", "Unknown")
+            if provider_name not in merged["providers"]:
+                merged["providers"][provider_name] = []
+
+            # Add panels for this provider
+            for panel in new_data.get("panels", []):
+                panel_name = panel.get('name', panel) if isinstance(panel, dict) else panel
+                if panel_name and panel_name not in merged["providers"][provider_name]:
+                    merged["providers"][provider_name].append(panel_name)
+
+            # Also maintain flat panels list for backward compatibility
+            if "panels" not in merged:
+                merged["panels"] = []
+
+            existing_panel_names = set()
+            for panel in merged["panels"]:
+                if isinstance(panel, dict):
+                    existing_panel_names.add(panel.get('name', ''))
+                else:
+                    existing_panel_names.add(str(panel))
+
+            for panel in new_data.get("panels", []):
+                panel_obj = {"name": panel.get('name', panel) if isinstance(panel, dict) else panel}
+                if panel_obj["name"] and panel_obj["name"] not in existing_panel_names:
+                    merged["panels"].append(panel_obj)
+                    existing_panel_names.add(panel_obj["name"])
 
         # Update confidence (use highest)
         if "confidence" in new_data:
@@ -785,7 +839,7 @@ class StaticContentProcessor:
         return merged
 
     def _bulk_insert_evidence(self, evidence_batch: list[dict], source: dict):
-        """Insert or update evidence records"""
+        """Insert or update evidence records - keep separate entries per provider"""
         if not evidence_batch:
             return
 
@@ -793,28 +847,26 @@ class StaticContentProcessor:
         updated = 0
 
         for evidence_data in evidence_batch:
-            # Check if evidence already exists
+            # For diagnostic panels, check by gene_id AND source_detail (provider)
+            # This keeps separate evidence entries per provider
             existing = self.db.query(GeneEvidence).filter(
                 GeneEvidence.gene_id == evidence_data['gene_id'],
-                GeneEvidence.source_name == evidence_data['source_name']
+                GeneEvidence.source_name == evidence_data['source_name'],
+                GeneEvidence.source_detail == evidence_data['source_detail']
             ).first()
 
             if existing:
-                # Merge evidence data
-                merged_data = self._merge_evidence_data(
-                    existing.evidence_data,
-                    evidence_data['evidence_data']
-                )
-                existing.evidence_data = merged_data
-                existing.source_detail = evidence_data['source_detail']
+                # Update existing provider's evidence
+                existing.evidence_data = evidence_data['evidence_data']
                 existing.updated_at = datetime.utcnow()
                 updated += 1
-                logger.debug(f"Updated evidence for gene {evidence_data['gene_id']}, source: {evidence_data['source_name']}")
+                logger.debug(f"Updated evidence for gene {evidence_data['gene_id']}, provider: {evidence_data['source_detail']}")
             else:
-                # Create new evidence
+                # Create new evidence entry for this provider
                 new_evidence = GeneEvidence(**evidence_data)
                 self.db.add(new_evidence)
                 inserted += 1
+                logger.debug(f"Created evidence for gene {evidence_data['gene_id']}, provider: {evidence_data['source_detail']}")
 
         self.db.flush()
         logger.info(f"Evidence records: {inserted} inserted, {updated} updated")

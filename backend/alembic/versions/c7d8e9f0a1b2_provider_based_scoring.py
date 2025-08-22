@@ -1,26 +1,28 @@
-"""Use percentile-based scoring for static sources
+"""Provider-based scoring for diagnostic panels
 
-Revision ID: b2c3d4e5f6g7
-Revises: a1b2c3d4e5f6
-Create Date: 2025-08-22 10:00:00.000000
+Revision ID: c7d8e9f0a1b2
+Revises: 8f3a2b1c4d5e
+Create Date: 2025-08-22 11:45:00.000000
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'b2c3d4e5f6g7'
-down_revision: Union[str, None] = 'a1b2c3d4e5f6'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = 'c7d8e9f0a1b2'
+down_revision: str | None = '8f3a2b1c4d5e'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # Create view for static source counts (similar to evidence_source_counts)
+    # Drop and recreate static_evidence_counts to count unique providers
+    op.execute("DROP VIEW IF EXISTS static_evidence_counts CASCADE")
+
     op.execute("""
-        CREATE OR REPLACE VIEW static_evidence_counts AS
-        SELECT 
+        CREATE VIEW static_evidence_counts AS
+        SELECT
             ge.id as evidence_id,
             ge.gene_id,
             g.approved_symbol,
@@ -28,9 +30,17 @@ def upgrade() -> None:
             ss.display_name as source_display_name,
             ss.id as source_id,
             ss.scoring_metadata,
-            CASE 
-                WHEN ss.scoring_metadata->>'type' = 'count' 
-                AND ss.scoring_metadata->>'field' IS NOT NULL 
+            CASE
+                WHEN ss.scoring_metadata->>'type' = 'count'
+                AND ss.scoring_metadata->>'field' = 'panels' THEN
+                    -- Count unique providers (evidence uploads)
+                    -- The source_detail contains the provider name from the upload
+                    (SELECT COUNT(DISTINCT ge2.source_detail)
+                     FROM gene_evidence ge2
+                     WHERE ge2.gene_id = ge.gene_id
+                     AND ge2.source_name = ge.source_name)
+                WHEN ss.scoring_metadata->>'type' = 'count'
+                AND ss.scoring_metadata->>'field' IS NOT NULL
                 AND ge.evidence_data ? (ss.scoring_metadata->>'field') THEN
                     jsonb_array_length(ge.evidence_data->(ss.scoring_metadata->>'field'))
                 WHEN ss.scoring_metadata->>'type' = 'classification' THEN
@@ -48,14 +58,14 @@ def upgrade() -> None:
         JOIN static_sources ss ON ge.source_name = 'static_' || ss.id::text
         WHERE ss.is_active = true
     """)
-    
-    # Drop and recreate static_evidence_scores with percentile-based scoring
+
+    # Recreate dependent views
     op.execute("DROP VIEW IF EXISTS static_evidence_scores CASCADE")
-    
+
     op.execute("""
         CREATE VIEW static_evidence_scores AS
         WITH percentiles AS (
-            SELECT 
+            SELECT
                 evidence_id,
                 gene_id,
                 approved_symbol,
@@ -66,19 +76,19 @@ def upgrade() -> None:
                 source_count,
                 -- Calculate percentile rank within each source
                 PERCENT_RANK() OVER (
-                    PARTITION BY source_id 
+                    PARTITION BY source_id
                     ORDER BY source_count
                 ) as percentile_rank
             FROM static_evidence_counts
             WHERE source_count > 0
         )
-        SELECT 
+        SELECT
             evidence_id,
             gene_id,
             approved_symbol,
             source_name,
             source_display_name,
-            CASE 
+            CASE
                 WHEN scoring_metadata->>'type' = 'fixed' THEN
                     -- Fixed scoring ignores percentile
                     COALESCE((scoring_metadata->>'score')::float, 0.5)
@@ -87,23 +97,30 @@ def upgrade() -> None:
                     COALESCE(
                         ((scoring_metadata->'weight_map')->>(
                             SELECT evidence_data->>(scoring_metadata->>'field')
-                            FROM gene_evidence 
+                            FROM gene_evidence
                             WHERE id = percentiles.evidence_id
                         ))::float,
                         0.3
                     )
                 ELSE
-                    -- Count-based uses percentile with weight
-                    percentile_rank * COALESCE((scoring_metadata->>'weight')::float, 1.0)
+                    -- For diagnostic panels, use simple ratio instead of percentile
+                    CASE
+                        WHEN scoring_metadata->>'field' = 'panels' THEN
+                            -- Simple ratio: provider_count / max_providers * weight
+                            LEAST(source_count::float / 9.0, 1.0) * COALESCE((scoring_metadata->>'weight')::float, 1.0)
+                        ELSE
+                            -- Other count-based uses percentile with weight
+                            percentile_rank * COALESCE((scoring_metadata->>'weight')::float, 1.0)
+                    END
             END as normalized_score
         FROM percentiles
     """)
-    
-    # Recreate dependent views
+
+    # Recreate combined_evidence_scores
     op.execute("DROP VIEW IF EXISTS combined_evidence_scores CASCADE")
     op.execute("""
         CREATE VIEW combined_evidence_scores AS
-        SELECT 
+        SELECT
             evidence_id,
             gene_id,
             approved_symbol,
@@ -112,10 +129,10 @@ def upgrade() -> None:
             normalized_score,
             'pipeline' as source_type
         FROM evidence_normalized_scores
-        
+
         UNION ALL
-        
-        SELECT 
+
+        SELECT
             evidence_id,
             gene_id,
             approved_symbol,
@@ -125,12 +142,13 @@ def upgrade() -> None:
             'static' as source_type
         FROM static_evidence_scores
     """)
-    
+
+    # Recreate gene_scores
     op.execute("DROP VIEW IF EXISTS gene_scores CASCADE")
     op.execute("""
         CREATE VIEW gene_scores AS
         WITH source_counts AS (
-            SELECT 
+            SELECT
                 gene_id,
                 COUNT(DISTINCT source_name) as source_count,
                 COUNT(*) as evidence_count,
@@ -150,7 +168,7 @@ def upgrade() -> None:
                 SELECT DISTINCT source_name as name FROM static_evidence_scores
             ) all_sources
         )
-        SELECT 
+        SELECT
             sc.gene_id,
             g.approved_symbol,
             g.hgnc_id,
@@ -167,66 +185,90 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Revert to ratio-based scoring
+    # Revert to panel count-based scoring
     op.execute("DROP VIEW IF EXISTS gene_scores CASCADE")
     op.execute("DROP VIEW IF EXISTS combined_evidence_scores CASCADE")
     op.execute("DROP VIEW IF EXISTS static_evidence_scores CASCADE")
     op.execute("DROP VIEW IF EXISTS static_evidence_counts CASCADE")
-    
-    # Recreate with dynamic max calculation
+
+    # Recreate with panel counting
     op.execute("""
-        CREATE VIEW static_evidence_scores AS
-        WITH max_panel_counts AS (
-            SELECT 
-                ss.id as source_id,
-                MAX(jsonb_array_length(ge.evidence_data->'panels')) as max_panels
-            FROM gene_evidence ge
-            JOIN static_sources ss ON ge.source_name = 'static_' || ss.id::text
-            WHERE ss.is_active = true
-            AND ge.evidence_data ? 'panels'
-            GROUP BY ss.id
-        )
-        SELECT 
+        CREATE VIEW static_evidence_counts AS
+        SELECT
             ge.id as evidence_id,
             ge.gene_id,
             g.approved_symbol,
             ge.source_name,
             ss.display_name as source_display_name,
-            CASE 
-                WHEN ss.scoring_metadata->>'type' = 'count' THEN
-                    CASE
-                        WHEN ss.scoring_metadata->>'field' IS NOT NULL 
-                        AND ge.evidence_data ? (ss.scoring_metadata->>'field') THEN
-                            LEAST(
-                                jsonb_array_length(ge.evidence_data->(ss.scoring_metadata->>'field'))::float / 
-                                GREATEST(mpc.max_panels::float, 1.0) * 
-                                COALESCE((ss.scoring_metadata->>'weight')::float, 0.5),
-                                1.0
-                            )
-                        ELSE 
-                            COALESCE((ss.scoring_metadata->>'weight')::float, 0.5)
+            ss.id as source_id,
+            ss.scoring_metadata,
+            CASE
+                WHEN ss.scoring_metadata->>'type' = 'count'
+                AND ss.scoring_metadata->>'field' IS NOT NULL
+                AND ge.evidence_data ? (ss.scoring_metadata->>'field') THEN
+                    jsonb_array_length(ge.evidence_data->(ss.scoring_metadata->>'field'))
+                WHEN ss.scoring_metadata->>'type' = 'classification' THEN
+                    CASE ge.evidence_data->>(ss.scoring_metadata->>'field')
+                        WHEN 'high' THEN 3
+                        WHEN 'medium' THEN 2
+                        WHEN 'low' THEN 1
+                        ELSE 0
                     END
-                WHEN ss.scoring_metadata->>'type' = 'classification' 
-                AND ss.scoring_metadata->>'field' IS NOT NULL THEN
-                    COALESCE(
-                        ((ss.scoring_metadata->'weight_map')->>(ge.evidence_data->>(ss.scoring_metadata->>'field')))::float,
-                        0.3
-                    )
-                WHEN ss.scoring_metadata->>'type' = 'fixed' THEN
-                    COALESCE((ss.scoring_metadata->>'score')::float, 0.5)
-                ELSE 0.5
-            END as normalized_score
+                ELSE 1
+            END as source_count
         FROM gene_evidence ge
         JOIN genes g ON ge.gene_id = g.id
         JOIN static_sources ss ON ge.source_name = 'static_' || ss.id::text
-        LEFT JOIN max_panel_counts mpc ON mpc.source_id = ss.id
         WHERE ss.is_active = true
     """)
-    
-    # Recreate dependent views
+
+    # Recreate other views
+    op.execute("""
+        CREATE VIEW static_evidence_scores AS
+        WITH percentiles AS (
+            SELECT
+                evidence_id,
+                gene_id,
+                approved_symbol,
+                source_name,
+                source_display_name,
+                source_id,
+                scoring_metadata,
+                source_count,
+                PERCENT_RANK() OVER (
+                    PARTITION BY source_id
+                    ORDER BY source_count
+                ) as percentile_rank
+            FROM static_evidence_counts
+            WHERE source_count > 0
+        )
+        SELECT
+            evidence_id,
+            gene_id,
+            approved_symbol,
+            source_name,
+            source_display_name,
+            CASE
+                WHEN scoring_metadata->>'type' = 'fixed' THEN
+                    COALESCE((scoring_metadata->>'score')::float, 0.5)
+                WHEN scoring_metadata->>'type' = 'classification' THEN
+                    COALESCE(
+                        ((scoring_metadata->'weight_map')->>(
+                            SELECT evidence_data->>(scoring_metadata->>'field')
+                            FROM gene_evidence
+                            WHERE id = percentiles.evidence_id
+                        ))::float,
+                        0.3
+                    )
+                ELSE
+                    percentile_rank * COALESCE((scoring_metadata->>'weight')::float, 1.0)
+            END as normalized_score
+        FROM percentiles
+    """)
+
     op.execute("""
         CREATE VIEW combined_evidence_scores AS
-        SELECT 
+        SELECT
             evidence_id,
             gene_id,
             approved_symbol,
@@ -235,10 +277,10 @@ def downgrade() -> None:
             normalized_score,
             'pipeline' as source_type
         FROM evidence_normalized_scores
-        
+
         UNION ALL
-        
-        SELECT 
+
+        SELECT
             evidence_id,
             gene_id,
             approved_symbol,
@@ -248,11 +290,11 @@ def downgrade() -> None:
             'static' as source_type
         FROM static_evidence_scores
     """)
-    
+
     op.execute("""
         CREATE VIEW gene_scores AS
         WITH source_counts AS (
-            SELECT 
+            SELECT
                 gene_id,
                 COUNT(DISTINCT source_name) as source_count,
                 COUNT(*) as evidence_count,
@@ -272,7 +314,7 @@ def downgrade() -> None:
                 SELECT DISTINCT source_name as name FROM static_evidence_scores
             ) all_sources
         )
-        SELECT 
+        SELECT
             sc.gene_id,
             g.approved_symbol,
             g.hgnc_id,

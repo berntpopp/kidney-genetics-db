@@ -79,7 +79,7 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
 
     # Get evidence sources
     evidence = gene_crud.get_evidence(db, gene.id)  # type: ignore[arg-type]
-    
+
     # Get display names for static sources
     static_source_names = {}
     result = db.execute(
@@ -91,7 +91,7 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
     )
     for row in result:
         static_source_names[row[0]] = row[1]
-    
+
     # Map source names to display names
     sources = list({static_source_names.get(e.source_name, e.source_name) for e in evidence})
 
@@ -113,7 +113,7 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
             score_breakdown[source_display_name] = round(float(row[1]), 4) if row[1] is not None else 0.0
 
     # Build response
-    result = {
+    return {
         "id": gene.id,
         "hgnc_id": gene.hgnc_id,
         "approved_symbol": gene.approved_symbol,
@@ -125,8 +125,6 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
         "sources": sources,
         "score_breakdown": score_breakdown,  # Raw normalized scores per source
     }
-
-    return result
 
 @router.get("/{gene_symbol}/evidence")
 async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
@@ -165,22 +163,73 @@ async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> 
     for row in result:
         static_source_names[row[0]] = row[1]
 
-    return {
-        "gene_symbol": gene.approved_symbol,
-        "gene_id": gene.id,
-        "evidence_count": len(evidence),
-        "evidence": [
-            {
+    # Aggregate diagnostic panel evidence
+    aggregated_evidence = []
+    diagnostic_panels_data: dict[str, Any] = {}
+    diagnostic_panels_providers = []
+    diagnostic_panels_ids = []
+
+    for e in evidence:
+        display_name = static_source_names.get(e.source_name, e.source_name)
+
+        # If this is Diagnostic Panels, aggregate them
+        if display_name == "Diagnostic Panels":
+            diagnostic_panels_ids.append(e.id)
+            diagnostic_panels_providers.append(e.source_detail)
+
+            # Merge the panel data
+            if not diagnostic_panels_data:
+                diagnostic_panels_data = {
+                    "id": e.id,  # Use first ID
+                    "source_name": display_name,
+                    "evidence_data": {
+                        "providers": {}
+                    },
+                    "evidence_date": e.evidence_date,
+                    "created_at": e.created_at,
+                    "normalized_score": normalized_scores.get(e.id, 0.0)
+                }
+
+            # Add this provider's panels
+            provider = e.source_detail or "Unknown"
+            diagnostic_panels_data["evidence_data"]["providers"][provider] = e.evidence_data.get("panels", [])
+
+            # Update normalized score to max
+            current_score = normalized_scores.get(e.id, 0.0)
+            if current_score > diagnostic_panels_data["normalized_score"]:
+                diagnostic_panels_data["normalized_score"] = current_score
+        else:
+            # Regular evidence entry
+            aggregated_evidence.append({
                 "id": e.id,
-                "source_name": static_source_names.get(e.source_name, e.source_name),  # Use display name if static source
-                "source_detail": None if e.source_name.startswith('static_') else e.source_detail,  # Hide detail for static sources
+                "source_name": display_name,
+                "source_detail": e.source_detail,
                 "evidence_data": e.evidence_data,
                 "evidence_date": e.evidence_date,
                 "created_at": e.created_at,
-                "normalized_score": normalized_scores.get(e.id, 0.0),  # Raw normalized score (0-1)
-            }
-            for e in evidence
-        ],
+                "normalized_score": normalized_scores.get(e.id, 0.0),
+            })
+
+    # Add aggregated diagnostic panels if any
+    if diagnostic_panels_data:
+        # Set proper source_detail
+        provider_count = len(diagnostic_panels_providers)
+        diagnostic_panels_data["source_detail"] = f"{provider_count} providers"
+
+        # Copy metadata from first evidence if available
+        first_panel = next((e for e in evidence if static_source_names.get(e.source_name, e.source_name) == "Diagnostic Panels"), None)
+        if first_panel and "metadata" in first_panel.evidence_data:
+            diagnostic_panels_data["evidence_data"]["metadata"] = first_panel.evidence_data["metadata"]
+        if first_panel and "confidence" in first_panel.evidence_data:
+            diagnostic_panels_data["evidence_data"]["confidence"] = first_panel.evidence_data["confidence"]
+
+        aggregated_evidence.append(diagnostic_panels_data)
+
+    return {
+        "gene_symbol": gene.approved_symbol,
+        "gene_id": gene.id,
+        "evidence_count": len(aggregated_evidence),
+        "evidence": aggregated_evidence,
     }
 
 @router.post("/", response_model=Gene)

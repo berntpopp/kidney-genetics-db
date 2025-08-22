@@ -75,7 +75,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     # Get active static sources from database
     static_sources = db.execute(
         text("""
-            SELECT 
+            SELECT
                 'static_' || id::text as source_name,
                 display_name,
                 description,
@@ -85,7 +85,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             WHERE is_active = true
         """)
     ).fetchall()
-    
+
     # Add static sources to source_stats
     for row in static_sources:
         if row[3] > 0 and row[4] > 0:  # Only include if has uploads and genes
@@ -98,7 +98,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
                 """),
                 {"source_name": row[0]}
             ).scalar()
-            
+
             source_stats[row[0]] = {
                 "gene_count": row[4],
                 "evidence_count": row[4],  # For static sources, evidence count = gene count
@@ -106,7 +106,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
                 "display_name": row[1],
                 "description": row[2]
             }
-    
+
     # Build data source list
     for source_name, config in DATA_SOURCE_CONFIG.items():
         if source_name in source_stats:
@@ -150,7 +150,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
                 documentation_url=config["documentation_url"],
             )
         )
-    
+
     # Add active static sources to the list
     for source_name, stats in source_stats.items():
         if source_name.startswith('static_'):
@@ -206,10 +206,10 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
             """),
             {"source_name": source_name}
         ).fetchone()
-        
+
         if not source_info:
             return {"error": f"Unknown data source: {source_name}"}
-        
+
         config = {
             "display_name": source_info[0],
             "description": source_info[1],

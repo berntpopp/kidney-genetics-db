@@ -21,7 +21,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Add static content ingestion tables and views."""
-    
+
     # Create static_sources table
     op.create_table('static_sources',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -30,8 +30,8 @@ def upgrade() -> None:
         sa.Column('display_name', sa.String(255), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('source_metadata', postgresql.JSONB(), server_default='{}'),
-        sa.Column('scoring_metadata', postgresql.JSONB(), 
-                  server_default='{"type": "count", "weight": 0.5}', 
+        sa.Column('scoring_metadata', postgresql.JSONB(),
+                  server_default='{"type": "count", "weight": 0.5}',
                   nullable=False),
         sa.Column('is_active', sa.Boolean(), server_default='true'),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()')),
@@ -44,7 +44,7 @@ def upgrade() -> None:
             name='static_sources_type_check'
         )
     )
-    
+
     # Create static_evidence_uploads table
     op.create_table('static_evidence_uploads',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -72,7 +72,7 @@ def upgrade() -> None:
             name='upload_status_check'
         )
     )
-    
+
     # Create static_source_audit table
     op.create_table('static_source_audit',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -86,7 +86,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(['upload_id'], ['static_evidence_uploads.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
-    
+
     # Create indexes for performance
     op.create_index('idx_static_sources_type', 'static_sources', ['source_type'])
     op.create_index('idx_static_sources_active', 'static_sources', ['is_active'])
@@ -94,19 +94,19 @@ def upgrade() -> None:
     op.create_index('idx_uploads_status', 'static_evidence_uploads', ['upload_status'])
     op.create_index('idx_uploads_hash', 'static_evidence_uploads', ['file_hash'])
     op.create_index('idx_audit_source_id', 'static_source_audit', ['source_id'])
-    
+
     # Create separate scoring views for static sources
     op.execute("""
         -- Count evidence for static sources
         CREATE VIEW static_evidence_counts AS
-        SELECT 
+        SELECT
             ge.id as evidence_id,
             ge.gene_id,
             g.approved_symbol,
             ge.source_name,
             ss.id as source_id,
             CASE
-                WHEN ss.scoring_metadata->>'field' IS NOT NULL 
+                WHEN ss.scoring_metadata->>'field' IS NOT NULL
                      AND ge.evidence_data ? (ss.scoring_metadata->>'field') THEN
                     jsonb_array_length(ge.evidence_data -> (ss.scoring_metadata->>'field'))
                 ELSE 1
@@ -116,7 +116,7 @@ def upgrade() -> None:
         JOIN static_sources ss ON ge.source_name = 'ingested_' || ss.id::text
         WHERE ss.is_active = true;
     """)
-    
+
     op.execute("""
         -- Scoring for static sources (separate from main evidence scoring)
         CREATE VIEW static_evidence_scores AS
@@ -130,30 +130,30 @@ def upgrade() -> None:
                 -- Count-based scoring
                 WHEN ss.scoring_metadata->>'type' = 'count' THEN
                     CASE
-                        WHEN ss.scoring_metadata->>'field' IS NOT NULL 
+                        WHEN ss.scoring_metadata->>'field' IS NOT NULL
                              AND ge.evidence_data ? (ss.scoring_metadata->>'field') THEN
                             LEAST(
-                                jsonb_array_length(ge.evidence_data -> (ss.scoring_metadata->>'field'))::float 
+                                jsonb_array_length(ge.evidence_data -> (ss.scoring_metadata->>'field'))::float
                                 / 10.0 * COALESCE((ss.scoring_metadata->>'weight')::numeric, 0.5),
                                 1.0
                             )
                         ELSE COALESCE((ss.scoring_metadata->>'weight')::numeric, 0.5)
                     END
-                
+
                 -- Classification-based scoring
-                WHEN ss.scoring_metadata->>'type' = 'classification' 
+                WHEN ss.scoring_metadata->>'type' = 'classification'
                      AND ss.scoring_metadata->>'field' IS NOT NULL THEN
                     COALESCE(
-                        (ss.scoring_metadata->'weight_map' ->> 
+                        (ss.scoring_metadata->'weight_map' ->>
                             (ge.evidence_data->>(ss.scoring_metadata->>'field'))
                         )::numeric,
                         0.3
                     )
-                
+
                 -- Fixed scoring
                 WHEN ss.scoring_metadata->>'type' = 'fixed' THEN
                     COALESCE((ss.scoring_metadata->>'score')::numeric, 0.5)
-                    
+
                 ELSE 0.5
             END AS normalized_score
         FROM gene_evidence ge
@@ -165,11 +165,11 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove static content ingestion tables and views."""
-    
+
     # Drop views
     op.execute("DROP VIEW IF EXISTS static_evidence_scores")
     op.execute("DROP VIEW IF EXISTS static_evidence_counts")
-    
+
     # Drop indexes
     op.drop_index('idx_audit_source_id')
     op.drop_index('idx_uploads_hash')
@@ -177,7 +177,7 @@ def downgrade() -> None:
     op.drop_index('idx_uploads_source_id')
     op.drop_index('idx_static_sources_active')
     op.drop_index('idx_static_sources_type')
-    
+
     # Drop tables (in reverse order due to foreign keys)
     op.drop_table('static_source_audit')
     op.drop_table('static_evidence_uploads')

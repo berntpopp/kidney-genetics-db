@@ -8,7 +8,6 @@ This migration ensures static scoring views exist and integrates them with gene 
 """
 from collections.abc import Sequence
 
-import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -20,23 +19,23 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Ensure static scoring views exist and integrate with gene scores."""
-    
+
     # Drop existing views if they exist (to ensure clean state)
     op.execute("DROP VIEW IF EXISTS combined_evidence_scores CASCADE")
     op.execute("DROP VIEW IF EXISTS static_evidence_scores CASCADE")
     op.execute("DROP VIEW IF EXISTS static_evidence_counts CASCADE")
-    
+
     # Create static evidence counts view
     op.execute("""
         CREATE VIEW static_evidence_counts AS
-        SELECT 
+        SELECT
             ge.id as evidence_id,
             ge.gene_id,
             g.approved_symbol,
             ge.source_name,
             ss.id as source_id,
             CASE
-                WHEN ss.scoring_metadata->>'field' IS NOT NULL 
+                WHEN ss.scoring_metadata->>'field' IS NOT NULL
                      AND ge.evidence_data ? (ss.scoring_metadata->>'field') THEN
                     jsonb_array_length(ge.evidence_data -> (ss.scoring_metadata->>'field'))
                 ELSE 1
@@ -46,7 +45,7 @@ def upgrade() -> None:
         JOIN static_sources ss ON ge.source_name = 'ingested_' || ss.id::text
         WHERE ss.is_active = true;
     """)
-    
+
     # Create static evidence scores view
     op.execute("""
         CREATE VIEW static_evidence_scores AS
@@ -60,30 +59,30 @@ def upgrade() -> None:
                 -- Count-based scoring (e.g., number of panels)
                 WHEN ss.scoring_metadata->>'type' = 'count' THEN
                     CASE
-                        WHEN ss.scoring_metadata->>'field' IS NOT NULL 
+                        WHEN ss.scoring_metadata->>'field' IS NOT NULL
                              AND ge.evidence_data ? (ss.scoring_metadata->>'field') THEN
                             LEAST(
-                                jsonb_array_length(ge.evidence_data -> (ss.scoring_metadata->>'field'))::float 
+                                jsonb_array_length(ge.evidence_data -> (ss.scoring_metadata->>'field'))::float
                                 / 10.0 * COALESCE((ss.scoring_metadata->>'weight')::numeric, 0.5),
                                 1.0
                             )
                         ELSE COALESCE((ss.scoring_metadata->>'weight')::numeric, 0.5)
                     END
-                
+
                 -- Classification-based scoring (e.g., confidence levels)
-                WHEN ss.scoring_metadata->>'type' = 'classification' 
+                WHEN ss.scoring_metadata->>'type' = 'classification'
                      AND ss.scoring_metadata->>'field' IS NOT NULL THEN
                     COALESCE(
-                        (ss.scoring_metadata->'weight_map' ->> 
+                        (ss.scoring_metadata->'weight_map' ->>
                             (ge.evidence_data->>(ss.scoring_metadata->>'field'))
                         )::numeric,
                         0.3
                     )
-                
+
                 -- Fixed scoring
                 WHEN ss.scoring_metadata->>'type' = 'fixed' THEN
                     COALESCE((ss.scoring_metadata->>'score')::numeric, 0.5)
-                    
+
                 ELSE 0.5
             END AS normalized_score
         FROM gene_evidence ge
@@ -91,12 +90,12 @@ def upgrade() -> None:
         JOIN static_sources ss ON ge.source_name = 'ingested_' || ss.id::text
         WHERE ss.is_active = true;
     """)
-    
+
     # Create combined evidence scores view
     op.execute("""
         CREATE VIEW combined_evidence_scores AS
         -- Pipeline sources (existing scoring)
-        SELECT 
+        SELECT
             ens.evidence_id,
             ens.gene_id,
             ens.approved_symbol,
@@ -105,11 +104,11 @@ def upgrade() -> None:
             ens.normalized_score,
             'pipeline' as source_type
         FROM evidence_normalized_scores ens
-        
+
         UNION ALL
-        
+
         -- Static sources (new scoring)
-        SELECT 
+        SELECT
             ses.evidence_id,
             ses.gene_id,
             ses.approved_symbol,
@@ -119,10 +118,10 @@ def upgrade() -> None:
             'static' as source_type
         FROM static_evidence_scores ses;
     """)
-    
+
     # Update gene_scores view to use combined scores
     op.execute("DROP VIEW IF EXISTS gene_scores CASCADE")
-    
+
     op.execute("""
         CREATE VIEW gene_scores AS
         WITH active_sources AS (
@@ -175,16 +174,16 @@ def upgrade() -> None:
         CROSS JOIN active_sources ac
         ORDER BY gss.approved_symbol;
     """)
-    
+
     print("✅ Static scoring views created and integrated successfully")
 
 
 def downgrade() -> None:
     """Remove static scoring integration."""
-    
+
     # Restore original gene_scores view
     op.execute("DROP VIEW IF EXISTS gene_scores CASCADE")
-    
+
     op.execute("""
         CREATE VIEW gene_scores AS
         WITH active_sources AS (
@@ -225,7 +224,7 @@ def downgrade() -> None:
         CROSS JOIN active_sources ac
         ORDER BY gss.approved_symbol;
     """)
-    
+
     # Drop combined and static views
     op.execute("DROP VIEW IF EXISTS combined_evidence_scores")
     op.execute("DROP VIEW IF EXISTS static_evidence_scores")
