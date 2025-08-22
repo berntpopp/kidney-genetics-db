@@ -17,7 +17,6 @@ from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.gene_normalizer import normalize_genes_batch_async
-from app.crud.gene import gene_crud
 from app.models.gene import GeneEvidence
 from app.models.gene_staging import GeneNormalizationStaging
 from sqlalchemy import text
@@ -240,6 +239,57 @@ class StaticContentProcessor:
         
         return normalization_map
     
+    def _batch_lookup_or_create_genes(
+        self,
+        symbol_to_entries: Dict[str, List],
+        normalization_map: Dict[str, Dict]
+    ) -> Dict[str, int]:
+        """
+        Batch lookup or create genes to avoid N+1 queries.
+        Returns a map of approved_symbol -> gene_id.
+        """
+        # Collect all genes that need lookup
+        genes_to_lookup = []
+        for symbol in symbol_to_entries.keys():
+            result = normalization_map.get(symbol, {"status": "failed"})
+            if result['status'] == 'normalized' and not result.get('gene_id'):
+                approved_symbol = result.get('approved_symbol')
+                if approved_symbol:
+                    genes_to_lookup.append((symbol, approved_symbol, result.get('hgnc_id')))
+        
+        # Batch lookup all genes at once
+        gene_id_map = {}
+        if genes_to_lookup:
+            from app.models import Gene
+            
+            # Get all existing genes in one query
+            approved_symbols = [g[1] for g in genes_to_lookup]
+            existing_genes = self.db.query(Gene).filter(
+                Gene.approved_symbol.in_(approved_symbols)
+            ).all()
+            
+            for gene in existing_genes:
+                gene_id_map[gene.approved_symbol] = gene.id
+            
+            # Create missing genes in batch
+            genes_to_create = []
+            for symbol, approved_symbol, hgnc_id in genes_to_lookup:
+                if approved_symbol not in gene_id_map and hgnc_id:
+                    genes_to_create.append(Gene(
+                        approved_symbol=approved_symbol,
+                        hgnc_id=hgnc_id
+                    ))
+            
+            if genes_to_create:
+                self.db.bulk_save_objects(genes_to_create, return_defaults=True)
+                self.db.flush()
+                # Refresh to get IDs
+                for gene in genes_to_create:
+                    self.db.refresh(gene)
+                    gene_id_map[gene.approved_symbol] = gene.id
+        
+        return gene_id_map
+    
     async def _process_small_file_batch(
         self,
         content: bytes,
@@ -299,32 +349,21 @@ class StaticContentProcessor:
         source_name = f"static_{source_id}"
         logger.info(f"Using internal source name: {source_name} for source_id: {source_id}")
         
+        # Batch lookup/create all genes to avoid N+1 queries
+        gene_id_map = self._batch_lookup_or_create_genes(symbol_to_entries, normalization_map)
+        
         for symbol, entries in symbol_to_entries.items():
             result = normalization_map.get(symbol, {"status": "failed"})
             
             for unique_key, entry in entries:
                 if result['status'] == 'normalized':
-                    # Use gene_id from normalizer if available, otherwise look it up
+                    # Use gene_id from normalizer if available, otherwise look it up from batch map
                     gene_id = result.get('gene_id')
                     
                     if not gene_id:
-                        # Try to get or create the gene
                         approved_symbol = result.get('approved_symbol')
-                        hgnc_id = result.get('hgnc_id')
-                        
                         if approved_symbol:
-                            gene = gene_crud.get_by_symbol(self.db, approved_symbol)
-                            if not gene and hgnc_id:
-                                # Create the gene if it doesn't exist
-                                from app.models import Gene
-                                gene = Gene(
-                                    approved_symbol=approved_symbol,
-                                    hgnc_id=hgnc_id
-                                )
-                                self.db.add(gene)
-                                self.db.flush()  # Get the ID without committing
-                            if gene:
-                                gene_id = gene.id
+                            gene_id = gene_id_map.get(approved_symbol)
                     
                     if gene_id:
                         total_stats["normalized"] += 1
@@ -479,9 +518,12 @@ class StaticContentProcessor:
         evidence_batch = []
         staging_batch = []
         
-        # Get the actual source name from the database
-        source = self.db.query(StaticSource).filter_by(id=source_id).first()
-        source_name = source.source_name if source else f"ingested_{source_id}"
+        # Use internal naming pattern: static_{source_id}
+        source_name = f"static_{source_id}"
+        logger.info(f"Using internal source name: {source_name} for source_id: {source_id}")
+        
+        # Batch lookup/create all genes to avoid N+1 queries
+        gene_id_map = self._batch_lookup_or_create_genes(symbol_to_entries, normalization_map)
         
         # Process normalization results
         for symbol, entries in symbol_to_entries.items():
@@ -489,27 +531,13 @@ class StaticContentProcessor:
             
             for unique_key, entry in entries:
                 if result['status'] == 'normalized':
-                    # Use gene_id from normalizer if available, otherwise look it up
+                    # Use gene_id from normalizer if available, otherwise look it up from batch map
                     gene_id = result.get('gene_id')
                     
                     if not gene_id:
-                        # Try to get or create the gene
                         approved_symbol = result.get('approved_symbol')
-                        hgnc_id = result.get('hgnc_id')
-                        
                         if approved_symbol:
-                            gene = gene_crud.get_by_symbol(self.db, approved_symbol)
-                            if not gene and hgnc_id:
-                                # Create the gene if it doesn't exist
-                                from app.models import Gene
-                                gene = Gene(
-                                    approved_symbol=approved_symbol,
-                                    hgnc_id=hgnc_id
-                                )
-                                self.db.add(gene)
-                                self.db.flush()  # Get the ID without committing
-                            if gene:
-                                gene_id = gene.id
+                            gene_id = gene_id_map.get(approved_symbol)
                     
                     if gene_id:
                         total_stats["normalized"] += 1

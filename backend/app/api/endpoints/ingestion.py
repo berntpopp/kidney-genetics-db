@@ -96,17 +96,10 @@ async def list_sources(
     
     sources = query.all()
     
-    # Add statistics
+    # Use cached statistics for performance
     for source in sources:
-        source.upload_count = db.query(func.count(StaticEvidenceUpload.id)).filter(
-            StaticEvidenceUpload.source_id == source.id,
-            StaticEvidenceUpload.upload_status == 'completed'
-        ).scalar()
-        
-        source.total_genes = db.query(func.sum(StaticEvidenceUpload.genes_normalized)).filter(
-            StaticEvidenceUpload.source_id == source.id,
-            StaticEvidenceUpload.upload_status == 'completed'
-        ).scalar() or 0
+        source.upload_count = source.cached_upload_count
+        source.total_genes = source.cached_total_genes
     
     return sources
 
@@ -127,16 +120,9 @@ async def get_source(
             detail="Source not found"
         )
     
-    # Add statistics
-    source.upload_count = db.query(func.count(StaticEvidenceUpload.id)).filter(
-        StaticEvidenceUpload.source_id == source.id,
-        StaticEvidenceUpload.upload_status == 'completed'
-    ).scalar()
-    
-    source.total_genes = db.query(func.sum(StaticEvidenceUpload.genes_normalized)).filter(
-        StaticEvidenceUpload.source_id == source.id,
-        StaticEvidenceUpload.upload_status == 'completed'
-    ).scalar() or 0
+    # Use cached statistics for performance
+    source.upload_count = source.cached_upload_count
+    source.total_genes = source.cached_total_genes
     
     return source
 
@@ -284,7 +270,7 @@ async def upload_evidence(
         dry_run=dry_run
     )
     
-    # Audit
+    # Audit and update cached statistics
     if not dry_run and result["status"] == "success":
         audit = StaticSourceAudit(
             source_id=source_id,
@@ -299,6 +285,18 @@ async def upload_evidence(
             performed_by=None  # TODO: current_user.email if current_user else None
         )
         db.add(audit)
+        
+        # Update cached statistics
+        source.cached_upload_count = db.query(func.count(StaticEvidenceUpload.id)).filter(
+            StaticEvidenceUpload.source_id == source_id,
+            StaticEvidenceUpload.upload_status == 'completed'
+        ).scalar()
+        
+        source.cached_total_genes = db.query(func.sum(StaticEvidenceUpload.genes_normalized)).filter(
+            StaticEvidenceUpload.source_id == source_id,
+            StaticEvidenceUpload.upload_status == 'completed'
+        ).scalar() or 0
+        
         db.commit()
     
     return result
@@ -349,17 +347,29 @@ async def delete_source(
             detail="Source not found"
         )
     
+    # CRITICAL: Delete all gene_evidence associated with this source
+    # This prevents orphaned evidence that would incorrectly contribute to scores
+    from app.models import GeneEvidence
+    deleted_count = db.query(GeneEvidence).filter(
+        GeneEvidence.source_name == f"static_{source_id}"
+    ).delete(synchronize_session=False)
+    
+    logger.info(f"Deleting {deleted_count} gene_evidence records for source {source_id}")
+    
     source.is_active = False
     source.updated_at = datetime.utcnow()
     
-    # Audit
+    # Audit with evidence deletion details
     audit = StaticSourceAudit(
         source_id=source_id,
         action="deactivated",
-        details={},
+        details={
+            "evidence_deleted": deleted_count,
+            "source_name": source.source_name
+        },
         performed_by=None  # TODO: current_user.email if current_user else None
     )
     db.add(audit)
     db.commit()
     
-    return {"status": "success", "message": f"Source {source_id} deactivated"}
+    return {"status": "success", "message": f"Source {source_id} deactivated, {deleted_count} evidence records deleted"}
