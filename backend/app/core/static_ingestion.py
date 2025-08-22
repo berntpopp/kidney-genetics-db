@@ -385,68 +385,95 @@ class StaticContentProcessor:
         # Batch lookup/create all genes to avoid N+1 queries
         gene_id_map = self._batch_lookup_or_create_genes(symbol_to_entries, normalization_map)
 
+        # Process with deduplication - merge multiple entries for same gene
+        gene_evidence_map = {}  # gene_id -> merged evidence
+        
         for symbol, entries in symbol_to_entries.items():
             result = normalization_map.get(symbol, {"status": "failed"})
 
-            for _unique_key, entry in entries:
-                if result['status'] == 'normalized':
-                    # Use gene_id from normalizer if available, otherwise look it up from batch map
-                    gene_id = result.get('gene_id')
+            if result['status'] == 'normalized':
+                # Use gene_id from normalizer if available, otherwise look it up from batch map
+                gene_id = result.get('gene_id')
 
-                    if not gene_id:
-                        approved_symbol = result.get('approved_symbol')
-                        if approved_symbol:
-                            gene_id = gene_id_map.get(approved_symbol)
+                if not gene_id:
+                    approved_symbol = result.get('approved_symbol')
+                    if approved_symbol:
+                        gene_id = gene_id_map.get(approved_symbol)
 
-                    if gene_id:
+                if gene_id:
+                    # Count all entries for stats
+                    for _unique_key, entry in entries:
                         total_stats["normalized"] += 1
 
-                        if not dry_run:
-                            # Build evidence data preserving all fields
-                            evidence_data = {
-                                "original_symbol": symbol,
-                                "confidence": entry.get("confidence", "medium"),
-                                "provider": evidence_name,  # Store provider name
-                            }
-
-                            # Preserve panels from scraper data
-                            if "panels" in entry:
-                                evidence_data["panels"] = entry["panels"]
-                                # Removed per-gene debug logging to prevent excessive output with large datasets
-                                pass
-
-                            # Preserve occurrence count
-                            if "occurrence_count" in entry:
-                                evidence_data["occurrence_count"] = entry["occurrence_count"]
-
-                            # Store all other metadata
-                            evidence_data["metadata"] = {
-                                k: v for k, v in entry.items()
-                                if k not in ['symbol', 'gene_symbol', 'gene', 'panels',
-                                           'confidence', 'occurrence_count']
-                            }
-
-                            evidence_batch.append({
-                                "gene_id": gene_id,
-                                "source_name": source_name,
-                                "source_detail": evidence_name,
-                                "evidence_data": evidence_data
-                            })
-
-                elif result['status'] == 'staged':
-                    total_stats["staged"] += 1
-
                     if not dry_run:
-                        staging_batch.append({
-                            "original_text": symbol,
+                        # Merge all entries for this gene
+                        merged_panels = []
+                        merged_metadata = {}
+                        max_confidence = "medium"
+                        total_occurrence = 0
+                        
+                        for _unique_key, entry in entries:
+                            # Collect panels
+                            if "panels" in entry:
+                                if isinstance(entry["panels"], list):
+                                    merged_panels.extend(entry["panels"])
+                            
+                            # Sum occurrences
+                            if "occurrence_count" in entry:
+                                total_occurrence += entry["occurrence_count"]
+                            
+                            # Keep highest confidence
+                            conf = entry.get("confidence", "medium")
+                            if conf == "high":
+                                max_confidence = "high"
+                            
+                            # Merge metadata
+                            for k, v in entry.items():
+                                if k not in ['symbol', 'gene_symbol', 'gene', 'panels',
+                                           'confidence', 'occurrence_count']:
+                                    if k not in merged_metadata:
+                                        merged_metadata[k] = v
+                        
+                        # Deduplicate panels
+                        unique_panels = list(dict.fromkeys(str(p) for p in merged_panels))
+                        
+                        evidence_data = {
+                            "original_symbol": symbol,
+                            "confidence": max_confidence,
+                            "provider": evidence_name,
+                            "panels": unique_panels,
+                            "occurrence_count": total_occurrence if total_occurrence > 0 else len(entries),
+                            "metadata": merged_metadata
+                        }
+                        
+                        # Store only one entry per gene
+                        gene_evidence_map[gene_id] = {
+                            "gene_id": gene_id,
                             "source_name": source_name,
-                            "original_data": entry,
-                            "normalization_log": result.get('log', {}),
-                            "priority_score": self._calculate_priority(entry)
-                        })
-                else:
-                    total_stats["failed"] += 1
+                            "source_detail": evidence_name,
+                            "evidence_data": evidence_data
+                        }
+            else:
+                # Handle staging/failed entries
+                for _unique_key, entry in entries:
+                    if result['status'] == 'staged':
+                        total_stats["staged"] += 1
 
+                        if not dry_run:
+                            staging_batch.append({
+                                "original_text": symbol,
+                                "source_name": source_name,
+                                "original_data": entry,
+                                "normalization_log": result.get('log', {}),
+                                "priority_score": self._calculate_priority(entry)
+                            })
+                    else:
+                        total_stats["failed"] += 1
+
+        # Convert map to list for bulk insert
+        if not dry_run:
+            evidence_batch = list(gene_evidence_map.values())
+        
         # Bulk insert with transaction
         if not dry_run:
             try:
