@@ -883,7 +883,7 @@ class StaticContentProcessor:
                 new_evidence = GeneEvidence(**evidence_data)
                 self.db.add(new_evidence)
                 inserted += 1
-                logger.debug(f"Created evidence for gene {evidence_data['gene_id']}, provider: {evidence_data['source_detail']}")
+                # Removed per-evidence debug logging to prevent excessive output
 
         self.db.flush()
         logger.info(f"Evidence records: {inserted} inserted, {updated} updated")
