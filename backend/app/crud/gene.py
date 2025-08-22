@@ -332,13 +332,14 @@ class CRUDGene:
                     g.created_at,
                     g.updated_at,
                     COALESCE(
-                        array_agg(DISTINCT ge.source_name ORDER BY ge.source_name)
+                        array_agg(DISTINCT COALESCE(ss.display_name, ge.source_name) ORDER BY COALESCE(ss.display_name, ge.source_name))
                         FILTER (WHERE ge.source_name IS NOT NULL),
                         ARRAY[]::text[]
                     ) as source_names
                 FROM gene_scores gs
                 JOIN genes g ON gs.gene_id = g.id
                 LEFT JOIN gene_evidence ge ON g.id = ge.gene_id
+                LEFT JOIN static_sources ss ON ge.source_name = 'static_' || ss.id::text AND ss.is_active = true
                 WHERE 1=1
             """
 

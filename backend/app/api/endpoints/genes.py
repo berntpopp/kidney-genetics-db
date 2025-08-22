@@ -137,6 +137,18 @@ async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> 
         for row in result:
             normalized_scores[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
 
+    # Get display names for static sources (map static_X to display names)
+    static_source_names = {}
+    result = db.execute(
+        text("""
+            SELECT 'static_' || id::text as internal_name, display_name
+            FROM static_sources
+            WHERE is_active = true
+        """)
+    )
+    for row in result:
+        static_source_names[row[0]] = row[1]
+
     return {
         "gene_symbol": gene.approved_symbol,
         "gene_id": gene.id,
@@ -144,8 +156,8 @@ async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> 
         "evidence": [
             {
                 "id": e.id,
-                "source_name": e.source_name,
-                "source_detail": e.source_detail,
+                "source_name": static_source_names.get(e.source_name, e.source_name),  # Use display name if static source
+                "source_detail": None if e.source_name.startswith('static_') else e.source_detail,  # Hide detail for static sources
                 "evidence_data": e.evidence_data,
                 "evidence_date": e.evidence_date,
                 "created_at": e.created_at,

@@ -153,6 +153,7 @@ class GeneNormalizer:
                 existing_genes[symbol] = {
                     "approved_symbol": existing_gene.approved_symbol,
                     "hgnc_id": existing_gene.hgnc_id,
+                    "gene_id": existing_gene.id,  # Include gene_id for efficiency
                 }
         return existing_genes
 
@@ -179,6 +180,7 @@ class GeneNormalizer:
                     "status": "normalized",
                     "approved_symbol": gene_data["approved_symbol"],
                     "hgnc_id": gene_data["hgnc_id"],
+                    "gene_id": gene_data.get("gene_id"),  # Include gene_id
                     "staging_id": None,
                     "error": None,
                     "source": "database",

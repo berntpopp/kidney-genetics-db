@@ -65,6 +65,7 @@ import HPOEvidence from './HPOEvidence.vue'
 import PubTatorEvidence from './PubTatorEvidence.vue'
 import ClinGenEvidence from './ClinGenEvidence.vue'
 import PanelAppEvidence from './PanelAppEvidence.vue'
+import DiagnosticPanelsEvidence from './DiagnosticPanelsEvidence.vue'
 
 const props = defineProps({
   evidence: {
@@ -79,7 +80,8 @@ const evidenceComponents = {
   HPO: HPOEvidence,
   PubTator: PubTatorEvidence,
   ClinGen: ClinGenEvidence,
-  PanelApp: PanelAppEvidence
+  PanelApp: PanelAppEvidence,
+  'Diagnostic Panels': DiagnosticPanelsEvidence
 }
 
 const evidenceComponent = computed(() => {
@@ -107,6 +109,12 @@ const evidenceSummary = computed(() => {
     return classification
   }
 
+  if (source === 'Diagnostic Panels' && data?.panels?.length) {
+    const panelCount = data.panels.length
+    const confidence = data.confidence ? ` (${data.confidence} confidence)` : ''
+    return `${panelCount} diagnostic panel${panelCount > 1 ? 's' : ''}${confidence}`
+  }
+
   return props.evidence.source_detail
 })
 
@@ -123,6 +131,9 @@ const primaryCount = computed(() => {
   if (props.evidence.source_name === 'PanelApp') {
     return `${data?.panel_count || 0} panels`
   }
+  if (props.evidence.source_name === 'Diagnostic Panels') {
+    return `${data?.panels?.length || 0} panels`
+  }
 
   return null
 })
@@ -134,7 +145,8 @@ const sourceColor = computed(() => {
     HPO: 'blue',
     PubTator: 'teal',
     ClinGen: 'green',
-    PanelApp: 'orange'
+    PanelApp: 'orange',
+    'Diagnostic Panels': 'indigo'
   }
   return colors[props.evidence.source_name] || 'grey'
 })
@@ -145,7 +157,8 @@ const sourceIcon = computed(() => {
     HPO: 'mdi-human',
     PubTator: 'mdi-text-search',
     ClinGen: 'mdi-certificate',
-    PanelApp: 'mdi-view-dashboard'
+    PanelApp: 'mdi-view-dashboard',
+    'Diagnostic Panels': 'mdi-test-tube'
   }
   return icons[props.evidence.source_name] || 'mdi-database'
 })
@@ -182,7 +195,8 @@ const getSourceUrl = sourceName => {
     HPO: 'https://hpo.jax.org/',
     PubTator: 'https://www.ncbi.nlm.nih.gov/research/pubtator/',
     ClinGen: 'https://clinicalgenome.org/',
-    PanelApp: 'https://panelapp.genomicsengland.co.uk/'
+    PanelApp: 'https://panelapp.genomicsengland.co.uk/',
+    'Diagnostic Panels': '#'  // No single source URL for aggregated panels
   }
   return urls[sourceName] || '#'
 }
