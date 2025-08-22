@@ -79,7 +79,21 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
 
     # Get evidence sources
     evidence = gene_crud.get_evidence(db, gene.id)  # type: ignore[arg-type]
-    sources = list({e.source_name for e in evidence})
+    
+    # Get display names for static sources
+    static_source_names = {}
+    result = db.execute(
+        text("""
+            SELECT 'static_' || id::text as internal_name, display_name
+            FROM static_sources
+            WHERE is_active = true
+        """)
+    )
+    for row in result:
+        static_source_names[row[0]] = row[1]
+    
+    # Map source names to display names
+    sources = list({static_source_names.get(e.source_name, e.source_name) for e in evidence})
 
     # Get normalized scores breakdown
     score_breakdown = {}
@@ -87,14 +101,16 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
         result = db.execute(
             text("""
                 SELECT source_name, normalized_score
-                FROM evidence_normalized_scores
+                FROM combined_evidence_scores
                 WHERE gene_id = :gene_id
                 ORDER BY source_name
             """),
             {"gene_id": gene.id}
         )
         for row in result:
-            score_breakdown[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
+            # Use display name for static sources
+            source_display_name = static_source_names.get(row[0], row[0])
+            score_breakdown[source_display_name] = round(float(row[1]), 4) if row[1] is not None else 0.0
 
     # Build response
     result = {
@@ -129,7 +145,7 @@ async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> 
         result = db.execute(
             text("""
                 SELECT evidence_id, normalized_score
-                FROM evidence_normalized_scores
+                FROM combined_evidence_scores
                 WHERE gene_id = :gene_id
             """),
             {"gene_id": gene.id}

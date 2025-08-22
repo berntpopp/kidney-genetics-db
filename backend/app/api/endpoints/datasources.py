@@ -72,6 +72,41 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         """)
     ).fetchone()
 
+    # Get active static sources from database
+    static_sources = db.execute(
+        text("""
+            SELECT 
+                'static_' || id::text as source_name,
+                display_name,
+                description,
+                cached_upload_count as upload_count,
+                cached_total_genes as gene_count
+            FROM static_sources
+            WHERE is_active = true
+        """)
+    ).fetchall()
+    
+    # Add static sources to source_stats
+    for row in static_sources:
+        if row[3] > 0 and row[4] > 0:  # Only include if has uploads and genes
+            # Get last updated from evidence
+            last_updated = db.execute(
+                text("""
+                    SELECT MAX(updated_at)
+                    FROM gene_evidence
+                    WHERE source_name = :source_name
+                """),
+                {"source_name": row[0]}
+            ).scalar()
+            
+            source_stats[row[0]] = {
+                "gene_count": row[4],
+                "evidence_count": row[4],  # For static sources, evidence count = gene count
+                "last_updated": last_updated,
+                "display_name": row[1],
+                "description": row[2]
+            }
+    
     # Build data source list
     for source_name, config in DATA_SOURCE_CONFIG.items():
         if source_name in source_stats:
@@ -115,6 +150,26 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
                 documentation_url=config["documentation_url"],
             )
         )
+    
+    # Add active static sources to the list
+    for source_name, stats in source_stats.items():
+        if source_name.startswith('static_'):
+            sources.append(
+                DataSource(
+                    name=source_name,
+                    display_name=stats.get("display_name", source_name),
+                    description=stats.get("description", "Static evidence source"),
+                    status="active",
+                    stats=DataSourceStats(
+                        gene_count=stats["gene_count"],
+                        evidence_count=stats["evidence_count"],
+                        last_updated=stats["last_updated"],
+                        metadata={"source_type": "static"}
+                    ),
+                    url=None,
+                    documentation_url=None,
+                )
+            )
 
     # Get last pipeline run
     last_run = (
@@ -139,11 +194,34 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
     """
     Get detailed information about a specific data source
     """
-    # Get basic config
-    if source_name not in DATA_SOURCE_CONFIG:
-        return {"error": f"Unknown data source: {source_name}"}
+    # Check if it's a static source
+    if source_name.startswith('static_'):
+        # Get static source info
+        source_info = db.execute(
+            text("""
+                SELECT display_name, description
+                FROM static_sources
+                WHERE 'static_' || id::text = :source_name
+                AND is_active = true
+            """),
+            {"source_name": source_name}
+        ).fetchone()
+        
+        if not source_info:
+            return {"error": f"Unknown data source: {source_name}"}
+        
+        config = {
+            "display_name": source_info[0],
+            "description": source_info[1],
+            "url": None,
+            "documentation_url": None
+        }
+    else:
+        # Get basic config
+        if source_name not in DATA_SOURCE_CONFIG:
+            return {"error": f"Unknown data source: {source_name}"}
 
-    config = DATA_SOURCE_CONFIG[source_name]
+        config = DATA_SOURCE_CONFIG[source_name]
 
     # Get statistics
     stats = db.execute(
@@ -164,19 +242,21 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
             text("""
                 SELECT
                     g.approved_symbol,
-                    gep.source_count_percentile,
+                    ces.normalized_score,
                     CASE
                         WHEN ge.source_name = 'PanelApp' THEN
                             jsonb_array_length(COALESCE(ge.evidence_data->'panels', '[]'::jsonb))
                         WHEN ge.source_name = 'PubTator' THEN
                             COALESCE((ge.evidence_data->>'publication_count')::int, 0)
+                        WHEN ge.source_name LIKE 'static_%' THEN
+                            jsonb_array_length(COALESCE(ge.evidence_data->'panels', '[]'::jsonb))
                         ELSE 0
                     END as count
                 FROM gene_evidence ge
                 JOIN genes g ON ge.gene_id = g.id
-                JOIN gene_evidence_with_percentiles gep ON ge.id = gep.id
+                JOIN combined_evidence_scores ces ON ge.id = ces.evidence_id
                 WHERE ge.source_name = :source_name
-                ORDER BY gep.source_count_percentile DESC
+                ORDER BY ces.normalized_score DESC
                 LIMIT 10
             """),
             {"source_name": source_name},
@@ -197,7 +277,7 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
             "top_genes": [
                 {
                     "symbol": gene[0],
-                    "percentile": round(gene[1] * 100, 2),
+                    "score": round(gene[1], 4) if gene[1] else 0.0,
                     "count": gene[2],
                 }
                 for gene in top_genes
