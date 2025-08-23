@@ -186,8 +186,8 @@ class GeneNormalizationStagingCRUD:
             "ClinGen": 95,  # High priority - expert curated
             "HPO": 85,  # High priority - phenotype associations
             "GenCC": 80,  # High priority - harmonized data
+            "DiagnosticPanels": 75,  # High priority - commercial panels
             "PubTator": 20,  # Lower priority - literature mining
-            "Literature": 30,  # Medium priority - manual literature
         }
         score += source_scores.get(source_name, 10)
 

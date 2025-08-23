@@ -108,9 +108,6 @@ def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[s
         if evidence.source_name == "PanelApp":
             panelapp_panels.extend(evidence_data.get("panels", []))
 
-        elif evidence.source_name == "Literature":
-            literature_refs.extend(evidence_data.get("references", []))
-
         elif evidence.source_name == "HPO":
             hpo_terms.extend(evidence_data.get("phenotypes", []))
 

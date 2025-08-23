@@ -125,9 +125,9 @@ def _get_count_for_evidence(evidence: GeneEvidence) -> int:
         # Use publication_count if available, else count pmids
         return data.get("publication_count", len(data.get("pmids", [])))
 
-    elif evidence.source_name == "Literature":
-        # Count references
-        return len(data.get("references", []))
+    elif evidence.source_name == "DiagnosticPanels":
+        # Count panels
+        return data.get("panel_count", len(data.get("panels", [])))
 
     else:
         # Default: try to count common fields

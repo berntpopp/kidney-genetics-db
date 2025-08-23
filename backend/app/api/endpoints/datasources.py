@@ -110,7 +110,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             stats = None
             if config.get("hybrid_source", False):
                 status = "available"  # Ready for manual upload
-            elif source_name in ["Literature", "DiagnosticPanels"]:
+            elif source_name == "DiagnosticPanels":
                 status = "available"  # Ready for manual upload
             else:
                 status = "inactive"
@@ -127,7 +127,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             )
         )
 
-    # Static sources have been replaced by hybrid sources (DiagnosticPanels, Literature)
+    # Static sources have been replaced by hybrid source (DiagnosticPanels)
 
     # Get last pipeline run
     last_run = (
