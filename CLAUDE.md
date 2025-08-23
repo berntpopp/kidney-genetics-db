@@ -196,6 +196,49 @@ cd frontend && npm run format    # Format code
 - **Progress Tracking**: Real-time WebSocket updates for long-running tasks
 - **Caching**: HTTP response caching via `hishel` library
 - **Background Tasks**: Async task processing for data updates
+- **Unified Logging**: Comprehensive structured logging system with dual output
+
+## Logging System
+
+### Overview
+The backend uses a unified structured logging system that replaces scattered `logging.getLogger()` calls with a consistent, enterprise-grade infrastructure. Features include:
+- **Dual output**: Console (sync) + Database (async) persistence
+- **Request correlation**: Unique UUIDs for tracking across API calls
+- **Performance monitoring**: Decorators for operation timing
+- **Administrative API**: Endpoints for log management at `/api/admin/logs/`
+
+### Usage
+```python
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
+
+# Async context
+await logger.info("Operation started", user_id=123)
+
+# Sync context  
+logger.sync_info("Operation completed", duration_ms=456)
+
+# Performance monitoring
+from app.core.logging import timed_operation
+
+@timed_operation(warning_threshold_ms=1000)
+async def slow_operation():
+    await process_data()
+```
+
+### Key Components
+- **UnifiedLogger**: Drop-in replacement for standard Python logging
+- **DatabaseLogger**: Async persistence to `system_logs` table with JSONB
+- **LoggingMiddleware**: Automatic request/response lifecycle tracking
+- **Performance decorators**: `@timed_operation`, `@database_query`, `@api_endpoint`
+
+### Administrative Endpoints
+- `GET /api/admin/logs/` - Query and filter system logs
+- `GET /api/admin/logs/statistics` - View log statistics and error rates
+- `DELETE /api/admin/logs/cleanup` - Manage log retention
+
+For detailed logging documentation, see [docs/development/logging-system.md](docs/development/logging-system.md)
 
 ## Security Notes
 
@@ -203,3 +246,4 @@ cd frontend && npm run format    # Format code
 - Bcrypt dependency available for password hashing
 - Environment-based configuration
 - Never commit secrets or API keys to repository
+- Structured logging automatically filters sensitive data
