@@ -1,44 +1,97 @@
 /**
- * Gene API endpoints
+ * Gene API endpoints - JSON:API compliant
  */
 
 import apiClient from './client'
 
 export const geneApi = {
-  // Get paginated list of genes
+  /**
+   * Get paginated list of genes
+   * @param {Object} params Query parameters
+   * @returns {Promise} JSON:API response with genes
+   */
   async getGenes(params = {}) {
     const {
       page = 1,
-      perPage = 25,
+      perPage = 20,
       search = '',
       minScore = null,
+      maxScore = null,
+      minCount = null,
+      maxCount = null,
+      source = null,
       sortBy = null,
       sortDesc = false
     } = params
-    const skip = (page - 1) * perPage
+
+    // Build JSON:API query parameters
+    const queryParams = {
+      'page[number]': page,
+      'page[size]': perPage
+    }
+
+    // Add filters (only if values are provided)
+    if (search) queryParams['filter[search]'] = search
+    if (minScore !== null) queryParams['filter[min_score]'] = minScore
+    if (maxScore !== null) queryParams['filter[max_score]'] = maxScore
+    if (minCount !== null) queryParams['filter[min_count]'] = minCount
+    if (maxCount !== null) queryParams['filter[max_count]'] = maxCount
+    if (source) queryParams['filter[source]'] = source
+
+    // Build sort parameter (JSON:API spec: prefix with - for descending)
+    if (sortBy) {
+      const sortPrefix = sortDesc ? '-' : ''
+      queryParams.sort = `${sortPrefix}${sortBy}`
+    }
 
     const response = await apiClient.get('/api/genes/', {
-      params: {
-        skip,
-        limit: perPage,
-        search: search || undefined,
-        min_score: minScore || undefined,
-        sort_by: sortBy || undefined,
-        sort_desc: sortDesc || undefined
-      }
+      params: queryParams
     })
-    return response.data
+    
+    // Transform JSON:API response to simpler format for Vue components
+    return {
+      items: response.data.data.map(item => ({
+        id: item.id,
+        ...item.attributes
+      })),
+      total: response.data.meta.total,
+      page: response.data.meta.page,
+      perPage: response.data.meta.per_page,
+      pageCount: response.data.meta.page_count,
+      meta: response.data.meta
+    }
   },
 
-  // Get single gene by symbol
+  /**
+   * Get single gene by symbol
+   * @param {String} symbol Gene symbol
+   * @returns {Promise} Gene data
+   */
   async getGene(symbol) {
     const response = await apiClient.get(`/api/genes/${symbol}`)
-    return response.data
+    
+    // Transform JSON:API response
+    return {
+      id: response.data.data.id,
+      ...response.data.data.attributes
+    }
   },
 
-  // Get evidence for a gene
+  /**
+   * Get evidence for a gene
+   * @param {String} symbol Gene symbol
+   * @returns {Promise} Evidence data
+   */
   async getGeneEvidence(symbol) {
     const response = await apiClient.get(`/api/genes/${symbol}/evidence`)
-    return response.data
+    
+    // Transform JSON:API response
+    return {
+      evidence: response.data.data.map(item => ({
+        id: item.id,
+        ...item.attributes
+      })),
+      meta: response.data.meta
+    }
   }
 }

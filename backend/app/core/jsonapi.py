@@ -32,6 +32,7 @@ class JSONAPIPage(BaseModel, Generic[T]):
     """
     JSON:API compliant page response format.
     """
+
     data: list[dict[str, Any]]
     meta: dict[str, Any]
     links: dict[str, str]
@@ -200,6 +201,7 @@ def get_sort_param(
     default: str | None = None,
 ) -> Callable:
     """Factory for sort parameter dependency."""
+
     def dependency(
         sort: str | None = Query(default, description="Sort fields (e.g., -score,name)"),
     ) -> str | None:
@@ -218,6 +220,7 @@ def jsonapi_endpoint(
     Decorator to mark an endpoint as JSON:API compliant.
     Provides metadata for automatic documentation and validation.
     """
+
     def decorator(func):
         func.__jsonapi_metadata__ = {
             "resource_type": resource_type,
@@ -268,4 +271,3 @@ def build_jsonapi_response(
         },
         "links": links,
     }
-

@@ -14,20 +14,24 @@
             <v-btn
               icon="mdi-download"
               variant="outlined"
+              size="small"
               :disabled="loading"
               title="Export filtered results"
               @click="exportData"
             />
             <v-btn
-              icon="mdi-filter-variant"
+              icon="mdi-filter-remove"
               variant="outlined"
-              :color="hasActiveFilters ? 'primary' : ''"
-              title="Advanced filters"
-              @click="showAdvancedFilters = !showAdvancedFilters"
+              size="small"
+              :color="hasActiveFilters ? 'warning' : ''"
+              :disabled="!hasActiveFilters"
+              title="Clear all filters"
+              @click="clearAllFilters"
             />
             <v-btn
               icon="mdi-refresh"
               variant="outlined"
+              size="small"
               :loading="loading"
               title="Refresh data"
               @click="refreshData"
@@ -35,283 +39,174 @@
           </div>
         </div>
 
-        <!-- Primary Search -->
-        <v-row class="mb-3">
-          <v-col cols="12" md="8">
+        <!-- Compact Filters Row -->
+        <v-row align="center" class="mb-2">
+          <!-- Search -->
+          <v-col cols="12" lg="4">
             <v-text-field
               v-model="search"
               prepend-inner-icon="mdi-magnify"
-              label="Search genes"
-              placeholder="e.g. PKD1, HGNC:9008, polycystic kidney"
+              label="Search"
+              placeholder="PKD1, HGNC:9008..."
               clearable
               hide-details
               variant="outlined"
               density="compact"
-              class="search-field"
-              @input="debouncedSearch"
-            >
-            </v-text-field>
+              single-line
+              @update:model-value="debouncedSearch"
+            />
           </v-col>
-          <v-col cols="12" md="4">
-            <v-range-slider
-              v-model="scoreRange"
-              label="Score Range"
-              :min="0"
-              :max="100"
-              :step="5"
-              thumb-label
-              hide-details
-              color="primary"
-              density="compact"
-              @end="debouncedSearch"
-            >
-              <template #prepend>
-                <v-chip size="x-small" variant="tonal">
-                  {{ scoreRange[0] }}
-                </v-chip>
-              </template>
-              <template #append>
-                <v-chip size="x-small" variant="tonal">
-                  {{ scoreRange[1] }}
-                </v-chip>
-              </template>
-            </v-range-slider>
-          </v-col>
-        </v-row>
-
-        <!-- Advanced Filters -->
-        <v-expand-transition>
-          <div v-if="showAdvancedFilters">
-            <v-divider class="mb-3" />
-            <v-row>
-              <v-col cols="12" md="4">
-                <v-select
-                  v-model="selectedSources"
-                  :items="availableSources"
-                  label="Data Sources"
-                  multiple
-                  chips
-                  closable-chips
-                  hide-details
-                  variant="outlined"
-                  density="compact"
-                  @update:model-value="debouncedSearch"
-                >
-                  <template #selection="{ item, index }">
-                    <v-chip
-                      v-if="index < 2"
-                      :color="getSourceColor(item.value)"
-                      size="small"
-                      variant="tonal"
-                    >
-                      {{ item.title }}
-                    </v-chip>
-                    <span v-if="index === 2" class="text-caption text-medium-emphasis">
-                      (+{{ selectedSources.length - 2 }} others)
-                    </span>
-                  </template>
-                </v-select>
-              </v-col>
-              <v-col cols="12" md="4">
-                <v-text-field
-                  v-model.number="minEvidenceCount"
-                  label="Min Evidence Count"
-                  type="number"
-                  min="0"
-                  hide-details
-                  variant="outlined"
-                  density="compact"
-                  clearable
-                  @input="debouncedSearch"
-                />
-              </v-col>
-              <v-col cols="12" md="4">
-                <v-select
-                  v-model="sortOption"
-                  :items="sortOptions"
-                  label="Sort by"
-                  hide-details
-                  variant="outlined"
-                  density="compact"
-                  @update:model-value="applySorting"
-                />
-              </v-col>
-            </v-row>
-            <v-row class="mt-1">
-              <v-col cols="12">
-                <div class="d-flex align-center ga-2">
-                  <v-chip
-                    v-if="hasActiveFilters"
-                    color="primary"
-                    variant="tonal"
-                    size="small"
-                    prepend-icon="mdi-filter"
-                  >
-                    {{ activeFilterCount }} active filter{{ activeFilterCount !== 1 ? 's' : '' }}
-                  </v-chip>
-                  <v-btn
-                    v-if="hasActiveFilters"
-                    variant="text"
-                    size="small"
-                    prepend-icon="mdi-close"
-                    @click="clearAllFilters"
-                  >
-                    Clear All
-                  </v-btn>
-                </div>
-              </v-col>
-            </v-row>
-          </div>
-        </v-expand-transition>
-      </v-card-text>
-    </v-card>
-
-    <!-- Prominent Results Summary -->
-    <v-card class="results-summary-card mb-4" elevation="0" rounded="lg">
-      <v-card-text class="pa-4">
-        <div class="d-flex align-center justify-space-between">
-          <!-- Gene Count Display -->
-          <div class="d-flex align-center ga-4">
-            <div class="gene-count-display">
-              <div class="text-h5 font-weight-bold text-primary">
-                {{ totalItems.toLocaleString() }}
-              </div>
-              <div class="text-caption text-medium-emphasis">
-                {{ totalItems === 1 ? 'Gene Found' : 'Genes Found' }}
-              </div>
-            </div>
-
-            <v-divider vertical />
-
-            <div class="page-info">
-              <div class="text-body-1 font-weight-medium">
-                {{ ((page - 1) * itemsPerPage + 1).toLocaleString() }}–{{
-                  Math.min(page * itemsPerPage, totalItems).toLocaleString()
-                }}
-              </div>
-              <div class="text-caption text-medium-emphasis">
-                Page {{ page }} of {{ pageCount }}
-              </div>
-            </div>
-
-            <!-- Active Filter Indicators -->
-            <div v-if="hasActiveFilters" class="d-flex align-center ga-2">
-              <v-divider vertical />
-              <div class="d-flex flex-wrap ga-1">
-                <v-chip
-                  v-if="search"
-                  size="small"
-                  variant="tonal"
-                  color="primary"
-                  prepend-icon="mdi-magnify"
-                  closable
-                  @click:close="
-                    () => {
-                      search = ''
-                      debouncedSearch()
-                    }
-                  "
-                >
-                  "{{ search }}"
-                </v-chip>
-                <v-chip
-                  v-if="scoreRange[0] > 0 || scoreRange[1] < 100"
-                  size="small"
-                  variant="tonal"
-                  color="info"
-                  prepend-icon="mdi-chart-line"
-                  closable
-                  @click:close="
-                    () => {
-                      scoreRange = [0, 100]
-                      debouncedSearch()
-                    }
-                  "
-                >
-                  Score: {{ scoreRange[0] }}–{{ scoreRange[1] }}
-                </v-chip>
-                <v-chip
-                  v-if="selectedSources.length > 0"
-                  size="small"
-                  variant="tonal"
-                  color="success"
-                  prepend-icon="mdi-database"
-                  closable
-                  @click:close="
-                    () => {
-                      selectedSources = []
-                      debouncedSearch()
-                    }
-                  "
-                >
-                  {{ selectedSources.length }} Source{{ selectedSources.length !== 1 ? 's' : '' }}
-                </v-chip>
-              </div>
-            </div>
-          </div>
-
-          <!-- Pagination Controls -->
-          <div class="d-flex align-center ga-2">
+          
+          <!-- Data Sources -->
+          <v-col cols="12" lg="4">
             <v-select
-              v-model="itemsPerPage"
-              :items="[10, 25, 50, 100]"
-              label="Per page"
+              v-model="selectedSources"
+              :items="availableSources"
+              label="Sources"
+              multiple
+              chips
+              closable-chips
               hide-details
               variant="outlined"
               density="compact"
+              @update:model-value="debouncedSearch"
+            />
+          </v-col>
+          
+          <!-- Sort -->
+          <v-col cols="12" lg="4">
+            <v-select
+              v-model="sortOption"
+              :items="sortOptions"
+              label="Sort by"
+              hide-details
+              variant="outlined"
+              density="compact"
+              @update:model-value="applySorting"
+            />
+          </v-col>
+        </v-row>
+        
+        <!-- Range Sliders Row -->
+        <v-row align="center" class="mb-2">
+          <v-col cols="12" md="6">
+            <div class="d-flex align-center ga-2">
+              <span class="text-caption font-weight-medium" style="min-width: 90px">Score:</span>
+              <v-chip size="x-small" variant="tonal">{{ evidenceScoreRange[0] }}</v-chip>
+              <v-range-slider
+                v-model="evidenceScoreRange"
+                :min="0"
+                :max="100"
+                :step="1"
+                hide-details
+                color="primary"
+                density="compact"
+                class="flex-grow-1 mx-2"
+                @update:model-value="debouncedSearch"
+              />
+              <v-chip size="x-small" variant="tonal">{{ evidenceScoreRange[1] }}</v-chip>
+            </div>
+          </v-col>
+          
+          <v-col cols="12" md="6">
+            <div class="d-flex align-center ga-2">
+              <span class="text-caption font-weight-medium" style="min-width: 90px">Count:</span>
+              <v-chip size="x-small" variant="tonal">{{ evidenceCountRange[0] }}</v-chip>
+              <v-range-slider
+                v-model="evidenceCountRange"
+                :min="0"
+                :max="filterMeta?.evidence_count?.max || 6"
+                :step="1"
+                hide-details
+                color="secondary"
+                density="compact"
+                class="flex-grow-1 mx-2"
+                @update:model-value="debouncedSearch"
+              />
+              <v-chip size="x-small" variant="tonal">{{ evidenceCountRange[1] }}</v-chip>
+            </div>
+          </v-col>
+        </v-row>
+
+      </v-card-text>
+    </v-card>
+
+    <!-- Top Pagination Controls (per Style Guide) -->
+    <v-card elevation="0" class="mb-2" rounded="lg">
+      <v-card-text class="pa-3">
+        <div class="d-flex align-center justify-space-between">
+          <div class="d-flex align-center ga-4">
+            <div class="text-body-2">
+              <span class="font-weight-medium">{{ totalItems.toLocaleString() }}</span>
+              <span class="text-medium-emphasis"> Genes Found</span>
+            </div>
+            <v-divider vertical />
+            <div class="text-body-2 text-medium-emphasis">
+              {{ pageRangeText }}
+            </div>
+          </div>
+          <div class="d-flex align-center ga-2">
+            <span class="text-caption text-medium-emphasis mr-2">Per page:</span>
+            <v-select
+              v-model="itemsPerPage"
+              :items="itemsPerPageOptions"
+              density="compact"
+              variant="outlined"
+              hide-details
               style="width: 100px"
-              @update:model-value="loadGenes"
+              @update:model-value="updateItemsPerPage"
             />
             <v-pagination
               v-model="page"
               :length="pageCount"
               :total-visible="5"
-              size="small"
               density="compact"
-              @update:model-value="loadGenes"
+              @update:model-value="updatePage"
             />
           </div>
         </div>
       </v-card-text>
     </v-card>
 
-    <!-- Enhanced Data Table -->
-    <v-card rounded="lg" :loading="loading">
+    <!-- Data Table -->
+    <v-card rounded="lg">
       <v-data-table-server
+        v-model:items-per-page="itemsPerPage"
+        v-model:page="page"
+        v-model:sort-by="sortBy"
         :headers="headers"
         :items="genes"
         :items-length="totalItems"
         :loading="loading"
-        :items-per-page="itemsPerPage"
-        :page="page"
-        class="gene-table"
+        :items-per-page-options="itemsPerPageOptions"
         density="compact"
-        hover
+        :hover="true"
+        :show-select="false"
+        :must-sort="true"
         :no-data-text="noDataText"
-        loading-text="Loading gene data..."
-        @update:options="updateOptions"
+        @update:options="loadGenes"
       >
         <!-- Gene Symbol with Link -->
         <template #[`item.approved_symbol`]="{ item }">
           <div class="d-flex align-center">
             <router-link
               :to="`/genes/${item.approved_symbol}`"
-              class="text-decoration-none font-weight-medium gene-link"
+              class="gene-symbol text-primary text-decoration-none font-weight-medium"
             >
               {{ item.approved_symbol }}
             </router-link>
-            <v-tooltip v-if="item.alias_symbol?.length" location="bottom">
+            <v-tooltip v-if="item.aliases?.length" location="bottom">
               <template #activator="{ props }">
                 <v-icon
                   icon="mdi-information-outline"
-                  size="small"
+                  size="x-small"
                   v-bind="props"
                   class="ml-1 text-medium-emphasis"
                 />
               </template>
               <div class="pa-2">
                 <strong>Aliases:</strong><br />
-                {{ item.alias_symbol.join(', ') }}
+                {{ item.aliases.join(', ') }}
               </div>
             </v-tooltip>
           </div>
@@ -322,7 +217,7 @@
           <code v-if="item.hgnc_id" class="text-caption bg-surface-variant pa-1 rounded">
             {{ item.hgnc_id }}
           </code>
-          <v-chip v-else color="grey" variant="tonal" size="x-small"> N/A </v-chip>
+          <v-chip v-else color="grey" variant="tonal" size="x-small">N/A</v-chip>
         </template>
 
         <!-- Evidence Count with Visual Indicator -->
@@ -341,7 +236,7 @@
               :color="getEvidenceCountColor(item.evidence_count)"
               height="2"
               class="ml-2"
-              style="width: 32px"
+              style="width: 40px"
             />
           </div>
         </template>
@@ -356,7 +251,7 @@
               variant="inline"
               size="small"
             />
-            <v-chip v-else color="grey" variant="tonal" size="x-small"> N/A </v-chip>
+            <v-chip v-else color="grey" variant="tonal" size="x-small">N/A</v-chip>
           </div>
         </template>
 
@@ -371,7 +266,6 @@
               variant="tonal"
               class="font-weight-medium"
             >
-              <v-icon :icon="getSourceIcon(source)" size="x-small" start />
               {{ source }}
             </v-chip>
             <v-menu v-if="item.sources?.length > 3" location="bottom">
@@ -391,22 +285,8 @@
           </div>
         </template>
 
-        <!-- Loading State -->
-        <template #loading>
-          <v-skeleton-loader
-            v-for="n in itemsPerPage"
-            :key="n"
-            type="table-row"
-            class="mx-4 my-2"
-          />
-        </template>
-
-        <!-- Simplified Bottom -->
-        <template #bottom>
-          <div class="pa-2 text-center">
-            <div class="text-caption text-medium-emphasis">Page {{ page }} of {{ pageCount }}</div>
-          </div>
-        </template>
+        <!-- No bottom slot - pagination is at the top per style guide -->
+        <template #bottom></template>
       </v-data-table-server>
     </v-card>
 
@@ -425,7 +305,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { geneApi } from '../api/genes'
 import ScoreBreakdown from './ScoreBreakdown.vue'
 
@@ -436,90 +316,71 @@ const totalItems = ref(0)
 const page = ref(1)
 const itemsPerPage = ref(10)
 const search = ref('')
-const scoreRange = ref([0, 100])
+const evidenceScoreRange = ref([0, 100])
 const selectedSources = ref([])
-const minEvidenceCount = ref(null)
-const showAdvancedFilters = ref(false)
+const evidenceCountRange = ref([0, 6])
 const sortOption = ref('score_desc')
+const filterMeta = ref(null)
+const sortBy = ref([{ key: 'evidence_score', order: 'desc' }])
 
-// Available options
-const availableSources = [
-  { title: 'PanelApp', value: 'PanelApp' },
-  { title: 'HPO', value: 'HPO' },
-  { title: 'PubTator', value: 'PubTator' },
-  { title: 'Literature', value: 'Literature' }
+// Options
+const itemsPerPageOptions = [
+  { value: 10, title: '10' },
+  { value: 20, title: '20' },
+  { value: 50, title: '50' },
+  { value: 100, title: '100' }
 ]
+
+const availableSources = [
+  { title: 'ClinGen', value: 'ClinGen' },
+  { title: 'PanelApp', value: 'PanelApp' },
+  { title: 'GenCC', value: 'GenCC' },
+  { title: 'HPO', value: 'HPO' },
+  { title: 'DiagnosticPanels', value: 'DiagnosticPanels' },
+  { title: 'PubTator', value: 'PubTator' }
+]
+
 
 const sortOptions = [
-  { title: 'Score (High to Low)', value: 'score_desc' },
-  { title: 'Score (Low to High)', value: 'score_asc' },
-  { title: 'Symbol (A-Z)', value: 'symbol_asc' },
-  { title: 'Symbol (Z-A)', value: 'symbol_desc' },
-  { title: 'Evidence Count (High to Low)', value: 'evidence_desc' },
-  { title: 'Recently Updated', value: 'updated_desc' }
+  { title: 'Evidence Score (High to Low)', value: 'score_desc' },
+  { title: 'Evidence Score (Low to High)', value: 'score_asc' },
+  { title: 'Gene Symbol (A-Z)', value: 'symbol_asc' },
+  { title: 'Gene Symbol (Z-A)', value: 'symbol_desc' },
+  { title: 'Evidence Count (High to Low)', value: 'count_desc' },
+  { title: 'Evidence Count (Low to High)', value: 'count_asc' }
 ]
 
-// Enhanced table headers
 const headers = [
-  {
-    title: 'Gene Symbol',
-    key: 'approved_symbol',
-    sortable: true,
-    width: '140px'
-  },
-  {
-    title: 'HGNC ID',
-    key: 'hgnc_id',
-    sortable: true,
-    width: '120px'
-  },
-  {
-    title: 'Evidence Count',
-    key: 'evidence_count',
-    sortable: true,
-    width: '140px'
-  },
-  {
-    title: 'Evidence Score',
-    key: 'evidence_score',
-    sortable: true,
-    width: '140px',
-    align: 'center'
-  },
-  {
-    title: 'Data Sources',
-    key: 'sources',
-    sortable: false,
-    width: '200px'
-  }
+  { title: 'Gene Symbol', key: 'approved_symbol', sortable: true },
+  { title: 'HGNC ID', key: 'hgnc_id', sortable: true },
+  { title: 'Evidence Count', key: 'evidence_count', sortable: true },
+  { title: 'Evidence Score', key: 'evidence_score', sortable: true },
+  { title: 'Data Sources', key: 'sources', sortable: false }
 ]
 
 // Computed
 const pageCount = computed(() => Math.ceil(totalItems.value / itemsPerPage.value))
 
-const maxEvidenceCount = computed(() => {
-  if (genes.value.length === 0) return 4 // fallback to API max
-  return Math.max(...genes.value.map(gene => gene.evidence_count || 0))
+const pageRangeText = computed(() => {
+  if (totalItems.value === 0) return 'No results'
+  const start = (page.value - 1) * itemsPerPage.value + 1
+  const end = Math.min(page.value * itemsPerPage.value, totalItems.value)
+  return `Showing ${start}–${end} of ${totalItems.value}`
 })
+
 
 const hasActiveFilters = computed(() => {
   return (
     search.value ||
-    scoreRange.value[0] > 0 ||
-    scoreRange.value[1] < 100 ||
-    selectedSources.value.length > 0 ||
-    minEvidenceCount.value
+    evidenceScoreRange.value[0] > 0 ||
+    evidenceScoreRange.value[1] < 100 ||
+    evidenceCountRange.value[0] > 0 ||
+    evidenceCountRange.value[1] < (filterMeta.value?.evidence_count?.max || 6) ||
+    selectedSources.value.length > 0
   )
 })
 
-const activeFilterCount = computed(() => {
-  let count = 0
-  if (search.value) count++
-  if (scoreRange.value[0] > 0 || scoreRange.value[1] < 100) count++
-  if (selectedSources.value.length > 0) count++
-  if (minEvidenceCount.value) count++
-  return count
-})
+
 
 const noDataText = computed(() => {
   if (hasActiveFilters.value) {
@@ -529,22 +390,46 @@ const noDataText = computed(() => {
 })
 
 // Methods
-const loadGenes = async (sortBy = null, sortDesc = false) => {
+const loadGenes = async (options = {}) => {
+  // Prevent duplicate loading
+  if (loading.value) return
+  
   loading.value = true
   try {
+    // Update pagination from options if provided
+    if (options.page) page.value = options.page
+    if (options.itemsPerPage) itemsPerPage.value = options.itemsPerPage
+    
+    // Parse sorting from options
+    let sortByField = null
+    let sortDesc = false
+    
+    if (options.sortBy?.length > 0) {
+      sortByField = options.sortBy[0].key
+      sortDesc = options.sortBy[0].order === 'desc'
+      sortBy.value = options.sortBy
+    }
+    
     const response = await geneApi.getGenes({
       page: page.value,
       perPage: itemsPerPage.value,
       search: search.value,
-      minScore: scoreRange.value[0],
-      maxScore: scoreRange.value[1],
-      sources: selectedSources.value,
-      minEvidenceCount: minEvidenceCount.value,
-      sortBy: sortBy,
+      minScore: evidenceScoreRange.value[0],
+      maxScore: evidenceScoreRange.value[1],
+      minCount: evidenceCountRange.value[0] > 0 ? evidenceCountRange.value[0] : null,
+      maxCount: evidenceCountRange.value[1] < (filterMeta.value?.evidence_count?.max || 6) ? evidenceCountRange.value[1] : null,
+      source: selectedSources.value.length > 0 ? selectedSources.value[0] : null,
+      sortBy: sortByField,
       sortDesc: sortDesc
     })
+    
     genes.value = response.items
     totalItems.value = response.total
+    
+    // Store filter metadata for dynamic ranges
+    if (response.meta && response.meta.filters) {
+      filterMeta.value = response.meta.filters
+    }
   } catch (error) {
     console.error('Error loading genes:', error)
     genes.value = []
@@ -554,23 +439,27 @@ const loadGenes = async (sortBy = null, sortDesc = false) => {
   }
 }
 
-const updateOptions = options => {
-  page.value = options.page
-  itemsPerPage.value = options.itemsPerPage
+// Event handlers
+const updatePage = (newPage) => {
+  page.value = newPage
+  loadGenes()
+}
 
-  // Handle sorting
-  if (options.sortBy && options.sortBy.length > 0) {
-    const sortField = options.sortBy[0].key
-    const sortOrder = options.sortBy[0].order === 'desc'
-    loadGenes(sortField, sortOrder)
-  } else {
-    loadGenes()
-  }
+const updateItemsPerPage = (newValue) => {
+  itemsPerPage.value = newValue
+  page.value = 1 // Reset to first page
+  loadGenes()
 }
 
 const applySorting = () => {
   const [field, order] = sortOption.value.split('_')
-  loadGenes(field, order === 'desc')
+  const fieldMap = {
+    score: 'evidence_score',
+    symbol: 'approved_symbol',
+    count: 'evidence_count'
+  }
+  sortBy.value = [{ key: fieldMap[field], order }]
+  loadGenes({ sortBy: sortBy.value })
 }
 
 let searchTimeout
@@ -582,15 +471,18 @@ const debouncedSearch = () => {
   }, 300)
 }
 
+
 const clearAllFilters = () => {
   search.value = ''
-  scoreRange.value = [0, 100]
+  evidenceScoreRange.value = [0, 100]
+  evidenceCountRange.value = [0, filterMeta.value?.evidence_count?.max || 6]
   selectedSources.value = []
-  minEvidenceCount.value = null
   sortOption.value = 'score_desc'
+  sortBy.value = [{ key: 'evidence_score', order: 'desc' }]
   page.value = 1
   loadGenes()
 }
+
 
 const refreshData = () => {
   loadGenes()
@@ -601,165 +493,86 @@ const exportData = () => {
   console.log('Export functionality to be implemented')
 }
 
-// Color and icon methods
+// Color and helper methods
 const getSourceColor = source => {
   const colors = {
     PanelApp: 'primary',
     HPO: 'secondary',
     PubTator: 'info',
-    Literature: 'success'
+    ClinGen: 'success',
+    GenCC: 'warning',
+    DiagnosticPanels: 'error'
   }
   return colors[source] || 'grey'
 }
 
-const getSourceIcon = source => {
-  const icons = {
-    PanelApp: 'mdi-view-dashboard',
-    HPO: 'mdi-human',
-    PubTator: 'mdi-file-document',
-    Literature: 'mdi-book-open'
-  }
-  return icons[source] || 'mdi-database'
-}
-
-// Removed unused score functions - these are now handled by ScoreBreakdown component
-
 const getEvidenceCountColor = count => {
-  if (count >= 10) return 'success'
-  if (count >= 5) return 'info'
+  if (count >= 5) return 'success'
+  if (count >= 3) return 'info'
   if (count >= 2) return 'warning'
   return 'error'
 }
 
 const getEvidenceStrength = count => {
-  const max = maxEvidenceCount.value
+  const max = filterMeta.value?.evidence_count?.max || 6
   return max > 0 ? Math.min((count / max) * 100, 100) : 0
 }
 
-// Action methods
-// Removed unused function - will implement later
+const maxEvidenceCount = computed(() => filterMeta.value?.evidence_count?.max || 6)
 
-// Removed unused function - will implement later
-
-// Removed unused function - will implement later
-
-// Lifecycle
+// Lifecycle - Only load once on mount
 onMounted(() => {
   loadGenes()
 })
 </script>
 
 <style scoped>
-/* Search & Filter Card */
 .search-card {
-  border: 1px solid rgb(var(--v-theme-surface-variant));
-  background: rgb(var(--v-theme-surface));
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.search-card:hover {
-  box-shadow: 0 2px 8px rgba(var(--v-theme-shadow-key-penumbra-opacity));
+  border: 1px solid rgba(var(--v-border-color), 0.12);
 }
 
 .search-field :deep(.v-field__input) {
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
-/* Results Summary Card */
-.results-summary-card {
-  border: 1px solid rgb(var(--v-theme-surface-variant));
-  background: rgb(var(--v-theme-surface));
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.gene-count-display {
-  text-align: center;
-  min-width: 80px;
-}
-
-.page-info {
-  text-align: center;
-  min-width: 100px;
-}
-
-/* Data Table Styling */
-.gene-table :deep(.v-data-table__th) {
-  font-weight: 600;
-  background: rgb(var(--v-theme-surface-light));
-  border-bottom: 2px solid rgb(var(--v-theme-surface-variant));
-  padding: 12px 16px;
-  height: 56px;
-}
-
-.gene-table :deep(.v-data-table__td) {
-  border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
-  padding: 8px 12px;
-  height: 48px;
-  vertical-align: middle;
-}
-
-.gene-table :deep(.v-data-table__tr:hover) {
-  background: rgb(var(--v-theme-primary-lighten-3)) !important;
-  transition: background-color 0.2s ease;
-}
-
-/* Gene Link Styling */
-.gene-link {
-  color: rgb(var(--v-theme-primary));
-  transition: all 0.2s ease;
+.gene-symbol {
   font-weight: 500;
 }
 
-.gene-link:hover {
-  color: rgb(var(--v-theme-primary-darken-1));
-  text-decoration: underline;
-  transform: translateX(2px);
+.gene-symbol:hover {
+  text-decoration: underline !important;
 }
 
-/* Dark Theme Adjustments */
-.v-theme--dark .search-card,
-.v-theme--dark .results-summary-card {
-  background: rgb(var(--v-theme-surface-bright));
-  border-color: rgba(var(--v-theme-on-surface), 0.12);
+/* Compact data table styling per style guide */
+:deep(.v-data-table) {
+  font-size: 0.875rem;
 }
 
-.v-theme--dark .gene-table :deep(.v-data-table__th) {
-  background: rgb(var(--v-theme-surface-variant));
+:deep(.v-data-table-header__content) {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-/* Responsive Adjustments */
-@media (max-width: 768px) {
-  .results-summary-card .d-flex {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .gene-count-display,
-  .page-info {
-    text-align: center;
-  }
+:deep(.v-data-table__tr) {
+  height: 48px !important;
 }
 
-/* Component Sizing System - Following Style Guide */
-.gene-table :deep(.v-chip) {
-  font-variant-numeric: tabular-nums;
+:deep(.v-data-table__td) {
+  padding: 8px 12px !important;
 }
 
-.gene-table :deep(.v-progress-linear) {
-  border-radius: 2px;
+/* Ensure proper alignment in compact mode */
+:deep(.v-chip--size-x-small) {
+  height: 20px;
+  font-size: 0.625rem;
 }
 
-/* Smooth Transitions */
-* {
-  transition:
-    color 0.2s ease,
-    background-color 0.2s ease;
-}
-
-/* Focus States */
-.gene-table :deep(.v-btn:focus-visible),
-.search-card :deep(.v-field:focus-within) {
-  outline: 2px solid rgb(var(--v-theme-primary));
-  outline-offset: 2px;
+/* Pagination styling */
+:deep(.v-pagination__item) {
+  min-width: 32px;
+  height: 32px;
+  font-size: 0.875rem;
 }
 </style>
