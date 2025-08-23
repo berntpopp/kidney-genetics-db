@@ -374,7 +374,9 @@ class CacheMonitoringService:
                 "status": (
                     "high"
                     if utilization_percent > 80
-                    else "normal" if utilization_percent > 50 else "low"
+                    else "normal"
+                    if utilization_percent > 50
+                    else "low"
                 ),
             }
 

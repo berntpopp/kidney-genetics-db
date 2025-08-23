@@ -6,13 +6,14 @@ Create Date: 2025-08-22
 
 This migration ensures static scoring views exist and integrates them with gene scores.
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'd590ddf8b389'
-down_revision: str | None = 'c6bad0a185f0'
+revision: str = "d590ddf8b389"
+down_revision: str | None = "c6bad0a185f0"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

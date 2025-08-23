@@ -357,7 +357,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 # Progress indicator every 100 pages
                 if page % 100 == 0:
                     logger.info(
-                        f"📈 Progress: Fetched {total_fetched} articles from {page-1} pages..."
+                        f"📈 Progress: Fetched {total_fetched} articles from {page - 1} pages..."
                     )
 
             except Exception as e:
@@ -382,7 +382,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 page += 1
                 continue
 
-        logger.info(f"✅ PubTator3 search complete: {total_fetched} articles from {page-1} pages")
+        logger.info(f"✅ PubTator3 search complete: {total_fetched} articles from {page - 1} pages")
         return all_results
 
     async def process_data(self, raw_data: dict[str, Any]) -> dict[str, Any]:

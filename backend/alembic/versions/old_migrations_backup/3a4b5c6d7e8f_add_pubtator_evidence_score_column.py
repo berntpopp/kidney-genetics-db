@@ -5,6 +5,7 @@ Revises: 443aa8a1ddf7
 Create Date: 2025-08-18 09:30:00.000000
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -12,10 +13,11 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '3a4b5c6d7e8f'
-down_revision: str | Sequence[str] | None = '2d3f4a5b6c7e'
+revision: str = "3a4b5c6d7e8f"
+down_revision: str | Sequence[str] | None = "2d3f4a5b6c7e"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
 
 def upgrade() -> None:
     """
@@ -24,19 +26,31 @@ def upgrade() -> None:
     """
 
     # Add evidence_score column to gene_evidence table
-    op.add_column('gene_evidence',
-        sa.Column('evidence_score', sa.Float(), nullable=True,
-                  comment='Relevance/confidence score from data source (e.g., PubTator relevance score)')
+    op.add_column(
+        "gene_evidence",
+        sa.Column(
+            "evidence_score",
+            sa.Float(),
+            nullable=True,
+            comment="Relevance/confidence score from data source (e.g., PubTator relevance score)",
+        ),
     )
 
     # Create an index on evidence_score for efficient queries
-    op.create_index('idx_gene_evidence_score', 'gene_evidence', ['evidence_score'],
-                    postgresql_where=sa.text('evidence_score IS NOT NULL'))
+    op.create_index(
+        "idx_gene_evidence_score",
+        "gene_evidence",
+        ["evidence_score"],
+        postgresql_where=sa.text("evidence_score IS NOT NULL"),
+    )
 
     # Create a composite index for efficient filtering by source and score
-    op.create_index('idx_gene_evidence_source_score', 'gene_evidence',
-                    ['source_name', 'evidence_score'],
-                    postgresql_where=sa.text('evidence_score IS NOT NULL'))
+    op.create_index(
+        "idx_gene_evidence_source_score",
+        "gene_evidence",
+        ["source_name", "evidence_score"],
+        postgresql_where=sa.text("evidence_score IS NOT NULL"),
+    )
 
     # Update the evidence_summary_view to include average evidence scores
     op.execute("""
@@ -104,6 +118,7 @@ def upgrade() -> None:
         ON pubtator_evidence_summary(evidence_score DESC NULLS LAST);
     """)
 
+
 def downgrade() -> None:
     """
     Remove evidence_score column and related indexes/views.
@@ -139,8 +154,8 @@ def downgrade() -> None:
     """)
 
     # Drop indexes
-    op.drop_index('idx_gene_evidence_source_score', 'gene_evidence')
-    op.drop_index('idx_gene_evidence_score', 'gene_evidence')
+    op.drop_index("idx_gene_evidence_source_score", "gene_evidence")
+    op.drop_index("idx_gene_evidence_score", "gene_evidence")
 
     # Drop column
-    op.drop_column('gene_evidence', 'evidence_score')
+    op.drop_column("gene_evidence", "evidence_score")

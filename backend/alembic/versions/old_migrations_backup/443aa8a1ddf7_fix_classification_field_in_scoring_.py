@@ -5,15 +5,17 @@ Revises: 1e0dd188d993
 Create Date: 2025-08-18 07:04:13.112771
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '443aa8a1ddf7'
-down_revision: str | Sequence[str] | None = '1e0dd188d993'
+revision: str = "443aa8a1ddf7"
+down_revision: str | Sequence[str] | None = "1e0dd188d993"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
 
 def upgrade() -> None:
     """Fix classification field handling in scoring views.
@@ -163,6 +165,7 @@ def upgrade() -> None:
         CROSS JOIN active_sources ac
         ORDER BY percentage_score DESC NULLS LAST, gss.approved_symbol
     """)
+
 
 def downgrade() -> None:
     """Revert to the old view definitions with incorrect field extraction."""

@@ -148,6 +148,7 @@ class DataSourceClient(ABC):
 
             # Get the actual total counts from the database
             from sqlalchemy import text
+
             result = db.execute(
                 text("""
                     SELECT
@@ -156,7 +157,7 @@ class DataSourceClient(ABC):
                     FROM gene_evidence
                     WHERE source_name = :source_name
                 """),
-                {"source_name": self.source_name}
+                {"source_name": self.source_name},
             ).fetchone()
 
             total_genes = result[0] if result else 0

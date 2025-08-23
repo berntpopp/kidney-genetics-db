@@ -345,7 +345,9 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         disease_str = (
             diseases[0][:30] + "..."
             if diseases and len(diseases[0]) > 30
-            else diseases[0] if diseases else ""
+            else diseases[0]
+            if diseases
+            else ""
         )
 
         # Combine details

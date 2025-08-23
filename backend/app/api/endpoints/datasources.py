@@ -199,7 +199,9 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             elif source_name == "DiagnosticPanels" and diagnostic_metadata:
                 stats.metadata["providers"] = diagnostic_metadata[0] or 0
                 stats.metadata["panels"] = diagnostic_metadata[1] or 0
-                stats.metadata["provider_list"] = [p for p in (diagnostic_metadata[2] or []) if p and p != "test_provider"]
+                stats.metadata["provider_list"] = [
+                    p for p in (diagnostic_metadata[2] or []) if p and p != "test_provider"
+                ]
                 stats.metadata["type"] = "Diagnostic Labs"
                 stats.metadata["upload_type"] = "manual"
 
@@ -216,8 +218,8 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
                     metadata={
                         "upload_type": "manual",
                         "supported_formats": ["json", "csv", "tsv", "xlsx", "xls"],
-                        "message": "Upload diagnostic panel files via the API"
-                    }
+                        "message": "Upload diagnostic panel files via the API",
+                    },
                 )
             else:
                 status = "inactive"
@@ -255,9 +257,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     total_evidence = db.execute(text("SELECT COUNT(*) FROM gene_evidence")).scalar() or 0
 
     # Get last update from any source
-    last_update = db.execute(
-        text("SELECT MAX(updated_at) FROM gene_evidence")
-    ).scalar()
+    last_update = db.execute(text("SELECT MAX(updated_at) FROM gene_evidence")).scalar()
 
     # Calculate source coverage
     source_coverage = 0
@@ -269,9 +269,8 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     explanations = {
         "active_sources": "Number of data sources currently integrated and providing gene evidence",
         "unique_genes": f"Total number of distinct genes across all sources ({unique_genes:,} genes with kidney disease associations)",
-        "source_coverage": f"Average overlap between sources ({source_coverage}%). Each gene appears in ~{round(total_evidence/unique_genes, 1) if unique_genes > 0 else 0} sources on average. Higher coverage indicates stronger validation across multiple sources.",
+        "source_coverage": f"Average overlap between sources ({source_coverage}%). Each gene appears in ~{round(total_evidence / unique_genes, 1) if unique_genes > 0 else 0} sources on average. Higher coverage indicates stronger validation across multiple sources.",
         "last_updated": "Most recent data update from any source. Updates occur when sources are refreshed or new data is uploaded.",
-
         # Source-specific explanations
         "expert_panels": "Number of clinical expert panels that have reviewed and validated gene-disease relationships",
         "classifications": "Different levels of gene-disease validity (Definitive, Strong, Moderate, Limited, Disputed, Refuted)",
@@ -281,7 +280,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         "publications": "Unique PubMed articles mentioning kidney disease genes identified through text mining",
         "panels": "Clinical or diagnostic gene panels for kidney disease testing",
         "regions": "Geographic regions or organizations maintaining the gene panels",
-        "providers": "Commercial diagnostic laboratories offering kidney genetic testing panels"
+        "providers": "Commercial diagnostic laboratories offering kidney genetic testing panels",
     }
 
     return DataSourceList(

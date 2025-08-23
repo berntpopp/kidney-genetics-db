@@ -8,13 +8,14 @@ This migration consolidates all static scoring fixes into a single canonical ver
 Uses the correct internal naming pattern (static_{source_id}) for database storage
 while maintaining display names for user-facing presentation.
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '8f3a2b1c4d5e'
-down_revision: str | None = 'd590ddf8b389'
+revision: str = "8f3a2b1c4d5e"
+down_revision: str | None = "d590ddf8b389"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

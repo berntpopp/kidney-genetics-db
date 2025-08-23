@@ -5,13 +5,14 @@ Revises: a3f40460739f
 Create Date: 2025-08-22 17:01:13.165946
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '7acf7cac5f5f'
-down_revision: str | Sequence[str] | None = 'a3f40460739f'
+revision: str = "7acf7cac5f5f"
+down_revision: str | Sequence[str] | None = "a3f40460739f"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -47,7 +47,7 @@ class ProgressTracker:
             return DataSourceProgress(
                 source_name=self.source_name,
                 status=SourceStatus.idle,
-                progress_metadata={"upload_type": "manual"}
+                progress_metadata={"upload_type": "manual"},
             )
 
         progress = self.db.query(DataSourceProgress).filter_by(source_name=self.source_name).first()

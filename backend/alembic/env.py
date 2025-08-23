@@ -34,6 +34,7 @@ if config.config_file_name is not None:
 # Model metadata for autogenerate
 target_metadata = Base.metadata
 
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     url = config.get_main_option("sqlalchemy.url")
@@ -47,15 +48,16 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+
 def include_object(object, name, type_, reflected, compare_to):
     """
     Filter objects during autogenerate.
     Exclude views as they are managed separately via ReplaceableObjects.
     """
     # Exclude views from autogenerate
-    if type_ == "table" and reflected and hasattr(object, 'info'):
+    if type_ == "table" and reflected and hasattr(object, "info"):
         # Check if this is marked as a view
-        if object.info.get('is_view', False):
+        if object.info.get("is_view", False):
             return False
 
     # Exclude reflected views
@@ -63,19 +65,22 @@ def include_object(object, name, type_, reflected, compare_to):
         # This is a table in the database but not in metadata
         # Could be a view, check the name against known views
         from app.db.views import ALL_VIEWS
+
         view_names = {view.name for view in ALL_VIEWS}
         if name in view_names:
             return False
 
     return True
 
+
 def process_revision_directives(context, revision, directives):
     """Prevent empty migrations from being generated."""
-    if config.cmd_opts and getattr(config.cmd_opts, 'autogenerate', False):
+    if config.cmd_opts and getattr(config.cmd_opts, "autogenerate", False):
         script = directives[0]
         if script.upgrade_ops and script.upgrade_ops.is_empty():
             directives[:] = []
             print("No changes detected, skipping migration generation.")
+
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
@@ -98,6 +103,7 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

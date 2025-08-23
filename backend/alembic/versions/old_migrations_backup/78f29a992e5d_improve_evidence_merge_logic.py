@@ -5,15 +5,17 @@ Revises: 1913be50fe24
 Create Date: 2025-08-18 23:09:30.859283
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '78f29a992e5d'
-down_revision: str | Sequence[str] | None = '1913be50fe24'
+revision: str = "78f29a992e5d"
+down_revision: str | Sequence[str] | None = "1913be50fe24"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
 
 def upgrade() -> None:
     """
@@ -185,6 +187,7 @@ def upgrade() -> None:
     """)
 
     print("✅ Improved evidence deduplication with intelligent JSONB merging")
+
 
 def downgrade() -> None:
     """

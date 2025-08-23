@@ -5,13 +5,14 @@ Revises: 8f3a2b1c4d5e
 Create Date: 2025-08-22 11:45:00.000000
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'c7d8e9f0a1b2'
-down_revision: str | None = '8f3a2b1c4d5e'
+revision: str = "c7d8e9f0a1b2"
+down_revision: str | None = "8f3a2b1c4d5e"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

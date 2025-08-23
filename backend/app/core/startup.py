@@ -105,7 +105,9 @@ def cleanup_orphaned_sources() -> None:
     try:
         # Exclude manual upload sources from configured sources for progress tracking
         manual_upload_sources = ["DiagnosticPanels"]
-        configured_sources = {k for k in DATA_SOURCE_CONFIG.keys() if k not in manual_upload_sources}
+        configured_sources = {
+            k for k in DATA_SOURCE_CONFIG.keys() if k not in manual_upload_sources
+        }
 
         # Find progress records for sources not in current config
         orphaned = (

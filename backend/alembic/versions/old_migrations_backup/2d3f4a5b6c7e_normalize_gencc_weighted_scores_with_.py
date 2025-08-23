@@ -12,15 +12,17 @@ comparable to other evidence sources.
 This ensures that the best GenCC genes (like DPAGT1 with 2x Definitive)
 score 1.0, and scores are distributed properly across the full range.
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '2d3f4a5b6c7e'
-down_revision: str | Sequence[str] | None = '1c0a4ff21798'
+revision: str = "2d3f4a5b6c7e"
+down_revision: str | Sequence[str] | None = "1c0a4ff21798"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
 
 def upgrade() -> None:
     """Add percentile normalization to GenCC weighted scores."""
@@ -121,6 +123,7 @@ def upgrade() -> None:
         CROSS JOIN active_sources ac
         ORDER BY percentage_score DESC NULLS LAST, gss.approved_symbol
     """)
+
 
 def downgrade() -> None:
     """Revert to non-normalized GenCC scores."""

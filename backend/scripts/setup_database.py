@@ -21,11 +21,9 @@ from app.core.database import engine, get_db  # noqa: E402
 from app.models.base import Base  # noqa: E402
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
 
 def create_all_tables():
     """Create all tables defined in models"""
@@ -36,6 +34,7 @@ def create_all_tables():
     except Exception as e:
         logger.error(f"❌ Error creating tables: {e}")
         raise
+
 
 def create_views():
     """Create all necessary database views"""
@@ -72,6 +71,7 @@ def create_views():
         logger.error(f"❌ Error creating views: {e}")
         raise
 
+
 def create_indexes():
     """Create performance indexes"""
     logger.info("Creating database indexes...")
@@ -100,6 +100,7 @@ def create_indexes():
         logger.error(f"❌ Error creating indexes: {e}")
         raise
 
+
 def verify_database_integrity():
     """Verify database integrity and report status"""
     logger.info("Verifying database integrity...")
@@ -112,7 +113,7 @@ def verify_database_integrity():
                 "gene_evidence": "SELECT COUNT(*) FROM gene_evidence",
                 "gene_curations": "SELECT COUNT(*) FROM gene_curations",
                 "gene_normalization_staging": "SELECT COUNT(*) FROM gene_normalization_staging",
-                "pipeline_runs": "SELECT COUNT(*) FROM pipeline_runs"
+                "pipeline_runs": "SELECT COUNT(*) FROM pipeline_runs",
             }
 
             logger.info("📊 Database Status:")
@@ -132,13 +133,15 @@ def verify_database_integrity():
 
             # Check HGNC coverage
             try:
-                result = conn.execute(text("""
+                result = conn.execute(
+                    text("""
                     SELECT
                         COUNT(*) as total,
                         COUNT(CASE WHEN hgnc_id IS NOT NULL THEN 1 END) as with_hgnc,
                         ROUND(COUNT(CASE WHEN hgnc_id IS NOT NULL THEN 1 END) * 100.0 / COUNT(*), 1) as coverage
                     FROM genes
-                """)).fetchone()
+                """)
+                ).fetchone()
                 logger.info(f"  HGNC Coverage: {result[1]}/{result[0]} ({result[2]}%)")
             except Exception as e:
                 logger.warning(f"  HGNC Coverage: Cannot calculate ({e})")
@@ -148,6 +151,7 @@ def verify_database_integrity():
     except Exception as e:
         logger.error(f"❌ Error verifying database: {e}")
         raise
+
 
 def setup_database(skip_aggregation=False):
     """
@@ -173,10 +177,13 @@ def setup_database(skip_aggregation=False):
             logger.info("Running gene curation aggregation...")
             try:
                 from app.pipeline.aggregate import update_all_curations
+
                 db = next(get_db())
                 try:
                     result = update_all_curations(db)
-                    logger.info(f"✅ Gene aggregation completed: {result.get('genes_processed', 0)} genes processed")
+                    logger.info(
+                        f"✅ Gene aggregation completed: {result.get('genes_processed', 0)} genes processed"
+                    )
                 finally:
                     db.close()
             except Exception as e:
@@ -192,6 +199,7 @@ def setup_database(skip_aggregation=False):
         logger.error(f"💥 Database setup failed: {e}")
         return False
 
+
 if __name__ == "__main__":
     import argparse
 
@@ -199,12 +207,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--skip-aggregation",
         action="store_true",
-        help="Skip gene aggregation step (for fresh databases)"
+        help="Skip gene aggregation step (for fresh databases)",
     )
     parser.add_argument(
         "--verify-only",
         action="store_true",
-        help="Only verify database status, don't create anything"
+        help="Only verify database status, don't create anything",
     )
 
     args = parser.parse_args()

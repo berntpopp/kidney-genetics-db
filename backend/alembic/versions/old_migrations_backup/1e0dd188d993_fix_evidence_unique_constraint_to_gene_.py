@@ -5,15 +5,17 @@ Revises: 001_initial_complete
 Create Date: 2025-08-18 06:46:11.743301
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '1e0dd188d993'
-down_revision: str | Sequence[str] | None = '001_initial_complete'
+revision: str = "1e0dd188d993"
+down_revision: str | Sequence[str] | None = "001_initial_complete"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
 
 def upgrade() -> None:
     """
@@ -50,16 +52,17 @@ def upgrade() -> None:
     """)
 
     # Drop the old unique constraint
-    op.drop_constraint('gene_evidence_source_idx', 'gene_evidence', type_='unique')
+    op.drop_constraint("gene_evidence_source_idx", "gene_evidence", type_="unique")
 
     # Create the new unique constraint with just gene_id and source_name
     op.create_unique_constraint(
-        'gene_evidence_source_idx',
-        'gene_evidence',
-        ['gene_id', 'source_name']
+        "gene_evidence_source_idx", "gene_evidence", ["gene_id", "source_name"]
     )
 
-    print("✅ Fixed evidence constraint - removed duplicates and enforced one evidence per source per gene")
+    print(
+        "✅ Fixed evidence constraint - removed duplicates and enforced one evidence per source per gene"
+    )
+
 
 def downgrade() -> None:
     """
@@ -68,11 +71,9 @@ def downgrade() -> None:
     """
 
     # Drop the new constraint
-    op.drop_constraint('gene_evidence_source_idx', 'gene_evidence', type_='unique')
+    op.drop_constraint("gene_evidence_source_idx", "gene_evidence", type_="unique")
 
     # Recreate the old constraint with source_detail
     op.create_unique_constraint(
-        'gene_evidence_source_idx',
-        'gene_evidence',
-        ['gene_id', 'source_name', 'source_detail']
+        "gene_evidence_source_idx", "gene_evidence", ["gene_id", "source_name", "source_detail"]
     )
