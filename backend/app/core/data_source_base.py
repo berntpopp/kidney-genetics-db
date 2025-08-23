@@ -146,16 +146,31 @@ class DataSourceClient(ABC):
                 - datetime.fromisoformat(stats["started_at"])
             ).total_seconds()
 
+            # Get the actual total counts from the database
+            from sqlalchemy import text
+            result = db.execute(
+                text("""
+                    SELECT 
+                        COUNT(DISTINCT gene_id) as total_genes,
+                        COUNT(*) as total_evidence
+                    FROM gene_evidence
+                    WHERE source_name = :source_name
+                """),
+                {"source_name": self.source_name}
+            ).fetchone()
+            
+            total_genes = result[0] if result else 0
+            total_evidence = result[1] if result else 0
+            
             logger.info(
                 f"✅ {self.source_name} update completed: "
-                f"{stats['genes_found']} genes found, "
-                f"{stats['genes_created']} created, "
-                f"{stats['evidence_created']} evidence records"
+                f"Total: {total_genes} genes, {total_evidence} evidence | "
+                f"Added: {stats['genes_created']} genes, {stats['evidence_created']} evidence"
             )
 
             tracker.complete(
-                f"{self.source_name} update completed: "
-                f"{stats['genes_created']} genes, {stats['evidence_created']} evidence"
+                f"{self.source_name}: {total_genes} genes, {total_evidence} evidence "
+                f"(+{stats['genes_created']} new genes, +{stats['evidence_created']} new evidence)"
             )
 
             return stats
