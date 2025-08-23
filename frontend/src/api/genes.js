@@ -47,7 +47,7 @@ export const geneApi = {
     const response = await apiClient.get('/api/genes/', {
       params: queryParams
     })
-    
+
     // Transform JSON:API response to simpler format for Vue components
     return {
       items: response.data.data.map(item => ({
@@ -69,7 +69,7 @@ export const geneApi = {
    */
   async getGene(symbol) {
     const response = await apiClient.get(`/api/genes/${symbol}`)
-    
+
     // Transform JSON:API response
     return {
       id: response.data.data.id,
@@ -84,7 +84,7 @@ export const geneApi = {
    */
   async getGeneEvidence(symbol) {
     const response = await apiClient.get(`/api/genes/${symbol}/evidence`)
-    
+
     // Transform JSON:API response
     return {
       evidence: response.data.data.map(item => ({

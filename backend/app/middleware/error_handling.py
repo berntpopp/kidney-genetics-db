@@ -66,20 +66,24 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
         elif isinstance(exception, AuthenticationError | PermissionDeniedError):
             logger.warning(f"Security exception: {type(exception).__name__}: {exception}")
         else:
-            logger.error(f"Domain exception: {type(exception).__name__}: {exception}", exc_info=True)
+            logger.error(
+                f"Domain exception: {type(exception).__name__}: {exception}", exc_info=True
+            )
 
         # Map exceptions to standardized responses
         if isinstance(exception, GeneNotFoundError):
             return ResponseBuilder.build_not_found_error("Gene", exception.gene_identifier, request)
         elif isinstance(exception, ValidationError):
-            return ResponseBuilder.build_validation_error(exception.field, exception.reason, request)
+            return ResponseBuilder.build_validation_error(
+                exception.field, exception.reason, request
+            )
         elif isinstance(exception, AuthenticationError):
             return ResponseBuilder.build_error_response(
                 status_code=401,
                 error_code="AUTHENTICATION_FAILED",
                 title="Authentication Failed",
                 detail=exception.reason,
-                request=request
+                request=request,
             )
         elif isinstance(exception, PermissionDeniedError):
             return ResponseBuilder.build_error_response(
@@ -87,7 +91,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 error_code="PERMISSION_DENIED",
                 title="Permission Denied",
                 detail=str(exception),
-                request=request
+                request=request,
             )
         elif isinstance(exception, ResourceConflictError):
             return ResponseBuilder.build_error_response(
@@ -95,7 +99,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 error_code="RESOURCE_CONFLICT",
                 title="Resource Conflict",
                 detail=str(exception),
-                request=request
+                request=request,
             )
         elif isinstance(exception, RateLimitExceededError):
             response = ResponseBuilder.build_error_response(
@@ -103,7 +107,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 error_code="RATE_LIMIT_EXCEEDED",
                 title="Rate Limit Exceeded",
                 detail=str(exception),
-                request=request
+                request=request,
             )
             if exception.retry_after:
                 response.headers["Retry-After"] = str(exception.retry_after)
@@ -114,7 +118,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 error_code="EXTERNAL_SERVICE_ERROR",
                 title="External Service Error",
                 detail=str(exception),
-                request=request
+                request=request,
             )
         elif isinstance(exception, DatabaseError | CacheError):
             return ResponseBuilder.build_error_response(
@@ -122,7 +126,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 error_code="SERVICE_UNAVAILABLE",
                 title="Service Temporarily Unavailable",
                 detail="Database service temporarily unavailable. Please try again later.",
-                request=request
+                request=request,
             )
         else:
             # Generic domain exception
@@ -141,7 +145,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 "request_path": str(request.url),
                 "request_method": request.method,
                 "traceback": traceback.format_exc(),
-            }
+            },
         )
 
         logger.error(
@@ -152,7 +156,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 "request_path": str(request.url),
                 "request_method": request.method,
             },
-            exc_info=True
+            exc_info=True,
         )
 
         return ResponseBuilder.build_internal_error(error_id, request)
@@ -173,7 +177,7 @@ def register_error_handlers(app: FastAPI):
             error_code="HTTP_ERROR",
             title="HTTP Error",
             detail=exc.detail,
-            request=request
+            request=request,
         )
 
     @app.exception_handler(RequestValidationError)
@@ -201,16 +205,15 @@ def register_error_handlers(app: FastAPI):
             title="Database Service Unavailable",
             detail="Database service temporarily unavailable. Please try again later.",
             error_id=error_id,
-            request=request
+            request=request,
         )
 
     @app.exception_handler(ResponseValidationError)
     async def response_validation_exception_handler(request: Request, exc: ResponseValidationError):
         """Handle response validation errors (500 - internal server error)."""
-        error_id = log_exception(exc, {
-            "request_path": str(request.url),
-            "validation_errors": exc.errors()
-        })
+        error_id = log_exception(
+            exc, {"request_path": str(request.url), "validation_errors": exc.errors()}
+        )
 
         logger.error(f"Response validation error [{error_id}]: {exc.errors()}")
 
@@ -220,7 +223,7 @@ def register_error_handlers(app: FastAPI):
             title="Internal Server Error",
             detail="Server response validation failed. This is a server-side error.",
             error_id=error_id,
-            request=request
+            request=request,
         )
 
     # Add the middleware for catching unexpected exceptions

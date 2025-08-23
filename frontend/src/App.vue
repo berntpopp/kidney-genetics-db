@@ -45,6 +45,15 @@
           Gene Browser
         </v-btn>
         <v-btn
+          :to="'/dashboard'"
+          variant="text"
+          :color="$route.path === '/dashboard' ? 'primary' : ''"
+          class="text-none"
+        >
+          <v-icon icon="mdi-view-dashboard" size="small" class="mr-1" />
+          Dashboard
+        </v-btn>
+        <v-btn
           :to="'/data-sources'"
           variant="text"
           :color="$route.path === '/data-sources' ? 'primary' : ''"
@@ -87,6 +96,12 @@
           title="Gene Browser"
           :to="'/genes'"
           :active="$route.path.startsWith('/genes')"
+        />
+        <v-list-item
+          prepend-icon="mdi-view-dashboard"
+          title="Dashboard"
+          :to="'/dashboard'"
+          :active="$route.path === '/dashboard'"
         />
         <v-list-item
           prepend-icon="mdi-database-sync"

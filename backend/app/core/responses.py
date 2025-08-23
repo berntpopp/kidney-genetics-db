@@ -43,10 +43,7 @@ class ResponseBuilder:
         """
         response = {
             "data": data,
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat() + "Z",
-                **(meta or {})
-            }
+            "meta": {"timestamp": datetime.utcnow().isoformat() + "Z", **(meta or {})},
         }
 
         if links:
@@ -86,10 +83,10 @@ class ResponseBuilder:
         }
 
         if page_number > 1:
-            links["prev"] = f"{base_url}?page[number]={page_number-1}&page[size]={page_size}"
+            links["prev"] = f"{base_url}?page[number]={page_number - 1}&page[size]={page_size}"
 
         if page_number < total_pages:
-            links["next"] = f"{base_url}?page[number]={page_number+1}&page[size]={page_size}"
+            links["next"] = f"{base_url}?page[number]={page_number + 1}&page[size]={page_size}"
 
         # Build metadata
         meta = {
@@ -99,14 +96,10 @@ class ResponseBuilder:
                 "total": total,
                 "pages": total_pages,
             },
-            **(additional_meta or {})
+            **(additional_meta or {}),
         }
 
-        return ResponseBuilder.build_success_response(
-            data=data,
-            meta=meta,
-            links=links
-        )
+        return ResponseBuilder.build_success_response(data=data, meta=meta, links=links)
 
     @staticmethod
     def build_error_response(
@@ -146,7 +139,7 @@ class ResponseBuilder:
                 "meta": {
                     "error_id": error_id,
                     "timestamp": datetime.utcnow().isoformat() + "Z",
-                }
+                },
             }
         }
 
@@ -161,10 +154,7 @@ class ResponseBuilder:
         if context:
             error_body["error"]["meta"]["debug_context"] = context
 
-        return JSONResponse(
-            status_code=status_code,
-            content=error_body
-        )
+        return JSONResponse(status_code=status_code, content=error_body)
 
     @staticmethod
     def build_not_found_error(
@@ -180,7 +170,7 @@ class ResponseBuilder:
             detail=f"{resource_type} '{identifier}' not found",
             source={"parameter": "identifier"},
             request=request,
-            context={"resource_type": resource_type, "identifier": str(identifier)}
+            context={"resource_type": resource_type, "identifier": str(identifier)},
         )
 
     @staticmethod
@@ -210,7 +200,7 @@ class ResponseBuilder:
             detail=detail,
             source=source,
             request=request,
-            context={"field": field, "reason": reason}
+            context={"field": field, "reason": reason},
         )
 
     @staticmethod
@@ -228,7 +218,7 @@ class ResponseBuilder:
             title="Internal Server Error",
             detail=f"An unexpected error occurred. Please contact support with error ID: {error_id}",
             error_id=error_id,
-            request=request
+            request=request,
         )
 
     @staticmethod
@@ -250,5 +240,5 @@ class ResponseBuilder:
             page_number=page_number,
             page_size=page_size,
             base_url=base_url,
-            additional_meta=additional_meta
+            additional_meta=additional_meta,
         )

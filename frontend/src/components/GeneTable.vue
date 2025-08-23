@@ -56,7 +56,7 @@
               @update:model-value="debouncedSearch"
             />
           </v-col>
-          
+
           <!-- Data Sources -->
           <v-col cols="12" lg="4">
             <v-select
@@ -72,7 +72,7 @@
               @update:model-value="debouncedSearch"
             />
           </v-col>
-          
+
           <!-- Sort -->
           <v-col cols="12" lg="4">
             <v-select
@@ -86,7 +86,7 @@
             />
           </v-col>
         </v-row>
-        
+
         <!-- Range Sliders Row -->
         <v-row align="center" class="mb-2">
           <v-col cols="12" md="6">
@@ -107,7 +107,7 @@
               <v-chip size="x-small" variant="tonal">{{ evidenceScoreRange[1] }}</v-chip>
             </div>
           </v-col>
-          
+
           <v-col cols="12" md="6">
             <div class="d-flex align-center ga-2">
               <span class="text-caption font-weight-medium" style="min-width: 90px">Count:</span>
@@ -127,7 +127,6 @@
             </div>
           </v-col>
         </v-row>
-
       </v-card-text>
     </v-card>
 
@@ -305,7 +304,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { geneApi } from '../api/genes'
 import ScoreBreakdown from './ScoreBreakdown.vue'
 
@@ -340,7 +339,6 @@ const availableSources = [
   { title: 'PubTator', value: 'PubTator' }
 ]
 
-
 const sortOptions = [
   { title: 'Evidence Score (High to Low)', value: 'score_desc' },
   { title: 'Evidence Score (Low to High)', value: 'score_asc' },
@@ -368,7 +366,6 @@ const pageRangeText = computed(() => {
   return `Showing ${start}–${end} of ${totalItems.value}`
 })
 
-
 const hasActiveFilters = computed(() => {
   return (
     search.value ||
@@ -379,8 +376,6 @@ const hasActiveFilters = computed(() => {
     selectedSources.value.length > 0
   )
 })
-
-
 
 const noDataText = computed(() => {
   if (hasActiveFilters.value) {
@@ -393,23 +388,23 @@ const noDataText = computed(() => {
 const loadGenes = async (options = {}) => {
   // Prevent duplicate loading
   if (loading.value) return
-  
+
   loading.value = true
   try {
     // Update pagination from options if provided
     if (options.page) page.value = options.page
     if (options.itemsPerPage) itemsPerPage.value = options.itemsPerPage
-    
+
     // Parse sorting from options
     let sortByField = null
     let sortDesc = false
-    
+
     if (options.sortBy?.length > 0) {
       sortByField = options.sortBy[0].key
       sortDesc = options.sortBy[0].order === 'desc'
       sortBy.value = options.sortBy
     }
-    
+
     const response = await geneApi.getGenes({
       page: page.value,
       perPage: itemsPerPage.value,
@@ -417,15 +412,18 @@ const loadGenes = async (options = {}) => {
       minScore: evidenceScoreRange.value[0],
       maxScore: evidenceScoreRange.value[1],
       minCount: evidenceCountRange.value[0] > 0 ? evidenceCountRange.value[0] : null,
-      maxCount: evidenceCountRange.value[1] < (filterMeta.value?.evidence_count?.max || 6) ? evidenceCountRange.value[1] : null,
+      maxCount:
+        evidenceCountRange.value[1] < (filterMeta.value?.evidence_count?.max || 6)
+          ? evidenceCountRange.value[1]
+          : null,
       source: selectedSources.value.length > 0 ? selectedSources.value[0] : null,
       sortBy: sortByField,
       sortDesc: sortDesc
     })
-    
+
     genes.value = response.items
     totalItems.value = response.total
-    
+
     // Store filter metadata for dynamic ranges
     if (response.meta && response.meta.filters) {
       filterMeta.value = response.meta.filters
@@ -440,12 +438,12 @@ const loadGenes = async (options = {}) => {
 }
 
 // Event handlers
-const updatePage = (newPage) => {
+const updatePage = newPage => {
   page.value = newPage
   loadGenes()
 }
 
-const updateItemsPerPage = (newValue) => {
+const updateItemsPerPage = newValue => {
   itemsPerPage.value = newValue
   page.value = 1 // Reset to first page
   loadGenes()
@@ -471,7 +469,6 @@ const debouncedSearch = () => {
   }, 300)
 }
 
-
 const clearAllFilters = () => {
   search.value = ''
   evidenceScoreRange.value = [0, 100]
@@ -482,7 +479,6 @@ const clearAllFilters = () => {
   page.value = 1
   loadGenes()
 }
-
 
 const refreshData = () => {
   loadGenes()
@@ -517,8 +513,6 @@ const getEvidenceStrength = count => {
   const max = filterMeta.value?.evidence_count?.max || 6
   return max > 0 ? Math.min((count / max) * 100, 100) : 0
 }
-
-const maxEvidenceCount = computed(() => filterMeta.value?.evidence_count?.max || 6)
 
 // Lifecycle - Only load once on mount
 onMounted(() => {

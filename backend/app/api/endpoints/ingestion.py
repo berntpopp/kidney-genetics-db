@@ -55,7 +55,7 @@ async def upload_evidence_file(
         raise DataSourceError(
             source_name,
             "upload",
-            f"Source does not support file uploads. Available: {', '.join(UPLOAD_SOURCES)}"
+            f"Source does not support file uploads. Available: {', '.join(UPLOAD_SOURCES)}",
         )
 
     # Validate file size (50MB limit)
@@ -67,10 +67,7 @@ async def upload_evidence_file(
         content_chunks.append(chunk)
         file_size += len(chunk)
         if file_size > 50 * 1024 * 1024:  # 50MB limit
-            raise ValidationError(
-                field="file",
-                reason="File size exceeds 50MB limit"
-            )
+            raise ValidationError(field="file", reason="File size exceeds 50MB limit")
 
     file_content = b"".join(content_chunks)
 
@@ -82,7 +79,7 @@ async def upload_evidence_file(
     if file_extension not in ["json", "csv", "tsv", "xlsx", "xls"]:
         raise ValidationError(
             field="file_type",
-            reason=f"Unsupported file type: {file_extension}. Supported: json, csv, tsv, xlsx, xls"
+            reason=f"Unsupported file type: {file_extension}. Supported: json, csv, tsv, xlsx, xls",
         )
 
     # Use filename (without extension) as provider if not specified
@@ -122,7 +119,7 @@ async def upload_evidence_file(
 
         return ResponseBuilder.build_success_response(
             data=upload_result,
-            meta={"upload_id": f"upload_{int(time.time())}", "processing_time_ms": None}
+            meta={"upload_id": f"upload_{int(time.time())}", "processing_time_ms": None},
         )
 
     except ValueError as e:
@@ -153,9 +150,7 @@ async def get_source_status(source_name: str, db: Session = Depends(get_db)) -> 
     """
     if source_name not in UPLOAD_SOURCES:
         raise DataSourceError(
-            source_name,
-            "status",
-            f"Source not found. Available: {', '.join(UPLOAD_SOURCES)}"
+            source_name, "status", f"Source not found. Available: {', '.join(UPLOAD_SOURCES)}"
         )
 
     # Get evidence statistics
@@ -202,8 +197,7 @@ async def get_source_status(source_name: str, db: Session = Depends(get_db)) -> 
     }
 
     return ResponseBuilder.build_success_response(
-        data=status_data,
-        meta={"source_name": source_name}
+        data=status_data, meta={"source_name": source_name}
     )
 
 
@@ -231,6 +225,5 @@ async def list_hybrid_sources() -> dict[str, Any]:
         sources.append(source_info)
 
     return ResponseBuilder.build_success_response(
-        data={"sources": sources},
-        meta={"total": len(sources)}
+        data={"sources": sources}, meta={"total": len(sources)}
     )

@@ -33,7 +33,13 @@ class GeneNotFoundError(KidneyGeneticsException):
 class DataSourceError(KidneyGeneticsException):
     """Data source related errors."""
 
-    def __init__(self, source_name: str, operation: str, detail: str | None = None, context: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        source_name: str,
+        operation: str,
+        detail: str | None = None,
+        context: dict[str, Any] | None = None,
+    ):
         if detail:
             message = f"Data source '{source_name}' error during {operation}: {detail}"
         else:
@@ -47,7 +53,12 @@ class DataSourceError(KidneyGeneticsException):
 class ValidationError(KidneyGeneticsException):
     """Data validation error."""
 
-    def __init__(self, field: str | None = None, reason: str | None = None, context: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        field: str | None = None,
+        reason: str | None = None,
+        context: dict[str, Any] | None = None,
+    ):
         if field and reason:
             message = f"Validation failed for '{field}': {reason}"
         elif field:
@@ -64,7 +75,13 @@ class ValidationError(KidneyGeneticsException):
 class ExternalServiceError(KidneyGeneticsException):
     """External service failure (HGNC, HPO, PubTator, etc.)."""
 
-    def __init__(self, service_name: str, operation: str | None = None, detail: str | None = None, context: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        service_name: str,
+        operation: str | None = None,
+        detail: str | None = None,
+        context: dict[str, Any] | None = None,
+    ):
         if operation and detail:
             message = f"External service '{service_name}' error during {operation}: {detail}"
         elif operation:
@@ -82,7 +99,9 @@ class ExternalServiceError(KidneyGeneticsException):
 class DatabaseError(KidneyGeneticsException):
     """Database operation error."""
 
-    def __init__(self, operation: str, detail: str | None = None, context: dict[str, Any] | None = None):
+    def __init__(
+        self, operation: str, detail: str | None = None, context: dict[str, Any] | None = None
+    ):
         if detail:
             message = f"Database error during {operation}: {detail}"
         else:
@@ -95,7 +114,9 @@ class DatabaseError(KidneyGeneticsException):
 class PipelineError(KidneyGeneticsException):
     """Data pipeline processing error."""
 
-    def __init__(self, pipeline_stage: str, detail: str | None = None, context: dict[str, Any] | None = None):
+    def __init__(
+        self, pipeline_stage: str, detail: str | None = None, context: dict[str, Any] | None = None
+    ):
         if detail:
             message = f"Pipeline error in {pipeline_stage}: {detail}"
         else:
@@ -108,7 +129,13 @@ class PipelineError(KidneyGeneticsException):
 class CacheError(KidneyGeneticsException):
     """Cache operation error."""
 
-    def __init__(self, operation: str, cache_key: str | None = None, detail: str | None = None, context: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        operation: str,
+        cache_key: str | None = None,
+        detail: str | None = None,
+        context: dict[str, Any] | None = None,
+    ):
         if cache_key and detail:
             message = f"Cache error during {operation} for key '{cache_key}': {detail}"
         elif cache_key:
@@ -134,7 +161,9 @@ class AuthenticationError(KidneyGeneticsException):
 class PermissionDeniedError(KidneyGeneticsException):
     """Permission denied for requested operation."""
 
-    def __init__(self, required_permission: str, operation: str, context: dict[str, Any] | None = None):
+    def __init__(
+        self, required_permission: str, operation: str, context: dict[str, Any] | None = None
+    ):
         message = f"Permission denied for {operation}. Requires {required_permission}"
         super().__init__(message, context)
         self.required_permission = required_permission
@@ -144,7 +173,9 @@ class PermissionDeniedError(KidneyGeneticsException):
 class ResourceConflictError(KidneyGeneticsException):
     """Resource conflict (e.g., duplicate creation)."""
 
-    def __init__(self, resource_type: str, conflict_reason: str, context: dict[str, Any] | None = None):
+    def __init__(
+        self, resource_type: str, conflict_reason: str, context: dict[str, Any] | None = None
+    ):
         message = f"{resource_type} conflict: {conflict_reason}"
         super().__init__(message, context)
         self.resource_type = resource_type
@@ -154,7 +185,12 @@ class ResourceConflictError(KidneyGeneticsException):
 class RateLimitExceededError(KidneyGeneticsException):
     """Rate limit exceeded for external service calls."""
 
-    def __init__(self, service_name: str, retry_after: int | None = None, context: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        service_name: str,
+        retry_after: int | None = None,
+        context: dict[str, Any] | None = None,
+    ):
         message = f"Rate limit exceeded for {service_name}"
         if retry_after:
             message += f". Retry after {retry_after} seconds"
@@ -174,6 +210,7 @@ def log_exception(exception: Exception, context: dict[str, Any] | None = None) -
         Unique error ID for tracking
     """
     from app.core.responses import ResponseBuilder
+
     error_id = ResponseBuilder.generate_error_id()
 
     # Enhanced logging with structured data
@@ -185,7 +222,7 @@ def log_exception(exception: Exception, context: dict[str, Any] | None = None) -
             "exception_message": str(exception),
             "context": context or {},
             "traceback": traceback.format_exc(),
-        }
+        },
     )
 
     return error_id
@@ -193,6 +230,6 @@ def log_exception(exception: Exception, context: dict[str, Any] | None = None) -
 
 async def async_log_exception(exception: Exception, context: dict[str, Any] | None = None) -> str:
     """Async version of log_exception for use in async contexts."""
-    return log_exception(exception, context)  # Logging is inherently sync, so we just call the sync version
-
-
+    return log_exception(
+        exception, context
+    )  # Logging is inherently sync, so we just call the sync version

@@ -382,8 +382,7 @@ async def create_gene(
 
     if existing:
         raise ValidationError(
-            field="approved_symbol",
-            reason=f"Gene '{gene_in.approved_symbol}' already exists"
+            field="approved_symbol", reason=f"Gene '{gene_in.approved_symbol}' already exists"
         )
 
     # Create gene

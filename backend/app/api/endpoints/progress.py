@@ -149,10 +149,7 @@ async def get_all_status(db: Session = Depends(get_db)) -> dict[str, Any]:
             status_dict["category"] = "other"
         result.append(status_dict)
 
-    return ResponseBuilder.build_success_response(
-        data=result,
-        meta={"total_sources": len(result)}
-    )
+    return ResponseBuilder.build_success_response(data=result, meta={"total_sources": len(result)})
 
 
 @router.get("/status/{source_name}")
@@ -172,8 +169,7 @@ async def get_source_status(source_name: str, db: Session = Depends(get_db)) -> 
         raise DataSourceError(source_name, "status_check", "Source not found")
 
     return ResponseBuilder.build_success_response(
-        data=progress.to_dict(),
-        meta={"source_name": source_name}
+        data=progress.to_dict(), meta={"source_name": source_name}
     )
 
 
@@ -223,7 +219,7 @@ async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dic
     logger.info(f"🚀 API: Returning success response for {source_name}")
     return ResponseBuilder.build_success_response(
         data={"status": "triggered", "message": f"Update triggered for {source_name}"},
-        meta={"source_name": source_name}
+        meta={"source_name": source_name},
     )
 
 
@@ -331,8 +327,7 @@ async def get_dashboard_data(db: Session = Depends(get_db)) -> dict[str, Any]:
     }
 
     return ResponseBuilder.build_success_response(
-        data=dashboard_data,
-        meta={"last_update": datetime.utcnow().isoformat()}
+        data=dashboard_data, meta={"last_update": datetime.utcnow().isoformat()}
     )
 
 
