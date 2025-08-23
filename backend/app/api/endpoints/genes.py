@@ -138,23 +138,11 @@ async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> 
         for row in result:
             normalized_scores[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
 
-    # Get display names for static sources (map static_X to display names)
-    static_source_names = {}
-    result = db.execute(
-        text("""
-            SELECT 'static_' || id::text as internal_name, display_name
-            FROM static_sources
-            WHERE is_active = true
-        """)
-    )
-    for row in result:
-        static_source_names[row[0]] = row[1]
-
     # Process evidence - DiagnosticPanels is already properly structured
     aggregated_evidence = []
 
     for e in evidence:
-        display_name = static_source_names.get(e.source_name, e.source_name)
+        display_name = e.source_name
 
         aggregated_evidence.append({
             "id": e.id,

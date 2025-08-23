@@ -145,34 +145,11 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
     """
     Get detailed information about a specific data source
     """
-    # Check if it's a static source
-    if source_name.startswith('static_'):
-        # Get static source info
-        source_info = db.execute(
-            text("""
-                SELECT display_name, description
-                FROM static_sources
-                WHERE 'static_' || id::text = :source_name
-                AND is_active = true
-            """),
-            {"source_name": source_name}
-        ).fetchone()
+    # Get basic config
+    if source_name not in DATA_SOURCE_CONFIG:
+        return {"error": f"Unknown data source: {source_name}"}
 
-        if not source_info:
-            return {"error": f"Unknown data source: {source_name}"}
-
-        config = {
-            "display_name": source_info[0],
-            "description": source_info[1],
-            "url": None,
-            "documentation_url": None
-        }
-    else:
-        # Get basic config
-        if source_name not in DATA_SOURCE_CONFIG:
-            return {"error": f"Unknown data source: {source_name}"}
-
-        config = DATA_SOURCE_CONFIG[source_name]
+    config = DATA_SOURCE_CONFIG[source_name]
 
     # Get statistics
     stats = db.execute(

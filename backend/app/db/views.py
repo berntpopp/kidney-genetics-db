@@ -144,28 +144,7 @@ evidence_classification_weights = ReplaceableObject(
     dependencies=[]
 )
 
-static_evidence_counts = ReplaceableObject(
-    name="static_evidence_counts",
-    sqltext="""
-    SELECT
-        ge.id as evidence_id,
-        ge.gene_id,
-        g.approved_symbol,
-        ge.source_name,
-        ss.id as source_id,
-        CASE
-            WHEN ss.scoring_metadata->>'field' IS NOT NULL
-                 AND ge.evidence_data ? (ss.scoring_metadata->>'field') THEN
-                jsonb_array_length(ge.evidence_data -> (ss.scoring_metadata->>'field'))
-            ELSE 1
-        END as source_count
-    FROM gene_evidence ge
-    JOIN genes g ON ge.gene_id = g.id
-    JOIN static_sources ss ON ge.source_name = 'ingested_' || ss.id::text
-    WHERE ss.is_active = true
-    """,
-    dependencies=[]
-)
+# static_evidence_counts removed - no longer needed after refactor
 
 # Tier 2: Views dependent on Tier 1
 
@@ -184,52 +163,7 @@ evidence_count_percentiles = ReplaceableObject(
     dependencies=["evidence_source_counts"]
 )
 
-static_evidence_scores = ReplaceableObject(
-    name="static_evidence_scores",
-    sqltext="""
-    SELECT
-        ge.id AS evidence_id,
-        ge.gene_id,
-        g.approved_symbol,
-        ge.source_name,
-        ss.display_name as source_display_name,
-        CASE
-            -- Count-based scoring
-            WHEN ss.scoring_metadata->>'type' = 'count' THEN
-                CASE
-                    WHEN ss.scoring_metadata->>'field' IS NOT NULL
-                         AND ge.evidence_data ? (ss.scoring_metadata->>'field') THEN
-                        LEAST(
-                            jsonb_array_length(ge.evidence_data -> (ss.scoring_metadata->>'field'))::float
-                            / 10.0 * COALESCE((ss.scoring_metadata->>'weight')::numeric, 0.5),
-                            1.0
-                        )
-                    ELSE COALESCE((ss.scoring_metadata->>'weight')::numeric, 0.5)
-                END
-
-            -- Classification-based scoring
-            WHEN ss.scoring_metadata->>'type' = 'classification'
-                 AND ss.scoring_metadata->>'field' IS NOT NULL THEN
-                COALESCE(
-                    (ss.scoring_metadata->'weight_map' ->>
-                        (ge.evidence_data->>(ss.scoring_metadata->>'field'))
-                    )::numeric,
-                    0.3
-                )
-
-            -- Fixed scoring
-            WHEN ss.scoring_metadata->>'type' = 'fixed' THEN
-                COALESCE((ss.scoring_metadata->>'score')::numeric, 0.5)
-
-            ELSE 0.5
-        END AS normalized_score
-    FROM gene_evidence ge
-    JOIN genes g ON ge.gene_id = g.id
-    JOIN static_sources ss ON ge.source_name = 'ingested_' || ss.id::text
-    WHERE ss.is_active = true
-    """,
-    dependencies=[]
-)
+# static_evidence_scores removed - no longer needed after refactor
 
 evidence_normalized_scores = ReplaceableObject(
     name="evidence_normalized_scores",
@@ -282,19 +216,8 @@ combined_evidence_scores = ReplaceableObject(
         evidence_normalized_scores.normalized_score,
         'pipeline'::text AS source_type
     FROM evidence_normalized_scores
-    WHERE evidence_normalized_scores.source_name::text !~~ 'static_%'::text
-    UNION ALL
-    SELECT min(static_evidence_scores.evidence_id) AS evidence_id,
-        static_evidence_scores.gene_id,
-        static_evidence_scores.approved_symbol,
-        static_evidence_scores.source_name,
-        max(static_evidence_scores.source_display_name::text) AS display_name,
-        max(static_evidence_scores.normalized_score) AS normalized_score,
-        'static'::text AS source_type
-    FROM static_evidence_scores
-    GROUP BY static_evidence_scores.gene_id, static_evidence_scores.approved_symbol, static_evidence_scores.source_name
     """,
-    dependencies=["evidence_normalized_scores", "static_evidence_scores"]
+    dependencies=["evidence_normalized_scores"]
 )
 
 evidence_summary_view = ReplaceableObject(
@@ -336,9 +259,6 @@ gene_scores = ReplaceableObject(
         FROM (
             SELECT DISTINCT evidence_normalized_scores.source_name AS name
             FROM evidence_normalized_scores
-            UNION
-            SELECT DISTINCT static_evidence_scores.source_name AS name
-            FROM static_evidence_scores
         ) all_sources
     )
     SELECT sc.gene_id,
@@ -354,7 +274,7 @@ gene_scores = ReplaceableObject(
     CROSS JOIN total_sources ts
     JOIN genes g ON sc.gene_id = g.id
     """,
-    dependencies=["combined_evidence_scores", "evidence_normalized_scores", "static_evidence_scores"]
+    dependencies=["combined_evidence_scores", "evidence_normalized_scores"]
 )
 
 
@@ -364,8 +284,6 @@ ALL_VIEWS = [
     cache_stats,
     evidence_source_counts,
     evidence_classification_weights,
-    static_evidence_counts,
-    static_evidence_scores,
     # Tier 2 (depend on Tier 1)
     evidence_count_percentiles,
     evidence_normalized_scores,
