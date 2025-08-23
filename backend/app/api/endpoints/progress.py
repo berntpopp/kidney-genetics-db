@@ -131,8 +131,8 @@ async def get_all_status(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
     """
     all_progress = db.query(DataSourceProgress).all()
 
-    # Categorize sources
-    data_sources = ["PubTator", "PanelApp", "HPO", "ClinGen", "GenCC", "DiagnosticPanels"]
+    # Categorize sources (only automated pipeline sources)
+    data_sources = ["PubTator", "PanelApp", "HPO", "ClinGen", "GenCC"]
     internal_processes = ["Evidence_Aggregation", "HGNC_Normalization"]
 
     result = []

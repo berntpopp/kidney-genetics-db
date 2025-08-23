@@ -40,6 +40,16 @@ class ProgressTracker:
 
     def _get_or_create_progress(self) -> DataSourceProgress:
         """Get or create progress record for this source"""
+        # Don't create progress records for manual upload sources
+        manual_upload_sources = ["DiagnosticPanels"]
+        if self.source_name in manual_upload_sources:
+            # Return a temporary non-persisted record for manual sources
+            return DataSourceProgress(
+                source_name=self.source_name, 
+                status=SourceStatus.idle, 
+                progress_metadata={"upload_type": "manual"}
+            )
+        
         progress = self.db.query(DataSourceProgress).filter_by(source_name=self.source_name).first()
 
         if not progress:
@@ -193,7 +203,10 @@ class ProgressTracker:
     def _commit_and_broadcast(self):
         """Commit to database and publish update to event bus - NO MORE DIRECT CALLBACKS!"""
         try:
-            self.db.commit()
+            # Don't commit manual upload sources to database
+            manual_upload_sources = ["DiagnosticPanels"]
+            if self.source_name not in manual_upload_sources:
+                self.db.commit()
 
             # Publish to event bus instead of direct callback
             # This eliminates the need for complex async/sync handling

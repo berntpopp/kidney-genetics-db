@@ -79,6 +79,26 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         )
     ).fetchone()
 
+    # Get DiagnosticPanels metadata
+    diagnostic_metadata = db.execute(
+        text(
+            """
+            WITH providers_panels AS (
+                SELECT 
+                    jsonb_array_elements_text(evidence_data->'providers') as provider,
+                    jsonb_array_elements_text(evidence_data->'panels') as panel
+                FROM gene_evidence
+                WHERE source_name = 'DiagnosticPanels'
+            )
+            SELECT 
+                COUNT(DISTINCT provider) as provider_count,
+                COUNT(DISTINCT panel) as total_panels,
+                ARRAY_AGG(DISTINCT provider ORDER BY provider) as providers
+            FROM providers_panels
+        """
+        )
+    ).fetchone()
+
     # No longer need to query static sources - they've been replaced by hybrid sources
 
     # Build data source list
@@ -104,16 +124,32 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
                     '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)'
                 )
 
+            elif source_name == "DiagnosticPanels" and diagnostic_metadata:
+                stats.metadata["provider_count"] = diagnostic_metadata[0] or 0
+                stats.metadata["total_panels"] = diagnostic_metadata[1] or 0
+                stats.metadata["providers"] = [p for p in (diagnostic_metadata[2] or []) if p and p != "test_provider"]
+                stats.metadata["upload_type"] = "manual"
+                stats.metadata["supported_formats"] = ["json", "csv", "tsv", "xlsx", "xls"]
+
             status = "active"
         else:
             # Source is configured but has no data
-            stats = None
-            if config.get("hybrid_source", False):
-                status = "available"  # Ready for manual upload
-            elif source_name == "DiagnosticPanels":
-                status = "available"  # Ready for manual upload
+            if config.get("hybrid_source", False) or source_name == "DiagnosticPanels":
+                # Manual upload source - show as ready
+                status = "ready_for_upload"
+                stats = DataSourceStats(
+                    gene_count=0,
+                    evidence_count=0,
+                    last_updated=None,
+                    metadata={
+                        "upload_type": "manual",
+                        "supported_formats": ["json", "csv", "tsv", "xlsx", "xls"],
+                        "message": "Upload diagnostic panel files via the API"
+                    }
+                )
             else:
                 status = "inactive"
+                stats = None
 
         sources.append(
             DataSource(
