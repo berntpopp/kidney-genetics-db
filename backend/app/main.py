@@ -10,7 +10,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from app.api.endpoints import cache, datasources, gene_staging, genes, ingestion, progress
+from app.api.endpoints import (
+    cache,
+    datasources,
+    gene_staging,
+    genes,
+    ingestion,
+    progress,
+    statistics,
+)
 from app.core.background_tasks import task_manager
 from app.core.config import settings
 from app.core.database import engine, get_db
@@ -105,6 +113,7 @@ app.include_router(datasources.router, prefix="/api/datasources", tags=["datasou
 app.include_router(gene_staging.router, prefix="/api/staging", tags=["gene-staging"])
 app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
 app.include_router(cache.router, prefix="/api/admin/cache", tags=["cache-admin"])
+app.include_router(statistics.router, prefix="/api/statistics", tags=["statistics"])
 app.include_router(ingestion.router)
 
 
