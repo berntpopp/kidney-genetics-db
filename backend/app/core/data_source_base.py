@@ -150,7 +150,7 @@ class DataSourceClient(ABC):
             from sqlalchemy import text
             result = db.execute(
                 text("""
-                    SELECT 
+                    SELECT
                         COUNT(DISTINCT gene_id) as total_genes,
                         COUNT(*) as total_evidence
                     FROM gene_evidence
@@ -158,10 +158,10 @@ class DataSourceClient(ABC):
                 """),
                 {"source_name": self.source_name}
             ).fetchone()
-            
+
             total_genes = result[0] if result else 0
             total_evidence = result[1] if result else 0
-            
+
             logger.info(
                 f"✅ {self.source_name} update completed: "
                 f"Total: {total_genes} genes, {total_evidence} evidence | "

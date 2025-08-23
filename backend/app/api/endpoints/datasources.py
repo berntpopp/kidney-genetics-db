@@ -49,50 +49,106 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             "last_updated": row[3],
         }
 
-    # Get additional metadata for specific sources
-    panelapp_metadata = db.execute(
-        text(
-            """
-            SELECT COUNT(DISTINCT panel_name) as panel_count
-            FROM (
-                SELECT jsonb_array_elements(evidence_data->'panels')->>'name' as panel_name
-                FROM gene_evidence
-                WHERE source_name = 'PanelApp'
-            ) panels
-        """
-        )
-    ).scalar()
+    # Get meaningful metadata for each source
 
-    pubtator_metadata = db.execute(
+    # ClinGen: expert panels and classification levels
+    clingen_metadata = db.execute(
         text(
             """
+            WITH panels AS (
+                SELECT jsonb_array_elements_text(evidence_data->'expert_panels') as panel
+                FROM gene_evidence
+                WHERE source_name = 'ClinGen'
+            ),
+            validities AS (
+                SELECT jsonb_array_elements(evidence_data->'validities') as validity
+                FROM gene_evidence
+                WHERE source_name = 'ClinGen'
+            )
             SELECT
-                SUM((evidence_data->>'publication_count')::int) as total_publications,
-                (SELECT COUNT(DISTINCT pmid) FROM (
-                    SELECT jsonb_array_elements_text(evidence_data->'pmids') as pmid
-                    FROM gene_evidence
-                    WHERE source_name = 'PubTator'
-                ) pmids) as unique_pmids
-            FROM gene_evidence
-            WHERE source_name = 'PubTator'
+                (SELECT COUNT(DISTINCT panel) FROM panels) as panel_count,
+                (SELECT COUNT(DISTINCT validity->>'classification') FROM validities) as classification_count
         """
         )
     ).fetchone()
 
-    # Get DiagnosticPanels metadata
+    # GenCC: submissions and submitters
+    gencc_metadata = db.execute(
+        text(
+            """
+            WITH submissions AS (
+                SELECT jsonb_array_elements(evidence_data->'submissions') as submission
+                FROM gene_evidence
+                WHERE source_name = 'GenCC'
+            )
+            SELECT
+                COUNT(*) as submission_count,
+                COUNT(DISTINCT submission->>'submitter') as submitter_count
+            FROM submissions
+        """
+        )
+    ).fetchone()
+
+    # HPO: phenotype terms (count distinct HPO IDs)
+    hpo_metadata = db.execute(
+        text(
+            """
+            WITH hpo_ids AS (
+                SELECT DISTINCT jsonb_array_elements_text(evidence_data->'hpo_terms') as hpo_id
+                FROM gene_evidence
+                WHERE source_name = 'HPO'
+            )
+            SELECT COUNT(*) as phenotype_count
+            FROM hpo_ids
+        """
+        )
+    ).scalar()
+
+    # PubTator: unique publications
+    pubtator_metadata = db.execute(
+        text(
+            """
+            SELECT COUNT(DISTINCT pmid) as unique_publications
+            FROM (
+                SELECT jsonb_array_elements_text(evidence_data->'pmids') as pmid
+                FROM gene_evidence
+                WHERE source_name = 'PubTator'
+            ) pmids
+        """
+        )
+    ).scalar()
+
+    # PanelApp: panels and regions
+    panelapp_metadata = db.execute(
+        text(
+            """
+            WITH panel_data AS (
+                SELECT jsonb_array_elements(evidence_data->'panels') as panel
+                FROM gene_evidence
+                WHERE source_name = 'PanelApp'
+            )
+            SELECT
+                COUNT(DISTINCT panel->>'name') as panel_count,
+                COUNT(DISTINCT panel->>'region') as region_count
+            FROM panel_data
+        """
+        )
+    ).fetchone()
+
+    # DiagnosticPanels: providers and panels
     diagnostic_metadata = db.execute(
         text(
             """
             WITH providers_panels AS (
-                SELECT 
+                SELECT
                     jsonb_array_elements_text(evidence_data->'providers') as provider,
                     jsonb_array_elements_text(evidence_data->'panels') as panel
                 FROM gene_evidence
                 WHERE source_name = 'DiagnosticPanels'
             )
-            SELECT 
+            SELECT
                 COUNT(DISTINCT provider) as provider_count,
-                COUNT(DISTINCT panel) as total_panels,
+                COUNT(DISTINCT panel) as panel_count,
                 ARRAY_AGG(DISTINCT provider ORDER BY provider) as providers
             FROM providers_panels
         """
@@ -112,24 +168,40 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
                 metadata={},
             )
 
-            # Add source-specific metadata
-            if source_name == "PanelApp" and panelapp_metadata:
-                stats.metadata["panel_count"] = panelapp_metadata or 0
-                stats.metadata["regions"] = ["UK", "Australia"]
+            # Add source-specific meaningful metadata
+            if source_name == "ClinGen" and clingen_metadata:
+                stats.metadata["expert_panels"] = clingen_metadata[0] or 0
+                stats.metadata["classifications"] = clingen_metadata[1] or 0
+                stats.metadata["type"] = "Expert Curation"
 
-            elif source_name == "PubTator" and pubtator_metadata:
-                stats.metadata["total_publications"] = pubtator_metadata[0] or 0
-                stats.metadata["unique_pmids"] = pubtator_metadata[1] or 0
+            elif source_name == "GenCC" and gencc_metadata:
+                stats.metadata["submissions"] = gencc_metadata[0] or 0
+                stats.metadata["submitters"] = gencc_metadata[1] or 0
+                stats.metadata["type"] = "Clinical Validity"
+
+            elif source_name == "HPO":
+                stats.metadata["phenotype_terms"] = hpo_metadata or 0
+                stats.metadata["type"] = "Phenotype Ontology"
+
+            elif source_name == "PubTator":
+                stats.metadata["publications"] = pubtator_metadata or 0
+                stats.metadata["type"] = "Literature Mining"
                 stats.metadata["search_query"] = (
                     '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)'
                 )
 
+            elif source_name == "PanelApp" and panelapp_metadata:
+                stats.metadata["panels"] = panelapp_metadata[0] or 0
+                stats.metadata["regions"] = panelapp_metadata[1] or 0
+                stats.metadata["region_names"] = ["UK", "Australia"]
+                stats.metadata["type"] = "Clinical Panels"
+
             elif source_name == "DiagnosticPanels" and diagnostic_metadata:
-                stats.metadata["provider_count"] = diagnostic_metadata[0] or 0
-                stats.metadata["total_panels"] = diagnostic_metadata[1] or 0
-                stats.metadata["providers"] = [p for p in (diagnostic_metadata[2] or []) if p and p != "test_provider"]
+                stats.metadata["providers"] = diagnostic_metadata[0] or 0
+                stats.metadata["panels"] = diagnostic_metadata[1] or 0
+                stats.metadata["provider_list"] = [p for p in (diagnostic_metadata[2] or []) if p and p != "test_provider"]
+                stats.metadata["type"] = "Diagnostic Labs"
                 stats.metadata["upload_type"] = "manual"
-                stats.metadata["supported_formats"] = ["json", "csv", "tsv", "xlsx", "xls"]
 
             status = "active"
         else:
@@ -176,11 +248,51 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     # Count active sources
     active_count = len([s for s in sources if s.status == "active"])
 
+    # Get actual unique gene count
+    unique_genes = db.execute(text("SELECT COUNT(*) FROM genes")).scalar() or 0
+
+    # Get total evidence records
+    total_evidence = db.execute(text("SELECT COUNT(*) FROM gene_evidence")).scalar() or 0
+
+    # Get last update from any source
+    last_update = db.execute(
+        text("SELECT MAX(updated_at) FROM gene_evidence")
+    ).scalar()
+
+    # Calculate source coverage
+    source_coverage = 0
+    if unique_genes > 0:
+        avg_sources_per_gene = total_evidence / unique_genes
+        source_coverage = min(round((avg_sources_per_gene / 6) * 100), 100)
+
+    # Field explanations for tooltips
+    explanations = {
+        "active_sources": "Number of data sources currently integrated and providing gene evidence",
+        "unique_genes": f"Total number of distinct genes across all sources ({unique_genes:,} genes with kidney disease associations)",
+        "source_coverage": f"Average overlap between sources ({source_coverage}%). Each gene appears in ~{round(total_evidence/unique_genes, 1) if unique_genes > 0 else 0} sources on average. Higher coverage indicates stronger validation across multiple sources.",
+        "last_updated": "Most recent data update from any source. Updates occur when sources are refreshed or new data is uploaded.",
+
+        # Source-specific explanations
+        "expert_panels": "Number of clinical expert panels that have reviewed and validated gene-disease relationships",
+        "classifications": "Different levels of gene-disease validity (Definitive, Strong, Moderate, Limited, Disputed, Refuted)",
+        "submissions": "Individual gene-disease relationship submissions from consortium members",
+        "submitters": "Number of organizations contributing gene-disease validity assessments",
+        "phenotypes": "Distinct Human Phenotype Ontology terms associated with kidney/urinary system abnormalities",
+        "publications": "Unique PubMed articles mentioning kidney disease genes identified through text mining",
+        "panels": "Clinical or diagnostic gene panels for kidney disease testing",
+        "regions": "Geographic regions or organizations maintaining the gene panels",
+        "providers": "Commercial diagnostic laboratories offering kidney genetic testing panels"
+    }
+
     return DataSourceList(
         sources=sources,
         total_active=active_count,
         total_sources=len(sources),
         last_pipeline_run=last_run.completed_at if last_run else None,
+        total_unique_genes=unique_genes,
+        total_evidence_records=total_evidence,
+        last_data_update=last_update,
+        explanations=explanations,
     )
 
 

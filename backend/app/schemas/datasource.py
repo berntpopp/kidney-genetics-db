@@ -36,3 +36,7 @@ class DataSourceList(BaseModel):
     total_active: int
     total_sources: int
     last_pipeline_run: datetime | None = None
+    total_unique_genes: int | None = None
+    total_evidence_records: int | None = None
+    last_data_update: datetime | None = None
+    explanations: dict[str, str] | None = None

@@ -66,24 +66,38 @@
             <!-- Statistics -->
             <div class="d-flex justify-space-between align-center mb-3">
               <div class="text-center">
-                <div class="text-h6 font-weight-bold text-primary">
-                  {{ source.stats?.evidence_count || 0 }}
-                </div>
-                <div class="text-caption text-medium-emphasis">Evidence</div>
-              </div>
-              <div class="text-center">
                 <div class="text-h6 font-weight-bold text-success">
                   {{ source.stats?.gene_count || 0 }}
                 </div>
                 <div class="text-caption text-medium-emphasis">Genes</div>
               </div>
               <div class="text-center">
-                <div class="text-h6 font-weight-bold text-info">
-                  {{ getMetadataCount(source) }}
-                </div>
-                <div class="text-caption text-medium-emphasis">
-                  {{ getMetadataLabel(source.name) }}
-                </div>
+                <v-tooltip :text="getMetadataTooltip(source, 'primary')" location="bottom">
+                  <template #activator="{ props }">
+                    <div v-bind="props">
+                      <div class="text-h6 font-weight-bold text-primary">
+                        {{ getMetadataCount(source, 'primary') }}
+                      </div>
+                      <div class="text-caption text-medium-emphasis">
+                        {{ getMetadataLabel(source, 'primary') }}
+                      </div>
+                    </div>
+                  </template>
+                </v-tooltip>
+              </div>
+              <div v-if="getMetadataCount(source, 'secondary') > 0" class="text-center">
+                <v-tooltip :text="getMetadataTooltip(source, 'secondary')" location="bottom">
+                  <template #activator="{ props }">
+                    <div v-bind="props">
+                      <div class="text-h6 font-weight-bold text-info">
+                        {{ getMetadataCount(source, 'secondary') }}
+                      </div>
+                      <div class="text-caption text-medium-emphasis">
+                        {{ getMetadataLabel(source, 'secondary') }}
+                      </div>
+                    </div>
+                  </template>
+                </v-tooltip>
               </div>
             </div>
 
@@ -106,41 +120,69 @@
         <v-card>
           <v-card-title class="d-flex align-center">
             <v-icon color="primary" class="mr-2">mdi-chart-box</v-icon>
-            Integration Summary
+            Database Summary
           </v-card-title>
           <v-card-text>
             <v-row>
               <v-col cols="6" sm="3">
-                <div class="text-center">
-                  <div class="text-h4 font-weight-bold text-primary">
-                    {{ summaryStats.total_active }}
-                  </div>
-                  <div class="text-body-2 text-medium-emphasis">Active Sources</div>
-                </div>
+                <v-tooltip :text="apiResponse?.explanations?.active_sources" location="bottom">
+                  <template #activator="{ props }">
+                    <div class="text-center" v-bind="props">
+                      <div class="text-h4 font-weight-bold text-primary">
+                        {{ summaryStats.total_active }}
+                      </div>
+                      <div class="text-body-2 text-medium-emphasis">
+                        Active Sources
+                        <v-icon size="x-small" class="ml-1">mdi-help-circle-outline</v-icon>
+                      </div>
+                    </div>
+                  </template>
+                </v-tooltip>
               </v-col>
               <v-col cols="6" sm="3">
-                <div class="text-center">
-                  <div class="text-h4 font-weight-bold text-success">
-                    {{ summaryStats.total_genes }}
-                  </div>
-                  <div class="text-body-2 text-medium-emphasis">Total Genes</div>
-                </div>
+                <v-tooltip :text="apiResponse?.explanations?.unique_genes" location="bottom">
+                  <template #activator="{ props }">
+                    <div class="text-center" v-bind="props">
+                      <div class="text-h4 font-weight-bold text-success">
+                        {{ summaryStats.unique_genes.toLocaleString() }}
+                      </div>
+                      <div class="text-body-2 text-medium-emphasis">
+                        Unique Genes
+                        <v-icon size="x-small" class="ml-1">mdi-help-circle-outline</v-icon>
+                      </div>
+                    </div>
+                  </template>
+                </v-tooltip>
               </v-col>
               <v-col cols="6" sm="3">
-                <div class="text-center">
-                  <div class="text-h4 font-weight-bold text-info">
-                    {{ summaryStats.total_records }}
-                  </div>
-                  <div class="text-body-2 text-medium-emphasis">Evidence Records</div>
-                </div>
+                <v-tooltip :text="apiResponse?.explanations?.source_coverage" location="bottom">
+                  <template #activator="{ props }">
+                    <div class="text-center" v-bind="props">
+                      <div class="text-h4 font-weight-bold text-info">
+                        {{ calculateCoverage() }}%
+                      </div>
+                      <div class="text-body-2 text-medium-emphasis">
+                        Source Coverage
+                        <v-icon size="x-small" class="ml-1">mdi-help-circle-outline</v-icon>
+                      </div>
+                    </div>
+                  </template>
+                </v-tooltip>
               </v-col>
               <v-col cols="6" sm="3">
-                <div class="text-center">
-                  <div class="text-h4 font-weight-bold text-secondary">
-                    {{ formatDate(summaryStats.last_pipeline_run) }}
-                  </div>
-                  <div class="text-body-2 text-medium-emphasis">Last Pipeline Run</div>
-                </div>
+                <v-tooltip :text="apiResponse?.explanations?.last_updated" location="bottom">
+                  <template #activator="{ props }">
+                    <div class="text-center" v-bind="props">
+                      <div class="text-h4 font-weight-bold text-secondary">
+                        {{ formatDate(summaryStats.last_update) }}
+                      </div>
+                      <div class="text-body-2 text-medium-emphasis">
+                        Last Updated
+                        <v-icon size="x-small" class="ml-1">mdi-help-circle-outline</v-icon>
+                      </div>
+                    </div>
+                  </template>
+                </v-tooltip>
               </v-col>
             </v-row>
           </v-card-text>
@@ -164,9 +206,9 @@ const sourceDescriptions = {
   PanelApp: 'Expert-curated gene panels from UK Genomics England and Australian Genomics',
   HPO: 'Human Phenotype Ontology providing standardized phenotype-gene associations',
   PubTator: 'Literature mining from PubMed Central with automated text analysis',
-  Literature: 'Manual curation from peer-reviewed research and clinical guidelines',
   ClinGen: 'Clinical Genome Resource providing authoritative disease-gene relationships',
-  Diagnostic: 'Commercial diagnostic panels from leading genetic testing laboratories'
+  GenCC: 'Harmonized gene-disease relationships from 40+ submitters worldwide',
+  DiagnosticPanels: 'Commercial diagnostic panels from leading genetic testing laboratories'
 }
 
 // Summary stats computed from API data
@@ -174,21 +216,17 @@ const summaryStats = computed(() => {
   if (!apiResponse.value) {
     return {
       total_active: 0,
-      total_genes: 0,
-      total_records: 0,
-      last_pipeline_run: null
+      unique_genes: 0,
+      last_update: null
     }
   }
 
   const response = apiResponse.value
-  const totalRecords = dataSources.value.reduce((sum, s) => sum + (s.stats?.evidence_count || 0), 0)
-  const totalGenes = dataSources.value.reduce((sum, s) => sum + (s.stats?.gene_count || 0), 0)
 
   return {
     total_active: response.total_active || 0,
-    total_genes: totalGenes,
-    total_records: totalRecords,
-    last_pipeline_run: response.last_pipeline_run
+    unique_genes: response.total_unique_genes || 0,
+    last_update: response.last_data_update || null
   }
 })
 
@@ -198,9 +236,9 @@ const getSourceGradient = sourceName => {
     PanelApp: '#0EA5E9, #0284C7', // Primary blue
     HPO: '#8B5CF6, #7C3AED', // Secondary purple
     PubTator: '#3B82F6, #2563EB', // Info blue
-    Literature: '#10B981, #059669', // Success green
     ClinGen: '#F59E0B, #D97706', // Warning amber
-    Diagnostic: '#EF4444, #DC2626' // Error red
+    GenCC: '#10B981, #059669', // Success green
+    DiagnosticPanels: '#EF4444, #DC2626' // Error red
   }
   return gradients[sourceName] || gradients['PanelApp']
 }
@@ -210,9 +248,9 @@ const getSourceIcon = sourceName => {
     PanelApp: 'mdi-view-dashboard',
     HPO: 'mdi-human',
     PubTator: 'mdi-file-document',
-    Literature: 'mdi-book-open',
     ClinGen: 'mdi-test-tube',
-    Diagnostic: 'mdi-hospital-box'
+    GenCC: 'mdi-dna',
+    DiagnosticPanels: 'mdi-hospital-box'
   }
   return icons[sourceName] || 'mdi-database'
 }
@@ -247,28 +285,106 @@ const getStatusLabel = status => {
   }
 }
 
-const getMetadataCount = source => {
+const getMetadataCount = (source, type) => {
   if (!source.stats?.metadata) return 0
-
   const metadata = source.stats.metadata
-  if (metadata.panel_count) return metadata.panel_count
-  if (metadata.total_publications) return metadata.total_publications
+
+  // Map source to its metrics
+  if (type === 'primary') {
+    switch (source.name) {
+      case 'ClinGen':
+        return metadata.expert_panels || 0
+      case 'GenCC':
+        return metadata.submissions || 0
+      case 'HPO':
+        return metadata.phenotype_terms || 0
+      case 'PubTator':
+        return metadata.publications || 0
+      case 'PanelApp':
+        return metadata.panels || 0
+      case 'DiagnosticPanels':
+        return metadata.providers || 0
+      default:
+        return 0
+    }
+  } else if (type === 'secondary') {
+    switch (source.name) {
+      case 'ClinGen':
+        return metadata.classifications || 0
+      case 'GenCC':
+        return metadata.submitters || 0
+      case 'PanelApp':
+        return metadata.regions || 0
+      case 'DiagnosticPanels':
+        return metadata.panels || 0
+      default:
+        return 0
+    }
+  }
   return 0
 }
 
-const getMetadataLabel = sourceName => {
-  switch (sourceName) {
-    case 'PanelApp':
-      return 'Panels'
-    case 'PubTator':
-      return 'Publications'
-    case 'ClinGen':
-      return 'Assessments'
-    case 'GenCC':
-      return 'Relationships'
-    default:
-      return 'Items'
+const getMetadataLabel = (source, type) => {
+  if (type === 'primary') {
+    switch (source.name) {
+      case 'ClinGen':
+        return 'Expert Panels'
+      case 'GenCC':
+        return 'Submissions'
+      case 'HPO':
+        return 'Phenotypes'
+      case 'PubTator':
+        return 'Publications'
+      case 'PanelApp':
+        return 'Panels'
+      case 'DiagnosticPanels':
+        return 'Providers'
+      default:
+        return 'Records'
+    }
+  } else if (type === 'secondary') {
+    switch (source.name) {
+      case 'ClinGen':
+        return 'Classifications'
+      case 'GenCC':
+        return 'Submitters'
+      case 'PanelApp':
+        return 'Regions'
+      case 'DiagnosticPanels':
+        return 'Panels'
+      default:
+        return ''
+    }
   }
+  return ''
+}
+
+const getMetadataTooltip = (source, type) => {
+  // Map metric labels to explanation keys
+  const tooltipMap = {
+    'Expert Panels': apiResponse.value?.explanations?.expert_panels,
+    Classifications: apiResponse.value?.explanations?.classifications,
+    Submissions: apiResponse.value?.explanations?.submissions,
+    Submitters: apiResponse.value?.explanations?.submitters,
+    Phenotypes: apiResponse.value?.explanations?.phenotypes,
+    Publications: apiResponse.value?.explanations?.publications,
+    Panels: apiResponse.value?.explanations?.panels,
+    Regions: apiResponse.value?.explanations?.regions,
+    Providers: apiResponse.value?.explanations?.providers
+  }
+
+  const label = getMetadataLabel(source, type)
+  return tooltipMap[label] || `Number of ${label.toLowerCase()} in this data source`
+}
+
+const calculateCoverage = () => {
+  // Calculate percentage of genes covered by multiple sources
+  // Average gene appears in ~2 sources based on data
+  const uniqueGenes = summaryStats.value.unique_genes || 1
+  const totalEvidence = apiResponse.value?.total_evidence_records || 0
+  const avgSourcesPerGene = totalEvidence / uniqueGenes
+  // Convert to percentage (max 6 sources = 100%)
+  return Math.min(Math.round((avgSourcesPerGene / 6) * 100), 100)
 }
 
 const formatDate = dateStr => {

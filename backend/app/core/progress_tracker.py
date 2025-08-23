@@ -45,11 +45,11 @@ class ProgressTracker:
         if self.source_name in manual_upload_sources:
             # Return a temporary non-persisted record for manual sources
             return DataSourceProgress(
-                source_name=self.source_name, 
-                status=SourceStatus.idle, 
+                source_name=self.source_name,
+                status=SourceStatus.idle,
                 progress_metadata={"upload_type": "manual"}
             )
-        
+
         progress = self.db.query(DataSourceProgress).filter_by(source_name=self.source_name).first()
 
         if not progress:
