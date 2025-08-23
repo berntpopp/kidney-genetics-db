@@ -1,378 +1,232 @@
 """
-Static content ingestion API endpoints
+Hybrid source file upload API.
+
+Simplified replacement for the complex static ingestion system.
+Handles file uploads for DiagnosticPanels and Literature sources.
 """
 
 import logging
-from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.static_ingestion import StaticContentProcessor
-from app.models.static_ingestion import (
-    StaticEvidenceUpload,
-    StaticSource,
-    StaticSourceAudit,
-)
-from app.schemas.ingestion import (
-    AuditLogResponse,
-    StaticSourceCreate,
-    StaticSourceResponse,
-    StaticSourceUpdate,
-    UploadListItem,
-    UploadResponse,
-)
+from app.models.gene import GeneEvidence
+from app.pipeline.sources.unified import get_unified_source
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/ingestion", tags=["ingestion"])
+router = APIRouter(prefix="/api/sources", tags=["Hybrid Sources"])
+
+# Define which sources support file uploads
+UPLOAD_SOURCES = {"DiagnosticPanels", "Literature"}
 
 
-@router.post("/sources", response_model=StaticSourceResponse)
-async def create_source(
-    source: StaticSourceCreate,
-    db: Session = Depends(get_db),
-    # current_user = Depends(get_current_user)  # TODO: Add when auth is implemented
-):
-    """Create a new static source with scoring configuration"""
+@router.post("/{source_name}/upload")
+async def upload_evidence_file(
+    source_name: str,
+    file: UploadFile = File(...),
+    provider_name: str | None = Form(None),
+    db: Session = Depends(get_db)
+) -> dict[str, Any]:
+    """
+    Upload evidence file for hybrid sources.
+    
+    This endpoint accepts file uploads for DiagnosticPanels and Literature sources,
+    processing them through the unified source pipeline and properly merging
+    evidence to avoid duplicates.
+    
+    Args:
+        source_name: Name of the source (DiagnosticPanels or Literature)
+        file: The file to upload (JSON, CSV, TSV, or Excel)
+        provider_name: Optional provider/source identifier
+        db: Database session
+    
+    Returns:
+        Upload status and statistics
+    """
+    # Validate source
+    if source_name not in UPLOAD_SOURCES:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Source '{source_name}' does not support file uploads. Available: {', '.join(UPLOAD_SOURCES)}"
+        )
 
-    # Check for duplicate
-    existing = db.query(StaticSource).filter(
-        StaticSource.source_name == source.source_name
-    ).first()
+    # Validate file size (50MB limit)
+    file_size = 0
+    content_chunks = []
+    chunk_size = 1024 * 1024  # 1MB chunks
 
-    if existing:
+    while chunk := await file.read(chunk_size):
+        content_chunks.append(chunk)
+        file_size += len(chunk)
+        if file_size > 50 * 1024 * 1024:  # 50MB limit
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="File size exceeds 50MB limit"
+            )
+
+    file_content = b''.join(content_chunks)
+
+    # Determine file type
+    if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Source '{source.source_name}' already exists"
+            detail="Filename is required"
         )
 
-    # Create source with scoring metadata
-    db_source = StaticSource(
-        source_type=source.source_type,
-        source_name=source.source_name,
-        display_name=source.display_name,
-        description=source.description,
-        source_metadata=source.source_metadata or {},
-        scoring_metadata=source.scoring_metadata.model_dump(),
-        created_by=None  # TODO: current_user.email if current_user else None
-    )
-    db.add(db_source)
-    db.flush()
-
-    # Audit
-    audit = StaticSourceAudit(
-        source_id=db_source.id,
-        action="created",
-        details={
-            "source": source.model_dump(),
-            "scoring": source.scoring_metadata.model_dump()
-        },
-        performed_by=None  # TODO: current_user.email if current_user else None
-    )
-    db.add(audit)
-    db.commit()
-
-    # Add statistics
-    db_source.upload_count = 0
-    db_source.total_genes = 0
-
-    return db_source
-
-
-@router.get("/sources", response_model=list[StaticSourceResponse])
-async def list_sources(
-    active_only: bool = True,
-    db: Session = Depends(get_db)
-):
-    """List all static sources"""
-    query = db.query(StaticSource)
-
-    if active_only:
-        query = query.filter(StaticSource.is_active)
-
-    sources = query.all()
-
-    # Compute statistics dynamically
-    for source in sources:
-        source.upload_count = db.query(func.count(StaticEvidenceUpload.id)).filter(
-            StaticEvidenceUpload.source_id == source.id,
-            StaticEvidenceUpload.upload_status == 'completed'
-        ).scalar() or 0
-        source.total_genes = db.query(func.sum(StaticEvidenceUpload.genes_normalized)).filter(
-            StaticEvidenceUpload.source_id == source.id,
-            StaticEvidenceUpload.upload_status == 'completed'
-        ).scalar() or 0
-
-    return sources
-
-
-@router.get("/sources/{source_id}", response_model=StaticSourceResponse)
-async def get_source(
-    source_id: int,
-    db: Session = Depends(get_db)
-):
-    """Get a specific static source"""
-    source = db.query(StaticSource).filter(
-        StaticSource.id == source_id
-    ).first()
-
-    if not source:
+    file_extension = file.filename.split('.')[-1].lower()
+    if file_extension not in ['json', 'csv', 'tsv', 'xlsx', 'xls']:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Source not found"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type: {file_extension}. Supported: json, csv, tsv, xlsx, xls"
         )
 
-    # Compute statistics dynamically
-    source.upload_count = db.query(func.count(StaticEvidenceUpload.id)).filter(
-        StaticEvidenceUpload.source_id == source.id,
-        StaticEvidenceUpload.upload_status == 'completed'
-    ).scalar() or 0
-    source.total_genes = db.query(func.sum(StaticEvidenceUpload.genes_normalized)).filter(
-        StaticEvidenceUpload.source_id == source.id,
-        StaticEvidenceUpload.upload_status == 'completed'
-    ).scalar() or 0
+    # Use filename (without extension) as provider if not specified
+    if not provider_name:
+        provider_name = file.filename.rsplit('.', 1)[0]
 
-    return source
+    # Log the upload attempt
+    logger.info(f"Processing upload for {source_name}: {file.filename} ({file_size} bytes) from {provider_name}")
 
+    try:
+        # Get source processor
+        source = get_unified_source(source_name, db_session=db)
 
-@router.put("/sources/{source_id}", response_model=StaticSourceResponse)
-async def update_source(
-    source_id: int,
-    update: StaticSourceUpdate,
-    db: Session = Depends(get_db),
-    # current_user = Depends(get_current_user)  # TODO: Add when auth is implemented
-):
-    """Update source including scoring configuration"""
+        # Process through source pipeline
+        # Note: fetch_raw_data expects different params for different sources
+        if source_name == "DiagnosticPanels":
+            raw_data = await source.fetch_raw_data(file_content, file_extension, provider_name)
+        else:  # Literature
+            raw_data = await source.fetch_raw_data(file_content, file_extension, provider_name)
 
-    source = db.query(StaticSource).filter(
-        StaticSource.id == source_id
-    ).first()
+        # Process data
+        processed_data = await source.process_data(raw_data)
 
-    if not source:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Source not found"
-        )
+        # Store with merge semantics
+        stats = await source.store_evidence(db, processed_data, provider_name)
 
-    # Track changes for audit
-    changes = {}
-
-    if update.display_name is not None:
-        changes["display_name"] = {"old": source.display_name, "new": update.display_name}
-        source.display_name = update.display_name
-
-    if update.description is not None:
-        changes["description"] = {"old": source.description, "new": update.description}
-        source.description = update.description
-
-    if update.source_metadata is not None:
-        changes["source_metadata"] = {"old": source.source_metadata, "new": update.source_metadata}
-        source.source_metadata = update.source_metadata
-
-    if update.scoring_metadata is not None:
-        changes["scoring_metadata"] = {
-            "old": source.scoring_metadata,
-            "new": update.scoring_metadata.model_dump()
+        # Return comprehensive response
+        return {
+            "status": "success",
+            "source": source_name,
+            "provider": provider_name,
+            "filename": file.filename,
+            "file_size": file_size,
+            "genes_processed": len(processed_data),
+            "storage_stats": stats,
+            "message": f"Successfully processed {len(processed_data)} genes. Created: {stats.get('created', 0)}, Merged: {stats.get('merged', 0)}"
         }
-        source.scoring_metadata = update.scoring_metadata.model_dump()
 
-        # Note: Score recalculation happens via view definitions
-
-    if update.is_active is not None:
-        changes["is_active"] = {"old": source.is_active, "new": update.is_active}
-        source.is_active = update.is_active
-
-    source.updated_at = datetime.utcnow()
-
-    # Audit
-    audit = StaticSourceAudit(
-        source_id=source_id,
-        action="updated",
-        details={"changes": changes},
-        performed_by=None  # TODO: current_user.email if current_user else None
-    )
-    db.add(audit)
-    db.commit()
-
-    return source
+    except ValueError as e:
+        import traceback
+        logger.error(f"Validation error processing {source_name} upload: {e}")
+        logger.error(f"Full traceback:\n{traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        import traceback
+        logger.error(f"Failed to process upload for {source_name}: {e}")
+        logger.error(f"Full traceback:\n{traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Processing failed: {str(e)}"
+        )
 
 
-@router.post("/sources/{source_id}/upload", response_model=UploadResponse)
-async def upload_evidence(
-    source_id: int,
-    file: UploadFile = File(...),
-    evidence_name: str | None = Form(None),
-    replace_existing: bool = Form(False),
-    dry_run: bool = Form(False),
-    db: Session = Depends(get_db),
-    # current_user = Depends(get_current_user)  # TODO: Add when auth is implemented
-):
+@router.get("/{source_name}/status")
+async def get_source_status(
+    source_name: str,
+    db: Session = Depends(get_db)
+) -> dict[str, Any]:
     """
-    Upload evidence file (JSON, CSV, TSV, Excel).
-    Handles scraper outputs and manual uploads.
+    Get status and statistics for a hybrid source.
+    
+    Args:
+        source_name: Name of the source
+        db: Database session
+        
+    Returns:
+        Source status and statistics
     """
-
-    # Validate source
-    source = db.query(StaticSource).filter(
-        StaticSource.id == source_id,
-        StaticSource.is_active
-    ).first()
-
-    if not source:
+    if source_name not in UPLOAD_SOURCES:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Source not found or inactive"
+            detail=f"Source '{source_name}' not found. Available: {', '.join(UPLOAD_SOURCES)}"
         )
 
-    # Size validation
-    file_size = 0
-    temp_content = await file.read()
-    file_size = len(temp_content)
-    await file.seek(0)  # Reset for processing
+    # Get evidence statistics
+    stmt = select(
+        func.count(GeneEvidence.id).label("evidence_records"),
+        func.count(func.distinct(GeneEvidence.gene_id)).label("unique_genes")
+    ).where(GeneEvidence.source_name == source_name)
 
-    if file_size > 50 * 1024 * 1024:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File size exceeds 50MB limit"
-        )
+    result = db.execute(stmt).first()
 
-    # Default evidence name
-    if not evidence_name:
-        evidence_name = file.filename.rsplit('.', 1)[0] if file.filename else "upload"
+    # Get additional statistics for diagnostic panels
+    additional_stats = {}
+    if source_name == "DiagnosticPanels" and result.evidence_records > 0:
+        # Get provider count
+        stmt = select(GeneEvidence.evidence_data).where(
+            GeneEvidence.source_name == source_name
+        ).limit(100)
 
-    # Check existing
-    if not replace_existing:
-        existing = db.query(StaticEvidenceUpload).filter(
-            StaticEvidenceUpload.source_id == source_id,
-            StaticEvidenceUpload.evidence_name == evidence_name,
-            StaticEvidenceUpload.upload_status != 'superseded'
-        ).first()
+        evidence_samples = db.execute(stmt).scalars().all()
 
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Evidence '{evidence_name}' already exists. Set replace_existing=true to update."
-            )
-    elif not dry_run:
-        # CRITICAL: Delete old gene_evidence associated with these uploads
-        from app.models import GeneEvidence
-        db.query(GeneEvidence).filter(
-            GeneEvidence.source_name == f"static_{source_id}",
-            GeneEvidence.source_detail == evidence_name
-        ).delete(synchronize_session=False)
+        providers = set()
+        panels = set()
+        for evidence_data in evidence_samples:
+            if evidence_data:
+                providers.update(evidence_data.get("providers", []))
+                panels.update(evidence_data.get("panels", []))
 
-        # Mark existing upload records as superseded
-        db.query(StaticEvidenceUpload).filter(
-            StaticEvidenceUpload.source_id == source_id,
-            StaticEvidenceUpload.evidence_name == evidence_name,
-            StaticEvidenceUpload.upload_status != 'superseded'
-        ).update({"upload_status": "superseded"})
-        db.commit()
+        additional_stats = {
+            "sample_providers": sorted(list(providers))[:5],  # Show first 5
+            "sample_panels": sorted(list(panels))[:5],  # Show first 5
+            "provider_count_estimate": len(providers),
+            "panel_count_estimate": len(panels)
+        }
 
-    # Process with batch normalization
-    processor = StaticContentProcessor(db)
-    result = await processor.process_upload(
-        file=file,
-        source_id=source_id,
-        evidence_name=evidence_name,
-        dry_run=dry_run
-    )
-
-    # Audit and update cached statistics
-    if not dry_run and result["status"] == "success":
-        audit = StaticSourceAudit(
-            source_id=source_id,
-            upload_id=result.get("upload_id"),
-            action="uploaded",
-            details={
-                "evidence_name": evidence_name,
-                "filename": file.filename,
-                "stats": result.get("stats"),
-                "provider_metadata": result.get("provider_metadata")
-            },
-            performed_by=None  # TODO: current_user.email if current_user else None
-        )
-        db.add(audit)
-
-        # Statistics are computed dynamically in queries
-
-        db.commit()
-
-    return result
+    return {
+        "source": source_name,
+        "evidence_records": result.evidence_records or 0,
+        "unique_genes": result.unique_genes or 0,
+        "supports_upload": True,
+        "supported_formats": ["json", "csv", "tsv", "xlsx", "xls"],
+        **additional_stats
+    }
 
 
-@router.get("/sources/{source_id}/uploads", response_model=list[UploadListItem])
-async def list_uploads(
-    source_id: int,
-    db: Session = Depends(get_db)
-):
-    """List all uploads for a source"""
-    uploads = db.query(StaticEvidenceUpload).filter(
-        StaticEvidenceUpload.source_id == source_id
-    ).order_by(StaticEvidenceUpload.created_at.desc()).all()
+@router.get("/")
+async def list_hybrid_sources() -> dict[str, Any]:
+    """
+    List all available hybrid sources.
+    
+    Returns:
+        List of hybrid sources and their capabilities
+    """
+    sources = []
 
-    return uploads
+    for source_name in UPLOAD_SOURCES:
+        source_info = {
+            "name": source_name,
+            "supports_upload": True,
+            "supported_formats": ["json", "csv", "tsv", "xlsx", "xls"],
+            "description": ""
+        }
 
+        if source_name == "DiagnosticPanels":
+            source_info["description"] = "Commercial diagnostic panel data from various providers"
+        elif source_name == "Literature":
+            source_info["description"] = "Literature references and publications"
 
-@router.get("/sources/{source_id}/audit", response_model=list[AuditLogResponse])
-async def get_audit_log(
-    source_id: int,
-    limit: int = 100,
-    db: Session = Depends(get_db)
-):
-    """Get audit log for a source"""
-    logs = db.query(StaticSourceAudit).filter(
-        StaticSourceAudit.source_id == source_id
-    ).order_by(StaticSourceAudit.performed_at.desc()).limit(limit).all()
+        sources.append(source_info)
 
-    return logs
-
-
-@router.delete("/sources/{source_id}")
-async def delete_source(
-    source_id: int,
-    db: Session = Depends(get_db),
-    # current_user = Depends(get_current_user)  # TODO: Add when auth is implemented
-):
-    """Soft delete a source (mark as inactive)"""
-
-    source = db.query(StaticSource).filter(
-        StaticSource.id == source_id
-    ).first()
-
-    if not source:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Source not found"
-        )
-
-    # CRITICAL: Delete all gene_evidence associated with this source
-    # This prevents orphaned evidence that would incorrectly contribute to scores
-    from app.models import GeneEvidence
-    deleted_count = db.query(GeneEvidence).filter(
-        GeneEvidence.source_name == f"static_{source_id}"
-    ).delete(synchronize_session=False)
-
-    logger.info(f"Deleting {deleted_count} gene_evidence records for source {source_id}")
-
-    source.is_active = False
-    source.updated_at = datetime.utcnow()
-
-    # Audit with evidence deletion details
-    audit = StaticSourceAudit(
-        source_id=source_id,
-        action="deactivated",
-        details={
-            "evidence_deleted": deleted_count,
-            "source_name": source.source_name
-        },
-        performed_by=None  # TODO: current_user.email if current_user else None
-    )
-    db.add(audit)
-    db.commit()
-
-    return {"status": "success", "message": f"Source {source_id} deactivated, {deleted_count} evidence records deleted"}
-
+    return {
+        "sources": sources,
+        "total": len(sources)
+    }

@@ -81,7 +81,7 @@ const evidenceComponents = {
   PubTator: PubTatorEvidence,
   ClinGen: ClinGenEvidence,
   PanelApp: PanelAppEvidence,
-  'Diagnostic Panels': DiagnosticPanelsEvidence
+  DiagnosticPanels: DiagnosticPanelsEvidence // Fixed: no space in source name
 }
 
 const evidenceComponent = computed(() => {
@@ -109,22 +109,23 @@ const evidenceSummary = computed(() => {
     return classification
   }
 
-  if (source === 'Diagnostic Panels') {
-    // New structure with providers
-    if (data?.providers) {
-      const providerCount = Object.keys(data.providers).length
-      const panelCount = Object.values(data.providers).reduce(
-        (sum, panels) => sum + panels.length,
-        0
-      )
-      const confidence = data.confidence ? ` (${data.confidence} confidence)` : ''
-      return `${providerCount} provider${providerCount > 1 ? 's' : ''}, ${panelCount} panel${panelCount > 1 ? 's' : ''}${confidence}`
+  if (source === 'DiagnosticPanels') {
+    // New structure with provider_panels mapping
+    if (data?.provider_panels) {
+      const providerCount = Object.keys(data.provider_panels).length
+      // Count unique panels across all providers
+      const uniquePanels = new Set()
+      Object.values(data.provider_panels).forEach(panels => {
+        panels.forEach(panel => uniquePanels.add(panel))
+      })
+      const panelCount = uniquePanels.size
+      return `${providerCount} provider${providerCount > 1 ? 's' : ''}, ${panelCount} panel${panelCount > 1 ? 's' : ''}`
     }
-    // Fallback for old structure
-    else if (data?.panels?.length) {
-      const panelCount = data.panels.length
-      const confidence = data.confidence ? ` (${data.confidence} confidence)` : ''
-      return `${panelCount} diagnostic panel${panelCount > 1 ? 's' : ''}${confidence}`
+    // Fallback for aggregated counts
+    else if (data?.provider_count || data?.panel_count) {
+      const providerCount = data.provider_count || 0
+      const panelCount = data.panel_count || 0
+      return `${providerCount} provider${providerCount > 1 ? 's' : ''}, ${panelCount} panel${panelCount > 1 ? 's' : ''}`
     }
   }
 
@@ -144,10 +145,10 @@ const primaryCount = computed(() => {
   if (props.evidence.source_name === 'PanelApp') {
     return `${data?.panel_count || 0} panels`
   }
-  if (props.evidence.source_name === 'Diagnostic Panels') {
-    // New structure with providers
-    if (data?.providers) {
-      const providerCount = Object.keys(data.providers).length
+  if (props.evidence.source_name === 'DiagnosticPanels') {
+    // New structure with provider_panels mapping
+    if (data?.provider_panels) {
+      const providerCount = Object.keys(data.provider_panels).length
       return `${providerCount} providers`
     }
     // Fallback for old structure
@@ -165,7 +166,7 @@ const sourceColor = computed(() => {
     PubTator: 'teal',
     ClinGen: 'green',
     PanelApp: 'orange',
-    'Diagnostic Panels': 'indigo'
+    DiagnosticPanels: 'indigo' // Fixed: no space
   }
   return colors[props.evidence.source_name] || 'grey'
 })
@@ -177,7 +178,7 @@ const sourceIcon = computed(() => {
     PubTator: 'mdi-text-search',
     ClinGen: 'mdi-certificate',
     PanelApp: 'mdi-view-dashboard',
-    'Diagnostic Panels': 'mdi-test-tube'
+    DiagnosticPanels: 'mdi-test-tube' // Fixed: no space
   }
   return icons[props.evidence.source_name] || 'mdi-database'
 })

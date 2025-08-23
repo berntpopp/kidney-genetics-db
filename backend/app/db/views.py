@@ -37,22 +37,16 @@ evidence_source_counts = ReplaceableObject(
             WHEN 'PanelApp'::text THEN (COALESCE(jsonb_array_length(ge.evidence_data -> 'panels'::text), 0))::bigint
             WHEN 'HPO'::text THEN ((COALESCE(jsonb_array_length(ge.evidence_data -> 'hpo_terms'::text), 0) + COALESCE(jsonb_array_length(ge.evidence_data -> 'diseases'::text), 0)))::bigint
             WHEN 'PubTator'::text THEN (COALESCE((ge.evidence_data ->> 'publication_count'::text)::integer, jsonb_array_length(ge.evidence_data -> 'pmids'::text)))::bigint
-            WHEN 'Literature'::text THEN (COALESCE(jsonb_array_length(ge.evidence_data -> 'references'::text), 0))::bigint
-            ELSE
-                CASE
-                    WHEN ge.source_name::text ~~ 'static_%'::text THEN (
-                        SELECT count(DISTINCT ge2.source_detail) AS count
-                        FROM gene_evidence ge2
-                        WHERE ge2.gene_id = ge.gene_id
-                        AND ge2.source_name::text = ge.source_name::text
-                    )
-                    ELSE (0)::bigint
-                END
+            WHEN 'Literature'::text THEN (COALESCE((ge.evidence_data ->> 'publication_count'::text)::integer, 
+                                          jsonb_array_length(ge.evidence_data -> 'references'::text)))::bigint
+            WHEN 'DiagnosticPanels'::text THEN (COALESCE((ge.evidence_data ->> 'panel_count'::text)::integer, 
+                                                jsonb_array_length(ge.evidence_data -> 'panels'::text)))::bigint
+            WHEN 'GenCC'::text THEN (COALESCE(jsonb_array_length(ge.evidence_data -> 'classifications'::text), 0))::bigint
+            WHEN 'ClinGen'::text THEN (COALESCE((ge.evidence_data ->> 'assertion_count'::text)::integer, 1))::bigint
+            ELSE (0)::bigint
         END AS source_count
     FROM gene_evidence ge
     JOIN genes g ON ge.gene_id = g.id
-    WHERE (ge.source_name::text = ANY (ARRAY['PanelApp'::text, 'HPO'::text, 'PubTator'::text, 'Literature'::text]))
-        OR ge.source_name::text ~~ 'static_%'::text
     """,
     dependencies=[]
 )

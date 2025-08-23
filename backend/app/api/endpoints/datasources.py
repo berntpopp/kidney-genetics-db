@@ -72,53 +72,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         """)
     ).fetchone()
 
-    # Get active static sources from database
-    static_sources = db.execute(
-        text("""
-            SELECT
-                'static_' || ss.id::text as source_name,
-                ss.display_name,
-                ss.description,
-                COALESCE(uploads.upload_count, 0) as upload_count,
-                COALESCE(gene_counts.gene_count, 0) as gene_count
-            FROM static_sources ss
-            LEFT JOIN (
-                SELECT source_id, COUNT(*) as upload_count
-                FROM static_evidence_uploads
-                GROUP BY source_id
-            ) uploads ON ss.id = uploads.source_id
-            LEFT JOIN (
-                SELECT
-                    SUBSTRING(ge.source_name FROM 8)::integer as source_id,
-                    COUNT(DISTINCT ge.gene_id) as gene_count
-                FROM gene_evidence ge
-                WHERE ge.source_name LIKE 'static_%'
-                GROUP BY SUBSTRING(ge.source_name FROM 8)::integer
-            ) gene_counts ON ss.id = gene_counts.source_id
-            WHERE ss.is_active = true
-        """)
-    ).fetchall()
-
-    # Add static sources to source_stats
-    for row in static_sources:
-        if row[3] > 0 and row[4] > 0:  # Only include if has uploads and genes
-            # Get last updated from evidence
-            last_updated = db.execute(
-                text("""
-                    SELECT MAX(updated_at)
-                    FROM gene_evidence
-                    WHERE source_name = :source_name
-                """),
-                {"source_name": row[0]}
-            ).scalar()
-
-            source_stats[row[0]] = {
-                "gene_count": row[4],
-                "evidence_count": row[4],  # For static sources, evidence count = gene count
-                "last_updated": last_updated,
-                "display_name": row[1],
-                "description": row[2]
-            }
+    # No longer need to query static sources - they've been replaced by hybrid sources
 
     # Build data source list
     for source_name, config in DATA_SOURCE_CONFIG.items():
@@ -147,8 +101,10 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         else:
             # Source is configured but has no data
             stats = None
-            if source_name in ["Literature", "Diagnostic"]:
-                status = "pending"  # Not yet implemented
+            if config.get("hybrid_source", False):
+                status = "available"  # Ready for manual upload
+            elif source_name in ["Literature", "DiagnosticPanels"]:
+                status = "available"  # Ready for manual upload
             else:
                 status = "inactive"
 
@@ -164,25 +120,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             )
         )
 
-    # Add active static sources to the list
-    for source_name, stats in source_stats.items():
-        if source_name.startswith('static_'):
-            sources.append(
-                DataSource(
-                    name=source_name,
-                    display_name=stats.get("display_name", source_name),
-                    description=stats.get("description", "Static evidence source"),
-                    status="active",
-                    stats=DataSourceStats(
-                        gene_count=stats["gene_count"],
-                        evidence_count=stats["evidence_count"],
-                        last_updated=stats["last_updated"],
-                        metadata={"source_type": "static"}
-                    ),
-                    url=None,
-                    documentation_url=None,
-                )
-            )
+    # Static sources have been replaced by hybrid sources (DiagnosticPanels, Literature)
 
     # Get last pipeline run
     last_run = (

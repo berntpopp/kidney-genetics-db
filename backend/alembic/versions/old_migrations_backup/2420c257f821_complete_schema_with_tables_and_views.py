@@ -5,38 +5,39 @@ Revises:
 Create Date: 2025-08-22
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+
+import sqlalchemy as sa
+from sqlalchemy import Text
+from sqlalchemy.dialects import postgresql
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
-from sqlalchemy import Text
+from app.db.alembic_ops import create_all_views, drop_all_views
 
 # Import view definitions and operations
 from app.db.views import ALL_VIEWS
-from app.db.alembic_ops import create_all_views, drop_all_views
 
 # revision identifiers, used by Alembic.
 revision: str = '2420c257f821'
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     """Create complete database schema including tables and views."""
-    
+
     # ========== ENUMS ==========
-    
+
     # Create source_status enum for data_source_progress table
     source_status = postgresql.ENUM(
         'idle', 'running', 'completed', 'failed', 'paused',
         name='source_status'
     )
     source_status.create(op.get_bind())
-    
+
     # ========== TABLES ==========
-    
+
     # Core tables
     op.create_table('genes',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -47,7 +48,7 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.PrimaryKeyConstraint('id')
     )
-    
+
     op.create_table('pipeline_runs',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('status', sa.String(length=50), nullable=True),
@@ -59,7 +60,7 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.PrimaryKeyConstraint('id')
     )
-    
+
     op.create_table('static_sources',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('source_type', sa.String(length=50), nullable=False),
@@ -67,7 +68,7 @@ def upgrade() -> None:
         sa.Column('display_name', sa.String(length=255), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('source_metadata', postgresql.JSONB(astext_type=Text()), server_default='{}', nullable=True),
-        sa.Column('scoring_metadata', postgresql.JSONB(astext_type=Text()), 
+        sa.Column('scoring_metadata', postgresql.JSONB(astext_type=Text()),
                   server_default='{"type": "count", "weight": 0.5}', nullable=False),
         sa.Column('is_active', sa.Boolean(), server_default='true', nullable=True),
         sa.Column('created_by', sa.String(length=255), nullable=True),
@@ -80,7 +81,7 @@ def upgrade() -> None:
             name='static_sources_type_check'
         )
     )
-    
+
     op.create_table('users',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('email', sa.String(length=255), nullable=False),
@@ -90,7 +91,7 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.PrimaryKeyConstraint('id')
     )
-    
+
     # Tables with foreign keys
     op.create_table('gene_curations',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -115,7 +116,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('gene_id')
     )
-    
+
     op.create_table('gene_evidence',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('gene_id', sa.Integer(), nullable=False),
@@ -130,7 +131,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('gene_id', 'source_name', 'source_detail', name='gene_evidence_source_idx')
     )
-    
+
     op.create_table('static_evidence_uploads',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('source_id', sa.Integer(), nullable=False),
@@ -157,7 +158,7 @@ def upgrade() -> None:
             name='upload_status_check'
         )
     )
-    
+
     op.create_table('static_source_audit',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('source_id', sa.Integer(), nullable=False),
@@ -170,12 +171,12 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(['upload_id'], ['static_evidence_uploads.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
-    
+
     # Additional tables not in models
     op.create_table('data_source_progress',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('source_name', sa.String(), nullable=False),
-        sa.Column('status', sa.Enum('idle', 'running', 'completed', 'failed', 'paused', 
+        sa.Column('status', sa.Enum('idle', 'running', 'completed', 'failed', 'paused',
                                     name='source_status'), nullable=False, server_default='idle'),
         sa.Column('current_page', sa.Integer(), nullable=True, server_default='0'),
         sa.Column('total_pages', sa.Integer(), nullable=True),
@@ -199,7 +200,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('source_name')
     )
-    
+
     op.create_table('gene_normalization_staging',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('original_text', sa.String(), nullable=False),
@@ -216,7 +217,7 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
         sa.PrimaryKeyConstraint('id')
     )
-    
+
     op.create_table('gene_normalization_log',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('source_name', sa.String(), nullable=False),
@@ -229,7 +230,7 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
         sa.PrimaryKeyConstraint('id')
     )
-    
+
     op.create_table('cache_entries',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('cache_key', sa.String(255), nullable=False),
@@ -244,9 +245,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('cache_key', name='uq_cache_entries_cache_key')
     )
-    
+
     # ========== INDEXES ==========
-    
+
     # Create indexes
     op.create_index(op.f('ix_genes_hgnc_id'), 'genes', ['hgnc_id'], unique=True)
     op.create_index(op.f('ix_genes_id'), 'genes', ['id'], unique=False)
@@ -267,7 +268,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_static_evidence_uploads_id'), 'static_evidence_uploads', ['id'], unique=False)
     op.create_index(op.f('ix_static_source_audit_id'), 'static_source_audit', ['id'], unique=False)
     op.create_index(op.f('ix_static_source_audit_source_id'), 'static_source_audit', ['source_id'], unique=False)
-    
+
     # Additional indexes
     op.create_index('idx_data_source_progress_source_name', 'data_source_progress', ['source_name'])
     op.create_index('idx_cache_entries_namespace', 'cache_entries', ['namespace'])
@@ -275,26 +276,26 @@ def upgrade() -> None:
                    postgresql_where=sa.text('expires_at IS NOT NULL'))
     op.create_index('idx_cache_entries_last_accessed', 'cache_entries', ['last_accessed'])
     op.create_index('idx_cache_entries_namespace_key', 'cache_entries', ['namespace', 'cache_key'])
-    
+
     # ========== VIEWS ==========
-    
+
     # Create all views in dependency order
     create_all_views(op, ALL_VIEWS)
 
 
 def downgrade() -> None:
     """Drop complete database schema."""
-    
+
     # Drop all views in reverse dependency order
     drop_all_views(op, ALL_VIEWS)
-    
+
     # Drop indexes
     op.drop_index('idx_cache_entries_namespace_key', table_name='cache_entries')
     op.drop_index('idx_cache_entries_last_accessed', table_name='cache_entries')
     op.drop_index('idx_cache_entries_expires_at', table_name='cache_entries')
     op.drop_index('idx_cache_entries_namespace', table_name='cache_entries')
     op.drop_index('idx_data_source_progress_source_name', table_name='data_source_progress')
-    
+
     op.drop_index(op.f('ix_static_source_audit_source_id'), table_name='static_source_audit')
     op.drop_index(op.f('ix_static_source_audit_id'), table_name='static_source_audit')
     op.drop_index(op.f('ix_static_evidence_uploads_id'), table_name='static_evidence_uploads')
@@ -314,7 +315,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_genes_approved_symbol'), table_name='genes')
     op.drop_index(op.f('ix_genes_id'), table_name='genes')
     op.drop_index(op.f('ix_genes_hgnc_id'), table_name='genes')
-    
+
     # Drop tables (in reverse order due to foreign keys)
     op.drop_table('cache_entries')
     op.drop_table('gene_normalization_log')
@@ -328,7 +329,7 @@ def downgrade() -> None:
     op.drop_table('static_sources')
     op.drop_table('pipeline_runs')
     op.drop_table('genes')
-    
+
     # Drop enum
     source_status_enum = postgresql.ENUM(name='source_status')
     source_status_enum.drop(op.get_bind())

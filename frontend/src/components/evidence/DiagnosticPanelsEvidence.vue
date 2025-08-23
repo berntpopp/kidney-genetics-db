@@ -16,7 +16,7 @@
           <v-expansion-panel-title class="text-body-2">
             <div class="d-flex align-center">
               <v-icon icon="mdi-hospital-building" size="small" class="mr-2" />
-              <strong>{{ provider }}</strong>
+              <strong>{{ formatProviderName(provider) }}</strong>
               <v-chip size="x-small" variant="outlined" class="ml-2">
                 {{ panelList.length }} panel{{ panelList.length > 1 ? 's' : '' }}
               </v-chip>
@@ -44,7 +44,7 @@
         <div v-for="(panelList, provider) in providerPanels" :key="provider">
           <div class="text-body-2 font-weight-medium mb-2">
             <v-icon icon="mdi-hospital-building" size="small" class="mr-1" />
-            {{ provider }}
+            {{ formatProviderName(provider) }}
           </div>
           <div class="panels-grid">
             <v-chip
@@ -59,17 +59,6 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Confidence Level -->
-    <div v-if="evidenceData.confidence" class="mb-4">
-      <div class="text-subtitle-2 font-weight-medium mb-2">
-        <v-icon icon="mdi-shield-check" size="small" class="mr-1" />
-        Confidence Level
-      </div>
-      <v-chip :color="getConfidenceColor(evidenceData.confidence)" variant="tonal" size="small">
-        {{ capitalizeFirst(evidenceData.confidence) }}
-      </v-chip>
     </div>
 
     <!-- Gene Information -->
@@ -107,27 +96,16 @@
 
     <!-- Statistics -->
     <v-row v-if="Object.keys(providerPanels).length > 0" class="mt-4">
-      <v-col cols="4">
+      <v-col cols="6">
         <div class="text-center">
           <div class="text-h6 font-weight-bold text-primary">{{ totalPanels }}</div>
           <div class="text-caption text-medium-emphasis">Total Panels</div>
         </div>
       </v-col>
-      <v-col cols="4">
+      <v-col cols="6">
         <div class="text-center">
           <div class="text-h6 font-weight-bold text-primary">{{ uniqueProviders }}</div>
           <div class="text-caption text-medium-emphasis">Providers</div>
-        </div>
-      </v-col>
-      <v-col cols="4">
-        <div class="text-center">
-          <div
-            class="text-h6 font-weight-bold"
-            :class="getConfidenceColor(evidenceData.confidence) + '--text'"
-          >
-            {{ capitalizeFirst(evidenceData.confidence || 'Unknown') }}
-          </div>
-          <div class="text-caption text-medium-emphasis">Confidence</div>
         </div>
       </v-col>
     </v-row>
@@ -150,21 +128,29 @@ const props = defineProps({
 
 // Extract providers directly from the new structure
 const providerPanels = computed(() => {
-  // New structure has providers as a direct object
-  if (props.evidenceData?.providers) {
+  // New structure: provider_panels is a direct mapping of provider -> panels array
+  if (props.evidenceData?.provider_panels) {
     const providers = {}
 
     // Process each provider and their panels
-    for (const [provider, panels] of Object.entries(props.evidenceData.providers)) {
-      providers[provider] = panels.map(panel =>
-        typeof panel === 'string' ? panel : panel.name || ''
-      )
+    for (const [provider, panels] of Object.entries(props.evidenceData.provider_panels)) {
+      // Panels are already strings in our structure
+      providers[provider] = Array.isArray(panels) ? panels : []
     }
 
     return providers
   }
 
-  // Fallback for old structure (if any)
+  // Fallback for legacy structure if it exists
+  if (props.evidenceData?.providers && Array.isArray(props.evidenceData.providers)) {
+    // Old structure had separate providers and panels arrays
+    const providers = {}
+    for (const provider of props.evidenceData.providers) {
+      providers[provider] = props.evidenceData.panels || []
+    }
+    return providers
+  }
+
   return {}
 })
 
@@ -173,26 +159,22 @@ const uniqueProviders = computed(() => {
 })
 
 const totalPanels = computed(() => {
-  let total = 0
+  // Count unique panels across all providers
+  const uniquePanels = new Set()
   for (const panels of Object.values(providerPanels.value)) {
-    total += panels.length
+    panels.forEach(panel => uniquePanels.add(panel))
   }
-  return total
+  return uniquePanels.size
 })
 
 // Helper functions
-const getConfidenceColor = confidence => {
-  const colors = {
-    high: 'success',
-    medium: 'warning',
-    low: 'error'
-  }
-  return colors[confidence?.toLowerCase()] || 'grey'
-}
-
-const capitalizeFirst = str => {
-  if (!str) return ''
-  return str.charAt(0).toUpperCase() + str.slice(1)
+const formatProviderName = provider => {
+  if (!provider) return ''
+  // Replace underscores with spaces and capitalize each word
+  return provider
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
 }
 </script>
 
