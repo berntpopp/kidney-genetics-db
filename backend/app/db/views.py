@@ -230,7 +230,6 @@ evidence_summary_view = ReplaceableObject(
         ge.source_name,
         ge.evidence_data,
         COALESCE(ces.normalized_score, 0::double precision) AS normalized_score,
-        gc.curation_status,
         gc.classification,
         gc.updated_at AS last_curated
     FROM gene_evidence ge
