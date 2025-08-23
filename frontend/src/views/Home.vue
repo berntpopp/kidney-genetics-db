@@ -25,7 +25,7 @@
     <v-container class="mt-n8">
       <!-- Statistics Cards with Gradients -->
       <v-row>
-        <v-col v-for="(stat, index) in stats" :key="stat.title" cols="12" sm="6" md="3">
+        <v-col v-for="(stat, index) in stats" :key="stat.title" cols="12" sm="6" md="4">
           <v-card
             :elevation="hoveredCard === index ? 4 : 1"
             class="stat-card"
@@ -89,15 +89,9 @@ const stats = ref([
     icon: 'mdi-database-check'
   },
   {
-    title: 'Source Coverage',
-    value: 0,
-    color: 'info',
-    icon: 'mdi-chart-donut'
-  },
-  {
     title: 'Last Update',
     value: 'Loading...',
-    color: 'secondary',
+    color: 'info',
     icon: 'mdi-clock-check'
   }
 ])
@@ -160,20 +154,11 @@ onMounted(async () => {
     // Update Active Sources
     stats.value[1].value = sourceResponse.total_active
 
-    // Calculate and update Source Coverage
-    if (sourceResponse.total_unique_genes > 0 && sourceResponse.total_evidence_records) {
-      const avgSourcesPerGene = sourceResponse.total_evidence_records / sourceResponse.total_unique_genes
-      const coverage = Math.min(Math.round((avgSourcesPerGene / 6) * 100), 100)
-      stats.value[2].value = `${coverage}%`
-    } else {
-      stats.value[2].value = '0%'
-    }
-
     // Format last update - use last_data_update from API
     if (sourceResponse.last_data_update) {
-      stats.value[3].value = formatDate(sourceResponse.last_data_update)
+      stats.value[2].value = formatDate(sourceResponse.last_data_update)
     } else if (sourceResponse.last_pipeline_run) {
-      stats.value[3].value = formatDate(sourceResponse.last_pipeline_run)
+      stats.value[2].value = formatDate(sourceResponse.last_pipeline_run)
     } else {
       // Fallback to most recent source update
       const mostRecent = sourceResponse.sources
@@ -181,11 +166,11 @@ onMounted(async () => {
         .map(s => new Date(s.stats.last_updated))
         .sort((a, b) => b - a)[0]
 
-      stats.value[3].value = mostRecent ? formatDate(mostRecent) : 'Never'
+      stats.value[2].value = mostRecent ? formatDate(mostRecent) : 'Never'
     }
   } catch (error) {
     console.error('Error fetching stats:', error)
-    stats.value[3].value = 'Error'
+    stats.value[2].value = 'Error'
   }
 })
 </script>
