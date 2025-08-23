@@ -70,7 +70,6 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { geneApi } from '../api/genes'
 import { datasourceApi } from '../api/datasources'
 import KidneyGeneticsLogo from '@/components/KidneyGeneticsLogo.vue'
 
@@ -90,10 +89,10 @@ const stats = ref([
     icon: 'mdi-database-check'
   },
   {
-    title: 'Gene Panels',
+    title: 'Source Coverage',
     value: 0,
     color: 'info',
-    icon: 'mdi-view-dashboard'
+    icon: 'mdi-chart-donut'
   },
   {
     title: 'Last Update',
@@ -152,21 +151,31 @@ const formatDate = dateStr => {
 
 onMounted(async () => {
   try {
-    // Fetch gene stats
-    const geneResponse = await geneApi.getGenes({ perPage: 1 })
-    stats.value[0].value = geneResponse.total.toLocaleString()
-
-    // Fetch data source information
+    // Fetch data source information (includes all stats now)
     const sourceResponse = await datasourceApi.getDataSources()
 
-    // Update stats
+    // Update Total Genes using the actual unique count from API
+    stats.value[0].value = (sourceResponse.total_unique_genes || 0).toLocaleString()
+
+    // Update Active Sources
     stats.value[1].value = sourceResponse.total_active
 
-    // Format last update
-    if (sourceResponse.last_pipeline_run) {
+    // Calculate and update Source Coverage
+    if (sourceResponse.total_unique_genes > 0 && sourceResponse.total_evidence_records) {
+      const avgSourcesPerGene = sourceResponse.total_evidence_records / sourceResponse.total_unique_genes
+      const coverage = Math.min(Math.round((avgSourcesPerGene / 6) * 100), 100)
+      stats.value[2].value = `${coverage}%`
+    } else {
+      stats.value[2].value = '0%'
+    }
+
+    // Format last update - use last_data_update from API
+    if (sourceResponse.last_data_update) {
+      stats.value[3].value = formatDate(sourceResponse.last_data_update)
+    } else if (sourceResponse.last_pipeline_run) {
       stats.value[3].value = formatDate(sourceResponse.last_pipeline_run)
     } else {
-      // Use most recent source update
+      // Fallback to most recent source update
       const mostRecent = sourceResponse.sources
         .filter(s => s.stats?.last_updated)
         .map(s => new Date(s.stats.last_updated))
