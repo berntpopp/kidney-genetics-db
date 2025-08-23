@@ -10,9 +10,16 @@ import time
 from collections.abc import Callable
 from functools import wraps
 
-from app.core.logging import get_logger
+# Lazy import to avoid circular dependency
+_logger = None
 
-logger = get_logger(__name__)
+def _get_logger():
+    """Get logger instance lazily to avoid circular import."""
+    global _logger
+    if _logger is None:
+        from app.core.logging import get_logger
+        _logger = get_logger(__name__)
+    return _logger
 
 
 def timed_operation(
@@ -46,7 +53,7 @@ def timed_operation(
 
                 try:
                     # Log start of operation (debug level)
-                    await logger.debug("Operation started", **context)
+                    await _get_logger().debug("Operation started", **context)
 
                     # Execute the operation
                     result = await func(*args, **kwargs)
@@ -57,11 +64,11 @@ def timed_operation(
 
                     # Log based on duration
                     if duration_ms > error_threshold_ms:
-                        await logger.error("Operation exceeded error threshold", **context)
+                        await _get_logger().error("Operation exceeded error threshold", **context)
                     elif duration_ms > warning_threshold_ms:
-                        await logger.warning("Operation exceeded warning threshold", **context)
+                        await _get_logger().warning("Operation exceeded warning threshold", **context)
                     else:
-                        await logger.info("Operation completed", **context)
+                        await _get_logger().info("Operation completed", **context)
 
                     return result
 
@@ -70,7 +77,7 @@ def timed_operation(
                     duration_ms = (time.perf_counter() - start_time) * 1000
                     context["duration_ms"] = round(duration_ms, 2)
                     context["error"] = str(e)
-                    await logger.error("Operation failed", **context)
+                    await _get_logger().error("Operation failed", **context)
                     raise
 
             return async_wrapper
@@ -87,7 +94,7 @@ def timed_operation(
 
                 try:
                     # Log start of operation (debug level)
-                    logger.sync_debug("Operation started", **context)
+                    _get_logger().sync_debug("Operation started", **context)
 
                     # Execute the operation
                     result = func(*args, **kwargs)
@@ -98,11 +105,11 @@ def timed_operation(
 
                     # Log based on duration
                     if duration_ms > error_threshold_ms:
-                        logger.sync_error("Operation exceeded error threshold", **context)
+                        _get_logger().sync_error("Operation exceeded error threshold", **context)
                     elif duration_ms > warning_threshold_ms:
-                        logger.sync_warning("Operation exceeded warning threshold", **context)
+                        _get_logger().sync_warning("Operation exceeded warning threshold", **context)
                     else:
-                        logger.sync_info("Operation completed", **context)
+                        _get_logger().sync_info("Operation completed", **context)
 
                     return result
 
@@ -111,7 +118,7 @@ def timed_operation(
                     duration_ms = (time.perf_counter() - start_time) * 1000
                     context["duration_ms"] = round(duration_ms, 2)
                     context["error"] = str(e)
-                    logger.sync_error("Operation failed", **context)
+                    _get_logger().sync_error("Operation failed", **context)
                     raise
 
             return sync_wrapper
@@ -177,7 +184,7 @@ def batch_operation(batch_name: str, batch_size_getter: Callable | None = None):
                 }
 
                 try:
-                    await logger.info("Batch operation started", **context)
+                    await _get_logger().info("Batch operation started", **context)
                     result = await func(*args, **kwargs)
 
                     duration_ms = (time.perf_counter() - start_time) * 1000
@@ -187,14 +194,14 @@ def batch_operation(batch_name: str, batch_size_getter: Callable | None = None):
                         context["ms_per_item"] = round(duration_ms / batch_size, 2)
                         context["items_per_second"] = round(batch_size / (duration_ms / 1000), 2)
 
-                    await logger.info("Batch operation completed", **context)
+                    await _get_logger().info("Batch operation completed", **context)
                     return result
 
                 except Exception as e:
                     duration_ms = (time.perf_counter() - start_time) * 1000
                     context["duration_ms"] = round(duration_ms, 2)
                     context["error"] = str(e)
-                    await logger.error("Batch operation failed", **context)
+                    await _get_logger().error("Batch operation failed", **context)
                     raise
 
             return async_wrapper
@@ -217,7 +224,7 @@ def batch_operation(batch_name: str, batch_size_getter: Callable | None = None):
                 }
 
                 try:
-                    logger.sync_info("Batch operation started", **context)
+                    _get_logger().sync_info("Batch operation started", **context)
                     result = func(*args, **kwargs)
 
                     duration_ms = (time.perf_counter() - start_time) * 1000
@@ -227,14 +234,14 @@ def batch_operation(batch_name: str, batch_size_getter: Callable | None = None):
                         context["ms_per_item"] = round(duration_ms / batch_size, 2)
                         context["items_per_second"] = round(batch_size / (duration_ms / 1000), 2)
 
-                    logger.sync_info("Batch operation completed", **context)
+                    _get_logger().sync_info("Batch operation completed", **context)
                     return result
 
                 except Exception as e:
                     duration_ms = (time.perf_counter() - start_time) * 1000
                     context["duration_ms"] = round(duration_ms, 2)
                     context["error"] = str(e)
-                    logger.sync_error("Batch operation failed", **context)
+                    _get_logger().sync_error("Batch operation failed", **context)
                     raise
 
             return sync_wrapper
@@ -252,7 +259,7 @@ class PerformanceMonitor:
 
     def __enter__(self):
         self.start_time = time.perf_counter()
-        logger.sync_debug(
+        _get_logger().sync_debug(
             "Performance block started",
             operation=self.operation_name,
             **self.extra_context
@@ -270,15 +277,15 @@ class PerformanceMonitor:
 
         if exc_type:
             context["error"] = str(exc_val)
-            logger.sync_error("Performance block failed", **context)
+            _get_logger().sync_error("Performance block failed", **context)
         else:
-            logger.sync_info("Performance block completed", **context)
+            _get_logger().sync_info("Performance block completed", **context)
 
         return False  # Don't suppress exceptions
 
     async def __aenter__(self):
         self.start_time = time.perf_counter()
-        await logger.debug(
+        await _get_logger().debug(
             "Performance block started",
             operation=self.operation_name,
             **self.extra_context
@@ -296,8 +303,8 @@ class PerformanceMonitor:
 
         if exc_type:
             context["error"] = str(exc_val)
-            await logger.error("Performance block failed", **context)
+            await _get_logger().error("Performance block failed", **context)
         else:
-            await logger.info("Performance block completed", **context)
+            await _get_logger().info("Performance block completed", **context)
 
         return False  # Don't suppress exceptions
