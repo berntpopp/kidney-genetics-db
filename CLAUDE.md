@@ -4,26 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Kidney-Genetics Database**: A modern web platform for curating and exploring kidney disease-related genes. This project is modernizing the original R-based pipeline into a scalable Python/FastAPI + Vue.js architecture with PostgreSQL backend.
+**Kidney-Genetics Database**: A modern web platform for curating and exploring kidney disease-related genes. This project modernizes the original R-based pipeline into a scalable Python/FastAPI + Vue.js architecture with PostgreSQL backend.
 
-**Current Status**: Under active development - planning and architecture phase complete, implementation pending.
+**Current Status**: Alpha version (v0.1.0) with working backend API, frontend interface, and data ingestion pipeline. Core functionality operational with 571+ genes from multiple data sources.
 
 ## Project Architecture
 
-### Core Components (Planned)
-- **Backend**: FastAPI with PostgreSQL, hybrid relational + JSONB architecture
+### Core Components (Implemented)
+- **Backend**: FastAPI with PostgreSQL, hybrid relational + JSONB architecture, UV package manager
 - **Frontend**: Vue 3 + Vite with Vuetify for Material Design
-- **Database**: PostgreSQL 15+ with pg_jsonschema extension for validation
-- **Pipeline**: Python-based data processing replacing R scripts
-- **Background Tasks**: Celery with Redis for async processing
+- **Database**: PostgreSQL 14+ with automated migrations via Alembic
+- **Pipeline**: Python-based data ingestion with sources (PanelApp, HPO, ClinGen, PubTator, etc.)
+- **Development**: Make-based workflow with hybrid Docker/local development
 
 ### Key Directories
-- `plan/` - Complete implementation planning documents and schema definitions
-- `plan/database/` - PostgreSQL schema design and migration plans
-- `plan/backend/` - FastAPI implementation specifications
-- `plan/frontend/` - Vue.js interface design plans
-- `plan/pipeline/` - Data processing pipeline reference code (R and Python)
-- `plan/schema/` - JSON schema definitions for data validation
+- `backend/` - FastAPI application with data pipeline and models
+- `frontend/` - Vue.js/Vuetify web interface
+- `docs/` - Architecture documentation and implementation guides
+- `scrapers/` - Data scraping utilities for diagnostic panels
+- `backups/` - Database and migration backups
 
 ## Development Commands
 
@@ -90,98 +89,117 @@ make help  # Show all available commands
 ### Database Design (Hybrid Architecture)
 The database uses a hybrid PostgreSQL design combining:
 - **Relational columns** for core metrics (fast queries on evidence scores, classification)
-- **JSONB columns** for detailed evidence and flexible schema evolution
-- **Content addressability** with SHA-256 hashing for immutable versioning
-- **Complete audit trail** for professional curation workflow
+- **JSONB columns** for detailed evidence data
+- **Gene staging system** for two-stage data ingestion
+- **Audit trail** via gene_staging table for normalization attempts
 
 ### Data Flow
-1. **Data Sources** → Multiple sources (PanelApp, HPO, Literature, Diagnostic Panels, PubTator)
-2. **Pipeline Processing** → Python modules process and standardize data
-3. **Database Storage** → PostgreSQL with versioned gene curations
-4. **API Layer** → FastAPI serves RESTful endpoints
-5. **Frontend** → Vue.js provides interactive interface
+1. **Data Sources** → Multiple APIs (PanelApp, HPO, ClinGen, GenCC, PubTator) + Diagnostic Panel Scrapers
+2. **Staging** → Raw data ingested into gene_staging table with normalization logging
+3. **Processing** → Evidence aggregation and scoring algorithms
+4. **Storage** → Final curated data in PostgreSQL with computed scores
+5. **API** → FastAPI serves JSON:API compliant endpoints
+6. **Frontend** → Vue.js interface with real-time progress updates
 
 ### Key Features
-- **GenCC-compatible schema** for international database submission
-- **Multi-stage curation workflow** with review tracking
-- **Evidence scoring engine** with configurable weights
-- **Complete provenance tracking** for all data points
-- **Professional audit logging** for regulatory compliance
+- **Multi-source data aggregation** from 6+ genomic databases
+- **Evidence scoring engine** with weighted calculations
+- **Gene staging system** for data validation and normalization
+- **Real-time progress tracking** via WebSocket connections
+- **REST API** with JSON:API compliant endpoints
 
 ## Important Implementation Notes
 
 ### Schema Management
-- All schema changes MUST go through Alembic migrations
-- JSON schemas in `plan/schema/` define data structure
-- Pydantic models auto-generated from JSON schemas
-- Database-level validation using pg_jsonschema
+- All schema changes go through Alembic migrations (`backend/alembic/versions/`)
+- Database views managed via `app.db.views` module with dependency tracking
+- Single consolidated migration approach (squashed from 16 previous migrations)
+- Use `make db-reset` for complete schema refresh
+- Automated backup system via `make db-backup-full`
 
 ### Data Pipeline Architecture
-The project includes reference implementations from two sources:
-1. **R Functions** (`plan/pipeline/sources/*.R`) - Original kidney-genetics logic
-2. **Python Modules** (`plan/pipeline/sources/g*.py`) - Modern Python implementations
+Active pipeline implementation in `backend/app/pipeline/sources/unified/`:
+- **Base classes**: `base.py` - common data source interface
+- **PanelApp**: `panelapp.py` - UK/Australia gene panels
+- **HPO**: `hpo.py` - Human Phenotype Ontology integration
+- **ClinGen**: `clingen.py` - Clinical Genome Resource
+- **GenCC**: `gencc.py` - Gene Curation Coalition
+- **PubTator**: `pubtator.py` - Literature mining
+- **Diagnostic Panels**: `diagnostic_panels.py` - Commercial panel scraping
 
-Key pipeline components:
-- PanelApp integration (UK and Australia)
-- HPO phenotype data processing
-- Commercial panel web scraping
-- Literature mining via PubTator
-- Evidence scoring and merging
+Additional components:
+- `scrapers/` - Standalone web scraping for diagnostic panels
+- Evidence aggregation and scoring in `backend/app/pipeline/aggregate.py`
 
-### Development Priorities
-1. **Database First**: Set up PostgreSQL schema and migrations
-2. **Backend API**: Implement FastAPI with core endpoints
-3. **Data Migration**: Convert existing CSV data to new schema
-4. **Frontend Interface**: Build Vue.js application
-5. **Pipeline Modernization**: Port R scripts to Python
+## Code Quality and Testing
 
-## Testing Strategy
+### Backend (Python/FastAPI)
+```bash
+make lint     # Lint with ruff (100-char line length)
+make test     # Run pytest test suite
+cd backend && uv run ruff check app/ --fix
+cd backend && uv run pytest -v
+```
 
-### Backend Testing
-- Unit tests for all API endpoints
-- Integration tests for database operations
-- Mock external API calls (PanelApp, HPO, etc.)
-- Test coverage target: >90%
+### Frontend (Vue.js/Vite)
+```bash
+cd frontend && npm run lint      # ESLint + Prettier
+cd frontend && npm run format    # Format code
+```
+
+### Package Management
+- **Backend**: Uses UV package manager (not pip/poetry)
+- **Frontend**: Uses npm standard package management
+
+## Testing
+
+### Backend Testing (Limited)
+- Basic unit tests for gene normalization and HGNC client
+- Run with: `make test` or `cd backend && uv run pytest -v`
+- Test files in `backend/tests/`
 
 ### Frontend Testing
-- Component testing with Vitest
-- E2E testing for critical workflows
-- Visual regression testing for UI consistency
+- No testing framework currently configured
+- Linting and formatting via ESLint and Prettier
 
-### Data Validation
-- Compare Python pipeline output with R pipeline results
-- Field-by-field validation of gene data
-- Performance benchmarking with full dataset
+### Current Test Coverage
+- Minimal test coverage (4 test files total)
+- Focus on core gene normalization functionality
 
 ## External Dependencies
 
-### APIs and Data Sources
+### APIs and Data Sources (Implemented)
 - **PanelApp API**: Gene panel data (UK and Australia)
 - **HPO API**: Human Phenotype Ontology
 - **PubTator API**: Literature mining
-- **NCBI/OMIM**: Gene and disease information
-- **ClinVar**: Clinical variant data
-- **STRING-DB**: Protein interactions
-- **GTEx**: Gene expression data
+- **ClinGen API**: Clinical Genome Resource data
+- **GenCC API**: Gene Curation Coalition data
+- **OMIM references**: Disease ID mapping only (not full integration)
 
 ### Configuration
-- API keys stored in environment variables
-- YAML configuration for pipeline settings
-- Docker secrets for production deployment
+- Environment variables for API keys and database credentials
+- YAML configuration for diagnostic panel scrapers (`scrapers/diagnostics/config/config.yaml`)
+- Basic Docker Compose setup (not production-ready)
 
-## Migration from R Pipeline
+## Backend Architecture Details
 
-The project is migrating from an R-based pipeline (`kidney-genetics`) to Python. Key considerations:
-- Preserve all existing functionality
-- Maintain data compatibility
-- Parallel validation during transition
-- Gradual component-by-component migration
+### API Structure
+- **Main entry**: `backend/app/main.py` - FastAPI application setup
+- **Endpoints**: `backend/app/api/endpoints/` - REST API routes
+- **Models**: `backend/app/models/` - SQLAlchemy database models
+- **CRUD**: `backend/app/crud/` - database operations
+- **Core**: `backend/app/core/` - shared utilities and services
 
-## Security Considerations
+### Key Features
+- **Gene Staging**: Two-stage data ingestion (staging → curated)
+- **Evidence Scoring**: Configurable weighted scoring system
+- **Progress Tracking**: Real-time WebSocket updates for long-running tasks
+- **Caching**: HTTP response caching via `hishel` library
+- **Background Tasks**: Async task processing for data updates
 
-- JWT authentication for API access
-- Role-based access control (viewer, curator, admin)
-- Bcrypt password hashing
+## Security Notes
+
+- Basic user model with admin flag (authentication not fully implemented)
+- Bcrypt dependency available for password hashing
 - Environment-based configuration
-- Never commit secrets or API keys
-- Use Docker secrets in production
+- Never commit secrets or API keys to repository
