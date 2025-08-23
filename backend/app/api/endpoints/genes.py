@@ -1,198 +1,379 @@
 """
-Gene API endpoints
+Gene API endpoints - JSON:API compliant using reusable components
 """
 
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.crud.gene import gene_crud
-from app.schemas.gene import Gene, GeneCreate, GeneList
+from app.core.jsonapi import (
+    build_jsonapi_response,
+    get_jsonapi_params,
+    get_range_filters,
+    get_search_filter,
+    get_sort_param,
+    jsonapi_endpoint,
+)
+from app.models.gene import Gene, GeneEvidence
+from app.schemas.gene import GeneCreate
 
 router = APIRouter()
 
 
-@router.get("/", response_model=GeneList)
+def transform_gene_to_jsonapi(results) -> list[dict]:
+    """Transform gene query results to JSON:API format."""
+    data = []
+    for row in results:
+        data.append({
+            "type": "genes",
+            "id": str(row[0]),
+            "attributes": {
+                "hgnc_id": row[1],
+                "approved_symbol": row[2],
+                "aliases": row[3] or [],
+                "created_at": row[4].isoformat() if row[4] else None,
+                "updated_at": row[5].isoformat() if row[5] else None,
+                "evidence_count": row[6],
+                "evidence_score": float(row[7]) if row[7] is not None else None,
+                "sources": list(row[8]) if row[8] else [],
+            }
+        })
+    return data
+
+
+@router.get("/", response_model=dict)
+@jsonapi_endpoint(resource_type="genes", model=Gene, searchable_fields=["approved_symbol", "hgnc_id"])
 async def get_genes(
-    skip: int = Query(0, ge=0, description="Number of items to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Number of items to return"),
-    search: str | None = Query(None, description="Search term for gene symbol or HGNC ID"),
-    min_score: float | None = Query(
-        None, ge=0, le=100, description="Minimum evidence score (0-100)"
-    ),
-    sort_by: str | None = Query(None, description="Field to sort by"),
-    sort_desc: bool = Query(False, description="Sort in descending order"),
     db: Session = Depends(get_db),
-) -> GeneList:
+    # JSON:API pagination
+    params: dict = Depends(get_jsonapi_params),
+    # JSON:API filters
+    search: str | None = Depends(get_search_filter),
+    score_range: tuple[float | None, float | None] = Depends(
+        get_range_filters("score", min_ge=0, max_le=100)
+    ),
+    count_range: tuple[int | None, int | None] = Depends(
+        get_range_filters("count", min_ge=0)
+    ),
+    filter_source: str | None = Query(None, alias="filter[source]"),
+    # JSON:API sorting
+    sort: str | None = Depends(get_sort_param("-evidence_score,approved_symbol")),
+) -> dict[str, Any]:
     """
-    Get list of genes with optional filtering and sorting.
-    Scores are percentages (0-100) calculated from percentiles across all active sources.
-    OPTIMIZED: Uses single query with aggregation to avoid N+1 query problem.
+    Get genes with JSON:API compliant response using reusable components.
+
+    Query parameters follow JSON:API specification:
+    - Pagination: page[number], page[size]
+    - Filtering: filter[search], filter[min_score], filter[source], etc.
+    - Sorting: sort=-evidence_score,approved_symbol (prefix with - for descending)
     """
-    # Use the optimized method that gets data with sources in a single query
-    genes = gene_crud.get_genes_with_aggregated_data(
-        db,
-        skip=skip,
-        limit=limit,
-        search=search,
-        min_score=min_score,
-        sort_by=sort_by,
-        sort_desc=sort_desc,
-    )
+    # Build optimized query with scores using raw SQL for complex aggregations
+    base_query = """
+        SELECT DISTINCT
+            g.id,
+            g.hgnc_id,
+            g.approved_symbol,
+            g.aliases,
+            g.created_at,
+            g.updated_at,
+            COALESCE(gs.evidence_count, 0) as evidence_count,
+            gs.percentage_score as evidence_score,
+            COALESCE(
+                array_agg(DISTINCT ge.source_name ORDER BY ge.source_name)
+                FILTER (WHERE ge.source_name IS NOT NULL),
+                ARRAY[]::text[]
+            ) as sources
+        FROM genes g
+        LEFT JOIN gene_scores gs ON gs.gene_id = g.id
+        LEFT JOIN gene_evidence ge ON g.id = ge.gene_id
+        WHERE 1=1
+    """
+
+    query_params = {}
+
+    # Apply filters
+    if search:
+        base_query += " AND (g.approved_symbol ILIKE :search OR g.hgnc_id ILIKE :search)"
+        query_params["search"] = f"%{search}%"
+
+    min_score, max_score = score_range
+    if min_score is not None:
+        base_query += " AND gs.percentage_score >= :min_score"
+        query_params["min_score"] = min_score
+
+    if max_score is not None:
+        base_query += " AND gs.percentage_score <= :max_score"
+        query_params["max_score"] = max_score
+
+    min_count, max_count = count_range
+    if min_count is not None:
+        base_query += " AND gs.evidence_count >= :min_count"
+        query_params["min_count"] = min_count
+
+    if filter_source:
+        base_query += " AND EXISTS (SELECT 1 FROM gene_evidence ge2 WHERE ge2.gene_id = g.id AND ge2.source_name = :source)"
+        query_params["source"] = filter_source
+
+    # Group by all non-aggregated columns
+    base_query += """
+        GROUP BY
+            g.id, g.hgnc_id, g.approved_symbol, g.aliases,
+            g.created_at, g.updated_at, gs.evidence_count, gs.percentage_score
+    """
+
+    # Parse and apply sorting using mapping
+    if sort:
+        sort_fields = []
+        field_mapping = {
+            "id": "g.id",
+            "symbol": "g.approved_symbol",
+            "approved_symbol": "g.approved_symbol",
+            "hgnc_id": "g.hgnc_id",
+            "score": "gs.percentage_score",
+            "evidence_score": "gs.percentage_score",
+            "count": "gs.evidence_count",
+            "evidence_count": "gs.evidence_count",
+            "created_at": "g.created_at",
+            "updated_at": "g.updated_at",
+        }
+
+        for field in sort.split(","):
+            field = field.strip()
+            if field:
+                if field.startswith("-"):
+                    column = field[1:]
+                    direction = "DESC NULLS LAST"
+                else:
+                    column = field.lstrip("+")
+                    direction = "ASC NULLS FIRST"
+
+                if column in field_mapping:
+                    sort_fields.append(f"{field_mapping[column]} {direction}")
+
+        if sort_fields:
+            base_query += f" ORDER BY {', '.join(sort_fields)}"
+    else:
+        base_query += " ORDER BY gs.percentage_score DESC NULLS LAST, g.approved_symbol ASC"
 
     # Get total count for pagination
-    total = gene_crud.count(db, search=search, min_score=min_score)
+    count_query = f"SELECT COUNT(*) FROM ({base_query}) as subquery"
+    total = db.execute(text(count_query), query_params).scalar() or 0
 
-    # Transform to response schema - NO MORE N+1 QUERIES!
-    items = []
-    for gene_data in genes:
-        # Sources are already included in gene_data from the aggregated query
-        items.append(
-            Gene(
-                id=gene_data["id"],  # type: ignore[arg-type]
-                hgnc_id=gene_data["hgnc_id"],  # type: ignore[arg-type]
-                approved_symbol=gene_data["approved_symbol"],  # type: ignore[arg-type]
-                aliases=gene_data["aliases"],  # type: ignore[arg-type]
-                created_at=gene_data["created_at"],  # type: ignore[arg-type]
-                updated_at=gene_data["updated_at"],  # type: ignore[arg-type]
-                evidence_count=gene_data["evidence_count"],
-                evidence_score=gene_data["percentage_score"],  # Use percentage score (0-100)
-                sources=gene_data["source_names"],  # Now directly from the aggregated query!
-            )
-        )
+    # Apply pagination
+    page_number = params["page_number"]
+    page_size = params["page_size"]
+    offset = (page_number - 1) * page_size
+    paginated_query = f"{base_query} LIMIT :limit OFFSET :offset"
+    query_params["limit"] = page_size
+    query_params["offset"] = offset
 
-    return GeneList(items=items, total=total, page=(skip // limit) + 1, per_page=limit)
+    # Execute query
+    results = db.execute(text(paginated_query), query_params).fetchall()
+
+    # Transform to JSON:API format
+    data = transform_gene_to_jsonapi(results)
+
+    # Build response using reusable helper
+    return build_jsonapi_response(
+        data=data,
+        total=total,
+        page_number=page_number,
+        page_size=page_size,
+        base_url="/api/genes",
+    )
 
 
-@router.get("/{gene_symbol}", response_model=Gene)
-async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+@router.get("/{gene_symbol}", response_model=dict)
+@jsonapi_endpoint(resource_type="genes", model=Gene)
+async def get_gene(
+    gene_symbol: str,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
     """
-    Get gene by symbol with percentage score (0-100)
+    Get single gene by symbol with JSON:API format.
     """
-    gene = gene_crud.get_by_symbol(db, gene_symbol)
+    # Get gene (case-insensitive)
+    gene = db.query(Gene).filter(
+        func.upper(Gene.approved_symbol) == gene_symbol.upper()
+    ).first()
+
     if not gene:
         raise HTTPException(status_code=404, detail=f"Gene '{gene_symbol}' not found")
 
-    # Get score from view
-    score_data = gene_crud.get_gene_score(db, gene.id)  # type: ignore[arg-type]
+    # Get score data from view
+    score_result = db.execute(
+        text("""
+            SELECT
+                evidence_count,
+                percentage_score,
+                source_scores
+            FROM gene_scores
+            WHERE gene_id = :gene_id
+        """),
+        {"gene_id": gene.id}
+    ).first()
 
-    # Get evidence sources
-    evidence = gene_crud.get_evidence(db, gene.id)  # type: ignore[arg-type]
+    # Get sources
+    sources_result = db.execute(
+        text("""
+            SELECT DISTINCT source_name
+            FROM gene_evidence
+            WHERE gene_id = :gene_id
+            ORDER BY source_name
+        """),
+        {"gene_id": gene.id}
+    ).fetchall()
 
-    # Map source names to display names (no more static sources)
-    sources = list({e.source_name for e in evidence})
+    sources = [row[0] for row in sources_result]
 
-    # Get normalized scores breakdown
+    # Get score breakdown
     score_breakdown = {}
     if gene.id:
-        result = db.execute(
-            text(
-                """
+        breakdown_result = db.execute(
+            text("""
                 SELECT source_name, normalized_score
                 FROM combined_evidence_scores
                 WHERE gene_id = :gene_id
                 ORDER BY source_name
-            """
-            ),
+            """),
             {"gene_id": gene.id},
         )
-        for row in result:
-            # Use source name directly (no more static sources)
+        for row in breakdown_result:
             score_breakdown[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
 
-    # Build response
+    # Format as JSON:API
     return {
-        "id": gene.id,
-        "hgnc_id": gene.hgnc_id,
-        "approved_symbol": gene.approved_symbol,
-        "aliases": gene.aliases or [],
-        "created_at": gene.created_at,
-        "updated_at": gene.updated_at,
-        "evidence_count": score_data["evidence_count"] if score_data else 0,
-        "evidence_score": score_data["percentage_score"] if score_data else None,
-        "sources": sources,
-        "score_breakdown": score_breakdown,  # Raw normalized scores per source
+        "data": {
+            "type": "genes",
+            "id": str(gene.id),
+            "attributes": {
+                "hgnc_id": gene.hgnc_id,
+                "approved_symbol": gene.approved_symbol,
+                "aliases": gene.aliases or [],
+                "created_at": gene.created_at.isoformat() if gene.created_at else None,
+                "updated_at": gene.updated_at.isoformat() if gene.updated_at else None,
+                "evidence_count": score_result[0] if score_result else 0,
+                "evidence_score": float(score_result[1]) if score_result and score_result[1] else None,
+                "sources": sources,
+                "score_breakdown": score_breakdown,
+                "source_scores": score_result[2] if score_result else {},
+            }
+        }
     }
 
 
-@router.get("/{gene_symbol}/evidence")
-async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+@router.get("/{gene_symbol}/evidence", response_model=dict)
+@jsonapi_endpoint(resource_type="evidence", model=GeneEvidence)
+async def get_gene_evidence(
+    gene_symbol: str,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
     """
-    Get all evidence for a gene with normalized scores
+    Get all evidence for a gene in JSON:API format.
     """
-    gene = gene_crud.get_by_symbol(db, gene_symbol)
+    # Get gene
+    gene = db.query(Gene).filter(
+        func.upper(Gene.approved_symbol) == gene_symbol.upper()
+    ).first()
+
     if not gene:
         raise HTTPException(status_code=404, detail=f"Gene '{gene_symbol}' not found")
 
-    evidence = gene_crud.get_evidence(db, gene.id)  # type: ignore[arg-type]
+    # Get evidence
+    evidence = db.query(GeneEvidence).filter(
+        GeneEvidence.gene_id == gene.id
+    ).all()
 
-    # Get normalized scores for each evidence
+    # Get normalized scores
     normalized_scores = {}
     if gene.id:
         result = db.execute(
-            text(
-                """
+            text("""
                 SELECT evidence_id, normalized_score
                 FROM combined_evidence_scores
                 WHERE gene_id = :gene_id
-            """
-            ),
+            """),
             {"gene_id": gene.id},
         )
         for row in result:
             normalized_scores[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
 
-    # Process evidence - DiagnosticPanels is already properly structured
-    aggregated_evidence = []
-
+    # Format evidence as JSON:API
+    evidence_data = []
     for e in evidence:
-        display_name = e.source_name
-
-        aggregated_evidence.append(
-            {
-                "id": e.id,
-                "source_name": display_name,
+        evidence_data.append({
+            "type": "evidence",
+            "id": str(e.id),
+            "attributes": {
+                "source_name": e.source_name,
                 "source_detail": e.source_detail,
                 "evidence_data": e.evidence_data,
-                "evidence_date": e.evidence_date,
-                "created_at": e.created_at,
+                "evidence_date": e.evidence_date.isoformat() if e.evidence_date else None,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
                 "normalized_score": normalized_scores.get(e.id, 0.0),
+            },
+            "relationships": {
+                "gene": {
+                    "data": {
+                        "type": "genes",
+                        "id": str(gene.id)
+                    }
+                }
             }
-        )
+        })
 
     return {
-        "gene_symbol": gene.approved_symbol,
-        "gene_id": gene.id,
-        "evidence_count": len(aggregated_evidence),
-        "evidence": aggregated_evidence,
+        "data": evidence_data,
+        "meta": {
+            "gene_symbol": gene.approved_symbol,
+            "gene_id": gene.id,
+            "evidence_count": len(evidence_data),
+        }
     }
 
 
-@router.post("/", response_model=Gene)
-def create_gene(gene_in: GeneCreate, db: Session = Depends(get_db)) -> dict[str, Any]:
+@router.post("/", response_model=dict)
+async def create_gene(
+    gene_in: GeneCreate,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
     """
-    Create a new gene
+    Create a new gene in JSON:API format.
     """
+    from app.crud.gene import gene_crud
+
     # Check if gene already exists
-    existing = gene_crud.get_by_symbol(db, gene_in.approved_symbol)
+    existing = db.query(Gene).filter(
+        func.upper(Gene.approved_symbol) == gene_in.approved_symbol.upper()
+    ).first()
+
     if existing:
         raise HTTPException(
-            status_code=400, detail=f"Gene '{gene_in.approved_symbol}' already exists"
+            status_code=400,
+            detail=f"Gene '{gene_in.approved_symbol}' already exists",
         )
 
+    # Create gene
     gene = gene_crud.create(db, gene_in)
 
+    # Format as JSON:API
     return {
-        "id": gene.id,
-        "hgnc_id": gene.hgnc_id,
-        "approved_symbol": gene.approved_symbol,
-        "aliases": gene.aliases or [],
-        "created_at": gene.created_at,
-        "updated_at": gene.updated_at,
-        "evidence_count": 0,
-        "evidence_score": None,
-        "sources": [],
+        "data": {
+            "type": "genes",
+            "id": str(gene.id),
+            "attributes": {
+                "hgnc_id": gene.hgnc_id,
+                "approved_symbol": gene.approved_symbol,
+                "aliases": gene.aliases or [],
+                "created_at": gene.created_at.isoformat() if gene.created_at else None,
+                "updated_at": gene.updated_at.isoformat() if gene.updated_at else None,
+                "evidence_count": 0,
+                "evidence_score": None,
+                "sources": [],
+            }
+        }
     }
+
