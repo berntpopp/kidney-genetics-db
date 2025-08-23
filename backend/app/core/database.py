@@ -3,7 +3,6 @@ Database configuration and session management
 OPTIMIZED: Includes robust connection management and pool monitoring
 """
 
-import logging
 from collections.abc import Generator
 from contextlib import contextmanager
 
@@ -13,8 +12,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import Pool
 
 from app.core.config import settings
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Create database engine
 engine = create_engine(
@@ -56,14 +56,14 @@ def get_db_context() -> Generator[Session, None, None]:
     except Exception as e:
         if db:
             db.rollback()
-        logger.error(f"Database error in context: {e}")
+        logger.sync_error("Database error in context", error=e)
         raise
     finally:
         if db:
             try:
                 db.close()
             except Exception as e:
-                logger.error(f"Error closing database session: {e}")
+                logger.sync_error("Error closing database session", error=e)
 
 
 # Connection pool monitoring for debugging and optimization
@@ -81,8 +81,9 @@ connection_stats = {
 def increment_connect(dbapi_conn, connection_record):
     """Track new connections created"""
     connection_stats["connections_created"] += 1
-    logger.debug(
-        f"New database connection created. Total: {connection_stats['connections_created']}"
+    logger.sync_debug(
+        "New database connection created",
+        total_connections=connection_stats['connections_created']
     )
 
 
@@ -109,7 +110,7 @@ def increment_invalidate(dbapi_conn, connection_record, exception):
     """Track invalidated connections"""
     connection_stats["connections_invalidated"] += 1
     if exception:
-        logger.warning(f"Connection invalidated due to: {exception}")
+        logger.sync_warning("Connection invalidated", exception=str(exception))
 
 
 def get_pool_status() -> dict:

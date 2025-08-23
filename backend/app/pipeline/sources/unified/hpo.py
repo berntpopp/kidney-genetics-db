@@ -5,7 +5,6 @@ This module replaces the previous HPO implementations with a single,
 async-first implementation using the unified data source architecture.
 """
 
-import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -14,12 +13,13 @@ from sqlalchemy.orm import Session
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.datasource_config import get_source_cache_ttl, get_source_parameter
+from app.core.logging import get_logger
 from app.pipeline.sources.unified.base import UnifiedDataSource
 
 if TYPE_CHECKING:
     from app.core.progress_tracker import ProgressTracker
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class HPOUnifiedSource(UnifiedDataSource):
@@ -76,7 +76,7 @@ class HPOUnifiedSource(UnifiedDataSource):
         self.batch_size = get_source_parameter("HPO", "batch_size", 5)
         self.request_delay = get_source_parameter("HPO", "request_delay", 0.2)
 
-        logger.info(f"HPOUnifiedSource initialized with root term: {self.kidney_root_term}")
+        logger.sync_info("HPOUnifiedSource initialized", root_term=self.kidney_root_term)
 
     def _get_default_ttl(self) -> int:
         """Get default TTL for HPO data."""
@@ -89,7 +89,7 @@ class HPOUnifiedSource(UnifiedDataSource):
         Returns:
             Dictionary with phenotypes and gene associations
         """
-        logger.info("📥 Fetching HPO data for kidney phenotypes...")
+        logger.sync_info("Fetching HPO data for kidney phenotypes")
 
         # Use the modular HPO pipeline
         from app.core.hpo.pipeline import HPOPipeline
@@ -141,13 +141,15 @@ class HPOUnifiedSource(UnifiedDataSource):
 
                     return list(set(descendants))
                 else:
-                    logger.error(
-                        f"Failed to fetch HPO term {root_term}: HTTP {response.status_code}"
+                    logger.sync_error(
+                        "Failed to fetch HPO term",
+                        root_term=root_term,
+                        status_code=response.status_code
                     )
                     return [root_term]
 
             except Exception as e:
-                logger.error(f"Error fetching HPO hierarchy for {root_term}: {e}")
+                logger.sync_error("Error fetching HPO hierarchy", root_term=root_term, error=str(e))
                 return [root_term]
 
         # Use unified caching
@@ -182,13 +184,15 @@ class HPOUnifiedSource(UnifiedDataSource):
                     data = response.json()
                     return data.get("associations", [])
                 else:
-                    logger.debug(
-                        f"No gene associations for {hpo_term}: HTTP {response.status_code}"
+                    logger.sync_debug(
+                        "No gene associations for HPO term",
+                        hpo_term=hpo_term,
+                        status_code=response.status_code
                     )
                     return []
 
             except Exception as e:
-                logger.error(f"Error fetching associations for {hpo_term}: {e}")
+                logger.sync_error("Error fetching associations", hpo_term=hpo_term, error=str(e))
                 return []
 
         # Use unified caching
@@ -215,7 +219,7 @@ class HPOUnifiedSource(UnifiedDataSource):
         gene_evidence_map = raw_data["gene_evidence"]
         gene_data_map = {}
 
-        logger.info(f"🔄 Processing HPO data for {len(gene_evidence_map)} genes...")
+        logger.sync_info("Processing HPO data", gene_count=len(gene_evidence_map))
 
         for gene_symbol, evidence_data in gene_evidence_map.items():
             # Clean and validate gene symbol
@@ -229,8 +233,10 @@ class HPOUnifiedSource(UnifiedDataSource):
                 "last_updated": datetime.now(timezone.utc).isoformat(),
             }
 
-        logger.info(
-            f"🎯 HPO processing complete: {len(gene_data_map)} genes with kidney phenotypes"
+        logger.sync_info(
+            "HPO processing complete",
+            genes_processed=len(gene_data_map),
+            description="genes with kidney phenotypes"
         )
 
         return gene_data_map
@@ -310,11 +316,11 @@ class HPOUnifiedSource(UnifiedDataSource):
                 if response.status_code == 200:
                     return response.json()
                 else:
-                    logger.debug(f"Disease {disease_id} not found: HTTP {response.status_code}")
+                    logger.sync_debug("Disease not found", disease_id=disease_id, status_code=response.status_code)
                     return None
 
             except Exception as e:
-                logger.error(f"Error fetching disease {disease_id}: {e}")
+                logger.sync_error("Error fetching disease", disease_id=disease_id, error=str(e))
                 return None
 
         # Use unified caching

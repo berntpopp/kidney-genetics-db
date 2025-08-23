@@ -4,14 +4,14 @@ Base HPO API client with caching and resilience features.
 
 import hashlib
 import json
-import logging
 from typing import Any
 
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
+from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, retry_with_backoff
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class HPOAPIBase:
@@ -96,13 +96,13 @@ class HPOAPIBase:
             try:
                 return await fetch_with_retry()
             except Exception as e:
-                logger.error(f"Error fetching {url} after retries: {e}")
+                logger.sync_error("Error fetching URL after retries", url=url, error=str(e))
 
                 # Try cache fallback if available
                 if self.cache_service:
                     cached = await self.cache_service.get(cache_key, self.namespace)
                     if cached:
-                        logger.info(f"Using cached data for {endpoint}")
+                        logger.sync_info("Using cached data for endpoint", endpoint=endpoint)
                         return cached
 
                 raise
@@ -152,5 +152,5 @@ class HPOAPIBase:
             await self._get("hp/terms/HP:0000001", ttl=self.ttl_stable)
             return True
         except Exception as e:
-            logger.error(f"HPO API connection test failed: {e}")
+            logger.sync_error("HPO API connection test failed", error=str(e))
             return False

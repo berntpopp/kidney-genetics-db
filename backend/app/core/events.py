@@ -4,12 +4,13 @@ Replaces inefficient database polling with pub/sub pattern.
 """
 
 import asyncio
-import logging
 from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class EventBus:
@@ -29,7 +30,7 @@ class EventBus:
         if not self._running:
             self._running = True
             self._processor_task = asyncio.create_task(self._process_events())
-            logger.info("EventBus started")
+            logger.sync_info("EventBus started")
 
     async def stop(self):
         """Stop the event processor"""
@@ -40,7 +41,7 @@ class EventBus:
                 await self._processor_task
             except asyncio.CancelledError:
                 pass
-        logger.info("EventBus stopped")
+        logger.sync_info("EventBus stopped")
 
     async def _process_events(self):
         """Process events from the queue"""
@@ -58,13 +59,17 @@ class EventBus:
                         else:
                             callback(data)
                     except Exception as e:
-                        logger.error(f"Error in event handler for {event_type}: {e}")
+                        logger.sync_error(
+                            "Error in event handler",
+                            event_type=event_type,
+                            error=str(e)
+                        )
 
             except asyncio.TimeoutError:
                 # No events in queue, continue loop
                 continue
             except Exception as e:
-                logger.error(f"Error processing events: {e}")
+                logger.sync_error("Error processing events", error=str(e))
 
     async def publish(self, event_type: str, data: Any):
         """
@@ -75,7 +80,7 @@ class EventBus:
             data: Event data to send to subscribers
         """
         await self._queue.put((event_type, data))
-        logger.debug(f"Published event: {event_type}")
+        logger.sync_debug("Published event", event_type=event_type)
 
     def subscribe(self, event_type: str, callback: Callable):
         """
@@ -86,7 +91,7 @@ class EventBus:
             callback: Function to call when event is published
         """
         self._subscribers[event_type].append(callback)
-        logger.debug(f"Subscribed to event: {event_type}")
+        logger.sync_debug("Subscribed to event", event_type=event_type)
 
     def unsubscribe(self, event_type: str, callback: Callable):
         """
@@ -99,7 +104,7 @@ class EventBus:
         if event_type in self._subscribers:
             try:
                 self._subscribers[event_type].remove(callback)
-                logger.debug(f"Unsubscribed from event: {event_type}")
+                logger.sync_debug("Unsubscribed from event", event_type=event_type)
             except ValueError:
                 pass  # Callback was not in the list
 

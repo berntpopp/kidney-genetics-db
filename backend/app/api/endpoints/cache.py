@@ -8,7 +8,6 @@ Provides administrative endpoints for:
 - Health checks and diagnostics
 """
 
-import logging
 from datetime import datetime, timezone
 from typing import Any
 
@@ -23,9 +22,10 @@ from app.core.config import settings
 from app.core.database import get_pool_status
 from app.core.datasource_config import get_source_cache_ttl
 from app.core.exceptions import CacheError, ValidationError
+from app.core.logging import get_logger
 from app.core.monitoring import get_monitoring_service
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -146,7 +146,7 @@ async def get_cache_stats(
         )
 
     except Exception as e:
-        logger.error(f"Error getting cache stats: {e}")
+        await logger.error("Error getting cache stats", error=e, namespace=namespace)
         raise CacheError("get_stats", detail=str(e)) from e
 
 
@@ -180,7 +180,7 @@ async def get_namespace_stats(
     except CacheError:
         raise
     except Exception as e:
-        logger.error(f"Error getting namespace stats for {namespace}: {e}")
+        await logger.error("Error getting namespace stats", error=e, namespace=namespace)
         raise CacheError("get_namespace_stats", detail=str(e)) from e
 
 
@@ -235,7 +235,7 @@ async def get_cache_health(db: AsyncSession = Depends(get_db)) -> CacheHealthRes
         namespaces = await cache_service.get_distinct_namespaces()
         if not namespaces:
             # Fallback to known namespaces if database query fails
-            logger.warning("Using fallback namespace list")
+            await logger.warning("Using fallback namespace list", namespaces_count=len(namespaces))
             namespaces = [
                 "hgnc",
                 "pubtator",
@@ -259,7 +259,7 @@ async def get_cache_health(db: AsyncSession = Depends(get_db)) -> CacheHealthRes
         )
 
     except Exception as e:
-        logger.error(f"Error getting cache health: {e}")
+        await logger.error("Error getting cache health", error=e)
         raise CacheError("get_health", detail=str(e)) from e
 
 
@@ -291,7 +291,7 @@ async def list_cache_keys(
         )
 
     except Exception as e:
-        logger.error(f"Error listing cache keys for {namespace}: {e}")
+        await logger.error("Error listing cache keys", error=e, namespace=namespace)
         raise CacheError("list_keys", detail=str(e)) from e
 
 
@@ -312,7 +312,7 @@ async def clear_namespace(namespace: str, db: AsyncSession = Depends(get_db)) ->
         )
 
     except Exception as e:
-        logger.error(f"Error clearing namespace {namespace}: {e}")
+        await logger.error("Error clearing namespace", error=e, namespace=namespace)
         raise CacheError("clear_namespace", detail=str(e)) from e
 
 
@@ -335,7 +335,7 @@ async def delete_cache_key(
         )
 
     except Exception as e:
-        logger.error(f"Error deleting cache key {namespace}:{key}: {e}")
+        await logger.error("Error deleting cache key", error=e, namespace=namespace, key=key)
         raise CacheError("cache_operation", detail=f"Error deleting cache key: {e!s}") from e
 
 
@@ -356,7 +356,7 @@ async def cleanup_expired_entries(db: AsyncSession = Depends(get_db)) -> CacheCl
         )
 
     except Exception as e:
-        logger.error(f"Error during cache cleanup: {e}")
+        await logger.error("Error during cache cleanup", error=e)
         raise CacheError("cache_operation", detail=f"Error during cache cleanup: {e!s}") from e
 
 
@@ -383,7 +383,7 @@ async def warm_cache(
         for source in request.sources:
             if source.lower() in ["hgnc", "pubtator", "gencc", "panelapp", "hpo", "clingen"]:
                 # Placeholder for warming logic
-                logger.info(f"Warming cache for source: {source}")
+                await logger.info("Warming cache for source", source=source, force_refresh=request.force_refresh)
                 sources_warmed.append(source)
                 # entries_created += await warm_source_cache(source, request.force_refresh)
 
@@ -399,7 +399,7 @@ async def warm_cache(
         )
 
     except Exception as e:
-        logger.error(f"Error during cache warming: {e}")
+        await logger.error("Error during cache warming", error=e, sources=request.sources)
         raise CacheError("cache_operation", detail=f"Error during cache warming: {e!s}") from e
 
 
@@ -466,7 +466,7 @@ async def get_prometheus_metrics(db: AsyncSession = Depends(get_db)) -> Response
         return Response(content=metrics_text, media_type="text/plain; charset=utf-8")
 
     except Exception as e:
-        logger.error(f"Error generating Prometheus metrics: {e}")
+        await logger.error("Error generating Prometheus metrics", error=e)
         raise CacheError("cache_operation", detail=f"Error generating metrics: {e!s}") from e
 
 
@@ -485,7 +485,7 @@ async def get_monitoring_dashboard(db: AsyncSession = Depends(get_db)) -> dict[s
         return dashboard_data
 
     except Exception as e:
-        logger.error(f"Error getting monitoring dashboard: {e}")
+        await logger.error("Error getting monitoring dashboard", error=e)
         raise CacheError("cache_operation", detail=f"Error getting dashboard data: {e!s}") from e
 
 
@@ -505,7 +505,7 @@ async def get_performance_metrics(db: AsyncSession = Depends(get_db)) -> dict[st
         }
 
     except Exception as e:
-        logger.error(f"Error getting performance metrics: {e}")
+        await logger.error("Error getting performance metrics", error=e)
         raise CacheError("get_performance_metrics", detail=str(e)) from e
 
 
@@ -528,7 +528,7 @@ async def warm_all_caches(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
         }
 
     except Exception as e:
-        logger.error(f"Error warming all caches: {e}")
+        await logger.error("Error warming all caches", error=e)
         raise CacheError("cache_operation", detail=f"Error warming caches: {e!s}") from e
 
 
@@ -551,7 +551,7 @@ async def clear_all_caches(db: AsyncSession = Depends(get_db)) -> dict[str, Any]
         }
 
     except Exception as e:
-        logger.error(f"Error clearing all caches: {e}")
+        await logger.error("Error clearing all caches", error=e)
         raise CacheError("cache_operation", detail=f"Error clearing caches: {e!s}") from e
 
 
@@ -587,7 +587,7 @@ async def get_cache_system_health(db: AsyncSession = Depends(get_db)) -> dict[st
         return {"summary": summary, "health": health_data, "timestamp": stats.get("timestamp")}
 
     except Exception as e:
-        logger.error(f"Error getting cache system health: {e}")
+        await logger.error("Error getting cache system health", error=e)
         raise CacheError("cache_operation", detail=f"Error getting health status: {e!s}") from e
 
 
@@ -639,5 +639,5 @@ async def get_database_pool_health() -> dict[str, Any]:
         }
 
     except Exception as e:
-        logger.error(f"Error getting database pool health: {e}")
+        await logger.error("Error getting database pool health", error=e)
         raise CacheError("cache_operation", detail=f"Error getting pool health: {e!s}") from e

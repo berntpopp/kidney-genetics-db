@@ -3,7 +3,6 @@ HPO phenotype annotation operations for genes and diseases.
 """
 
 import asyncio
-import logging
 from typing import Any
 
 from app.core.hpo.base import HPOAPIBase
@@ -14,8 +13,9 @@ from app.core.hpo.models import (
     InheritancePattern,
     TermAnnotations,
 )
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class HPOAnnotations(HPOAPIBase):
@@ -44,7 +44,7 @@ class HPOAnnotations(HPOAPIBase):
                 return TermAnnotations(**response)
 
         except Exception as e:
-            logger.error(f"Failed to get annotations for {hpo_id}: {e}")
+            logger.sync_error("Failed to get annotations for HPO term", hpo_id=hpo_id, error=str(e))
 
         return None
 
@@ -71,7 +71,7 @@ class HPOAnnotations(HPOAPIBase):
                 return DiseaseAnnotations(**response)
 
         except Exception as e:
-            logger.error(f"Failed to get disease annotations for {disease_id}: {e}")
+            logger.sync_error("Failed to get disease annotations", disease_id=disease_id, error=str(e))
 
         return None
 
@@ -114,7 +114,7 @@ class HPOAnnotations(HPOAPIBase):
             batch_num = i // batch_size + 1
             total_batches = (total + batch_size - 1) // batch_size
 
-            logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch)} terms)")
+            logger.sync_info("Processing batch of HPO terms", batch_num=batch_num, total_batches=total_batches, batch_size=len(batch))
 
             # Create tasks for this batch
             tasks = [self.get_term_annotations(hpo_id) for hpo_id in batch]
@@ -125,7 +125,7 @@ class HPOAnnotations(HPOAPIBase):
             # Process results
             for hpo_id, result in zip(batch, batch_results, strict=False):
                 if isinstance(result, Exception):
-                    logger.warning(f"Failed to get annotations for {hpo_id}: {result}")
+                    logger.sync_warning("Failed to get annotations for HPO term", hpo_id=hpo_id, error=str(result))
                 elif result is not None:
                     results[hpo_id] = result
 
@@ -133,7 +133,7 @@ class HPOAnnotations(HPOAPIBase):
             if i + batch_size < total:
                 await asyncio.sleep(delay)
 
-        logger.info(f"Successfully fetched annotations for {len(results)}/{total} terms")
+        logger.sync_info("Successfully fetched annotations for terms", success_count=len(results), total_count=total)
         return results
 
     async def get_genes_for_term(self, hpo_id: str) -> list[Gene]:

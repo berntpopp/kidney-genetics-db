@@ -5,15 +5,15 @@ This module provides the single source of truth for gene normalization,
 replacing the duplicated sync/async implementations with a clean async-first design.
 """
 
-import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.core.hgnc_client import get_hgnc_client_cached
+from app.core.logging import get_logger
 from app.crud import gene_crud, gene_staging
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def clean_gene_text(gene_text: str) -> str:
@@ -112,7 +112,7 @@ class GeneNormalizer:
         if not gene_texts:
             return {}
 
-        logger.info(f"[{source_name}] Normalizing {len(gene_texts)} gene texts")
+        logger.sync_info("Normalizing gene texts", source_name=source_name, count=len(gene_texts))
 
         # Clean and prepare
         cleaned_genes = []
@@ -230,11 +230,12 @@ class GeneNormalizer:
             status = info.get("status", "unknown")
             status_counts[status] = status_counts.get(status, 0) + 1
 
-        logger.info(
-            f"[{source_name}] Normalization complete: "
-            f"{status_counts.get('normalized', 0)} normalized, "
-            f"{status_counts.get('requires_manual_review', 0)} staged for review, "
-            f"{status_counts.get('error', 0)} errors"
+        logger.sync_info(
+            "Normalization complete",
+            source_name=source_name,
+            normalized=status_counts.get('normalized', 0),
+            staged_for_review=status_counts.get('requires_manual_review', 0),
+            errors=status_counts.get('error', 0)
         )
 
         return results
@@ -257,7 +258,11 @@ class GeneNormalizer:
                 normalization_log={"failure_reason": reason, "attempts": 1},
             )
 
-            logger.debug(f"Created staging record {staging_record.id} for gene '{gene_text}'")
+            logger.sync_debug(
+                "Created staging record for gene",
+                staging_id=staging_record.id,
+                gene_text=gene_text
+            )
 
             return {
                 "status": "requires_manual_review",
@@ -270,7 +275,11 @@ class GeneNormalizer:
             }
 
         except Exception as e:
-            logger.error(f"Failed to create staging record for '{gene_text}': {e}")
+            logger.sync_error(
+                "Failed to create staging record",
+                gene_text=gene_text,
+                error=str(e)
+            )
             return {
                 "status": "error",
                 "approved_symbol": None,
@@ -336,7 +345,7 @@ async def get_normalization_stats(db: Session) -> dict[str, Any]:
             "hgnc_cache_info": hgnc_cache_info,
         }
     except Exception as e:
-        logger.error(f"Error getting normalization stats: {e}")
+        logger.sync_error("Error getting normalization stats", error=str(e))
         return {"error": str(e)}
 
 
@@ -344,4 +353,4 @@ async def clear_normalization_cache():
     """Clear HGNC client cache."""
     normalizer = get_gene_normalizer()
     await normalizer.hgnc_client.clear_cache()
-    logger.info("HGNC normalization cache cleared")
+    logger.sync_info("HGNC normalization cache cleared")

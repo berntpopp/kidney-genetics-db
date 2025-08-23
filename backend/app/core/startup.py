@@ -5,14 +5,14 @@ This module handles dynamic initialization tasks that should run on app startup,
 including data source registration and system health checks.
 """
 
-import logging
 from datetime import datetime, timezone
 
 from app.core.database import get_db
 from app.core.datasource_config import DATA_SOURCE_CONFIG
+from app.core.logging import get_logger
 from app.models.progress import DataSourceProgress, SourceStatus
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def register_data_sources() -> None:
@@ -22,7 +22,7 @@ def register_data_sources() -> None:
     This ensures that progress tracking records exist for all data sources
     without requiring manual database seeding or migrations.
     """
-    logger.info("Registering data sources...")
+    logger.sync_info("Registering data sources...")
 
     db = next(get_db())
     try:
@@ -55,7 +55,7 @@ def register_data_sources() -> None:
                     existing.progress_metadata = new_metadata
                     existing.updated_at = datetime.now(timezone.utc)
                     updated_count += 1
-                    logger.debug(f"Updated metadata for {source_name}")
+                    logger.sync_debug(f"Updated metadata for {source_name}", source=source_name, action="metadata_update")
             else:
                 # Create new progress record
                 progress_record = DataSourceProgress(
@@ -72,20 +72,21 @@ def register_data_sources() -> None:
                 )
                 db.add(progress_record)
                 registered_count += 1
-                logger.debug(f"Registered new data source: {source_name}")
+                logger.sync_debug(f"Registered new data source: {source_name}", source=source_name, action="register_new")
 
         db.commit()
 
         if registered_count > 0 or updated_count > 0:
-            logger.info(
-                f"Data source registration complete: "
-                f"{registered_count} new, {updated_count} updated"
+            logger.sync_info(
+                "Data source registration complete",
+                registered_count=registered_count,
+                updated_count=updated_count
             )
         else:
-            logger.info("All data sources already registered and up-to-date")
+            logger.sync_info("All data sources already registered and up-to-date")
 
     except Exception as e:
-        logger.error(f"Failed to register data sources: {e}")
+        logger.sync_error("Failed to register data sources", error=e)
         db.rollback()
         raise
     finally:
@@ -99,7 +100,7 @@ def cleanup_orphaned_sources() -> None:
     This helps keep the database clean when data sources are removed from
     the application configuration.
     """
-    logger.info("Cleaning up orphaned data source records...")
+    logger.sync_info("Cleaning up orphaned data source records...")
 
     db = next(get_db())
     try:
@@ -118,18 +119,18 @@ def cleanup_orphaned_sources() -> None:
 
         if orphaned:
             orphaned_names = [record.source_name for record in orphaned]
-            logger.warning(f"Found orphaned data source records: {orphaned_names}")
+            logger.sync_warning("Found orphaned data source records", orphaned_names=orphaned_names)
 
             # Don't automatically delete - log for manual review
-            logger.warning(
-                "Orphaned records found but not automatically removed. "
-                "Review and manually remove if no longer needed."
+            logger.sync_warning(
+                "Orphaned records found but not automatically removed",
+                action_required="Review and manually remove if no longer needed"
             )
         else:
-            logger.info("No orphaned data source records found")
+            logger.sync_info("No orphaned data source records found")
 
     except Exception as e:
-        logger.error(f"Failed to cleanup orphaned sources: {e}")
+        logger.sync_error("Failed to cleanup orphaned sources", error=e)
         raise
     finally:
         db.close()
@@ -141,7 +142,7 @@ def validate_dependencies() -> None:
 
     This helps identify configuration issues early in the startup process.
     """
-    logger.info("Validating application dependencies...")
+    logger.sync_info("Validating application dependencies...")
 
     try:
         from app.core.datasource_config import get_source_parameter
@@ -157,30 +158,30 @@ def validate_dependencies() -> None:
 
         for source_name, url in required_urls.items():
             if not url or not url.startswith("http"):
-                logger.warning(f"Invalid {source_name} URL: {url}")
+                logger.sync_warning(f"Invalid {source_name} URL: {url}", source_name=source_name, url=url)
 
         # Test cache service initialization
         try:
             from app.core.cache_service import get_cache_service
 
             cache = get_cache_service()
-            logger.info(f"Cache service initialized: enabled={cache.enabled}")
+            logger.sync_info("Cache service initialized", enabled=cache.enabled)
         except Exception as e:
-            logger.error(f"Cache service initialization failed: {e}")
+            logger.sync_error("Cache service initialization failed", error=e)
 
         # Test HTTP client initialization
         try:
             from app.core.cached_http_client import get_cached_http_client
 
             get_cached_http_client()
-            logger.info("HTTP client initialized successfully")
+            logger.sync_info("HTTP client initialized successfully")
         except Exception as e:
-            logger.error(f"HTTP client initialization failed: {e}")
+            logger.sync_error("HTTP client initialization failed", error=e)
 
-        logger.info("Dependency validation completed")
+        logger.sync_info("Dependency validation completed")
 
     except Exception as e:
-        logger.error(f"Dependency validation failed: {e}")
+        logger.sync_error("Dependency validation failed", error=e)
         # Don't re-raise - log the issue but continue startup
 
 
@@ -190,7 +191,7 @@ def run_startup_tasks() -> None:
 
     This is the main entry point called from the FastAPI startup event.
     """
-    logger.info("Running application startup tasks...")
+    logger.sync_info("Running application startup tasks...")
 
     try:
         # Validate dependencies first
@@ -202,9 +203,9 @@ def run_startup_tasks() -> None:
         # Cleanup orphaned records
         cleanup_orphaned_sources()
 
-        logger.info("Application startup tasks completed successfully")
+        logger.sync_info("Application startup tasks completed successfully")
 
     except Exception as e:
-        logger.error(f"Startup tasks failed: {e}")
+        logger.sync_error("Startup tasks failed", error=e)
         # Don't re-raise - allow app to start even if startup tasks fail
         # This prevents the app from failing to start due to database issues

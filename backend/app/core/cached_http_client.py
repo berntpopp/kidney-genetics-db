@@ -9,7 +9,6 @@ This module provides an HTTP client that combines:
 """
 
 import asyncio
-import logging
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -21,8 +20,9 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService, get_cache_service
 from app.core.config import settings
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class CachedHttpClient:
@@ -78,7 +78,7 @@ class CachedHttpClient:
         # Circuit breaker state per domain
         self.circuit_breakers: dict[str, dict[str, Any]] = {}
 
-        logger.info(f"CachedHttpClient initialized with cache dir: {self.cache_dir}")
+        logger.sync_info("CachedHttpClient initialized", cache_dir=str(self.cache_dir))
 
     def _get_domain(self, url: str) -> str:
         """Extract domain from URL for circuit breaker tracking."""
@@ -96,7 +96,7 @@ class CachedHttpClient:
 
             if time.time() - breaker.get("opened_at", 0) > 60:  # 1 minute cooldown
                 breaker["state"] = "half_open"
-                logger.info(f"Circuit breaker for {domain} moved to half-open state")
+                logger.sync_info("Circuit breaker moved to half-open state", domain=domain)
             return breaker["state"] == "open"
 
         return False
@@ -120,8 +120,10 @@ class CachedHttpClient:
 
             breaker["state"] = "open"
             breaker["opened_at"] = time.time()
-            logger.warning(
-                f"Circuit breaker opened for {domain} after {breaker['failures']} failures"
+            logger.sync_warning(
+                "Circuit breaker opened",
+                domain=domain,
+                failures=breaker['failures']
             )
 
     async def get(
@@ -148,7 +150,7 @@ class CachedHttpClient:
 
         # Check circuit breaker
         if self._is_circuit_open(domain):
-            logger.warning(f"Circuit breaker open for {domain}, attempting cache fallback")
+            logger.sync_warning("Circuit breaker open, attempting cache fallback", domain=domain)
             return await self._get_from_fallback_cache(url, namespace, cache_key)
 
         # Prepare request headers
@@ -176,7 +178,12 @@ class CachedHttpClient:
 
             except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as e:
                 last_exception = e
-                logger.warning(f"HTTP request attempt {attempt + 1} failed for {url}: {e}")
+                logger.sync_warning(
+                    "HTTP request attempt failed",
+                    attempt=attempt + 1,
+                    url=url,
+                    error=str(e)
+                )
 
                 if attempt < self.max_retries:
                     # Exponential backoff
@@ -185,12 +192,12 @@ class CachedHttpClient:
                 else:
                     # All retries failed, record failure and try cache fallback
                     self._record_failure(domain)
-                    logger.error(f"All retry attempts failed for {url}, trying cache fallback")
+                    logger.sync_error("All retry attempts failed, trying cache fallback", url=url)
                     return await self._get_from_fallback_cache(url, namespace, cache_key)
 
             except Exception as e:
                 # Non-recoverable error
-                logger.error(f"Non-recoverable error for {url}: {e}")
+                logger.sync_error("Non-recoverable error", url=url, error=str(e))
                 self._record_failure(domain)
                 raise
 
@@ -237,7 +244,7 @@ class CachedHttpClient:
 
         except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as e:
             self._record_failure(domain)
-            logger.error(f"POST request failed for {url}: {e}")
+            logger.sync_error("POST request failed", url=url, error=str(e))
             raise
 
     async def download_file(
@@ -282,7 +289,7 @@ class CachedHttpClient:
 
             # If content not modified, return cached data
             if response.status_code == 304 and cached_data:
-                logger.info(f"File not modified (304), using cached version: {url}")
+                logger.sync_info("File not modified, using cached version", url=url, status_code=304)
                 return cached_data
 
             # Download and cache new content
@@ -308,17 +315,21 @@ class CachedHttpClient:
                     }
                     await self.cache_service.set(f"{cache_key}:metadata", metadata, namespace)
 
-                logger.info(f"Downloaded and cached file: {url} ({len(content)} bytes)")
+                logger.sync_info(
+                    "Downloaded and cached file",
+                    url=url,
+                    size_bytes=len(content)
+                )
                 return content
 
             response.raise_for_status()
 
         except Exception as e:
-            logger.error(f"Error downloading file {url}: {e}")
+            logger.sync_error("Error downloading file", url=url, error=str(e))
 
             # Try to return cached data if available
             if cached_data:
-                logger.warning(f"Using stale cached file for {url}")
+                logger.sync_warning("Using stale cached file", url=url)
                 return cached_data
 
             raise
@@ -333,7 +344,7 @@ class CachedHttpClient:
         cached_response = await self.cache_service.get(cache_key, namespace)
 
         if cached_response and isinstance(cached_response, dict):
-            logger.info(f"Using fallback cache for {url}")
+            logger.sync_info("Using fallback cache", url=url)
             # Reconstruct response from cached data
             content = cached_response.get("content", "")
             # Handle content that might be string or bytes
@@ -352,9 +363,9 @@ class CachedHttpClient:
         else:
             # No cached data available or corrupted
             if cached_response is not None:
-                logger.warning(f"Corrupted fallback cache for {url}, clearing it")
+                logger.sync_warning("Corrupted fallback cache, clearing it", url=url)
                 await self.cache_service.delete(cache_key, namespace)
-            logger.error(f"No fallback cache available for {url}")
+            logger.sync_error("No fallback cache available", url=url)
             raise httpx.RequestError(f"No cached data available for {url}")
 
     async def _store_fallback_cache(
@@ -388,15 +399,19 @@ class CachedHttpClient:
                 "audio/",
             ]
         ):
-            logger.debug(
-                f"Skipping database cache for binary content: {url} (type: {content_type})"
+            logger.sync_debug(
+                "Skipping database cache for binary content",
+                url=url,
+                content_type=content_type
             )
             return
 
         # Skip very large responses (> 1MB) to avoid database bloat
         if len(response.content) > 1024 * 1024:
-            logger.debug(
-                f"Skipping database cache for large response: {url} ({len(response.content)} bytes)"
+            logger.sync_debug(
+                "Skipping database cache for large response",
+                url=url,
+                size_bytes=len(response.content)
             )
             return
 
@@ -406,7 +421,7 @@ class CachedHttpClient:
                 content_text = response.content.decode("utf-8")
             except UnicodeDecodeError:
                 # If it can't be decoded as UTF-8, it's likely binary - skip database caching
-                logger.debug(f"Skipping database cache for non-UTF-8 content: {url}")
+                logger.sync_debug("Skipping database cache for non-UTF-8 content", url=url)
                 return
 
             cached_response = {
@@ -418,10 +433,10 @@ class CachedHttpClient:
             }
 
             await self.cache_service.set(cache_key, cached_response, namespace, ttl)
-            logger.debug(f"Stored fallback cache for {url}")
+            logger.sync_debug("Stored fallback cache", url=url)
 
         except Exception as e:
-            logger.error(f"Error storing fallback cache for {url}: {e}")
+            logger.sync_error("Error storing fallback cache", url=url, error=str(e))
 
     async def clear_cache(self, namespace: str | None = None) -> int:
         """Clear HTTP cache."""
@@ -435,9 +450,9 @@ class CachedHttpClient:
                     if cache_file.is_file():
                         cache_file.unlink()
                         count += 1
-                logger.info(f"Cleared {count} HTTP cache files")
+                logger.sync_info("Cleared HTTP cache files", count=count)
         except Exception as e:
-            logger.error(f"Error clearing HTTP cache files: {e}")
+            logger.sync_error("Error clearing HTTP cache files", error=str(e))
 
         # Clear database fallback cache
         if namespace:
@@ -461,7 +476,7 @@ class CachedHttpClient:
                     "cache_dir": str(self.cache_dir),
                 }
         except Exception as e:
-            logger.error(f"Error getting HTTP cache stats: {e}")
+            logger.sync_error("Error getting HTTP cache stats", error=str(e))
             stats["http_cache"] = {"error": str(e)}
 
         # Circuit breaker stats
@@ -472,7 +487,7 @@ class CachedHttpClient:
             db_stats = await self.cache_service.get_stats()
             stats["database_cache"] = db_stats
         except Exception as e:
-            logger.error(f"Error getting database cache stats: {e}")
+            logger.sync_error("Error getting database cache stats", error=str(e))
             stats["database_cache"] = {"error": str(e)}
 
         return stats

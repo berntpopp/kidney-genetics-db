@@ -4,13 +4,14 @@ OPTIMIZATION: Implements DRY principle for reusable query construction.
 Enhanced to support complex operations including views, aggregations, and raw SQL.
 """
 
-import logging
 from typing import Any, Generic, TypeVar
 
 from sqlalchemy import or_, text
 from sqlalchemy.orm import Query, Session
 
-logger = logging.getLogger(__name__)
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 T = TypeVar("T")
 
@@ -456,7 +457,7 @@ class QueryOptimizer:
             }
 
         except Exception as e:
-            logger.error(f"Error explaining query: {e}")
+            logger.sync_error("Error explaining query", error=str(e))
             return {
                 "error": str(e),
                 "sql": str(query),

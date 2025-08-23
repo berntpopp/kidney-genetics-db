@@ -3,7 +3,6 @@ Advanced retry utilities with exponential backoff and jitter.
 """
 
 import asyncio
-import logging
 import random
 import time
 from collections.abc import Callable
@@ -12,7 +11,9 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class RetryConfig:
@@ -131,7 +132,10 @@ class CircuitBreaker:
 
         if self.failure_count >= self.failure_threshold:
             self.state = "open"
-            logger.warning(f"Circuit breaker opened after {self.failure_count} failures")
+            logger.sync_warning(
+                "Circuit breaker opened",
+                failure_count=self.failure_count
+            )
 
 
 def retry_with_backoff(
@@ -174,8 +178,9 @@ def retry_with_backoff(
                             if retry_after:
                                 try:
                                     delay = float(retry_after)
-                                    logger.info(
-                                        f"Rate limited. Waiting {delay}s as requested by server"
+                                    logger.sync_info(
+                                        "Rate limited. Waiting as requested by server",
+                                        delay_seconds=delay
                                     )
                                 except ValueError:
                                     delay = config.calculate_delay(attempt)
@@ -189,12 +194,15 @@ def retry_with_backoff(
                     # Don't retry if this was the last attempt
                     if attempt < config.max_retries:
                         logger.warning(
-                            f"Attempt {attempt + 1}/{config.max_retries + 1} failed: {e}. "
-                            f"Retrying in {delay:.2f}s..."
+                            "Attempt failed, retrying",
+                            attempt=attempt + 1,
+                            max_attempts=config.max_retries + 1,
+                            error=str(e),
+                            retry_delay=delay
                         )
                         await asyncio.sleep(delay)
                     else:
-                        logger.error(f"All {config.max_retries + 1} attempts failed")
+                        logger.sync_error("All attempts failed", max_attempts=config.max_retries + 1)
 
             # If we get here, all retries failed
             if last_exception:
@@ -221,12 +229,15 @@ def retry_with_backoff(
                     # Don't retry if this was the last attempt
                     if attempt < config.max_retries:
                         logger.warning(
-                            f"Attempt {attempt + 1}/{config.max_retries + 1} failed: {e}. "
-                            f"Retrying in {delay:.2f}s..."
+                            "Attempt failed, retrying",
+                            attempt=attempt + 1,
+                            max_attempts=config.max_retries + 1,
+                            error=str(e),
+                            retry_delay=delay
                         )
                         time.sleep(delay)
                     else:
-                        logger.error(f"All {config.max_retries + 1} attempts failed")
+                        logger.sync_error("All attempts failed", max_attempts=config.max_retries + 1)
 
             # If we get here, all retries failed
             if last_exception:

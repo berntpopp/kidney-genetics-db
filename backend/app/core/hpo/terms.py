@@ -2,12 +2,11 @@
 HPO term operations and hierarchy traversal.
 """
 
-import logging
-
 from app.core.hpo.base import HPOAPIBase
 from app.core.hpo.models import HPOTerm
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class HPOTerms(HPOAPIBase):
@@ -44,7 +43,7 @@ class HPOTerms(HPOAPIBase):
                 )
 
         except Exception as e:
-            logger.error(f"Failed to get term {hpo_id}: {e}")
+            logger.sync_error("Failed to get HPO term", hpo_id=hpo_id, error=str(e))
 
         return None
 
@@ -71,7 +70,7 @@ class HPOTerms(HPOAPIBase):
 
         # Try direct descendants endpoint first (most efficient)
         try:
-            logger.info(f"Trying descendants endpoint for {hpo_id}")
+            logger.sync_info("Trying descendants endpoint for HPO term", hpo_id=hpo_id)
             response = await self._get(
                 f"hp/terms/{hpo_id}/descendants",
                 cache_key=f"descendants:{hpo_id}",
@@ -84,17 +83,17 @@ class HPOTerms(HPOAPIBase):
                     if desc_id:
                         descendants.add(desc_id)
 
-                logger.info(f"Got {len(descendants)} descendants for {hpo_id} from API")
+                logger.sync_info("Got descendants from API", hpo_id=hpo_id, descendant_count=len(descendants))
                 return descendants
 
         except Exception as e:
-            logger.debug(f"Descendants endpoint not available for {hpo_id}: {e}")
+            logger.sync_debug("Descendants endpoint not available for HPO term", hpo_id=hpo_id, error=str(e))
 
         # Fallback to recursive approach
-        logger.info(f"Using recursive approach for {hpo_id}")
+        logger.sync_info("Using recursive approach for HPO term", hpo_id=hpo_id)
         descendants.update(await self._get_descendants_recursive(hpo_id, max_depth))
 
-        logger.info(f"Total descendants for {hpo_id}: {len(descendants)}")
+        logger.sync_info("Total descendants for HPO term", hpo_id=hpo_id, total_count=len(descendants))
         return descendants
 
     async def _get_descendants_recursive(self, hpo_id: str, max_depth: int) -> set[str]:
@@ -135,7 +134,7 @@ class HPOTerms(HPOAPIBase):
                             await collect_children(child_id, depth + 1)
 
             except Exception as e:
-                logger.warning(f"Failed to get children for {term_id}: {e}")
+                logger.sync_warning("Failed to get children for HPO term", term_id=term_id, error=str(e))
 
         # Start recursive collection
         await collect_children(hpo_id, 0)
@@ -166,7 +165,7 @@ class HPOTerms(HPOAPIBase):
                 return children
 
         except Exception as e:
-            logger.error(f"Failed to get children for {hpo_id}: {e}")
+            logger.sync_error("Failed to get children for HPO term", hpo_id=hpo_id, error=str(e))
 
         return []
 
@@ -194,7 +193,7 @@ class HPOTerms(HPOAPIBase):
                 return ancestors
 
         except Exception as e:
-            logger.error(f"Failed to get ancestors for {hpo_id}: {e}")
+            logger.sync_error("Failed to get ancestors for HPO term", hpo_id=hpo_id, error=str(e))
 
         return []
 
@@ -232,5 +231,5 @@ class HPOTerms(HPOAPIBase):
             return terms
 
         except Exception as e:
-            logger.error(f"Failed to search terms with query '{query}': {e}")
+            logger.sync_error("Failed to search HPO terms", query=query, error=str(e))
             return []

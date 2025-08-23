@@ -4,7 +4,6 @@ OPTIMIZED: Uses event bus for notifications instead of direct callbacks
 """
 
 import asyncio
-import logging
 from collections.abc import Callable
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -13,9 +12,10 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.events import EventTypes, event_bus
+from app.core.logging import get_logger
 from app.models.progress import DataSourceProgress, SourceStatus
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ProgressTracker:
@@ -228,11 +228,17 @@ class ProgressTracker:
                 asyncio.create_task(event_bus.publish(event_type, progress_data))
             except RuntimeError:
                 # Not in async context, log instead
-                logger.debug(
-                    f"Progress update (sync context): {self.source_name} - {self.progress_record.status}"
+                logger.sync_debug(
+                    "Progress update (sync context)",
+                    source_name=self.source_name,
+                    status=self.progress_record.status.value if hasattr(self.progress_record.status, 'value') else str(self.progress_record.status)
                 )
         except Exception as e:
-            logger.error(f"Failed to update progress for {self.source_name}: {e}")
+            logger.sync_error(
+                "Failed to update progress",
+                source_name=self.source_name,
+                error=str(e)
+            )
             self.db.rollback()
 
     async def _broadcast_update(self):
@@ -247,22 +253,32 @@ class ProgressTracker:
                     }
                 )
         except Exception as e:
-            logger.error(f"Failed to broadcast progress update: {e}")
+            logger.sync_error("Failed to broadcast progress update", error=str(e))
 
     def get_status(self) -> dict[str, Any]:
         """Get current status as dictionary"""
         return self.progress_record.to_dict()
 
-    def log_progress(self, level: int = logging.INFO):
+    def log_progress(self, level: str = "INFO"):
         """Log current progress"""
         status = self.get_status()
-        message = (
-            f"[{self.source_name}] "
-            f"{status['progress_percentage']:.1f}% "
-            f"({status['items_processed']} processed, "
-            f"{status['items_added']} added, "
-            f"{status['items_updated']} updated, "
-            f"{status['items_failed']} failed) "
-            f"- {status['current_operation']}"
-        )
-        logger.log(level, message)
+
+        # Use structured logging with appropriate level
+        log_data = {
+            "source_name": self.source_name,
+            "progress_percentage": round(status['progress_percentage'], 1),
+            "items_processed": status['items_processed'],
+            "items_added": status['items_added'],
+            "items_updated": status['items_updated'],
+            "items_failed": status['items_failed'],
+            "current_operation": status['current_operation']
+        }
+
+        if level.upper() == "DEBUG":
+            logger.sync_debug("Progress update", **log_data)
+        elif level.upper() == "WARNING":
+            logger.sync_warning("Progress update", **log_data)
+        elif level.upper() == "ERROR":
+            logger.sync_error("Progress update", **log_data)
+        else:
+            logger.sync_info("Progress update", **log_data)

@@ -5,7 +5,6 @@ This module replaces the previous ClinGen implementation with a single,
 async-first implementation using the unified data source architecture.
 """
 
-import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -14,12 +13,13 @@ from sqlalchemy.orm import Session
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.datasource_config import get_source_parameter
+from app.core.logging import get_logger
 from app.pipeline.sources.unified.base import UnifiedDataSource
 
 if TYPE_CHECKING:
     from app.core.progress_tracker import ProgressTracker
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ClinGenUnifiedSource(UnifiedDataSource):
@@ -92,8 +92,9 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             "cakut",
         ]
 
-        logger.info(
-            f"ClinGenUnifiedSource initialized with {len(self.kidney_affiliate_ids)} kidney panels"
+        logger.sync_info(
+            "ClinGenUnifiedSource initialized",
+            kidney_panels=len(self.kidney_affiliate_ids)
         )
 
     def _get_default_ttl(self) -> int:
@@ -107,7 +108,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         Returns:
             Dictionary with validity assessments from all panels
         """
-        logger.info("📥 Fetching ClinGen gene validity assessments...")
+        logger.sync_info("Fetching ClinGen gene validity assessments")
 
         all_validities = []
         panel_stats = {}
@@ -119,7 +120,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             if panel_data:
                 all_validities.extend(panel_data)
                 panel_stats[affiliate_id] = len(panel_data)
-                logger.info(f"Fetched {len(panel_data)} records from affiliate {affiliate_id}")
+                logger.sync_info("Fetched records from affiliate", record_count=len(panel_data), affiliate_id=affiliate_id)
 
         return {
             "validities": all_validities,
@@ -150,13 +151,15 @@ class ClinGenUnifiedSource(UnifiedDataSource):
                     data = response.json()
                     return data.get("rows", [])
                 else:
-                    logger.error(
-                        f"Failed to fetch affiliate {affiliate_id}: HTTP {response.status_code}"
+                    logger.sync_error(
+                        "Failed to fetch affiliate",
+                        affiliate_id=affiliate_id,
+                        status_code=response.status_code
                     )
                     return []
 
             except Exception as e:
-                logger.error(f"Error fetching affiliate {affiliate_id}: {e}")
+                logger.sync_error("Error fetching affiliate", affiliate_id=affiliate_id, error=str(e))
                 return []
 
         # Use unified caching
@@ -184,7 +187,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         total_validities = 0
         kidney_related = 0
 
-        logger.info(f"🔄 Processing {len(raw_data['validities'])} ClinGen validity assessments...")
+        logger.sync_info("Processing ClinGen validity assessments", assessment_count=len(raw_data['validities']))
 
         for validity in raw_data["validities"]:
             # Check if kidney-related
@@ -241,10 +244,10 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             data["validity_count"] = len(data["validities"])
             data["last_updated"] = datetime.now(timezone.utc).isoformat()
 
-        logger.info(
-            f"🎯 ClinGen processing complete: "
-            f"{kidney_related} kidney-related assessments, "
-            f"{len(gene_data_map)} unique genes"
+        logger.sync_info(
+            "ClinGen processing complete",
+            kidney_related_assessments=kidney_related,
+            unique_genes=len(gene_data_map)
         )
 
         return gene_data_map

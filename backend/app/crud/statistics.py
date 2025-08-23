@@ -2,13 +2,14 @@
 CRUD operations for statistics and data analysis
 """
 
-import logging
 from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger(__name__)
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class CRUDStatistics:
@@ -137,7 +138,7 @@ class CRUDStatistics:
             }
 
         except Exception as e:
-            logger.error(f"Error calculating source overlaps: {e}")
+            logger.sync_error("Error calculating source overlaps", error=e, selected_sources=selected_sources)
             raise
 
     def get_source_distributions(self, db: Session) -> dict[str, Any]:
@@ -337,7 +338,7 @@ class CRUDStatistics:
             return source_distributions
 
         except Exception as e:
-            logger.error(f"Error calculating source distributions: {e}")
+            logger.sync_error("Error calculating source distributions", error=e)
             raise
 
     def get_evidence_composition(self, db: Session) -> dict[str, Any]:
@@ -445,7 +446,7 @@ class CRUDStatistics:
             }
 
         except Exception as e:
-            logger.error(f"Error analyzing evidence composition: {e}")
+            logger.sync_error("Error analyzing evidence composition", error=e, source_name=source_name)
             raise
 
 

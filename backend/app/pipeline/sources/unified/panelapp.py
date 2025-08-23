@@ -5,7 +5,6 @@ This module replaces the previous implementations (panelapp.py, panelapp_cached.
 with a single, async-first implementation using the unified data source architecture.
 """
 
-import logging
 import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
@@ -15,12 +14,13 @@ from sqlalchemy.orm import Session
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.datasource_config import get_source_parameter
+from app.core.logging import get_logger
 from app.pipeline.sources.unified.base import UnifiedDataSource
 
 if TYPE_CHECKING:
     from app.core.progress_tracker import ProgressTracker
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class PanelAppUnifiedSource(UnifiedDataSource):
@@ -89,7 +89,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
         # Confidence levels (green list)
         self.green_confidence_levels = ["3", "4", "green"]
 
-        logger.info(f"PanelAppUnifiedSource initialized for regions: {self.regions}")
+        logger.sync_info("PanelAppUnifiedSource initialized", regions=self.regions)
 
     def _get_default_ttl(self) -> int:
         """Get default TTL for PanelApp data."""
@@ -105,21 +105,21 @@ class PanelAppUnifiedSource(UnifiedDataSource):
         all_data = {}
 
         for region in self.regions:
-            logger.info(f"📥 Fetching PanelApp data from {region}...")
+            logger.sync_info("Fetching PanelApp data", region=region)
 
             if region == "UK":
                 base_url = self.uk_base_url
             elif region == "Australia":
                 base_url = self.au_base_url
             else:
-                logger.warning(f"Unknown region: {region}")
+                logger.sync_warning("Unknown region", region=region)
                 continue
 
             # Fetch panels for this region
             panels = await self._fetch_region_panels(base_url, region)
             all_data[region] = panels
 
-            logger.info(f"✅ Fetched {len(panels)} panels from {region}")
+            logger.sync_info("Fetched panels", panel_count=len(panels), region=region)
 
         return all_data
 
@@ -156,7 +156,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
                                     all_panels.append(panel)
 
                 except Exception as e:
-                    logger.error(f"Error searching panels for '{keyword}': {e}")
+                    logger.sync_error("Error searching panels", keyword=keyword, error=e)
 
             # Deduplicate panels by ID
             seen_ids = set()
@@ -207,10 +207,10 @@ class PanelAppUnifiedSource(UnifiedDataSource):
             if response.status_code == 200:
                 return response.json()
             else:
-                logger.warning(f"Failed to fetch panel {panel_id}: HTTP {response.status_code}")
+                logger.sync_warning("Failed to fetch panel", panel_id=panel_id, status_code=response.status_code)
 
         except Exception as e:
-            logger.error(f"Error fetching panel {panel_id} ({panel_name}): {e}")
+            logger.sync_error("Error fetching panel", panel_id=panel_id, panel_name=panel_name, error=e)
 
         return None
 
@@ -229,7 +229,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
         total_genes = 0
 
         for region, panels in raw_data.items():
-            logger.info(f"🔄 Processing {len(panels)} panels from {region}...")
+            logger.sync_info("Processing panels", panel_count=len(panels), region=region)
 
             for panel in panels:
                 total_panels += 1
@@ -292,10 +292,11 @@ class PanelAppUnifiedSource(UnifiedDataSource):
             data["panel_count"] = len(data["panels"])
             data["last_updated"] = datetime.now(timezone.utc).isoformat()
 
-        logger.info(
-            f"🎯 PanelApp processing complete: "
-            f"{total_panels} panels, {total_genes} gene entries, "
-            f"{len(gene_data_map)} unique genes"
+        logger.sync_info(
+            "PanelApp processing complete",
+            total_panels=total_panels,
+            total_gene_entries=total_genes,
+            unique_genes=len(gene_data_map)
         )
 
         return gene_data_map

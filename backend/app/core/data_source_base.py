@@ -5,7 +5,6 @@ This module provides a unified architecture for data source implementations,
 enforcing consistent patterns for fetching, processing, and storing data.
 """
 
-import logging
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import Any
@@ -14,12 +13,13 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
+from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
 from app.crud.gene import gene_crud
 from app.models.gene import Gene, GeneEvidence
 from app.schemas.gene import GeneCreate
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DataSourceClient(ABC):
@@ -115,28 +115,32 @@ class DataSourceClient(ABC):
 
         try:
             tracker.start(f"Starting {self.source_name} update")
-            logger.info(f"🚀 Starting {self.source_name} data update...")
+            logger.sync_info("Starting data update", source_name=self.source_name)
 
             # Step 1: Fetch raw data
             tracker.update(operation="Fetching data from source")
-            logger.info(f"📥 Fetching {self.source_name} data...")
+            logger.sync_info("Fetching data from source", source_name=self.source_name)
             raw_data = await self.fetch_raw_data(tracker=tracker)
             stats["data_fetched"] = True
 
             # Step 2: Process data
             tracker.update(operation="Processing and filtering data")
-            logger.info(f"🔄 Processing {self.source_name} data...")
+            logger.sync_info("Processing data", source_name=self.source_name)
             processed_data = await self.process_data(raw_data)
             stats["genes_found"] = len(processed_data)
 
             if not processed_data:
-                logger.warning(f"⚠️ No genes found in {self.source_name} data")
+                logger.sync_warning("No genes found in data", source_name=self.source_name)
                 tracker.complete(f"{self.source_name} update completed: 0 genes found")
                 return stats
 
             # Step 3: Store in database
             tracker.update(operation="Storing genes in database")
-            logger.info(f"💾 Storing {len(processed_data)} genes from {self.source_name}...")
+            logger.sync_info(
+                "Storing genes in database",
+                source_name=self.source_name,
+                gene_count=len(processed_data)
+            )
             await self._store_genes_in_database(db, processed_data, stats, tracker)
 
             # Step 4: Finalize
@@ -163,10 +167,13 @@ class DataSourceClient(ABC):
             total_genes = result[0] if result else 0
             total_evidence = result[1] if result else 0
 
-            logger.info(
-                f"✅ {self.source_name} update completed: "
-                f"Total: {total_genes} genes, {total_evidence} evidence | "
-                f"Added: {stats['genes_created']} genes, {stats['evidence_created']} evidence"
+            logger.sync_info(
+                "Data update completed",
+                source_name=self.source_name,
+                total_genes=total_genes,
+                total_evidence=total_evidence,
+                genes_created=stats['genes_created'],
+                evidence_created=stats['evidence_created']
             )
 
             tracker.complete(
@@ -177,7 +184,7 @@ class DataSourceClient(ABC):
             return stats
 
         except Exception as e:
-            logger.error(f"❌ {self.source_name} update failed: {e}")
+            logger.sync_error("Data update failed", source_name=self.source_name, error=str(e))
             tracker.error(str(e))
             stats["error"] = str(e)
             stats["completed_at"] = datetime.now(timezone.utc).isoformat()
@@ -251,7 +258,7 @@ class DataSourceClient(ABC):
                     # Get normalized gene info
                     norm_result = normalization_results.get(symbol, {})
                     if norm_result.get("status") != "normalized":
-                        logger.debug(f"Skipping unnormalized gene: {symbol}")
+                        logger.sync_debug("Skipping unnormalized gene", symbol=symbol)
                         continue
 
                     # Get or create gene
@@ -262,7 +269,11 @@ class DataSourceClient(ABC):
                         await self._create_or_update_evidence(db, gene, data, stats)
 
                 except Exception as e:
-                    logger.error(f"Error processing gene {symbol}: {e}")
+                    logger.sync_error(
+                        "Error processing gene",
+                        symbol=symbol,
+                        error=str(e)
+                    )
                     stats["errors"] += 1
 
             # Commit batch
@@ -294,12 +305,18 @@ class DataSourceClient(ABC):
                 )
                 gene = gene_crud.create(db, gene_create)
                 stats["genes_created"] += 1
-                logger.debug(f"Created new gene: {approved_symbol} (HGNC:{hgnc_id})")
+                logger.sync_debug(
+                    "Created new gene",
+                    approved_symbol=approved_symbol,
+                    hgnc_id=hgnc_id
+                )
             except Exception as e:
                 # Handle race condition: another task may have created the gene
                 if "unique constraint" in str(e).lower() or "duplicate key" in str(e).lower():
-                    logger.debug(
-                        f"Gene constraint violation, retrying fetch: {approved_symbol} (HGNC:{hgnc_id})"
+                    logger.sync_debug(
+                        "Gene constraint violation, retrying fetch",
+                        approved_symbol=approved_symbol,
+                        hgnc_id=hgnc_id
                     )
 
                     # Try to get the gene that was created by another task
@@ -310,16 +327,25 @@ class DataSourceClient(ABC):
 
                     if gene:
                         stats["genes_updated"] += 1
-                        logger.debug(
-                            f"Found gene after race condition: {gene.approved_symbol} (HGNC:{gene.hgnc_id})"
+                        logger.sync_debug(
+                            "Found gene after race condition",
+                            approved_symbol=gene.approved_symbol,
+                            hgnc_id=gene.hgnc_id
                         )
                     else:
-                        logger.error(
-                            f"Race condition: gene still not found after creation attempt: {approved_symbol} (HGNC:{hgnc_id})"
+                        logger.sync_error(
+                            "Race condition: gene still not found after creation attempt",
+                            approved_symbol=approved_symbol,
+                            hgnc_id=hgnc_id
                         )
                         return None
                 else:
-                    logger.error(f"Error creating gene {approved_symbol} (HGNC:{hgnc_id}): {e}")
+                    logger.sync_error(
+                        "Error creating gene",
+                        approved_symbol=approved_symbol,
+                        hgnc_id=hgnc_id,
+                        error=str(e)
+                    )
                     return None
         else:
             stats["genes_updated"] += 1
@@ -358,7 +384,11 @@ class DataSourceClient(ABC):
                 existing.evidence_date = datetime.now(timezone.utc).date()
                 db.add(existing)
                 stats["evidence_updated"] += 1
-                logger.debug(f"Updated evidence for {gene.approved_symbol} from {self.source_name}")
+                logger.sync_debug(
+                    "Updated evidence for gene",
+                    gene_symbol=gene.approved_symbol,
+                    source_name=self.source_name
+                )
             else:
                 # Create new evidence with proper constraint handling
                 try:
@@ -372,8 +402,10 @@ class DataSourceClient(ABC):
                     db.add(evidence)
                     db.flush()  # Force constraint check before commit
                     stats["evidence_created"] += 1
-                    logger.debug(
-                        f"Created evidence for {gene.approved_symbol} from {self.source_name}"
+                    logger.sync_debug(
+                        "Created evidence for gene",
+                        gene_symbol=gene.approved_symbol,
+                        source_name=self.source_name
                     )
                 except Exception as constraint_error:
                     # Handle race condition: another process may have created the evidence
@@ -382,8 +414,9 @@ class DataSourceClient(ABC):
                         or "duplicate key" in str(constraint_error).lower()
                     ):
                         db.rollback()  # Rollback failed transaction
-                        logger.debug(
-                            f"Race condition detected for {gene.approved_symbol}, retrying..."
+                        logger.sync_debug(
+                            "Race condition detected for gene, retrying...",
+                            gene_symbol=gene.approved_symbol
                         )
 
                         # Try to get the evidence that was created by another process
@@ -403,25 +436,33 @@ class DataSourceClient(ABC):
                             existing.evidence_date = datetime.now(timezone.utc).date()
                             db.add(existing)
                             stats["evidence_updated"] += 1
-                            logger.debug(
-                                f"Updated evidence after race condition for {gene.approved_symbol}"
+                            logger.sync_debug(
+                                "Updated evidence after race condition",
+                                gene_symbol=gene.approved_symbol
                             )
                         else:
                             # Should not happen, but log if it does
-                            logger.error(
-                                f"Evidence not found after race condition for {gene.approved_symbol}"
+                            logger.sync_error(
+                                "Evidence not found after race condition",
+                                gene_symbol=gene.approved_symbol
                             )
                             stats["errors"] += 1
                     else:
                         # Other constraint errors should be raised
-                        logger.error(
-                            f"Constraint error for {gene.approved_symbol}: {constraint_error}"
+                        logger.sync_error(
+                            "Constraint error for gene",
+                            gene_symbol=gene.approved_symbol,
+                            error=str(constraint_error)
                         )
                         stats["errors"] += 1
                         raise
 
         except Exception as e:
-            logger.error(f"Error creating/updating evidence for gene {gene.approved_symbol}: {e}")
+            logger.sync_error(
+                "Error creating/updating evidence for gene",
+                gene_symbol=gene.approved_symbol,
+                error=str(e)
+            )
             stats["errors"] += 1
 
     def _clean_data_for_json(self, data: Any) -> Any:

@@ -2,15 +2,14 @@
 CRUD operations for genes
 """
 
-import logging
-
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
+from app.core.logging import get_logger
 from app.models.gene import Gene, GeneCuration, GeneEvidence
 from app.schemas.gene import GeneCreate, GeneUpdate
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class CRUDGene:
@@ -405,7 +404,7 @@ class CRUDGene:
             return genes
 
         except Exception as e:
-            logger.error(f"Error executing complex query: {e}")
+            logger.sync_error("Error executing complex query", error=e)
             # Fallback to original implementation if QueryBuilder fails
             return self._get_multi_with_scores_and_sources_fallback(
                 db, skip, limit, search, min_score, sort_by, sort_desc

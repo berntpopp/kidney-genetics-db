@@ -4,14 +4,14 @@ Update percentiles for each source's evidence records
 This matches kidney-genetics-v1 where each source stores source_count_percentile
 """
 
-import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.logging import get_logger
 from app.models.gene import GeneEvidence
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def update_source_percentiles(db: Session, source_name: str) -> dict[str, Any]:
@@ -93,8 +93,10 @@ def update_source_percentiles(db: Session, source_name: str) -> dict[str, Any]:
     # Commit the updates
     db.commit()
 
-    logger.info(
-        f"Updated percentiles for {source_name}: {stats['percentiles_updated']} records updated"
+    logger.sync_info(
+        "Updated percentiles",
+        source_name=source_name,
+        percentiles_updated=stats['percentiles_updated']
     )
 
     return stats
@@ -162,9 +164,10 @@ def update_all_source_percentiles(db: Session) -> dict[str, Any]:
         all_stats["total_records_processed"] += stats["records_processed"]
         all_stats["source_details"][source_name] = stats
 
-    logger.info(
-        f"Percentile update complete: {all_stats['sources_updated']} sources, "
-        f"{all_stats['total_records_processed']} records processed"
+    logger.sync_info(
+        "Percentile update complete",
+        sources_updated=all_stats['sources_updated'],
+        total_records_processed=all_stats['total_records_processed']
     )
 
     return all_stats

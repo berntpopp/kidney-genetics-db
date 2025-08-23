@@ -6,15 +6,15 @@ in background task management, following DRY principles.
 """
 
 import asyncio
-import logging
 from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
 from app.core.database import get_db_context
+from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def managed_task(source_name: str):
@@ -35,18 +35,18 @@ def managed_task(source_name: str):
             with get_db_context() as db:
                 try:
                     tracker = ProgressTracker(db, source_name, self.broadcast_callback)
-                    logger.info(f"Starting {source_name} update (resume={resume})")
+                    logger.sync_info("Starting source update", source_name=source_name, resume=resume)
 
                     # Execute the actual task
                     result = await func(self, db, tracker, resume)
 
                     db.commit()  # Explicit commit on success
-                    logger.info(f"{source_name} update completed: {result}")
+                    logger.sync_info("Source update completed", source_name=source_name, result=result)
                     return result
 
                 except Exception as e:
                     db.rollback()  # Explicit rollback on error
-                    logger.error(f"{source_name} update failed: {e}")
+                    logger.sync_error("Source update failed", source_name=source_name, error=e)
                     if tracker:
                         tracker.error(str(e))
                     raise
@@ -74,7 +74,7 @@ def executor_task(source_name: str):
             with get_db_context() as db:
                 try:
                     tracker = ProgressTracker(db, source_name, self.broadcast_callback)
-                    logger.info(f"Starting {source_name} update (resume={resume})")
+                    logger.sync_info("Starting source update", source_name=source_name, resume=resume)
 
                     # Execute the actual task in thread executor
                     loop = asyncio.get_event_loop()
@@ -83,12 +83,12 @@ def executor_task(source_name: str):
                     )
 
                     db.commit()  # Explicit commit on success
-                    logger.info(f"{source_name} update completed: {result}")
+                    logger.sync_info("Source update completed", source_name=source_name, result=result)
                     return result
 
                 except Exception as e:
                     db.rollback()  # Explicit rollback on error
-                    logger.error(f"{source_name} update failed: {e}")
+                    logger.sync_error("Source update failed", source_name=source_name, error=e)
                     if tracker:
                         tracker.error(str(e))
                     raise

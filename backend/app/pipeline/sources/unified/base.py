@@ -9,7 +9,6 @@ This module extends the existing DataSourceClient with unified patterns for:
 """
 
 import hashlib
-import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
@@ -20,9 +19,10 @@ from sqlalchemy.orm import Session
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.data_source_base import DataSourceClient
+from app.core.logging import get_logger
 from app.core.retry_utils import RetryStrategy
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class UnifiedDataSource(DataSourceClient, ABC):
@@ -63,13 +63,13 @@ class UnifiedDataSource(DataSourceClient, ABC):
             from app.core.cache_service import get_cache_service
 
             cache_service = get_cache_service(db_session)
-            logger.info(f"Created cache service for {self.__class__.__name__}")
+            logger.sync_info("Created cache service", source_class=self.__class__.__name__)
 
         if http_client is None:
             from app.core.cached_http_client import get_cached_http_client
 
             http_client = get_cached_http_client(cache_service, db_session)
-            logger.info(f"Created HTTP client for {self.__class__.__name__}")
+            logger.sync_info("Created HTTP client", source_class=self.__class__.__name__)
 
         super().__init__(cache_service, http_client, db_session)
 
@@ -125,10 +125,10 @@ class UnifiedDataSource(DataSourceClient, ABC):
                 cached_data = await self.cache_service.get(full_key)
                 if cached_data is not None:
                     self.stats["cache_hits"] += 1
-                    logger.debug(f"Cache hit for {full_key}")
+                    logger.sync_debug("Cache hit", cache_key=full_key)
                     return cached_data
             except Exception as e:
-                logger.warning(f"Cache retrieval failed for {full_key}: {e}")
+                logger.sync_warning("Cache retrieval failed", cache_key=full_key, error=e)
 
         self.stats["cache_misses"] += 1
 
@@ -139,16 +139,16 @@ class UnifiedDataSource(DataSourceClient, ABC):
 
             # Validate fetched data
             if data is None:
-                logger.warning(f"Fetch function returned None for {full_key}")
+                logger.sync_warning("Fetch function returned None", cache_key=full_key)
                 return None
 
             # Cache the data
             if self.cache_service and data is not None:
                 try:
                     await self.cache_service.set(full_key, data, effective_ttl)
-                    logger.debug(f"Cached data for {full_key} with TTL {effective_ttl}s")
+                    logger.sync_debug("Cached data", cache_key=full_key, ttl_seconds=effective_ttl)
                 except Exception as e:
-                    logger.warning(f"Failed to cache data for {full_key}: {e}")
+                    logger.sync_warning("Failed to cache data", cache_key=full_key, error=e)
                     # Continue anyway - caching failure shouldn't break the fetch
 
             return data
@@ -158,13 +158,13 @@ class UnifiedDataSource(DataSourceClient, ABC):
 
             # Provide specific error handling for common issues
             if "timeout" in str(e).lower():
-                logger.error(f"Timeout while fetching data for {full_key}: {e}")
+                logger.sync_error("Timeout while fetching data", cache_key=full_key, error=e)
             elif "connection" in str(e).lower():
-                logger.error(f"Connection error while fetching data for {full_key}: {e}")
+                logger.sync_error("Connection error while fetching data", cache_key=full_key, error=e)
             elif "permission" in str(e).lower() or "unauthorized" in str(e).lower():
-                logger.error(f"Authentication/authorization error for {full_key}: {e}")
+                logger.sync_error("Authentication/authorization error", cache_key=full_key, error=e)
             else:
-                logger.error(f"Failed to fetch data for {full_key}: {e}")
+                logger.sync_error("Failed to fetch data", cache_key=full_key, error=e)
 
             raise
 
@@ -208,7 +208,7 @@ class UnifiedDataSource(DataSourceClient, ABC):
                         self.stats["cache_hits"] += 1
                         continue
                 except Exception as e:
-                    logger.warning(f"Cache check failed for {cache_key}: {e}")
+                    logger.sync_warning("Cache check failed", cache_key=cache_key, error=e)
 
             missing_items.append(item)
             self.stats["cache_misses"] += 1
@@ -235,11 +235,11 @@ class UnifiedDataSource(DataSourceClient, ABC):
                                 try:
                                     await self.cache_service.set(cache_key, data, effective_ttl)
                                 except Exception as e:
-                                    logger.warning(f"Failed to cache {cache_key}: {e}")
+                                    logger.sync_warning("Failed to cache item", cache_key=cache_key, error=e)
 
                 except Exception as e:
                     self.stats["errors"] += 1
-                    logger.error(f"Failed to fetch batch: {e}")
+                    logger.sync_error("Failed to fetch batch", error=e, batch_size=len(batch))
                     # Continue with next batch
 
         return results
@@ -261,10 +261,10 @@ class UnifiedDataSource(DataSourceClient, ABC):
 
         try:
             count = await self.cache_service.delete_pattern(cache_pattern)
-            logger.info(f"Invalidated {count} cache entries matching {cache_pattern}")
+            logger.sync_info("Invalidated cache entries", count=count, pattern=cache_pattern)
             return count
         except Exception as e:
-            logger.error(f"Failed to invalidate cache for {cache_pattern}: {e}")
+            logger.sync_error("Failed to invalidate cache", pattern=cache_pattern, error=e)
             return 0
 
     def _get_source_detail(self, evidence_data: dict[str, Any]) -> str:
@@ -313,7 +313,7 @@ class UnifiedDataSource(DataSourceClient, ABC):
             if timestamp:
                 return datetime.fromisoformat(timestamp)
         except Exception as e:
-            logger.warning(f"Failed to get last update time: {e}")
+            logger.sync_warning("Failed to get last update time", error=e)
 
         return None
 
@@ -334,7 +334,7 @@ class UnifiedDataSource(DataSourceClient, ABC):
             # Store with long TTL (30 days)
             await self.cache_service.set(cache_key, timestamp, 30 * 24 * 3600)
         except Exception as e:
-            logger.warning(f"Failed to set last update time: {e}")
+            logger.sync_warning("Failed to set last update time", error=e)
 
     async def should_update(self, max_age_hours: int = 24) -> bool:
         """
@@ -405,7 +405,7 @@ class UnifiedDataSource(DataSourceClient, ABC):
         start_time = datetime.now(timezone.utc)
 
         # Default implementation - subclasses should override
-        logger.info(f"Starting cache warmup for {self.source_name}")
+        logger.sync_info("Starting cache warmup", source_name=self.source_name)
 
         # Fetch and cache raw data
         try:
@@ -413,15 +413,17 @@ class UnifiedDataSource(DataSourceClient, ABC):
             if data:
                 warmup_stats["items_cached"] += 1
         except Exception as e:
-            logger.error(f"Cache warmup failed: {e}")
+            logger.sync_error("Cache warmup failed", error=e)
             warmup_stats["errors"] += 1
 
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
         warmup_stats["duration_seconds"] = duration
 
-        logger.info(
-            f"Cache warmup completed for {self.source_name}: "
-            f"{warmup_stats['items_cached']} items cached in {duration:.2f}s"
+        logger.sync_info(
+            "Cache warmup completed",
+            source_name=self.source_name,
+            items_cached=warmup_stats['items_cached'],
+            duration_seconds=round(duration, 2)
         )
 
         return warmup_stats

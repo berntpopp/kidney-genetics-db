@@ -14,7 +14,6 @@ Improvements over the original:
 """
 
 import asyncio
-import logging
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,8 +22,9 @@ from sqlalchemy.orm import Session
 from app.core.cache_service import CacheService, cached, get_cache_service
 from app.core.cached_http_client import CachedHttpClient, get_cached_http_client
 from app.core.datasource_config import get_source_cache_ttl
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class HGNCClientCached:
@@ -74,7 +74,7 @@ class HGNCClientCached:
         # Get TTL for HGNC namespace from datasource config
         self.ttl = get_source_cache_ttl("HGNC")
 
-        logger.info(f"HGNCClientCached initialized with TTL: {self.ttl}s")
+        logger.sync_info("HGNCClientCached initialized", ttl=self.ttl)
 
     async def _make_request(
         self,
@@ -110,7 +110,7 @@ class HGNCClientCached:
             return response.json()
 
         except Exception as e:
-            logger.error(f"HGNC API request failed for {url}: {e}")
+            logger.sync_error("HGNC API request failed", url=url, error=str(e))
             raise
 
     async def symbol_to_hgnc_id(self, symbol: str) -> str | None:
@@ -133,7 +133,7 @@ class HGNCClientCached:
                     return docs[0].get("hgnc_id")
                 return None
             except Exception as e:
-                logger.warning(f"Failed to fetch HGNC ID for symbol {symbol}: {e}")
+                logger.sync_warning("Failed to fetch HGNC ID for symbol", symbol=symbol, error=str(e))
                 return None
 
         return await cached(
@@ -160,7 +160,7 @@ class HGNCClientCached:
                     return docs[0]
                 return None
             except Exception as e:
-                logger.warning(f"Failed to fetch gene info for symbol {symbol}: {e}")
+                logger.sync_warning("Failed to fetch gene info for symbol", symbol=symbol, error=str(e))
                 return None
 
         return await cached(
@@ -213,7 +213,7 @@ class HGNCClientCached:
             except Exception:
                 pass
 
-            logger.warning(f"Could not standardize gene symbol: {symbol}")
+            logger.sync_warning("Could not standardize gene symbol", symbol=symbol)
             return symbol
 
         return await cached(
@@ -261,14 +261,14 @@ class HGNCClientCached:
 
         # Process uncached symbols in batches
         if uncached_symbols:
-            logger.info(f"Processing {len(uncached_symbols)} uncached symbols in batch")
+            logger.sync_info("Processing uncached symbols in batch", count=len(uncached_symbols))
 
             for i in range(0, len(uncached_symbols), self.batch_size):
                 batch = uncached_symbols[i : i + self.batch_size]
                 batch_result = await self._process_batch(batch)
                 result.update(batch_result)
 
-        logger.debug(f"Batch standardization complete: {len(symbols)} symbols processed")
+        logger.sync_debug("Batch standardization complete", symbols_processed=len(symbols))
         return result
 
     async def _process_batch(self, symbols: list[str]) -> dict[str, dict[str, str | None]]:
@@ -325,7 +325,7 @@ class HGNCClientCached:
             return result
 
         except Exception as e:
-            logger.error(f"Batch processing failed: {e}")
+            logger.sync_error("Batch processing failed", error=str(e))
             # Fallback to individual lookups
             result = {}
             for symbol in symbols:
@@ -368,7 +368,7 @@ class HGNCClientCached:
         if not symbols:
             return {}
 
-        logger.info(f"Standardizing {len(symbols)} gene symbols with parallel processing")
+        logger.sync_info("Standardizing gene symbols with parallel processing", count=len(symbols))
 
         # Split into batches
         batches = [
@@ -380,7 +380,7 @@ class HGNCClientCached:
             return await self.standardize_symbols_batch(batches[0])
 
         # Multiple batches - use parallel processing
-        logger.info(f"Processing {len(batches)} batches in parallel")
+        logger.sync_info("Processing batches in parallel", batch_count=len(batches))
 
         # Use asyncio gather for parallel processing
         tasks = [self.standardize_symbols_batch(batch) for batch in batches]
@@ -391,7 +391,7 @@ class HGNCClientCached:
         standardized = {}
         for i, batch_result in enumerate(batch_results):
             if isinstance(batch_result, Exception):
-                logger.error(f"Batch {i} failed: {batch_result}")
+                logger.sync_error("Batch failed", batch_index=i, error=str(batch_result))
                 # Fallback to individual processing for failed batch
                 for symbol in batches[i]:
                     try:
@@ -415,7 +415,7 @@ class HGNCClientCached:
             if v["approved_symbol"] and k != v["approved_symbol"]
         }
         if changed_symbols:
-            logger.info(f"Standardized {len(changed_symbols)} gene symbols")
+            logger.sync_info("Standardized gene symbols", changed_count=len(changed_symbols))
 
         return standardized
 
@@ -462,7 +462,7 @@ class HGNCClientCached:
                 "PDSS2",
             ]
 
-        logger.info(f"Warming HGNC cache with {len(common_symbols)} symbols")
+        logger.sync_info("Warming HGNC cache with symbols", count=len(common_symbols))
 
         # Use batch processing to warm cache efficiently
         await self.standardize_symbols_batch(common_symbols)
@@ -471,7 +471,7 @@ class HGNCClientCached:
         tasks = [self.get_gene_info(symbol) for symbol in common_symbols]
         await asyncio.gather(*tasks, return_exceptions=True)
 
-        logger.info("HGNC cache warming completed")
+        logger.sync_info("HGNC cache warming completed")
         return len(common_symbols)
 
 

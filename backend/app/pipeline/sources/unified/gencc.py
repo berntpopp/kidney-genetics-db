@@ -6,7 +6,6 @@ gencc_cached.py) with a single, async-first implementation using the unified
 data source architecture.
 """
 
-import logging
 from datetime import datetime, timezone
 from io import BytesIO
 from typing import TYPE_CHECKING, Any
@@ -17,12 +16,13 @@ from sqlalchemy.orm import Session
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.datasource_config import get_source_parameter
+from app.core.logging import get_logger
 from app.pipeline.sources.unified.base import UnifiedDataSource
 
 if TYPE_CHECKING:
     from app.core.progress_tracker import ProgressTracker
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class GenCCUnifiedSource(UnifiedDataSource):
@@ -85,7 +85,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
             "Refuted Evidence": 0.0,
         }
 
-        logger.info(f"GenCCUnifiedSource initialized with TTL: {self.cache_ttl}s")
+        logger.sync_info("GenCCUnifiedSource initialized", cache_ttl=self.cache_ttl)
 
     def _get_default_ttl(self) -> int:
         """Get default TTL for GenCC data."""
@@ -103,8 +103,8 @@ class GenCCUnifiedSource(UnifiedDataSource):
 
         async def _fetch_gencc_data():
             """Internal function to fetch GenCC data."""
-            logger.info(f"📥 Downloading GenCC submissions from: {self.download_url}")
-            logger.info("🔄 Starting download... (this may take 30-60 seconds for ~3.6MB file)")
+            logger.sync_info("Downloading GenCC submissions", download_url=self.download_url)
+            logger.sync_info("Starting download", estimated_time="30-60 seconds", file_size="~3.6MB")
 
             # Use cached HTTP client for download
             response = await self.http_client.get(
@@ -117,10 +117,10 @@ class GenCCUnifiedSource(UnifiedDataSource):
 
             # Parse Excel file from response content
             df = pd.read_excel(BytesIO(response.content))
-            logger.info(f"📊 Parsed GenCC Excel file: {len(df)} total submissions")
+            logger.sync_info("Parsed GenCC Excel file", total_submissions=len(df))
 
             # Log column structure for debugging
-            logger.info(f"GenCC columns: {list(df.columns)[:10]}...")  # First 10 columns
+            logger.sync_info("GenCC columns preview", columns=list(df.columns)[:10])
 
             return df
 
@@ -130,7 +130,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
             cache_key=cache_key, fetch_func=_fetch_gencc_data, ttl=self.cache_ttl
         )
 
-        logger.info(f"✅ GenCC data ready: {len(df)} submissions")
+        logger.sync_info("GenCC data ready", submission_count=len(df))
         return df
 
     async def process_data(self, df: pd.DataFrame) -> dict[str, Any]:
@@ -143,7 +143,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
         Returns:
             Dictionary mapping gene symbols to aggregated gene data
         """
-        logger.info(f"🔄 Processing {len(df)} GenCC submissions...")
+        logger.sync_info("Processing GenCC submissions", submission_count=len(df))
 
         gene_data_map = {}
         kidney_related_count = 0
@@ -158,7 +158,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
             # Extract gene information
             gene_info = self._extract_gene_info(row)
             if not gene_info:
-                logger.debug(f"⚠️ Failed to extract gene info from row {idx}")
+                logger.sync_debug("Failed to extract gene info from row", row_index=idx)
                 continue
 
             symbol = gene_info["symbol"]
@@ -195,10 +195,10 @@ class GenCCUnifiedSource(UnifiedDataSource):
             # Calculate evidence score based on classifications
             data["evidence_score"] = self._calculate_evidence_score(data["classifications"])
 
-        logger.info(
-            f"🎯 GenCC processing complete: "
-            f"{kidney_related_count} kidney-related submissions, "
-            f"{len(gene_data_map)} unique genes"
+        logger.sync_info(
+            "GenCC processing complete",
+            kidney_related_submissions=kidney_related_count,
+            unique_genes=len(gene_data_map)
         )
 
         return gene_data_map
@@ -370,7 +370,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
             }
 
         except Exception as e:
-            logger.error(f"Error extracting gene info from GenCC row: {e}")
+            logger.sync_error("Error extracting gene info from GenCC row", error=str(e))
             return None
 
     def _calculate_evidence_score(self, classifications: list) -> float:

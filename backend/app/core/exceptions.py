@@ -5,11 +5,12 @@ Provides structured exception hierarchy that maps to standardized HTTP responses
 through middleware, ensuring consistent error handling across the application.
 """
 
-import logging
 import traceback
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class KidneyGeneticsException(Exception):
@@ -214,15 +215,13 @@ def log_exception(exception: Exception, context: dict[str, Any] | None = None) -
     error_id = ResponseBuilder.generate_error_id()
 
     # Enhanced logging with structured data
-    logger.error(
-        f"Exception [{error_id}]: {type(exception).__name__}: {exception}",
-        extra={
-            "error_id": error_id,
-            "exception_type": type(exception).__name__,
-            "exception_message": str(exception),
-            "context": context or {},
-            "traceback": traceback.format_exc(),
-        },
+    logger.sync_error(
+        "Exception occurred",
+        error_id=error_id,
+        exception_type=type(exception).__name__,
+        exception_message=str(exception),
+        context=context or {},
+        traceback=traceback.format_exc()
     )
 
     return error_id

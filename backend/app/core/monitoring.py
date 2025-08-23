@@ -6,7 +6,6 @@ across all cache components and data sources.
 """
 
 import asyncio
-import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -17,9 +16,10 @@ from sqlalchemy.orm import Session
 from app.core.cache_service import get_cache_service
 from app.core.cached_http_client import get_cached_http_client
 from app.core.hgnc_client import get_hgnc_client_cached
+from app.core.logging import get_logger
 from app.pipeline.sources.unified.gencc import get_gencc_client
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class CacheMonitoringService:
@@ -48,7 +48,7 @@ class CacheMonitoringService:
                 # Cache stats for these are retrieved via namespace in get_comprehensive_stats
             }
         except Exception as e:
-            logger.error(f"Error initializing data source clients: {e}")
+            logger.sync_error("Error initializing data source clients", error=str(e))
             self.data_source_clients = {}
 
     async def get_comprehensive_stats(self) -> dict[str, Any]:
@@ -78,7 +78,7 @@ class CacheMonitoringService:
             namespaces = await self.cache_service.get_distinct_namespaces()
             if not namespaces:
                 # Fallback to common namespaces if database query fails
-                logger.warning("Using fallback namespace list for monitoring stats")
+                logger.sync_warning("Using fallback namespace list for monitoring stats")
                 namespaces = ["hgnc", "pubtator", "gencc", "panelapp", "hpo", "http", "files"]
 
             for namespace in namespaces:
@@ -87,7 +87,7 @@ class CacheMonitoringService:
                     if ns_stats.get("db_entries", 0) > 0 or ns_stats.get("memory_entries", 0) > 0:
                         stats["namespaces"][namespace] = ns_stats
                 except Exception as e:
-                    logger.warning(f"Error getting stats for namespace {namespace}: {e}")
+                    logger.sync_warning("Error getting stats for namespace", namespace=namespace, error=str(e))
 
             # Data source-specific statistics
             for source_name, client in self.data_source_clients.items():
@@ -96,38 +96,38 @@ class CacheMonitoringService:
                         source_stats = await client.get_cache_stats()
                         stats["data_sources"][source_name] = source_stats
                 except Exception as e:
-                    logger.warning(f"Error getting stats for data source {source_name}: {e}")
+                    logger.sync_warning("Error getting stats for data source", source_name=source_name, error=str(e))
 
             # HTTP cache statistics
             try:
                 http_stats = await self.http_client.get_cache_stats()
                 stats["http_cache"] = http_stats
             except Exception as e:
-                logger.warning(f"Error getting HTTP cache stats: {e}")
+                logger.sync_warning("Error getting HTTP cache stats", error=str(e))
 
             # Database statistics
             try:
                 db_stats = await self._get_database_stats()
                 stats["database"] = db_stats
             except Exception as e:
-                logger.warning(f"Error getting database stats: {e}")
+                logger.sync_warning("Error getting database stats", error=str(e))
 
             # Performance metrics
             try:
                 perf_stats = await self._get_performance_stats()
                 stats["performance"] = perf_stats
             except Exception as e:
-                logger.warning(f"Error getting performance stats: {e}")
+                logger.sync_warning("Error getting performance stats", error=str(e))
 
             # Health checks
             try:
                 health_stats = await self._get_health_stats()
                 stats["health"] = health_stats
             except Exception as e:
-                logger.warning(f"Error getting health stats: {e}")
+                logger.sync_warning("Error getting health stats", error=str(e))
 
         except Exception as e:
-            logger.error(f"Error getting comprehensive stats: {e}")
+            logger.sync_error("Error getting comprehensive stats", error=str(e))
             stats["error"] = str(e)
 
         return stats
@@ -162,7 +162,7 @@ class CacheMonitoringService:
                             value = result.scalar()
                             results[name] = value if value is not None else 0
                     except Exception as e:
-                        logger.warning(f"Error executing query {name}: {e}")
+                        logger.sync_warning("Error executing query", name=name, error=str(e))
                         results[name] = None
             else:
                 # Sync session
@@ -176,13 +176,13 @@ class CacheMonitoringService:
                             value = result.scalar()
                             results[name] = value if value is not None else 0
                     except Exception as e:
-                        logger.warning(f"Error executing query {name}: {e}")
+                        logger.sync_warning("Error executing query", name=name, error=str(e))
                         results[name] = None
 
             return results
 
         except Exception as e:
-            logger.error(f"Error getting database stats: {e}")
+            logger.sync_error("Error getting database stats", error=str(e))
             return {"error": str(e)}
 
     async def _get_performance_stats(self) -> dict[str, Any]:
@@ -208,7 +208,7 @@ class CacheMonitoringService:
             namespaces = await self.cache_service.get_distinct_namespaces()
             if not namespaces:
                 # Fallback to core data source namespaces if database query fails
-                logger.warning("Using fallback namespace list for performance metrics")
+                logger.sync_warning("Using fallback namespace list for performance metrics")
                 namespaces = ["hgnc", "pubtator", "gencc", "panelapp", "hpo"]
 
             for namespace in namespaces:
@@ -224,14 +224,14 @@ class CacheMonitoringService:
                             "efficiency": self._calculate_cache_efficiency(ns_hit_rate),
                         }
                 except Exception as e:
-                    logger.warning(f"Error getting performance stats for {namespace}: {e}")
+                    logger.sync_warning("Error getting performance stats for namespace", namespace=namespace, error=str(e))
 
             performance["namespaces"] = namespace_performance
 
             return performance
 
         except Exception as e:
-            logger.error(f"Error calculating performance stats: {e}")
+            logger.sync_error("Error calculating performance stats", error=str(e))
             return {"error": str(e)}
 
     async def _get_health_stats(self) -> dict[str, Any]:
@@ -335,7 +335,7 @@ class CacheMonitoringService:
                 health["overall_status"] = "healthy"
 
         except Exception as e:
-            logger.error(f"Error checking health stats: {e}")
+            logger.sync_error("Error checking health stats", error=str(e))
             health["overall_status"] = "error"
             health["error"] = str(e)
 
@@ -381,7 +381,7 @@ class CacheMonitoringService:
             }
 
         except Exception as e:
-            logger.error(f"Error calculating memory utilization: {e}")
+            logger.sync_error("Error calculating memory utilization", error=str(e))
             return {"error": str(e)}
 
     def _estimate_response_time_improvement(self, hit_rate: float) -> dict[str, Any]:
@@ -406,7 +406,7 @@ class CacheMonitoringService:
         Returns:
             Dictionary with warming results for each source
         """
-        logger.info("Starting cache warming for all data sources...")
+        logger.sync_info("Starting cache warming for all data sources...")
 
         results = {
             "started_at": datetime.now(timezone.utc).isoformat(),
@@ -429,7 +429,7 @@ class CacheMonitoringService:
                 result = task_results[i]
 
                 if isinstance(result, Exception):
-                    logger.error(f"Error warming {source_name} cache: {result}")
+                    logger.sync_error("Error warming cache", source_name=source_name, error=str(result))
                     results["sources"][source_name] = {
                         "status": "error",
                         "error": str(result),
@@ -450,8 +450,10 @@ class CacheMonitoringService:
         ).total_seconds()
         results["duration_seconds"] = round(duration, 2)
 
-        logger.info(
-            f"Cache warming completed: {results['total_entries_cached']} entries cached in {duration:.2f}s"
+        logger.sync_info(
+            "Cache warming completed",
+            total_entries_cached=results['total_entries_cached'],
+            duration_seconds=duration
         )
 
         return results
@@ -463,7 +465,7 @@ class CacheMonitoringService:
         Returns:
             Dictionary with clearing results for each source
         """
-        logger.info("Starting cache clearing for all data sources...")
+        logger.sync_info("Starting cache clearing for all data sources...")
 
         results = {
             "started_at": datetime.now(timezone.utc).isoformat(),
@@ -488,7 +490,7 @@ class CacheMonitoringService:
                         "reason": "No clear_cache method available",
                     }
             except Exception as e:
-                logger.error(f"Error clearing {source_name} cache: {e}")
+                logger.sync_error("Error clearing cache", source_name=source_name, error=str(e))
                 results["sources"][source_name] = {
                     "status": "error",
                     "error": str(e),
@@ -498,7 +500,7 @@ class CacheMonitoringService:
 
         results["completed_at"] = datetime.now(timezone.utc).isoformat()
 
-        logger.info(f"Cache clearing completed: {results['total_entries_cleared']} entries cleared")
+        logger.sync_info("Cache clearing completed", total_entries_cleared=results['total_entries_cleared'])
 
         return results
 

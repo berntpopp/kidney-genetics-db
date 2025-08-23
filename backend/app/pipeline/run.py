@@ -2,14 +2,13 @@
 CLI for running pipeline updates - Now using AsyncClick for native async support
 """
 
-import logging
-import sys
 from datetime import datetime, timezone
 
 import asyncclick as click
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.logging import configure_logging, get_logger
 from app.core.progress_tracker import ProgressTracker
 from app.models.gene import PipelineRun
 from app.pipeline.aggregate import update_all_curations
@@ -19,14 +18,10 @@ from app.pipeline.sources.unified.hpo import HPOUnifiedSource
 from app.pipeline.sources.unified.panelapp import PanelAppUnifiedSource
 from app.pipeline.sources.unified.pubtator import PubTatorUnifiedSource
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
+# Configure unified logging for CLI
+configure_logging(log_level="INFO", database_enabled=True, console_enabled=True)
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @click.group()
@@ -44,7 +39,7 @@ async def cli():
 )
 async def update(source: str):
     """Update gene data from external sources - now fully async"""
-    logger.info(f"Starting pipeline update for source: {source}")
+    await logger.info("Starting pipeline update", source=source)
 
     # Get database session - unified sources work with both sync and async
     db: Session = next(get_db())
@@ -64,43 +59,43 @@ async def update(source: str):
 
         # The unified sources handle async internally even with sync session
         if source in ["all", "panelapp"]:
-            logger.info("Updating PanelApp data...")
+            await logger.info("Updating PanelApp data")
             source_obj = PanelAppUnifiedSource(db_session=db)
             stats = await source_obj.update_data(db, tracker)
             all_stats.append(stats)
-            logger.info(f"PanelApp update complete: {stats}")
+            await logger.info("PanelApp update complete", stats=stats)
 
         if source in ["all", "hpo"]:
-            logger.info("Updating HPO data...")
+            await logger.info("Updating HPO data")
             source_obj = HPOUnifiedSource(db_session=db)
             stats = await source_obj.update_data(db, tracker)
             all_stats.append(stats)
-            logger.info(f"HPO update complete: {stats}")
+            await logger.info("HPO update complete", stats=stats)
 
         if source in ["all", "pubtator"]:
-            logger.info("Updating PubTator data...")
+            await logger.info("Updating PubTator data")
             source_obj = PubTatorUnifiedSource(db_session=db)
             stats = await source_obj.update_data(db, tracker)
             all_stats.append(stats)
-            logger.info(f"PubTator update complete: {stats}")
+            await logger.info("PubTator update complete", stats=stats)
 
         if source in ["all", "clingen"]:
-            logger.info("Updating ClinGen data...")
+            await logger.info("Updating ClinGen data")
             source_obj = ClinGenUnifiedSource(db_session=db)
             stats = await source_obj.update_data(db, tracker)
             all_stats.append(stats)
-            logger.info(f"ClinGen update complete: {stats}")
+            await logger.info("ClinGen update complete", stats=stats)
 
         if source in ["all", "gencc"]:
-            logger.info("Updating GenCC data...")
+            await logger.info("Updating GenCC data")
             source_obj = GenCCUnifiedSource(db_session=db)
             stats = await source_obj.update_data(db, tracker)
             all_stats.append(stats)
-            logger.info(f"GenCC update complete: {stats}")
+            await logger.info("GenCC update complete", stats=stats)
 
         # Update curations after source updates
         if all_stats:
-            logger.info("Updating gene curations and scores...")
+            await logger.info("Updating gene curations and scores")
             curation_stats = update_all_curations(db)
             all_stats.append(curation_stats)
 
@@ -111,11 +106,10 @@ async def update(source: str):
         db.add(run)
         db.commit()
 
-        logger.info("Pipeline update completed successfully")
-        logger.info(f"Summary: {len(all_stats)} sources updated")
+        await logger.info("Pipeline update completed successfully", sources_updated=len(all_stats))
 
     except Exception as e:
-        logger.error(f"Pipeline error: {e}", exc_info=True)
+        await logger.error("Pipeline error", error=e)
         run.status = "failed"
         run.completed_at = datetime.now(timezone.utc)
         run.error_log = str(e)

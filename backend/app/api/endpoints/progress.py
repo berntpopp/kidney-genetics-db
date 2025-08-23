@@ -4,7 +4,6 @@ OPTIMIZED: Uses event-driven pub/sub pattern instead of database polling
 """
 
 import asyncio
-import logging
 from datetime import datetime
 from typing import Any
 
@@ -14,10 +13,11 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.events import EventTypes, event_bus
 from app.core.exceptions import DataSourceError
+from app.core.logging import get_logger
 from app.core.responses import ResponseBuilder
 from app.models.progress import DataSourceProgress, SourceStatus
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -55,12 +55,12 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        logger.info(f"WebSocket connected. Total connections: {len(self.active_connections)}")
+        await logger.info("WebSocket connected", total_connections=len(self.active_connections))
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-        logger.info(f"WebSocket disconnected. Total connections: {len(self.active_connections)}")
+        logger.sync_info("WebSocket disconnected", total_connections=len(self.active_connections))
 
     async def broadcast(self, message: dict):
         """Broadcast message to all connected clients"""
@@ -72,7 +72,7 @@ class ConnectionManager:
             try:
                 await connection.send_json(message)
             except Exception as e:
-                logger.error(f"Failed to send to websocket: {e}")
+                await logger.error("Failed to send to websocket", error=e)
                 disconnected.append(connection)
 
         # Clean up disconnected connections
@@ -119,7 +119,7 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+        await logger.error("WebSocket error", error=e)
         manager.disconnect(websocket)
 
 
@@ -184,39 +184,36 @@ async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dic
     Returns:
         Status message
     """
-    logger.info(f"🚀 API TRIGGER ENDPOINT CALLED for source: {source_name}")
+    await logger.info("API trigger endpoint called", source_name=source_name)
 
     from app.core.background_tasks import task_manager
 
-    logger.info(f"🚀 API: Imported task_manager: {task_manager}")
+    await logger.debug("Imported task_manager", task_manager=str(task_manager))
 
     progress = db.query(DataSourceProgress).filter_by(source_name=source_name).first()
-    logger.info(f"🚀 API: Found progress record: {progress}")
+    await logger.debug("Found progress record", progress=bool(progress), source_name=source_name)
 
     if not progress:
-        logger.error(f"🚀 API: Source {source_name} not found in database")
+        await logger.error("Source not found in database", source_name=source_name)
         raise DataSourceError(source_name, "status_check", "Source not found")
 
     if progress.status == SourceStatus.running:
-        logger.warning(f"🚀 API: Source {source_name} already running")
+        await logger.warning("Source already running", source_name=source_name)
         return ResponseBuilder.build_success_response(
             data={"status": "already_running", "message": f"{source_name} is already running"}
         )
 
     # Trigger the update in background
-    logger.info(f"🚀 API: About to call task_manager.run_source({source_name})")
-    logger.info(f"🚀 API: task_manager object: {task_manager}")
-    logger.info(f"🚀 API: task_manager type: {type(task_manager)}")
+    await logger.info("About to call task_manager.run_source", source_name=source_name, task_manager_type=str(type(task_manager)))
 
     try:
         task = asyncio.create_task(task_manager.run_source(source_name))
-        logger.info(f"🚀 API: Successfully created asyncio task: {task}")
-        logger.info(f"🚀 API: Task status: {task.done()}")
+        await logger.info("Successfully created asyncio task", task_done=task.done(), source_name=source_name)
     except Exception as e:
-        logger.error(f"🚀 API: Exception creating task: {e}")
+        await logger.error("Exception creating task", error=e, source_name=source_name)
         raise
 
-    logger.info(f"🚀 API: Returning success response for {source_name}")
+    await logger.info("Returning success response", source_name=source_name)
     return ResponseBuilder.build_success_response(
         data={"status": "triggered", "message": f"Update triggered for {source_name}"},
         meta={"source_name": source_name},

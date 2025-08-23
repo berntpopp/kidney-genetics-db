@@ -11,7 +11,6 @@ This module provides a unified caching interface that combines:
 import asyncio
 import hashlib
 import json
-import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any, TypeVar
@@ -23,8 +22,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.datasource_config import get_source_cache_ttl
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 T = TypeVar("T")
 
@@ -131,7 +131,7 @@ class CacheService:
             "default": settings.CACHE_DEFAULT_TTL,
         }
 
-        logger.info(f"CacheService initialized - enabled: {self.enabled}")
+        logger.sync_info("CacheService initialized", enabled=self.enabled)
 
     def _generate_cache_key(self, key: Any, namespace: str = "default") -> str:
         """Generate a unique cache key with type normalization."""
@@ -179,9 +179,12 @@ class CacheService:
 
             return json.dumps(value, default=str, ensure_ascii=False)
         except (TypeError, ValueError) as e:
-            logger.error(f"Error serializing value: {e}")
-            logger.error(f"Value type: {type(value)}")
-            logger.error(f"Value repr: {repr(value)[:200] if value else 'None'}")
+            logger.sync_error(
+                "Error serializing value",
+                error=str(e),
+                value_type=str(type(value)),
+                value_repr=repr(value)[:200] if value else 'None'
+            )
             raise
 
     def _deserialize_value(self, serialized: Any) -> Any:
@@ -210,7 +213,7 @@ class CacheService:
             # Handle string serialization
             if isinstance(serialized, str):
                 if not serialized or serialized.strip() == "":
-                    logger.warning("Attempted to deserialize empty string value, returning None")
+                    logger.sync_warning("Attempted to deserialize empty string value, returning None")
                     return None
 
                 data = json.loads(serialized)
@@ -226,15 +229,17 @@ class CacheService:
                 return data
 
             # Handle other types by converting to string first
-            logger.warning(
-                f"Unexpected type {type(serialized)} for cache value, converting to string"
+            logger.sync_warning(
+                "Unexpected type for cache value, converting to string",
+                value_type=str(type(serialized))
             )
             return json.loads(str(serialized))
 
         except (TypeError, ValueError) as e:
-            logger.error(f"Error deserializing value: {e}")
-            logger.debug(
-                f"Failed to deserialize: {str(serialized)[:100] if serialized else serialized!r}"
+            logger.sync_error(
+                "Error deserializing value",
+                error=str(e),
+                serialized_preview=str(serialized)[:100] if serialized else repr(serialized)
             )
             # Return None instead of raising to allow graceful recovery
             return None
@@ -257,7 +262,7 @@ class CacheService:
                 if not entry.is_expired():
                     entry.touch()
                     self.stats.hits += 1
-                    logger.debug(f"Cache hit (memory): {namespace}:{key}")
+                    logger.sync_debug("Cache hit (memory)", namespace=namespace, key=str(key))
                     return entry.value
                 else:
                     # Remove expired entry
@@ -276,17 +281,22 @@ class CacheService:
                     self.memory_cache[cache_key] = memory_entry
 
                     self.stats.hits += 1
-                    logger.debug(f"Cache hit (database): {namespace}:{key}")
+                    logger.sync_debug("Cache hit (database)", namespace=namespace, key=str(key))
                     return db_entry
 
             # Cache miss
             self.stats.misses += 1
-            logger.debug(f"Cache miss: {namespace}:{key}")
+            logger.sync_debug("Cache miss", namespace=namespace, key=str(key))
             return default
 
         except Exception as e:
             self.stats.errors += 1
-            logger.error(f"Error getting cache entry {namespace}:{key}: {e}")
+            logger.sync_error(
+                "Error getting cache entry",
+                namespace=namespace,
+                key=str(key),
+                error=str(e)
+            )
             return default
 
     async def set(
@@ -317,12 +327,17 @@ class CacheService:
                 await self._set_in_db(cache_key, entry)
 
             self.stats.sets += 1
-            logger.debug(f"Cache set: {namespace}:{key} (TTL: {ttl}s)")
+            logger.sync_debug("Cache set", namespace=namespace, key=str(key), ttl=ttl)
             return True
 
         except Exception as e:
             self.stats.errors += 1
-            logger.error(f"Error setting cache entry {namespace}:{key}: {e}")
+            logger.sync_error(
+                "Error setting cache entry",
+                namespace=namespace,
+                key=str(key),
+                error=str(e)
+            )
             return False
 
     async def delete(self, key: Any, namespace: str = "default") -> bool:
@@ -342,12 +357,17 @@ class CacheService:
                 await self._delete_from_db(cache_key)
 
             self.stats.deletes += 1
-            logger.debug(f"Cache delete: {namespace}:{key}")
+            logger.sync_debug("Cache delete", namespace=namespace, key=str(key))
             return True
 
         except Exception as e:
             self.stats.errors += 1
-            logger.error(f"Error deleting cache entry {namespace}:{key}: {e}")
+            logger.sync_error(
+                "Error deleting cache entry",
+                namespace=namespace,
+                key=str(key),
+                error=str(e)
+            )
             return False
 
     async def get_or_set(
@@ -379,7 +399,12 @@ class CacheService:
             return value
 
         except Exception as e:
-            logger.error(f"Error in fetch function for {namespace}:{key}: {e}")
+            logger.sync_error(
+                "Error in fetch function",
+                namespace=namespace,
+                key=str(key),
+                error=str(e)
+            )
             raise
 
     async def clear_namespace(self, namespace: str) -> int:
@@ -401,12 +426,12 @@ class CacheService:
                 db_count = await self._clear_namespace_from_db(namespace)
                 count += db_count
 
-            logger.info(f"Cleared {count} entries from namespace: {namespace}")
+            logger.sync_info("Cleared entries from namespace", namespace=namespace, count=count)
             return count
 
         except Exception as e:
             self.stats.errors += 1
-            logger.error(f"Error clearing namespace {namespace}: {e}")
+            logger.sync_error("Error clearing namespace", namespace=namespace, error=str(e))
             return 0
 
     async def cleanup_expired(self) -> int:
@@ -430,12 +455,12 @@ class CacheService:
                 count += db_count
 
             if count > 0:
-                logger.info(f"Cleaned up {count} expired cache entries")
+                logger.sync_info("Cleaned up expired cache entries", count=count)
             return count
 
         except Exception as e:
             self.stats.errors += 1
-            logger.error(f"Error cleaning up expired entries: {e}")
+            logger.sync_error("Error cleaning up expired entries", error=str(e))
             return 0
 
     async def get_stats(self, namespace: str | None = None) -> dict[str, Any]:
@@ -457,7 +482,7 @@ class CacheService:
             return stats
 
         except Exception as e:
-            logger.error(f"Error getting cache stats: {e}")
+            logger.sync_error("Error getting cache stats", error=str(e))
             return {"error": str(e)}
 
     # Database operations
@@ -496,13 +521,13 @@ class CacheService:
                     deserialized = self._deserialize_value(row.data)
                     if deserialized is None:
                         # Remove corrupted entry from database
-                        logger.warning(f"Removing corrupted cache entry: {cache_key}")
+                        logger.sync_warning("Removing corrupted cache entry", cache_key=cache_key)
                         await self._delete_from_db(cache_key)
                     return deserialized
             return None
 
         except Exception as e:
-            logger.error(f"Database cache get error: {e}")
+            logger.sync_error("Database cache get error", error=str(e))
             return None
 
     async def _set_in_db(self, cache_key: str, entry: CacheEntry) -> bool:
@@ -569,7 +594,7 @@ class CacheService:
                 await self.db_session.rollback()
             else:
                 self.db_session.rollback()
-            logger.error(f"Database cache set error: {e}")
+            logger.sync_error("Database cache set error", error=str(e))
             return False
 
     async def _delete_from_db(self, cache_key: str) -> bool:
@@ -596,7 +621,7 @@ class CacheService:
                 await self.db_session.rollback()
             else:
                 self.db_session.rollback()
-            logger.error(f"Database cache delete error: {e}")
+            logger.sync_error("Database cache delete error", error=str(e))
             return False
 
     async def _update_access_stats(self, cache_key: str) -> None:
@@ -629,7 +654,7 @@ class CacheService:
                 await self.db_session.rollback()
             else:
                 self.db_session.rollback()
-            logger.error(f"Database access stats update error: {e}")
+            logger.sync_error("Database access stats update error", error=str(e))
 
     async def _clear_namespace_from_db(self, namespace: str) -> int:
         """Clear all entries from a namespace in database."""
@@ -655,7 +680,7 @@ class CacheService:
                 await self.db_session.rollback()
             else:
                 self.db_session.rollback()
-            logger.error(f"Database namespace clear error: {e}")
+            logger.sync_error("Database namespace clear error", error=str(e))
             return 0
 
     async def _cleanup_expired_from_db(self) -> int:
@@ -688,7 +713,7 @@ class CacheService:
                 await self.db_session.rollback()
             else:
                 self.db_session.rollback()
-            logger.error(f"Database cleanup error: {e}")
+            logger.sync_error("Database cleanup error", error=str(e))
             return 0
 
     async def _get_db_entry_count(self, namespace: str | None = None) -> int:
@@ -715,7 +740,7 @@ class CacheService:
             return result.scalar() or 0
 
         except Exception as e:
-            logger.error(f"Database entry count error: {e}")
+            logger.sync_error("Database entry count error", error=str(e))
             return 0
 
     async def _get_namespace_stats(self, namespace: str) -> dict[str, Any]:
@@ -739,13 +764,13 @@ class CacheService:
             return {}
 
         except Exception as e:
-            logger.error(f"Database namespace stats error: {e}")
+            logger.sync_error("Database namespace stats error", error=str(e))
             return {}
 
     async def get_distinct_namespaces(self) -> list[str]:
         """Get all distinct cache namespaces from database."""
         if not self.db_session:
-            logger.debug("No database session available for namespaces query")
+            logger.sync_debug("No database session available for namespaces query")
             return []
 
         try:
@@ -758,11 +783,11 @@ class CacheService:
                 result = self.db_session.execute(query)
 
             namespaces = [row[0] for row in result.fetchall()]
-            logger.debug(f"Found {len(namespaces)} distinct namespaces: {namespaces}")
+            logger.sync_debug("Found distinct namespaces", count=len(namespaces), namespaces=namespaces)
             return namespaces
 
         except Exception as e:
-            logger.error(f"Error fetching distinct namespaces: {e}")
+            logger.sync_error("Error fetching distinct namespaces", error=str(e))
             return []
 
 

@@ -2,7 +2,6 @@
 Middleware for standardized error handling across the Kidney Genetics Database API.
 """
 
-import logging
 import traceback
 from collections.abc import Callable
 
@@ -27,9 +26,10 @@ from app.core.exceptions import (
     ValidationError,
     log_exception,
 )
+from app.core.logging import get_logger
 from app.core.responses import ResponseBuilder
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ErrorHandlingMiddleware(BaseHTTPMiddleware):
@@ -62,12 +62,23 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
 
         # Log at appropriate level based on exception type
         if isinstance(exception, GeneNotFoundError | ValidationError):
-            logger.warning(f"{type(exception).__name__}: {exception}")
+            logger.sync_warning(
+                "Domain exception",
+                exception_type=type(exception).__name__,
+                message=str(exception)
+            )
         elif isinstance(exception, AuthenticationError | PermissionDeniedError):
-            logger.warning(f"Security exception: {type(exception).__name__}: {exception}")
+            logger.sync_warning(
+                "Security exception",
+                exception_type=type(exception).__name__,
+                message=str(exception)
+            )
         else:
-            logger.error(
-                f"Domain exception: {type(exception).__name__}: {exception}", exc_info=True
+            logger.sync_error(
+                "Domain exception",
+                exception_type=type(exception).__name__,
+                message=str(exception),
+                error=exception
             )
 
         # Map exceptions to standardized responses
@@ -148,15 +159,13 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             },
         )
 
-        logger.error(
-            f"Unexpected exception [{error_id}]: {type(exception).__name__}",
-            extra={
-                "error_id": error_id,
-                "exception_type": type(exception).__name__,
-                "request_path": str(request.url),
-                "request_method": request.method,
-            },
-            exc_info=True,
+        logger.sync_error(
+            "Unexpected exception",
+            error_id=error_id,
+            exception_type=type(exception).__name__,
+            request_path=str(request.url),
+            request_method=request.method,
+            error=exception
         )
 
         return ResponseBuilder.build_internal_error(error_id, request)
@@ -215,7 +224,11 @@ def register_error_handlers(app: FastAPI):
             exc, {"request_path": str(request.url), "validation_errors": exc.errors()}
         )
 
-        logger.error(f"Response validation error [{error_id}]: {exc.errors()}")
+        logger.sync_error(
+            "Response validation error",
+            error_id=error_id,
+            validation_errors=exc.errors()
+        )
 
         return ResponseBuilder.build_error_response(
             status_code=500,
@@ -229,4 +242,4 @@ def register_error_handlers(app: FastAPI):
     # Add the middleware for catching unexpected exceptions
     app.add_middleware(ErrorHandlingMiddleware)
 
-    logger.info("Error handling middleware and exception handlers registered")
+    logger.sync_info("Error handling middleware and exception handlers registered")

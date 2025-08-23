@@ -5,15 +5,15 @@ Combines evidence from multiple sources and creates curation records.
 Scoring is handled by PostgreSQL views, not Python code.
 """
 
-import logging
 from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.logging import get_logger
 from app.models.gene import Gene, GeneCuration, GeneEvidence
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def update_all_curations(db: Session) -> dict[str, Any]:
@@ -29,7 +29,7 @@ def update_all_curations(db: Session) -> dict[str, Any]:
     Returns:
         Statistics about the update
     """
-    logger.info("Starting gene curation update (evidence aggregation only)")
+    logger.sync_info("Starting gene curation update (evidence aggregation only)")
 
     stats = {
         "genes_processed": 0,
@@ -41,7 +41,7 @@ def update_all_curations(db: Session) -> dict[str, Any]:
     # Get all genes with evidence
     genes_with_evidence = db.query(Gene).join(GeneEvidence).distinct().all()
 
-    logger.info(f"Processing {len(genes_with_evidence)} genes with evidence")
+    logger.sync_info("Processing genes with evidence", gene_count=len(genes_with_evidence))
 
     for gene in genes_with_evidence:
         stats["genes_processed"] += 1
@@ -70,9 +70,11 @@ def update_all_curations(db: Session) -> dict[str, Any]:
     stats["completed_at"] = datetime.now(timezone.utc)
     stats["duration"] = (stats["completed_at"] - stats["started_at"]).total_seconds()
 
-    logger.info(
-        f"Curation update complete: {stats['curations_created']} created, "
-        f"{stats['curations_updated']} updated in {stats['duration']:.2f}s"
+    logger.sync_info(
+        "Curation update complete",
+        curations_created=stats['curations_created'],
+        curations_updated=stats['curations_updated'],
+        duration_seconds=stats['duration']
     )
 
     return stats

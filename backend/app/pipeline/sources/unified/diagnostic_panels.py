@@ -6,7 +6,6 @@ diagnostic panel data and properly aggregates evidence across multiple providers
 """
 
 import json
-import logging
 from collections import defaultdict
 from datetime import datetime, timezone
 from io import BytesIO
@@ -18,13 +17,14 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
+from app.core.logging import get_logger
 from app.models.gene import Gene, GeneEvidence
 from app.pipeline.sources.unified.base import UnifiedDataSource
 
 if TYPE_CHECKING:
     from app.core.progress_tracker import ProgressTracker
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DiagnosticPanelsSource(UnifiedDataSource):
@@ -58,7 +58,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
     ):
         """Initialize diagnostic panels source."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
-        logger.info("DiagnosticPanelsSource initialized")
+        logger.sync_info("DiagnosticPanelsSource initialized")
 
     def _get_default_ttl(self) -> int:
         """Get default TTL - manual uploads don't expire."""
@@ -83,7 +83,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         Returns:
             DataFrame with gene panel data
         """
-        logger.info(f"Processing {file_type} file from provider: {provider_name}")
+        logger.sync_info("Processing file from provider", file_type=file_type, provider_name=provider_name)
 
         try:
             if file_type == "json":
@@ -98,11 +98,11 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             # Add provider metadata to each row
             df["provider"] = provider_name
 
-            logger.info(f"Parsed {len(df)} gene entries from {provider_name}")
+            logger.sync_info("Parsed gene entries", entry_count=len(df), provider_name=provider_name)
             return df
 
         except Exception as e:
-            logger.error(f"Failed to parse file from {provider_name}: {e}")
+            logger.sync_error("Failed to parse file", provider_name=provider_name, error=str(e))
             raise
 
     def _parse_json(self, content: bytes) -> pd.DataFrame:
@@ -178,7 +178,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                         gene_data[symbol]["hgnc_ids"].add(str(hgnc_val))
 
             except Exception as e:
-                logger.warning(f"Error processing row {idx}: {e}")
+                logger.sync_warning("Error processing row", row_index=idx, error=str(e))
                 continue
 
         # Convert to serializable format
@@ -192,7 +192,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 "hgnc_ids": sorted(data["hgnc_ids"]),  # Keep for reference
             }
 
-        logger.info(f"Processed {len(result)} unique genes")
+        logger.sync_info("Processed unique genes", unique_gene_count=len(result))
         return result
 
     def _extract_gene_symbol(self, row: pd.Series) -> str | None:
@@ -295,7 +295,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         for symbol, data in gene_data.items():
             gene_id = gene_map.get(symbol)
             if not gene_id:
-                logger.warning(f"Gene {symbol} not found in database")
+                logger.sync_warning("Gene not found in database", symbol=symbol)
                 stats["failed"] += 1
                 continue
 
@@ -330,8 +330,11 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 record.source_detail = f"{len(all_providers)} providers, {len(all_panels)} panels"
                 record.updated_at = datetime.now(timezone.utc)
 
-                logger.debug(
-                    f"Merged evidence for {symbol}: {len(all_panels)} panels from {len(all_providers)} providers"
+                logger.sync_debug(
+                    "Merged evidence",
+                    symbol=symbol,
+                    panel_count=len(all_panels),
+                    provider_count=len(all_providers)
                 )
                 stats["merged"] += 1
 
@@ -355,16 +358,22 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 )
                 db.add(record)
 
-                logger.debug(
-                    f"Created evidence for {symbol}: {data['panel_count']} panels from {current_provider}"
+                logger.sync_debug(
+                    "Created evidence",
+                    symbol=symbol,
+                    panel_count=data['panel_count'],
+                    provider=current_provider
                 )
                 stats["created"] += 1
 
         # Commit the transaction
         db.commit()
 
-        logger.info(
-            f"Storage complete: {stats['created']} created, {stats['merged']} merged, {stats['failed']} failed"
+        logger.sync_info(
+            "Storage complete",
+            created=stats['created'],
+            merged=stats['merged'],
+            failed=stats['failed']
         )
         return stats
 

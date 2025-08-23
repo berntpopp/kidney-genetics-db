@@ -5,7 +5,6 @@ Simplified replacement for the complex static ingestion system.
 Handles file uploads for DiagnosticPanels source.
 """
 
-import logging
 import time
 from typing import Any
 
@@ -15,11 +14,12 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.exceptions import DataSourceError, ValidationError
+from app.core.logging import get_logger
 from app.core.responses import ResponseBuilder
 from app.models.gene import GeneEvidence
 from app.pipeline.sources.unified import get_unified_source
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/sources", tags=["Hybrid Sources"])
 
@@ -87,8 +87,12 @@ async def upload_evidence_file(
         provider_name = file.filename.rsplit(".", 1)[0]
 
     # Log the upload attempt
-    logger.info(
-        f"Processing upload for {source_name}: {file.filename} ({file_size} bytes) from {provider_name}"
+    await logger.info(
+        "Processing upload",
+        source_name=source_name,
+        filename=file.filename,
+        file_size=file_size,
+        provider_name=provider_name
     )
 
     try:
@@ -125,14 +129,22 @@ async def upload_evidence_file(
     except ValueError as e:
         import traceback
 
-        logger.error(f"Validation error processing {source_name} upload: {e}")
-        logger.error(f"Full traceback:\n{traceback.format_exc()}")
+        await logger.error(
+            "Validation error processing upload",
+            error=e,
+            source_name=source_name,
+            traceback=traceback.format_exc()
+        )
         raise ValidationError(field="file_content", reason=str(e)) from e
     except Exception as e:
         import traceback
 
-        logger.error(f"Failed to process upload for {source_name}: {e}")
-        logger.error(f"Full traceback:\n{traceback.format_exc()}")
+        await logger.error(
+            "Failed to process upload",
+            error=e,
+            source_name=source_name,
+            traceback=traceback.format_exc()
+        )
         raise DataSourceError(source_name, "file_processing", f"Processing failed: {str(e)}") from e
 
 
