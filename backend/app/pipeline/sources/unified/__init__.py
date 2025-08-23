@@ -8,15 +8,19 @@ retrying, and error handling.
 
 from app.pipeline.sources.unified.base import UnifiedDataSource
 from app.pipeline.sources.unified.clingen import ClinGenUnifiedSource
+from app.pipeline.sources.unified.diagnostic_panels import DiagnosticPanelsSource
 from app.pipeline.sources.unified.gencc import GenCCUnifiedSource
 from app.pipeline.sources.unified.hpo import HPOUnifiedSource
+from app.pipeline.sources.unified.literature import LiteratureSource
 from app.pipeline.sources.unified.panelapp import PanelAppUnifiedSource
 from app.pipeline.sources.unified.pubtator import PubTatorUnifiedSource
 
 __all__ = [
     "ClinGenUnifiedSource",
+    "DiagnosticPanelsSource",
     "GenCCUnifiedSource",
     "HPOUnifiedSource",
+    "LiteratureSource",
     "PanelAppUnifiedSource",
     "PubTatorUnifiedSource",
     "UnifiedDataSource",
@@ -30,6 +34,8 @@ SOURCE_MAP = {
     "PubTator": PubTatorUnifiedSource,
     "HPO": HPOUnifiedSource,
     "ClinGen": ClinGenUnifiedSource,
+    "DiagnosticPanels": DiagnosticPanelsSource,
+    "Literature": LiteratureSource,
 }
 
 def get_unified_source(source_name: str, **kwargs) -> UnifiedDataSource:

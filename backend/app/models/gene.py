@@ -19,6 +19,7 @@ from sqlalchemy.orm import relationship
 
 from app.models.base import Base, TimestampMixin
 
+
 class Gene(Base, TimestampMixin):
     """Gene master table"""
 
@@ -42,7 +43,7 @@ class GeneEvidence(Base, TimestampMixin):
     __tablename__ = "gene_evidence"
     __table_args__ = (
         UniqueConstraint(
-            "gene_id", "source_name", name="gene_evidence_source_idx"
+            "gene_id", "source_name", "source_detail", name="gene_evidence_source_idx"
         ),
     )
 

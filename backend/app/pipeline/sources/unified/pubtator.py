@@ -203,6 +203,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         page = 1
         total_fetched = 0
         total_pages = None  # Will be set from API response
+        consecutive_failures = 0  # Track consecutive failures
+        max_consecutive_failures = 3  # Stop after 3 consecutive failures
 
         while True:
             # Use PubTator3's native search endpoint
@@ -221,21 +223,48 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 logger.info(f"🔍 PubTator3 search page {page}/{total_pages if total_pages else '?'}")
 
             try:
-                logger.debug(f"🔍 Making request to: {search_url} with params: {params}")
+                logger.info(f"🔍 Page {page}: Starting request to PubTator API")
+                logger.debug(f"🔍 Page {page}: URL: {search_url}")
+                logger.debug(f"🔍 Page {page}: Params: {params}")
+                logger.debug(f"🔍 Page {page}: Using retry strategy with timeout=60s")
+
+                # Use existing retry strategy - it already has exponential backoff
                 response = await self.retry_strategy.execute_async(
                     lambda url=search_url, p=params: self.http_client.get(url, params=p, timeout=60)
                 )
-                logger.debug(f"🔍 Response status: {response.status_code}")
+
+                logger.info(f"🔍 Page {page}: Request completed successfully")
+
+                # Reset consecutive failures on successful response
+                consecutive_failures = 0
+                logger.debug(f"🔍 Response received for page {page}, status: {response.status_code}")
+                logger.debug(f"🔍 Response headers: {dict(response.headers)}")
 
                 if response.status_code != 200:
-                    logger.error(f"PubTator3 search failed: HTTP {response.status_code}")
-                    logger.error(f"Response content: {response.text[:500]}")
-                    break
+                    logger.error(f"PubTator3 search failed on page {page}: HTTP {response.status_code}")
+                    logger.error(f"Response content preview: {response.text[:500]}")
+                    consecutive_failures += 1
+                    if consecutive_failures >= max_consecutive_failures:
+                        logger.error(f"🛑 Stopping after {consecutive_failures} consecutive errors")
+                        break
+                    continue
 
-                logger.debug("🔍 Parsing JSON response...")
-                data = response.json()
-                logger.debug(f"🔍 JSON parsed, keys: {list(data.keys())}")
+                logger.debug(f"🔍 Page {page}: Starting JSON parsing...")
+                try:
+                    data = response.json()
+                    logger.debug(f"🔍 Page {page}: JSON parsed successfully, keys: {list(data.keys())}")
+                    logger.debug(f"🔍 Page {page}: Response size: {len(response.text)} bytes")
+                except Exception as json_err:
+                    logger.error(f"🔍 Page {page}: Failed to parse JSON: {json_err}")
+                    logger.error(f"🔍 Page {page}: Response preview: {response.text[:500]}")
+                    consecutive_failures += 1
+                    if consecutive_failures >= max_consecutive_failures:
+                        logger.error(f"🛑 Stopping after {consecutive_failures} consecutive parse errors")
+                        break
+                    continue
+
                 results = data.get("results", [])
+                logger.debug(f"🔍 Page {page}: Found {len(results)} results")
 
                 # Get total pages from API response
                 if total_pages is None:
@@ -259,15 +288,18 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 # Progress logging and tracker update
                 total_available = data.get("count", 0)
                 logger.info(f"Page {page}: {len(results)} results (total fetched: {total_fetched}/{total_available})")
+                logger.debug(f"🔍 Page {page}: Memory usage: all_results contains {len(all_results)} items")
 
                 # Update tracker with current progress
                 if tracker:
                     actual_pages = min(self.max_pages, total_pages) if self.max_pages else total_pages
+                    logger.debug(f"🔍 Page {page}: Updating tracker - current_page={page}, current_item={total_fetched}")
                     tracker.update(
                         current_page=page,
                         current_item=total_fetched,
                         operation=f"Fetching PubTator data: page {page}/{actual_pages} ({total_fetched} articles)"
                     )
+                    logger.debug(f"🔍 Page {page}: Tracker updated successfully")
 
                 # Check stopping conditions
                 # 1. If we have a max_pages limit and reached it
@@ -291,7 +323,22 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             except Exception as e:
                 logger.error(f"❌ Error on page {page}: {type(e).__name__}: {e}")
                 logger.exception("Full exception details:")
-                break
+
+                # Add more context about the failure
+                logger.debug(f"🔍 Page {page}: Failed after retry strategy exhausted")
+                logger.debug(f"🔍 Page {page}: Total fetched so far: {total_fetched}")
+
+                consecutive_failures += 1
+                logger.info(f"🔍 Page {page}: Consecutive failures: {consecutive_failures}/{max_consecutive_failures}")
+
+                if consecutive_failures >= max_consecutive_failures:
+                    logger.warning(f"🛑 Stopping after {consecutive_failures} consecutive failures")
+                    break
+
+                # Skip to next page if we haven't hit the limit
+                logger.info(f"🔍 Page {page}: Skipping to next page after error")
+                page += 1
+                continue
 
         logger.info(f"✅ PubTator3 search complete: {total_fetched} articles from {page-1} pages")
         return all_results

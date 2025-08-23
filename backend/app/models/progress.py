@@ -7,7 +7,8 @@ from enum import Enum as PyEnum
 from sqlalchemy import JSON, Column, DateTime, Enum, Float, Integer, String, Text
 from sqlalchemy.sql import func
 
-from app.core.database import Base
+from app.models.base import Base
+
 
 class SourceStatus(PyEnum):
     """Enumeration for data source status"""

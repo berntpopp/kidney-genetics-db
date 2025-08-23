@@ -79,6 +79,8 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
 
     # Get evidence sources
     evidence = gene_crud.get_evidence(db, gene.id)  # type: ignore[arg-type]
+
+    # Map source names to display names (no more static sources)
     sources = list({e.source_name for e in evidence})
 
     # Get normalized scores breakdown
@@ -87,17 +89,18 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
         result = db.execute(
             text("""
                 SELECT source_name, normalized_score
-                FROM evidence_normalized_scores
+                FROM combined_evidence_scores
                 WHERE gene_id = :gene_id
                 ORDER BY source_name
             """),
             {"gene_id": gene.id}
         )
         for row in result:
+            # Use source name directly (no more static sources)
             score_breakdown[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
 
     # Build response
-    result = {
+    return {
         "id": gene.id,
         "hgnc_id": gene.hgnc_id,
         "approved_symbol": gene.approved_symbol,
@@ -109,8 +112,6 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
         "sources": sources,
         "score_breakdown": score_breakdown,  # Raw normalized scores per source
     }
-
-    return result
 
 @router.get("/{gene_symbol}/evidence")
 async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
@@ -129,7 +130,7 @@ async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> 
         result = db.execute(
             text("""
                 SELECT evidence_id, normalized_score
-                FROM evidence_normalized_scores
+                FROM combined_evidence_scores
                 WHERE gene_id = :gene_id
             """),
             {"gene_id": gene.id}
@@ -137,22 +138,27 @@ async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> 
         for row in result:
             normalized_scores[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
 
+    # Process evidence - DiagnosticPanels is already properly structured
+    aggregated_evidence = []
+
+    for e in evidence:
+        display_name = e.source_name
+
+        aggregated_evidence.append({
+            "id": e.id,
+            "source_name": display_name,
+            "source_detail": e.source_detail,
+            "evidence_data": e.evidence_data,
+            "evidence_date": e.evidence_date,
+            "created_at": e.created_at,
+            "normalized_score": normalized_scores.get(e.id, 0.0),
+        })
+
     return {
         "gene_symbol": gene.approved_symbol,
         "gene_id": gene.id,
-        "evidence_count": len(evidence),
-        "evidence": [
-            {
-                "id": e.id,
-                "source_name": e.source_name,
-                "source_detail": e.source_detail,
-                "evidence_data": e.evidence_data,
-                "evidence_date": e.evidence_date,
-                "created_at": e.created_at,
-                "normalized_score": normalized_scores.get(e.id, 0.0),  # Raw normalized score (0-1)
-            }
-            for e in evidence
-        ],
+        "evidence_count": len(aggregated_evidence),
+        "evidence": aggregated_evidence,
     }
 
 @router.post("/", response_model=Gene)

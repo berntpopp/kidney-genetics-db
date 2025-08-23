@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+
 class DataSourceStats(BaseModel):
     """Statistics for a data source"""
 

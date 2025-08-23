@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.pipeline.sources.pubtator import PubTatorClient
 
+
 class TestPubTatorNormalization:
     """Test PubTator integration with gene normalization system."""
 

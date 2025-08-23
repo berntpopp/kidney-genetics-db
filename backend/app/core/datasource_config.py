@@ -127,19 +127,21 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
     },
     "Literature": {
         "display_name": "Literature",
-        "description": "Curated literature references",
+        "description": "Curated literature references with publication metadata",
         "url": None,
         "documentation_url": None,
-        "auto_update": False,  # Manual curation
+        "auto_update": False,  # Manual upload via API
         "priority": 6,
+        "hybrid_source": True,  # Uses unified source pattern
     },
-    "Diagnostic": {
+    "DiagnosticPanels": {
         "display_name": "Diagnostic Panels",
-        "description": "Commercial diagnostic kidney gene panels",
+        "description": "Commercial diagnostic kidney gene panels from multiple providers",
         "url": None,
         "documentation_url": None,
-        "auto_update": False,  # Not yet implemented
+        "auto_update": False,  # Manual upload via API
         "priority": 7,
+        "hybrid_source": True,  # Uses unified source pattern
     },
 }
 

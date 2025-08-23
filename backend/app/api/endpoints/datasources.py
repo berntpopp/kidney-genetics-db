@@ -72,6 +72,8 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         """)
     ).fetchone()
 
+    # No longer need to query static sources - they've been replaced by hybrid sources
+
     # Build data source list
     for source_name, config in DATA_SOURCE_CONFIG.items():
         if source_name in source_stats:
@@ -99,8 +101,10 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         else:
             # Source is configured but has no data
             stats = None
-            if source_name in ["Literature", "Diagnostic"]:
-                status = "pending"  # Not yet implemented
+            if config.get("hybrid_source", False):
+                status = "available"  # Ready for manual upload
+            elif source_name in ["Literature", "DiagnosticPanels"]:
+                status = "available"  # Ready for manual upload
             else:
                 status = "inactive"
 
@@ -115,6 +119,8 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
                 documentation_url=config["documentation_url"],
             )
         )
+
+    # Static sources have been replaced by hybrid sources (DiagnosticPanels, Literature)
 
     # Get last pipeline run
     last_run = (
@@ -164,19 +170,21 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
             text("""
                 SELECT
                     g.approved_symbol,
-                    gep.source_count_percentile,
+                    ces.normalized_score,
                     CASE
                         WHEN ge.source_name = 'PanelApp' THEN
                             jsonb_array_length(COALESCE(ge.evidence_data->'panels', '[]'::jsonb))
                         WHEN ge.source_name = 'PubTator' THEN
                             COALESCE((ge.evidence_data->>'publication_count')::int, 0)
+                        WHEN ge.source_name LIKE 'static_%' THEN
+                            jsonb_array_length(COALESCE(ge.evidence_data->'panels', '[]'::jsonb))
                         ELSE 0
                     END as count
                 FROM gene_evidence ge
                 JOIN genes g ON ge.gene_id = g.id
-                JOIN gene_evidence_with_percentiles gep ON ge.id = gep.id
+                JOIN combined_evidence_scores ces ON ge.id = ces.evidence_id
                 WHERE ge.source_name = :source_name
-                ORDER BY gep.source_count_percentile DESC
+                ORDER BY ces.normalized_score DESC
                 LIMIT 10
             """),
             {"source_name": source_name},
@@ -197,7 +205,7 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
             "top_genes": [
                 {
                     "symbol": gene[0],
-                    "percentile": round(gene[1] * 100, 2),
+                    "score": round(gene[1], 4) if gene[1] else 0.0,
                     "count": gene[2],
                 }
                 for gene in top_genes

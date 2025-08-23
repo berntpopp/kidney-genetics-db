@@ -65,6 +65,7 @@ import HPOEvidence from './HPOEvidence.vue'
 import PubTatorEvidence from './PubTatorEvidence.vue'
 import ClinGenEvidence from './ClinGenEvidence.vue'
 import PanelAppEvidence from './PanelAppEvidence.vue'
+import DiagnosticPanelsEvidence from './DiagnosticPanelsEvidence.vue'
 
 const props = defineProps({
   evidence: {
@@ -79,7 +80,8 @@ const evidenceComponents = {
   HPO: HPOEvidence,
   PubTator: PubTatorEvidence,
   ClinGen: ClinGenEvidence,
-  PanelApp: PanelAppEvidence
+  PanelApp: PanelAppEvidence,
+  DiagnosticPanels: DiagnosticPanelsEvidence // Fixed: no space in source name
 }
 
 const evidenceComponent = computed(() => {
@@ -107,6 +109,26 @@ const evidenceSummary = computed(() => {
     return classification
   }
 
+  if (source === 'DiagnosticPanels') {
+    // New structure with provider_panels mapping
+    if (data?.provider_panels) {
+      const providerCount = Object.keys(data.provider_panels).length
+      // Count unique panels across all providers
+      const uniquePanels = new Set()
+      Object.values(data.provider_panels).forEach(panels => {
+        panels.forEach(panel => uniquePanels.add(panel))
+      })
+      const panelCount = uniquePanels.size
+      return `${providerCount} provider${providerCount > 1 ? 's' : ''}, ${panelCount} panel${panelCount > 1 ? 's' : ''}`
+    }
+    // Fallback for aggregated counts
+    else if (data?.provider_count || data?.panel_count) {
+      const providerCount = data.provider_count || 0
+      const panelCount = data.panel_count || 0
+      return `${providerCount} provider${providerCount > 1 ? 's' : ''}, ${panelCount} panel${panelCount > 1 ? 's' : ''}`
+    }
+  }
+
   return props.evidence.source_detail
 })
 
@@ -123,6 +145,15 @@ const primaryCount = computed(() => {
   if (props.evidence.source_name === 'PanelApp') {
     return `${data?.panel_count || 0} panels`
   }
+  if (props.evidence.source_name === 'DiagnosticPanels') {
+    // New structure with provider_panels mapping
+    if (data?.provider_panels) {
+      const providerCount = Object.keys(data.provider_panels).length
+      return `${providerCount} providers`
+    }
+    // Fallback for old structure
+    return `${data?.panels?.length || 0} panels`
+  }
 
   return null
 })
@@ -134,7 +165,8 @@ const sourceColor = computed(() => {
     HPO: 'blue',
     PubTator: 'teal',
     ClinGen: 'green',
-    PanelApp: 'orange'
+    PanelApp: 'orange',
+    DiagnosticPanels: 'indigo' // Fixed: no space
   }
   return colors[props.evidence.source_name] || 'grey'
 })
@@ -145,7 +177,8 @@ const sourceIcon = computed(() => {
     HPO: 'mdi-human',
     PubTator: 'mdi-text-search',
     ClinGen: 'mdi-certificate',
-    PanelApp: 'mdi-view-dashboard'
+    PanelApp: 'mdi-view-dashboard',
+    DiagnosticPanels: 'mdi-test-tube' // Fixed: no space
   }
   return icons[props.evidence.source_name] || 'mdi-database'
 })
@@ -182,7 +215,8 @@ const getSourceUrl = sourceName => {
     HPO: 'https://hpo.jax.org/',
     PubTator: 'https://www.ncbi.nlm.nih.gov/research/pubtator/',
     ClinGen: 'https://clinicalgenome.org/',
-    PanelApp: 'https://panelapp.genomicsengland.co.uk/'
+    PanelApp: 'https://panelapp.genomicsengland.co.uk/',
+    'Diagnostic Panels': '#' // No single source URL for aggregated panels
   }
   return urls[sourceName] || '#'
 }

@@ -18,6 +18,7 @@ from app.core.gene_normalization import (
 )
 from app.models.gene import Gene
 
+
 class TestGeneTextCleaning:
     """Test gene text cleaning and validation functions."""
 
