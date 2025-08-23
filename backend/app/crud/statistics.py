@@ -14,26 +14,39 @@ logger = logging.getLogger(__name__)
 class CRUDStatistics:
     """CRUD operations for statistics and data analysis"""
 
-    def get_source_overlaps(self, db: Session) -> dict[str, Any]:
+    def get_source_overlaps(self, db: Session, selected_sources: list[str] | None = None) -> dict[str, Any]:
         """
-        Calculate gene intersections between all data sources for UpSet plot visualization
+        Calculate gene intersections between data sources for UpSet plot visualization
+
+        Args:
+            db: Database session
+            selected_sources: Optional list of source names to include. If None, uses all sources.
 
         Returns:
             Dictionary with sets and intersections data for UpSet.js
         """
         try:
-            # Get all source names and their gene counts
-            sources_result = db.execute(
-                text("""
-                    SELECT 
-                        source_name,
-                        COUNT(DISTINCT gene_id) as gene_count,
-                        array_agg(DISTINCT gene_id ORDER BY gene_id) as gene_ids
-                    FROM gene_evidence 
-                    GROUP BY source_name
-                    ORDER BY source_name
-                """)
-            ).fetchall()
+            # Build WHERE clause for source filtering if specified
+            where_clause = ""
+            params = {}
+
+            if selected_sources:
+                where_clause = "WHERE source_name = ANY(:selected_sources)"
+                params["selected_sources"] = selected_sources
+
+            # Get source names and their gene counts (filtered if specified)
+            sources_query = f"""
+                SELECT
+                    source_name,
+                    COUNT(DISTINCT gene_id) as gene_count,
+                    array_agg(DISTINCT gene_id ORDER BY gene_id) as gene_ids
+                FROM gene_evidence
+                {where_clause}
+                GROUP BY source_name
+                ORDER BY source_name
+            """
+
+            sources_result = db.execute(text(sources_query), params).fetchall()
 
             # Build sets data
             sets = []
@@ -70,8 +83,8 @@ class CRUDStatistics:
                         # Get gene symbols for the intersection
                         gene_symbols = db.execute(
                             text("""
-                                SELECT approved_symbol 
-                                FROM genes 
+                                SELECT approved_symbol
+                                FROM genes
                                 WHERE id = ANY(:gene_ids)
                                 ORDER BY approved_symbol
                             """),
@@ -89,8 +102,17 @@ class CRUDStatistics:
             # Sort intersections by size (descending) for better visualization
             intersections.sort(key=lambda x: x["size"], reverse=True)
 
-            # Calculate summary statistics
-            total_unique_genes = db.execute(text("SELECT COUNT(*) FROM genes")).scalar() or 0
+            # Calculate summary statistics - count unique genes in selected sources
+            if selected_sources:
+                total_genes_query = """
+                    SELECT COUNT(DISTINCT gene_id)
+                    FROM gene_evidence
+                    WHERE source_name = ANY(:selected_sources)
+                """
+                total_unique_genes = db.execute(text(total_genes_query), {"selected_sources": selected_sources}).scalar() or 0
+            else:
+                # If no source filter, get all genes with evidence
+                total_unique_genes = db.execute(text("SELECT COUNT(DISTINCT gene_id) FROM gene_evidence")).scalar() or 0
 
             # Find genes that appear in all sources
             all_sources_genes = set(source_gene_map[source_names[0]])
@@ -141,14 +163,14 @@ class CRUDStatistics:
                     # Count panels per gene
                     distribution_data = db.execute(
                         text("""
-                            SELECT 
+                            SELECT
                                 panel_count,
                                 COUNT(*) as gene_count
                             FROM (
-                                SELECT 
+                                SELECT
                                     gene_id,
                                     jsonb_array_length(COALESCE(evidence_data->'panels', '[]'::jsonb)) as panel_count
-                                FROM gene_evidence 
+                                FROM gene_evidence
                                 WHERE source_name = :source_name
                             ) panel_counts
                             GROUP BY panel_count
@@ -160,12 +182,12 @@ class CRUDStatistics:
                     metadata = db.execute(
                         text("""
                             WITH panel_stats AS (
-                                SELECT 
+                                SELECT
                                     jsonb_array_length(COALESCE(evidence_data->'panels', '[]'::jsonb)) as panel_count
-                                FROM gene_evidence 
+                                FROM gene_evidence
                                 WHERE source_name = :source_name
                             )
-                            SELECT 
+                            SELECT
                                 COUNT(DISTINCT panel_count) as total_unique_counts,
                                 MAX(panel_count) as max_panels_per_gene,
                                 AVG(panel_count::float) as avg_panels_per_gene
@@ -178,14 +200,14 @@ class CRUDStatistics:
                     # Count publications per gene
                     distribution_data = db.execute(
                         text("""
-                            SELECT 
+                            SELECT
                                 pub_count,
                                 COUNT(*) as gene_count
                             FROM (
-                                SELECT 
+                                SELECT
                                     gene_id,
                                     jsonb_array_length(COALESCE(evidence_data->'pmids', '[]'::jsonb)) as pub_count
-                                FROM gene_evidence 
+                                FROM gene_evidence
                                 WHERE source_name = :source_name
                             ) pub_counts
                             GROUP BY pub_count
@@ -197,12 +219,12 @@ class CRUDStatistics:
                     metadata = db.execute(
                         text("""
                             WITH pub_stats AS (
-                                SELECT 
+                                SELECT
                                     jsonb_array_length(COALESCE(evidence_data->'pmids', '[]'::jsonb)) as pub_count
-                                FROM gene_evidence 
+                                FROM gene_evidence
                                 WHERE source_name = :source_name
                             )
-                            SELECT 
+                            SELECT
                                 COUNT(DISTINCT pub_count) as total_unique_counts,
                                 MAX(pub_count) as max_publications_per_gene,
                                 AVG(pub_count::float) as avg_publications_per_gene
@@ -215,14 +237,14 @@ class CRUDStatistics:
                     # Count diagnostic panels per gene
                     distribution_data = db.execute(
                         text("""
-                            SELECT 
+                            SELECT
                                 panel_count,
                                 COUNT(*) as gene_count
                             FROM (
-                                SELECT 
+                                SELECT
                                     gene_id,
                                     jsonb_array_length(COALESCE(evidence_data->'panels', '[]'::jsonb)) as panel_count
-                                FROM gene_evidence 
+                                FROM gene_evidence
                                 WHERE source_name = :source_name
                             ) panel_counts
                             GROUP BY panel_count
@@ -234,12 +256,12 @@ class CRUDStatistics:
                     metadata = db.execute(
                         text("""
                             WITH panel_stats AS (
-                                SELECT 
+                                SELECT
                                     jsonb_array_length(COALESCE(evidence_data->'panels', '[]'::jsonb)) as panel_count
-                                FROM gene_evidence 
+                                FROM gene_evidence
                                 WHERE source_name = :source_name
                             )
-                            SELECT 
+                            SELECT
                                 COUNT(DISTINCT panel_count) as total_unique_counts,
                                 MAX(panel_count) as max_panels_per_gene,
                                 AVG(panel_count::float) as avg_panels_per_gene
@@ -252,10 +274,10 @@ class CRUDStatistics:
                     # For sources like ClinGen, GenCC, HPO - count evidence items per gene
                     distribution_data = db.execute(
                         text("""
-                            SELECT 
+                            SELECT
                                 1 as evidence_count,
                                 COUNT(*) as gene_count
-                            FROM gene_evidence 
+                            FROM gene_evidence
                             WHERE source_name = :source_name
                             GROUP BY 1
                         """),
@@ -264,11 +286,11 @@ class CRUDStatistics:
 
                     metadata = db.execute(
                         text("""
-                            SELECT 
+                            SELECT
                                 COUNT(*) as total_genes,
                                 1 as max_evidence_per_gene,
                                 1.0 as avg_evidence_per_gene
-                            FROM gene_evidence 
+                            FROM gene_evidence
                             WHERE source_name = :source_name
                         """),
                         {"source_name": source_name},
@@ -329,8 +351,8 @@ class CRUDStatistics:
             # Get evidence score distribution from gene_scores view
             score_distribution = db.execute(
                 text("""
-                    SELECT 
-                        CASE 
+                    SELECT
+                        CASE
                             WHEN percentage_score >= 90 THEN '90-100'
                             WHEN percentage_score >= 70 THEN '70-90'
                             WHEN percentage_score >= 50 THEN '50-70'
@@ -365,7 +387,7 @@ class CRUDStatistics:
             # Calculate source contribution weights (based on active sources)
             source_stats = db.execute(
                 text("""
-                    SELECT 
+                    SELECT
                         source_name,
                         COUNT(DISTINCT gene_id) as gene_count,
                         COUNT(*) as evidence_count
@@ -387,7 +409,7 @@ class CRUDStatistics:
             # Get source coverage statistics
             coverage_stats = db.execute(
                 text("""
-                    SELECT 
+                    SELECT
                         source_count,
                         COUNT(*) as gene_count,
                         ROUND((COUNT(*) * 100.0 / SUM(COUNT(*)) OVER()), 2) as percentage

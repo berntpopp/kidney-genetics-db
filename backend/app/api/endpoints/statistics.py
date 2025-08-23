@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -18,16 +18,23 @@ router = APIRouter()
 
 
 @router.get("/source-overlaps")
-async def get_source_overlaps(db: Session = Depends(get_db)) -> dict[str, Any]:
+async def get_source_overlaps(
+    sources: list[str] | None = Query(None, description="Specific source names to include in analysis"),
+    db: Session = Depends(get_db)
+) -> dict[str, Any]:
     """
-    Get gene intersections between all data sources for UpSet plot visualization.
+    Get gene intersections between data sources for UpSet plot visualization.
+
+    Args:
+        sources: Optional list of source names to filter analysis (e.g., ['PanelApp', 'ClinGen'])
+                If None, includes all available sources.
 
     Returns data optimized for UpSet.js library with sets and intersections.
     """
     start_time = time.time()
 
     try:
-        overlap_data = statistics_crud.get_source_overlaps(db)
+        overlap_data = statistics_crud.get_source_overlaps(db, selected_sources=sources)
 
         query_duration_ms = round((time.time() - start_time) * 1000, 2)
 
@@ -44,7 +51,7 @@ async def get_source_overlaps(db: Session = Depends(get_db)) -> dict[str, Any]:
     except Exception as e:
         raise ValidationError(
             field="source_overlaps", message=f"Failed to calculate source overlaps: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/source-distributions")
@@ -77,7 +84,7 @@ async def get_source_distributions(db: Session = Depends(get_db)) -> dict[str, A
         raise ValidationError(
             field="source_distributions",
             message=f"Failed to calculate source distributions: {str(e)}",
-        )
+        ) from e
 
 
 @router.get("/evidence-composition")
@@ -109,7 +116,7 @@ async def get_evidence_composition(db: Session = Depends(get_db)) -> dict[str, A
         raise ValidationError(
             field="evidence_composition",
             message=f"Failed to analyze evidence composition: {str(e)}",
-        )
+        ) from e
 
 
 @router.get("/summary")
@@ -174,4 +181,4 @@ async def get_statistics_summary(db: Session = Depends(get_db)) -> dict[str, Any
     except Exception as e:
         raise ValidationError(
             field="statistics_summary", message=f"Failed to generate statistics summary: {str(e)}"
-        )
+        ) from e

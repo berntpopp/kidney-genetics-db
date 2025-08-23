@@ -68,8 +68,84 @@
 
         <v-divider class="mb-4" />
 
+        <!-- Source Selection Interface -->
+        <div class="source-selection-container mb-4">
+          <div class="d-flex align-center flex-wrap gap-2">
+            <div class="d-flex align-center">
+              <v-icon class="me-2" size="small">mdi-filter-outline</v-icon>
+              <span class="text-subtitle-2">Selected Sources ({{ selectedSources.length }}):</span>
+            </div>
+
+            <!-- Source chips inline -->
+            <v-chip
+              v-for="source in selectedSources"
+              :key="source"
+              class="ma-1"
+              closable
+              color="primary"
+              variant="flat"
+              size="small"
+              @click:close="removeSource(source)"
+            >
+              {{ source }}
+            </v-chip>
+
+            <!-- Select All chip (appears when not all sources are selected) -->
+            <v-chip
+              v-if="selectedSources.length < availableSources.length"
+              class="ma-1"
+              variant="outlined"
+              color="success"
+              prepend-icon="mdi-select-all"
+              size="small"
+              @click="selectAllSources"
+            >
+              Select All
+            </v-chip>
+
+            <!-- Add source menu -->
+            <v-menu v-if="availableToAdd.length > 0">
+              <template #activator="{ props }">
+                <v-chip
+                  v-bind="props"
+                  class="ma-1"
+                  variant="outlined"
+                  color="primary"
+                  prepend-icon="mdi-plus"
+                  size="small"
+                >
+                  Add Source
+                </v-chip>
+              </template>
+              <v-list>
+                <v-list-item
+                  v-for="source in availableToAdd"
+                  :key="source"
+                  @click="addSource(source)"
+                >
+                  <v-list-item-title>{{ source }}</v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </v-menu>
+          </div>
+        </div>
+
         <!-- UpSet Plot -->
-        <div ref="upsetContainer" class="upset-plot" style="min-height: 500px; width: 100%"></div>
+        <div
+          v-if="selectedSources.length > 0"
+          ref="upsetContainer"
+          class="upset-plot"
+          style="min-height: 500px; width: 100%"
+        ></div>
+
+        <!-- Empty state when no sources selected -->
+        <div v-else class="empty-state">
+          <v-icon size="64" color="grey-lighten-1">mdi-chart-scatter-plot-hexbin</v-icon>
+          <h3 class="text-h6 mt-4 mb-2 text-grey-lighten-1">No Sources Selected</h3>
+          <p class="text-body-2 text-grey">
+            Select one or more data sources above to view the UpSet plot visualization.
+          </p>
+        </div>
 
         <!-- Selected intersection details -->
         <v-card v-if="selectedIntersection" variant="outlined" class="mt-4">
@@ -114,7 +190,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { statisticsApi } from '@/api/statistics'
 import * as d3 from 'd3'
 
@@ -125,13 +201,49 @@ const data = ref(null)
 const selectedIntersection = ref(null)
 const upsetContainer = ref(null)
 
+// Source selection state
+const selectedSources = ref([])
+const availableSources = ref([])
+
+// Computed properties
+const availableToAdd = computed(() =>
+  availableSources.value.filter(source => !selectedSources.value.includes(source))
+)
+
+// Initial load to get available sources
+const loadAvailableSources = async () => {
+  try {
+    const response = await statisticsApi.getSourceOverlaps() // Get all sources
+    if (response.data?.sets) {
+      const sources = response.data.sets.map(set => set.name).sort()
+      availableSources.value = sources
+      // Select all sources by default on first load
+      if (selectedSources.value.length === 0) {
+        selectedSources.value = [...sources]
+      }
+    }
+  } catch (err) {
+    console.error('Error loading available sources:', err)
+  }
+}
+
 // Load data
 const loadData = async () => {
   loading.value = true
   error.value = null
 
   try {
-    const response = await statisticsApi.getSourceOverlaps()
+    // If no sources selected, show empty state
+    if (selectedSources.value.length === 0) {
+      data.value = null
+      loading.value = false
+      return
+    }
+
+    // Call API with selected sources
+    console.log('Calling API with sources:', selectedSources.value)
+    const response = await statisticsApi.getSourceOverlaps(selectedSources.value)
+    console.log('API response:', response.data)
     data.value = response.data
 
     // Render UpSet plot after data is loaded
@@ -151,6 +263,47 @@ const loadData = async () => {
 const refreshData = () => {
   loadData()
 }
+
+// Source selection methods
+const addSource = source => {
+  if (!selectedSources.value.includes(source)) {
+    console.log('Adding source:', source)
+    // Create new array to ensure reactivity
+    selectedSources.value = [...selectedSources.value, source]
+    console.log('New selected sources:', selectedSources.value)
+  }
+}
+
+const removeSource = async source => {
+  const index = selectedSources.value.indexOf(source)
+  if (index > -1) {
+    console.log('Removing source:', source)
+    // Create new array to ensure reactivity
+    selectedSources.value = selectedSources.value.filter(s => s !== source)
+    console.log('New selected sources:', selectedSources.value)
+  }
+}
+
+const selectAllSources = () => {
+  console.log('Selecting all sources')
+  selectedSources.value = [...availableSources.value]
+  console.log('New selected sources:', selectedSources.value)
+}
+
+// Watch for changes in selectedSources and reload data
+watch(
+  selectedSources,
+  async (newSources, oldSources) => {
+    // Only reload if sources actually changed and we're not in the initial load
+    if (oldSources && newSources.length !== oldSources.length) {
+      console.log('Source count changed from', oldSources.length, 'to', newSources.length)
+      console.log('Previous sources:', oldSources)
+      console.log('New sources:', newSources)
+      await loadData()
+    }
+  },
+  { deep: true, immediate: false }
+)
 
 // Render UpSet plot using D3
 const renderUpSetPlot = () => {
@@ -223,7 +376,10 @@ const renderUpSetPlot = () => {
     .attr('opacity', 0.8)
     .style('cursor', 'pointer')
     .on('mouseover', function () {
-      d3.select(this).attr('opacity', 1).attr('stroke', 'rgb(var(--v-theme-on-surface))').attr('stroke-width', 1)
+      d3.select(this)
+        .attr('opacity', 1)
+        .attr('stroke', 'rgb(var(--v-theme-on-surface))')
+        .attr('stroke-width', 1)
     })
     .on('mouseout', function () {
       d3.select(this).attr('opacity', 0.8).attr('stroke', 'none')
@@ -327,7 +483,12 @@ const renderUpSetPlot = () => {
         .attr('cx', x)
         .attr('cy', y)
         .attr('r', 4)
-        .attr('fill', isInIntersection ? 'rgb(var(--v-theme-on-surface))' : 'rgb(var(--v-theme-surface-variant))')
+        .attr(
+          'fill',
+          isInIntersection
+            ? 'rgb(var(--v-theme-on-surface))'
+            : 'rgb(var(--v-theme-surface-variant))'
+        )
         .attr('stroke', 'rgb(var(--v-theme-on-surface))')
         .attr('stroke-width', 1)
         .style('cursor', 'pointer')
@@ -346,8 +507,12 @@ const renderUpSetPlot = () => {
 }
 
 // Initialize
-onMounted(() => {
-  loadData()
+onMounted(async () => {
+  await loadAvailableSources()
+  // Trigger initial load after sources are set
+  if (selectedSources.value.length > 0) {
+    loadData()
+  }
 })
 </script>
 
@@ -365,6 +530,42 @@ onMounted(() => {
 
 .upset-plot svg {
   font-family: 'Roboto', sans-serif;
+}
+
+/* Source selection styles */
+.source-selection-container {
+  background: rgb(var(--v-theme-surface-variant));
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.source-chips {
+  min-height: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.source-chips .v-chip {
+  font-weight: 500;
+}
+
+.source-chips .v-chip--variant-outlined {
+  border-style: dashed;
+  color: rgb(var(--v-theme-primary));
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  padding: 48px 24px;
+  text-align: center;
 }
 
 /* Responsive adjustments */

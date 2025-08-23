@@ -7,10 +7,21 @@ import apiClient from './client'
 export const statisticsApi = {
   /**
    * Get gene intersections between data sources for UpSet plot
+   * @param {Array<string>} sources - Optional array of source names to filter by
    * @returns {Promise} UpSet plot data with sets and intersections
    */
-  async getSourceOverlaps() {
-    const response = await apiClient.get('/api/statistics/source-overlaps')
+  async getSourceOverlaps(sources = null) {
+    let url = '/api/statistics/source-overlaps'
+
+    // Add sources as query parameters if provided
+    if (sources && sources.length > 0) {
+      // eslint-disable-next-line no-undef
+      const params = new URLSearchParams()
+      sources.forEach(source => params.append('sources', source))
+      url += `?${params.toString()}`
+    }
+
+    const response = await apiClient.get(url)
     return {
       data: response.data.data,
       meta: response.data.meta
