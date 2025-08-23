@@ -12,7 +12,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,7 @@ from app.core.cached_http_client import get_cached_http_client
 from app.core.config import settings
 from app.core.database import get_pool_status
 from app.core.datasource_config import get_source_cache_ttl
+from app.core.exceptions import CacheError, ValidationError
 from app.core.monitoring import get_monitoring_service
 
 logger = logging.getLogger(__name__)
@@ -146,7 +147,7 @@ async def get_cache_stats(
 
     except Exception as e:
         logger.error(f"Error getting cache stats: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting cache stats: {e!s}") from e
+        raise CacheError("get_stats", detail=str(e)) from e
 
 
 @router.get("/stats/{namespace}", response_model=NamespaceStatsResponse)
@@ -161,7 +162,7 @@ async def get_namespace_stats(
         stats = await cache_service._get_namespace_stats(namespace)
 
         if not stats:
-            raise HTTPException(status_code=404, detail=f"Namespace '{namespace}' not found")
+            raise ValidationError(field="namespace", reason=f"Namespace '{namespace}' not found")
 
         return NamespaceStatsResponse(
             namespace=namespace,
@@ -176,11 +177,11 @@ async def get_namespace_stats(
             newest_entry=stats.get("newest_entry"),
         )
 
-    except HTTPException:
+    except CacheError:
         raise
     except Exception as e:
         logger.error(f"Error getting namespace stats for {namespace}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting namespace stats: {e!s}") from e
+        raise CacheError("get_namespace_stats", detail=str(e)) from e
 
 
 @router.get("/health", response_model=CacheHealthResponse)
@@ -259,7 +260,7 @@ async def get_cache_health(db: AsyncSession = Depends(get_db)) -> CacheHealthRes
 
     except Exception as e:
         logger.error(f"Error getting cache health: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting cache health: {e!s}") from e
+        raise CacheError("get_health", detail=str(e)) from e
 
 
 @router.get("/keys/{namespace}", response_model=CacheKeyListResponse)
@@ -291,7 +292,7 @@ async def list_cache_keys(
 
     except Exception as e:
         logger.error(f"Error listing cache keys for {namespace}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error listing cache keys: {e!s}") from e
+        raise CacheError("list_keys", detail=str(e)) from e
 
 
 @router.delete("/{namespace}", response_model=CacheClearResponse)
@@ -312,7 +313,7 @@ async def clear_namespace(namespace: str, db: AsyncSession = Depends(get_db)) ->
 
     except Exception as e:
         logger.error(f"Error clearing namespace {namespace}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error clearing namespace: {e!s}") from e
+        raise CacheError("clear_namespace", detail=str(e)) from e
 
 
 @router.delete("/{namespace}/{key}", response_model=CacheClearResponse)
@@ -335,7 +336,7 @@ async def delete_cache_key(
 
     except Exception as e:
         logger.error(f"Error deleting cache key {namespace}:{key}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error deleting cache key: {e!s}") from e
+        raise CacheError("cache_operation", detail=f"Error deleting cache key: {e!s}") from e
 
 
 @router.post("/cleanup")
@@ -356,7 +357,7 @@ async def cleanup_expired_entries(db: AsyncSession = Depends(get_db)) -> CacheCl
 
     except Exception as e:
         logger.error(f"Error during cache cleanup: {e}")
-        raise HTTPException(status_code=500, detail=f"Error during cache cleanup: {e!s}") from e
+        raise CacheError("cache_operation", detail=f"Error during cache cleanup: {e!s}") from e
 
 
 @router.post("/warm", response_model=CacheWarmResponse)
@@ -399,7 +400,7 @@ async def warm_cache(
 
     except Exception as e:
         logger.error(f"Error during cache warming: {e}")
-        raise HTTPException(status_code=500, detail=f"Error during cache warming: {e!s}") from e
+        raise CacheError("cache_operation", detail=f"Error during cache warming: {e!s}") from e
 
 
 @router.get("/config")
@@ -466,7 +467,7 @@ async def get_prometheus_metrics(db: AsyncSession = Depends(get_db)) -> Response
 
     except Exception as e:
         logger.error(f"Error generating Prometheus metrics: {e}")
-        raise HTTPException(status_code=500, detail=f"Error generating metrics: {e!s}") from e
+        raise CacheError("cache_operation", detail=f"Error generating metrics: {e!s}") from e
 
 
 @router.get("/monitoring/dashboard")
@@ -485,7 +486,7 @@ async def get_monitoring_dashboard(db: AsyncSession = Depends(get_db)) -> dict[s
 
     except Exception as e:
         logger.error(f"Error getting monitoring dashboard: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting dashboard data: {e!s}") from e
+        raise CacheError("cache_operation", detail=f"Error getting dashboard data: {e!s}") from e
 
 
 @router.get("/monitoring/performance")
@@ -505,9 +506,7 @@ async def get_performance_metrics(db: AsyncSession = Depends(get_db)) -> dict[st
 
     except Exception as e:
         logger.error(f"Error getting performance metrics: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Error getting performance metrics: {e!s}"
-        ) from e
+        raise CacheError("get_performance_metrics", detail=str(e)) from e
 
 
 @router.post("/monitoring/warm-all")
@@ -530,7 +529,7 @@ async def warm_all_caches(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Error warming all caches: {e}")
-        raise HTTPException(status_code=500, detail=f"Error warming caches: {e!s}") from e
+        raise CacheError("cache_operation", detail=f"Error warming caches: {e!s}") from e
 
 
 @router.post("/monitoring/clear-all")
@@ -553,7 +552,7 @@ async def clear_all_caches(db: AsyncSession = Depends(get_db)) -> dict[str, Any]
 
     except Exception as e:
         logger.error(f"Error clearing all caches: {e}")
-        raise HTTPException(status_code=500, detail=f"Error clearing caches: {e!s}") from e
+        raise CacheError("cache_operation", detail=f"Error clearing caches: {e!s}") from e
 
 
 @router.get("/monitoring/health")
@@ -589,7 +588,7 @@ async def get_cache_system_health(db: AsyncSession = Depends(get_db)) -> dict[st
 
     except Exception as e:
         logger.error(f"Error getting cache system health: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting health status: {e!s}") from e
+        raise CacheError("cache_operation", detail=f"Error getting health status: {e!s}") from e
 
 
 @router.get("/database/pool-health")
@@ -641,4 +640,4 @@ async def get_database_pool_health() -> dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Error getting database pool health: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting pool health: {e!s}") from e
+        raise CacheError("cache_operation", detail=f"Error getting pool health: {e!s}") from e

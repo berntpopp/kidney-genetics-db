@@ -6,7 +6,7 @@ export const datasourceApi = {
    */
   async getDataSources() {
     const response = await api.get('/api/datasources/')
-    return response.data
+    return response.data.data
   },
 
   /**
@@ -14,6 +14,6 @@ export const datasourceApi = {
    */
   async getDataSource(sourceName) {
     const response = await api.get(`/api/datasources/${sourceName}`)
-    return response.data
+    return response.data.data
   }
 }

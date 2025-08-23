@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.database import engine, get_db
 from app.core.events import event_bus
 from app.core.startup import run_startup_tasks
+from app.middleware.error_handling import register_error_handlers
 from app.models import Base
 
 # FORCE DEBUG LOGGING TO WORK
@@ -94,6 +95,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register standardized error handlers and middleware
+register_error_handlers(app)
 
 # Include routers
 app.include_router(genes.router, prefix="/api/genes", tags=["genes"])

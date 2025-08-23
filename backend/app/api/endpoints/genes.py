@@ -4,11 +4,12 @@ Gene API endpoints - JSON:API compliant using reusable components
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.exceptions import GeneNotFoundError, ValidationError
 from app.core.jsonapi import (
     build_jsonapi_response,
     get_jsonapi_params,
@@ -235,7 +236,7 @@ async def get_gene(
     gene = db.query(Gene).filter(func.upper(Gene.approved_symbol) == gene_symbol.upper()).first()
 
     if not gene:
-        raise HTTPException(status_code=404, detail=f"Gene '{gene_symbol}' not found")
+        raise GeneNotFoundError(gene_symbol)
 
     # Get score data from view
     score_result = db.execute(
@@ -314,7 +315,7 @@ async def get_gene_evidence(
     gene = db.query(Gene).filter(func.upper(Gene.approved_symbol) == gene_symbol.upper()).first()
 
     if not gene:
-        raise HTTPException(status_code=404, detail=f"Gene '{gene_symbol}' not found")
+        raise GeneNotFoundError(gene_symbol)
 
     # Get evidence
     evidence = db.query(GeneEvidence).filter(GeneEvidence.gene_id == gene.id).all()
@@ -380,9 +381,9 @@ async def create_gene(
     )
 
     if existing:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Gene '{gene_in.approved_symbol}' already exists",
+        raise ValidationError(
+            field="approved_symbol",
+            reason=f"Gene '{gene_in.approved_symbol}' already exists"
         )
 
     # Create gene

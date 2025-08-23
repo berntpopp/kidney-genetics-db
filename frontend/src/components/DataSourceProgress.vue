@@ -306,7 +306,7 @@ const toggleAutoRefresh = () => {
 const fetchStatus = async () => {
   try {
     const response = await axios.get('http://localhost:8000/api/progress/status')
-    sources.value = response.data
+    sources.value = response.data.data
     lastUpdate.value = new Date()
 
     // Auto-expand if sources are running

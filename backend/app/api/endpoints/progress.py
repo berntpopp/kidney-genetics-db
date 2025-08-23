@@ -8,11 +8,13 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.events import EventTypes, event_bus
+from app.core.exceptions import DataSourceError
+from app.core.responses import ResponseBuilder
 from app.models.progress import DataSourceProgress, SourceStatus
 
 logger = logging.getLogger(__name__)
@@ -122,7 +124,7 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
 
 
 @router.get("/status")
-async def get_all_status(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
+async def get_all_status(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Get current status of all data sources
 
@@ -147,7 +149,10 @@ async def get_all_status(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
             status_dict["category"] = "other"
         result.append(status_dict)
 
-    return result
+    return ResponseBuilder.build_success_response(
+        data=result,
+        meta={"total_sources": len(result)}
+    )
 
 
 @router.get("/status/{source_name}")
@@ -164,13 +169,16 @@ async def get_source_status(source_name: str, db: Session = Depends(get_db)) -> 
     progress = db.query(DataSourceProgress).filter_by(source_name=source_name).first()
 
     if not progress:
-        raise HTTPException(status_code=404, detail=f"Source {source_name} not found")
+        raise DataSourceError(source_name, "status_check", "Source not found")
 
-    return progress.to_dict()
+    return ResponseBuilder.build_success_response(
+        data=progress.to_dict(),
+        meta={"source_name": source_name}
+    )
 
 
 @router.post("/trigger/{source_name}")
-async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dict[str, str]:
+async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Trigger an update for a specific data source
 
@@ -191,11 +199,13 @@ async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dic
 
     if not progress:
         logger.error(f"🚀 API: Source {source_name} not found in database")
-        raise HTTPException(status_code=404, detail=f"Source {source_name} not found")
+        raise DataSourceError(source_name, "status_check", "Source not found")
 
     if progress.status == SourceStatus.running:
         logger.warning(f"🚀 API: Source {source_name} already running")
-        return {"status": "already_running", "message": f"{source_name} is already running"}
+        return ResponseBuilder.build_success_response(
+            data={"status": "already_running", "message": f"{source_name} is already running"}
+        )
 
     # Trigger the update in background
     logger.info(f"🚀 API: About to call task_manager.run_source({source_name})")
@@ -211,11 +221,14 @@ async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dic
         raise
 
     logger.info(f"🚀 API: Returning success response for {source_name}")
-    return {"status": "triggered", "message": f"Update triggered for {source_name}"}
+    return ResponseBuilder.build_success_response(
+        data={"status": "triggered", "message": f"Update triggered for {source_name}"},
+        meta={"source_name": source_name}
+    )
 
 
 @router.post("/pause/{source_name}")
-def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, str]:
+def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Pause a running data source update
 
@@ -228,10 +241,12 @@ def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, s
     progress = db.query(DataSourceProgress).filter_by(source_name=source_name).first()
 
     if not progress:
-        raise HTTPException(status_code=404, detail=f"Source {source_name} not found")
+        raise DataSourceError(source_name, "status_check", "Source not found")
 
     if progress.status != SourceStatus.running:
-        return {"status": "not_running", "message": f"{source_name} is not running"}
+        return ResponseBuilder.build_success_response(
+            data={"status": "not_running", "message": f"{source_name} is not running"}
+        )
 
     progress.status = SourceStatus.paused
     progress.current_operation = "Paused by user"
@@ -244,11 +259,13 @@ def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, s
         )
     )
 
-    return {"status": "paused", "message": f"{source_name} has been paused"}
+    return ResponseBuilder.build_success_response(
+        data={"status": "paused", "message": f"{source_name} has been paused"}
+    )
 
 
 @router.post("/resume/{source_name}")
-async def resume_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, str]:
+async def resume_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Resume a paused data source update
 
@@ -263,15 +280,19 @@ async def resume_source(source_name: str, db: Session = Depends(get_db)) -> dict
     progress = db.query(DataSourceProgress).filter_by(source_name=source_name).first()
 
     if not progress:
-        raise HTTPException(status_code=404, detail=f"Source {source_name} not found")
+        raise DataSourceError(source_name, "status_check", "Source not found")
 
     if progress.status != SourceStatus.paused:
-        return {"status": "not_paused", "message": f"{source_name} is not paused"}
+        return ResponseBuilder.build_success_response(
+            data={"status": "not_paused", "message": f"{source_name} is not paused"}
+        )
 
     # Resume the update in background
     asyncio.create_task(task_manager.run_source(source_name, resume=True))
 
-    return {"status": "resumed", "message": f"{source_name} has been resumed"}
+    return ResponseBuilder.build_success_response(
+        data={"status": "resumed", "message": f"{source_name} has been resumed"}
+    )
 
 
 @router.get("/dashboard")
@@ -295,7 +316,7 @@ async def get_dashboard_data(db: Session = Depends(get_db)) -> dict[str, Any]:
     total_items_updated = sum(p.items_updated for p in all_progress)
     total_items_failed = sum(p.items_failed for p in all_progress)
 
-    return {
+    dashboard_data = {
         "summary": {
             "total_sources": total_sources,
             "running": running_sources,
@@ -307,8 +328,12 @@ async def get_dashboard_data(db: Session = Depends(get_db)) -> dict[str, Any]:
             "total_items_failed": total_items_failed,
         },
         "sources": [p.to_dict() for p in all_progress],
-        "last_update": datetime.utcnow().isoformat(),
     }
+
+    return ResponseBuilder.build_success_response(
+        data=dashboard_data,
+        meta={"last_update": datetime.utcnow().isoformat()}
+    )
 
 
 # Export the connection manager for use by background tasks

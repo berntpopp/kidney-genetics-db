@@ -6,13 +6,16 @@ Handles file uploads for DiagnosticPanels source.
 """
 
 import logging
+import time
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.exceptions import DataSourceError, ValidationError
+from app.core.responses import ResponseBuilder
 from app.models.gene import GeneEvidence
 from app.pipeline.sources.unified import get_unified_source
 
@@ -49,9 +52,10 @@ async def upload_evidence_file(
     """
     # Validate source
     if source_name not in UPLOAD_SOURCES:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Source '{source_name}' does not support file uploads. Available: {', '.join(UPLOAD_SOURCES)}",
+        raise DataSourceError(
+            source_name,
+            "upload",
+            f"Source does not support file uploads. Available: {', '.join(UPLOAD_SOURCES)}"
         )
 
     # Validate file size (50MB limit)
@@ -63,22 +67,22 @@ async def upload_evidence_file(
         content_chunks.append(chunk)
         file_size += len(chunk)
         if file_size > 50 * 1024 * 1024:  # 50MB limit
-            raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail="File size exceeds 50MB limit",
+            raise ValidationError(
+                field="file",
+                reason="File size exceeds 50MB limit"
             )
 
     file_content = b"".join(content_chunks)
 
     # Determine file type
     if not file.filename:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Filename is required")
+        raise ValidationError(field="filename", reason="Filename is required")
 
     file_extension = file.filename.split(".")[-1].lower()
     if file_extension not in ["json", "csv", "tsv", "xlsx", "xls"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file type: {file_extension}. Supported: json, csv, tsv, xlsx, xls",
+        raise ValidationError(
+            field="file_type",
+            reason=f"Unsupported file type: {file_extension}. Supported: json, csv, tsv, xlsx, xls"
         )
 
     # Use filename (without extension) as provider if not specified
@@ -105,7 +109,7 @@ async def upload_evidence_file(
         stats = await source.store_evidence(db, processed_data, provider_name)
 
         # Return comprehensive response
-        return {
+        upload_result = {
             "status": "success",
             "source": source_name,
             "provider": provider_name,
@@ -116,20 +120,23 @@ async def upload_evidence_file(
             "message": f"Successfully processed {len(processed_data)} genes. Created: {stats.get('created', 0)}, Merged: {stats.get('merged', 0)}",
         }
 
+        return ResponseBuilder.build_success_response(
+            data=upload_result,
+            meta={"upload_id": f"upload_{int(time.time())}", "processing_time_ms": None}
+        )
+
     except ValueError as e:
         import traceback
 
         logger.error(f"Validation error processing {source_name} upload: {e}")
         logger.error(f"Full traceback:\n{traceback.format_exc()}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise ValidationError(field="file_content", reason=str(e)) from e
     except Exception as e:
         import traceback
 
         logger.error(f"Failed to process upload for {source_name}: {e}")
         logger.error(f"Full traceback:\n{traceback.format_exc()}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Processing failed: {str(e)}"
-        ) from e
+        raise DataSourceError(source_name, "file_processing", f"Processing failed: {str(e)}") from e
 
 
 @router.get("/{source_name}/status")
@@ -145,9 +152,10 @@ async def get_source_status(source_name: str, db: Session = Depends(get_db)) -> 
         Source status and statistics
     """
     if source_name not in UPLOAD_SOURCES:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Source '{source_name}' not found. Available: {', '.join(UPLOAD_SOURCES)}",
+        raise DataSourceError(
+            source_name,
+            "status",
+            f"Source not found. Available: {', '.join(UPLOAD_SOURCES)}"
         )
 
     # Get evidence statistics
@@ -184,7 +192,7 @@ async def get_source_status(source_name: str, db: Session = Depends(get_db)) -> 
             "panel_count_estimate": len(panels),
         }
 
-    return {
+    status_data = {
         "source": source_name,
         "evidence_records": result.evidence_records or 0,
         "unique_genes": result.unique_genes or 0,
@@ -192,6 +200,11 @@ async def get_source_status(source_name: str, db: Session = Depends(get_db)) -> 
         "supported_formats": ["json", "csv", "tsv", "xlsx", "xls"],
         **additional_stats,
     }
+
+    return ResponseBuilder.build_success_response(
+        data=status_data,
+        meta={"source_name": source_name}
+    )
 
 
 @router.get("/")
@@ -217,4 +230,7 @@ async def list_hybrid_sources() -> dict[str, Any]:
 
         sources.append(source_info)
 
-    return {"sources": sources, "total": len(sources)}
+    return ResponseBuilder.build_success_response(
+        data={"sources": sources},
+        meta={"total": len(sources)}
+    )

@@ -4,20 +4,22 @@ Data source API endpoints
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.background_tasks import task_manager
 from app.core.datasource_config import DATA_SOURCE_CONFIG, get_auto_update_sources
+from app.core.exceptions import DataSourceError
+from app.core.responses import ResponseBuilder
 from app.models.gene import PipelineRun
-from app.schemas.datasource import DataSource, DataSourceList, DataSourceStats
+from app.schemas.datasource import DataSource, DataSourceStats
 
 router = APIRouter()
 
 
-@router.get("/", response_model=DataSourceList)
+@router.get("/")
 async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Get information about all data sources and their current status
@@ -283,15 +285,17 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         "providers": "Commercial diagnostic laboratories offering kidney genetic testing panels",
     }
 
-    return DataSourceList(
-        sources=sources,
-        total_active=active_count,
-        total_sources=len(sources),
-        last_pipeline_run=last_run.completed_at if last_run else None,
-        total_unique_genes=unique_genes,
-        total_evidence_records=total_evidence,
-        last_data_update=last_update,
-        explanations=explanations,
+    return ResponseBuilder.build_success_response(
+        data={
+            "sources": sources,
+            "total_active": active_count,
+            "total_sources": len(sources),
+            "last_pipeline_run": last_run.completed_at if last_run else None,
+            "total_unique_genes": unique_genes,
+            "total_evidence_records": total_evidence,
+            "last_data_update": last_update,
+            "explanations": explanations,
+        }
     )
 
 
@@ -302,7 +306,7 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
     """
     # Get basic config
     if source_name not in DATA_SOURCE_CONFIG:
-        return {"error": f"Unknown data source: {source_name}"}
+        raise DataSourceError(source_name, "configuration", "Unknown data source")
 
     config = DATA_SOURCE_CONFIG[source_name]
 
@@ -349,38 +353,42 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
             {"source_name": source_name},
         ).fetchall()
 
-        return {
-            "name": source_name,
-            "display_name": config["display_name"],
-            "description": config["description"],
-            "status": "active",
-            "url": config["url"],
-            "documentation_url": config["documentation_url"],
-            "stats": {
-                "gene_count": stats[0],
-                "evidence_count": stats[1],
-                "last_updated": stats[2].isoformat() if stats[2] else None,
-            },
-            "top_genes": [
-                {
-                    "symbol": gene[0],
-                    "score": round(gene[1], 4) if gene[1] else 0.0,
-                    "count": gene[2],
-                }
-                for gene in top_genes
-            ],
-        }
+        return ResponseBuilder.build_success_response(
+            data={
+                "name": source_name,
+                "display_name": config["display_name"],
+                "description": config["description"],
+                "status": "active",
+                "url": config["url"],
+                "documentation_url": config["documentation_url"],
+                "stats": {
+                    "gene_count": stats[0],
+                    "evidence_count": stats[1],
+                    "last_updated": stats[2].isoformat() if stats[2] else None,
+                },
+                "top_genes": [
+                    {
+                        "symbol": gene[0],
+                        "score": round(gene[1], 4) if gene[1] else 0.0,
+                        "count": gene[2],
+                    }
+                    for gene in top_genes
+                ],
+            }
+        )
     else:
-        return {
-            "name": source_name,
-            "display_name": config["display_name"],
-            "description": config["description"],
-            "status": "inactive" if source_name not in ["HPO"] else "error",
-            "url": config["url"],
-            "documentation_url": config["documentation_url"],
-            "stats": None,
-            "message": "No data available for this source",
-        }
+        return ResponseBuilder.build_success_response(
+            data={
+                "name": source_name,
+                "display_name": config["display_name"],
+                "description": config["description"],
+                "status": "inactive" if source_name not in ["HPO"] else "error",
+                "url": config["url"],
+                "documentation_url": config["documentation_url"],
+                "stats": None,
+                "message": "No data available for this source",
+            }
+        )
 
 
 @router.post("/{source_name}/update")
@@ -389,13 +397,15 @@ async def update_datasource(source_name: str, db: Session = Depends(get_db)) -> 
     Trigger update for a specific data source
     """
     if source_name not in DATA_SOURCE_CONFIG:
-        raise HTTPException(status_code=404, detail=f"Unknown data source: {source_name}")
+        raise DataSourceError(source_name, "update", "Unknown data source")
 
     try:
         await task_manager.run_source(source_name)
-        return {"message": f"Update triggered for {source_name}", "status": "started"}
+        return ResponseBuilder.build_success_response(
+            data={"message": f"Update triggered for {source_name}", "status": "started"}
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to start update: {e!s}") from e
+        raise DataSourceError(source_name, "update", f"Failed to start update: {e!s}") from e
 
 
 @router.post("/update-all")
@@ -408,10 +418,12 @@ async def update_all_datasources(db: Session = Depends(get_db)) -> dict[str, Any
         for source_name in sources:
             await task_manager.run_source(source_name)
 
-        return {
-            "message": f"Updates triggered for {len(sources)} sources",
-            "sources": sources,
-            "status": "started",
-        }
+        return ResponseBuilder.build_success_response(
+            data={
+                "message": f"Updates triggered for {len(sources)} sources",
+                "sources": sources,
+                "status": "started",
+            }
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to start updates: {e!s}") from e
+        raise DataSourceError("multiple", "bulk_update", f"Failed to start updates: {e!s}") from e
