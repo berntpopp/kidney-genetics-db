@@ -95,7 +95,6 @@ def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[s
     # Aggregate arrays from each source
     panelapp_panels = []
     literature_refs = []
-    diagnostic_panels = []
     hpo_terms = []
     pubtator_pmids = []
     omim_data = {}
@@ -145,7 +144,6 @@ def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[s
         "source_count": source_count,
         "panelapp_panels": unique_panels,
         "literature_refs": unique_literature_refs,
-        "diagnostic_panels": diagnostic_panels,
         "hpo_terms": unique_hpo_terms,
         "pubtator_pmids": unique_pubtator_pmids,
         "omim_data": omim_data,
