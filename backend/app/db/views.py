@@ -51,7 +51,7 @@ evidence_source_counts = ReplaceableObject(
         END AS source_count
     FROM gene_evidence ge
     JOIN genes g ON ge.gene_id = g.id
-    WHERE (ge.source_name::text = ANY (ARRAY['PanelApp'::text, 'HPO'::text, 'PubTator'::text, 'Literature'::text])) 
+    WHERE (ge.source_name::text = ANY (ARRAY['PanelApp'::text, 'HPO'::text, 'PubTator'::text, 'Literature'::text]))
         OR ge.source_name::text ~~ 'static_%'::text
     """,
     dependencies=[]
@@ -66,7 +66,7 @@ evidence_classification_weights = ReplaceableObject(
             g.approved_symbol,
             ge.source_name,
             CASE
-                WHEN jsonb_array_length(ge.evidence_data -> 'classifications'::text) > 0 THEN 
+                WHEN jsonb_array_length(ge.evidence_data -> 'classifications'::text) > 0 THEN
                     (0.5 * (sum(power(
                         CASE
                             WHEN lower(elem.value::text) = '"definitive"'::text THEN 1.0
@@ -87,8 +87,8 @@ evidence_classification_weights = ReplaceableObject(
                             WHEN lower(elem.value::text) = '"disputed"'::text THEN 0.2
                             WHEN lower(elem.value::text) = '"refuted"'::text THEN 0.1
                             ELSE 0.3
-                        END), 0::numeric)))::double precision 
-                    + 0.3::double precision * LEAST(1.0::double precision, sqrt(jsonb_array_length(ge.evidence_data -> 'classifications'::text)::double precision / 5.0::double precision)) 
+                        END), 0::numeric)))::double precision
+                    + 0.3::double precision * LEAST(1.0::double precision, sqrt(jsonb_array_length(ge.evidence_data -> 'classifications'::text)::double precision / 5.0::double precision))
                     + 0.2::double precision * (sum(
                         CASE
                             WHEN lower(elem.value::text) = ANY (ARRAY['"definitive"'::text, '"strong"'::text]) THEN 1
