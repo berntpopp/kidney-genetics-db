@@ -53,6 +53,7 @@ class ReversibleOp(MigrateOperation):
 
 # VIEW OPERATIONS
 
+
 @Operations.register_operation("create_view", "invoke_for_target")
 @Operations.register_operation("replace_view", "replace")
 class CreateViewOp(ReversibleOp):
@@ -72,6 +73,7 @@ class DropViewOp(ReversibleOp):
 
 # FUNCTION OPERATIONS
 
+
 @Operations.register_operation("create_function", "invoke_for_target")
 @Operations.register_operation("replace_function", "replace")
 class CreateFunctionOp(ReversibleOp):
@@ -90,6 +92,7 @@ class DropFunctionOp(ReversibleOp):
 
 
 # Implementation functions for the operations
+
 
 @Operations.implementation_for(CreateViewOp)
 def create_view(operations, operation):
@@ -116,6 +119,7 @@ def drop_function(operations, operation):
 
 
 # Helper functions for use in migrations
+
 
 def create_all_views(op, views):
     """

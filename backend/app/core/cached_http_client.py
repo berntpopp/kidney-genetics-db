@@ -24,6 +24,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+
 class CachedHttpClient:
     """
     HTTP client with intelligent caching capabilities.
@@ -491,8 +492,10 @@ class CachedHttpClient:
         elif hasattr(self.http_client, "close"):
             await self.http_client.close()
 
+
 # Global cached HTTP client instance
 _cached_http_client: CachedHttpClient | None = None
+
 
 def get_cached_http_client(
     cache_service: CacheService | None = None, db_session: Session | AsyncSession | None = None
@@ -505,7 +508,9 @@ def get_cached_http_client(
 
     return _cached_http_client
 
+
 # Convenience functions
+
 
 async def cached_get(
     url: str, namespace: str = "http", cache_key: str | None = None, **kwargs
@@ -513,6 +518,7 @@ async def cached_get(
     """Perform cached GET request."""
     client = get_cached_http_client()
     return await client.get(url, namespace, cache_key, **kwargs)
+
 
 async def cached_download(
     url: str, namespace: str = "files", cache_key: str | None = None, **kwargs

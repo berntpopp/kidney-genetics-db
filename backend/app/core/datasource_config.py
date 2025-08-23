@@ -10,18 +10,6 @@ from typing import Any
 
 # Data source configurations with display metadata
 DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
-    "HGNC": {
-        "display_name": "HGNC",
-        "description": "HUGO Gene Nomenclature Committee - Gene symbols and nomenclature",
-        "url": "https://www.genenames.org/",
-        "documentation_url": "https://www.genenames.org/help/rest/",
-        "auto_update": False,  # Used as reference data, not a primary source
-        "priority": 8,
-        # API settings
-        "api_url": "http://rest.genenames.org",
-        # Cache settings
-        "cache_ttl": 86400,  # 24 hours - stable reference data
-    },
     "PanelApp": {
         "display_name": "PanelApp",
         "description": "Expert-curated gene panels from UK Genomics England and Australian Genomics",
@@ -125,22 +113,13 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         # Cache settings
         "cache_ttl": 604800,  # 7 days - stable ontology releases
     },
-    "Literature": {
-        "display_name": "Literature",
-        "description": "Curated literature references with publication metadata",
-        "url": None,
-        "documentation_url": None,
-        "auto_update": False,  # Manual upload via API
-        "priority": 6,
-        "hybrid_source": True,  # Uses unified source pattern
-    },
     "DiagnosticPanels": {
         "display_name": "Diagnostic Panels",
         "description": "Commercial diagnostic kidney gene panels from multiple providers",
         "url": None,
         "documentation_url": None,
         "auto_update": False,  # Manual upload via API
-        "priority": 7,
+        "priority": 6,
         "hybrid_source": True,  # Uses unified source pattern
     },
 }
@@ -155,21 +134,26 @@ PRIORITY_ORDERED_SOURCES = sorted(
     DATA_SOURCE_CONFIG.keys(), key=lambda x: DATA_SOURCE_CONFIG[x].get("priority", 999)
 )
 
+
 def get_source_config(source_name: str) -> dict[str, Any] | None:
     """Get configuration for a specific data source"""
     return DATA_SOURCE_CONFIG.get(source_name)
+
 
 def get_all_source_names() -> list[str]:
     """Get list of all configured data source names"""
     return list(DATA_SOURCE_CONFIG.keys())
 
+
 def get_auto_update_sources() -> list[str]:
     """Get list of sources that support automatic updates"""
     return AUTO_UPDATE_SOURCES.copy()
 
+
 def is_source_configured(source_name: str) -> bool:
     """Check if a data source is configured"""
     return source_name in DATA_SOURCE_CONFIG
+
 
 def get_source_parameter(source_name: str, param_name: str, default: Any = None) -> Any:
     """
@@ -188,6 +172,7 @@ def get_source_parameter(source_name: str, param_name: str, default: Any = None)
         return config.get(param_name, default)
     return default
 
+
 def get_source_cache_ttl(source_name: str) -> int:
     """
     Get cache TTL for a data source.
@@ -199,6 +184,7 @@ def get_source_cache_ttl(source_name: str) -> int:
         Cache TTL in seconds, defaults to 3600 (1 hour)
     """
     return get_source_parameter(source_name, "cache_ttl", 3600)
+
 
 def get_source_api_url(source_name: str) -> str | None:
     """

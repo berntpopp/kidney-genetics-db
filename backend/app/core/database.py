@@ -31,6 +31,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Create base class for models
 Base = declarative_base()
 
+
 def get_db() -> Generator[Session, None, None]:
     """
     Dependency to get database session
@@ -40,6 +41,7 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
 
 @contextmanager
 def get_db_context() -> Generator[Session, None, None]:
@@ -63,6 +65,7 @@ def get_db_context() -> Generator[Session, None, None]:
             except Exception as e:
                 logger.error(f"Error closing database session: {e}")
 
+
 # Connection pool monitoring for debugging and optimization
 connection_stats = {
     "connections_created": 0,
@@ -73,6 +76,7 @@ connection_stats = {
     "connections_checked_in": 0,
 }
 
+
 @event.listens_for(Pool, "connect")
 def increment_connect(dbapi_conn, connection_record):
     """Track new connections created"""
@@ -81,20 +85,24 @@ def increment_connect(dbapi_conn, connection_record):
         f"New database connection created. Total: {connection_stats['connections_created']}"
     )
 
+
 @event.listens_for(Pool, "close")
 def increment_close(dbapi_conn, connection_record):
     """Track connections closed"""
     connection_stats["connections_closed"] += 1
+
 
 @event.listens_for(Pool, "checkout")
 def increment_checkout(dbapi_conn, connection_record, connection_proxy):
     """Track connections checked out from pool"""
     connection_stats["connections_checked_out"] += 1
 
+
 @event.listens_for(Pool, "checkin")
 def increment_checkin(dbapi_conn, connection_record):
     """Track connections returned to pool"""
     connection_stats["connections_checked_in"] += 1
+
 
 @event.listens_for(Pool, "invalidate")
 def increment_invalidate(dbapi_conn, connection_record, exception):
@@ -102,6 +110,7 @@ def increment_invalidate(dbapi_conn, connection_record, exception):
     connection_stats["connections_invalidated"] += 1
     if exception:
         logger.warning(f"Connection invalidated due to: {exception}")
+
 
 def get_pool_status() -> dict:
     """

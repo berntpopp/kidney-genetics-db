@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class ClinGenUnifiedSource(UnifiedDataSource):
     """
     Unified ClinGen client with intelligent caching and async processing.
@@ -334,14 +335,18 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             sorted_classifications = sorted(
                 set(classifications),
                 key=lambda c: self.classification_weights.get(c, 0),
-                reverse=True
+                reverse=True,
             )
             class_str = sorted_classifications[0] if sorted_classifications else ""
         else:
             class_str = ""
 
         # Build disease summary (show first disease)
-        disease_str = diseases[0][:30] + "..." if diseases and len(diseases[0]) > 30 else diseases[0] if diseases else ""
+        disease_str = (
+            diseases[0][:30] + "..."
+            if diseases and len(diseases[0]) > 30
+            else diseases[0] if diseases else ""
+        )
 
         # Combine details
         if class_str and disease_str:

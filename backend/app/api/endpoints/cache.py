@@ -30,6 +30,7 @@ router = APIRouter()
 
 # Pydantic models for API responses
 
+
 class CacheStatsResponse(BaseModel):
     """Cache statistics response model."""
 
@@ -42,6 +43,7 @@ class CacheStatsResponse(BaseModel):
     hit_rate: float = Field(ge=0.0, le=1.0, description="Cache hit rate")
     total_size_bytes: int = Field(ge=0, description="Total cache size in bytes")
     total_size_mb: float = Field(ge=0.0, description="Total cache size in MB")
+
 
 class NamespaceStatsResponse(BaseModel):
     """Namespace-specific cache statistics."""
@@ -57,6 +59,7 @@ class NamespaceStatsResponse(BaseModel):
     oldest_entry: datetime | None = None
     newest_entry: datetime | None = None
 
+
 class CacheHealthResponse(BaseModel):
     """Cache system health response."""
 
@@ -69,6 +72,7 @@ class CacheHealthResponse(BaseModel):
     issues: list[str] = Field(default_factory=list)
     last_cleanup: datetime | None = None
 
+
 class CacheKeyListResponse(BaseModel):
     """Cache key listing response."""
 
@@ -79,6 +83,7 @@ class CacheKeyListResponse(BaseModel):
     page_size: int = Field(ge=1)
     has_more: bool
 
+
 class CacheClearResponse(BaseModel):
     """Cache clear operation response."""
 
@@ -87,12 +92,14 @@ class CacheClearResponse(BaseModel):
     namespace: str | None = None
     message: str
 
+
 class CacheWarmRequest(BaseModel):
     """Cache warming request model."""
 
     sources: list[str] = Field(description="Data sources to warm up")
     force_refresh: bool = Field(default=False, description="Force refresh of existing cache")
     priority: str = Field(default="normal", pattern="^(low|normal|high)$")
+
 
 class CacheWarmResponse(BaseModel):
     """Cache warming response."""
@@ -103,7 +110,9 @@ class CacheWarmResponse(BaseModel):
     time_taken_seconds: float = Field(ge=0.0)
     message: str
 
+
 # API endpoints
+
 
 @router.get("/stats", response_model=CacheStatsResponse)
 async def get_cache_stats(
@@ -139,6 +148,7 @@ async def get_cache_stats(
         logger.error(f"Error getting cache stats: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting cache stats: {e!s}") from e
 
+
 @router.get("/stats/{namespace}", response_model=NamespaceStatsResponse)
 async def get_namespace_stats(
     namespace: str, db: AsyncSession = Depends(get_db)
@@ -170,9 +180,8 @@ async def get_namespace_stats(
         raise
     except Exception as e:
         logger.error(f"Error getting namespace stats for {namespace}: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Error getting namespace stats: {e!s}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Error getting namespace stats: {e!s}") from e
+
 
 @router.get("/health", response_model=CacheHealthResponse)
 async def get_cache_health(db: AsyncSession = Depends(get_db)) -> CacheHealthResponse:
@@ -226,7 +235,16 @@ async def get_cache_health(db: AsyncSession = Depends(get_db)) -> CacheHealthRes
         if not namespaces:
             # Fallback to known namespaces if database query fails
             logger.warning("Using fallback namespace list")
-            namespaces = ["hgnc", "pubtator", "gencc", "panelapp", "hpo", "clingen", "http", "files"]
+            namespaces = [
+                "hgnc",
+                "pubtator",
+                "gencc",
+                "panelapp",
+                "hpo",
+                "clingen",
+                "http",
+                "files",
+            ]
 
         return CacheHealthResponse(
             status=status,
@@ -242,6 +260,7 @@ async def get_cache_health(db: AsyncSession = Depends(get_db)) -> CacheHealthRes
     except Exception as e:
         logger.error(f"Error getting cache health: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting cache health: {e!s}") from e
+
 
 @router.get("/keys/{namespace}", response_model=CacheKeyListResponse)
 async def list_cache_keys(
@@ -274,6 +293,7 @@ async def list_cache_keys(
         logger.error(f"Error listing cache keys for {namespace}: {e}")
         raise HTTPException(status_code=500, detail=f"Error listing cache keys: {e!s}") from e
 
+
 @router.delete("/{namespace}", response_model=CacheClearResponse)
 async def clear_namespace(namespace: str, db: AsyncSession = Depends(get_db)) -> CacheClearResponse:
     """
@@ -293,6 +313,7 @@ async def clear_namespace(namespace: str, db: AsyncSession = Depends(get_db)) ->
     except Exception as e:
         logger.error(f"Error clearing namespace {namespace}: {e}")
         raise HTTPException(status_code=500, detail=f"Error clearing namespace: {e!s}") from e
+
 
 @router.delete("/{namespace}/{key}", response_model=CacheClearResponse)
 async def delete_cache_key(
@@ -316,6 +337,7 @@ async def delete_cache_key(
         logger.error(f"Error deleting cache key {namespace}:{key}: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting cache key: {e!s}") from e
 
+
 @router.post("/cleanup")
 async def cleanup_expired_entries(db: AsyncSession = Depends(get_db)) -> CacheClearResponse:
     """
@@ -335,6 +357,7 @@ async def cleanup_expired_entries(db: AsyncSession = Depends(get_db)) -> CacheCl
     except Exception as e:
         logger.error(f"Error during cache cleanup: {e}")
         raise HTTPException(status_code=500, detail=f"Error during cache cleanup: {e!s}") from e
+
 
 @router.post("/warm", response_model=CacheWarmResponse)
 async def warm_cache(
@@ -378,6 +401,7 @@ async def warm_cache(
         logger.error(f"Error during cache warming: {e}")
         raise HTTPException(status_code=500, detail=f"Error during cache warming: {e!s}") from e
 
+
 @router.get("/config")
 async def get_cache_config() -> dict[str, Any]:
     """
@@ -403,6 +427,7 @@ async def get_cache_config() -> dict[str, Any]:
             "default_ttl": settings.HTTP_CACHE_TTL_DEFAULT,
         },
     }
+
 
 @router.get("/metrics/prometheus")
 async def get_prometheus_metrics(db: AsyncSession = Depends(get_db)) -> Response:
@@ -443,6 +468,7 @@ async def get_prometheus_metrics(db: AsyncSession = Depends(get_db)) -> Response
         logger.error(f"Error generating Prometheus metrics: {e}")
         raise HTTPException(status_code=500, detail=f"Error generating metrics: {e!s}") from e
 
+
 @router.get("/monitoring/dashboard")
 async def get_monitoring_dashboard(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """
@@ -459,9 +485,8 @@ async def get_monitoring_dashboard(db: AsyncSession = Depends(get_db)) -> dict[s
 
     except Exception as e:
         logger.error(f"Error getting monitoring dashboard: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Error getting dashboard data: {e!s}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Error getting dashboard data: {e!s}") from e
+
 
 @router.get("/monitoring/performance")
 async def get_performance_metrics(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
@@ -483,6 +508,7 @@ async def get_performance_metrics(db: AsyncSession = Depends(get_db)) -> dict[st
         raise HTTPException(
             status_code=500, detail=f"Error getting performance metrics: {e!s}"
         ) from e
+
 
 @router.post("/monitoring/warm-all")
 async def warm_all_caches(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
@@ -506,6 +532,7 @@ async def warm_all_caches(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
         logger.error(f"Error warming all caches: {e}")
         raise HTTPException(status_code=500, detail=f"Error warming caches: {e!s}") from e
 
+
 @router.post("/monitoring/clear-all")
 async def clear_all_caches(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """
@@ -527,6 +554,7 @@ async def clear_all_caches(db: AsyncSession = Depends(get_db)) -> dict[str, Any]
     except Exception as e:
         logger.error(f"Error clearing all caches: {e}")
         raise HTTPException(status_code=500, detail=f"Error clearing caches: {e!s}") from e
+
 
 @router.get("/monitoring/health")
 async def get_cache_system_health(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
@@ -562,6 +590,7 @@ async def get_cache_system_health(db: AsyncSession = Depends(get_db)) -> dict[st
     except Exception as e:
         logger.error(f"Error getting cache system health: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting health status: {e!s}") from e
+
 
 @router.get("/database/pool-health")
 async def get_database_pool_health() -> dict[str, Any]:

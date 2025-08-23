@@ -30,10 +30,10 @@ logger = logging.getLogger(__name__)
 class DiagnosticPanelsSource(UnifiedDataSource):
     """
     Hybrid data source for commercial diagnostic panels.
-    
+
     This source accepts file uploads (JSON, CSV, Excel) containing diagnostic
     panel information and properly aggregates data across multiple providers.
-    
+
     Key features:
     - Supports multiple file formats
     - Aggregates panels and providers per gene
@@ -69,34 +69,34 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         file_content: bytes,
         file_type: str,
         provider_name: str,
-        tracker: "ProgressTracker" = None
+        tracker: "ProgressTracker" = None,
     ) -> pd.DataFrame:
         """
         Parse uploaded file and return DataFrame with provider metadata.
-        
+
         Args:
             file_content: Raw file bytes
             file_type: File extension (json, csv, tsv, xlsx, xls)
             provider_name: Name of the diagnostic provider
             tracker: Optional progress tracker
-            
+
         Returns:
             DataFrame with gene panel data
         """
         logger.info(f"Processing {file_type} file from provider: {provider_name}")
 
         try:
-            if file_type == 'json':
+            if file_type == "json":
                 df = self._parse_json(file_content)
-            elif file_type in ['csv', 'tsv']:
+            elif file_type in ["csv", "tsv"]:
                 df = self._parse_csv(file_content, file_type)
-            elif file_type in ['xlsx', 'xls']:
+            elif file_type in ["xlsx", "xls"]:
                 df = self._parse_excel(file_content)
             else:
                 raise ValueError(f"Unsupported file type: {file_type}")
 
             # Add provider metadata to each row
-            df['provider'] = provider_name
+            df["provider"] = provider_name
 
             logger.info(f"Parsed {len(df)} gene entries from {provider_name}")
             return df
@@ -112,15 +112,15 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         # Handle different JSON structures
         if isinstance(data, dict):
             # Scraper output format
-            if 'genes' in data:
-                gene_list = data['genes']
-            elif 'data' in data:
-                gene_list = data['data']
-            elif 'results' in data:
-                gene_list = data['results']
+            if "genes" in data:
+                gene_list = data["genes"]
+            elif "data" in data:
+                gene_list = data["data"]
+            elif "results" in data:
+                gene_list = data["results"]
             else:
                 # Try to extract any list from the dict
-                for key, value in data.items():
+                for _key, value in data.items():
                     if isinstance(value, list) and len(value) > 0:
                         gene_list = value
                         break
@@ -135,7 +135,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
 
     def _parse_csv(self, content: bytes, file_type: str) -> pd.DataFrame:
         """Parse CSV or TSV file."""
-        sep = '\t' if file_type == 'tsv' else ','
+        sep = "\t" if file_type == "tsv" else ","
         return pd.read_csv(BytesIO(content), sep=sep)
 
     def _parse_excel(self, content: bytes) -> pd.DataFrame:
@@ -145,18 +145,14 @@ class DiagnosticPanelsSource(UnifiedDataSource):
     async def process_data(self, df: pd.DataFrame) -> dict[str, Any]:
         """
         Process DataFrame and aggregate panel/provider data by gene.
-        
+
         Args:
             df: DataFrame with gene panel data
-            
+
         Returns:
             Dictionary mapping gene symbols to aggregated evidence
         """
-        gene_data = defaultdict(lambda: {
-            "panels": set(),
-            "providers": set(),
-            "hgnc_ids": set()
-        })
+        gene_data = defaultdict(lambda: {"panels": set(), "providers": set(), "hgnc_ids": set()})
 
         for idx, row in df.iterrows():
             try:
@@ -172,13 +168,13 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 # Track provider - check for scalar value
                 if "provider" in row.index:
                     provider_val = row["provider"]
-                    if provider_val is not None and not isinstance(provider_val, (list, dict)):
+                    if provider_val is not None and not isinstance(provider_val, list | dict):
                         gene_data[symbol]["providers"].add(str(provider_val))
 
                 # Track HGNC ID if available - check for scalar value
                 if "hgnc_id" in row.index:
                     hgnc_val = row["hgnc_id"]
-                    if hgnc_val is not None and not isinstance(hgnc_val, (list, dict)):
+                    if hgnc_val is not None and not isinstance(hgnc_val, list | dict):
                         gene_data[symbol]["hgnc_ids"].add(str(hgnc_val))
 
             except Exception as e:
@@ -189,11 +185,11 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         result = {}
         for symbol, data in gene_data.items():
             result[symbol] = {
-                "panels": sorted(list(data["panels"])),
-                "providers": sorted(list(data["providers"])),
+                "panels": sorted(data["panels"]),
+                "providers": sorted(data["providers"]),
                 "panel_count": len(data["panels"]),
                 "provider_count": len(data["providers"]),
-                "hgnc_ids": sorted(list(data["hgnc_ids"]))  # Keep for reference
+                "hgnc_ids": sorted(data["hgnc_ids"]),  # Keep for reference
             }
 
         logger.info(f"Processed {len(result)} unique genes")
@@ -202,15 +198,23 @@ class DiagnosticPanelsSource(UnifiedDataSource):
     def _extract_gene_symbol(self, row: pd.Series) -> str | None:
         """Extract gene symbol from various possible field names."""
         field_names = [
-            'symbol', 'gene_symbol', 'gene', 'Gene', 'GENE',
-            'approved_symbol', 'gene_name', 'geneName', 'SYMBOL', 'Symbol'
+            "symbol",
+            "gene_symbol",
+            "gene",
+            "Gene",
+            "GENE",
+            "approved_symbol",
+            "gene_name",
+            "geneName",
+            "SYMBOL",
+            "Symbol",
         ]
 
         for field in field_names:
             if field in row.index:
                 field_value = row[field]
                 # Skip None and arrays/lists/dicts
-                if field_value is None or isinstance(field_value, (list, tuple, dict)):
+                if field_value is None or isinstance(field_value, list | tuple | dict):
                     continue
                 # Check for pandas null (only for scalar values)
                 try:
@@ -222,7 +226,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
 
                 value = str(field_value).strip().upper()
                 # Skip invalid values
-                if value and value not in ['NA', 'NULL', 'NONE', '', 'N/A', 'UNKNOWN']:
+                if value and value not in ["NA", "NULL", "NONE", "", "N/A", "UNKNOWN"]:
                     return value
         return None
 
@@ -236,7 +240,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             # Handle different panel data formats
             if isinstance(panel_data, str):
                 # Single panel or comma-separated
-                panels.update(p.strip() for p in panel_data.split(',') if p.strip())
+                panels.update(p.strip() for p in panel_data.split(",") if p.strip())
             elif isinstance(panel_data, list):
                 panels.update(str(p).strip() for p in panel_data if p)
             elif pd.notna(panel_data):  # Check for non-null scalar values
@@ -248,24 +252,20 @@ class DiagnosticPanelsSource(UnifiedDataSource):
 
         return panels
 
-
     async def store_evidence(
-        self,
-        db: Session,
-        gene_data: dict[str, Any],
-        source_detail: str | None = None
+        self, db: Session, gene_data: dict[str, Any], source_detail: str | None = None
     ) -> dict[str, Any]:
         """
         Store evidence with MERGE semantics for hybrid sources.
-        
+
         This is the critical method that fixes the aggregation bug by properly
         merging evidence from multiple uploads instead of creating duplicates.
-        
+
         Args:
             db: Database session
             gene_data: Processed gene evidence data
             source_detail: Optional source detail (provider name)
-            
+
         Returns:
             Statistics about the storage operation
         """
@@ -286,8 +286,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         # Get existing evidence for these genes
         gene_ids = list(gene_map.values())
         stmt = select(GeneEvidence).where(
-            GeneEvidence.gene_id.in_(gene_ids),
-            GeneEvidence.source_name == self.source_name
+            GeneEvidence.gene_id.in_(gene_ids), GeneEvidence.source_name == self.source_name
         )
         existing_evidence = db.execute(stmt).scalars().all()
         existing_map = {e.gene_id: e for e in existing_evidence}
@@ -312,7 +311,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 provider_panels = current_data.get("provider_panels", {})
 
                 # Add/update this provider's panels
-                provider_panels[current_provider] = sorted(list(data["panels"]))
+                provider_panels[current_provider] = sorted(data["panels"])
 
                 # Calculate aggregated lists
                 all_panels = set()
@@ -323,20 +322,22 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 # Update evidence with structured data
                 record.evidence_data = {
                     "provider_panels": provider_panels,  # Main structure: provider -> panels mapping
-                    "panels": sorted(list(all_panels)),  # Aggregated unique panels
+                    "panels": sorted(all_panels),  # Aggregated unique panels
                     "providers": sorted(all_providers),  # List of all providers
                     "panel_count": len(all_panels),
-                    "provider_count": len(all_providers)
+                    "provider_count": len(all_providers),
                 }
                 record.source_detail = f"{len(all_providers)} providers, {len(all_panels)} panels"
                 record.updated_at = datetime.now(timezone.utc)
 
-                logger.debug(f"Merged evidence for {symbol}: {len(all_panels)} panels from {len(all_providers)} providers")
+                logger.debug(
+                    f"Merged evidence for {symbol}: {len(all_panels)} panels from {len(all_providers)} providers"
+                )
                 stats["merged"] += 1
 
             else:
                 # CREATE: New evidence record with structured data
-                provider_panels = {current_provider: sorted(list(data["panels"]))}
+                provider_panels = {current_provider: sorted(data["panels"])}
 
                 record = GeneEvidence(
                     gene_id=gene_id,
@@ -347,20 +348,24 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                         "panels": data["panels"],
                         "providers": [current_provider],
                         "panel_count": data["panel_count"],
-                        "provider_count": 1
+                        "provider_count": 1,
                     },
                     created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc)
+                    updated_at=datetime.now(timezone.utc),
                 )
                 db.add(record)
 
-                logger.debug(f"Created evidence for {symbol}: {data['panel_count']} panels from {current_provider}")
+                logger.debug(
+                    f"Created evidence for {symbol}: {data['panel_count']} panels from {current_provider}"
+                )
                 stats["created"] += 1
 
         # Commit the transaction
         db.commit()
 
-        logger.info(f"Storage complete: {stats['created']} created, {stats['merged']} merged, {stats['failed']} failed")
+        logger.info(
+            f"Storage complete: {stats['created']} created, {stats['merged']} merged, {stats['failed']} failed"
+        )
         return stats
 
     def is_kidney_related(self, record: dict[str, Any]) -> bool:

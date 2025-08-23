@@ -14,6 +14,7 @@ from app.schemas.gene import Gene, GeneCreate, GeneList
 
 router = APIRouter()
 
+
 @router.get("/", response_model=GeneList)
 async def get_genes(
     skip: int = Query(0, ge=0, description="Number of items to skip"),
@@ -65,6 +66,7 @@ async def get_genes(
 
     return GeneList(items=items, total=total, page=(skip // limit) + 1, per_page=limit)
 
+
 @router.get("/{gene_symbol}", response_model=Gene)
 async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
@@ -87,13 +89,15 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
     score_breakdown = {}
     if gene.id:
         result = db.execute(
-            text("""
+            text(
+                """
                 SELECT source_name, normalized_score
                 FROM combined_evidence_scores
                 WHERE gene_id = :gene_id
                 ORDER BY source_name
-            """),
-            {"gene_id": gene.id}
+            """
+            ),
+            {"gene_id": gene.id},
         )
         for row in result:
             # Use source name directly (no more static sources)
@@ -113,6 +117,7 @@ async def get_gene(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str,
         "score_breakdown": score_breakdown,  # Raw normalized scores per source
     }
 
+
 @router.get("/{gene_symbol}/evidence")
 async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
@@ -128,12 +133,14 @@ async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> 
     normalized_scores = {}
     if gene.id:
         result = db.execute(
-            text("""
+            text(
+                """
                 SELECT evidence_id, normalized_score
                 FROM combined_evidence_scores
                 WHERE gene_id = :gene_id
-            """),
-            {"gene_id": gene.id}
+            """
+            ),
+            {"gene_id": gene.id},
         )
         for row in result:
             normalized_scores[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
@@ -144,15 +151,17 @@ async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> 
     for e in evidence:
         display_name = e.source_name
 
-        aggregated_evidence.append({
-            "id": e.id,
-            "source_name": display_name,
-            "source_detail": e.source_detail,
-            "evidence_data": e.evidence_data,
-            "evidence_date": e.evidence_date,
-            "created_at": e.created_at,
-            "normalized_score": normalized_scores.get(e.id, 0.0),
-        })
+        aggregated_evidence.append(
+            {
+                "id": e.id,
+                "source_name": display_name,
+                "source_detail": e.source_detail,
+                "evidence_data": e.evidence_data,
+                "evidence_date": e.evidence_date,
+                "created_at": e.created_at,
+                "normalized_score": normalized_scores.get(e.id, 0.0),
+            }
+        )
 
     return {
         "gene_symbol": gene.approved_symbol,
@@ -160,6 +169,7 @@ async def get_gene_evidence(gene_symbol: str, db: Session = Depends(get_db)) -> 
         "evidence_count": len(aggregated_evidence),
         "evidence": aggregated_evidence,
     }
+
 
 @router.post("/", response_model=Gene)
 def create_gene(gene_in: GeneCreate, db: Session = Depends(get_db)) -> dict[str, Any]:

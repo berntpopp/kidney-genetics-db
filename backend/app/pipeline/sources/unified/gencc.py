@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class GenCCUnifiedSource(UnifiedDataSource):
     """
     Unified GenCC client with intelligent caching and async processing.
@@ -405,13 +406,16 @@ class GenCCUnifiedSource(UnifiedDataSource):
             unique_classifications = sorted(
                 set(classifications),
                 key=lambda c: self.classification_weights.get(c, 0),
-                reverse=True
+                reverse=True,
             )
             classification_str = f" ({', '.join(unique_classifications[:2])})"  # Show top 2
         else:
             classification_str = ""
 
-        return f"{submission_count} submissions from {submitter_count} submitters{classification_str}"
+        return (
+            f"{submission_count} submissions from {submitter_count} submitters{classification_str}"
+        )
+
 
 def get_gencc_client(**kwargs) -> GenCCUnifiedSource:
     """
@@ -421,6 +425,7 @@ def get_gencc_client(**kwargs) -> GenCCUnifiedSource:
         GenCCUnifiedSource instance
     """
     return GenCCUnifiedSource(**kwargs)
+
 
 # Backwards compatibility function
 async def update_gencc_async(db: Session, tracker) -> dict[str, Any]:

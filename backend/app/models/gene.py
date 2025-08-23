@@ -37,6 +37,7 @@ class Gene(Base, TimestampMixin):
     def __repr__(self) -> str:
         return f"<Gene(symbol='{self.approved_symbol}', hgnc_id='{self.hgnc_id}')>"
 
+
 class GeneEvidence(Base, TimestampMixin):
     """Evidence for genes from various sources"""
 
@@ -59,6 +60,7 @@ class GeneEvidence(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<GeneEvidence(gene_id={self.gene_id}, source='{self.source_name}')>"
+
 
 class GeneCuration(Base, TimestampMixin):
     """Final curated gene list with aggregated evidence"""
@@ -94,6 +96,7 @@ class GeneCuration(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<GeneCuration(gene_id={self.gene_id}, score={self.evidence_score})>"
+
 
 class PipelineRun(Base, TimestampMixin):
     """Track pipeline execution history"""

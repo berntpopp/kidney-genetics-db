@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
+
 class CacheEntry:
     """Represents a cache entry with metadata."""
 
@@ -59,6 +60,7 @@ class CacheEntry:
         """Update access statistics."""
         self.last_accessed = datetime.now(timezone.utc)
         self.access_count += 1
+
 
 class CacheStats:
     """Cache statistics container."""
@@ -92,6 +94,7 @@ class CacheStats:
             "memory_entries": self.memory_entries,
             "db_entries": self.db_entries,
         }
+
 
 class CacheService:
     """
@@ -467,12 +470,14 @@ class CacheService:
         try:
             from sqlalchemy.ext.asyncio import AsyncSession
 
-            query = text("""
+            query = text(
+                """
                 SELECT data, expires_at
                 FROM cache_entries
                 WHERE cache_key = :cache_key
                 AND (expires_at IS NULL OR expires_at > NOW())
-            """)
+            """
+            )
 
             if isinstance(self.db_session, AsyncSession):
                 result = await self.db_session.execute(query, {"cache_key": cache_key})
@@ -511,7 +516,8 @@ class CacheService:
             data_value = entry.value
             data_size = len(json.dumps(data_value).encode("utf-8"))
 
-            query = text("""
+            query = text(
+                """
                 INSERT INTO cache_entries
                 (cache_key, namespace, data, expires_at, data_size, metadata)
                 VALUES (:cache_key, :namespace, CAST(:data AS jsonb), :expires_at, :data_size, CAST(:metadata AS jsonb))
@@ -523,7 +529,8 @@ class CacheService:
                     access_count = cache_entries.access_count + 1,
                     data_size = EXCLUDED.data_size,
                     metadata = EXCLUDED.metadata
-            """)
+            """
+            )
 
             from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -600,11 +607,13 @@ class CacheService:
         try:
             from sqlalchemy.ext.asyncio import AsyncSession
 
-            query = text("""
+            query = text(
+                """
                 UPDATE cache_entries
                 SET last_accessed = NOW(), access_count = access_count + 1
                 WHERE cache_key = :cache_key
-            """)
+            """
+            )
 
             if isinstance(self.db_session, AsyncSession):
                 await self.db_session.execute(query, {"cache_key": cache_key})
@@ -657,10 +666,12 @@ class CacheService:
         try:
             from sqlalchemy.ext.asyncio import AsyncSession
 
-            query = text("""
+            query = text(
+                """
                 DELETE FROM cache_entries
                 WHERE expires_at IS NOT NULL AND expires_at <= NOW()
-            """)
+            """
+            )
 
             if isinstance(self.db_session, AsyncSession):
                 result = await self.db_session.execute(query)
@@ -754,8 +765,10 @@ class CacheService:
             logger.error(f"Error fetching distinct namespaces: {e}")
             return []
 
+
 # Global cache service instance
 cache_service: CacheService | None = None
+
 
 def get_cache_service(db_session: Session | AsyncSession | None = None) -> CacheService:
     """Get or create the global cache service instance."""
@@ -770,7 +783,9 @@ def get_cache_service(db_session: Session | AsyncSession | None = None) -> Cache
 
     return cache_service
 
+
 # Convenience functions
+
 
 async def cached(
     key: str,
@@ -788,6 +803,7 @@ async def cached(
     cache = get_cache_service(db_session)
     return await cache.get_or_set(key, fetch_func, namespace, ttl)
 
+
 async def cache_get(
     key: str,
     namespace: str = "default",
@@ -797,6 +813,7 @@ async def cache_get(
     """Get a value from cache."""
     cache = get_cache_service(db_session)
     return await cache.get(key, namespace, default)
+
 
 async def cache_set(
     key: str,
@@ -808,6 +825,7 @@ async def cache_set(
     """Set a value in cache."""
     cache = get_cache_service(db_session)
     return await cache.set(key, value, namespace, ttl)
+
 
 async def cache_delete(
     key: str, namespace: str = "default", db_session: Session | AsyncSession | None = None

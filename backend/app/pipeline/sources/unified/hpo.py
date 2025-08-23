@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class HPOUnifiedSource(UnifiedDataSource):
     """
     Unified HPO client with intelligent caching and async processing.
@@ -260,6 +261,7 @@ class HPOUnifiedSource(UnifiedDataSource):
         else:
             # Diminishing returns for many terms
             import math
+
             score = 150 + math.log(hpo_count - 9) * 20
 
         # Cap at 100 - actual normalization happens via percentile ranking

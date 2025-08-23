@@ -15,6 +15,7 @@ from app.core.progress_tracker import ProgressTracker
 
 logger = logging.getLogger(__name__)
 
+
 class HPOPipeline:
     """Main HPO data processing pipeline for kidney/urinary phenotypes."""
 
@@ -85,8 +86,9 @@ class HPOPipeline:
             tracker.update(operation="Fetching gene-disease associations...")
 
         annotations_map = await self.annotations.batch_get_annotations(
-            list(descendants), batch_size=self.batch_size,
-            delay=get_source_parameter("HPO", "request_delay", 0.2)
+            list(descendants),
+            batch_size=self.batch_size,
+            delay=get_source_parameter("HPO", "request_delay", 0.2),
         )
 
         logger.info(f"Fetched annotations for {len(annotations_map)} terms")

@@ -17,6 +17,7 @@ class ReplaceableObject:
         dependencies: List of object names this object depends on
         object_type: Type of object (VIEW, FUNCTION, etc.)
     """
+
     name: str
     sqltext: str
     dependencies: list[str] = field(default_factory=list)

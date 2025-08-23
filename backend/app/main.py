@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle - start/stop background tasks and event bus"""
@@ -74,6 +75,7 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down background task manager...")
     await task_manager.shutdown()
 
+
 # Create FastAPI app
 app = FastAPI(
     title=settings.APP_NAME,
@@ -101,10 +103,12 @@ app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
 app.include_router(cache.router, prefix="/api/admin/cache", tags=["cache-admin"])
 app.include_router(ingestion.router)
 
+
 @app.get("/")
 async def root() -> dict[str, str]:
     """Root endpoint"""
     return {"message": "Kidney Genetics API", "version": "0.1.0"}
+
 
 @app.get("/health")
 async def health_check() -> dict[str, str]:
@@ -123,6 +127,7 @@ async def health_check() -> dict[str, str]:
             db.close()
 
     return {"status": "healthy", "service": "kidney-genetics-api", "database": db_status}
+
 
 @app.get("/api/test")
 async def test_endpoint() -> dict[str, str]:

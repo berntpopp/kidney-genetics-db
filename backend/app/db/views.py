@@ -23,7 +23,7 @@ cache_stats = ReplaceableObject(
     FROM cache_entries
     GROUP BY cache_entries.namespace
     """,
-    dependencies=[]
+    dependencies=[],
 )
 
 evidence_source_counts = ReplaceableObject(
@@ -37,9 +37,7 @@ evidence_source_counts = ReplaceableObject(
             WHEN 'PanelApp'::text THEN (COALESCE(jsonb_array_length(ge.evidence_data -> 'panels'::text), 0))::bigint
             WHEN 'HPO'::text THEN ((COALESCE(jsonb_array_length(ge.evidence_data -> 'hpo_terms'::text), 0) + COALESCE(jsonb_array_length(ge.evidence_data -> 'diseases'::text), 0)))::bigint
             WHEN 'PubTator'::text THEN (COALESCE((ge.evidence_data ->> 'publication_count'::text)::integer, jsonb_array_length(ge.evidence_data -> 'pmids'::text)))::bigint
-            WHEN 'Literature'::text THEN (COALESCE((ge.evidence_data ->> 'publication_count'::text)::integer, 
-                                          jsonb_array_length(ge.evidence_data -> 'references'::text)))::bigint
-            WHEN 'DiagnosticPanels'::text THEN (COALESCE((ge.evidence_data ->> 'panel_count'::text)::integer, 
+            WHEN 'DiagnosticPanels'::text THEN (COALESCE((ge.evidence_data ->> 'panel_count'::text)::integer,
                                                 jsonb_array_length(ge.evidence_data -> 'panels'::text)))::bigint
             WHEN 'GenCC'::text THEN (COALESCE(jsonb_array_length(ge.evidence_data -> 'classifications'::text), 0))::bigint
             WHEN 'ClinGen'::text THEN (COALESCE((ge.evidence_data ->> 'assertion_count'::text)::integer, 1))::bigint
@@ -48,7 +46,7 @@ evidence_source_counts = ReplaceableObject(
     FROM gene_evidence ge
     JOIN genes g ON ge.gene_id = g.id
     """,
-    dependencies=[]
+    dependencies=[],
 )
 
 evidence_classification_weights = ReplaceableObject(
@@ -141,7 +139,7 @@ evidence_classification_weights = ReplaceableObject(
         gencc_weighted.classification_weight
     FROM gencc_weighted
     """,
-    dependencies=[]
+    dependencies=[],
 )
 
 # static_evidence_counts removed - no longer needed after refactor
@@ -160,7 +158,7 @@ evidence_count_percentiles = ReplaceableObject(
     FROM evidence_source_counts
     WHERE evidence_source_counts.source_count > 0
     """,
-    dependencies=["evidence_source_counts"]
+    dependencies=["evidence_source_counts"],
 )
 
 # static_evidence_scores removed - no longer needed after refactor
@@ -184,6 +182,7 @@ evidence_normalized_scores = ReplaceableObject(
         evidence_count_percentiles.source_name,
         evidence_count_percentiles.percentile_score AS normalized_score
     FROM evidence_count_percentiles
+    WHERE evidence_count_percentiles.source_name NOT IN ('ClinGen', 'GenCC')
     UNION ALL
     SELECT evidence_classification_weights.evidence_id,
         evidence_classification_weights.gene_id,
@@ -200,7 +199,7 @@ evidence_normalized_scores = ReplaceableObject(
         gencc_percentiles.percentile_score AS normalized_score
     FROM gencc_percentiles
     """,
-    dependencies=["evidence_count_percentiles", "evidence_classification_weights"]
+    dependencies=["evidence_count_percentiles", "evidence_classification_weights"],
 )
 
 # Tier 3: Views dependent on Tier 2
@@ -217,7 +216,7 @@ combined_evidence_scores = ReplaceableObject(
         'pipeline'::text AS source_type
     FROM evidence_normalized_scores
     """,
-    dependencies=["evidence_normalized_scores"]
+    dependencies=["evidence_normalized_scores"],
 )
 
 evidence_summary_view = ReplaceableObject(
@@ -237,7 +236,7 @@ evidence_summary_view = ReplaceableObject(
     LEFT JOIN combined_evidence_scores ces ON ge.id = ces.evidence_id
     LEFT JOIN gene_curations gc ON g.id = gc.gene_id
     """,
-    dependencies=["combined_evidence_scores"]
+    dependencies=["combined_evidence_scores"],
 )
 
 # Tier 4: Final aggregation view
@@ -245,35 +244,40 @@ evidence_summary_view = ReplaceableObject(
 gene_scores = ReplaceableObject(
     name="gene_scores",
     sqltext="""
-    WITH source_counts AS (
-        SELECT combined_evidence_scores.gene_id,
-            count(DISTINCT combined_evidence_scores.source_name) AS source_count,
-            count(*) AS evidence_count,
-            sum(combined_evidence_scores.normalized_score) AS raw_score,
-            jsonb_object_agg(COALESCE(combined_evidence_scores.display_name, combined_evidence_scores.source_name::text), round(combined_evidence_scores.normalized_score::numeric, 3)) AS source_scores
-        FROM combined_evidence_scores
-        GROUP BY combined_evidence_scores.gene_id
-    ), total_sources AS (
-        SELECT count(DISTINCT all_sources.name) AS total
-        FROM (
-            SELECT DISTINCT evidence_normalized_scores.source_name AS name
-            FROM evidence_normalized_scores
-        ) all_sources
+    WITH source_scores_per_gene AS (
+        SELECT g.id AS gene_id,
+               g.approved_symbol,
+               g.hgnc_id,
+               ces.source_name,
+               MAX(ces.normalized_score) AS source_score,
+               COUNT(ces.evidence_id) AS evidence_count_for_source
+        FROM genes g
+        INNER JOIN combined_evidence_scores ces ON g.id = ces.gene_id
+        GROUP BY g.id, g.approved_symbol, g.hgnc_id, ces.source_name
     )
-    SELECT sc.gene_id,
-        g.approved_symbol,
-        g.hgnc_id,
-        sc.source_count,
-        sc.evidence_count,
-        sc.raw_score,
-        round((sc.raw_score / ts.total::double precision * 100::double precision)::numeric, 2) AS percentage_score,
-        ts.total AS total_active_sources,
-        sc.source_scores
-    FROM source_counts sc
-    CROSS JOIN total_sources ts
-    JOIN genes g ON sc.gene_id = g.id
+    SELECT sspg.gene_id,
+           sspg.approved_symbol,
+           sspg.hgnc_id,
+
+           -- Count of evidence records and sources
+           SUM(sspg.evidence_count_for_source) AS evidence_count,
+           COUNT(sspg.source_name) AS source_count,
+
+           -- Corrected scoring: sum of MAX scores per source, scaled by total active sources
+           COALESCE(SUM(sspg.source_score), 0) AS raw_score,
+           COALESCE(SUM(sspg.source_score), 0) /
+               (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 AS percentage_score,
+
+           -- Source breakdown using MAX scores per source
+           jsonb_object_agg(sspg.source_name, ROUND(sspg.source_score::numeric, 4)) AS source_scores,
+
+           -- Dynamic count of all active sources
+           (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) AS total_active_sources
+
+    FROM source_scores_per_gene sspg
+    GROUP BY sspg.gene_id, sspg.approved_symbol, sspg.hgnc_id
     """,
-    dependencies=["combined_evidence_scores", "evidence_normalized_scores"]
+    dependencies=["combined_evidence_scores"],
 )
 
 

@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class PanelAppUnifiedSource(UnifiedDataSource):
     """
     Unified PanelApp client with intelligent caching and async processing.
@@ -54,8 +55,12 @@ class PanelAppUnifiedSource(UnifiedDataSource):
         super().__init__(cache_service, http_client, db_session, **kwargs)
 
         # PanelApp endpoints from datasource config
-        self.uk_base_url = get_source_parameter("PanelApp", "uk_api_url", "https://panelapp.genomicsengland.co.uk/api/v1")
-        self.au_base_url = get_source_parameter("PanelApp", "au_api_url", "https://panelapp-aus.org/api/v1")
+        self.uk_base_url = get_source_parameter(
+            "PanelApp", "uk_api_url", "https://panelapp.genomicsengland.co.uk/api/v1"
+        )
+        self.au_base_url = get_source_parameter(
+            "PanelApp", "au_api_url", "https://panelapp-aus.org/api/v1"
+        )
 
         # Regions to fetch from
         self.regions = regions or ["UK", "Australia"]

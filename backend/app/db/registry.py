@@ -11,6 +11,7 @@ from sqlalchemy import inspect, text
 
 class ObjectType(Enum):
     """Types of database objects we track."""
+
     TABLE = "table"
     VIEW = "view"
     FUNCTION = "function"
@@ -62,9 +63,7 @@ class DatabaseRegistry:
 
         # Track dependencies
         if obj.dependencies:
-            self._dependencies[key] = [
-                f"{ObjectType.VIEW.value}:{dep}" for dep in obj.dependencies
-            ]
+            self._dependencies[key] = [f"{ObjectType.VIEW.value}:{dep}" for dep in obj.dependencies]
 
     def get(self, type: ObjectType, name: str, schema: str = "public") -> DatabaseObject | None:
         """Get a specific database object."""
@@ -75,10 +74,7 @@ class DatabaseRegistry:
     def get_all(self, type: ObjectType | None = None) -> list[DatabaseObject]:
         """Get all objects, optionally filtered by type."""
         if type:
-            return [
-                obj for key, obj in self._objects.items()
-                if key.startswith(f"{type.value}:")
-            ]
+            return [obj for key, obj in self._objects.items() if key.startswith(f"{type.value}:")]
         return list(self._objects.values())
 
     def get_creation_order(self) -> list[DatabaseObject]:
@@ -140,7 +136,7 @@ class DatabaseRegistry:
         reg_views = {obj.name for obj in self.get_all(ObjectType.VIEW)}
 
         missing_tables = reg_tables - db_tables
-        extra_tables = db_tables - reg_tables - {'alembic_version'}  # Exclude Alembic table
+        extra_tables = db_tables - reg_tables - {"alembic_version"}  # Exclude Alembic table
 
         missing_views = reg_views - db_views
         extra_views = db_views - reg_views
@@ -149,7 +145,7 @@ class DatabaseRegistry:
             "missing": list(missing_tables) + list(missing_views),
             "extra": list(extra_tables) + list(extra_views),
             "mismatched": [],  # Would need deeper comparison for this
-            "valid": len(missing_tables | missing_views | extra_tables | extra_views) == 0
+            "valid": len(missing_tables | missing_views | extra_tables | extra_views) == 0,
         }
 
     def generate_schema_sql(self) -> str:
@@ -181,7 +177,7 @@ def register_views_from_module():
             name=view.name,
             type=ObjectType.VIEW,
             definition=view.sqltext,
-            dependencies=view.dependencies
+            dependencies=view.dependencies,
         )
         registry.register(obj)
 
@@ -193,7 +189,7 @@ def register_tables_from_metadata(metadata):
             name=table.name,
             type=ObjectType.TABLE,
             definition=str(table.compile()),
-            metadata={"columns": [col.name for col in table.columns]}
+            metadata={"columns": [col.name for col in table.columns]},
         )
         registry.register(obj)
 
@@ -203,7 +199,7 @@ def register_tables_from_metadata(metadata):
                 name=index.name or f"idx_{table.name}_{index.columns}",
                 type=ObjectType.INDEX,
                 definition=str(index),
-                metadata={"table": table.name}
+                metadata={"table": table.name},
             )
             registry.register(idx_obj)
 
@@ -214,7 +210,7 @@ def discover_from_database(connection):
 
     # Discover tables
     for table_name in inspector.get_table_names():
-        if table_name == 'alembic_version':
+        if table_name == "alembic_version":
             continue
 
         columns = inspector.get_columns(table_name)
@@ -222,7 +218,7 @@ def discover_from_database(connection):
             name=table_name,
             type=ObjectType.TABLE,
             definition="",  # Would need to reconstruct from columns
-            metadata={"columns": [col['name'] for col in columns]}
+            metadata={"columns": [col["name"] for col in columns]},
         )
         registry.register(obj)
 
@@ -233,9 +229,5 @@ def discover_from_database(connection):
             text(f"SELECT pg_get_viewdef('{view_name}'::regclass, true)")
         ).scalar()
 
-        obj = DatabaseObject(
-            name=view_name,
-            type=ObjectType.VIEW,
-            definition=result
-        )
+        obj = DatabaseObject(name=view_name, type=ObjectType.VIEW, definition=result)
         registry.register(obj)

@@ -49,15 +49,6 @@ class Settings(BaseSettings):
     # Background Tasks
     AUTO_UPDATE_ENABLED: bool = True
 
-    # Evidence Scoring Weights (matching PostgreSQL view)
-    EVIDENCE_WEIGHTS: dict[str, float] = {
-        "PanelApp": 0.25,
-        "HPO": 0.15,
-        "Literature": 0.20,
-        "ClinGen": 0.10,
-        "GenCC": 0.10,
-    }
-
     # Gene Normalization
     HGNC_BATCH_SIZE: int = 50  # Genes per HGNC API batch request
     HGNC_RETRY_ATTEMPTS: int = 3  # Retry attempts for failed requests
@@ -77,6 +68,7 @@ class Settings(BaseSettings):
 
     # API Keys (optional)
     OPENAI_API_KEY: str | None = None
+
 
 # Create settings instance
 settings = Settings()

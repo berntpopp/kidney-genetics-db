@@ -9,6 +9,7 @@ from app.core.hpo.models import HPOTerm
 
 logger = logging.getLogger(__name__)
 
+
 class HPOTerms(HPOAPIBase):
     """HPO term operations and hierarchy traversal."""
 

@@ -11,7 +11,6 @@ from app.pipeline.sources.unified.clingen import ClinGenUnifiedSource
 from app.pipeline.sources.unified.diagnostic_panels import DiagnosticPanelsSource
 from app.pipeline.sources.unified.gencc import GenCCUnifiedSource
 from app.pipeline.sources.unified.hpo import HPOUnifiedSource
-from app.pipeline.sources.unified.literature import LiteratureSource
 from app.pipeline.sources.unified.panelapp import PanelAppUnifiedSource
 from app.pipeline.sources.unified.pubtator import PubTatorUnifiedSource
 
@@ -20,7 +19,6 @@ __all__ = [
     "DiagnosticPanelsSource",
     "GenCCUnifiedSource",
     "HPOUnifiedSource",
-    "LiteratureSource",
     "PanelAppUnifiedSource",
     "PubTatorUnifiedSource",
     "UnifiedDataSource",
@@ -35,8 +33,8 @@ SOURCE_MAP = {
     "HPO": HPOUnifiedSource,
     "ClinGen": ClinGenUnifiedSource,
     "DiagnosticPanels": DiagnosticPanelsSource,
-    "Literature": LiteratureSource,
 }
+
 
 def get_unified_source(source_name: str, **kwargs) -> UnifiedDataSource:
     """

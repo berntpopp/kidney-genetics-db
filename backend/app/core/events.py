@@ -11,6 +11,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class EventBus:
     """
     In-memory event bus for single-server deployments.
@@ -108,8 +109,10 @@ class EventBus:
             return len(self._subscribers.get(event_type, []))
         return sum(len(subs) for subs in self._subscribers.values())
 
+
 # Singleton instance for the application
 event_bus = EventBus()
+
 
 # Event types as constants to avoid typos
 class EventTypes:

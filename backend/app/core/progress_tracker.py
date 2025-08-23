@@ -17,6 +17,7 @@ from app.models.progress import DataSourceProgress, SourceStatus
 
 logger = logging.getLogger(__name__)
 
+
 class ProgressTracker:
     """Tracks and reports progress for data source updates"""
 

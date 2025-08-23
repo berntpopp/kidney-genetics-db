@@ -16,6 +16,7 @@ class DataSourceStats(BaseModel):
     last_updated: datetime | None
     metadata: dict[str, Any] | None = None
 
+
 class DataSource(BaseModel):
     """Data source information"""
 
@@ -26,6 +27,7 @@ class DataSource(BaseModel):
     stats: DataSourceStats | None = None
     url: str | None = None
     documentation_url: str | None = None
+
 
 class DataSourceList(BaseModel):
     """List of data sources"""

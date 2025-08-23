@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class PubTatorUnifiedSource(UnifiedDataSource):
     """
     Unified PubTator client with intelligent caching and async processing.
@@ -55,13 +56,20 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         super().__init__(cache_service, http_client, db_session, **kwargs)
 
         # PubTator configuration from datasource config
-        self.base_url = get_source_parameter("PubTator", "api_url", "https://www.ncbi.nlm.nih.gov/research/pubtator-api")
+        self.base_url = get_source_parameter(
+            "PubTator", "api_url", "https://www.ncbi.nlm.nih.gov/research/pubtator-api"
+        )
 
         # Search configuration from datasource config
-        self.kidney_query = get_source_parameter("PubTator", "search_query",
-            '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)')
+        self.kidney_query = get_source_parameter(
+            "PubTator",
+            "search_query",
+            '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)',
+        )
         self.max_pages = get_source_parameter("PubTator", "max_pages", 100)  # Default to 100 pages
-        self.rate_limit_delay = max(get_source_parameter("PubTator", "rate_limit_delay", 0.3), 0.5)  # Min 0.5s delay
+        self.rate_limit_delay = max(
+            get_source_parameter("PubTator", "rate_limit_delay", 0.3), 0.5
+        )  # Min 0.5s delay
         # Sort order: "score desc" for relevance, "date desc" for recency
         self.sort_order = "score desc"  # Fixed value as per datasource_config
 
@@ -69,7 +77,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         self.annotation_types = ["Gene", "GeneID"]
 
         max_pages_str = "ALL" if self.max_pages is None else str(self.max_pages)
-        logger.info(f"PubTatorUnifiedSource initialized with max pages: {max_pages_str}, sort: {self.sort_order}")
+        logger.info(
+            f"PubTatorUnifiedSource initialized with max pages: {max_pages_str}, sort: {self.sort_order}"
+        )
 
     def _get_default_ttl(self) -> int:
         """Get default TTL for PubTator data."""
@@ -169,7 +179,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         # Pattern to match gene annotations
         # @GENE_symbol @GENE_id @@@display@@@
-        pattern = r'@GENE_(\w+)\s+@GENE_(\d+)\s+@@@([^@]+)@@@'
+        pattern = r"@GENE_(\w+)\s+@GENE_(\d+)\s+@@@([^@]+)@@@"
 
         for match in re.finditer(pattern, text_hl):
             symbol = match.group(1)
@@ -180,12 +190,14 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             key = f"{symbol}:{gene_id}"
             if key not in seen:
                 seen.add(key)
-                genes.append({
-                    "text": display,
-                    "identifier": gene_id,
-                    "type": "Gene",
-                    "symbol": symbol,
-                })
+                genes.append(
+                    {
+                        "text": display,
+                        "identifier": gene_id,
+                        "type": "Gene",
+                        "symbol": symbol,
+                    }
+                )
 
         return genes
 
@@ -220,7 +232,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             if self.max_pages is not None:
                 logger.info(f"🔍 PubTator3 search page {page}/{self.max_pages}")
             else:
-                logger.info(f"🔍 PubTator3 search page {page}/{total_pages if total_pages else '?'}")
+                logger.info(
+                    f"🔍 PubTator3 search page {page}/{total_pages if total_pages else '?'}"
+                )
 
             try:
                 logger.info(f"🔍 Page {page}: Starting request to PubTator API")
@@ -237,11 +251,15 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
                 # Reset consecutive failures on successful response
                 consecutive_failures = 0
-                logger.debug(f"🔍 Response received for page {page}, status: {response.status_code}")
+                logger.debug(
+                    f"🔍 Response received for page {page}, status: {response.status_code}"
+                )
                 logger.debug(f"🔍 Response headers: {dict(response.headers)}")
 
                 if response.status_code != 200:
-                    logger.error(f"PubTator3 search failed on page {page}: HTTP {response.status_code}")
+                    logger.error(
+                        f"PubTator3 search failed on page {page}: HTTP {response.status_code}"
+                    )
                     logger.error(f"Response content preview: {response.text[:500]}")
                     consecutive_failures += 1
                     if consecutive_failures >= max_consecutive_failures:
@@ -252,14 +270,18 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 logger.debug(f"🔍 Page {page}: Starting JSON parsing...")
                 try:
                     data = response.json()
-                    logger.debug(f"🔍 Page {page}: JSON parsed successfully, keys: {list(data.keys())}")
+                    logger.debug(
+                        f"🔍 Page {page}: JSON parsed successfully, keys: {list(data.keys())}"
+                    )
                     logger.debug(f"🔍 Page {page}: Response size: {len(response.text)} bytes")
                 except Exception as json_err:
                     logger.error(f"🔍 Page {page}: Failed to parse JSON: {json_err}")
                     logger.error(f"🔍 Page {page}: Response preview: {response.text[:500]}")
                     consecutive_failures += 1
                     if consecutive_failures >= max_consecutive_failures:
-                        logger.error(f"🛑 Stopping after {consecutive_failures} consecutive parse errors")
+                        logger.error(
+                            f"🛑 Stopping after {consecutive_failures} consecutive parse errors"
+                        )
                         break
                     continue
 
@@ -270,12 +292,20 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 if total_pages is None:
                     total_pages = data.get("total_pages", 0)
                     total_available = data.get("count", 0)
-                    logger.info(f"📊 Total available: {total_available} articles across {total_pages} pages")
+                    logger.info(
+                        f"📊 Total available: {total_available} articles across {total_pages} pages"
+                    )
 
                     # Initialize tracker with actual limit we'll process
                     if tracker:
-                        actual_pages = min(self.max_pages, total_pages) if self.max_pages else total_pages
-                        actual_items = min(self.max_pages * 10, total_available) if self.max_pages else total_available
+                        actual_pages = (
+                            min(self.max_pages, total_pages) if self.max_pages else total_pages
+                        )
+                        actual_items = (
+                            min(self.max_pages * 10, total_available)
+                            if self.max_pages
+                            else total_available
+                        )
                         tracker.update(total_pages=actual_pages, total_items=actual_items)
 
                 if not results:
@@ -287,17 +317,25 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
                 # Progress logging and tracker update
                 total_available = data.get("count", 0)
-                logger.info(f"Page {page}: {len(results)} results (total fetched: {total_fetched}/{total_available})")
-                logger.debug(f"🔍 Page {page}: Memory usage: all_results contains {len(all_results)} items")
+                logger.info(
+                    f"Page {page}: {len(results)} results (total fetched: {total_fetched}/{total_available})"
+                )
+                logger.debug(
+                    f"🔍 Page {page}: Memory usage: all_results contains {len(all_results)} items"
+                )
 
                 # Update tracker with current progress
                 if tracker:
-                    actual_pages = min(self.max_pages, total_pages) if self.max_pages else total_pages
-                    logger.debug(f"🔍 Page {page}: Updating tracker - current_page={page}, current_item={total_fetched}")
+                    actual_pages = (
+                        min(self.max_pages, total_pages) if self.max_pages else total_pages
+                    )
+                    logger.debug(
+                        f"🔍 Page {page}: Updating tracker - current_page={page}, current_item={total_fetched}"
+                    )
                     tracker.update(
                         current_page=page,
                         current_item=total_fetched,
-                        operation=f"Fetching PubTator data: page {page}/{actual_pages} ({total_fetched} articles)"
+                        operation=f"Fetching PubTator data: page {page}/{actual_pages} ({total_fetched} articles)",
                     )
                     logger.debug(f"🔍 Page {page}: Tracker updated successfully")
 
@@ -318,7 +356,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
                 # Progress indicator every 100 pages
                 if page % 100 == 0:
-                    logger.info(f"📈 Progress: Fetched {total_fetched} articles from {page-1} pages...")
+                    logger.info(
+                        f"📈 Progress: Fetched {total_fetched} articles from {page-1} pages..."
+                    )
 
             except Exception as e:
                 logger.error(f"❌ Error on page {page}: {type(e).__name__}: {e}")
@@ -329,7 +369,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 logger.debug(f"🔍 Page {page}: Total fetched so far: {total_fetched}")
 
                 consecutive_failures += 1
-                logger.info(f"🔍 Page {page}: Consecutive failures: {consecutive_failures}/{max_consecutive_failures}")
+                logger.info(
+                    f"🔍 Page {page}: Consecutive failures: {consecutive_failures}/{max_consecutive_failures}"
+                )
 
                 if consecutive_failures >= max_consecutive_failures:
                     logger.warning(f"🛑 Stopping after {consecutive_failures} consecutive failures")
@@ -422,9 +464,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
             # Sort mentions by relevance score (highest first)
             data["mentions"] = sorted(
-                data["mentions"],
-                key=lambda x: x.get("score", 0),
-                reverse=True
+                data["mentions"], key=lambda x: x.get("score", 0), reverse=True
             )
 
             # Keep top mentions for display

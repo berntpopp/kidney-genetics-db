@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
+
 class QueryBuilder(Generic[T]):
     """
     Enhanced reusable query builder for complex patterns.
@@ -409,6 +410,7 @@ class QueryBuilder(Generic[T]):
             result[column.name] = getattr(model_instance, column.name)
         return result
 
+
 class QueryOptimizer:
     """
     Utilities for query optimization and analysis.
@@ -492,7 +494,8 @@ class QueryOptimizer:
 
         # Check for missing indexes on foreign keys
         result = db.execute(
-            text("""
+            text(
+                """
             SELECT
                 a.attname as column_name
             FROM pg_attribute a
@@ -507,7 +510,8 @@ class QueryOptimizer:
                     WHERE i.indrelid = t.oid
                     AND a.attnum = ANY(i.indkey)
                 )
-        """),
+        """
+            ),
             {"table_name": table_name},
         )
 
@@ -516,6 +520,7 @@ class QueryOptimizer:
             suggestions.append(f"CREATE INDEX idx_{table_name}_{column} ON {table_name}({column});")
 
         return suggestions
+
 
 # Example usage functions
 def get_genes_optimized(
@@ -538,6 +543,7 @@ def get_genes_optimized(
     if min_score:
         builder = builder.filter_by_score(min_score)
     return builder.paginate(skip, limit).sort(sort_by, sort_desc).all()
+
 
 def analyze_slow_query(db: Session, query: Query) -> dict:
     """

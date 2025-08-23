@@ -21,6 +21,7 @@ from app.pipeline.sources.unified.gencc import get_gencc_client
 
 logger = logging.getLogger(__name__)
 
+
 class CacheMonitoringService:
     """
     Comprehensive cache monitoring service providing detailed metrics
@@ -370,11 +371,11 @@ class CacheMonitoringService:
                 "current_entries": memory_entries,
                 "max_entries": max_memory_size,
                 "utilization_percent": round(utilization_percent, 2),
-                "status": "high"
-                if utilization_percent > 80
-                else "normal"
-                if utilization_percent > 50
-                else "low",
+                "status": (
+                    "high"
+                    if utilization_percent > 80
+                    else "normal" if utilization_percent > 50 else "low"
+                ),
             }
 
         except Exception as e:
@@ -499,8 +500,10 @@ class CacheMonitoringService:
 
         return results
 
+
 # Global monitoring service instance
 _monitoring_service: CacheMonitoringService | None = None
+
 
 def get_monitoring_service(
     db_session: Session | AsyncSession | None = None,

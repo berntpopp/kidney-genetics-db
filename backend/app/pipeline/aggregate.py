@@ -15,6 +15,7 @@ from app.models.gene import Gene, GeneCuration, GeneEvidence
 
 logger = logging.getLogger(__name__)
 
+
 def update_all_curations(db: Session) -> dict[str, Any]:
     """
     Update gene curations with aggregated evidence data.
@@ -75,6 +76,7 @@ def update_all_curations(db: Session) -> dict[str, Any]:
     )
 
     return stats
+
 
 def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[str, Any]:
     """
@@ -152,6 +154,7 @@ def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[s
         "evidence_score": 0.0,  # Placeholder - real scores come from views
         "classification": None,  # Will be set by curation workflow
     }
+
 
 def _update_curation_with_evidence(curation: GeneCuration, evidence_data: dict[str, Any]) -> None:
     """

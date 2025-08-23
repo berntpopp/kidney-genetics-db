@@ -21,6 +21,7 @@ from app.schemas.gene import GeneCreate
 
 logger = logging.getLogger(__name__)
 
+
 class DataSourceClient(ABC):
     """
     Abstract base class for all data source clients.
@@ -355,12 +356,19 @@ class DataSourceClient(ABC):
                     db.add(evidence)
                     db.flush()  # Force constraint check before commit
                     stats["evidence_created"] += 1
-                    logger.debug(f"Created evidence for {gene.approved_symbol} from {self.source_name}")
+                    logger.debug(
+                        f"Created evidence for {gene.approved_symbol} from {self.source_name}"
+                    )
                 except Exception as constraint_error:
                     # Handle race condition: another process may have created the evidence
-                    if "unique constraint" in str(constraint_error).lower() or "duplicate key" in str(constraint_error).lower():
+                    if (
+                        "unique constraint" in str(constraint_error).lower()
+                        or "duplicate key" in str(constraint_error).lower()
+                    ):
                         db.rollback()  # Rollback failed transaction
-                        logger.debug(f"Race condition detected for {gene.approved_symbol}, retrying...")
+                        logger.debug(
+                            f"Race condition detected for {gene.approved_symbol}, retrying..."
+                        )
 
                         # Try to get the evidence that was created by another process
                         existing = (
@@ -379,14 +387,20 @@ class DataSourceClient(ABC):
                             existing.evidence_date = datetime.now(timezone.utc).date()
                             db.add(existing)
                             stats["evidence_updated"] += 1
-                            logger.debug(f"Updated evidence after race condition for {gene.approved_symbol}")
+                            logger.debug(
+                                f"Updated evidence after race condition for {gene.approved_symbol}"
+                            )
                         else:
                             # Should not happen, but log if it does
-                            logger.error(f"Evidence not found after race condition for {gene.approved_symbol}")
+                            logger.error(
+                                f"Evidence not found after race condition for {gene.approved_symbol}"
+                            )
                             stats["errors"] += 1
                     else:
                         # Other constraint errors should be raised
-                        logger.error(f"Constraint error for {gene.approved_symbol}: {constraint_error}")
+                        logger.error(
+                            f"Constraint error for {gene.approved_symbol}: {constraint_error}"
+                        )
                         stats["errors"] += 1
                         raise
 
@@ -414,6 +428,7 @@ class DataSourceClient(ABC):
         Subclasses can override this to provide source-specific details.
         """
         return f"Data from {self.source_name}"
+
 
 def get_data_source_client(source_name: str, **kwargs) -> DataSourceClient:
     """

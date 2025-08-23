@@ -12,6 +12,7 @@ from app.schemas.gene import GeneCreate, GeneUpdate
 
 logger = logging.getLogger(__name__)
 
+
 class CRUDGene:
     """CRUD operations for genes"""
 
@@ -130,12 +131,14 @@ class CRUDGene:
     def get_gene_score(self, db: Session, gene_id: int) -> dict | None:
         """Get gene scores from the gene_scores view"""
         result = db.execute(
-            text("""
+            text(
+                """
                 SELECT gene_id, approved_symbol, source_count, evidence_count,
                        raw_score, percentage_score, total_active_sources, source_scores
                 FROM gene_scores
                 WHERE gene_id = :gene_id
-            """),
+            """
+            ),
             {"gene_id": gene_id},
         ).first()
 
@@ -459,6 +462,7 @@ class CRUDGene:
         db.commit()
         db.refresh(evidence)
         return evidence.id
+
 
 # Create singleton instance
 gene_crud = CRUDGene()

@@ -19,6 +19,7 @@ class HPOTerm(BaseModel):
     children: list[str] = Field(default_factory=list)
     parents: list[str] = Field(default_factory=list)
 
+
 class Gene(BaseModel):
     """Gene model from HPO."""
 
@@ -40,6 +41,7 @@ class Gene(BaseModel):
                 pass
         return None
 
+
 class Disease(BaseModel):
     """Disease model from HPO."""
 
@@ -50,6 +52,7 @@ class Disease(BaseModel):
 
     class Config:
         populate_by_name = True
+
 
 class InheritancePattern(BaseModel):
     """Inheritance pattern model."""
@@ -62,6 +65,7 @@ class InheritancePattern(BaseModel):
     class Config:
         populate_by_name = True
 
+
 class PhenotypeMetadata(BaseModel):
     """Metadata for phenotype annotations."""
 
@@ -70,6 +74,7 @@ class PhenotypeMetadata(BaseModel):
     frequency: str | None = ""
     sources: list[str] = Field(default_factory=list)
 
+
 class Phenotype(BaseModel):
     """Phenotype annotation model."""
 
@@ -77,6 +82,7 @@ class Phenotype(BaseModel):
     name: str
     category: str
     metadata: PhenotypeMetadata = Field(default_factory=PhenotypeMetadata)
+
 
 class TermAnnotations(BaseModel):
     """Annotations for an HPO term."""
@@ -88,6 +94,7 @@ class TermAnnotations(BaseModel):
 
     class Config:
         populate_by_name = True
+
 
 class DiseaseCategories(BaseModel):
     """Disease phenotype categories."""
@@ -117,6 +124,7 @@ class DiseaseCategories(BaseModel):
                             )
                         )
         return phenotypes
+
 
 class DiseaseAnnotations(BaseModel):
     """Comprehensive disease annotations."""
@@ -178,6 +186,7 @@ class DiseaseAnnotations(BaseModel):
 
         return phenotypes
 
+
 class GeneInfo(BaseModel):
     """Detailed gene information from HPO browser."""
 
@@ -190,6 +199,7 @@ class GeneInfo(BaseModel):
 
     class Config:
         populate_by_name = True
+
 
 class SearchResults(BaseModel):
     """Search results across HPO."""

@@ -20,6 +20,7 @@ from app.schemas.gene_staging import (
 
 router = APIRouter()
 
+
 @router.get("/staging/pending", response_model=list[GeneNormalizationStagingResponse])
 async def get_pending_reviews(
     *,
@@ -49,6 +50,7 @@ async def get_pending_reviews(
         )
         for record in staging_records
     ]
+
 
 @router.post("/staging/{staging_id}/approve")
 async def approve_staging_record(
@@ -80,6 +82,7 @@ async def approve_staging_record(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error approving staging record: {e}") from e
 
+
 @router.post("/staging/{staging_id}/reject")
 async def reject_staging_record(
     *, db: Session = Depends(get_db), staging_id: int, rejection_data: StagingRejectionRequest
@@ -106,6 +109,7 @@ async def reject_staging_record(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error rejecting staging record: {e}") from e
 
+
 @router.get("/staging/stats", response_model=StagingStatsResponse)
 async def get_staging_stats(*, db: Session = Depends(get_db)) -> StagingStatsResponse:
     """
@@ -120,6 +124,7 @@ async def get_staging_stats(*, db: Session = Depends(get_db)) -> StagingStatsRes
         by_source=stats["by_source"],
     )
 
+
 @router.get("/normalization/stats", response_model=NormalizationStatsResponse)
 async def get_normalization_stats(*, db: Session = Depends(get_db)) -> NormalizationStatsResponse:
     """
@@ -133,6 +138,7 @@ async def get_normalization_stats(*, db: Session = Depends(get_db)) -> Normaliza
         success_rate=stats["success_rate"],
         by_source=stats["by_source"],
     )
+
 
 @router.get("/normalization/logs", response_model=list[GeneNormalizationLogResponse])
 async def get_normalization_logs(
@@ -178,6 +184,7 @@ async def get_normalization_logs(
         )
         for log in logs
     ]
+
 
 @router.post("/normalization/test")
 def test_normalization(

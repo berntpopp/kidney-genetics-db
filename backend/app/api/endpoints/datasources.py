@@ -16,6 +16,7 @@ from app.schemas.datasource import DataSource, DataSourceList, DataSourceStats
 
 router = APIRouter()
 
+
 @router.get("/", response_model=DataSourceList)
 async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
@@ -25,7 +26,8 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
 
     # Get statistics for each source from the database
     result = db.execute(
-        text("""
+        text(
+            """
             SELECT
                 source_name,
                 COUNT(DISTINCT gene_id) as gene_count,
@@ -34,7 +36,8 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             FROM gene_evidence
             GROUP BY source_name
             ORDER BY source_name
-        """)
+        """
+        )
     ).fetchall()
 
     # Create a mapping of source stats
@@ -48,18 +51,21 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
 
     # Get additional metadata for specific sources
     panelapp_metadata = db.execute(
-        text("""
+        text(
+            """
             SELECT COUNT(DISTINCT panel_name) as panel_count
             FROM (
                 SELECT jsonb_array_elements(evidence_data->'panels')->>'name' as panel_name
                 FROM gene_evidence
                 WHERE source_name = 'PanelApp'
             ) panels
-        """)
+        """
+        )
     ).scalar()
 
     pubtator_metadata = db.execute(
-        text("""
+        text(
+            """
             SELECT
                 SUM((evidence_data->>'publication_count')::int) as total_publications,
                 (SELECT COUNT(DISTINCT pmid) FROM (
@@ -69,7 +75,8 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
                 ) pmids) as unique_pmids
             FROM gene_evidence
             WHERE source_name = 'PubTator'
-        """)
+        """
+        )
     ).fetchone()
 
     # No longer need to query static sources - they've been replaced by hybrid sources
@@ -140,6 +147,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         last_pipeline_run=last_run.completed_at if last_run else None,
     )
 
+
 @router.get("/{source_name}")
 async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
@@ -153,21 +161,24 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
 
     # Get statistics
     stats = db.execute(
-        text("""
+        text(
+            """
             SELECT
                 COUNT(DISTINCT gene_id) as gene_count,
                 COUNT(*) as evidence_count,
                 MAX(updated_at) as last_updated
             FROM gene_evidence
             WHERE source_name = :source_name
-        """),
+        """
+        ),
         {"source_name": source_name},
     ).fetchone()
 
     if stats and stats[0] > 0:
         # Get top genes for this source
         top_genes = db.execute(
-            text("""
+            text(
+                """
                 SELECT
                     g.approved_symbol,
                     ces.normalized_score,
@@ -186,7 +197,8 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
                 WHERE ge.source_name = :source_name
                 ORDER BY ces.normalized_score DESC
                 LIMIT 10
-            """),
+            """
+            ),
             {"source_name": source_name},
         ).fetchall()
 
@@ -223,6 +235,7 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
             "message": "No data available for this source",
         }
 
+
 @router.post("/{source_name}/update")
 async def update_datasource(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
@@ -236,6 +249,7 @@ async def update_datasource(source_name: str, db: Session = Depends(get_db)) -> 
         return {"message": f"Update triggered for {source_name}", "status": "started"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start update: {e!s}") from e
+
 
 @router.post("/update-all")
 async def update_all_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:

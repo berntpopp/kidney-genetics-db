@@ -241,6 +241,7 @@ class GeneNormalizationStagingCRUD:
 
         return False
 
+
 class GeneNormalizationLogCRUD:
     """CRUD operations for gene normalization logs"""
 
@@ -319,6 +320,7 @@ class GeneNormalizationLogCRUD:
             "success_rate": round(success_rate, 1),
             "by_source": source_stats,
         }
+
 
 # Create singleton instances
 staging_crud = GeneNormalizationStagingCRUD()

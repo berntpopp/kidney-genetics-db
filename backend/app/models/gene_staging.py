@@ -61,6 +61,7 @@ class GeneNormalizationStaging(Base):
     def __repr__(self):
         return f"<GeneNormalizationStaging(id={self.id}, original_text='{self.original_text}', source='{self.source_name}', status='{self.status}')>"
 
+
 class GeneNormalizationLog(Base):
     """
     Complete log of all gene normalization attempts for audit trail

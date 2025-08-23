@@ -14,6 +14,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+
 class RetryConfig:
     """Configuration for retry behavior."""
 
@@ -58,6 +59,7 @@ class RetryConfig:
             delay *= jitter_factor
 
         return delay
+
 
 class CircuitBreaker:
     """
@@ -130,6 +132,7 @@ class CircuitBreaker:
         if self.failure_count >= self.failure_threshold:
             self.state = "open"
             logger.warning(f"Circuit breaker opened after {self.failure_count} failures")
+
 
 def retry_with_backoff(
     config: RetryConfig | None = None, circuit_breaker: CircuitBreaker | None = None
@@ -237,6 +240,7 @@ def retry_with_backoff(
 
     return decorator
 
+
 class RetryStrategy:
     """
     Unified retry strategy for executing functions with exponential backoff.
@@ -330,6 +334,7 @@ class RetryStrategy:
 
         if last_exception:
             raise last_exception
+
 
 class RetryableHTTPClient:
     """
