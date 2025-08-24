@@ -122,6 +122,15 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "priority": 6,
         "hybrid_source": True,  # Uses unified source pattern
     },
+    "Literature": {
+        "display_name": "Literature",
+        "description": "Kidney disease genes from curated literature publications",
+        "url": None,
+        "documentation_url": None,
+        "auto_update": False,  # Manual upload via API
+        "priority": 7,
+        "hybrid_source": True,  # Uses unified source pattern
+    },
 }
 
 # List of sources that support automatic updates

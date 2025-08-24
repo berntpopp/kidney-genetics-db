@@ -1,8 +1,8 @@
 """
-Unified Diagnostic Panels data source implementation.
+Unified Literature data source implementation.
 
-This module provides a hybrid source that accepts file uploads for commercial
-diagnostic panel data and properly aggregates evidence across multiple providers.
+This module provides a hybrid source that accepts file uploads for literature-based
+gene data and properly aggregates evidence across multiple publications.
 """
 
 import json
@@ -27,27 +27,27 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-class DiagnosticPanelsSource(UnifiedDataSource):
+class LiteratureSource(UnifiedDataSource):
     """
-    Hybrid data source for commercial diagnostic panels.
+    Hybrid data source for literature-based gene data.
 
-    This source accepts file uploads (JSON, CSV, Excel) containing diagnostic
-    panel information and properly aggregates data across multiple providers.
+    This source accepts file uploads (JSON, CSV, Excel) containing literature
+    gene information and properly aggregates data across multiple publications.
 
     Key features:
     - Supports multiple file formats
-    - Aggregates panels and providers per gene
-    - Merges evidence on re-upload (no duplicates)
-    - Tracks confidence scores
+    - Aggregates publications per gene
+    - Merges evidence on re-upload (no duplicates)  
+    - Stores publication metadata
     """
 
     @property
     def source_name(self) -> str:
-        return "DiagnosticPanels"
+        return "Literature"
 
     @property
     def namespace(self) -> str:
-        return "diagnosticpanels"
+        return "literature"
 
     def __init__(
         self,
@@ -56,9 +56,9 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         db_session: Session | None = None,
         **kwargs,
     ):
-        """Initialize diagnostic panels source."""
+        """Initialize literature source."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
-        logger.sync_info("DiagnosticPanelsSource initialized")
+        logger.sync_info("LiteratureSource initialized")
 
     def _get_default_ttl(self) -> int:
         """Get default TTL - manual uploads don't expire."""
@@ -68,22 +68,22 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         self,
         file_content: bytes,
         file_type: str,
-        provider_name: str,
+        publication_id: str,
         tracker: "ProgressTracker" = None,
     ) -> pd.DataFrame:
         """
-        Parse uploaded file and return DataFrame with provider metadata.
+        Parse uploaded file and return DataFrame with publication metadata.
 
         Args:
             file_content: Raw file bytes
             file_type: File extension (json, csv, tsv, xlsx, xls)
-            provider_name: Name of the diagnostic provider
+            publication_id: Publication identifier (e.g., PMID)
             tracker: Optional progress tracker
 
         Returns:
-            DataFrame with gene panel data
+            DataFrame with gene publication data
         """
-        logger.sync_info("Processing file from provider", file_type=file_type, provider_name=provider_name)
+        logger.sync_info("Processing literature file", file_type=file_type, publication_id=publication_id)
 
         try:
             if file_type == "json":
@@ -95,43 +95,42 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             else:
                 raise ValueError(f"Unsupported file type: {file_type}")
 
-            # Add provider metadata to each row
-            df["provider"] = provider_name
+            # Add publication identifier to each row
+            df["publication_id"] = publication_id
 
-            logger.sync_info("Parsed gene entries", entry_count=len(df), provider_name=provider_name)
+            logger.sync_info("Parsed gene entries", entry_count=len(df), publication_id=publication_id)
             return df
 
         except Exception as e:
-            logger.sync_error("Failed to parse file", provider_name=provider_name, error=str(e))
+            logger.sync_error("Failed to parse literature file", publication_id=publication_id, error=str(e))
             raise
 
     def _parse_json(self, content: bytes) -> pd.DataFrame:
-        """Parse JSON file format (handles scraper output)."""
+        """Parse JSON file format (handles literature scraper output)."""
         data = json.loads(content)
-
-        # Handle different JSON structures
+        
         if isinstance(data, dict):
-            # Scraper output format
+            # Literature scraper output format - extract publication metadata and genes
             if "genes" in data:
-                gene_list = data["genes"]
-            elif "data" in data:
-                gene_list = data["data"]
-            elif "results" in data:
-                gene_list = data["results"]
+                # Create records with both gene and publication data
+                records = []
+                pub_metadata = {
+                    k: v for k, v in data.items() 
+                    if k not in ["genes"]
+                }
+                
+                for gene in data["genes"]:
+                    record = {**gene, **pub_metadata}
+                    records.append(record)
+                
+                return pd.DataFrame(records)
             else:
-                # Try to extract any list from the dict
-                for _key, value in data.items():
-                    if isinstance(value, list) and len(value) > 0:
-                        gene_list = value
-                        break
-                else:
-                    raise ValueError("Cannot find gene array in JSON structure")
+                # Simple gene list
+                return pd.DataFrame(data)
         elif isinstance(data, list):
-            gene_list = data
+            return pd.DataFrame(data)
         else:
             raise ValueError(f"Invalid JSON structure: expected dict or list, got {type(data)}")
-
-        return pd.DataFrame(gene_list)
 
     def _parse_csv(self, content: bytes, file_type: str) -> pd.DataFrame:
         """Parse CSV or TSV file."""
@@ -144,62 +143,65 @@ class DiagnosticPanelsSource(UnifiedDataSource):
 
     async def process_data(self, df: pd.DataFrame) -> dict[str, Any]:
         """
-        Process DataFrame and aggregate panel/provider data by gene.
+        Process DataFrame and aggregate publication data by gene.
 
         Args:
-            df: DataFrame with gene panel data
+            df: DataFrame with gene publication data
 
         Returns:
             Dictionary mapping gene symbols to aggregated evidence
         """
-        gene_data = defaultdict(lambda: {"panels": set(), "providers": set(), "hgnc_ids": set()})
+        gene_data = defaultdict(lambda: {
+            "publications": set(), 
+            "publication_details": {}, 
+            "hgnc_ids": set()
+        })
 
         for idx, row in df.iterrows():
             try:
-                # Extract gene symbol (handle multiple field names)
+                # Extract gene symbol
                 symbol = self._extract_gene_symbol(row)
                 if not symbol:
                     continue
 
-                # Aggregate panels
-                panels = self._extract_panels(row)
-                gene_data[symbol]["panels"].update(panels)
+                # Track publication ID
+                if "publication_id" in row.index:
+                    pub_id = str(row["publication_id"])
+                    gene_data[symbol]["publications"].add(pub_id)
+                
+                # Extract and store publication metadata
+                pub_details = self._extract_publication_metadata(row)
+                if pub_details:
+                    gene_data[symbol]["publication_details"].update(pub_details)
 
-                # Track provider - check for scalar value
-                if "provider" in row.index:
-                    provider_val = row["provider"]
-                    if provider_val is not None and not isinstance(provider_val, list | dict):
-                        gene_data[symbol]["providers"].add(str(provider_val))
-
-                # Track HGNC ID if available - check for scalar value
+                # Track HGNC ID if available
                 if "hgnc_id" in row.index:
                     hgnc_val = row["hgnc_id"]
                     if hgnc_val is not None and not isinstance(hgnc_val, list | dict):
                         gene_data[symbol]["hgnc_ids"].add(str(hgnc_val))
 
             except Exception as e:
-                logger.sync_warning("Error processing row", row_index=idx, error=str(e))
+                logger.sync_warning("Error processing literature row", row_index=idx, error=str(e))
                 continue
 
         # Convert to serializable format
         result = {}
         for symbol, data in gene_data.items():
             result[symbol] = {
-                "panels": sorted(data["panels"]),
-                "providers": sorted(data["providers"]),
-                "panel_count": len(data["panels"]),
-                "provider_count": len(data["providers"]),
-                "hgnc_ids": sorted(data["hgnc_ids"]),  # Keep for reference
+                "publications": sorted(data["publications"]),
+                "publication_details": data["publication_details"],
+                "publication_count": len(data["publications"]),
+                "hgnc_ids": sorted(data["hgnc_ids"]),
             }
 
-        logger.sync_info("Processed unique genes", unique_gene_count=len(result))
+        logger.sync_info("Processed unique genes from literature", unique_gene_count=len(result))
         return result
 
     def _extract_gene_symbol(self, row: pd.Series) -> str | None:
         """Extract gene symbol from various possible field names."""
         field_names = [
             "symbol",
-            "gene_symbol",
+            "gene_symbol", 
             "gene",
             "Gene",
             "GENE",
@@ -231,29 +233,40 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                     return value
         return None
 
-    def _extract_panels(self, row: pd.Series) -> set[str]:
-        """Extract panel names from row."""
-        panels = set()
-
-        if "panels" in row.index and row["panels"] is not None:
-            panel_data = row["panels"]
-
-            # Handle different panel data formats
-            if isinstance(panel_data, str):
-                # Single panel or comma-separated
-                panels.update(p.strip() for p in panel_data.split(",") if p.strip())
-            elif isinstance(panel_data, list):
-                panels.update(str(p).strip() for p in panel_data if p)
-            elif pd.notna(panel_data):  # Check for non-null scalar values
-                panels.add(str(panel_data).strip())
-
-        # Also check for panel_name field
-        if "panel_name" in row.index and row["panel_name"] is not None:
-            panels.add(str(row["panel_name"]).strip())
-
-        return panels
+    def _extract_publication_metadata(self, row: pd.Series) -> dict[str, dict]:
+        """Extract publication metadata from row."""
+        metadata = {}
+        
+        if "publication_id" in row.index and row["publication_id"] is not None:
+            pub_id = str(row["publication_id"])
+            
+            # Extract available publication fields
+            pub_data = {}
+            pub_fields = {
+                "pmid": "pmid",
+                "title": "title", 
+                "authors": "authors",
+                "journal": "journal",
+                "publication_date": "publication_date",
+                "url": "url",
+                "doi": "doi"
+            }
+            
+            for field_key, field_name in pub_fields.items():
+                if field_name in row.index and row[field_name] is not None:
+                    value = row[field_name]
+                    # Handle authors list specially
+                    if field_name == "authors" and isinstance(value, list):
+                        pub_data[field_key] = value
+                    elif not isinstance(value, list | dict):
+                        pub_data[field_key] = str(value)
+            
+            if pub_data:
+                metadata[pub_id] = pub_data
+                
+        return metadata
 
 
     def is_kidney_related(self, record: dict[str, Any]) -> bool:
-        """All manually uploaded diagnostic panel data is considered kidney-related."""
+        """All manually uploaded literature data is considered kidney-related."""
         return True

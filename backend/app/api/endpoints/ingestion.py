@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/sources", tags=["Hybrid Sources"])
 
 # Define which sources support file uploads
-UPLOAD_SOURCES = {"DiagnosticPanels"}
+UPLOAD_SOURCES = {"DiagnosticPanels", "Literature"}
 
 
 @router.post("/{source_name}/upload")
@@ -106,8 +106,28 @@ async def upload_evidence_file(
         # Process data
         processed_data = await source.process_data(raw_data)
 
-        # Store with merge semantics
-        stats = await source.store_evidence(db, processed_data, provider_name)
+        # Set provider context for evidence creation
+        source._current_provider = provider_name
+        
+        # Use base class gene creation system (creates missing genes automatically)
+        from app.core.progress_tracker import ProgressTracker
+        tracker = ProgressTracker()
+        
+        stats = await source._store_genes_in_database(db, processed_data, {
+            "genes_processed": 0,
+            "genes_created": 0,
+            "genes_updated": 0,
+            "evidence_created": 0,
+            "evidence_updated": 0,
+            "errors": 0
+        }, tracker)
+        
+        # Convert to expected format
+        stats = {
+            "created": stats.get("evidence_created", 0) + stats.get("genes_created", 0),
+            "merged": stats.get("evidence_updated", 0),
+            "failed": stats.get("errors", 0)
+        }
 
         # Return comprehensive response
         upload_result = {
