@@ -249,7 +249,9 @@ def clean_gene_symbol(symbol: str) -> str:
         symbol = symbol[:-4]
 
     # Validate basic gene symbol format
-    if not re.match(r"^[A-Z][A-Z0-9]{1,}[A-Z0-9]*$", symbol):
+    # Allow letters (any case), numbers, and hyphens (for MT genes)
+    # Must start with a letter
+    if not re.match(r"^[A-Za-z][A-Za-z0-9\-]*$", symbol):
         return ""
 
     return symbol
