@@ -20,11 +20,12 @@ class PMID33664247Processor:
     def process(self, file_path: Path) -> List[str]:
         """Extract genes from PMID 33664247 PDF file.
 
-        Based on R script logic:
-        - Extract all text from PDF
-        - Skip first 15 lines
-        - Apply complex filtering rules
-        - Remove specific strings and patterns
+        The PDF contains gene panels starting at line 8:
+        - ADTKD panel at line 8
+        - aHUS/C3 GN panel at line 9-10
+        - Multiple other panels through line ~45
+        
+        We need to extract from line 8 onwards to capture all genes.
 
         Args:
             file_path: Path to PDF file
@@ -33,8 +34,8 @@ class PMID33664247Processor:
             List of gene symbols
         """
         try:
-            # Extract lines from PDF
-            lines = self.extractor.extract_lines(file_path, skip_lines=15)
+            # Extract lines from PDF - start from line 8 where gene lists begin
+            lines = self.extractor.extract_lines(file_path, skip_lines=8)
 
             if not lines:
                 self.logger.error("No lines extracted from PDF")
@@ -42,20 +43,13 @@ class PMID33664247Processor:
 
             genes = set()
 
-            # Noise words to filter out (from R script)
+            # Noise words to filter out - be careful not to filter actual gene names
             noise_patterns = [
+                # Panel names and descriptive words (not genes)
                 "Panel",
-                "Gene",
-                "ADTKD",
-                "aHUS",
-                "C3",
-                "GN",
-                "Alport",
+                "Gene", 
                 "syndrome",
-                "ARPKD",
-                "BORS",
-                "CAKUT",
-                "Cystinosis",
+                "Cystinosis",  # This is a disease name, CTNS is the gene
                 "Nephronophthisis",
                 "&",
                 "related",
@@ -63,13 +57,12 @@ class PMID33664247Processor:
                 "Nephrotic",
                 "Tubulopathies",
                 "list",
-                "23",
-                "PLG",
-                "removed",
-                "EVC",
+                # Document structure words
                 "Supplementary",
                 "Figure",
+                "Table",
                 "Distribution",
+                # Technical terms
                 "mutation",
                 "types",
                 "of",
@@ -83,13 +76,11 @@ class PMID33664247Processor:
                 "was",
                 "based",
                 "2015",
-                "ACMG",
                 "guidelines",
                 "Abbreviated",
                 "are",
                 "as",
                 "follows",
-                "CNV",
                 "copy",
                 "number",
                 "variation",
@@ -97,10 +88,21 @@ class PMID33664247Processor:
                 "insertions",
                 "deletions",
                 "or",
+                "removed",  # e.g., "(PLG removed)"
+                "bold",
+                "included",
+                "prior",
+                "April",
+                "2018",
+                "testing",
             ]
 
             # Process each line
             for line in lines:
+                # Remove parenthetical content like "(PLG removed)"
+                line = re.sub(r'\([^)]*removed[^)]*\)', '', line)
+                line = re.sub(r'\([^)]*bold[^)]*\)', '', line)
+                
                 # Split by various separators
                 items = re.split(r"[,\s]+", line)
 
@@ -120,8 +122,13 @@ class PMID33664247Processor:
                     if any(noise in item for noise in noise_patterns):
                         continue
 
-                    # Remove underscore suffixes (e.g., GENE_1 -> GENE)
-                    if "_" in item:
+                    # Handle special cases with underscores
+                    # C5_ex21 -> C5 (exon notation)
+                    # But keep other underscores that might be part of the gene name
+                    if "_ex" in item:  # Handle exon notation like C5_ex21
+                        item = item.split("_ex")[0]
+                    elif "_" in item and item.split("_")[1].isdigit():
+                        # Remove numeric suffixes like GENE_1
                         item = item.split("_")[0]
 
                     # Clean and validate
@@ -143,16 +150,21 @@ class PMID33664247Processor:
         if not symbol or len(symbol) < 2 or len(symbol) > 15:
             return False
 
-        # Should start with letter
-        if not symbol[0].isalpha():
+        # Should start with letter (or number for some special cases like C3, C5)
+        if not (symbol[0].isalpha() or (len(symbol) > 1 and symbol[0] in "C" and symbol[1].isdigit())):
             return False
 
-        # Should be uppercase alphanumeric
-        if not re.match(r"^[A-Z][A-Z0-9\-]*[A-Z0-9]?$", symbol):
+        # Should be uppercase alphanumeric (allow hyphens and underscores for special cases)
+        if not re.match(r"^[A-Z0-9][A-Z0-9\-_]*[A-Z0-9]?$", symbol):
             return False
 
-        # Additional filters for this specific paper
-        if symbol in ["CNV", "VOUS", "ACMG", "ADTKD", "ARPKD", "CAKUT", "BORS"]:
+        # Filter out known non-gene abbreviations
+        non_genes = [
+            "CNV", "VOUS", "ACMG",  # Technical terms
+            "ADTKD", "ARPKD", "CAKUT", "BORS", "GN",  # Disease/syndrome abbreviations
+            "NA", "NULL", "NONE",  # Data placeholders
+        ]
+        if symbol in non_genes:
             return False
 
         return True
