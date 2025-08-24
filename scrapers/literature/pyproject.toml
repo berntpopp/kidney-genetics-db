@@ -1,0 +1,19 @@
+[project]
+name = "literature-scraper"
+version = "0.1.0"
+description = "Literature scraper for kidney genetics publications"
+requires-python = ">=3.8"
+dependencies = [
+    "openpyxl>=3.1.0",
+    "python-docx>=1.0.0",
+    "pdfplumber>=0.10.0",
+    "beautifulsoup4>=4.12",
+    "pyyaml>=6.0",
+    "requests>=2.31",
+]
+
+[dependency-groups]
+dev = [
+    "black>=24.8.0",
+    "ruff>=0.12.10",
+]

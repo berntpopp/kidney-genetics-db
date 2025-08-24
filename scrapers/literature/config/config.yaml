@@ -1,0 +1,21 @@
+# Literature scraper configuration
+
+# Output directory for results
+output_dir: output
+
+# Data directory containing source files
+data_dir: data
+
+# Logging configuration
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
+
+# HGNC API configuration
+hgnc:
+  cache_dir: data/hgnc_cache
+  cache_ttl: 86400  # 24 hours in seconds
+
+# Processing options
+processing:
+  normalize_genes: true
+  batch_size: 50

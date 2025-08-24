@@ -1,0 +1,93 @@
+{
+  "timestamp": "2025-08-24T11:45:16.373468",
+  "total_publications_attempted": 12,
+  "successful": 12,
+  "failed": 0,
+  "publications": [
+    {
+      "pmid": "35325889",
+      "title": "Genetic Etiologies for Chronic Kidney Disease Revealed through Next-Generation Renal Gene Panel",
+      "gene_count": 381,
+      "genes_with_hgnc": 381,
+      "output_file": "literature_pmid_35325889.json"
+    },
+    {
+      "pmid": "34264297",
+      "title": "Genetic testing in the diagnosis of chronic kidney disease: recommendations for clinical practice",
+      "gene_count": 265,
+      "genes_with_hgnc": 265,
+      "output_file": "literature_pmid_34264297.json"
+    },
+    {
+      "pmid": "36035137",
+      "title": "Analysis of chronic kidney disease patients by targeted next-generation sequencing identifies novel variants in kidney-related genes",
+      "gene_count": 100,
+      "genes_with_hgnc": 100,
+      "output_file": "literature_pmid_36035137.json"
+    },
+    {
+      "pmid": "33664247",
+      "title": "Australia and New Zealand renal gene panel testing in routine clinical practice of 542 families",
+      "gene_count": 215,
+      "genes_with_hgnc": 215,
+      "output_file": "literature_pmid_33664247.json"
+    },
+    {
+      "pmid": "30476936",
+      "title": "The Burden of Candidate Pathogenic Variants for Kidney and Genitourinary Disorders Emerging From Exome Sequencing",
+      "gene_count": 623,
+      "genes_with_hgnc": 623,
+      "output_file": "literature_pmid_30476936.json"
+    },
+    {
+      "pmid": "31509055",
+      "title": "Autosomal dominant tubulointerstitial kidney disease (ADTKD) in Ireland",
+      "gene_count": 226,
+      "genes_with_hgnc": 226,
+      "output_file": "literature_pmid_31509055.json"
+    },
+    {
+      "pmid": "31822006",
+      "title": "Utility of Genomic Testing after Renal Biopsy",
+      "gene_count": 212,
+      "genes_with_hgnc": 212,
+      "output_file": "literature_pmid_31822006.json"
+    },
+    {
+      "pmid": "29801666",
+      "title": "A kidney-disease gene panel allows a comprehensive genetic diagnosis of cystic and glomerular inherited kidney diseases",
+      "gene_count": 140,
+      "genes_with_hgnc": 140,
+      "output_file": "literature_pmid_29801666.json"
+    },
+    {
+      "pmid": "31027891",
+      "title": "Value of renal gene panel diagnostics in adults waiting for kidney transplantation due to undetermined end-stage renal disease",
+      "gene_count": 208,
+      "genes_with_hgnc": 208,
+      "output_file": "literature_pmid_31027891.json"
+    },
+    {
+      "pmid": "26862157",
+      "title": "Genetic spectrum of Saudi Arabian patients with antenatal cystic kidney disease and ciliopathy phenotypes using a targeted renal gene panel",
+      "gene_count": 86,
+      "genes_with_hgnc": 86,
+      "output_file": "literature_pmid_26862157.json"
+    },
+    {
+      "pmid": "33532864",
+      "title": "Clinical utility of genetic testing in early-onset kidney disease: seven genes are the main players",
+      "gene_count": 316,
+      "genes_with_hgnc": 316,
+      "output_file": "literature_pmid_33532864.json"
+    },
+    {
+      "pmid": "35005812",
+      "title": "Targeted next-generation sequencing in a large series of fetuses with severe renal diseases",
+      "gene_count": 151,
+      "genes_with_hgnc": 151,
+      "output_file": "literature_pmid_35005812.json"
+    }
+  ],
+  "total_unique_genes_all_publications": 816
+}
