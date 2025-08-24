@@ -66,6 +66,7 @@ import PubTatorEvidence from './PubTatorEvidence.vue'
 import ClinGenEvidence from './ClinGenEvidence.vue'
 import PanelAppEvidence from './PanelAppEvidence.vue'
 import DiagnosticPanelsEvidence from './DiagnosticPanelsEvidence.vue'
+import LiteratureEvidence from './LiteratureEvidence.vue'
 
 const props = defineProps({
   evidence: {
@@ -81,7 +82,8 @@ const evidenceComponents = {
   PubTator: PubTatorEvidence,
   ClinGen: ClinGenEvidence,
   PanelApp: PanelAppEvidence,
-  DiagnosticPanels: DiagnosticPanelsEvidence // Fixed: no space in source name
+  DiagnosticPanels: DiagnosticPanelsEvidence, // Fixed: no space in source name
+  Literature: LiteratureEvidence
 }
 
 const evidenceComponent = computed(() => {
@@ -129,6 +131,14 @@ const evidenceSummary = computed(() => {
     }
   }
 
+  if (source === 'Literature') {
+    const pubCount = data?.publication_count || 0
+    if (pubCount === 1) {
+      return 'Curated literature evidence from 1 publication'
+    }
+    return `Curated literature evidence from ${pubCount} publications`
+  }
+
   return props.evidence.source_detail
 })
 
@@ -154,6 +164,10 @@ const primaryCount = computed(() => {
     // Fallback for old structure
     return `${data?.panels?.length || 0} panels`
   }
+  if (props.evidence.source_name === 'Literature') {
+    const pubCount = data?.publication_count || 0
+    return `${pubCount} paper${pubCount !== 1 ? 's' : ''}`
+  }
 
   return null
 })
@@ -166,7 +180,8 @@ const sourceColor = computed(() => {
     PubTator: 'teal',
     ClinGen: 'green',
     PanelApp: 'orange',
-    DiagnosticPanels: 'indigo' // Fixed: no space
+    DiagnosticPanels: 'indigo', // Fixed: no space
+    Literature: 'primary' // Using primary color per style guide
   }
   return colors[props.evidence.source_name] || 'grey'
 })
@@ -178,7 +193,8 @@ const sourceIcon = computed(() => {
     PubTator: 'mdi-text-search',
     ClinGen: 'mdi-certificate',
     PanelApp: 'mdi-view-dashboard',
-    DiagnosticPanels: 'mdi-test-tube' // Fixed: no space
+    DiagnosticPanels: 'mdi-test-tube', // Fixed: no space
+    Literature: 'mdi-book-open-variant'
   }
   return icons[props.evidence.source_name] || 'mdi-database'
 })
@@ -216,7 +232,8 @@ const getSourceUrl = sourceName => {
     PubTator: 'https://www.ncbi.nlm.nih.gov/research/pubtator/',
     ClinGen: 'https://clinicalgenome.org/',
     PanelApp: 'https://panelapp.genomicsengland.co.uk/',
-    'Diagnostic Panels': '#' // No single source URL for aggregated panels
+    DiagnosticPanels: '#', // No single source URL for aggregated panels
+    Literature: 'https://pubmed.ncbi.nlm.nih.gov/' // PubMed as default for literature
   }
   return urls[sourceName] || '#'
 }
