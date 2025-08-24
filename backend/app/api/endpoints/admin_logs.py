@@ -29,7 +29,7 @@ async def query_logs(
 ) -> dict[str, Any]:
     """
     Query system logs with filtering and pagination.
-    
+
     Returns logs from the system_logs table with various filters.
     """
     try:
@@ -112,7 +112,7 @@ async def query_logs(
 
     except Exception:
         # Logging removed to avoid circular import
-        raise HTTPException(status_code=500, detail="Failed to query logs")
+        raise HTTPException(status_code=500, detail="Failed to query logs") from None
 
 
 @router.get("/statistics")
@@ -122,7 +122,7 @@ async def get_log_statistics(
 ) -> dict[str, Any]:
     """
     Get log statistics for monitoring and analysis.
-    
+
     Returns counts by level, top sources, error rates, etc.
     """
     try:
@@ -156,7 +156,7 @@ async def get_log_statistics(
         # Get error rate over time (hourly)
         error_timeline = db.execute(
             text("""
-                SELECT 
+                SELECT
                     DATE_TRUNC('hour', timestamp) as hour,
                     COUNT(*) FILTER (WHERE level = 'ERROR') as errors,
                     COUNT(*) as total
@@ -171,7 +171,7 @@ async def get_log_statistics(
         # Get total size estimate
         size_estimate = db.execute(
             text("""
-                SELECT 
+                SELECT
                     pg_size_pretty(pg_total_relation_size('system_logs')) as table_size,
                     COUNT(*) as total_rows
                 FROM system_logs
@@ -212,7 +212,7 @@ async def get_log_statistics(
 
     except Exception:
         # Logging removed to avoid circular import
-        raise HTTPException(status_code=500, detail="Failed to generate statistics")
+        raise HTTPException(status_code=500, detail="Failed to generate statistics") from None
 
 
 @router.delete("/cleanup")
@@ -222,7 +222,7 @@ async def cleanup_old_logs(
 ) -> dict[str, Any]:
     """
     Clean up old log entries to manage storage.
-    
+
     Deletes log entries older than the specified number of days.
     """
     try:
@@ -253,4 +253,4 @@ async def cleanup_old_logs(
     except Exception:
         db.rollback()
         # Logging removed to avoid circular import
-        raise HTTPException(status_code=500, detail="Failed to cleanup logs")
+        raise HTTPException(status_code=500, detail="Failed to cleanup logs") from None

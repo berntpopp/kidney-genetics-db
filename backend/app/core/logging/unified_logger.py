@@ -19,18 +19,18 @@ from .database_logger import get_database_logger
 class UnifiedLogger:
     """
     Unified logging interface that routes to multiple destinations.
-    
+
     This class provides a single interface for all logging needs, automatically
-    routing log entries to both console logging (immediate) and database logging 
+    routing log entries to both console logging (immediate) and database logging
     (async) while including automatic context injection and structured logging.
-    
+
     Drop-in replacement for standard Python logging with enhanced features.
     """
 
     def __init__(self, name: str):
         """
         Initialize the unified logger.
-        
+
         Args:
             name: Logger name (typically __name__ from calling module)
         """
@@ -110,12 +110,12 @@ class UnifiedLogger:
     def bind(self, **kwargs) -> "UnifiedLogger":
         """
         Create a new logger with additional bound context.
-        
+
         This follows the structlog pattern of immutable context binding.
-        
+
         Args:
             **kwargs: Key-value pairs to bind to the logger context
-            
+
         Returns:
             New UnifiedLogger instance with the additional context
         """
@@ -126,10 +126,10 @@ class UnifiedLogger:
     def unbind(self, *keys: str) -> "UnifiedLogger":
         """
         Create a new logger with specified keys removed from context.
-        
+
         Args:
             *keys: Keys to remove from the logger context
-            
+
         Returns:
             New UnifiedLogger instance with the keys removed
         """
@@ -140,12 +140,12 @@ class UnifiedLogger:
     def new(self, **kwargs) -> "UnifiedLogger":
         """
         Create a new logger with fresh context.
-        
+
         This clears all bound context and starts with the provided context.
-        
+
         Args:
             **kwargs: Key-value pairs for the new logger context
-            
+
         Returns:
             New UnifiedLogger instance with only the provided context
         """
@@ -167,7 +167,7 @@ class UnifiedLogger:
     ):
         """
         Log a message at the specified level (async version).
-        
+
         Args:
             level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
             message: Log message
@@ -229,7 +229,7 @@ class UnifiedLogger:
     ):
         """
         Synchronous logging method for non-async contexts.
-        
+
         This logs to console immediately and schedules database logging
         to run in the background without blocking.
         """
@@ -279,13 +279,13 @@ _logger_cache: dict[str, UnifiedLogger] = {}
 def get_logger(name: str) -> UnifiedLogger:
     """
     Get a unified logger instance.
-    
+
     This is a drop-in replacement for logging.getLogger() that provides
     unified logging to multiple destinations with automatic context injection.
-    
+
     Args:
         name: Logger name (typically __name__ from calling module)
-        
+
     Returns:
         UnifiedLogger instance
     """

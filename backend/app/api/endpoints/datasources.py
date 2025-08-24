@@ -252,8 +252,17 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     # Count active sources
     active_count = len([s for s in sources if s.status == "active"])
 
-    # Get actual unique gene count
-    unique_genes = db.execute(text("SELECT COUNT(*) FROM genes")).scalar() or 0
+    # Get actual unique gene count (only genes with evidence)
+    unique_genes = db.execute(text("SELECT COUNT(DISTINCT gene_id) FROM gene_evidence")).scalar() or 0
+
+    # Get orphaned gene count
+    orphaned_genes = db.execute(text("""
+        SELECT COUNT(*)
+        FROM genes g
+        WHERE NOT EXISTS (
+            SELECT 1 FROM gene_evidence ge WHERE ge.gene_id = g.id
+        )
+    """)).scalar() or 0
 
     # Get total evidence records
     total_evidence = db.execute(text("SELECT COUNT(*) FROM gene_evidence")).scalar() or 0
@@ -292,6 +301,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             "total_sources": len(sources),
             "last_pipeline_run": last_run.completed_at if last_run else None,
             "total_unique_genes": unique_genes,
+            "orphaned_genes": orphaned_genes,
             "total_evidence_records": total_evidence,
             "last_data_update": last_update,
             "explanations": explanations,

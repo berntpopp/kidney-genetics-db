@@ -20,7 +20,7 @@ from app.core.logging.context import bind_context, clear_context, extract_contex
 class LoggingMiddleware(BaseHTTPMiddleware):
     """
     Comprehensive logging middleware for request/response lifecycle tracking.
-    
+
     Provides:
     - Unique request ID generation for correlation
     - Automatic context binding for all logs in request

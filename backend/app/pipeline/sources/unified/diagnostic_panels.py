@@ -231,6 +231,124 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                     return value
         return None
 
+    def _get_source_detail(self, evidence_data: dict[str, Any]) -> str:
+        """Generate source detail string for diagnostic panels evidence."""
+        panel_count = evidence_data.get("panel_count", 0)
+        provider_count = evidence_data.get("provider_count", 0)
+        providers = evidence_data.get("providers", [])
+
+        if providers:
+            provider_str = ", ".join(providers[:3])
+            if len(providers) > 3:
+                provider_str += f" (+{len(providers)-3} more)"
+            return f"DiagnosticPanels: {panel_count} panels from {provider_str}"
+
+        return f"DiagnosticPanels: {panel_count} panels, {provider_count} providers"
+
+    async def store_evidence(
+        self, db: Session, gene_data: dict[str, Any], source_detail: str | None = None
+    ) -> dict[str, Any]:
+        """Store evidence with MERGE semantics for diagnostic panels."""
+
+        if not gene_data:
+            return {"merged": 0, "created": 0, "failed": 0}
+
+        stats = {"merged": 0, "created": 0, "failed": 0}
+
+        # Get gene IDs for all symbols
+        gene_symbols = list(gene_data.keys())
+        gene_map = {}
+
+        # Batch fetch genes
+        stmt = select(Gene).where(Gene.approved_symbol.in_(gene_symbols))
+        genes = db.execute(stmt).scalars().all()
+        gene_map = {g.approved_symbol: g.id for g in genes}
+
+        # Get existing evidence for these genes
+        gene_ids = list(gene_map.values())
+        stmt = select(GeneEvidence).where(
+            GeneEvidence.gene_id.in_(gene_ids), GeneEvidence.source_name == self.source_name
+        )
+        existing_evidence = db.execute(stmt).scalars().all()
+        existing_map = {e.gene_id: e for e in existing_evidence}
+
+        # Process each gene
+        for symbol, data in gene_data.items():
+            gene_id = gene_map.get(symbol)
+            if not gene_id:
+                logger.sync_warning("Gene not found in database", symbol=symbol)
+                stats["failed"] += 1
+                continue
+
+            # Current provider from source_detail
+            current_provider = source_detail or "unknown"
+
+            if gene_id in existing_map:
+                # MERGE: Update existing evidence
+                record = existing_map[gene_id]
+                current_data = record.evidence_data or {}
+
+                # Merge panels and providers
+                existing_panels = set(current_data.get("panels", []))
+                new_panels = set(data["panels"])
+                merged_panels = list(existing_panels | new_panels)
+
+                existing_providers = set(current_data.get("providers", []))
+                new_providers = {current_provider}
+                merged_providers = list(existing_providers | new_providers)
+
+                existing_hgnc = set(current_data.get("hgnc_ids", []))
+                new_hgnc = set(data.get("hgnc_ids", []))
+                merged_hgnc = list(existing_hgnc | new_hgnc)
+
+                # Update evidence with merged data
+                record.evidence_data = {
+                    "panels": merged_panels,
+                    "providers": merged_providers,
+                    "hgnc_ids": merged_hgnc,
+                    "panel_count": len(merged_panels),
+                    "provider_count": len(merged_providers),
+                    "evidence_score": len(merged_panels) * 10.0,  # 10 points per panel
+                }
+                record.source_detail = self._get_source_detail(record.evidence_data)
+                record.evidence_date = datetime.now(timezone.utc).date()
+
+                logger.sync_debug(
+                    "Merged evidence",
+                    symbol=symbol,
+                    panel_count=len(merged_panels),
+                    provider_count=len(merged_providers)
+                )
+                stats["merged"] += 1
+
+            else:
+                # CREATE: New evidence record
+                record = GeneEvidence(
+                    gene_id=gene_id,
+                    source_name=self.source_name,
+                    source_detail=self._get_source_detail(data),
+                    evidence_data={
+                        "panels": data["panels"],
+                        "providers": [current_provider],
+                        "hgnc_ids": data.get("hgnc_ids", []),
+                        "panel_count": data["panel_count"],
+                        "provider_count": 1,
+                        "evidence_score": data["panel_count"] * 10.0,  # 10 points per panel
+                    },
+                    evidence_date=datetime.now(timezone.utc).date(),
+                )
+                db.add(record)
+
+                logger.sync_debug(
+                    "Created evidence",
+                    symbol=symbol,
+                    panel_count=data["panel_count"],
+                    provider=current_provider
+                )
+                stats["created"] += 1
+
+        return stats
+
     def _extract_panels(self, row: pd.Series) -> set[str]:
         """Extract panel names from row."""
         panels = set()

@@ -14,7 +14,7 @@ from .context import get_context
 class ContextualFormatter(logging.Formatter):
     """
     Formatter that includes request context in log messages.
-    
+
     Automatically adds request ID, user context, and other contextual
     information to log records for better observability.
     """
@@ -34,7 +34,7 @@ class ContextualFormatter(logging.Formatter):
 class JSONFormatter(logging.Formatter):
     """
     Formatter that outputs structured JSON logs.
-    
+
     Used for database storage and structured log analysis.
     """
 

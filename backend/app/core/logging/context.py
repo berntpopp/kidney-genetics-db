@@ -24,10 +24,10 @@ _method_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("method
 def bind_context(**kwargs) -> None:
     """
     Bind values to the current logging context.
-    
+
     This uses context variables to store request-scoped logging context
     that will be automatically included in all log entries within the request.
-    
+
     Args:
         **kwargs: Key-value pairs to bind to the context
     """
@@ -84,10 +84,10 @@ def get_context() -> dict[str, Any]:
 def extract_context_from_request(request: Request) -> dict[str, Any]:
     """
     Extract logging context from a FastAPI Request object.
-    
+
     Args:
         request: FastAPI Request object
-        
+
     Returns:
         Dictionary containing extracted context
     """

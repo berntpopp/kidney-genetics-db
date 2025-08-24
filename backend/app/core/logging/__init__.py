@@ -52,9 +52,9 @@ def configure_logging(
 ) -> None:
     """
     Configure the unified logging system.
-    
+
     This replaces multiple logging.basicConfig() calls throughout the application.
-    
+
     Args:
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         database_enabled: Enable database logging

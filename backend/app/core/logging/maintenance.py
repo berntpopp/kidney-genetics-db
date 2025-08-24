@@ -25,7 +25,7 @@ class LogMaintenance:
     ):
         """
         Initialize log maintenance configuration.
-        
+
         Args:
             retention_days: Number of days to retain logs
             cleanup_interval_hours: Hours between cleanup runs
@@ -86,7 +86,7 @@ class LogMaintenance:
     async def cleanup_old_logs(self) -> dict:
         """
         Clean up logs older than retention period.
-        
+
         Returns:
             Statistics about the cleanup operation
         """
@@ -107,10 +107,10 @@ class LogMaintenance:
 
                 while True:
                     delete_query = """
-                        DELETE FROM system_logs 
+                        DELETE FROM system_logs
                         WHERE id IN (
-                            SELECT id FROM system_logs 
-                            WHERE timestamp < :cutoff 
+                            SELECT id FROM system_logs
+                            WHERE timestamp < :cutoff
                             LIMIT :batch_size
                         )
                     """
@@ -152,7 +152,7 @@ class LogMaintenance:
     async def monitor_log_volume(self) -> dict:
         """
         Monitor log volume and alert if growing too fast.
-        
+
         Returns:
             Current log volume statistics
         """
@@ -162,7 +162,7 @@ class LogMaintenance:
         try:
             # Get current statistics
             stats_query = """
-                SELECT 
+                SELECT
                     COUNT(*) as total_logs,
                     COUNT(*) FILTER (WHERE timestamp > NOW() - INTERVAL '1 hour') as last_hour,
                     COUNT(*) FILTER (WHERE timestamp > NOW() - INTERVAL '24 hours') as last_day,
@@ -211,7 +211,7 @@ class LogMaintenance:
     async def optimize_log_table(self):
         """
         Optimize the log table for better performance.
-        
+
         Runs VACUUM and ANALYZE on the system_logs table.
         """
         # Import here to avoid circular import
@@ -241,7 +241,7 @@ async def setup_log_maintenance(
 ):
     """
     Setup and start log maintenance tasks.
-    
+
     Should be called during application startup.
     """
     global log_maintenance
@@ -255,7 +255,7 @@ async def setup_log_maintenance(
 async def shutdown_log_maintenance():
     """
     Stop log maintenance tasks.
-    
+
     Should be called during application shutdown.
     """
     if log_maintenance:

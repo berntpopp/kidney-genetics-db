@@ -25,7 +25,7 @@ _db_logger: Optional["DatabaseLogger"] = None
 class DatabaseLogger:
     """
     Async database logger for structured log persistence.
-    
+
     Stores log entries in PostgreSQL with rich context data,
     request correlation, and performance metrics.
     """
@@ -47,7 +47,7 @@ class DatabaseLogger:
     ) -> None:
         """
         Log an entry to the database.
-        
+
         Args:
             level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
             message: Log message

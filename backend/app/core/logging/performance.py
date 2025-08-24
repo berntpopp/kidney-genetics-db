@@ -30,7 +30,7 @@ def timed_operation(
 ):
     """
     Decorator to time operations and log performance metrics.
-    
+
     Args:
         operation_name: Name of the operation (defaults to function name)
         warning_threshold_ms: Log warning if operation takes longer than this (ms)
@@ -129,7 +129,7 @@ def timed_operation(
 def database_query(query_type: str = "SELECT"):
     """
     Decorator specifically for database operations.
-    
+
     Args:
         query_type: Type of query (SELECT, INSERT, UPDATE, DELETE)
     """
@@ -144,7 +144,7 @@ def database_query(query_type: str = "SELECT"):
 def api_endpoint(endpoint_name: str | None = None):
     """
     Decorator for API endpoint performance tracking.
-    
+
     Args:
         endpoint_name: Name of the endpoint (defaults to function name)
     """
@@ -159,7 +159,7 @@ def api_endpoint(endpoint_name: str | None = None):
 def batch_operation(batch_name: str, batch_size_getter: Callable | None = None):
     """
     Decorator for batch processing operations with per-item metrics.
-    
+
     Args:
         batch_name: Name of the batch operation
         batch_size_getter: Function to extract batch size from arguments
@@ -175,7 +175,7 @@ def batch_operation(batch_name: str, batch_size_getter: Callable | None = None):
                 if batch_size_getter:
                     try:
                         batch_size = batch_size_getter(*args, **kwargs)
-                    except:
+                    except Exception:
                         pass
 
                 context = {
@@ -215,7 +215,7 @@ def batch_operation(batch_name: str, batch_size_getter: Callable | None = None):
                 if batch_size_getter:
                     try:
                         batch_size = batch_size_getter(*args, **kwargs)
-                    except:
+                    except Exception:
                         pass
 
                 context = {

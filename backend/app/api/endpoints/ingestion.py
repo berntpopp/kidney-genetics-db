@@ -108,25 +108,54 @@ async def upload_evidence_file(
 
         # Set provider context for evidence creation
         source._current_provider = provider_name
-        
-        # Use base class gene creation system (creates missing genes automatically)
+
+        # Use hybrid source approach with gene creation + evidence merging
+        from app.core.gene_normalizer import normalize_genes_batch_async
         from app.core.progress_tracker import ProgressTracker
-        tracker = ProgressTracker()
-        
-        stats = await source._store_genes_in_database(db, processed_data, {
-            "genes_processed": 0,
-            "genes_created": 0,
-            "genes_updated": 0,
-            "evidence_created": 0,
-            "evidence_updated": 0,
-            "errors": 0
-        }, tracker)
-        
+
+        tracker = ProgressTracker(db=db, source_name=source_name)
+
+        # Step 1: Normalize and create missing genes
+        gene_symbols = list(processed_data.keys())
+        batch_size = 50
+        total_batches = (len(gene_symbols) + batch_size - 1) // batch_size
+
+        genes_created = 0
+        genes_updated = 0
+
+        for batch_num in range(total_batches):
+            start_idx = batch_num * batch_size
+            end_idx = min(start_idx + batch_size, len(gene_symbols))
+            batch_symbols = gene_symbols[start_idx:end_idx]
+
+            tracker.update(operation=f"Creating genes batch {batch_num + 1}/{total_batches}")
+
+            # Normalize gene symbols and create missing genes
+            normalization_results = await normalize_genes_batch_async(
+                db, batch_symbols, source_name
+            )
+
+            # Create missing genes
+            for symbol in batch_symbols:
+                norm_result = normalization_results.get(symbol, {})
+                if norm_result.get("status") == "normalized":
+                    gene = await source._get_or_create_gene(db, norm_result, symbol, {"genes_created": 0, "genes_updated": 0})
+                    if gene:
+                        genes_created += 1 if norm_result.get("created") else 0
+                        genes_updated += 1 if not norm_result.get("created") else 0
+
+            db.commit()
+
+        # Step 2: Store evidence using custom merge logic
+        tracker.update(operation="Storing evidence with aggregation")
+        evidence_stats = await source.store_evidence(db, processed_data, provider_name)
+        db.commit()
+
         # Convert to expected format
         stats = {
-            "created": stats.get("evidence_created", 0) + stats.get("genes_created", 0),
-            "merged": stats.get("evidence_updated", 0),
-            "failed": stats.get("errors", 0)
+            "created": evidence_stats.get("created", 0) + genes_created,
+            "merged": evidence_stats.get("merged", 0),
+            "failed": evidence_stats.get("failed", 0)
         }
 
         # Return comprehensive response

@@ -36,7 +36,7 @@ class LogHealthMonitor:
     ):
         """
         Initialize health monitor thresholds.
-        
+
         Args:
             error_rate_warning: Warning threshold for error rate
             error_rate_critical: Critical threshold for error rate
@@ -53,10 +53,10 @@ class LogHealthMonitor:
     async def check_health(self, window_minutes: int = 5) -> dict[str, Any]:
         """
         Perform comprehensive health check based on recent logs.
-        
+
         Args:
             window_minutes: Time window to analyze (in minutes)
-            
+
         Returns:
             Health check results with status and metrics
         """
@@ -127,7 +127,7 @@ class LogHealthMonitor:
     def _check_error_rate(self, db: Session, cutoff_time: datetime) -> dict:
         """Check error rate in the time window."""
         query = """
-            SELECT 
+            SELECT
                 COUNT(*) as total_logs,
                 COUNT(*) FILTER (WHERE level = 'ERROR') as error_count,
                 COUNT(*) FILTER (WHERE level = 'WARNING') as warning_count
@@ -159,7 +159,7 @@ class LogHealthMonitor:
         """Check performance metrics from logs."""
         # Look for performance data in extra_data JSONB
         query = """
-            SELECT 
+            SELECT
                 AVG((extra_data->>'duration_ms')::float) as avg_duration,
                 MAX((extra_data->>'duration_ms')::float) as max_duration,
                 PERCENTILE_CONT(0.95) WITHIN GROUP (
@@ -194,7 +194,7 @@ class LogHealthMonitor:
         results = {}
         for pattern_name, condition in patterns.items():
             query = f"""
-                SELECT COUNT(*) 
+                SELECT COUNT(*)
                 FROM system_logs
                 WHERE timestamp >= :cutoff AND {condition}
             """
@@ -207,9 +207,9 @@ class LogHealthMonitor:
     def _get_recent_issues(self, db: Session, cutoff_time: datetime, limit: int = 5) -> list:
         """Get recent error messages."""
         query = """
-            SELECT DISTINCT ON (message) 
-                message, 
-                source, 
+            SELECT DISTINCT ON (message)
+                message,
+                source,
                 COUNT(*) as occurrence_count
             FROM system_logs
             WHERE timestamp >= :cutoff AND level = 'ERROR'
@@ -284,10 +284,10 @@ health_monitor = LogHealthMonitor()
 async def get_system_health(window_minutes: int = 5) -> dict[str, Any]:
     """
     Get current system health based on logs.
-    
+
     Args:
         window_minutes: Time window to analyze
-        
+
     Returns:
         Health check results
     """
