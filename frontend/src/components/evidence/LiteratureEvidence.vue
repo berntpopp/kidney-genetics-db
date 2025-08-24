@@ -105,7 +105,7 @@
       <div v-if="showAllPublications && additionalPublications.length" class="mb-4">
         <v-divider class="mb-3" />
         <div class="text-caption text-medium-emphasis mb-2">Additional Publications</div>
-        
+
         <div class="publication-grid">
           <v-chip
             v-for="pub in additionalPublications"
@@ -121,7 +121,6 @@
         </div>
       </div>
     </v-expand-transition>
-
 
     <!-- No Data State -->
     <div v-if="!publications?.length" class="text-center py-8">
@@ -157,14 +156,16 @@ const publications = computed(() => {
       pmid: details.pmid || id
     }))
   }
-  
+
   // Fallback to publications array if available
-  return props.evidenceData?.publications?.map(pub => {
-    if (typeof pub === 'string') {
-      return { pmid: pub }
-    }
-    return pub
-  }) || []
+  return (
+    props.evidenceData?.publications?.map(pub => {
+      if (typeof pub === 'string') {
+        return { pmid: pub }
+      }
+      return pub
+    }) || []
+  )
 })
 
 // Display logic
@@ -194,9 +195,9 @@ const publicationCount = computed(() => {
 })
 
 // Helper functions
-const formatAuthors = (authors) => {
+const formatAuthors = authors => {
   if (!authors) return ''
-  
+
   // Handle array of authors
   if (Array.isArray(authors)) {
     if (authors.length === 0) return ''
@@ -204,7 +205,7 @@ const formatAuthors = (authors) => {
     if (authors.length === 2) return authors.join(' & ')
     return `${authors[0]} et al.`
   }
-  
+
   // Handle string of authors
   if (typeof authors === 'string') {
     const authorList = authors.split(',').map(a => a.trim())
@@ -212,46 +213,46 @@ const formatAuthors = (authors) => {
     if (authorList.length === 2) return authorList.join(' & ')
     return `${authorList[0]} et al.`
   }
-  
+
   return ''
 }
 
-const formatYear = (dateString) => {
+const formatYear = dateString => {
   if (!dateString) return ''
   const year = new Date(dateString).getFullYear()
   return isNaN(year) ? '' : year
 }
 
-const getPublicationUrl = (pub) => {
+const getPublicationUrl = pub => {
   if (typeof pub === 'string') {
     // Assume it's a PMID
     return `https://pubmed.ncbi.nlm.nih.gov/${pub}`
   }
-  
+
   if (pub.pmid) {
     return `https://pubmed.ncbi.nlm.nih.gov/${pub.pmid}`
   }
-  
+
   if (pub.doi) {
     return `https://doi.org/${pub.doi}`
   }
-  
+
   return pub.url || '#'
 }
 
-const getPublicationLabel = (pub) => {
+const getPublicationLabel = pub => {
   if (typeof pub === 'string') {
     return pub
   }
-  
+
   if (pub.pmid) {
     return `PMID: ${pub.pmid}`
   }
-  
+
   if (pub.title) {
     return pub.title.length > 30 ? pub.title.substring(0, 30) + '...' : pub.title
   }
-  
+
   return 'Publication'
 }
 </script>

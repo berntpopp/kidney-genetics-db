@@ -195,18 +195,22 @@ async def get_genes(
     # Transform to JSON:API format
     data = transform_gene_to_jsonapi(results)
 
-    # Get metadata for filters
+    # Get metadata for filters dynamically
+    # Get max evidence count
+    max_count_result = db.execute(
+        text("SELECT MAX(evidence_count) FROM gene_scores")
+    ).scalar() or 0
+
+    # Get all available sources
+    sources_result = db.execute(
+        text("SELECT DISTINCT source_name FROM gene_evidence ORDER BY source_name")
+    ).fetchall()
+    available_sources = [row[0] for row in sources_result]
+
     filter_meta = {
         "evidence_score": {"min": 0, "max": 100},
-        "evidence_count": {"min": 0, "max": 6},
-        "available_sources": [
-            "ClinGen",
-            "PanelApp",
-            "GenCC",
-            "HPO",
-            "DiagnosticPanels",
-            "PubTator",
-        ],
+        "evidence_count": {"min": 0, "max": max_count_result},
+        "available_sources": available_sources,
     }
 
     # Build response using reusable helper

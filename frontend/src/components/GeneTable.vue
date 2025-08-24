@@ -317,7 +317,7 @@ const itemsPerPage = ref(10)
 const search = ref('')
 const evidenceScoreRange = ref([0, 100])
 const selectedSources = ref([])
-const evidenceCountRange = ref([0, 6])
+const evidenceCountRange = ref([0, 7]) // Initialize with a sensible default
 const sortOption = ref('score_desc')
 const filterMeta = ref(null)
 const sortBy = ref([{ key: 'evidence_score', order: 'desc' }])
@@ -330,14 +330,8 @@ const itemsPerPageOptions = [
   { value: 100, title: '100' }
 ]
 
-const availableSources = [
-  { title: 'ClinGen', value: 'ClinGen' },
-  { title: 'PanelApp', value: 'PanelApp' },
-  { title: 'GenCC', value: 'GenCC' },
-  { title: 'HPO', value: 'HPO' },
-  { title: 'DiagnosticPanels', value: 'DiagnosticPanels' },
-  { title: 'PubTator', value: 'PubTator' }
-]
+// Dynamic sources list - will be populated from API
+const availableSources = ref([])
 
 const sortOptions = [
   { title: 'Evidence Score (High to Low)', value: 'score_desc' },
@@ -411,9 +405,9 @@ const loadGenes = async (options = {}) => {
       search: search.value,
       minScore: evidenceScoreRange.value[0],
       maxScore: evidenceScoreRange.value[1],
-      minCount: evidenceCountRange.value[0] > 0 ? evidenceCountRange.value[0] : null,
+      minCount: evidenceCountRange.value[0],
       maxCount:
-        evidenceCountRange.value[1] < (filterMeta.value?.evidence_count?.max || 6)
+        evidenceCountRange.value[1] < (filterMeta.value?.evidence_count?.max || 7)
           ? evidenceCountRange.value[1]
           : null,
       source: selectedSources.value.length > 0 ? selectedSources.value[0] : null,
@@ -427,6 +421,20 @@ const loadGenes = async (options = {}) => {
     // Store filter metadata for dynamic ranges
     if (response.meta && response.meta.filters) {
       filterMeta.value = response.meta.filters
+
+      // Update available sources dynamically from API metadata
+      if (response.meta.filters.available_sources) {
+        availableSources.value = response.meta.filters.available_sources.map(source => ({
+          title: source,
+          value: source
+        }))
+      }
+
+      // Update the evidence count range max only on first load
+      // Check if we haven't set filterMeta yet (first load)
+      if (response.meta.filters.evidence_count?.max && !filterMeta.value) {
+        evidenceCountRange.value = [0, response.meta.filters.evidence_count.max]
+      }
     }
   } catch (error) {
     console.error('Error loading genes:', error)
@@ -472,7 +480,7 @@ const debouncedSearch = () => {
 const clearAllFilters = () => {
   search.value = ''
   evidenceScoreRange.value = [0, 100]
-  evidenceCountRange.value = [0, filterMeta.value?.evidence_count?.max || 6]
+  evidenceCountRange.value = [0, filterMeta.value?.evidence_count?.max || 7]
   selectedSources.value = []
   sortOption.value = 'score_desc'
   sortBy.value = [{ key: 'evidence_score', order: 'desc' }]
@@ -497,7 +505,8 @@ const getSourceColor = source => {
     PubTator: 'info',
     ClinGen: 'success',
     GenCC: 'warning',
-    DiagnosticPanels: 'error'
+    DiagnosticPanels: 'error',
+    Literature: 'purple'
   }
   return colors[source] || 'grey'
 }
