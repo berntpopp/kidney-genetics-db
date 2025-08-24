@@ -4,8 +4,41 @@
   "provider_type": "literature",
   "main_url": "https://jmg.bmj.com/content/53/5/338.long",
   "total_panels": 1,
-  "total_unique_genes": 86,
+  "total_unique_genes": 91,
   "genes": [
+    {
+      "symbol": "ACE",
+      "panels": [
+        "PMID_26862157"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:2707",
+      "approved_symbol": "ACE",
+      "reported_symbol": "ACE"
+    },
+    {
+      "symbol": "ACTN4",
+      "panels": [
+        "PMID_26862157"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:166",
+      "approved_symbol": "ACTN4",
+      "reported_symbol": "ACTN4"
+    },
+    {
+      "symbol": "AGXT",
+      "panels": [
+        "PMID_26862157"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:341",
+      "approved_symbol": "AGXT",
+      "reported_symbol": "AGXT"
+    },
     {
       "symbol": "APRT",
       "panels": [
@@ -82,6 +115,17 @@
       "hgnc_id": "HGNC:16512",
       "approved_symbol": "BSND",
       "reported_symbol": "BSND"
+    },
+    {
+      "symbol": "CPLANE1",
+      "panels": [
+        "PMID_26862157"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:25801",
+      "approved_symbol": "CPLANE1",
+      "reported_symbol": "C5ORF42"
     },
     {
       "symbol": "CA2",
@@ -434,6 +478,17 @@
       "hgnc_id": "HGNC:25018",
       "approved_symbol": "TMEM216",
       "reported_symbol": "MKS2"
+    },
+    {
+      "symbol": "MT-TL1",
+      "panels": [
+        "PMID_26862157"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:7490",
+      "approved_symbol": "MT-TL1",
+      "reported_symbol": "MT-TL1"
     },
     {
       "symbol": "NEK8",
@@ -960,16 +1015,16 @@
       "authors": "Mohamed H Al-Hamed",
       "publication_date": "2016-04-22 00:00:00",
       "file_type": "pdf",
-      "gene_count": 86,
+      "gene_count": 91,
       "extraction_method": "PMID26862157Processor"
     }
   ],
   "metadata": {
     "pmid": "26862157",
     "title": "Genetic spectrum of Saudi Arabian patients with antenatal cystic kidney disease and ciliopathy phenotypes using a targeted renal gene panel",
-    "source_file": "data/downloads/PMID_26862157.pdf",
-    "extraction_timestamp": "2025-08-24T11:45:16.102381"
+    "source_file": "/home/bernt-popp/development/kidney-genetics-db/scrapers/literature/data/downloads/PMID_26862157.pdf",
+    "extraction_timestamp": "2025-08-24T16:41:07.252025"
   },
   "errors": null,
-  "scraped_at": "2025-08-24T11:45:16.102386"
+  "scraped_at": "2025-08-24T16:41:07.252031"
 }

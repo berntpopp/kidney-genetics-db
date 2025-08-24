@@ -4,8 +4,162 @@
   "provider_type": "literature",
   "main_url": "https://karger.figshare.com/articles/dataset/Supplementary_Material_for_Utility_of_Genomic_Testing_after_Renal_Biopsy/11346890",
   "total_panels": 1,
-  "total_unique_genes": 212,
+  "total_unique_genes": 226,
   "genes": [
+    {
+      "symbol": "ACE",
+      "panels": [
+        "PMID_31822006"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:2707",
+      "approved_symbol": "ACE",
+      "reported_symbol": "ACE"
+    },
+    {
+      "symbol": "ACTN4",
+      "panels": [
+        "PMID_31822006"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:166",
+      "approved_symbol": "ACTN4",
+      "reported_symbol": "ACTN4"
+    },
+    {
+      "symbol": "ADAMTS13",
+      "panels": [
+        "PMID_31822006"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:1366",
+      "approved_symbol": "ADAMTS13",
+      "reported_symbol": "ADAMTS13"
+    },
+    {
+      "symbol": "COQ8B",
+      "panels": [
+        "PMID_31822006"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:19041",
+      "approved_symbol": "COQ8B",
+      "reported_symbol": "ADCK4"
+    },
+    {
+      "symbol": "AGT",
+      "panels": [
+        "PMID_31822006"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:333",
+      "approved_symbol": "AGT",
+      "reported_symbol": "AGT"
+    },
+    {
+      "symbol": "AGTR1",
+      "panels": [
+        "PMID_31822006"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:336",
+      "approved_symbol": "AGTR1",
+      "reported_symbol": "AGTR1"
+    },
+    {
+      "symbol": "AGXT",
+      "panels": [
+        "PMID_31822006"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:341",
+      "approved_symbol": "AGXT",
+      "reported_symbol": "AGXT"
+    },
+    {
+      "symbol": "AHI1",
+      "panels": [
+        "PMID_31822006"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:21575",
+      "approved_symbol": "AHI1",
+      "reported_symbol": "AHI1"
+    },
+    {
+      "symbol": "ANKS6",
+      "panels": [
+        "PMID_31822006"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:26724",
+      "approved_symbol": "ANKS6",
+      "reported_symbol": "ANKS6"
+    },
+    {
+      "symbol": "ANLN",
+      "panels": [
+        "PMID_31822006"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:14082",
+      "approved_symbol": "ANLN",
+      "reported_symbol": "ANLN"
+    },
+    {
+      "symbol": "APOA1",
+      "panels": [
+        "PMID_31822006"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:600",
+      "approved_symbol": "APOA1",
+      "reported_symbol": "APOA1"
+    },
+    {
+      "symbol": "APOA2",
+      "panels": [
+        "PMID_31822006"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:601",
+      "approved_symbol": "APOA2",
+      "reported_symbol": "APOA2"
+    },
+    {
+      "symbol": "APOE",
+      "panels": [
+        "PMID_31822006"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:613",
+      "approved_symbol": "APOE",
+      "reported_symbol": "APOE"
+    },
+    {
+      "symbol": "APOL1",
+      "panels": [
+        "PMID_31822006"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:618",
+      "approved_symbol": "APOL1",
+      "reported_symbol": "APOL1"
+    },
     {
       "symbol": "APRT",
       "panels": [
@@ -2346,16 +2500,16 @@
       "authors": "Susan L. Murray",
       "publication_date": "2020-01-01 00:00:00",
       "file_type": "pdf",
-      "gene_count": 212,
+      "gene_count": 226,
       "extraction_method": "PMID31822006Processor"
     }
   ],
   "metadata": {
     "pmid": "31822006",
     "title": "Utility of Genomic Testing after Renal Biopsy",
-    "source_file": "data/downloads/PMID_31822006.pdf",
-    "extraction_timestamp": "2025-08-24T11:45:15.824189"
+    "source_file": "/home/bernt-popp/development/kidney-genetics-db/scrapers/literature/data/downloads/PMID_31822006.pdf",
+    "extraction_timestamp": "2025-08-24T16:41:06.203960"
   },
   "errors": null,
-  "scraped_at": "2025-08-24T11:45:15.824195"
+  "scraped_at": "2025-08-24T16:41:06.203966"
 }

@@ -1,8 +1,8 @@
 {
-  "timestamp": "2025-08-24T11:45:16.373468",
-  "total_publications_attempted": 12,
+  "timestamp": "2025-08-24T16:41:07.607381",
+  "total_publications_attempted": 16,
   "successful": 12,
-  "failed": 0,
+  "failed": 4,
   "publications": [
     {
       "pmid": "35325889",
@@ -14,15 +14,15 @@
     {
       "pmid": "34264297",
       "title": "Genetic testing in the diagnosis of chronic kidney disease: recommendations for clinical practice",
-      "gene_count": 265,
-      "genes_with_hgnc": 265,
+      "gene_count": 266,
+      "genes_with_hgnc": 266,
       "output_file": "literature_pmid_34264297.json"
     },
     {
       "pmid": "36035137",
       "title": "Analysis of chronic kidney disease patients by targeted next-generation sequencing identifies novel variants in kidney-related genes",
-      "gene_count": 100,
-      "genes_with_hgnc": 100,
+      "gene_count": 103,
+      "genes_with_hgnc": 103,
       "output_file": "literature_pmid_36035137.json"
     },
     {
@@ -49,8 +49,8 @@
     {
       "pmid": "31822006",
       "title": "Utility of Genomic Testing after Renal Biopsy",
-      "gene_count": 212,
-      "genes_with_hgnc": 212,
+      "gene_count": 226,
+      "genes_with_hgnc": 226,
       "output_file": "literature_pmid_31822006.json"
     },
     {
@@ -63,15 +63,15 @@
     {
       "pmid": "31027891",
       "title": "Value of renal gene panel diagnostics in adults waiting for kidney transplantation due to undetermined end-stage renal disease",
-      "gene_count": 208,
+      "gene_count": 209,
       "genes_with_hgnc": 208,
       "output_file": "literature_pmid_31027891.json"
     },
     {
       "pmid": "26862157",
       "title": "Genetic spectrum of Saudi Arabian patients with antenatal cystic kidney disease and ciliopathy phenotypes using a targeted renal gene panel",
-      "gene_count": 86,
-      "genes_with_hgnc": 86,
+      "gene_count": 91,
+      "genes_with_hgnc": 91,
       "output_file": "literature_pmid_26862157.json"
     },
     {
@@ -89,5 +89,5 @@
       "output_file": "literature_pmid_35005812.json"
     }
   ],
-  "total_unique_genes_all_publications": 816
+  "total_unique_genes_all_publications": 820
 }

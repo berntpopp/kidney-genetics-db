@@ -13,9 +13,7 @@ class PdfExtractor:
     def __init__(self):
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def extract(
-        self, file_path: Path, pages: Optional[List[int]] = None
-    ) -> Dict[str, Any]:
+    def extract(self, file_path: Path, pages: Optional[List[int]] = None) -> Dict[str, Any]:
         """Extract text content from PDF file.
 
         Args:
@@ -112,9 +110,7 @@ class PdfExtractor:
                             # Clean table data
                             cleaned_table = []
                             for row in table:
-                                cleaned_row = [
-                                    str(cell) if cell else "" for cell in row
-                                ]
+                                cleaned_row = [str(cell) if cell else "" for cell in row]
                                 cleaned_table.append(cleaned_row)
                             all_tables.append(cleaned_table)
 

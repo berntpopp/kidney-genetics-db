@@ -124,9 +124,7 @@ class HGNCNormalizer:
             return result
 
         # Try previous symbol
-        response = self._make_request(
-            f"search/prev_symbol/{urllib.parse.quote(normalized)}"
-        )
+        response = self._make_request(f"search/prev_symbol/{urllib.parse.quote(normalized)}")
         if response and response.get("response", {}).get("docs"):
             doc = response["response"]["docs"][0]
             result = {
@@ -140,9 +138,7 @@ class HGNCNormalizer:
             return result
 
         # Try alias symbol
-        response = self._make_request(
-            f"search/alias_symbol/{urllib.parse.quote(normalized)}"
-        )
+        response = self._make_request(f"search/alias_symbol/{urllib.parse.quote(normalized)}")
         if response and response.get("response", {}).get("docs"):
             doc = response["response"]["docs"][0]
             result = {

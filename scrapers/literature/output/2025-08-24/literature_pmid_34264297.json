@@ -4,7 +4,7 @@
   "provider_type": "literature",
   "main_url": "https://academic.oup.com/ndt/article/37/2/239/6321895#337781827",
   "total_panels": 1,
-  "total_unique_genes": 265,
+  "total_unique_genes": 266,
   "genes": [
     {
       "symbol": "ACE",
@@ -489,6 +489,17 @@
       "hgnc_id": "HGNC:1318",
       "approved_symbol": "C3",
       "reported_symbol": "C3"
+    },
+    {
+      "symbol": "CFAP418",
+      "panels": [
+        "PMID_34264297"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:27232",
+      "approved_symbol": "CFAP418",
+      "reported_symbol": "C8ORF37"
     },
     {
       "symbol": "CA2",
@@ -2929,16 +2940,16 @@
       "authors": "Nine Knoers; Carsten Bergmann",
       "publication_date": "2022-02-01 00:00:00",
       "file_type": "zip",
-      "gene_count": 265,
+      "gene_count": 266,
       "extraction_method": "PMID34264297Processor"
     }
   ],
   "metadata": {
     "pmid": "34264297",
     "title": "Genetic testing in the diagnosis of chronic kidney disease: recommendations for clinical practice",
-    "source_file": "data/downloads/PMID_34264297.zip",
-    "extraction_timestamp": "2025-08-24T11:45:15.340563"
+    "source_file": "/home/bernt-popp/development/kidney-genetics-db/scrapers/literature/data/downloads/PMID_34264297.zip",
+    "extraction_timestamp": "2025-08-24T16:41:05.193332"
   },
   "errors": null,
-  "scraped_at": "2025-08-24T11:45:15.340569"
+  "scraped_at": "2025-08-24T16:41:05.193339"
 }

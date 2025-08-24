@@ -177,8 +177,7 @@ class IndividualLiteratureScraper(BaseLiteratureScraper):
                 successful += 1
 
                 self.logger.info(
-                    f"Successfully processed PMID {pmid}: "
-                    f"{result.total_unique_genes} genes",
+                    f"Successfully processed PMID {pmid}: " f"{result.total_unique_genes} genes",
                 )
 
             except Exception as e:
@@ -189,15 +188,12 @@ class IndividualLiteratureScraper(BaseLiteratureScraper):
         self._create_summary(results, successful, failed)
 
         self.logger.info(
-            f"Literature scraping complete: "
-            f"{successful} successful, {failed} failed",
+            f"Literature scraping complete: " f"{successful} successful, {failed} failed",
         )
 
         return results
 
-    def _create_summary(
-        self, results: Dict[str, LiteratureData], successful: int, failed: int
-    ):
+    def _create_summary(self, results: Dict[str, LiteratureData], successful: int, failed: int):
         """Create a summary file for all processed publications.
 
         Args:

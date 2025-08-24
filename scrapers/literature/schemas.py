@@ -60,12 +60,10 @@ class LiteratureData:
         data = asdict(self)
         # Convert gene entries
         data["genes"] = [
-            g.model_dump() if hasattr(g, "model_dump") else asdict(g)
-            for g in self.genes
+            g.model_dump() if hasattr(g, "model_dump") else asdict(g) for g in self.genes
         ]
         if self.publications:
             data["publications"] = [
-                p.model_dump() if hasattr(p, "model_dump") else asdict(p)
-                for p in self.publications
+                p.model_dump() if hasattr(p, "model_dump") else asdict(p) for p in self.publications
             ]
         return data

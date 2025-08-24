@@ -45,9 +45,7 @@ class PMID34264297Processor:
                 # Extract ZIP contents
                 with zipfile.ZipFile(file_path, "r") as zip_ref:
                     zip_ref.extractall(temp_path)
-                    self.logger.debug(
-                        f"Extracted {len(zip_ref.namelist())} files from ZIP"
-                    )
+                    self.logger.debug(f"Extracted {len(zip_ref.namelist())} files from ZIP")
 
                 # Process each Excel file
                 for excel_file in temp_path.glob("*.xlsx"):
@@ -88,11 +86,9 @@ class PMID34264297Processor:
 
                                     # Remove asterisks
                                     gene_raw = gene_raw.replace("*", "")
-                                    
+
                                     # Replace orf with ORF (fixed regex - was \borf\b which doesn't match C8orf37)
-                                    gene_raw = re.sub(
-                                        r"orf", "ORF", gene_raw, flags=re.IGNORECASE
-                                    )
+                                    gene_raw = re.sub(r"orf", "ORF", gene_raw, flags=re.IGNORECASE)
 
                                     # Clean and validate
                                     gene = clean_gene_symbol(gene_raw)
@@ -100,9 +96,7 @@ class PMID34264297Processor:
                                     # Additional filters from R script
                                     if not gene or gene == "":
                                         continue
-                                    if re.search(
-                                        r"[:-]", gene
-                                    ):  # Skip if contains : or -
+                                    if re.search(r"[:-]", gene):  # Skip if contains : or -
                                         continue
                                     if re.search(
                                         r"[a-z,]", gene

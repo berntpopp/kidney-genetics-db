@@ -6874,9 +6874,9 @@
   "metadata": {
     "pmid": "30476936",
     "title": "The Burden of Candidate Pathogenic Variants for Kidney and Genitourinary Disorders Emerging From Exome Sequencing",
-    "source_file": "data/downloads/PMID_30476936.xlsx",
-    "extraction_timestamp": "2025-08-24T11:45:15.460615"
+    "source_file": "/home/bernt-popp/development/kidney-genetics-db/scrapers/literature/data/downloads/PMID_30476936.xlsx",
+    "extraction_timestamp": "2025-08-24T16:41:05.826369"
   },
   "errors": null,
-  "scraped_at": "2025-08-24T11:45:15.460618"
+  "scraped_at": "2025-08-24T16:41:05.826373"
 }

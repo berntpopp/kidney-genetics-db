@@ -49,9 +49,7 @@ class ZipExtractor:
                         result["filename"] = file_name
                         results.append(result)
                     else:
-                        self.logger.debug(
-                            f"Skipping unsupported file type: {file_name}"
-                        )
+                        self.logger.debug(f"Skipping unsupported file type: {file_name}")
 
                 return {
                     "files": file_list,
@@ -63,9 +61,7 @@ class ZipExtractor:
             self.logger.error(f"Error extracting ZIP {file_path}: {e}")
             return {"success": False, "error": str(e)}
 
-    def extract_excel_files(
-        self, file_path: Path, skip_rows: int = 0
-    ) -> List[Dict[str, Any]]:
+    def extract_excel_files(self, file_path: Path, skip_rows: int = 0) -> List[Dict[str, Any]]:
         """Extract all Excel files from ZIP archive.
 
         Args:

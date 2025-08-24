@@ -4,7 +4,7 @@
   "provider_type": "literature",
   "main_url": "https://www.frontiersin.org/articles/10.3389/fgene.2022.886038/full#supplementary-material",
   "total_panels": 1,
-  "total_unique_genes": 100,
+  "total_unique_genes": 103,
   "genes": [
     {
       "symbol": "ACE",
@@ -137,6 +137,28 @@
       "hgnc_id": "HGNC:16512",
       "approved_symbol": "BSND",
       "reported_symbol": "BSND"
+    },
+    {
+      "symbol": "RLIG1",
+      "panels": [
+        "PMID_36035137"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:25322",
+      "approved_symbol": "RLIG1",
+      "reported_symbol": "C12orf29"
+    },
+    {
+      "symbol": "CPLANE1",
+      "panels": [
+        "PMID_36035137"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:25801",
+      "approved_symbol": "CPLANE1",
+      "reported_symbol": "C5orf42"
     },
     {
       "symbol": "CA2",
@@ -368,6 +390,17 @@
       "hgnc_id": "HGNC:4026",
       "approved_symbol": "FXYD2",
       "reported_symbol": "FXYD2"
+    },
+    {
+      "symbol": "FXYD6-FXYD2",
+      "panels": [
+        "PMID_36035137"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": "HGNC:39978",
+      "approved_symbol": "FXYD6-FXYD2",
+      "reported_symbol": "FXYD6-FXYD2"
     },
     {
       "symbol": "GATA3",
@@ -1114,16 +1147,16 @@
       "authors": "Manal Alaamery",
       "publication_date": "2022-08-11 00:00:00",
       "file_type": "xlsx",
-      "gene_count": 100,
+      "gene_count": 103,
       "extraction_method": "PMID36035137Processor"
     }
   ],
   "metadata": {
     "pmid": "36035137",
     "title": "Analysis of chronic kidney disease patients by targeted next-generation sequencing identifies novel variants in kidney-related genes",
-    "source_file": "data/downloads/PMID_36035137.xlsx",
-    "extraction_timestamp": "2025-08-24T11:45:15.355134"
+    "source_file": "/home/bernt-popp/development/kidney-genetics-db/scrapers/literature/data/downloads/PMID_36035137.xlsx",
+    "extraction_timestamp": "2025-08-24T16:41:05.708340"
   },
   "errors": null,
-  "scraped_at": "2025-08-24T11:45:15.355137"
+  "scraped_at": "2025-08-24T16:41:05.708348"
 }

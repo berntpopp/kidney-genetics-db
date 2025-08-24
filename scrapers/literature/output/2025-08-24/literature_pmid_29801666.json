@@ -1561,9 +1561,9 @@
   "metadata": {
     "pmid": "29801666",
     "title": "A kidney-disease gene panel allows a comprehensive genetic diagnosis of cystic and glomerular inherited kidney diseases",
-    "source_file": "data/downloads/PMID_29801666.docx",
-    "extraction_timestamp": "2025-08-24T11:45:15.862944"
+    "source_file": "/home/bernt-popp/development/kidney-genetics-db/scrapers/literature/data/downloads/PMID_29801666.docx",
+    "extraction_timestamp": "2025-08-24T16:41:06.242931"
   },
   "errors": null,
-  "scraped_at": "2025-08-24T11:45:15.862949"
+  "scraped_at": "2025-08-24T16:41:06.242934"
 }

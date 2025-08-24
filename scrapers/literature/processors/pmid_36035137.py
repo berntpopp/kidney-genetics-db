@@ -51,9 +51,7 @@ class PMID36035137Processor:
 
             if gene_col_idx is None:
                 # Try first column if no Gene header found
-                self.logger.warning(
-                    "Gene column not found by header, trying first column"
-                )
+                self.logger.warning("Gene column not found by header, trying first column")
                 gene_col_idx = 0
 
             # Extract genes from column

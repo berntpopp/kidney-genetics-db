@@ -24,7 +24,7 @@ class PMID33664247Processor:
         - ADTKD panel at line 8
         - aHUS/C3 GN panel at line 9-10
         - Multiple other panels through line ~45
-        
+
         We need to extract from line 8 onwards to capture all genes.
 
         Args:
@@ -47,7 +47,7 @@ class PMID33664247Processor:
             noise_patterns = [
                 # Panel names and descriptive words (not genes)
                 "Panel",
-                "Gene", 
+                "Gene",
                 "syndrome",
                 "Cystinosis",  # This is a disease name, CTNS is the gene
                 "Nephronophthisis",
@@ -100,9 +100,9 @@ class PMID33664247Processor:
             # Process each line
             for line in lines:
                 # Remove parenthetical content like "(PLG removed)"
-                line = re.sub(r'\([^)]*removed[^)]*\)', '', line)
-                line = re.sub(r'\([^)]*bold[^)]*\)', '', line)
-                
+                line = re.sub(r"\([^)]*removed[^)]*\)", "", line)
+                line = re.sub(r"\([^)]*bold[^)]*\)", "", line)
+
                 # Split by various separators
                 items = re.split(r"[,\s]+", line)
 
@@ -151,7 +151,9 @@ class PMID33664247Processor:
             return False
 
         # Should start with letter (or number for some special cases like C3, C5)
-        if not (symbol[0].isalpha() or (len(symbol) > 1 and symbol[0] in "C" and symbol[1].isdigit())):
+        if not (
+            symbol[0].isalpha() or (len(symbol) > 1 and symbol[0] in "C" and symbol[1].isdigit())
+        ):
             return False
 
         # Should be uppercase alphanumeric (allow hyphens and underscores for special cases)
@@ -160,9 +162,17 @@ class PMID33664247Processor:
 
         # Filter out known non-gene abbreviations
         non_genes = [
-            "CNV", "VOUS", "ACMG",  # Technical terms
-            "ADTKD", "ARPKD", "CAKUT", "BORS", "GN",  # Disease/syndrome abbreviations
-            "NA", "NULL", "NONE",  # Data placeholders
+            "CNV",
+            "VOUS",
+            "ACMG",  # Technical terms
+            "ADTKD",
+            "ARPKD",
+            "CAKUT",
+            "BORS",
+            "GN",  # Disease/syndrome abbreviations
+            "NA",
+            "NULL",
+            "NONE",  # Data placeholders
         ]
         if symbol in non_genes:
             return False

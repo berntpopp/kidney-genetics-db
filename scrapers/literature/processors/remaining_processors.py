@@ -46,16 +46,11 @@ class PMID31509055Processor(BaseProcessor):
             genes = set()
             for line in lines:
                 # Filter noise
-                if any(
-                    x in line
-                    for x in ["Supplementary", "Table", "List", "genes", "panel"]
-                ):
+                if any(x in line for x in ["Supplementary", "Table", "List", "genes", "panel"]):
                     continue
                 items = line.split()
                 for item in items:
-                    gene = clean_gene_symbol(
-                        item.split("_")[0]
-                    )  # Remove underscore suffixes
+                    gene = clean_gene_symbol(item.split("_")[0])  # Remove underscore suffixes
                     if gene and self._is_valid_gene_symbol(gene):
                         genes.add(gene)
             return sorted(list(genes))
@@ -75,29 +70,25 @@ class PMID31822006Processor(BaseProcessor):
         """Extract genes from PDF pages 1-9, with special handling for page 3."""
         try:
             genes = set()
-            
+
             # Extract from pages 1-2 with original skip
-            lines_1_2 = self.extractor.extract_lines(
-                file_path, pages=[1, 2], skip_lines=31
-            )
+            lines_1_2 = self.extractor.extract_lines(file_path, pages=[1, 2], skip_lines=31)
             for line in lines_1_2:
                 parts = line.split()
                 if parts:
                     gene = clean_gene_symbol(parts[0])
                     if gene and self._is_valid_gene_symbol(gene) and not gene.isdigit():
                         genes.add(gene)
-            
+
             # Extract from page 3 with minimal skip (genes start at line 4)
-            lines_3 = self.extractor.extract_lines(
-                file_path, pages=[3], skip_lines=3
-            )
+            lines_3 = self.extractor.extract_lines(file_path, pages=[3], skip_lines=3)
             for line in lines_3:
                 parts = line.split()
                 if parts:
                     gene = clean_gene_symbol(parts[0])
                     if gene and self._is_valid_gene_symbol(gene) and not gene.isdigit():
                         genes.add(gene)
-            
+
             # Extract from pages 4-9 normally
             lines_4_9 = self.extractor.extract_lines(
                 file_path, pages=list(range(4, 10)), skip_lines=0
@@ -108,7 +99,7 @@ class PMID31822006Processor(BaseProcessor):
                     gene = clean_gene_symbol(parts[0])
                     if gene and self._is_valid_gene_symbol(gene) and not gene.isdigit():
                         genes.add(gene)
-            
+
             return sorted(list(genes))
         except Exception as e:
             self.logger.error(f"Error processing PMID {self.pmid}: {e}")
@@ -129,11 +120,7 @@ class PMID29801666Processor(BaseProcessor):
             genes = set()
             for table in tables:
                 for cell in table.get("cells", []):
-                    if (
-                        cell.get("cell_id") == 1
-                        or cell.get("text")
-                        and cell.get("text") != "Gene"
-                    ):
+                    if cell.get("cell_id") == 1 or cell.get("text") and cell.get("text") != "Gene":
                         gene = clean_gene_symbol(cell.get("text", ""))
                         if gene and self._is_valid_gene_symbol(gene):
                             genes.add(gene)
@@ -244,9 +231,7 @@ class PMID35005812Processor(BaseProcessor):
             genes = set()
             for row in result.get("data", []):
                 if len(row) > 1 and row[1]:  # Column 2 (index 1)
-                    gene = (
-                        str(row[1]).split("(")[0].strip()
-                    )  # Remove parentheses content
+                    gene = str(row[1]).split("(")[0].strip()  # Remove parentheses content
                     gene = clean_gene_symbol(gene)
                     if gene and self._is_valid_gene_symbol(gene):
                         genes.add(gene)

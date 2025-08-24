@@ -4,7 +4,7 @@
   "provider_type": "literature",
   "main_url": "https://www.kidney-international.org/article/S0085-2538(19)30187-5/fulltext#secsectitle0035",
   "total_panels": 1,
-  "total_unique_genes": 208,
+  "total_unique_genes": 209,
   "genes": [
     {
       "symbol": "ACE",
@@ -1635,6 +1635,17 @@
       "reported_symbol": "ROBO2"
     },
     {
+      "symbol": "RPGRIP1-like",
+      "panels": [
+        "PMID_31027891"
+      ],
+      "occurrence_count": 1,
+      "confidence": "medium",
+      "hgnc_id": null,
+      "approved_symbol": null,
+      "reported_symbol": "RPGRIP1-like"
+    },
+    {
       "symbol": "RPGRIP1L",
       "panels": [
         "PMID_31027891"
@@ -2302,16 +2313,16 @@
       "authors": "Isabel Ottlewski; Jan Halbritter",
       "publication_date": "2019-03-15 00:00:00",
       "file_type": "docx",
-      "gene_count": 208,
+      "gene_count": 209,
       "extraction_method": "PMID31027891Processor"
     }
   ],
   "metadata": {
     "pmid": "31027891",
     "title": "Value of renal gene panel diagnostics in adults waiting for kidney transplantation due to undetermined end-stage renal disease",
-    "source_file": "data/downloads/PMID_31027891.docx",
-    "extraction_timestamp": "2025-08-24T11:45:15.924082"
+    "source_file": "/home/bernt-popp/development/kidney-genetics-db/scrapers/literature/data/downloads/PMID_31027891.docx",
+    "extraction_timestamp": "2025-08-24T16:41:06.935222"
   },
   "errors": null,
-  "scraped_at": "2025-08-24T11:45:15.924086"
+  "scraped_at": "2025-08-24T16:41:06.935228"
 }
