@@ -83,16 +83,16 @@ class PMID34264297Processor:
                                     gene_raw = str(gene_raw).strip()
 
                                     # Apply cleaning rules from R script
-                                    # Replace orf with ORF
-                                    gene_raw = re.sub(
-                                        r"\borf\b", "ORF", gene_raw, flags=re.IGNORECASE
-                                    )
-
                                     # Remove text after space, slash, or parenthesis
                                     gene_raw = re.split(r"[\s\/\(\*]", gene_raw)[0]
 
                                     # Remove asterisks
                                     gene_raw = gene_raw.replace("*", "")
+                                    
+                                    # Replace orf with ORF (fixed regex - was \borf\b which doesn't match C8orf37)
+                                    gene_raw = re.sub(
+                                        r"orf", "ORF", gene_raw, flags=re.IGNORECASE
+                                    )
 
                                     # Clean and validate
                                     gene = clean_gene_symbol(gene_raw)
@@ -106,7 +106,7 @@ class PMID34264297Processor:
                                         continue
                                     if re.search(
                                         r"[a-z,]", gene
-                                    ):  # Skip if contains lowercase or comma
+                                    ):  # Skip if contains lowercase or comma (after orf->ORF fix)
                                         continue
 
                                     if self._is_valid_gene_symbol(gene):

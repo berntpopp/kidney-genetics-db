@@ -72,19 +72,43 @@ class PMID31822006Processor(BaseProcessor):
         self.extractor = PdfExtractor()
 
     def process(self, file_path: Path) -> List[str]:
-        """Extract genes from PDF pages 1-9."""
+        """Extract genes from PDF pages 1-9, with special handling for page 3."""
         try:
-            lines = self.extractor.extract_lines(
-                file_path, pages=list(range(1, 10)), skip_lines=31
-            )
             genes = set()
-            for line in lines:
-                # Take first word from each line
+            
+            # Extract from pages 1-2 with original skip
+            lines_1_2 = self.extractor.extract_lines(
+                file_path, pages=[1, 2], skip_lines=31
+            )
+            for line in lines_1_2:
                 parts = line.split()
                 if parts:
                     gene = clean_gene_symbol(parts[0])
                     if gene and self._is_valid_gene_symbol(gene) and not gene.isdigit():
                         genes.add(gene)
+            
+            # Extract from page 3 with minimal skip (genes start at line 4)
+            lines_3 = self.extractor.extract_lines(
+                file_path, pages=[3], skip_lines=3
+            )
+            for line in lines_3:
+                parts = line.split()
+                if parts:
+                    gene = clean_gene_symbol(parts[0])
+                    if gene and self._is_valid_gene_symbol(gene) and not gene.isdigit():
+                        genes.add(gene)
+            
+            # Extract from pages 4-9 normally
+            lines_4_9 = self.extractor.extract_lines(
+                file_path, pages=list(range(4, 10)), skip_lines=0
+            )
+            for line in lines_4_9:
+                parts = line.split()
+                if parts:
+                    gene = clean_gene_symbol(parts[0])
+                    if gene and self._is_valid_gene_symbol(gene) and not gene.isdigit():
+                        genes.add(gene)
+            
             return sorted(list(genes))
         except Exception as e:
             self.logger.error(f"Error processing PMID {self.pmid}: {e}")
@@ -159,7 +183,7 @@ class PMID26862157Processor(BaseProcessor):
         """Extract genes from PDF pages 1-4."""
         try:
             lines = self.extractor.extract_lines(
-                file_path, pages=[1, 2, 3, 4], skip_lines=9
+                file_path, pages=[1, 2, 3, 4], skip_lines=4  # Fixed: was 9, should be 4
             )
             genes = set()
             for line in lines:
