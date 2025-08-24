@@ -1,1069 +1,644 @@
 {
-  "provider_id": "literature_pmid_36035137",
-  "provider_name": "Literature PMID 36035137",
-  "provider_type": "literature",
-  "main_url": "https://www.frontiersin.org/articles/10.3389/fgene.2022.886038/full#supplementary-material",
-  "total_panels": 1,
-  "total_unique_genes": 104,
+  "id": "36035137",
+  "pmid": "36035137",
+  "title": "Analysis of chronic kidney disease patients by targeted next-generation sequencing identifies novel variants in kidney-related genes",
+  "authors": [
+    "Manal Alaamery"
+  ],
+  "journal": "Frontiers in Genetics",
+  "publication_date": "2022-08-11T00:00:00",
+  "url": "https://www.frontiersin.org/articles/10.3389/fgene.2022.886038/full#supplementary-material",
+  "doi": null,
   "genes": [
     {
       "symbol": "ACE",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "ACE",
       "hgnc_id": "HGNC:2707",
-      "approved_symbol": "ACE",
-      "reported_symbol": "ACE"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "ACTN4",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "ACTN4",
       "hgnc_id": "HGNC:166",
-      "approved_symbol": "ACTN4",
-      "reported_symbol": "ACTN4"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "AGXT",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "AGXT",
       "hgnc_id": "HGNC:341",
-      "approved_symbol": "AGXT",
-      "reported_symbol": "AGXT"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "APRT",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "APRT",
       "hgnc_id": "HGNC:626",
-      "approved_symbol": "APRT",
-      "reported_symbol": "APRT"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "ATP6V0A4",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "ATP6V0A4",
       "hgnc_id": "HGNC:866",
-      "approved_symbol": "ATP6V0A4",
-      "reported_symbol": "ATP6V0A4"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "ATP6V1B1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "ATP6V1B1",
       "hgnc_id": "HGNC:853",
-      "approved_symbol": "ATP6V1B1",
-      "reported_symbol": "ATP6V1B1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "AVPR2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "AVPR2",
       "hgnc_id": "HGNC:897",
-      "approved_symbol": "AVPR2",
-      "reported_symbol": "AVPR2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "AXDND1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "AXDND1",
       "hgnc_id": "HGNC:26564",
-      "approved_symbol": "AXDND1",
-      "reported_symbol": "AXDND1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "B9D1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "B9D1",
       "hgnc_id": "HGNC:24123",
-      "approved_symbol": "B9D1",
-      "reported_symbol": "B9D1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "B9D2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "B9D2",
       "hgnc_id": "HGNC:28636",
-      "approved_symbol": "B9D2",
-      "reported_symbol": "B9D2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "BICC1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "BICC1",
       "hgnc_id": "HGNC:19351",
-      "approved_symbol": "BICC1",
-      "reported_symbol": "BICC1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "BSND",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "BSND",
       "hgnc_id": "HGNC:16512",
-      "approved_symbol": "BSND",
-      "reported_symbol": "BSND"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "RLIG1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "C12orf29",
       "hgnc_id": "HGNC:25322",
-      "approved_symbol": "RLIG1",
-      "reported_symbol": "C12orf29"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "CPLANE1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "C5orf42",
       "hgnc_id": "HGNC:25801",
-      "approved_symbol": "CPLANE1",
-      "reported_symbol": "C5orf42"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "CA2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "CA2",
       "hgnc_id": "HGNC:1373",
-      "approved_symbol": "CA2",
-      "reported_symbol": "CA2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "CC2D2A",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "CC2D2A",
       "hgnc_id": "HGNC:29253",
-      "approved_symbol": "CC2D2A",
-      "reported_symbol": "CC2D2A"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "CD2AP",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "CD2AP",
       "hgnc_id": "HGNC:14258",
-      "approved_symbol": "CD2AP",
-      "reported_symbol": "CD2AP"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "CDC5L",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "CDC5L",
       "hgnc_id": "HGNC:1743",
-      "approved_symbol": "CDC5L",
-      "reported_symbol": "CDC5L"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "CEP290",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "CEP290",
       "hgnc_id": "HGNC:29021",
-      "approved_symbol": "CEP290",
-      "reported_symbol": "CEP290"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "CHST5",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "CHST5",
       "hgnc_id": "HGNC:1973",
-      "approved_symbol": "CHST5",
-      "reported_symbol": "CHST5"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "CLCN5",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "CLCN5",
       "hgnc_id": "HGNC:2023",
-      "approved_symbol": "CLCN5",
-      "reported_symbol": "CLCN5"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "CLDN16",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "CLDN16",
       "hgnc_id": "HGNC:2037",
-      "approved_symbol": "CLDN16",
-      "reported_symbol": "CLDN16"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "COL4A3",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "COL4A3",
       "hgnc_id": "HGNC:2204",
-      "approved_symbol": "COL4A3",
-      "reported_symbol": "COL4A3"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "COL4A4",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "COL4A4",
       "hgnc_id": "HGNC:2206",
-      "approved_symbol": "COL4A4",
-      "reported_symbol": "COL4A4"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "COL4A5",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "COL4A5",
       "hgnc_id": "HGNC:2207",
-      "approved_symbol": "COL4A5",
-      "reported_symbol": "COL4A5"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "COL4A6",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "COL4A6",
       "hgnc_id": "HGNC:2208",
-      "approved_symbol": "COL4A6",
-      "reported_symbol": "COL4A6"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "COQ2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "COQ2",
       "hgnc_id": "HGNC:25223",
-      "approved_symbol": "COQ2",
-      "reported_symbol": "COQ2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "CTNS",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "CTNS",
       "hgnc_id": "HGNC:2518",
-      "approved_symbol": "CTNS",
-      "reported_symbol": "CTNS"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "DNASE1L3",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "DNASE1L3",
       "hgnc_id": "HGNC:2959",
-      "approved_symbol": "DNASE1L3",
-      "reported_symbol": "DNASE1L3"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "EPN2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "EPN2",
       "hgnc_id": "HGNC:18639",
-      "approved_symbol": "EPN2",
-      "reported_symbol": "EPN2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "CCNQ",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "FAM58A",
       "hgnc_id": "HGNC:28434",
-      "approved_symbol": "CCNQ",
-      "reported_symbol": "FAM58A"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "FAN1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "FAN1",
       "hgnc_id": "HGNC:29170",
-      "approved_symbol": "FAN1",
-      "reported_symbol": "FAN1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "FRAS1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "FRAS1",
       "hgnc_id": "HGNC:19185",
-      "approved_symbol": "FRAS1",
-      "reported_symbol": "FRAS1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "FREM2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "FREM2",
       "hgnc_id": "HGNC:25396",
-      "approved_symbol": "FREM2",
-      "reported_symbol": "FREM2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "FXYD2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "FXYD2",
       "hgnc_id": "HGNC:4026",
-      "approved_symbol": "FXYD2",
-      "reported_symbol": "FXYD2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "FXYD6-FXYD2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "FXYD6-FXYD2",
       "hgnc_id": "HGNC:39978",
-      "approved_symbol": "FXYD6-FXYD2",
-      "reported_symbol": "FXYD6-FXYD2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "GATA3",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "GATA3",
       "hgnc_id": "HGNC:4172",
-      "approved_symbol": "GATA3",
-      "reported_symbol": "GATA3"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "GLA",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "GLA",
       "hgnc_id": "HGNC:4296",
-      "approved_symbol": "GLA",
-      "reported_symbol": "GLA"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "GLIS2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "GLIS2",
       "hgnc_id": "HGNC:29450",
-      "approved_symbol": "GLIS2",
-      "reported_symbol": "GLIS2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "GRHPR",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "GRHPR",
       "hgnc_id": "HGNC:4570",
-      "approved_symbol": "GRHPR",
-      "reported_symbol": "GRHPR"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "GSN",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "GSN",
       "hgnc_id": "HGNC:4620",
-      "approved_symbol": "GSN",
-      "reported_symbol": "GSN"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "GSN-AS1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "GSN-AS1",
       "hgnc_id": "HGNC:23372",
-      "approved_symbol": "GSN-AS1",
-      "reported_symbol": "GSN-AS1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "HNF1B",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "HNF1B",
       "hgnc_id": "HGNC:11630",
-      "approved_symbol": "HNF1B",
-      "reported_symbol": "HNF1B"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "HNRNPH2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "HNRNPH2",
       "hgnc_id": "HGNC:5042",
-      "approved_symbol": "HNRNPH2",
-      "reported_symbol": "HNRNPH2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "HPSE2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "HPSE2",
       "hgnc_id": "HGNC:18374",
-      "approved_symbol": "HPSE2",
-      "reported_symbol": "HPSE2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "INF2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "INF2",
       "hgnc_id": "HGNC:23791",
-      "approved_symbol": "INF2",
-      "reported_symbol": "INF2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "INVS",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "INVS",
       "hgnc_id": "HGNC:17870",
-      "approved_symbol": "INVS",
-      "reported_symbol": "INVS"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "IQCB1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "IQCB1",
       "hgnc_id": "HGNC:28949",
-      "approved_symbol": "IQCB1",
-      "reported_symbol": "IQCB1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "KCNJ1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "KCNJ1",
       "hgnc_id": "HGNC:6255",
-      "approved_symbol": "KCNJ1",
-      "reported_symbol": "KCNJ1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "LAMB2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "LAMB2",
       "hgnc_id": "HGNC:6487",
-      "approved_symbol": "LAMB2",
-      "reported_symbol": "LAMB2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "LMX1B",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "LMX1B",
       "hgnc_id": "HGNC:6654",
-      "approved_symbol": "LMX1B",
-      "reported_symbol": "LMX1B"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "LPIN1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "LPIN1",
       "hgnc_id": "HGNC:13345",
-      "approved_symbol": "LPIN1",
-      "reported_symbol": "LPIN1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "MKS1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "MKS1",
       "hgnc_id": "HGNC:7121",
-      "approved_symbol": "MKS1",
-      "reported_symbol": "MKS1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "MYO1E",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "MYO1E",
       "hgnc_id": "HGNC:7599",
-      "approved_symbol": "MYO1E",
-      "reported_symbol": "MYO1E"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "NEK8",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "NEK8",
       "hgnc_id": "HGNC:13387",
-      "approved_symbol": "NEK8",
-      "reported_symbol": "NEK8"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "NFIA",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "NFIA",
       "hgnc_id": "HGNC:7784",
-      "approved_symbol": "NFIA",
-      "reported_symbol": "NFIA"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "NPHP1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "NPHP1",
       "hgnc_id": "HGNC:7905",
-      "approved_symbol": "NPHP1",
-      "reported_symbol": "NPHP1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "NPHP3",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "NPHP3",
       "hgnc_id": "HGNC:7907",
-      "approved_symbol": "NPHP3",
-      "reported_symbol": "NPHP3"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "NPHP4",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "NPHP4",
       "hgnc_id": "HGNC:19104",
-      "approved_symbol": "NPHP4",
-      "reported_symbol": "NPHP4"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "NPHS1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "NPHS1",
       "hgnc_id": "HGNC:7908",
-      "approved_symbol": "NPHS1",
-      "reported_symbol": "NPHS1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "NPHS2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "NPHS2",
       "hgnc_id": "HGNC:13394",
-      "approved_symbol": "NPHS2",
-      "reported_symbol": "NPHS2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "NR3C2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "NR3C2",
       "hgnc_id": "HGNC:7979",
-      "approved_symbol": "NR3C2",
-      "reported_symbol": "NR3C2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "NXF5",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "NXF5",
       "hgnc_id": "HGNC:8075",
-      "approved_symbol": "NXF5",
-      "reported_symbol": "NXF5"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "OCRL",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "OCRL",
       "hgnc_id": "HGNC:8108",
-      "approved_symbol": "OCRL",
-      "reported_symbol": "OCRL"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "PAX2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "PAX2",
       "hgnc_id": "HGNC:8616",
-      "approved_symbol": "PAX2",
-      "reported_symbol": "PAX2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "PDSS2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "PDSS2",
       "hgnc_id": "HGNC:23041",
-      "approved_symbol": "PDSS2",
-      "reported_symbol": "PDSS2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "PKD1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "PKD1",
       "hgnc_id": "HGNC:9008",
-      "approved_symbol": "PKD1",
-      "reported_symbol": "PKD1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "PKD2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "PKD2",
       "hgnc_id": "HGNC:9009",
-      "approved_symbol": "PKD2",
-      "reported_symbol": "PKD2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "PKHD1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "PKHD1",
       "hgnc_id": "HGNC:9016",
-      "approved_symbol": "PKHD1",
-      "reported_symbol": "PKHD1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "PLCE1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "PLCE1",
       "hgnc_id": "HGNC:17175",
-      "approved_symbol": "PLCE1",
-      "reported_symbol": "PLCE1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "PREPL",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "PREPL",
       "hgnc_id": "HGNC:30228",
-      "approved_symbol": "PREPL",
-      "reported_symbol": "PREPL"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "PTPRO",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "PTPRO",
       "hgnc_id": "HGNC:9678",
-      "approved_symbol": "PTPRO",
-      "reported_symbol": "PTPRO"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "RET",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "RET",
       "hgnc_id": "HGNC:9967",
-      "approved_symbol": "RET",
-      "reported_symbol": "RET"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "RPGRIP1L",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "RPGRIP1L",
       "hgnc_id": "HGNC:29168",
-      "approved_symbol": "RPGRIP1L",
-      "reported_symbol": "RPGRIP1L"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SALL1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SALL1",
       "hgnc_id": "HGNC:10524",
-      "approved_symbol": "SALL1",
-      "reported_symbol": "SALL1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SCARB2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SCARB2",
       "hgnc_id": "HGNC:1665",
-      "approved_symbol": "SCARB2",
-      "reported_symbol": "SCARB2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SCNN1A",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SCNN1A",
       "hgnc_id": "HGNC:10599",
-      "approved_symbol": "SCNN1A",
-      "reported_symbol": "SCNN1A"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SCNN1B",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SCNN1B",
       "hgnc_id": "HGNC:10600",
-      "approved_symbol": "SCNN1B",
-      "reported_symbol": "SCNN1B"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SHPK",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SHPK",
       "hgnc_id": "HGNC:1492",
-      "approved_symbol": "SHPK",
-      "reported_symbol": "SHPK"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SLC12A1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SLC12A1",
       "hgnc_id": "HGNC:10910",
-      "approved_symbol": "SLC12A1",
-      "reported_symbol": "SLC12A1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SLC12A3",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SLC12A3",
       "hgnc_id": "HGNC:10912",
-      "approved_symbol": "SLC12A3",
-      "reported_symbol": "SLC12A3"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SLC3A1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SLC3A1",
       "hgnc_id": "HGNC:11025",
-      "approved_symbol": "SLC3A1",
-      "reported_symbol": "SLC3A1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SLC4A1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SLC4A1",
       "hgnc_id": "HGNC:11027",
-      "approved_symbol": "SLC4A1",
-      "reported_symbol": "SLC4A1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SLC4A4",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SLC4A4",
       "hgnc_id": "HGNC:11030",
-      "approved_symbol": "SLC4A4",
-      "reported_symbol": "SLC4A4"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SLC5A1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SLC5A1",
       "hgnc_id": "HGNC:11036",
-      "approved_symbol": "SLC5A1",
-      "reported_symbol": "SLC5A1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SLC5A2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SLC5A2",
       "hgnc_id": "HGNC:11037",
-      "approved_symbol": "SLC5A2",
-      "reported_symbol": "SLC5A2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SLC7A9",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SLC7A9",
       "hgnc_id": "HGNC:11067",
-      "approved_symbol": "SLC7A9",
-      "reported_symbol": "SLC7A9"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "NHERF1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SLC9A3R1",
       "hgnc_id": "HGNC:11075",
-      "approved_symbol": "NHERF1",
-      "reported_symbol": "SLC9A3R1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SMARCAL1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SMARCAL1",
       "hgnc_id": "HGNC:11102",
-      "approved_symbol": "SMARCAL1",
-      "reported_symbol": "SMARCAL1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "SOX17",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "SOX17",
       "hgnc_id": "HGNC:18122",
-      "approved_symbol": "SOX17",
-      "reported_symbol": "SOX17"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "TCTN2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "TCTN2",
       "hgnc_id": "HGNC:25774",
-      "approved_symbol": "TCTN2",
-      "reported_symbol": "TCTN2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "TMEM216",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "TMEM216",
       "hgnc_id": "HGNC:25018",
-      "approved_symbol": "TMEM216",
-      "reported_symbol": "TMEM216"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "TMEM231",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "TMEM231",
       "hgnc_id": "HGNC:37234",
-      "approved_symbol": "TMEM231",
-      "reported_symbol": "TMEM231"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "TMEM237",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "TMEM237",
       "hgnc_id": "HGNC:14432",
-      "approved_symbol": "TMEM237",
-      "reported_symbol": "TMEM237"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "TMEM67",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "TMEM67",
       "hgnc_id": "HGNC:28396",
-      "approved_symbol": "TMEM67",
-      "reported_symbol": "TMEM67"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "TRPC6",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "TRPC6",
       "hgnc_id": "HGNC:12338",
-      "approved_symbol": "TRPC6",
-      "reported_symbol": "TRPC6"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "TTC21B",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "TTC21B",
       "hgnc_id": "HGNC:25660",
-      "approved_symbol": "TTC21B",
-      "reported_symbol": "TTC21B"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "UMOD",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "UMOD",
       "hgnc_id": "HGNC:12559",
-      "approved_symbol": "UMOD",
-      "reported_symbol": "UMOD"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "UPK3A",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "UPK3A",
       "hgnc_id": "HGNC:12580",
-      "approved_symbol": "UPK3A",
-      "reported_symbol": "UPK3A"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "USF2",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "USF2",
       "hgnc_id": "HGNC:12594",
-      "approved_symbol": "USF2",
-      "reported_symbol": "USF2"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "WNK1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "WNK1",
       "hgnc_id": "HGNC:14540",
-      "approved_symbol": "WNK1",
-      "reported_symbol": "WNK1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "WNK4",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "WNK4",
       "hgnc_id": "HGNC:14544",
-      "approved_symbol": "WNK4",
-      "reported_symbol": "WNK4"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "WT1",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "WT1",
       "hgnc_id": "HGNC:12796",
-      "approved_symbol": "WT1",
-      "reported_symbol": "WT1"
+      "normalization_status": "normalized"
     },
     {
       "symbol": "XDH",
-      "panels": [
-        "PMID_36035137"
-      ],
-      "occurrence_count": 1,
+      "reported_as": "XDH",
       "hgnc_id": "HGNC:12805",
-      "approved_symbol": "XDH",
-      "reported_symbol": "XDH"
+      "normalization_status": "normalized"
     }
   ],
-  "publications": [
-    {
-      "pmid": "36035137",
-      "name": "Analysis of chronic kidney disease patients by targeted next-generation sequencing identifies novel variants in kidney-related genes",
-      "authors": "Manal Alaamery",
-      "publication_date": "2022-08-11 00:00:00",
-      "file_type": "xlsx",
-      "gene_count": 104,
-      "extraction_method": "PMID36035137Processor"
-    }
-  ],
-  "metadata": {
-    "pmid": "36035137",
-    "title": "Analysis of chronic kidney disease patients by targeted next-generation sequencing identifies novel variants in kidney-related genes",
-    "source_file": "/home/bernt-popp/development/kidney-genetics-db/scrapers/literature/data/downloads/PMID_36035137.xlsx",
-    "extraction_timestamp": "2025-08-24T17:58:51.839469"
-  },
-  "errors": null,
-  "scraped_at": "2025-08-24T17:58:51.839471"
+  "gene_count": 104,
+  "source_file": "/home/bernt-popp/development/kidney-genetics-db/scrapers/literature/data/downloads/PMID_36035137.xlsx",
+  "file_type": "xlsx",
+  "extraction_method": "PMID36035137Processor",
+  "extraction_timestamp": "2025-08-24T19:57:06.629558",
+  "extraction_errors": null
 }

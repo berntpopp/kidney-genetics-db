@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from base_literature_scraper import BaseLiteratureScraper
+from filter_config import should_filter_gene, clean_gene_symbol, get_filter_reason, get_alias_mapping
 from schemas import LiteratureGene, LiteraturePublication, LiteratureSummary
 
 
@@ -87,12 +88,28 @@ class IndividualLiteratureScraper(BaseLiteratureScraper):
                 raw_genes = []
 
             # Normalize genes and create LiteratureGene objects
-            self.logger.info(f"Normalizing {len(raw_genes)} genes for PMID {pmid}")
+            self.logger.info(f"Processing {len(raw_genes)} genes for PMID {pmid}")
             literature_genes = []
+            filtered_count = 0
             
             for gene_symbol in raw_genes:
+                # First apply filtering
+                if should_filter_gene(gene_symbol):
+                    filter_reason = get_filter_reason(gene_symbol)
+                    self.logger.debug(f"Filtered gene '{gene_symbol}': {filter_reason}")
+                    filtered_count += 1
+                    continue
+                
+                # Clean the gene symbol (apply alias mappings)
+                cleaned_symbol = clean_gene_symbol(gene_symbol)
+                
+                # Check if alias mapping was applied
+                alias_mapped = get_alias_mapping(gene_symbol)
+                if alias_mapped != gene_symbol:
+                    self.logger.debug(f"Applied alias mapping: '{gene_symbol}' -> '{alias_mapped}'")
+                
                 # Normalize through HGNC
-                hgnc_data = self.hgnc_normalizer.normalize_symbol(gene_symbol)
+                hgnc_data = self.hgnc_normalizer.normalize_symbol(cleaned_symbol)
                 
                 # Create LiteratureGene object
                 if hgnc_data and hgnc_data.get("found"):
@@ -103,15 +120,19 @@ class IndividualLiteratureScraper(BaseLiteratureScraper):
                         normalization_status="normalized"
                     )
                 else:
-                    # Keep original symbol if not found in HGNC
+                    # Keep cleaned symbol if not found in HGNC
                     gene = LiteratureGene(
-                        symbol=gene_symbol,
+                        symbol=cleaned_symbol,
                         reported_as=gene_symbol,
                         hgnc_id=None,
                         normalization_status="not_found"
                     )
                 
                 literature_genes.append(gene)
+            
+            if filtered_count > 0:
+                self.logger.info(f"Filtered {filtered_count} false positive terms from PMID {pmid}")
+            self.logger.info(f"Retained {len(literature_genes)} valid genes for PMID {pmid}")
 
             # Parse authors (split by semicolon or comma if multiple)
             authors_str = pub_metadata.get("Authors", "")
