@@ -204,6 +204,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             "Gene",
             "GENE",
             "approved_symbol",
+            "reported_as",
             "gene_name",
             "geneName",
             "SYMBOL",
