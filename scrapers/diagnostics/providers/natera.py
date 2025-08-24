@@ -222,7 +222,6 @@ class NateraScraper(BaseDiagnosticScraper):
                     symbol=gene,
                     panels=["Renasight"],
                     occurrence_count=1,
-                    confidence="high",
                 )
                 for gene in genes
             ]

@@ -259,8 +259,7 @@ class MayoClinicScraper(BaseDiagnosticScraper):
                     symbol=gene,
                     panels=["Comprehensive Nephrology Gene Panel (NEPHP)"],
                     occurrence_count=1,
-                    confidence="high"  # Mayo Clinic is a trusted source
-                )
+                    )
                 for gene in genes
             ]
 

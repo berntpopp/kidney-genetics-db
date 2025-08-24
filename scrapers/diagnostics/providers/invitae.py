@@ -122,8 +122,7 @@ class InvitaeScraper(BaseDiagnosticScraper):
                 GeneEntry(
                     symbol=gene,
                     panels=["Comprehensive Renal Genes Panel"],
-                    occurrence_count=1,
-                    confidence="high"
+                    occurrence_count=1
                 )
                 for gene in genes
             ]

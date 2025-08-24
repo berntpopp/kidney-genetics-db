@@ -243,21 +243,27 @@ class BaseDiagnosticScraper(ABC):
         # Update gene entries with normalized data
         for gene in genes:
             # Store the original symbol as reported
-            gene.reported_symbol = gene.symbol
+            original_symbol = gene.symbol
+            gene.reported_as = original_symbol
 
             # Get normalization result
-            norm_result = normalized_data.get(gene.symbol, {})
+            norm_result = normalized_data.get(original_symbol, {})
 
             if norm_result.get("found"):
                 # Use HGNC-approved symbol
-                gene.approved_symbol = norm_result.get("approved_symbol")
+                approved = norm_result.get("approved_symbol")
+                gene.symbol = approved
                 gene.hgnc_id = norm_result.get("hgnc_id")
-                # Update display symbol to approved version
-                gene.symbol = gene.approved_symbol
+                
+                # Set normalization status
+                if approved == original_symbol:
+                    gene.normalization_status = "unchanged"
+                else:
+                    gene.normalization_status = "normalized"
             else:
                 # Keep original symbol if not found in HGNC
-                gene.approved_symbol = None
                 gene.hgnc_id = None
+                gene.normalization_status = "not_found"
 
         # Log statistics
         stats = normalizer.get_stats()

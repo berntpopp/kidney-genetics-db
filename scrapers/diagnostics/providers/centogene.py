@@ -94,8 +94,7 @@ class CentogeneScraper(BaseDiagnosticScraper):
                 GeneEntry(
                     symbol=gene,
                     panels=["CentoNephro"],
-                    occurrence_count=1,
-                    confidence="high"
+                    occurrence_count=1
                 )
                 for gene in genes
             ]

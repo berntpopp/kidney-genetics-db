@@ -243,22 +243,6 @@ def clean_gene_symbol(symbol: str) -> str:
 
     return symbol
 
-def calculate_confidence(gene_count: int, source_type: str) -> str:
-    """Calculate confidence score for gene data.
-
-    Args:
-        gene_count: Number of genes found
-        source_type: Type of source (e.g., 'commercial', 'academic')
-
-    Returns:
-        Confidence level: 'high', 'medium', or 'low'
-    """
-    if gene_count > 100 and source_type in ["commercial", "academic"]:
-        return "high"
-    elif gene_count > 50:
-        return "medium"
-    else:
-        return "low"
 
 def normalize_panel_name(name: str) -> str:
     """Normalize panel name for consistency.

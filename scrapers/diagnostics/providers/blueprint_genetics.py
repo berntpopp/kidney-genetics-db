@@ -156,7 +156,6 @@ class BlueprintGeneticsScraper(BaseDiagnosticScraper):
                 symbol=gene_symbol,
                 panels=panel_names,
                 occurrence_count=len(panel_names),
-                confidence="high"  # Blueprint Genetics is a trusted commercial provider
             )
             gene_entries.append(gene_entry)
 

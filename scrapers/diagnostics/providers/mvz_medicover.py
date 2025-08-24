@@ -165,8 +165,7 @@ class MVZMedicoverScraper(BaseDiagnosticScraper):
                 GeneEntry(
                     symbol=gene,
                     panels=["Kidney Diseases Panel"],
-                    occurrence_count=1,
-                    confidence="high"
+                    occurrence_count=1
                 )
                 for gene in genes
             ]

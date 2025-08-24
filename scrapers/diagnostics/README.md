@@ -182,13 +182,12 @@ args = [
 ```python
 @dataclass
 class GeneEntry:
-    symbol: str                    # Display symbol (normalized if available)
+    symbol: str                    # HGNC-approved symbol (or reported if not found)
     panels: List[str]              # Associated panel names
     occurrence_count: int = 1      # Times gene appears
-    confidence: str = "medium"     # Data confidence level
+    reported_as: Optional[str]     # Original symbol as reported by provider
     hgnc_id: Optional[str]         # HGNC identifier (e.g., "HGNC:12345")
-    approved_symbol: Optional[str] # HGNC-approved symbol
-    reported_symbol: Optional[str] # Original symbol from provider
+    normalization_status: str      # "normalized", "not_found", or "unchanged"
 ```
 
 ### Example Normalizations

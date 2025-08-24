@@ -173,8 +173,7 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
                 GeneEntry(
                     symbol=gene,
                     panels=["Comprehensive Kidney Disease Panel"],
-                    occurrence_count=1,
-                    confidence="high"
+                    occurrence_count=1
                 )
                 for gene in genes
             ]

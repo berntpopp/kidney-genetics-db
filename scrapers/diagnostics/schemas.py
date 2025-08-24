@@ -8,13 +8,17 @@ from typing import Any, Dict, List, Optional
 class GeneEntry:
     """Gene entry with panel information."""
 
-    symbol: str  # Display symbol (HGNC-approved if available, else reported)
+    symbol: str  # HGNC-approved symbol (or reported if not found)
     panels: List[str]
     occurrence_count: int = 1
-    confidence: str = "medium"
+    reported_as: Optional[str] = None  # Original symbol as reported by provider
     hgnc_id: Optional[str] = None
-    approved_symbol: Optional[str] = None  # HGNC-approved symbol
-    reported_symbol: Optional[str] = None  # Original symbol from provider
+    normalization_status: str = "normalized"  # "normalized", "not_found", "unchanged"
+    
+    def __post_init__(self):
+        """Initialize reported_as if not provided."""
+        if self.reported_as is None:
+            self.reported_as = self.symbol
 
     def model_dump(self) -> dict:
         """Convert to dictionary."""
