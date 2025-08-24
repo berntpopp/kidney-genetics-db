@@ -187,7 +187,7 @@ class GeneEntry:
     occurrence_count: int = 1      # Times gene appears
     reported_as: Optional[str]     # Original symbol as reported by provider
     hgnc_id: Optional[str]         # HGNC identifier (e.g., "HGNC:12345")
-    normalization_status: str      # "normalized", "not_found", or "unchanged"
+    normalization_status: str      # "normalized" (found in HGNC) or "not_found"
 ```
 
 ### Example Normalizations

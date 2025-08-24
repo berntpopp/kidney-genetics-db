@@ -168,15 +168,11 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
             if not genes:
                 logger.warning("No genes found for PreventionGenetics kidney panel")
 
-            # Create gene entries
-            gene_entries = [
-                GeneEntry(
-                    symbol=gene,
-                    panels=["Comprehensive Kidney Disease Panel"],
-                    occurrence_count=1
-                )
-                for gene in genes
-            ]
+            # Create filtered gene entries
+            gene_entries = self.create_filtered_gene_entries(
+                gene_symbols=genes,
+                panel_names=["Comprehensive Kidney Disease Panel"]
+            )
 
             # Normalize genes
             gene_entries = self.normalize_genes(gene_entries)
@@ -187,6 +183,7 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
 
         # Create provider data
         provider_data = ProviderData(
+            id=self.provider_id,
             provider_id=self.provider_id,
             provider_name=self.provider_name,
             provider_type=self.provider_type,

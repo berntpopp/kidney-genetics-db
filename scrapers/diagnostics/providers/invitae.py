@@ -117,15 +117,11 @@ class InvitaeScraper(BaseDiagnosticScraper):
             if not genes:
                 logger.warning("No genes found for Invitae Comprehensive Renal Genes Panel")
 
-            # Create gene entries
-            gene_entries = [
-                GeneEntry(
-                    symbol=gene,
-                    panels=["Comprehensive Renal Genes Panel"],
-                    occurrence_count=1
-                )
-                for gene in genes
-            ]
+            # Create filtered gene entries
+            gene_entries = self.create_filtered_gene_entries(
+                gene_symbols=genes,
+                panel_names=["Comprehensive Renal Genes Panel"]
+            )
 
             # Normalize genes
             gene_entries = self.normalize_genes(gene_entries)
@@ -136,6 +132,7 @@ class InvitaeScraper(BaseDiagnosticScraper):
 
         # Create provider data
         provider_data = ProviderData(
+            id=self.provider_id,
             provider_id=self.provider_id,
             provider_name=self.provider_name,
             provider_type=self.provider_type,

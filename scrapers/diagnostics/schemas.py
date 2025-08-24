@@ -13,7 +13,7 @@ class GeneEntry:
     occurrence_count: int = 1
     reported_as: Optional[str] = None  # Original symbol as reported by provider
     hgnc_id: Optional[str] = None
-    normalization_status: str = "normalized"  # "normalized", "not_found", "unchanged"
+    normalization_status: str = "normalized"  # "normalized" (found in HGNC), "not_found"
     
     def __post_init__(self):
         """Initialize reported_as if not provided."""
@@ -40,6 +40,7 @@ class SubPanel:
 class ProviderData:
     """Provider data structure."""
 
+    id: str  # Same as provider_id for consistency
     provider_id: str
     provider_name: str
     provider_type: str

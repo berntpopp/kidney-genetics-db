@@ -91,7 +91,10 @@ class BlueprintGeneticsScraper(BaseDiagnosticScraper):
                     if 2 <= len(gene) <= 15:  # Reasonable gene symbol length
                         genes.append(gene)
 
-        return list(set(genes))  # Remove duplicates
+        # Apply filtering before returning
+        unique_genes = list(set(genes))  # Remove duplicates
+        filtered_genes = self.filter_genes(unique_genes)
+        return filtered_genes
 
     def run(self) -> ProviderData:
         """Scrape all Blueprint Genetics sub-panels"""
@@ -167,6 +170,7 @@ class BlueprintGeneticsScraper(BaseDiagnosticScraper):
 
         # Create provider data
         provider_data = ProviderData(
+            id=self.provider_id,
             provider_id=self.provider_id,
             provider_name=self.provider_name,
             provider_type=self.provider_type,

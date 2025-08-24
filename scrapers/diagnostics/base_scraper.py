@@ -14,6 +14,7 @@ import yaml
 
 from schemas import GeneEntry, ProviderData
 from utils import get_hgnc_normalizer, resolve_hgnc_symbol
+from filter_config import should_filter_gene, clean_gene_symbol, get_filter_reason
 
 class BaseDiagnosticScraper(ABC):
     """Abstract base class for all diagnostic panel scrapers."""
@@ -221,6 +222,72 @@ class BaseDiagnosticScraper(ABC):
             self.logger.error(f"Error fetching {url} with browser: {e}")
             raise
 
+    def filter_genes(self, gene_symbols: List[str]) -> List[str]:
+        """Filter out false positive gene symbols (disease terms, panel codes, etc.).
+
+        Args:
+            gene_symbols: List of raw gene symbols to filter
+
+        Returns:
+            List of filtered gene symbols with false positives removed
+        """
+        filtered_genes = []
+        filtered_count = 0
+        filter_stats = {}
+
+        for symbol in gene_symbols:
+            if should_filter_gene(symbol):
+                reason = get_filter_reason(symbol)
+                filtered_count += 1
+                
+                # Track filter reasons for statistics
+                if reason not in filter_stats:
+                    filter_stats[reason] = 0
+                filter_stats[reason] += 1
+                
+                self.logger.debug(f"Filtered out '{symbol}': {reason}")
+                continue
+            
+            # Try to clean the symbol (removes method suffixes like MLPA)
+            cleaned_symbol = clean_gene_symbol(symbol)
+            if cleaned_symbol and cleaned_symbol != symbol:
+                self.logger.debug(f"Cleaned symbol '{symbol}' → '{cleaned_symbol}'")
+            
+            if cleaned_symbol:  # Only add if cleaning didn't result in empty string
+                filtered_genes.append(cleaned_symbol)
+            else:
+                filtered_count += 1
+                self.logger.debug(f"Filtered out '{symbol}': Cleaned to empty string")
+
+        # Log filtering statistics
+        if filtered_count > 0:
+            self.logger.info(f"Filtered out {filtered_count} false positives from {len(gene_symbols)} symbols")
+            for reason, count in filter_stats.items():
+                self.logger.info(f"  - {reason}: {count}")
+
+        return filtered_genes
+
+    def create_filtered_gene_entries(self, gene_symbols: List[str], panel_names: List[str]) -> List[GeneEntry]:
+        """Create GeneEntry objects from raw gene symbols with filtering applied.
+
+        Args:
+            gene_symbols: List of raw gene symbols
+            panel_names: List of panel names to associate with genes
+
+        Returns:
+            List of filtered GeneEntry objects
+        """
+        # Apply filtering first
+        filtered_symbols = self.filter_genes(gene_symbols)
+        
+        # Create GeneEntry objects
+        gene_entries = []
+        for symbol in filtered_symbols:
+            gene_entry = GeneEntry(symbol=symbol, panels=panel_names.copy())
+            gene_entries.append(gene_entry)
+        
+        return gene_entries
+
     def normalize_genes(self, genes: List[GeneEntry]) -> List[GeneEntry]:
         """Normalize gene symbols to HGNC approved symbols.
 
@@ -251,15 +318,10 @@ class BaseDiagnosticScraper(ABC):
 
             if norm_result.get("found"):
                 # Use HGNC-approved symbol
-                approved = norm_result.get("approved_symbol")
-                gene.symbol = approved
+                gene.symbol = norm_result.get("approved_symbol")
                 gene.hgnc_id = norm_result.get("hgnc_id")
-                
-                # Set normalization status
-                if approved == original_symbol:
-                    gene.normalization_status = "unchanged"
-                else:
-                    gene.normalization_status = "normalized"
+                # Mark as normalized if found in HGNC (matching literature scraper logic)
+                gene.normalization_status = "normalized"
             else:
                 # Keep original symbol if not found in HGNC
                 gene.hgnc_id = None

@@ -253,15 +253,11 @@ class MayoClinicScraper(BaseDiagnosticScraper):
             # Extract genes
             genes = self.extract_genes(content)
 
-            # Create gene entries
-            gene_entries = [
-                GeneEntry(
-                    symbol=gene,
-                    panels=["Comprehensive Nephrology Gene Panel (NEPHP)"],
-                    occurrence_count=1,
-                    )
-                for gene in genes
-            ]
+            # Create filtered gene entries
+            gene_entries = self.create_filtered_gene_entries(
+                gene_symbols=genes,
+                panel_names=["Comprehensive Nephrology Gene Panel (NEPHP)"]
+            )
 
             # Normalize genes
             gene_entries = self.normalize_genes(gene_entries)
@@ -272,6 +268,7 @@ class MayoClinicScraper(BaseDiagnosticScraper):
 
         # Create provider data
         provider_data = ProviderData(
+            id=self.provider_id,
             provider_id=self.provider_id,
             provider_name=self.provider_name,
             provider_type=self.provider_type,
