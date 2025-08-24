@@ -1,240 +1,270 @@
-"""Literature scraper that outputs individual files per publication."""
+"""Individual literature scraper for extracting genes from specific publications."""
 
-import importlib
 import json
-from datetime import datetime
-from typing import Any, Dict
+import logging
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from base_literature_scraper import BaseLiteratureScraper
-from schemas import GeneEntry, LiteratureData, Publication
+from schemas import LiteratureGene, LiteraturePublication, LiteratureSummary
 
 
 class IndividualLiteratureScraper(BaseLiteratureScraper):
-    """Literature scraper that processes publications individually."""
+    """Scraper for extracting genes from individual literature publications."""
 
     def __init__(self, config: Dict[str, Any] = None):
-        """Initialize the literature scraper."""
+        """Initialize the scraper."""
         super().__init__(config)
         self.processor_mapping = self._load_processor_mapping()
 
     def _load_processor_mapping(self) -> Dict[str, Any]:
-        """Load processor classes for each PMID."""
-        mapping = {}
+        """Load processor mapping for each PMID.
+        Returns:
+            Dict mapping PMID to processor class
+        """
+        # Import processors
+        from processors import (
+            pmid_33664247,
+            pmid_34264297,
+            pmid_35325889,
+            pmid_36035137,
+            remaining_processors,
+        )
 
-        # Map PMIDs to their processor modules
-        pmid_processors = {
-            "35325889": "pmid_35325889.PMID35325889Processor",
-            "36035137": "pmid_36035137.PMID36035137Processor",
-            "33664247": "pmid_33664247.PMID33664247Processor",
-            "34264297": "pmid_34264297.PMID34264297Processor",
-            "30476936": "remaining_processors.PMID30476936Processor",
-            "31509055": "remaining_processors.PMID31509055Processor",
-            "31822006": "remaining_processors.PMID31822006Processor",
-            "29801666": "remaining_processors.PMID29801666Processor",
-            "31027891": "remaining_processors.PMID31027891Processor",
-            "26862157": "remaining_processors.PMID26862157Processor",
-            "33532864": "remaining_processors.PMID33532864Processor",
-            "35005812": "remaining_processors.PMID35005812Processor",
+        # Map PMIDs to their processors
+        mapping = {
+            "35325889": pmid_35325889.PMID35325889Processor,
+            "36035137": pmid_36035137.PMID36035137Processor,
+            "33664247": pmid_33664247.PMID33664247Processor,
+            "34264297": pmid_34264297.PMID34264297Processor,
+            "30476936": remaining_processors.PMID30476936Processor,
+            "31509055": remaining_processors.PMID31509055Processor,
+            "31822006": remaining_processors.PMID31822006Processor,
+            "29801666": remaining_processors.PMID29801666Processor,
+            "31027891": remaining_processors.PMID31027891Processor,
+            "26862157": remaining_processors.PMID26862157Processor,
+            "33532864": remaining_processors.PMID33532864Processor,
+            "35005812": remaining_processors.PMID35005812Processor,
         }
-
-        for pmid, processor_path in pmid_processors.items():
-            try:
-                module_name, class_name = processor_path.rsplit(".", 1)
-                module = importlib.import_module(f"processors.{module_name}")
-                processor_class = getattr(module, class_name)
-                mapping[pmid] = processor_class
-                self.logger.debug(f"Loaded processor for PMID {pmid}")
-            except (ImportError, AttributeError) as e:
-                self.logger.debug(f"Processor not found for PMID {pmid}: {e}")
 
         return mapping
 
-    def process_publication(self, pub_metadata: Dict[str, Any]) -> LiteratureData:
+    def process_publication(self, pub_metadata: Dict[str, Any]) -> Optional[LiteraturePublication]:
         """Process a single publication and return its data.
-
+        
         Args:
             pub_metadata: Publication metadata from Excel
-
+            
         Returns:
-            LiteratureData for this publication
+            LiteraturePublication object or None if processing fails
         """
         pmid = str(pub_metadata.get("PMID", ""))
-        file_type = pub_metadata.get("Type", "")
-
         if not pmid:
-            raise ValueError("No PMID in publication metadata")
+            self.logger.error("No PMID in publication metadata")
+            return None
 
         # Check if we have a processor for this PMID
         if pmid not in self.processor_mapping:
-            raise ValueError(f"No processor available for PMID {pmid}")
+            self.logger.error(f"No processor available for PMID {pmid}")
+            return None
 
-        # Get file path
-        file_path = self.data_dir / "downloads" / f"PMID_{pmid}.{file_type.lower()}"
+        try:
+            # Get file path
+            file_type = pub_metadata.get("Type", "").lower()
+            file_path = self.data_dir / "downloads" / f"PMID_{pmid}.{file_type}"
+            
+            if not file_path.exists():
+                self.logger.error(f"File not found: {file_path}")
+                return None
 
-        if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {file_path}")
+            # Process the publication
+            processor_class = self.processor_mapping[pmid]
+            processor = processor_class()
+            raw_genes = processor.process(file_path)
 
-        # Process the publication
-        processor_class = self.processor_mapping[pmid]
-        processor = processor_class()
-        genes = processor.process(file_path)
+            if not raw_genes:
+                self.logger.warning(f"No genes extracted from PMID {pmid}")
+                raw_genes = []
 
-        if not genes:
-            self.logger.warning(f"No genes extracted from PMID {pmid}")
-            genes = []
+            # Normalize genes and create LiteratureGene objects
+            self.logger.info(f"Normalizing {len(raw_genes)} genes for PMID {pmid}")
+            literature_genes = []
+            
+            for gene_symbol in raw_genes:
+                # Normalize through HGNC
+                hgnc_data = self.hgnc_normalizer.normalize_symbol(gene_symbol)
+                
+                # Create LiteratureGene object
+                if hgnc_data and hgnc_data.get("found"):
+                    gene = LiteratureGene(
+                        symbol=hgnc_data["approved_symbol"],
+                        reported_as=gene_symbol,
+                        hgnc_id=hgnc_data.get("hgnc_id"),
+                        normalization_status="normalized"
+                    )
+                else:
+                    # Keep original symbol if not found in HGNC
+                    gene = LiteratureGene(
+                        symbol=gene_symbol,
+                        reported_as=gene_symbol,
+                        hgnc_id=None,
+                        normalization_status="not_found"
+                    )
+                
+                literature_genes.append(gene)
 
-        # Create GeneEntry objects for this publication
-        gene_entries = []
-        for gene_symbol in genes:
-            entry = GeneEntry(
-                symbol=gene_symbol,
-                panels=[f"PMID_{pmid}"],  # Single publication
-                occurrence_count=1,
-                confidence="medium",  # Default confidence for single publication
+            # Parse authors (split by semicolon or comma if multiple)
+            authors_str = pub_metadata.get("Authors", "")
+            if ';' in authors_str:
+                authors = [a.strip() for a in authors_str.split(';')]
+            elif ',' in authors_str and authors_str.count(',') > 1:
+                # Multiple commas suggest multiple authors
+                authors = [a.strip() for a in authors_str.split(',')]
+            else:
+                authors = [authors_str] if authors_str else []
+
+            # Extract journal from metadata (could be in Link or Name field)
+            journal = self._extract_journal(pub_metadata)
+            
+            # Convert publication date to string if it's a datetime
+            import datetime as dt
+            pub_date = pub_metadata.get("Publication Date", "")
+            if isinstance(pub_date, (dt.datetime, dt.date)):
+                pub_date = pub_date.isoformat()
+            else:
+                pub_date = str(pub_date) if pub_date else ""
+            
+            # Create publication object
+            publication = LiteraturePublication(
+                id=pmid,  # ID is same as PMID
+                pmid=pmid,
+                title=pub_metadata.get("Name", ""),
+                authors=authors,
+                journal=journal,
+                publication_date=pub_date,
+                url=pub_metadata.get("Link", ""),
+                doi=self._extract_doi(pub_metadata),
+                genes=literature_genes,
+                gene_count=len(literature_genes),
+                source_file=str(file_path),
+                file_type=file_type,
+                extraction_method=processor_class.__name__
             )
-            gene_entries.append(entry)
 
-        # Normalize genes via HGNC
-        if gene_entries:
-            self.logger.info(f"Normalizing {len(gene_entries)} genes for PMID {pmid}")
-            gene_entries = self.normalize_genes(gene_entries)
+            return publication
 
-        # Create publication record
-        publication = Publication(
-            pmid=pmid,
-            name=pub_metadata.get("Name", "")[:200],
-            authors=pub_metadata.get("Authors", "")[:200],
-            publication_date=str(pub_metadata.get("Publication Date", "")),
-            file_type=file_type,
-            gene_count=len(gene_entries),
-            extraction_method=f"{processor_class.__name__}",
-        )
+        except Exception as e:
+            self.logger.error(f"Error processing PMID {pmid}: {e}")
+            return None
 
-        # Create result for this publication
-        result = LiteratureData(
-            provider_id=f"literature_pmid_{pmid}",
-            provider_name=f"Literature PMID {pmid}",
-            provider_type="literature",
-            main_url=pub_metadata.get("Link", ""),
-            total_panels=1,  # Single publication
-            total_unique_genes=len(gene_entries),
-            genes=gene_entries,
-            publications=[publication],
-            metadata={
-                "pmid": pmid,
-                "title": pub_metadata.get("Name", ""),
-                "source_file": str(file_path),
-                "extraction_timestamp": datetime.now().isoformat(),
-            },
-        )
+    def _extract_journal(self, metadata: Dict[str, Any]) -> str:
+        """Extract journal name from metadata."""
+        # Try to parse from Link or other fields
+        link = metadata.get("Link", "")
+        name = metadata.get("Name", "")
+        
+        # Common journal patterns in URLs
+        journal_mapping = {
+            "kidney-international.org": "Kidney International",
+            "onlinelibrary.wiley.com": "Human Mutation",
+            "karger.com": "American Journal of Nephrology",
+            "tandfonline.com": "Renal Failure",
+            "nature.com": "NPJ Genomic Medicine",
+            "frontiersin.org": "Frontiers in Genetics",
+            "jmg.bmj.com": "Journal of Medical Genetics",
+            "nejm.org": "New England Journal of Medicine",
+        }
+        
+        for domain, journal in journal_mapping.items():
+            if domain in link.lower():
+                return journal
+        
+        # Check if journal name is in the title
+        if "Kidney International" in name:
+            return "Kidney International"
+        elif "Human Mutation" in name:
+            return "Human Mutation"
+        
+        return "Unknown Journal"
 
-        return result
+    def _extract_doi(self, metadata: Dict[str, Any]) -> Optional[str]:
+        """Extract DOI from metadata if available."""
+        # Check Link field for DOI
+        link = metadata.get("Link", "")
+        if "doi.org/" in link:
+            return link.split("doi.org/")[-1]
+        elif "doi/" in link:
+            return link.split("doi/")[-1].split("?")[0]
+        return None
 
-    def save_individual_output(self, data: LiteratureData, pmid: str):
-        """Save output for individual publication.
-
-        Args:
-            data: LiteratureData for the publication
-            pmid: PMID identifier
-        """
-        date_dir = self.output_dir / datetime.now().strftime("%Y-%m-%d")
-        date_dir.mkdir(parents=True, exist_ok=True)
-
-        output_file = date_dir / f"literature_pmid_{pmid}.json"
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(data.model_dump(), f, indent=2, default=str)
-
-        self.logger.info(f"Saved output to {output_file}")
-
-    def run(self) -> Dict[str, LiteratureData]:
-        """Process all publications individually.
-
+    def scrape_all(self) -> LiteratureSummary:
+        """Process all publications and return summary.
+        
         Returns:
-            Dictionary mapping PMIDs to their LiteratureData
+            LiteratureSummary with all processed publications
         """
         self.logger.info("Starting individual literature scraping")
+        
+        summary = LiteratureSummary()
+        summary.total_publications = len(self.publications_metadata)
+        
+        all_publications = []
+        all_unique_genes = set()
+        failed_pmids = []
 
-        results = {}
-        successful = 0
-        failed = 0
-
-        # Process each publication individually
         for pub_metadata in self.publications_metadata:
             pmid = str(pub_metadata.get("PMID", ""))
-
-            if not pmid:
-                continue
-
+            
             try:
-                # Process publication
-                result = self.process_publication(pub_metadata)
-
-                # Save individual output
-                self.save_individual_output(result, pmid)
-
-                # Store in results
-                results[pmid] = result
-                successful += 1
-
-                self.logger.info(
-                    f"Successfully processed PMID {pmid}: " f"{result.total_unique_genes} genes",
-                )
-
+                publication = self.process_publication(pub_metadata)
+                
+                if publication:
+                    # Save individual publication file
+                    output_file = self.output_dir / f"literature_pmid_{pmid}.json"
+                    with open(output_file, "w", encoding="utf-8") as f:
+                        json.dump(publication.to_dict(), f, indent=2, ensure_ascii=False)
+                    
+                    self.logger.info(f"Saved output to {output_file}")
+                    self.logger.info(f"Successfully processed PMID {pmid}: {publication.gene_count} genes")
+                    
+                    all_publications.append(publication)
+                    
+                    # Track unique genes
+                    for gene in publication.genes:
+                        all_unique_genes.add(gene.symbol)
+                    
+                    # Add to summary
+                    summary.publications.append({
+                        "pmid": pmid,
+                        "title": publication.title,
+                        "gene_count": publication.gene_count,
+                        "unique_genes": publication.unique_genes,
+                        "output_file": f"literature_pmid_{pmid}.json"
+                    })
+                    summary.successful_extractions += 1
+                else:
+                    failed_pmids.append({"pmid": pmid, "error": "Processing failed"})
+                    summary.failed_extractions += 1
+                    
             except Exception as e:
                 self.logger.error(f"Failed to process PMID {pmid}: {e}")
-                failed += 1
+                failed_pmids.append({"pmid": pmid, "error": str(e)})
+                summary.failed_extractions += 1
 
-        # Create summary file
-        self._create_summary(results, successful, failed)
-
-        self.logger.info(
-            f"Literature scraping complete: " f"{successful} successful, {failed} failed",
-        )
-
-        return results
-
-    def _create_summary(self, results: Dict[str, LiteratureData], successful: int, failed: int):
-        """Create a summary file for all processed publications.
-
-        Args:
-            results: Dictionary of PMID to LiteratureData
-            successful: Count of successful processing
-            failed: Count of failed processing
-        """
-        date_dir = self.output_dir / datetime.now().strftime("%Y-%m-%d")
-        date_dir.mkdir(parents=True, exist_ok=True)
-
-        # Collect summary statistics
-        summary = {
-            "timestamp": datetime.now().isoformat(),
-            "total_publications_attempted": successful + failed,
-            "successful": successful,
-            "failed": failed,
-            "publications": [],
-        }
-
-        # Add publication details
-        for pmid, data in results.items():
-            pub_summary = {
-                "pmid": pmid,
-                "title": data.metadata.get("title", ""),
-                "gene_count": data.total_unique_genes,
-                "genes_with_hgnc": sum(1 for g in data.genes if g.hgnc_id),
-                "output_file": f"literature_pmid_{pmid}.json",
-            }
-            summary["publications"].append(pub_summary)
-
-        # Calculate total unique genes across all publications
-        all_genes = set()
-        for data in results.values():
-            for gene in data.genes:
-                all_genes.add(gene.symbol)
-
-        summary["total_unique_genes_all_publications"] = len(all_genes)
+        # Update summary
+        summary.total_unique_genes = len(all_unique_genes)
+        if failed_pmids:
+            summary.extraction_errors = failed_pmids
 
         # Save summary
-        summary_file = date_dir / "literature_summary.json"
+        summary_file = self.output_dir / "literature_summary.json"
         with open(summary_file, "w", encoding="utf-8") as f:
-            json.dump(summary, f, indent=2)
-
+            json.dump(summary.to_dict(), f, indent=2, ensure_ascii=False)
+        
         self.logger.info(f"Saved summary to {summary_file}")
+        self.logger.info(
+            f"Literature scraping complete: {summary.successful_extractions} successful, "
+            f"{summary.failed_extractions} failed"
+        )
+
+        return summary

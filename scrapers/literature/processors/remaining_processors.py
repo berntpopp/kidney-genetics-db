@@ -195,23 +195,37 @@ class PMID33532864Processor(BaseProcessor):
         self.extractor = DocxExtractor()
 
     def process(self, file_path: Path) -> List[str]:
-        """Extract genes from DOCX table, first 316 entries."""
+        """Extract genes from DOCX table, first column only."""
         try:
-            tables = self.extractor.extract_tables_with_metadata(file_path)
+            # Use direct docx parsing for better control
+            import docx
+            doc = docx.Document(file_path)
+            
+            if not doc.tables:
+                self.logger.error("No tables found in document")
+                return []
+            
+            # Extract from first column of first table
+            table = doc.tables[0]
             genes = []
-            for table in tables:
-                for cell in table.get("cells", []):
-                    if cell.get("cell_id") == 1 or (
-                        cell.get("text") and cell.get("text") != "Gene"
-                    ):
-                        text = cell.get("text", "")
-                        for item in text.split(", "):
-                            gene = clean_gene_symbol(item)
-                            if gene and self._is_valid_gene_symbol(gene):
-                                genes.append(gene)
-                                if len(genes) >= 316:  # Take first 316 as per R script
-                                    return genes
+            
+            for row_idx, row in enumerate(table.rows):
+                if row_idx == 0:  # Skip header row
+                    continue
+                    
+                if row.cells:
+                    # Get text from first column only
+                    text = row.cells[0].text.strip()
+                    
+                    # Skip empty cells and header text
+                    if text and text != 'Gene':
+                        gene = clean_gene_symbol(text)
+                        if gene and self._is_valid_gene_symbol(gene):
+                            genes.append(gene)
+            
+            self.logger.info(f"Extracted {len(genes)} genes from PMID {self.pmid}")
             return genes
+            
         except Exception as e:
             self.logger.error(f"Error processing PMID {self.pmid}: {e}")
             return []

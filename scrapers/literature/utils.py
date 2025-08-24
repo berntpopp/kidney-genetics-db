@@ -240,9 +240,8 @@ def clean_gene_symbol(symbol: str) -> str:
     symbol = symbol.replace("*", "").replace("#", "").replace(".", "")
     symbol = symbol.strip()
 
-    # Remove common suffixes/prefixes
-    if symbol.endswith("-AS1"):
-        symbol = symbol[:-4]
+    # Note: Don't remove -AS1 suffix as it's a valid antisense RNA identifier
+    # e.g., GNAS-AS1, GSN-AS1 are legitimate gene symbols
 
     # Validate basic gene symbol format
     # Allow letters (any case), numbers, and hyphens (for MT genes)
@@ -251,23 +250,6 @@ def clean_gene_symbol(symbol: str) -> str:
         return ""
 
     return symbol
-
-
-def calculate_confidence(gene_count: int, source_type: str) -> str:
-    """Calculate confidence score for gene data.
-
-    Args:
-        gene_count: Number of genes found
-        source_type: Type of source (e.g., 'commercial', 'academic')
-
-    Returns:
-        Confidence level: 'high', 'medium', or 'low'
-    """
-    if gene_count > 100 and source_type in ["commercial", "academic"]:
-        return "high"
-    if gene_count > 50:
-        return "medium"
-    return "low"
 
 
 def normalize_panel_name(name: str) -> str:
@@ -310,7 +292,8 @@ def validate_gene_list(genes: list) -> tuple[list, list]:
 
     for gene in genes:
         if gene and 2 <= len(gene) <= 15:
-            if re.match(r"^[A-Z][A-Z0-9]{1,}[A-Z0-9]*$", gene):
+            # Allow both uppercase and lowercase (e.g., C5orf42)
+            if re.match(r"^[A-Za-z][A-Za-z0-9\-]+$", gene):
                 valid_genes.append(gene)
             else:
                 invalid_genes.append(gene)

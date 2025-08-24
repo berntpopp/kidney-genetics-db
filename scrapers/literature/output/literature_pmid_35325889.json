@@ -1,0 +1,2312 @@
+{
+  "id": "35325889",
+  "pmid": "35325889",
+  "title": "Genetic Etiologies for Chronic Kidney Disease Revealed through Next-Generation Renal Gene Panel",
+  "authors": [
+    "Anthony J. Bleyer"
+  ],
+  "journal": "Unknown Journal",
+  "publication_date": "2022-05-01T00:00:00",
+  "url": "Supplementary Material for: Genetic Etiologies for Chronic Kidney Disease Revealed through Next-Generation Renal Gene Panel (figshare.com)",
+  "doi": null,
+  "genes": [
+    {
+      "symbol": "ABCC6",
+      "reported_as": "ABCC6",
+      "hgnc_id": "HGNC:57",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ABCC8",
+      "reported_as": "ABCC8",
+      "hgnc_id": "HGNC:59",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ABCG2",
+      "reported_as": "ABCG2",
+      "hgnc_id": "HGNC:74",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACE",
+      "reported_as": "ACE",
+      "hgnc_id": "HGNC:2707",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACTB",
+      "reported_as": "ACTB",
+      "hgnc_id": "HGNC:132",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ADA2",
+      "reported_as": "ADA2",
+      "hgnc_id": "HGNC:1839",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ADAMTS13",
+      "reported_as": "ADAMTS13",
+      "hgnc_id": "HGNC:1366",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ADCY10",
+      "reported_as": "ADCY10",
+      "hgnc_id": "HGNC:21285",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGPAT2",
+      "reported_as": "AGPAT2",
+      "hgnc_id": "HGNC:325",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGT",
+      "reported_as": "AGT",
+      "hgnc_id": "HGNC:333",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGTR1",
+      "reported_as": "AGTR1",
+      "hgnc_id": "HGNC:336",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGXT",
+      "reported_as": "AGXT",
+      "hgnc_id": "HGNC:341",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AHI1",
+      "reported_as": "AHI1",
+      "hgnc_id": "HGNC:21575",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALG1",
+      "reported_as": "ALG1",
+      "hgnc_id": "HGNC:18294",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALG13",
+      "reported_as": "ALG13",
+      "hgnc_id": "HGNC:30881",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALG8",
+      "reported_as": "ALG8",
+      "hgnc_id": "HGNC:23161",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALG9",
+      "reported_as": "ALG9",
+      "hgnc_id": "HGNC:15672",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALMS1",
+      "reported_as": "ALMS1",
+      "hgnc_id": "HGNC:428",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALPL",
+      "reported_as": "ALPL",
+      "hgnc_id": "HGNC:438",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AMN",
+      "reported_as": "AMN",
+      "hgnc_id": "HGNC:14604",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ANKS6",
+      "reported_as": "ANKS6",
+      "hgnc_id": "HGNC:26724",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ANOS1",
+      "reported_as": "ANOS1",
+      "hgnc_id": "HGNC:6211",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AP2S1",
+      "reported_as": "AP2S1",
+      "hgnc_id": "HGNC:565",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APOA1",
+      "reported_as": "APOA1",
+      "hgnc_id": "HGNC:600",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APOC2",
+      "reported_as": "APOC2",
+      "hgnc_id": "HGNC:609",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APOE",
+      "reported_as": "APOE",
+      "hgnc_id": "HGNC:613",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APOL1",
+      "reported_as": "APOL1",
+      "hgnc_id": "HGNC:618",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COA8",
+      "reported_as": "APOPT1",
+      "hgnc_id": "HGNC:20492",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APRT",
+      "reported_as": "APRT",
+      "hgnc_id": "HGNC:626",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AQP2",
+      "reported_as": "AQP2",
+      "hgnc_id": "HGNC:634",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ARHGAP24",
+      "reported_as": "ARHGAP24",
+      "hgnc_id": "HGNC:25361",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ARL6",
+      "reported_as": "ARL6",
+      "hgnc_id": "HGNC:13210",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ATP6V0A4",
+      "reported_as": "ATP6V0A4",
+      "hgnc_id": "HGNC:866",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ATP6V1B1",
+      "reported_as": "ATP6V1B1",
+      "hgnc_id": "HGNC:853",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ATP7B",
+      "reported_as": "ATP7B",
+      "hgnc_id": "HGNC:870",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AVP",
+      "reported_as": "AVP",
+      "hgnc_id": "HGNC:894",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AVPR2",
+      "reported_as": "AVPR2",
+      "hgnc_id": "HGNC:897",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "B2M",
+      "reported_as": "B2M",
+      "hgnc_id": "HGNC:914",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBIP1",
+      "reported_as": "BBIP1",
+      "hgnc_id": "HGNC:28093",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS1",
+      "reported_as": "BBS1",
+      "hgnc_id": "HGNC:966",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS10",
+      "reported_as": "BBS10",
+      "hgnc_id": "HGNC:26291",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS12",
+      "reported_as": "BBS12",
+      "hgnc_id": "HGNC:26648",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS2",
+      "reported_as": "BBS2",
+      "hgnc_id": "HGNC:967",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS4",
+      "reported_as": "BBS4",
+      "hgnc_id": "HGNC:969",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS5",
+      "reported_as": "BBS5",
+      "hgnc_id": "HGNC:970",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS7",
+      "reported_as": "BBS7",
+      "hgnc_id": "HGNC:18758",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS9",
+      "reported_as": "BBS9",
+      "hgnc_id": "HGNC:30000",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BCS1L",
+      "reported_as": "BCS1L",
+      "hgnc_id": "HGNC:1020",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BICC1",
+      "reported_as": "BICC1",
+      "hgnc_id": "HGNC:19351",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BLK",
+      "reported_as": "BLK",
+      "hgnc_id": "HGNC:1057",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BMP4",
+      "reported_as": "BMP4",
+      "hgnc_id": "HGNC:1071",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BMP7",
+      "reported_as": "BMP7",
+      "hgnc_id": "HGNC:1074",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BMPR2",
+      "reported_as": "BMPR2",
+      "hgnc_id": "HGNC:1078",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BRAF",
+      "reported_as": "BRAF",
+      "hgnc_id": "HGNC:1097",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BSCL2",
+      "reported_as": "BSCL2",
+      "hgnc_id": "HGNC:15832",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BSND",
+      "reported_as": "BSND",
+      "hgnc_id": "HGNC:16512",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "C5",
+      "reported_as": "C5",
+      "hgnc_id": "HGNC:1331",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFAP418",
+      "reported_as": "C8orf37",
+      "hgnc_id": "HGNC:27232",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CA2",
+      "reported_as": "CA2",
+      "hgnc_id": "HGNC:1373",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CACNA1H",
+      "reported_as": "CACNA1H",
+      "hgnc_id": "HGNC:1395",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CASR",
+      "reported_as": "CASR",
+      "hgnc_id": "HGNC:1514",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CAV1",
+      "reported_as": "CAV1",
+      "hgnc_id": "HGNC:1527",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CD151",
+      "reported_as": "CD151",
+      "hgnc_id": "HGNC:1630",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CD2AP",
+      "reported_as": "CD2AP",
+      "hgnc_id": "HGNC:14258",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CDC73",
+      "reported_as": "CDC73",
+      "hgnc_id": "HGNC:16783",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CDKN1C",
+      "reported_as": "CDKN1C",
+      "hgnc_id": "HGNC:1786",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEL",
+      "reported_as": "CEL",
+      "hgnc_id": "HGNC:1848",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP164",
+      "reported_as": "CEP164",
+      "hgnc_id": "HGNC:29182",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP290",
+      "reported_as": "CEP290",
+      "hgnc_id": "HGNC:29021",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFH",
+      "reported_as": "CFH",
+      "hgnc_id": "HGNC:4883",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFHR5",
+      "reported_as": "CFHR5",
+      "hgnc_id": "HGNC:24668",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFI",
+      "reported_as": "CFI",
+      "hgnc_id": "HGNC:5394",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CHD1L",
+      "reported_as": "CHD1L",
+      "hgnc_id": "HGNC:1916",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CHD7",
+      "reported_as": "CHD7",
+      "hgnc_id": "HGNC:20626",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CHRM3",
+      "reported_as": "CHRM3",
+      "hgnc_id": "HGNC:1952",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CHRNA3",
+      "reported_as": "CHRNA3",
+      "hgnc_id": "HGNC:1957",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CISD2",
+      "reported_as": "CISD2",
+      "hgnc_id": "HGNC:24212",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLCN2",
+      "reported_as": "CLCN2",
+      "hgnc_id": "HGNC:2020",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLCN5",
+      "reported_as": "CLCN5",
+      "hgnc_id": "HGNC:2023",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLCNKB",
+      "reported_as": "CLCNKB",
+      "hgnc_id": "HGNC:2027",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLDN16",
+      "reported_as": "CLDN16",
+      "hgnc_id": "HGNC:2037",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLDN19",
+      "reported_as": "CLDN19",
+      "hgnc_id": "HGNC:2040",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CNNM2",
+      "reported_as": "CNNM2",
+      "hgnc_id": "HGNC:103",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL11A1",
+      "reported_as": "COL11A1",
+      "hgnc_id": "HGNC:2186",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A1",
+      "reported_as": "COL4A1",
+      "hgnc_id": "HGNC:2202",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A3",
+      "reported_as": "COL4A3",
+      "hgnc_id": "HGNC:2204",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A4",
+      "reported_as": "COL4A4",
+      "hgnc_id": "HGNC:2206",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A5",
+      "reported_as": "COL4A5",
+      "hgnc_id": "HGNC:2207",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COQ2",
+      "reported_as": "COQ2",
+      "hgnc_id": "HGNC:25223",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COQ6",
+      "reported_as": "COQ6",
+      "hgnc_id": "HGNC:20233",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COX10",
+      "reported_as": "COX10",
+      "hgnc_id": "HGNC:2260",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COX14",
+      "reported_as": "COX14",
+      "hgnc_id": "HGNC:28216",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COX20",
+      "reported_as": "COX20",
+      "hgnc_id": "HGNC:26970",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COX6B1",
+      "reported_as": "COX6B1",
+      "hgnc_id": "HGNC:2280",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COX8A",
+      "reported_as": "COX8A",
+      "hgnc_id": "HGNC:2294",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CPLANE1",
+      "reported_as": "CPLANE1",
+      "hgnc_id": "HGNC:25801",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CPT2",
+      "reported_as": "CPT2",
+      "hgnc_id": "HGNC:2330",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CREBBP",
+      "reported_as": "CREBBP",
+      "hgnc_id": "HGNC:2348",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CRKL",
+      "reported_as": "CRKL",
+      "hgnc_id": "HGNC:2363",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CTNS",
+      "reported_as": "CTNS",
+      "hgnc_id": "HGNC:2518",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CUBN",
+      "reported_as": "CUBN",
+      "hgnc_id": "HGNC:2548",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CUL3",
+      "reported_as": "CUL3",
+      "hgnc_id": "HGNC:2553",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP11A1",
+      "reported_as": "CYP11A1",
+      "hgnc_id": "HGNC:2590",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP11B1",
+      "reported_as": "CYP11B1",
+      "hgnc_id": "HGNC:2591",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP11B2",
+      "reported_as": "CYP11B2",
+      "hgnc_id": "HGNC:2592",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP17A1",
+      "reported_as": "CYP17A1",
+      "hgnc_id": "HGNC:2593",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP24A1",
+      "reported_as": "CYP24A1",
+      "hgnc_id": "HGNC:2602",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP27B1",
+      "reported_as": "CYP27B1",
+      "hgnc_id": "HGNC:2606",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP2R1",
+      "reported_as": "CYP2R1",
+      "hgnc_id": "HGNC:20580",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DCDC2",
+      "reported_as": "DCDC2",
+      "hgnc_id": "HGNC:18141",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DGKE",
+      "reported_as": "DGKE",
+      "hgnc_id": "HGNC:2852",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DHCR7",
+      "reported_as": "DHCR7",
+      "hgnc_id": "HGNC:2860",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DLC1",
+      "reported_as": "DLC1",
+      "hgnc_id": "HGNC:2897",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DMP1",
+      "reported_as": "DMP1",
+      "hgnc_id": "HGNC:2932",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNASE1L3",
+      "reported_as": "DNASE1L3",
+      "hgnc_id": "HGNC:2959",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EBP",
+      "reported_as": "EBP",
+      "hgnc_id": "HGNC:3133",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EDNRA",
+      "reported_as": "EDNRA",
+      "hgnc_id": "HGNC:3179",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EGF",
+      "reported_as": "EGF",
+      "hgnc_id": "HGNC:3229",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EIF2AK3",
+      "reported_as": "EIF2AK3",
+      "hgnc_id": "HGNC:3255",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ELP1",
+      "reported_as": "ELP1",
+      "hgnc_id": "HGNC:5959",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ENPP1",
+      "reported_as": "ENPP1",
+      "hgnc_id": "HGNC:3356",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EYA1",
+      "reported_as": "EYA1",
+      "hgnc_id": "HGNC:3519",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FAM20A",
+      "reported_as": "FAM20A",
+      "hgnc_id": "HGNC:23015",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FAN1",
+      "reported_as": "FAN1",
+      "hgnc_id": "HGNC:29170",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCA",
+      "reported_as": "FANCA",
+      "hgnc_id": "HGNC:3582",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCB",
+      "reported_as": "FANCB",
+      "hgnc_id": "HGNC:3583",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCC",
+      "reported_as": "FANCC",
+      "hgnc_id": "HGNC:3584",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCD2",
+      "reported_as": "FANCD2",
+      "hgnc_id": "HGNC:3585",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCE",
+      "reported_as": "FANCE",
+      "hgnc_id": "HGNC:3586",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCF",
+      "reported_as": "FANCF",
+      "hgnc_id": "HGNC:3587",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCG",
+      "reported_as": "FANCG",
+      "hgnc_id": "HGNC:3588",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCI",
+      "reported_as": "FANCI",
+      "hgnc_id": "HGNC:25568",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCL",
+      "reported_as": "FANCL",
+      "hgnc_id": "HGNC:20748",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCM",
+      "reported_as": "FANCM",
+      "hgnc_id": "HGNC:23168",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FASTKD2",
+      "reported_as": "FASTKD2",
+      "hgnc_id": "HGNC:29160",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FGA",
+      "reported_as": "FGA",
+      "hgnc_id": "HGNC:3661",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FGF10",
+      "reported_as": "FGF10",
+      "hgnc_id": "HGNC:3666",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FGF23",
+      "reported_as": "FGF23",
+      "hgnc_id": "HGNC:3680",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FGFR1",
+      "reported_as": "FGFR1",
+      "hgnc_id": "HGNC:3688",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FGFR2",
+      "reported_as": "FGFR2",
+      "hgnc_id": "HGNC:3689",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FLCN",
+      "reported_as": "FLCN",
+      "hgnc_id": "HGNC:27310",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FN1",
+      "reported_as": "FN1",
+      "hgnc_id": "HGNC:3778",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FOXC1",
+      "reported_as": "FOXC1",
+      "hgnc_id": "HGNC:3800",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FOXC2",
+      "reported_as": "FOXC2",
+      "hgnc_id": "HGNC:3801",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FOXI1",
+      "reported_as": "FOXI1",
+      "hgnc_id": "HGNC:3815",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FOXP3",
+      "reported_as": "FOXP3",
+      "hgnc_id": "HGNC:6106",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FRAS1",
+      "reported_as": "FRAS1",
+      "hgnc_id": "HGNC:19185",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FREM1",
+      "reported_as": "FREM1",
+      "hgnc_id": "HGNC:23399",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FREM2",
+      "reported_as": "FREM2",
+      "hgnc_id": "HGNC:25396",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FXYD2",
+      "reported_as": "FXYD2",
+      "hgnc_id": "HGNC:4026",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "G6PC1",
+      "reported_as": "G6PC",
+      "hgnc_id": "HGNC:4056",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GALNT3",
+      "reported_as": "GALNT3",
+      "hgnc_id": "HGNC:4125",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GANAB",
+      "reported_as": "GANAB",
+      "hgnc_id": "HGNC:4138",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GATA3",
+      "reported_as": "GATA3",
+      "hgnc_id": "HGNC:4172",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GATM",
+      "reported_as": "GATM",
+      "hgnc_id": "HGNC:4175",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GCK",
+      "reported_as": "GCK",
+      "hgnc_id": "HGNC:4195",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GCM2",
+      "reported_as": "GCM2",
+      "hgnc_id": "HGNC:4198",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GDNF",
+      "reported_as": "GDNF",
+      "hgnc_id": "HGNC:4232",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLA",
+      "reported_as": "GLA",
+      "hgnc_id": "HGNC:4296",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLI3",
+      "reported_as": "GLI3",
+      "hgnc_id": "HGNC:4319",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLIS2",
+      "reported_as": "GLIS2",
+      "hgnc_id": "HGNC:29450",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLIS3",
+      "reported_as": "GLIS3",
+      "hgnc_id": "HGNC:28510",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GNA11",
+      "reported_as": "GNA11",
+      "hgnc_id": "HGNC:4379",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GNAS",
+      "reported_as": "GNAS",
+      "hgnc_id": "HGNC:4392",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GPC3",
+      "reported_as": "GPC3",
+      "hgnc_id": "HGNC:4451",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GREM1",
+      "reported_as": "GREM1",
+      "hgnc_id": "HGNC:2001",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GRHPR",
+      "reported_as": "GRHPR",
+      "hgnc_id": "HGNC:4570",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GRIP1",
+      "reported_as": "GRIP1",
+      "hgnc_id": "HGNC:18708",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GSN",
+      "reported_as": "GSN",
+      "hgnc_id": "HGNC:4620",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HBB",
+      "reported_as": "HBB",
+      "hgnc_id": "HGNC:4827",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HGD",
+      "reported_as": "HGD",
+      "hgnc_id": "HGNC:4892",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HNF1A",
+      "reported_as": "HNF1A",
+      "hgnc_id": "HGNC:11621",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HNF1B",
+      "reported_as": "HNF1B",
+      "hgnc_id": "HGNC:11630",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HNF4A",
+      "reported_as": "HNF4A",
+      "hgnc_id": "HGNC:5024",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HOGA1",
+      "reported_as": "HOGA1",
+      "hgnc_id": "HGNC:25155",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HOXA13",
+      "reported_as": "HOXA13",
+      "hgnc_id": "HGNC:5102",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HOXD13",
+      "reported_as": "HOXD13",
+      "hgnc_id": "HGNC:5136",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HPRT1",
+      "reported_as": "HPRT1",
+      "hgnc_id": "HGNC:5157",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HPS1",
+      "reported_as": "HPS1",
+      "hgnc_id": "HGNC:5163",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HPSE2",
+      "reported_as": "HPSE2",
+      "hgnc_id": "HGNC:18374",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HSD11B2",
+      "reported_as": "HSD11B2",
+      "hgnc_id": "HGNC:5209",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HSD3B2",
+      "reported_as": "HSD3B2",
+      "hgnc_id": "HGNC:5218",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT122",
+      "reported_as": "IFT122",
+      "hgnc_id": "HGNC:13556",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT140",
+      "reported_as": "IFT140",
+      "hgnc_id": "HGNC:29077",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT172",
+      "reported_as": "IFT172",
+      "hgnc_id": "HGNC:30391",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT43",
+      "reported_as": "IFT43",
+      "hgnc_id": "HGNC:29669",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INF2",
+      "reported_as": "INF2",
+      "hgnc_id": "HGNC:23791",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INS",
+      "reported_as": "INS",
+      "hgnc_id": "HGNC:6081",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INVS",
+      "reported_as": "INVS",
+      "hgnc_id": "HGNC:17870",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IQCB1",
+      "reported_as": "IQCB1",
+      "hgnc_id": "HGNC:28949",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ITGA3",
+      "reported_as": "ITGA3",
+      "hgnc_id": "HGNC:6139",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ITGA6",
+      "reported_as": "ITGA6",
+      "hgnc_id": "HGNC:6142",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ITGB4",
+      "reported_as": "ITGB4",
+      "hgnc_id": "HGNC:6158",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ITSN2",
+      "reported_as": "ITSN2",
+      "hgnc_id": "HGNC:6184",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "JAG1",
+      "reported_as": "JAG1",
+      "hgnc_id": "HGNC:6188",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KANK1",
+      "reported_as": "KANK1",
+      "hgnc_id": "HGNC:19309",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KANSL1",
+      "reported_as": "KANSL1",
+      "hgnc_id": "HGNC:24565",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KAT6B",
+      "reported_as": "KAT6B",
+      "hgnc_id": "HGNC:17582",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNA1",
+      "reported_as": "KCNA1",
+      "hgnc_id": "HGNC:6218",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNJ1",
+      "reported_as": "KCNJ1",
+      "hgnc_id": "HGNC:6255",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNJ10",
+      "reported_as": "KCNJ10",
+      "hgnc_id": "HGNC:6256",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNJ11",
+      "reported_as": "KCNJ11",
+      "hgnc_id": "HGNC:6257",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNJ5",
+      "reported_as": "KCNJ5",
+      "hgnc_id": "HGNC:6266",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNK3",
+      "reported_as": "KCNK3",
+      "hgnc_id": "HGNC:6278",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCTD1",
+      "reported_as": "KCTD1",
+      "hgnc_id": "HGNC:18249",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KL",
+      "reported_as": "KL",
+      "hgnc_id": "HGNC:6344",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KLF11",
+      "reported_as": "KLF11",
+      "hgnc_id": "HGNC:11811",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KLHL3",
+      "reported_as": "KLHL3",
+      "hgnc_id": "HGNC:6354",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KRAS",
+      "reported_as": "KRAS",
+      "hgnc_id": "HGNC:6407",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LAMB2",
+      "reported_as": "LAMB2",
+      "hgnc_id": "HGNC:6487",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LCAT",
+      "reported_as": "LCAT",
+      "hgnc_id": "HGNC:6522",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LDHA",
+      "reported_as": "LDHA",
+      "hgnc_id": "HGNC:6535",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LMNA",
+      "reported_as": "LMNA",
+      "hgnc_id": "HGNC:6636",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LMX1B",
+      "reported_as": "LMX1B",
+      "hgnc_id": "HGNC:6654",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LPIN1",
+      "reported_as": "LPIN1",
+      "hgnc_id": "HGNC:13345",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LRP2",
+      "reported_as": "LRP2",
+      "hgnc_id": "HGNC:6694",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LRP4",
+      "reported_as": "LRP4",
+      "hgnc_id": "HGNC:6696",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LRP5",
+      "reported_as": "LRP5",
+      "hgnc_id": "HGNC:6697",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LYZ",
+      "reported_as": "LYZ",
+      "hgnc_id": "HGNC:6740",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LZTFL1",
+      "reported_as": "LZTFL1",
+      "hgnc_id": "HGNC:6741",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MAFB",
+      "reported_as": "MAFB",
+      "hgnc_id": "HGNC:6408",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MAGI2",
+      "reported_as": "MAGI2",
+      "hgnc_id": "HGNC:18957",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MC4R",
+      "reported_as": "MC4R",
+      "hgnc_id": "HGNC:6932",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MEFV",
+      "reported_as": "MEFV",
+      "hgnc_id": "HGNC:6998",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MKKS",
+      "reported_as": "MKKS",
+      "hgnc_id": "HGNC:7108",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MMACHC",
+      "reported_as": "MMACHC",
+      "hgnc_id": "HGNC:24525",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MNX1",
+      "reported_as": "MNX1",
+      "hgnc_id": "HGNC:4979",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MOCOS",
+      "reported_as": "MOCOS",
+      "hgnc_id": "HGNC:18234",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MMUT",
+      "reported_as": "MUT",
+      "hgnc_id": "HGNC:7526",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MVK",
+      "reported_as": "MVK",
+      "hgnc_id": "HGNC:7530",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MYCN",
+      "reported_as": "MYCN",
+      "hgnc_id": "HGNC:7559",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MYH9",
+      "reported_as": "MYH9",
+      "hgnc_id": "HGNC:7579",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MYO1E",
+      "reported_as": "MYO1E",
+      "hgnc_id": "HGNC:7599",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NEDD4L",
+      "reported_as": "NEDD4L",
+      "hgnc_id": "HGNC:7728",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NEK8",
+      "reported_as": "NEK8",
+      "hgnc_id": "HGNC:13387",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NEUROD1",
+      "reported_as": "NEUROD1",
+      "hgnc_id": "HGNC:7762",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NF1",
+      "reported_as": "NF1",
+      "hgnc_id": "HGNC:7765",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NLRP3",
+      "reported_as": "NLRP3",
+      "hgnc_id": "HGNC:16400",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NOTCH2",
+      "reported_as": "NOTCH2",
+      "hgnc_id": "HGNC:7882",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP1",
+      "reported_as": "NPHP1",
+      "hgnc_id": "HGNC:7905",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP3",
+      "reported_as": "NPHP3",
+      "hgnc_id": "HGNC:7907",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP4",
+      "reported_as": "NPHP4",
+      "hgnc_id": "HGNC:19104",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHS1",
+      "reported_as": "NPHS1",
+      "hgnc_id": "HGNC:7908",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHS2",
+      "reported_as": "NPHS2",
+      "hgnc_id": "HGNC:13394",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NR0B1",
+      "reported_as": "NR0B1",
+      "hgnc_id": "HGNC:7960",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NR3C1",
+      "reported_as": "NR3C1",
+      "hgnc_id": "HGNC:7978",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NR3C2",
+      "reported_as": "NR3C2",
+      "hgnc_id": "HGNC:7979",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NSD1",
+      "reported_as": "NSD1",
+      "hgnc_id": "HGNC:14234",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NSDHL",
+      "reported_as": "NSDHL",
+      "hgnc_id": "HGNC:13398",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "OCRL",
+      "reported_as": "OCRL",
+      "hgnc_id": "HGNC:8108",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "OFD1",
+      "reported_as": "OFD1",
+      "hgnc_id": "HGNC:2567",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "OPLAH",
+      "reported_as": "OPLAH",
+      "hgnc_id": "HGNC:8149",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PALB2",
+      "reported_as": "PALB2",
+      "hgnc_id": "HGNC:26144",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PAX2",
+      "reported_as": "PAX2",
+      "hgnc_id": "HGNC:8616",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PAX4",
+      "reported_as": "PAX4",
+      "hgnc_id": "HGNC:8618",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PBX1",
+      "reported_as": "PBX1",
+      "hgnc_id": "HGNC:8632",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PCBD1",
+      "reported_as": "PCBD1",
+      "hgnc_id": "HGNC:8646",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PDSS1",
+      "reported_as": "PDSS1",
+      "hgnc_id": "HGNC:17759",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PDSS2",
+      "reported_as": "PDSS2",
+      "hgnc_id": "HGNC:23041",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PDX1",
+      "reported_as": "PDX1",
+      "hgnc_id": "HGNC:6107",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PET100",
+      "reported_as": "PET100",
+      "hgnc_id": "HGNC:40038",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PGK1",
+      "reported_as": "PGK1",
+      "hgnc_id": "HGNC:8896",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PHEX",
+      "reported_as": "PHEX",
+      "hgnc_id": "HGNC:8918",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKD1",
+      "reported_as": "PKD1",
+      "hgnc_id": "HGNC:9008",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKD2",
+      "reported_as": "PKD2",
+      "hgnc_id": "HGNC:9009",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKHD1",
+      "reported_as": "PKHD1",
+      "hgnc_id": "HGNC:9016",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PLCE1",
+      "reported_as": "PLCE1",
+      "hgnc_id": "HGNC:17175",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PLCG2",
+      "reported_as": "PLCG2",
+      "hgnc_id": "HGNC:9066",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PLG",
+      "reported_as": "PLG",
+      "hgnc_id": "HGNC:9071",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PMM2",
+      "reported_as": "PMM2",
+      "hgnc_id": "HGNC:9115",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PPP3CA",
+      "reported_as": "PPP3CA",
+      "hgnc_id": "HGNC:9314",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PRKCSH",
+      "reported_as": "PRKCSH",
+      "hgnc_id": "HGNC:9411",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PRODH",
+      "reported_as": "PRODH",
+      "hgnc_id": "HGNC:9453",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PROKR2",
+      "reported_as": "PROKR2",
+      "hgnc_id": "HGNC:15836",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PRPS1",
+      "reported_as": "PRPS1",
+      "hgnc_id": "HGNC:9462",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PTH1R",
+      "reported_as": "PTH1R",
+      "hgnc_id": "HGNC:9608",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PTPN11",
+      "reported_as": "PTPN11",
+      "hgnc_id": "HGNC:9644",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PTPRO",
+      "reported_as": "PTPRO",
+      "hgnc_id": "HGNC:9678",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RAD51C",
+      "reported_as": "RAD51C",
+      "hgnc_id": "HGNC:9820",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "REN",
+      "reported_as": "REN",
+      "hgnc_id": "HGNC:9958",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RET",
+      "reported_as": "RET",
+      "hgnc_id": "HGNC:9967",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RMND1",
+      "reported_as": "RMND1",
+      "hgnc_id": "HGNC:21176",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ROBO2",
+      "reported_as": "ROBO2",
+      "hgnc_id": "HGNC:10250",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ROR2",
+      "reported_as": "ROR2",
+      "hgnc_id": "HGNC:10257",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPGRIP1L",
+      "reported_as": "RPGRIP1L",
+      "hgnc_id": "HGNC:29168",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPL11",
+      "reported_as": "RPL11",
+      "hgnc_id": "HGNC:10301",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPL26",
+      "reported_as": "RPL26",
+      "hgnc_id": "HGNC:10327",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPL35A",
+      "reported_as": "RPL35A",
+      "hgnc_id": "HGNC:10345",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPL5",
+      "reported_as": "RPL5",
+      "hgnc_id": "HGNC:10360",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPS10",
+      "reported_as": "RPS10",
+      "hgnc_id": "HGNC:10383",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPS17",
+      "reported_as": "RPS17",
+      "hgnc_id": "HGNC:10397",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPS19",
+      "reported_as": "RPS19",
+      "hgnc_id": "HGNC:10402",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPS24",
+      "reported_as": "RPS24",
+      "hgnc_id": "HGNC:10411",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPS26",
+      "reported_as": "RPS26",
+      "hgnc_id": "HGNC:10414",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPS7",
+      "reported_as": "RPS7",
+      "hgnc_id": "HGNC:10440",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RRM2B",
+      "reported_as": "RRM2B",
+      "hgnc_id": "HGNC:17296",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SALL1",
+      "reported_as": "SALL1",
+      "hgnc_id": "HGNC:10524",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SALL4",
+      "reported_as": "SALL4",
+      "hgnc_id": "HGNC:15924",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SARS2",
+      "reported_as": "SARS2",
+      "hgnc_id": "HGNC:17697",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCARB2",
+      "reported_as": "SCARB2",
+      "hgnc_id": "HGNC:1665",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCN4A",
+      "reported_as": "SCN4A",
+      "hgnc_id": "HGNC:10591",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCNN1A",
+      "reported_as": "SCNN1A",
+      "hgnc_id": "HGNC:10599",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCNN1B",
+      "reported_as": "SCNN1B",
+      "hgnc_id": "HGNC:10600",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCNN1G",
+      "reported_as": "SCNN1G",
+      "hgnc_id": "HGNC:10602",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCO1",
+      "reported_as": "SCO1",
+      "hgnc_id": "HGNC:10603",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SDCCAG8",
+      "reported_as": "SDCCAG8",
+      "hgnc_id": "HGNC:10671",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SEC63",
+      "reported_as": "SEC63",
+      "hgnc_id": "HGNC:21082",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SEMA3E",
+      "reported_as": "SEMA3E",
+      "hgnc_id": "HGNC:10727",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SI",
+      "reported_as": "SI",
+      "hgnc_id": "HGNC:10856",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SIX1",
+      "reported_as": "SIX1",
+      "hgnc_id": "HGNC:10887",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SIX2",
+      "reported_as": "SIX2",
+      "hgnc_id": "HGNC:10888",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SIX5",
+      "reported_as": "SIX5",
+      "hgnc_id": "HGNC:10891",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC12A1",
+      "reported_as": "SLC12A1",
+      "hgnc_id": "HGNC:10910",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC12A2",
+      "reported_as": "SLC12A2",
+      "hgnc_id": "HGNC:10911",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC12A3",
+      "reported_as": "SLC12A3",
+      "hgnc_id": "HGNC:10912",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC16A12",
+      "reported_as": "SLC16A12",
+      "hgnc_id": "HGNC:23094",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC22A12",
+      "reported_as": "SLC22A12",
+      "hgnc_id": "HGNC:17989",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC26A1",
+      "reported_as": "SLC26A1",
+      "hgnc_id": "HGNC:10993",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC2A2",
+      "reported_as": "SLC2A2",
+      "hgnc_id": "HGNC:11006",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC2A9",
+      "reported_as": "SLC2A9",
+      "hgnc_id": "HGNC:13446",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC34A1",
+      "reported_as": "SLC34A1",
+      "hgnc_id": "HGNC:11019",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC34A3",
+      "reported_as": "SLC34A3",
+      "hgnc_id": "HGNC:20305",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC36A2",
+      "reported_as": "SLC36A2",
+      "hgnc_id": "HGNC:18762",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC37A4",
+      "reported_as": "SLC37A4",
+      "hgnc_id": "HGNC:4061",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC3A1",
+      "reported_as": "SLC3A1",
+      "hgnc_id": "HGNC:11025",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC41A1",
+      "reported_as": "SLC41A1",
+      "hgnc_id": "HGNC:19429",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC4A1",
+      "reported_as": "SLC4A1",
+      "hgnc_id": "HGNC:11027",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC4A4",
+      "reported_as": "SLC4A4",
+      "hgnc_id": "HGNC:11030",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC5A1",
+      "reported_as": "SLC5A1",
+      "hgnc_id": "HGNC:11036",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC5A2",
+      "reported_as": "SLC5A2",
+      "hgnc_id": "HGNC:11037",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC6A19",
+      "reported_as": "SLC6A19",
+      "hgnc_id": "HGNC:27960",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC6A20",
+      "reported_as": "SLC6A20",
+      "hgnc_id": "HGNC:30927",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC7A7",
+      "reported_as": "SLC7A7",
+      "hgnc_id": "HGNC:11065",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC7A9",
+      "reported_as": "SLC7A9",
+      "hgnc_id": "HGNC:11067",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NHERF1",
+      "reported_as": "SLC9A3R1",
+      "hgnc_id": "HGNC:11075",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLX4",
+      "reported_as": "SLX4",
+      "hgnc_id": "HGNC:23845",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SMAD9",
+      "reported_as": "SMAD9",
+      "hgnc_id": "HGNC:6774",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SMARCAL1",
+      "reported_as": "SMARCAL1",
+      "hgnc_id": "HGNC:11102",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SMC1A",
+      "reported_as": "SMC1A",
+      "hgnc_id": "HGNC:11111",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SOX17",
+      "reported_as": "SOX17",
+      "hgnc_id": "HGNC:18122",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SOX18",
+      "reported_as": "SOX18",
+      "hgnc_id": "HGNC:11194",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SRCAP",
+      "reported_as": "SRCAP",
+      "hgnc_id": "HGNC:16974",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "STAR",
+      "reported_as": "STAR",
+      "hgnc_id": "HGNC:11359",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "STK39",
+      "reported_as": "STK39",
+      "hgnc_id": "HGNC:17717",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "STX16",
+      "reported_as": "STX16",
+      "hgnc_id": "HGNC:11431",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SYNPO",
+      "reported_as": "SYNPO",
+      "hgnc_id": "HGNC:30672",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TACO1",
+      "reported_as": "TACO1",
+      "hgnc_id": "HGNC:24316",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TFAP2A",
+      "reported_as": "TFAP2A",
+      "hgnc_id": "HGNC:11742",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "THBD",
+      "reported_as": "THBD",
+      "hgnc_id": "HGNC:11784",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM67",
+      "reported_as": "TMEM67",
+      "hgnc_id": "HGNC:28396",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TNS2",
+      "reported_as": "TNS2",
+      "hgnc_id": "HGNC:19737",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TP53RK",
+      "reported_as": "TP53RK",
+      "hgnc_id": "HGNC:16197",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TP63",
+      "reported_as": "TP63",
+      "hgnc_id": "HGNC:15979",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRIM32",
+      "reported_as": "TRIM32",
+      "hgnc_id": "HGNC:16380",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRPC6",
+      "reported_as": "TRPC6",
+      "hgnc_id": "HGNC:12338",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRPM6",
+      "reported_as": "TRPM6",
+      "hgnc_id": "HGNC:17995",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TSC1",
+      "reported_as": "TSC1",
+      "hgnc_id": "HGNC:12362",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TSC2",
+      "reported_as": "TSC2",
+      "hgnc_id": "HGNC:12363",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TTC21B",
+      "reported_as": "TTC21B",
+      "hgnc_id": "HGNC:25660",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TTC8",
+      "reported_as": "TTC8",
+      "hgnc_id": "HGNC:20087",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TTR",
+      "reported_as": "TTR",
+      "hgnc_id": "HGNC:12405",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TXNL4A",
+      "reported_as": "TXNL4A",
+      "hgnc_id": "HGNC:30551",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "UCP3",
+      "reported_as": "UCP3",
+      "hgnc_id": "HGNC:12519",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "UMOD",
+      "reported_as": "UMOD",
+      "hgnc_id": "HGNC:12559",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "UPK3A",
+      "reported_as": "UPK3A",
+      "hgnc_id": "HGNC:12580",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "UQCC2",
+      "reported_as": "UQCC2",
+      "hgnc_id": "HGNC:21237",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "VDR",
+      "reported_as": "VDR",
+      "hgnc_id": "HGNC:12679",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "VHL",
+      "reported_as": "VHL",
+      "hgnc_id": "HGNC:12687",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WAS",
+      "reported_as": "WAS",
+      "hgnc_id": "HGNC:12731",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WDPCP",
+      "reported_as": "WDPCP",
+      "hgnc_id": "HGNC:28027",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WDR19",
+      "reported_as": "WDR19",
+      "hgnc_id": "HGNC:18340",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WDR72",
+      "reported_as": "WDR72",
+      "hgnc_id": "HGNC:26790",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WDR73",
+      "reported_as": "WDR73",
+      "hgnc_id": "HGNC:25928",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WFS1",
+      "reported_as": "WFS1",
+      "hgnc_id": "HGNC:12762",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNK1",
+      "reported_as": "WNK1",
+      "hgnc_id": "HGNC:14540",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNK4",
+      "reported_as": "WNK4",
+      "hgnc_id": "HGNC:14544",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNT4",
+      "reported_as": "WNT4",
+      "hgnc_id": "HGNC:12783",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNT5A",
+      "reported_as": "WNT5A",
+      "hgnc_id": "HGNC:12784",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WT1",
+      "reported_as": "WT1",
+      "hgnc_id": "HGNC:12796",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "XDH",
+      "reported_as": "XDH",
+      "hgnc_id": "HGNC:12805",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "XPNPEP3",
+      "reported_as": "XPNPEP3",
+      "hgnc_id": "HGNC:28052",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "XRCC4",
+      "reported_as": "XRCC4",
+      "hgnc_id": "HGNC:12831",
+      "normalization_status": "normalized"
+    }
+  ],
+  "gene_count": 382,
+  "source_file": "/home/bernt-popp/development/kidney-genetics-db/scrapers/literature/data/downloads/PMID_35325889.docx",
+  "file_type": "docx",
+  "extraction_method": "PMID35325889Processor",
+  "extraction_timestamp": "2025-08-24T18:31:36.287231",
+  "extraction_errors": null
+}

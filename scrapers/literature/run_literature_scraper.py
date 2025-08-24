@@ -101,32 +101,32 @@ def main():
             # Process single publication
             try:
                 result = scraper.process_publication(pub_metadata)
-                scraper.save_individual_output(result, args.pmid)
-                logger.info(
-                    f"Successfully processed PMID {args.pmid}: {result.total_unique_genes} genes"
-                )
+                if result:
+                    # Save the output
+                    output_file = scraper.output_dir / f"literature_pmid_{args.pmid}.json"
+                    import json
+                    with open(output_file, "w", encoding="utf-8") as f:
+                        json.dump(result.to_dict(), f, indent=2, ensure_ascii=False)
+                    
+                    logger.info(f"Successfully processed PMID {args.pmid}: {result.gene_count} genes")
+                else:
+                    logger.error(f"Failed to process PMID {args.pmid}")
+                    sys.exit(1)
             except Exception as e:
                 logger.error(f"Failed to process PMID {args.pmid}: {e}")
                 sys.exit(1)
         else:
             # Process all publications
             logger.info("Processing all publications...")
-            results = scraper.run()
+            summary = scraper.scrape_all()
 
             # Print summary
             logger.info("\n" + "=" * 60)
             logger.info("PROCESSING COMPLETE")
             logger.info("=" * 60)
-
-            total_genes = sum(r.total_unique_genes for r in results.values())
-            all_unique_genes = set()
-            for result in results.values():
-                for gene in result.genes:
-                    all_unique_genes.add(gene.symbol)
-
-            logger.info(f"Publications processed: {len(results)}")
-            logger.info(f"Total genes extracted: {total_genes}")
-            logger.info(f"Unique genes across all publications: {len(all_unique_genes)}")
+            logger.info(f"Publications processed: {summary.successful_extractions}")
+            logger.info(f"Failed: {summary.failed_extractions}")
+            logger.info(f"Total unique genes: {summary.total_unique_genes}")
 
             # Show HGNC normalization stats
             stats = scraper.hgnc_normalizer.get_stats()

@@ -1,0 +1,644 @@
+{
+  "id": "36035137",
+  "pmid": "36035137",
+  "title": "Analysis of chronic kidney disease patients by targeted next-generation sequencing identifies novel variants in kidney-related genes",
+  "authors": [
+    "Manal Alaamery"
+  ],
+  "journal": "Frontiers in Genetics",
+  "publication_date": "2022-08-11T00:00:00",
+  "url": "https://www.frontiersin.org/articles/10.3389/fgene.2022.886038/full#supplementary-material",
+  "doi": null,
+  "genes": [
+    {
+      "symbol": "ACE",
+      "reported_as": "ACE",
+      "hgnc_id": "HGNC:2707",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACTN4",
+      "reported_as": "ACTN4",
+      "hgnc_id": "HGNC:166",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGXT",
+      "reported_as": "AGXT",
+      "hgnc_id": "HGNC:341",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APRT",
+      "reported_as": "APRT",
+      "hgnc_id": "HGNC:626",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ATP6V0A4",
+      "reported_as": "ATP6V0A4",
+      "hgnc_id": "HGNC:866",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ATP6V1B1",
+      "reported_as": "ATP6V1B1",
+      "hgnc_id": "HGNC:853",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AVPR2",
+      "reported_as": "AVPR2",
+      "hgnc_id": "HGNC:897",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AXDND1",
+      "reported_as": "AXDND1",
+      "hgnc_id": "HGNC:26564",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "B9D1",
+      "reported_as": "B9D1",
+      "hgnc_id": "HGNC:24123",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "B9D2",
+      "reported_as": "B9D2",
+      "hgnc_id": "HGNC:28636",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BICC1",
+      "reported_as": "BICC1",
+      "hgnc_id": "HGNC:19351",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BSND",
+      "reported_as": "BSND",
+      "hgnc_id": "HGNC:16512",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RLIG1",
+      "reported_as": "C12orf29",
+      "hgnc_id": "HGNC:25322",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CPLANE1",
+      "reported_as": "C5orf42",
+      "hgnc_id": "HGNC:25801",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CA2",
+      "reported_as": "CA2",
+      "hgnc_id": "HGNC:1373",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CC2D2A",
+      "reported_as": "CC2D2A",
+      "hgnc_id": "HGNC:29253",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CD2AP",
+      "reported_as": "CD2AP",
+      "hgnc_id": "HGNC:14258",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CDC5L",
+      "reported_as": "CDC5L",
+      "hgnc_id": "HGNC:1743",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP290",
+      "reported_as": "CEP290",
+      "hgnc_id": "HGNC:29021",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CHST5",
+      "reported_as": "CHST5",
+      "hgnc_id": "HGNC:1973",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLCN5",
+      "reported_as": "CLCN5",
+      "hgnc_id": "HGNC:2023",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLDN16",
+      "reported_as": "CLDN16",
+      "hgnc_id": "HGNC:2037",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A3",
+      "reported_as": "COL4A3",
+      "hgnc_id": "HGNC:2204",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A4",
+      "reported_as": "COL4A4",
+      "hgnc_id": "HGNC:2206",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A5",
+      "reported_as": "COL4A5",
+      "hgnc_id": "HGNC:2207",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A6",
+      "reported_as": "COL4A6",
+      "hgnc_id": "HGNC:2208",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COQ2",
+      "reported_as": "COQ2",
+      "hgnc_id": "HGNC:25223",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CTNS",
+      "reported_as": "CTNS",
+      "hgnc_id": "HGNC:2518",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNASE1L3",
+      "reported_as": "DNASE1L3",
+      "hgnc_id": "HGNC:2959",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EPN2",
+      "reported_as": "EPN2",
+      "hgnc_id": "HGNC:18639",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CCNQ",
+      "reported_as": "FAM58A",
+      "hgnc_id": "HGNC:28434",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FAN1",
+      "reported_as": "FAN1",
+      "hgnc_id": "HGNC:29170",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FRAS1",
+      "reported_as": "FRAS1",
+      "hgnc_id": "HGNC:19185",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FREM2",
+      "reported_as": "FREM2",
+      "hgnc_id": "HGNC:25396",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FXYD2",
+      "reported_as": "FXYD2",
+      "hgnc_id": "HGNC:4026",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FXYD6-FXYD2",
+      "reported_as": "FXYD6-FXYD2",
+      "hgnc_id": "HGNC:39978",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GATA3",
+      "reported_as": "GATA3",
+      "hgnc_id": "HGNC:4172",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLA",
+      "reported_as": "GLA",
+      "hgnc_id": "HGNC:4296",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLIS2",
+      "reported_as": "GLIS2",
+      "hgnc_id": "HGNC:29450",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GRHPR",
+      "reported_as": "GRHPR",
+      "hgnc_id": "HGNC:4570",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GSN",
+      "reported_as": "GSN",
+      "hgnc_id": "HGNC:4620",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GSN-AS1",
+      "reported_as": "GSN-AS1",
+      "hgnc_id": "HGNC:23372",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HNF1B",
+      "reported_as": "HNF1B",
+      "hgnc_id": "HGNC:11630",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HNRNPH2",
+      "reported_as": "HNRNPH2",
+      "hgnc_id": "HGNC:5042",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HPSE2",
+      "reported_as": "HPSE2",
+      "hgnc_id": "HGNC:18374",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INF2",
+      "reported_as": "INF2",
+      "hgnc_id": "HGNC:23791",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INVS",
+      "reported_as": "INVS",
+      "hgnc_id": "HGNC:17870",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IQCB1",
+      "reported_as": "IQCB1",
+      "hgnc_id": "HGNC:28949",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNJ1",
+      "reported_as": "KCNJ1",
+      "hgnc_id": "HGNC:6255",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LAMB2",
+      "reported_as": "LAMB2",
+      "hgnc_id": "HGNC:6487",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LMX1B",
+      "reported_as": "LMX1B",
+      "hgnc_id": "HGNC:6654",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LPIN1",
+      "reported_as": "LPIN1",
+      "hgnc_id": "HGNC:13345",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MKS1",
+      "reported_as": "MKS1",
+      "hgnc_id": "HGNC:7121",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MYO1E",
+      "reported_as": "MYO1E",
+      "hgnc_id": "HGNC:7599",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NEK8",
+      "reported_as": "NEK8",
+      "hgnc_id": "HGNC:13387",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NFIA",
+      "reported_as": "NFIA",
+      "hgnc_id": "HGNC:7784",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP1",
+      "reported_as": "NPHP1",
+      "hgnc_id": "HGNC:7905",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP3",
+      "reported_as": "NPHP3",
+      "hgnc_id": "HGNC:7907",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP4",
+      "reported_as": "NPHP4",
+      "hgnc_id": "HGNC:19104",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHS1",
+      "reported_as": "NPHS1",
+      "hgnc_id": "HGNC:7908",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHS2",
+      "reported_as": "NPHS2",
+      "hgnc_id": "HGNC:13394",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NR3C2",
+      "reported_as": "NR3C2",
+      "hgnc_id": "HGNC:7979",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NXF5",
+      "reported_as": "NXF5",
+      "hgnc_id": "HGNC:8075",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "OCRL",
+      "reported_as": "OCRL",
+      "hgnc_id": "HGNC:8108",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PAX2",
+      "reported_as": "PAX2",
+      "hgnc_id": "HGNC:8616",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PDSS2",
+      "reported_as": "PDSS2",
+      "hgnc_id": "HGNC:23041",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKD1",
+      "reported_as": "PKD1",
+      "hgnc_id": "HGNC:9008",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKD2",
+      "reported_as": "PKD2",
+      "hgnc_id": "HGNC:9009",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKHD1",
+      "reported_as": "PKHD1",
+      "hgnc_id": "HGNC:9016",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PLCE1",
+      "reported_as": "PLCE1",
+      "hgnc_id": "HGNC:17175",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PREPL",
+      "reported_as": "PREPL",
+      "hgnc_id": "HGNC:30228",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PTPRO",
+      "reported_as": "PTPRO",
+      "hgnc_id": "HGNC:9678",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RET",
+      "reported_as": "RET",
+      "hgnc_id": "HGNC:9967",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPGRIP1L",
+      "reported_as": "RPGRIP1L",
+      "hgnc_id": "HGNC:29168",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SALL1",
+      "reported_as": "SALL1",
+      "hgnc_id": "HGNC:10524",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCARB2",
+      "reported_as": "SCARB2",
+      "hgnc_id": "HGNC:1665",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCNN1A",
+      "reported_as": "SCNN1A",
+      "hgnc_id": "HGNC:10599",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCNN1B",
+      "reported_as": "SCNN1B",
+      "hgnc_id": "HGNC:10600",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SHPK",
+      "reported_as": "SHPK",
+      "hgnc_id": "HGNC:1492",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC12A1",
+      "reported_as": "SLC12A1",
+      "hgnc_id": "HGNC:10910",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC12A3",
+      "reported_as": "SLC12A3",
+      "hgnc_id": "HGNC:10912",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC3A1",
+      "reported_as": "SLC3A1",
+      "hgnc_id": "HGNC:11025",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC4A1",
+      "reported_as": "SLC4A1",
+      "hgnc_id": "HGNC:11027",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC4A4",
+      "reported_as": "SLC4A4",
+      "hgnc_id": "HGNC:11030",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC5A1",
+      "reported_as": "SLC5A1",
+      "hgnc_id": "HGNC:11036",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC5A2",
+      "reported_as": "SLC5A2",
+      "hgnc_id": "HGNC:11037",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC7A9",
+      "reported_as": "SLC7A9",
+      "hgnc_id": "HGNC:11067",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NHERF1",
+      "reported_as": "SLC9A3R1",
+      "hgnc_id": "HGNC:11075",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SMARCAL1",
+      "reported_as": "SMARCAL1",
+      "hgnc_id": "HGNC:11102",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SOX17",
+      "reported_as": "SOX17",
+      "hgnc_id": "HGNC:18122",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TCTN2",
+      "reported_as": "TCTN2",
+      "hgnc_id": "HGNC:25774",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM216",
+      "reported_as": "TMEM216",
+      "hgnc_id": "HGNC:25018",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM231",
+      "reported_as": "TMEM231",
+      "hgnc_id": "HGNC:37234",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM237",
+      "reported_as": "TMEM237",
+      "hgnc_id": "HGNC:14432",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM67",
+      "reported_as": "TMEM67",
+      "hgnc_id": "HGNC:28396",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRPC6",
+      "reported_as": "TRPC6",
+      "hgnc_id": "HGNC:12338",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TTC21B",
+      "reported_as": "TTC21B",
+      "hgnc_id": "HGNC:25660",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "UMOD",
+      "reported_as": "UMOD",
+      "hgnc_id": "HGNC:12559",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "UPK3A",
+      "reported_as": "UPK3A",
+      "hgnc_id": "HGNC:12580",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "USF2",
+      "reported_as": "USF2",
+      "hgnc_id": "HGNC:12594",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNK1",
+      "reported_as": "WNK1",
+      "hgnc_id": "HGNC:14540",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNK4",
+      "reported_as": "WNK4",
+      "hgnc_id": "HGNC:14544",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WT1",
+      "reported_as": "WT1",
+      "hgnc_id": "HGNC:12796",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "XDH",
+      "reported_as": "XDH",
+      "hgnc_id": "HGNC:12805",
+      "normalization_status": "normalized"
+    }
+  ],
+  "gene_count": 104,
+  "source_file": "/home/bernt-popp/development/kidney-genetics-db/scrapers/literature/data/downloads/PMID_36035137.xlsx",
+  "file_type": "xlsx",
+  "extraction_method": "PMID36035137Processor",
+  "extraction_timestamp": "2025-08-24T18:31:36.376991",
+  "extraction_errors": null
+}

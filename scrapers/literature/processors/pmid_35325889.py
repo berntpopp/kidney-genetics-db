@@ -97,8 +97,8 @@ class PMID35325889Processor:
         if not symbol[0].isalpha():
             return False
 
-        # Should be mostly uppercase letters and numbers
-        if not re.match(r"^[A-Z][A-Z0-9\-]*[A-Z0-9]?$", symbol):
+        # Allow both uppercase and lowercase (e.g., C8orf37)
+        if not re.match(r"^[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9]?$", symbol):
             return False
 
         # Filter out common false positives

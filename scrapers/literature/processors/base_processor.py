@@ -35,8 +35,8 @@ class BaseProcessor(ABC):
         if not cleaned:
             return False
 
-        # Additional validation - should be mostly uppercase alphanumeric
-        if not re.match(r"^[A-Z][A-Z0-9\-]*[A-Z0-9]?$", cleaned):
+        # Additional validation - allow both uppercase and lowercase (e.g., C5orf42)
+        if not re.match(r"^[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9]?$", cleaned):
             return False
 
         # Check against exclusion list
