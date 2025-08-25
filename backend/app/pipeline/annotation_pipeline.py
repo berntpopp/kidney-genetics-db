@@ -17,6 +17,7 @@ from app.pipeline.sources.annotations.descartes import DescartesAnnotationSource
 from app.pipeline.sources.annotations.gnomad import GnomADAnnotationSource
 from app.pipeline.sources.annotations.gtex import GTExAnnotationSource
 from app.pipeline.sources.annotations.hgnc import HGNCAnnotationSource
+from app.pipeline.sources.annotations.mpo_mgi import MPOMGIAnnotationSource
 
 logger = get_logger(__name__)
 
@@ -54,6 +55,7 @@ class AnnotationPipeline:
             "gnomad": GnomADAnnotationSource,
             "gtex": GTExAnnotationSource,
             "descartes": DescartesAnnotationSource,
+            "mpo_mgi": MPOMGIAnnotationSource,
         }
 
     async def run_update(

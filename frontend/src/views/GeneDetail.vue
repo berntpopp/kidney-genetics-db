@@ -339,6 +339,133 @@
                   </div>
                 </div>
 
+                <!-- Mouse Phenotypes Section -->
+                <div v-if="mpoMgiData" class="mt-2">
+                  <v-divider class="my-1" />
+                  <div class="text-caption text-medium-emphasis mb-1">Mouse Phenotypes:</div>
+
+                  <!-- Phenotype Details -->
+                  <div
+                    v-if="mpoMgiData.phenotype_count > 0"
+                    class="d-flex align-center flex-wrap ga-1"
+                  >
+                    <!-- Total phenotypes chip -->
+                    <v-tooltip location="bottom">
+                      <template #activator="{ props }">
+                        <v-chip
+                          :color="getPhenotypeCountColor(mpoMgiData.phenotype_count)"
+                          variant="outlined"
+                          size="x-small"
+                          density="compact"
+                          v-bind="props"
+                        >
+                          {{ mpoMgiData.phenotype_count }} phenotypes
+                        </v-chip>
+                      </template>
+                      <div class="pa-2 max-width-300">
+                        <div class="font-weight-medium">Kidney-Related Phenotypes</div>
+                        <div class="text-caption mb-2">
+                          {{ mpoMgiData.phenotype_count }} phenotypes found in mouse models
+                        </div>
+                        <div v-if="mpoMgiData.phenotypes?.slice(0, 5)" class="text-caption">
+                          <div class="font-weight-medium mb-1">Sample phenotypes:</div>
+                          <div
+                            v-for="phenotype in mpoMgiData.phenotypes.slice(0, 5)"
+                            :key="phenotype.term"
+                            class="mb-1"
+                          >
+                            <span class="font-mono">{{ phenotype.term }}</span
+                            >: {{ phenotype.name }}
+                          </div>
+                          <div v-if="mpoMgiData.phenotype_count > 5" class="text-medium-emphasis">
+                            +{{ mpoMgiData.phenotype_count - 5 }} more phenotypes
+                          </div>
+                        </div>
+                      </div>
+                    </v-tooltip>
+
+                    <!-- Zygosity breakdown chips -->
+                    <v-tooltip
+                      v-if="mpoMgiData.zygosity_analysis?.homozygous?.phenotype_count > 0"
+                      location="bottom"
+                    >
+                      <template #activator="{ props }">
+                        <v-chip
+                          color="error"
+                          variant="outlined"
+                          size="x-small"
+                          density="compact"
+                          v-bind="props"
+                        >
+                          {{ mpoMgiData.zygosity_analysis.homozygous.phenotype_count }} hm
+                        </v-chip>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium">Homozygous Knockout Phenotypes</div>
+                        <div class="text-caption">
+                          {{ mpoMgiData.zygosity_analysis.homozygous.phenotype_count }} kidney
+                          phenotypes in homozygous knockout mice
+                        </div>
+                      </div>
+                    </v-tooltip>
+
+                    <v-tooltip
+                      v-if="mpoMgiData.zygosity_analysis?.heterozygous?.phenotype_count > 0"
+                      location="bottom"
+                    >
+                      <template #activator="{ props }">
+                        <v-chip
+                          color="warning"
+                          variant="outlined"
+                          size="x-small"
+                          density="compact"
+                          v-bind="props"
+                        >
+                          {{ mpoMgiData.zygosity_analysis.heterozygous.phenotype_count }} ht
+                        </v-chip>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium">Heterozygous Knockout Phenotypes</div>
+                        <div class="text-caption">
+                          {{ mpoMgiData.zygosity_analysis.heterozygous.phenotype_count }} kidney
+                          phenotypes in heterozygous knockout mice
+                        </div>
+                      </div>
+                    </v-tooltip>
+
+                    <v-tooltip
+                      v-if="mpoMgiData.zygosity_analysis?.conditional?.phenotype_count > 0"
+                      location="bottom"
+                    >
+                      <template #activator="{ props }">
+                        <v-chip
+                          color="info"
+                          variant="outlined"
+                          size="x-small"
+                          density="compact"
+                          v-bind="props"
+                        >
+                          {{ mpoMgiData.zygosity_analysis.conditional.phenotype_count }} cn
+                        </v-chip>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium">Conditional Knockout Phenotypes</div>
+                        <div class="text-caption">
+                          {{ mpoMgiData.zygosity_analysis.conditional.phenotype_count }} kidney
+                          phenotypes in conditional knockout mice
+                        </div>
+                      </div>
+                    </v-tooltip>
+                  </div>
+
+                  <!-- No phenotypes -->
+                  <div v-else class="d-flex align-center flex-wrap ga-1">
+                    <span class="text-caption text-medium-emphasis"
+                      >No kidney phenotypes found</span
+                    >
+                  </div>
+                </div>
+
                 <!-- Loading indicator for annotations -->
                 <div v-else-if="loadingAnnotations">
                   <div
@@ -623,6 +750,11 @@ const descartesData = computed(() => {
   return null
 })
 
+const mpoMgiData = computed(() => {
+  if (!annotations.value?.annotations?.mpo_mgi?.[0]) return null
+  return annotations.value.annotations.mpo_mgi[0].data
+})
+
 const externalLinks = computed(() => {
   if (!gene.value) return []
 
@@ -798,6 +930,15 @@ const getPercentageColor = proportion => {
   return 'grey' // Few cells express
 }
 
+// MPO/MGI helper functions
+const getPhenotypeCountColor = count => {
+  if (!count || count === 0) return 'grey'
+  if (count >= 20) return 'error' // Many phenotypes (severe)
+  if (count >= 10) return 'warning' // Moderate phenotypes
+  if (count >= 5) return 'info' // Some phenotypes
+  return 'success' // Few phenotypes
+}
+
 // Removed unused score and format functions - handled by ScoreBreakdown component
 
 const clearEvidenceFilters = () => {
@@ -929,6 +1070,10 @@ onMounted(async () => {
 
 .transparent {
   background: transparent !important;
+}
+
+.max-width-300 {
+  max-width: 300px;
 }
 
 :deep(.v-expansion-panel-title) {

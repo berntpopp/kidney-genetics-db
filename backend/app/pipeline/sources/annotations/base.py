@@ -3,7 +3,7 @@ Base annotation source class for gene annotations.
 """
 
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import text
@@ -137,16 +137,19 @@ class BaseAnnotationSource(ABC):
 
             existing.annotations = annotation_data
             existing.source_metadata = metadata
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(timezone.utc)
             annotation = existing
         else:
             # Create new annotation
+            now = datetime.now(timezone.utc)
             annotation = GeneAnnotation(
                 gene_id=gene.id,
                 source=self.source_name,
                 version=self.version,
                 annotations=annotation_data,
                 source_metadata=metadata,
+                created_at=now,
+                updated_at=now
             )
             self.session.add(annotation)
 
