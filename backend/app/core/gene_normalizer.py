@@ -233,9 +233,9 @@ class GeneNormalizer:
         logger.sync_info(
             "Normalization complete",
             source_name=source_name,
-            normalized=status_counts.get('normalized', 0),
-            staged_for_review=status_counts.get('requires_manual_review', 0),
-            errors=status_counts.get('error', 0)
+            normalized=status_counts.get("normalized", 0),
+            staged_for_review=status_counts.get("requires_manual_review", 0),
+            errors=status_counts.get("error", 0),
         )
 
         return results
@@ -259,9 +259,7 @@ class GeneNormalizer:
             )
 
             logger.sync_debug(
-                "Created staging record for gene",
-                staging_id=staging_record.id,
-                gene_text=gene_text
+                "Created staging record for gene", staging_id=staging_record.id, gene_text=gene_text
             )
 
             return {
@@ -275,11 +273,7 @@ class GeneNormalizer:
             }
 
         except Exception as e:
-            logger.sync_error(
-                "Failed to create staging record",
-                gene_text=gene_text,
-                error=str(e)
-            )
+            logger.sync_error("Failed to create staging record", gene_text=gene_text, error=str(e))
             return {
                 "status": "error",
                 "approved_symbol": None,

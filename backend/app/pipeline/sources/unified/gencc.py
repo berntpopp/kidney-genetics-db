@@ -104,7 +104,9 @@ class GenCCUnifiedSource(UnifiedDataSource):
         async def _fetch_gencc_data():
             """Internal function to fetch GenCC data."""
             logger.sync_info("Downloading GenCC submissions", download_url=self.download_url)
-            logger.sync_info("Starting download", estimated_time="30-60 seconds", file_size="~3.6MB")
+            logger.sync_info(
+                "Starting download", estimated_time="30-60 seconds", file_size="~3.6MB"
+            )
 
             # Use cached HTTP client for download
             response = await self.http_client.get(
@@ -198,7 +200,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
         logger.sync_info(
             "GenCC processing complete",
             kidney_related_submissions=kidney_related_count,
-            unique_genes=len(gene_data_map)
+            unique_genes=len(gene_data_map),
         )
 
         return gene_data_map

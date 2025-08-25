@@ -96,7 +96,7 @@ def update_source_percentiles(db: Session, source_name: str) -> dict[str, Any]:
     logger.sync_info(
         "Updated percentiles",
         source_name=source_name,
-        percentiles_updated=stats['percentiles_updated']
+        percentiles_updated=stats["percentiles_updated"],
     )
 
     return stats
@@ -166,8 +166,8 @@ def update_all_source_percentiles(db: Session) -> dict[str, Any]:
 
     logger.sync_info(
         "Percentile update complete",
-        sources_updated=all_stats['sources_updated'],
-        total_records_processed=all_stats['total_records_processed']
+        sources_updated=all_stats["sources_updated"],
+        total_records_processed=all_stats["total_records_processed"],
     )
 
     return all_stats

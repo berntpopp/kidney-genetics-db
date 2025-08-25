@@ -82,8 +82,7 @@ def increment_connect(dbapi_conn, connection_record):
     """Track new connections created"""
     connection_stats["connections_created"] += 1
     logger.sync_debug(
-        "New database connection created",
-        total_connections=connection_stats['connections_created']
+        "New database connection created", total_connections=connection_stats["connections_created"]
     )
 
 

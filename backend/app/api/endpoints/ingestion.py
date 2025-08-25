@@ -92,7 +92,7 @@ async def upload_evidence_file(
         source_name=source_name,
         filename=file.filename,
         file_size=file_size,
-        provider_name=provider_name
+        provider_name=provider_name,
     )
 
     try:
@@ -139,7 +139,9 @@ async def upload_evidence_file(
             for symbol in batch_symbols:
                 norm_result = normalization_results.get(symbol, {})
                 if norm_result.get("status") == "normalized":
-                    gene = await source._get_or_create_gene(db, norm_result, symbol, {"genes_created": 0, "genes_updated": 0})
+                    gene = await source._get_or_create_gene(
+                        db, norm_result, symbol, {"genes_created": 0, "genes_updated": 0}
+                    )
                     if gene:
                         genes_created += 1 if norm_result.get("created") else 0
                         genes_updated += 1 if not norm_result.get("created") else 0
@@ -155,7 +157,7 @@ async def upload_evidence_file(
         stats = {
             "created": evidence_stats.get("created", 0) + genes_created,
             "merged": evidence_stats.get("merged", 0),
-            "failed": evidence_stats.get("failed", 0)
+            "failed": evidence_stats.get("failed", 0),
         }
 
         # Return comprehensive response
@@ -182,7 +184,7 @@ async def upload_evidence_file(
             "Validation error processing upload",
             error=e,
             source_name=source_name,
-            traceback=traceback.format_exc()
+            traceback=traceback.format_exc(),
         )
         raise ValidationError(field="file_content", reason=str(e)) from e
     except Exception as e:
@@ -192,7 +194,7 @@ async def upload_evidence_file(
             "Failed to process upload",
             error=e,
             source_name=source_name,
-            traceback=traceback.format_exc()
+            traceback=traceback.format_exc(),
         )
         raise DataSourceError(source_name, "file_processing", f"Processing failed: {str(e)}") from e
 

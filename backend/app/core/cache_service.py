@@ -183,7 +183,7 @@ class CacheService:
                 "Error serializing value",
                 error=str(e),
                 value_type=str(type(value)),
-                value_repr=repr(value)[:200] if value else 'None'
+                value_repr=repr(value)[:200] if value else "None",
             )
             raise
 
@@ -213,7 +213,9 @@ class CacheService:
             # Handle string serialization
             if isinstance(serialized, str):
                 if not serialized or serialized.strip() == "":
-                    logger.sync_warning("Attempted to deserialize empty string value, returning None")
+                    logger.sync_warning(
+                        "Attempted to deserialize empty string value, returning None"
+                    )
                     return None
 
                 data = json.loads(serialized)
@@ -231,7 +233,7 @@ class CacheService:
             # Handle other types by converting to string first
             logger.sync_warning(
                 "Unexpected type for cache value, converting to string",
-                value_type=str(type(serialized))
+                value_type=str(type(serialized)),
             )
             return json.loads(str(serialized))
 
@@ -239,7 +241,7 @@ class CacheService:
             logger.sync_error(
                 "Error deserializing value",
                 error=str(e),
-                serialized_preview=str(serialized)[:100] if serialized else repr(serialized)
+                serialized_preview=str(serialized)[:100] if serialized else repr(serialized),
             )
             # Return None instead of raising to allow graceful recovery
             return None
@@ -292,10 +294,7 @@ class CacheService:
         except Exception as e:
             self.stats.errors += 1
             logger.sync_error(
-                "Error getting cache entry",
-                namespace=namespace,
-                key=str(key),
-                error=str(e)
+                "Error getting cache entry", namespace=namespace, key=str(key), error=str(e)
             )
             return default
 
@@ -333,10 +332,7 @@ class CacheService:
         except Exception as e:
             self.stats.errors += 1
             logger.sync_error(
-                "Error setting cache entry",
-                namespace=namespace,
-                key=str(key),
-                error=str(e)
+                "Error setting cache entry", namespace=namespace, key=str(key), error=str(e)
             )
             return False
 
@@ -363,10 +359,7 @@ class CacheService:
         except Exception as e:
             self.stats.errors += 1
             logger.sync_error(
-                "Error deleting cache entry",
-                namespace=namespace,
-                key=str(key),
-                error=str(e)
+                "Error deleting cache entry", namespace=namespace, key=str(key), error=str(e)
             )
             return False
 
@@ -400,10 +393,7 @@ class CacheService:
 
         except Exception as e:
             logger.sync_error(
-                "Error in fetch function",
-                namespace=namespace,
-                key=str(key),
-                error=str(e)
+                "Error in fetch function", namespace=namespace, key=str(key), error=str(e)
             )
             raise
 
@@ -783,7 +773,9 @@ class CacheService:
                 result = self.db_session.execute(query)
 
             namespaces = [row[0] for row in result.fetchall()]
-            logger.sync_debug("Found distinct namespaces", count=len(namespaces), namespaces=namespaces)
+            logger.sync_debug(
+                "Found distinct namespaces", count=len(namespaces), namespaces=namespaces
+            )
             return namespaces
 
         except Exception as e:

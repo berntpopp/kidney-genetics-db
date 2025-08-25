@@ -78,9 +78,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         max_pages_str = "ALL" if self.max_pages is None else str(self.max_pages)
         logger.sync_info(
-            "PubTatorUnifiedSource initialized",
-            max_pages=max_pages_str,
-            sort_order=self.sort_order
+            "PubTatorUnifiedSource initialized", max_pages=max_pages_str, sort_order=self.sort_order
         )
 
     def _get_default_ttl(self) -> int:
@@ -101,7 +99,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         # Search PubTator3 directly - returns complete results with annotations
         logger.sync_info("PUBTATOR SOURCE: Calling _search_pubtator3()")
         search_results = await self._search_pubtator3(self.kidney_query, tracker)
-        logger.sync_info("PUBTATOR SOURCE: Search returned articles", article_count=len(search_results))
+        logger.sync_info(
+            "PUBTATOR SOURCE: Search returned articles", article_count=len(search_results)
+        )
 
         if not search_results:
             logger.sync_warning("No publications found for kidney disease query")
@@ -232,12 +232,14 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
             # Log progress
             if self.max_pages is not None:
-                logger.sync_info("PubTator3 search page", current_page=page, max_pages=self.max_pages)
+                logger.sync_info(
+                    "PubTator3 search page", current_page=page, max_pages=self.max_pages
+                )
             else:
                 logger.sync_info(
                     "PubTator3 search page",
                     current_page=page,
-                    total_pages=total_pages if total_pages else '?'
+                    total_pages=total_pages if total_pages else "?",
                 )
 
             try:
@@ -255,43 +257,42 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
                 # Reset consecutive failures on successful response
                 consecutive_failures = 0
-                logger.sync_debug(
-                    "Response received",
-                    page=page,
-                    status_code=response.status_code
-                )
+                logger.sync_debug("Response received", page=page, status_code=response.status_code)
                 logger.sync_debug("Response headers", page=page, headers=dict(response.headers))
 
                 if response.status_code != 200:
                     logger.sync_error(
-                        "PubTator3 search failed",
-                        page=page,
-                        status_code=response.status_code
+                        "PubTator3 search failed", page=page, status_code=response.status_code
                     )
-                    logger.sync_error("Response content preview", content_preview=response.text[:500])
+                    logger.sync_error(
+                        "Response content preview", content_preview=response.text[:500]
+                    )
                     consecutive_failures += 1
                     if consecutive_failures >= max_consecutive_failures:
-                        logger.sync_error("Stopping after consecutive errors", consecutive_failures=consecutive_failures)
+                        logger.sync_error(
+                            "Stopping after consecutive errors",
+                            consecutive_failures=consecutive_failures,
+                        )
                         break
                     continue
 
                 logger.sync_debug("Starting JSON parsing", page=page)
                 try:
                     data = response.json()
-                    logger.sync_debug(
-                        "JSON parsed successfully",
-                        page=page,
-                        keys=list(data.keys())
-                    )
+                    logger.sync_debug("JSON parsed successfully", page=page, keys=list(data.keys()))
                     logger.sync_debug("Response size", page=page, size_bytes=len(response.text))
                 except Exception as json_err:
                     logger.sync_error("Failed to parse JSON", page=page, error=str(json_err))
-                    logger.sync_error("JSON parse error - response preview", page=page, content_preview=response.text[:500])
+                    logger.sync_error(
+                        "JSON parse error - response preview",
+                        page=page,
+                        content_preview=response.text[:500],
+                    )
                     consecutive_failures += 1
                     if consecutive_failures >= max_consecutive_failures:
                         logger.sync_error(
                             "Stopping after consecutive parse errors",
-                            consecutive_failures=consecutive_failures
+                            consecutive_failures=consecutive_failures,
                         )
                         break
                     continue
@@ -306,7 +307,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                     logger.sync_info(
                         "Total available data",
                         total_articles=total_available,
-                        total_pages=total_pages
+                        total_pages=total_pages,
                     )
 
                     # Initialize tracker with actual limit we'll process
@@ -335,24 +336,16 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                     page=page,
                     results_count=len(results),
                     total_fetched=total_fetched,
-                    total_available=total_available
+                    total_available=total_available,
                 )
-                logger.sync_debug(
-                    "Memory usage",
-                    page=page,
-                    all_results_count=len(all_results)
-                )
+                logger.sync_debug("Memory usage", page=page, all_results_count=len(all_results))
 
                 # Update tracker with current progress
                 if tracker:
                     actual_pages = (
                         min(self.max_pages, total_pages) if self.max_pages else total_pages
                     )
-                    logger.sync_debug(
-                        "Updating tracker",
-                        page=page,
-                        current_item=total_fetched
-                    )
+                    logger.sync_debug("Updating tracker", page=page, current_item=total_fetched)
                     tracker.update(
                         current_page=page,
                         current_item=total_fetched,
@@ -368,7 +361,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
                 # 2. If we've reached the last page available from API
                 if page >= total_pages:
-                    logger.sync_info("Reached last available page", current_page=page, total_pages=total_pages)
+                    logger.sync_info(
+                        "Reached last available page", current_page=page, total_pages=total_pages
+                    )
                     break
 
                 # Rate limiting
@@ -378,13 +373,13 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 # Progress indicator every 100 pages
                 if page % 100 == 0:
                     logger.sync_info(
-                        "Progress update",
-                        total_fetched=total_fetched,
-                        pages_completed=page - 1
+                        "Progress update", total_fetched=total_fetched, pages_completed=page - 1
                     )
 
             except Exception as e:
-                logger.sync_error("Error on page", page=page, error_type=type(e).__name__, error=str(e))
+                logger.sync_error(
+                    "Error on page", page=page, error_type=type(e).__name__, error=str(e)
+                )
                 logger.sync_error("Full exception details", exc_info=True)
 
                 # Add more context about the failure
@@ -396,11 +391,14 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                     "Consecutive failures",
                     page=page,
                     consecutive_failures=consecutive_failures,
-                    max_failures=max_consecutive_failures
+                    max_failures=max_consecutive_failures,
                 )
 
                 if consecutive_failures >= max_consecutive_failures:
-                    logger.sync_warning("Stopping after consecutive failures", consecutive_failures=consecutive_failures)
+                    logger.sync_warning(
+                        "Stopping after consecutive failures",
+                        consecutive_failures=consecutive_failures,
+                    )
                     break
 
                 # Skip to next page if we haven't hit the limit
@@ -408,7 +406,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 page += 1
                 continue
 
-        logger.sync_info("PubTator3 search complete", total_articles=total_fetched, pages_processed=page - 1)
+        logger.sync_info(
+            "PubTator3 search complete", total_articles=total_fetched, pages_processed=page - 1
+        )
         return all_results
 
     async def process_data(self, raw_data: dict[str, Any]) -> dict[str, Any]:
@@ -505,7 +505,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             "PubTator processing complete",
             publications=total_pmids,
             annotations=total_annotations,
-            unique_genes=len(gene_data_map)
+            unique_genes=len(gene_data_map),
         )
 
         return gene_data_map

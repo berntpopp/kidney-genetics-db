@@ -383,7 +383,9 @@ async def warm_cache(
         for source in request.sources:
             if source.lower() in ["hgnc", "pubtator", "gencc", "panelapp", "hpo", "clingen"]:
                 # Placeholder for warming logic
-                await logger.info("Warming cache for source", source=source, force_refresh=request.force_refresh)
+                await logger.info(
+                    "Warming cache for source", source=source, force_refresh=request.force_refresh
+                )
                 sources_warmed.append(source)
                 # entries_created += await warm_source_cache(source, request.force_refresh)
 

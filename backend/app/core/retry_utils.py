@@ -132,10 +132,7 @@ class CircuitBreaker:
 
         if self.failure_count >= self.failure_threshold:
             self.state = "open"
-            logger.sync_warning(
-                "Circuit breaker opened",
-                failure_count=self.failure_count
-            )
+            logger.sync_warning("Circuit breaker opened", failure_count=self.failure_count)
 
 
 def retry_with_backoff(
@@ -180,7 +177,7 @@ def retry_with_backoff(
                                     delay = float(retry_after)
                                     logger.sync_info(
                                         "Rate limited. Waiting as requested by server",
-                                        delay_seconds=delay
+                                        delay_seconds=delay,
                                     )
                                 except ValueError:
                                     delay = config.calculate_delay(attempt)
@@ -198,11 +195,13 @@ def retry_with_backoff(
                             attempt=attempt + 1,
                             max_attempts=config.max_retries + 1,
                             error=str(e),
-                            retry_delay=delay
+                            retry_delay=delay,
                         )
                         await asyncio.sleep(delay)
                     else:
-                        logger.sync_error("All attempts failed", max_attempts=config.max_retries + 1)
+                        logger.sync_error(
+                            "All attempts failed", max_attempts=config.max_retries + 1
+                        )
 
             # If we get here, all retries failed
             if last_exception:
@@ -233,11 +232,13 @@ def retry_with_backoff(
                             attempt=attempt + 1,
                             max_attempts=config.max_retries + 1,
                             error=str(e),
-                            retry_delay=delay
+                            retry_delay=delay,
                         )
                         time.sleep(delay)
                     else:
-                        logger.sync_error("All attempts failed", max_attempts=config.max_retries + 1)
+                        logger.sync_error(
+                            "All attempts failed", max_attempts=config.max_retries + 1
+                        )
 
             # If we get here, all retries failed
             if last_exception:

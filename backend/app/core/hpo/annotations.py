@@ -71,7 +71,9 @@ class HPOAnnotations(HPOAPIBase):
                 return DiseaseAnnotations(**response)
 
         except Exception as e:
-            logger.sync_error("Failed to get disease annotations", disease_id=disease_id, error=str(e))
+            logger.sync_error(
+                "Failed to get disease annotations", disease_id=disease_id, error=str(e)
+            )
 
         return None
 
@@ -114,7 +116,12 @@ class HPOAnnotations(HPOAPIBase):
             batch_num = i // batch_size + 1
             total_batches = (total + batch_size - 1) // batch_size
 
-            logger.sync_info("Processing batch of HPO terms", batch_num=batch_num, total_batches=total_batches, batch_size=len(batch))
+            logger.sync_info(
+                "Processing batch of HPO terms",
+                batch_num=batch_num,
+                total_batches=total_batches,
+                batch_size=len(batch),
+            )
 
             # Create tasks for this batch
             tasks = [self.get_term_annotations(hpo_id) for hpo_id in batch]
@@ -125,7 +132,9 @@ class HPOAnnotations(HPOAPIBase):
             # Process results
             for hpo_id, result in zip(batch, batch_results, strict=False):
                 if isinstance(result, Exception):
-                    logger.sync_warning("Failed to get annotations for HPO term", hpo_id=hpo_id, error=str(result))
+                    logger.sync_warning(
+                        "Failed to get annotations for HPO term", hpo_id=hpo_id, error=str(result)
+                    )
                 elif result is not None:
                     results[hpo_id] = result
 
@@ -133,7 +142,11 @@ class HPOAnnotations(HPOAPIBase):
             if i + batch_size < total:
                 await asyncio.sleep(delay)
 
-        logger.sync_info("Successfully fetched annotations for terms", success_count=len(results), total_count=total)
+        logger.sync_info(
+            "Successfully fetched annotations for terms",
+            success_count=len(results),
+            total_count=total,
+        )
         return results
 
     async def get_genes_for_term(self, hpo_id: str) -> list[Gene]:

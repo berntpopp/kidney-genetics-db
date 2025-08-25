@@ -83,7 +83,9 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         Returns:
             DataFrame with gene panel data
         """
-        logger.sync_info("Processing file from provider", file_type=file_type, provider_name=provider_name)
+        logger.sync_info(
+            "Processing file from provider", file_type=file_type, provider_name=provider_name
+        )
 
         try:
             if file_type == "json":
@@ -98,7 +100,9 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             # Add provider metadata to each row
             df["provider"] = provider_name
 
-            logger.sync_info("Parsed gene entries", entry_count=len(df), provider_name=provider_name)
+            logger.sync_info(
+                "Parsed gene entries", entry_count=len(df), provider_name=provider_name
+            )
             return df
 
         except Exception as e:
@@ -240,7 +244,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         if providers:
             provider_str = ", ".join(providers[:3])
             if len(providers) > 3:
-                provider_str += f" (+{len(providers)-3} more)"
+                provider_str += f" (+{len(providers) - 3} more)"
             return f"DiagnosticPanels: {panel_count} panels from {provider_str}"
 
         return f"DiagnosticPanels: {panel_count} panels, {provider_count} providers"
@@ -317,7 +321,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                     "Merged evidence",
                     symbol=symbol,
                     panel_count=len(merged_panels),
-                    provider_count=len(merged_providers)
+                    provider_count=len(merged_providers),
                 )
                 stats["merged"] += 1
 
@@ -343,7 +347,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                     "Created evidence",
                     symbol=symbol,
                     panel_count=data["panel_count"],
-                    provider=current_provider
+                    provider=current_provider,
                 )
                 stats["created"] += 1
 
@@ -370,7 +374,6 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             panels.add(str(row["panel_name"]).strip())
 
         return panels
-
 
     def is_kidney_related(self, record: dict[str, Any]) -> bool:
         """All manually uploaded diagnostic panel data is considered kidney-related."""

@@ -21,7 +21,7 @@ class LogMaintenance:
         self,
         retention_days: int = 30,
         cleanup_interval_hours: int = 24,
-        optimization_interval_days: int = 7
+        optimization_interval_days: int = 7,
     ):
         """
         Initialize log maintenance configuration.
@@ -42,7 +42,7 @@ class LogMaintenance:
         await logger.info(
             "Starting log maintenance",
             retention_days=self.retention_days,
-            cleanup_interval_hours=self.cleanup_interval_hours
+            cleanup_interval_hours=self.cleanup_interval_hours,
         )
 
         # Start cleanup task
@@ -92,6 +92,7 @@ class LogMaintenance:
         """
         # Import here to avoid circular import
         from app.core.database import get_db
+
         db = next(get_db())
         try:
             cutoff_time = datetime.now(timezone.utc) - timedelta(days=self.retention_days)
@@ -116,8 +117,7 @@ class LogMaintenance:
                     """
 
                     result = db.execute(
-                        text(delete_query),
-                        {"cutoff": cutoff_time, "batch_size": batch_size}
+                        text(delete_query), {"cutoff": cutoff_time, "batch_size": batch_size}
                     )
 
                     deleted = result.rowcount
@@ -132,13 +132,10 @@ class LogMaintenance:
                 await logger.info(
                     "Log cleanup completed",
                     logs_deleted=total_deleted,
-                    cutoff_date=cutoff_time.isoformat()
+                    cutoff_date=cutoff_time.isoformat(),
                 )
 
-                return {
-                    "logs_deleted": total_deleted,
-                    "cutoff_date": cutoff_time.isoformat()
-                }
+                return {"logs_deleted": total_deleted, "cutoff_date": cutoff_time.isoformat()}
             else:
                 await logger.debug("No logs to cleanup", cutoff_date=cutoff_time.isoformat())
                 return {"logs_deleted": 0}
@@ -158,6 +155,7 @@ class LogMaintenance:
         """
         # Import here to avoid circular import
         from app.core.database import get_db
+
         db = next(get_db())
         try:
             # Get current statistics
@@ -178,27 +176,20 @@ class LogMaintenance:
                 "last_hour": result.last_hour,
                 "last_day": result.last_day,
                 "errors_last_hour": result.errors_last_hour,
-                "table_size_mb": round(result.table_size_bytes / 1024 / 1024, 2)
+                "table_size_mb": round(result.table_size_bytes / 1024 / 1024, 2),
             }
 
             # Check for anomalies
             if result.last_hour > 10000:
-                await logger.warning(
-                    "High log volume detected",
-                    logs_last_hour=result.last_hour
-                )
+                await logger.warning("High log volume detected", logs_last_hour=result.last_hour)
 
             if result.errors_last_hour > 100:
                 await logger.warning(
-                    "High error rate detected",
-                    errors_last_hour=result.errors_last_hour
+                    "High error rate detected", errors_last_hour=result.errors_last_hour
                 )
 
             if result.table_size_bytes > 1024 * 1024 * 1024:  # 1GB
-                await logger.warning(
-                    "Large log table size",
-                    size_mb=stats["table_size_mb"]
-                )
+                await logger.warning("Large log table size", size_mb=stats["table_size_mb"])
 
             return stats
 
@@ -216,6 +207,7 @@ class LogMaintenance:
         """
         # Import here to avoid circular import
         from app.core.database import get_db
+
         db = next(get_db())
         try:
             # Note: VACUUM cannot run in a transaction
@@ -235,10 +227,7 @@ class LogMaintenance:
 log_maintenance = LogMaintenance()
 
 
-async def setup_log_maintenance(
-    retention_days: int = 30,
-    cleanup_interval_hours: int = 24
-):
+async def setup_log_maintenance(retention_days: int = 30, cleanup_interval_hours: int = 24):
     """
     Setup and start log maintenance tasks.
 
@@ -246,8 +235,7 @@ async def setup_log_maintenance(
     """
     global log_maintenance
     log_maintenance = LogMaintenance(
-        retention_days=retention_days,
-        cleanup_interval_hours=cleanup_interval_hours
+        retention_days=retention_days, cleanup_interval_hours=cleanup_interval_hours
     )
     await log_maintenance.start()
 

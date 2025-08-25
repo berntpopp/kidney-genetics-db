@@ -13,11 +13,13 @@ from functools import wraps
 # Lazy import to avoid circular dependency
 _logger = None
 
+
 def _get_logger():
     """Get logger instance lazily to avoid circular import."""
     global _logger
     if _logger is None:
         from app.core.logging import get_logger
+
         _logger = get_logger(__name__)
     return _logger
 
@@ -26,7 +28,7 @@ def timed_operation(
     operation_name: str | None = None,
     warning_threshold_ms: float = 1000,
     error_threshold_ms: float = 5000,
-    include_args: bool = False
+    include_args: bool = False,
 ):
     """
     Decorator to time operations and log performance metrics.
@@ -37,10 +39,12 @@ def timed_operation(
         error_threshold_ms: Log error if operation takes longer than this (ms)
         include_args: Whether to include function arguments in logs
     """
+
     def decorator(func: Callable) -> Callable:
         name = operation_name or func.__name__
 
         if asyncio.iscoroutinefunction(func):
+
             @wraps(func)
             async def async_wrapper(*args, **kwargs):
                 start_time = time.perf_counter()
@@ -66,7 +70,9 @@ def timed_operation(
                     if duration_ms > error_threshold_ms:
                         await _get_logger().error("Operation exceeded error threshold", **context)
                     elif duration_ms > warning_threshold_ms:
-                        await _get_logger().warning("Operation exceeded warning threshold", **context)
+                        await _get_logger().warning(
+                            "Operation exceeded warning threshold", **context
+                        )
                     else:
                         await _get_logger().info("Operation completed", **context)
 
@@ -82,6 +88,7 @@ def timed_operation(
 
             return async_wrapper
         else:
+
             @wraps(func)
             def sync_wrapper(*args, **kwargs):
                 start_time = time.perf_counter()
@@ -107,7 +114,9 @@ def timed_operation(
                     if duration_ms > error_threshold_ms:
                         _get_logger().sync_error("Operation exceeded error threshold", **context)
                     elif duration_ms > warning_threshold_ms:
-                        _get_logger().sync_warning("Operation exceeded warning threshold", **context)
+                        _get_logger().sync_warning(
+                            "Operation exceeded warning threshold", **context
+                        )
                     else:
                         _get_logger().sync_info("Operation completed", **context)
 
@@ -136,8 +145,8 @@ def database_query(query_type: str = "SELECT"):
     return timed_operation(
         operation_name=f"database_{query_type.lower()}",
         warning_threshold_ms=100,  # Warn on queries > 100ms
-        error_threshold_ms=1000,   # Error on queries > 1s
-        include_args=False  # Don't log query parameters by default
+        error_threshold_ms=1000,  # Error on queries > 1s
+        include_args=False,  # Don't log query parameters by default
     )
 
 
@@ -150,9 +159,9 @@ def api_endpoint(endpoint_name: str | None = None):
     """
     return timed_operation(
         operation_name=endpoint_name,
-        warning_threshold_ms=500,   # Warn on endpoints > 500ms
-        error_threshold_ms=2000,    # Error on endpoints > 2s
-        include_args=False
+        warning_threshold_ms=500,  # Warn on endpoints > 500ms
+        error_threshold_ms=2000,  # Error on endpoints > 2s
+        include_args=False,
     )
 
 
@@ -164,8 +173,10 @@ def batch_operation(batch_name: str, batch_size_getter: Callable | None = None):
         batch_name: Name of the batch operation
         batch_size_getter: Function to extract batch size from arguments
     """
+
     def decorator(func: Callable) -> Callable:
         if asyncio.iscoroutinefunction(func):
+
             @wraps(func)
             async def async_wrapper(*args, **kwargs):
                 start_time = time.perf_counter()
@@ -178,10 +189,7 @@ def batch_operation(batch_name: str, batch_size_getter: Callable | None = None):
                     except Exception:
                         pass
 
-                context = {
-                    "operation": batch_name,
-                    "batch_size": batch_size
-                }
+                context = {"operation": batch_name, "batch_size": batch_size}
 
                 try:
                     await _get_logger().info("Batch operation started", **context)
@@ -206,6 +214,7 @@ def batch_operation(batch_name: str, batch_size_getter: Callable | None = None):
 
             return async_wrapper
         else:
+
             @wraps(func)
             def sync_wrapper(*args, **kwargs):
                 start_time = time.perf_counter()
@@ -218,10 +227,7 @@ def batch_operation(batch_name: str, batch_size_getter: Callable | None = None):
                     except Exception:
                         pass
 
-                context = {
-                    "operation": batch_name,
-                    "batch_size": batch_size
-                }
+                context = {"operation": batch_name, "batch_size": batch_size}
 
                 try:
                     _get_logger().sync_info("Batch operation started", **context)
@@ -260,9 +266,7 @@ class PerformanceMonitor:
     def __enter__(self):
         self.start_time = time.perf_counter()
         _get_logger().sync_debug(
-            "Performance block started",
-            operation=self.operation_name,
-            **self.extra_context
+            "Performance block started", operation=self.operation_name, **self.extra_context
         )
         return self
 
@@ -272,7 +276,7 @@ class PerformanceMonitor:
         context = {
             "operation": self.operation_name,
             "duration_ms": round(duration_ms, 2),
-            **self.extra_context
+            **self.extra_context,
         }
 
         if exc_type:
@@ -286,9 +290,7 @@ class PerformanceMonitor:
     async def __aenter__(self):
         self.start_time = time.perf_counter()
         await _get_logger().debug(
-            "Performance block started",
-            operation=self.operation_name,
-            **self.extra_context
+            "Performance block started", operation=self.operation_name, **self.extra_context
         )
         return self
 
@@ -298,7 +300,7 @@ class PerformanceMonitor:
         context = {
             "operation": self.operation_name,
             "duration_ms": round(duration_ms, 2),
-            **self.extra_context
+            **self.extra_context,
         }
 
         if exc_type:

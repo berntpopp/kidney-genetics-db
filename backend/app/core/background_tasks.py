@@ -41,10 +41,14 @@ class BackgroundTaskManager(TaskMixin):
                 if metadata.get("auto_update", False):
                     # Check if source needs updating based on its status
                     if progress.status in [SourceStatus.idle, SourceStatus.failed]:
-                        logger.sync_info("Starting auto-update for source", source_name=progress.source_name)
+                        logger.sync_info(
+                            "Starting auto-update for source", source_name=progress.source_name
+                        )
                         asyncio.create_task(self.run_source(progress.source_name))
                     elif progress.status == SourceStatus.paused:
-                        logger.sync_info("Resuming paused update for source", source_name=progress.source_name)
+                        logger.sync_info(
+                            "Resuming paused update for source", source_name=progress.source_name
+                        )
                         asyncio.create_task(self.run_source(progress.source_name, resume=True))
         finally:
             db.close()
@@ -61,7 +65,7 @@ class BackgroundTaskManager(TaskMixin):
             "Task manager run_source() called",
             source_name=source_name,
             resume=resume,
-            running_tasks=list(self.running_tasks.keys())
+            running_tasks=list(self.running_tasks.keys()),
         )
 
         # Check if already running
@@ -69,7 +73,7 @@ class BackgroundTaskManager(TaskMixin):
             logger.sync_warning(
                 "Source is already running",
                 source_name=source_name,
-                task=str(self.running_tasks[source_name])
+                task=str(self.running_tasks[source_name]),
             )
             return
 
@@ -79,7 +83,7 @@ class BackgroundTaskManager(TaskMixin):
             "Looking for task method",
             method_name=method_name,
             source_name=source_name,
-            available_methods=[m for m in dir(self) if m.startswith('_run_')]
+            available_methods=[m for m in dir(self) if m.startswith("_run_")],
         )
 
         try:
@@ -91,16 +95,12 @@ class BackgroundTaskManager(TaskMixin):
 
         if not task_method:
             logger.sync_error(
-                "No task method found for source",
-                source_name=source_name,
-                method_name=method_name
+                "No task method found for source", source_name=source_name, method_name=method_name
             )
             return
 
         logger.sync_debug(
-            "Found task method",
-            task_method=str(task_method),
-            is_callable=callable(task_method)
+            "Found task method", task_method=str(task_method), is_callable=callable(task_method)
         )
 
         try:
@@ -112,7 +112,7 @@ class BackgroundTaskManager(TaskMixin):
             logger.sync_info(
                 "Stored task for source",
                 source_name=source_name,
-                total_running=len(self.running_tasks)
+                total_running=len(self.running_tasks),
             )
 
             # Add task completion callback
@@ -121,22 +121,18 @@ class BackgroundTaskManager(TaskMixin):
                     "Task completed",
                     source_name=source_name,
                     done=t.done(),
-                    exception=str(t.exception()) if t.done() and t.exception() else None
+                    exception=str(t.exception()) if t.done() and t.exception() else None,
                 )
             )
 
         except Exception as e:
-            logger.sync_error(
-                "Exception creating/storing task",
-                error=e,
-                source_name=source_name
-            )
+            logger.sync_error("Exception creating/storing task", error=e, source_name=source_name)
             import traceback
 
             logger.sync_error(
                 "Full traceback for task creation failure",
                 traceback=traceback.format_exc(),
-                source_name=source_name
+                source_name=source_name,
             )
             raise
 

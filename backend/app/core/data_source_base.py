@@ -139,7 +139,7 @@ class DataSourceClient(ABC):
             logger.sync_info(
                 "Storing genes in database",
                 source_name=self.source_name,
-                gene_count=len(processed_data)
+                gene_count=len(processed_data),
             )
             await self._store_genes_in_database(db, processed_data, stats, tracker)
 
@@ -172,8 +172,8 @@ class DataSourceClient(ABC):
                 source_name=self.source_name,
                 total_genes=total_genes,
                 total_evidence=total_evidence,
-                genes_created=stats['genes_created'],
-                evidence_created=stats['evidence_created']
+                genes_created=stats["genes_created"],
+                evidence_created=stats["evidence_created"],
             )
 
             tracker.complete(
@@ -269,11 +269,7 @@ class DataSourceClient(ABC):
                         await self._create_or_update_evidence(db, gene, data, stats)
 
                 except Exception as e:
-                    logger.sync_error(
-                        "Error processing gene",
-                        symbol=symbol,
-                        error=str(e)
-                    )
+                    logger.sync_error("Error processing gene", symbol=symbol, error=str(e))
                     stats["errors"] += 1
 
             # Commit batch
@@ -306,9 +302,7 @@ class DataSourceClient(ABC):
                 gene = gene_crud.create(db, gene_create)
                 stats["genes_created"] += 1
                 logger.sync_debug(
-                    "Created new gene",
-                    approved_symbol=approved_symbol,
-                    hgnc_id=hgnc_id
+                    "Created new gene", approved_symbol=approved_symbol, hgnc_id=hgnc_id
                 )
             except Exception as e:
                 # Handle race condition: another task may have created the gene
@@ -316,7 +310,7 @@ class DataSourceClient(ABC):
                     logger.sync_debug(
                         "Gene constraint violation, retrying fetch",
                         approved_symbol=approved_symbol,
-                        hgnc_id=hgnc_id
+                        hgnc_id=hgnc_id,
                     )
 
                     # Try to get the gene that was created by another task
@@ -330,13 +324,13 @@ class DataSourceClient(ABC):
                         logger.sync_debug(
                             "Found gene after race condition",
                             approved_symbol=gene.approved_symbol,
-                            hgnc_id=gene.hgnc_id
+                            hgnc_id=gene.hgnc_id,
                         )
                     else:
                         logger.sync_error(
                             "Race condition: gene still not found after creation attempt",
                             approved_symbol=approved_symbol,
-                            hgnc_id=hgnc_id
+                            hgnc_id=hgnc_id,
                         )
                         return None
                 else:
@@ -344,7 +338,7 @@ class DataSourceClient(ABC):
                         "Error creating gene",
                         approved_symbol=approved_symbol,
                         hgnc_id=hgnc_id,
-                        error=str(e)
+                        error=str(e),
                     )
                     return None
         else:
@@ -387,7 +381,7 @@ class DataSourceClient(ABC):
                 logger.sync_debug(
                     "Updated evidence for gene",
                     gene_symbol=gene.approved_symbol,
-                    source_name=self.source_name
+                    source_name=self.source_name,
                 )
             else:
                 # Create new evidence with proper constraint handling
@@ -405,7 +399,7 @@ class DataSourceClient(ABC):
                     logger.sync_debug(
                         "Created evidence for gene",
                         gene_symbol=gene.approved_symbol,
-                        source_name=self.source_name
+                        source_name=self.source_name,
                     )
                 except Exception as constraint_error:
                     # Handle race condition: another process may have created the evidence
@@ -416,7 +410,7 @@ class DataSourceClient(ABC):
                         db.rollback()  # Rollback failed transaction
                         logger.sync_debug(
                             "Race condition detected for gene, retrying...",
-                            gene_symbol=gene.approved_symbol
+                            gene_symbol=gene.approved_symbol,
                         )
 
                         # Try to get the evidence that was created by another process
@@ -438,13 +432,13 @@ class DataSourceClient(ABC):
                             stats["evidence_updated"] += 1
                             logger.sync_debug(
                                 "Updated evidence after race condition",
-                                gene_symbol=gene.approved_symbol
+                                gene_symbol=gene.approved_symbol,
                             )
                         else:
                             # Should not happen, but log if it does
                             logger.sync_error(
                                 "Evidence not found after race condition",
-                                gene_symbol=gene.approved_symbol
+                                gene_symbol=gene.approved_symbol,
                             )
                             stats["errors"] += 1
                     else:
@@ -452,7 +446,7 @@ class DataSourceClient(ABC):
                         logger.sync_error(
                             "Constraint error for gene",
                             gene_symbol=gene.approved_symbol,
-                            error=str(constraint_error)
+                            error=str(constraint_error),
                         )
                         stats["errors"] += 1
                         raise
@@ -461,7 +455,7 @@ class DataSourceClient(ABC):
             logger.sync_error(
                 "Error creating/updating evidence for gene",
                 gene_symbol=gene.approved_symbol,
-                error=str(e)
+                error=str(e),
             )
             stats["errors"] += 1
 

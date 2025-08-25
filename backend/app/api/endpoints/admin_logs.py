@@ -25,7 +25,7 @@ async def query_logs(
     start_time: datetime | None = Query(None, description="Start time filter"),
     end_time: datetime | None = Query(None, description="End time filter"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum results"),
-    offset: int = Query(0, ge=0, description="Result offset")
+    offset: int = Query(0, ge=0, description="Result offset"),
 ) -> dict[str, Any]:
     """
     Query system logs with filtering and pagination.
@@ -64,16 +64,18 @@ async def query_logs(
         logs = []
 
         for row in result:
-            logs.append({
-                "id": row.id,
-                "timestamp": row.timestamp.isoformat(),
-                "level": row.level,
-                "source": row.source,
-                "message": row.message,
-                "request_id": row.request_id,
-                "user_id": row.user_id,
-                "extra_data": row.extra_data
-            })
+            logs.append(
+                {
+                    "id": row.id,
+                    "timestamp": row.timestamp.isoformat(),
+                    "level": row.level,
+                    "source": row.source,
+                    "message": row.message,
+                    "request_id": row.request_id,
+                    "user_id": row.user_id,
+                    "extra_data": row.extra_data,
+                }
+            )
 
         # Get total count
         count_query = "SELECT COUNT(*) FROM system_logs WHERE 1=1"
@@ -106,8 +108,8 @@ async def query_logs(
                 "total": total_count,
                 "limit": limit,
                 "offset": offset,
-                "has_more": offset + limit < total_count
-            }
+                "has_more": offset + limit < total_count,
+            },
         }
 
     except Exception:
@@ -118,7 +120,7 @@ async def query_logs(
 @router.get("/statistics")
 async def get_log_statistics(
     db: Session = Depends(get_db),
-    hours: int = Query(24, ge=1, le=168, description="Hours to analyze")
+    hours: int = Query(24, ge=1, le=168, description="Hours to analyze"),
 ) -> dict[str, Any]:
     """
     Get log statistics for monitoring and analysis.
@@ -137,7 +139,7 @@ async def get_log_statistics(
                 GROUP BY level
                 ORDER BY count DESC
             """),
-            {"cutoff": cutoff_time}
+            {"cutoff": cutoff_time},
         ).fetchall()
 
         # Get top sources
@@ -150,7 +152,7 @@ async def get_log_statistics(
                 ORDER BY count DESC
                 LIMIT 10
             """),
-            {"cutoff": cutoff_time}
+            {"cutoff": cutoff_time},
         ).fetchall()
 
         # Get error rate over time (hourly)
@@ -165,7 +167,7 @@ async def get_log_statistics(
                 GROUP BY hour
                 ORDER BY hour DESC
             """),
-            {"cutoff": cutoff_time}
+            {"cutoff": cutoff_time},
         ).fetchall()
 
         # Get total size estimate
@@ -185,29 +187,23 @@ async def get_log_statistics(
             "time_range": {
                 "start": cutoff_time.isoformat(),
                 "end": datetime.now(timezone.utc).isoformat(),
-                "hours": hours
+                "hours": hours,
             },
-            "level_distribution": [
-                {"level": row.level, "count": row.count}
-                for row in level_stats
-            ],
-            "top_sources": [
-                {"source": row.source, "count": row.count}
-                for row in source_stats
-            ],
+            "level_distribution": [{"level": row.level, "count": row.count} for row in level_stats],
+            "top_sources": [{"source": row.source, "count": row.count} for row in source_stats],
             "error_timeline": [
                 {
                     "hour": row.hour.isoformat(),
                     "errors": row.errors,
                     "total": row.total,
-                    "error_rate": round(row.errors / row.total * 100, 2) if row.total > 0 else 0
+                    "error_rate": round(row.errors / row.total * 100, 2) if row.total > 0 else 0,
                 }
                 for row in error_timeline
             ],
             "storage": {
                 "table_size": size_estimate.table_size if size_estimate else "0 bytes",
-                "total_rows": size_estimate.total_rows if size_estimate else 0
-            }
+                "total_rows": size_estimate.total_rows if size_estimate else 0,
+            },
         }
 
     except Exception:
@@ -218,7 +214,7 @@ async def get_log_statistics(
 @router.delete("/cleanup")
 async def cleanup_old_logs(
     db: Session = Depends(get_db),
-    days: int = Query(30, ge=1, le=365, description="Delete logs older than this many days")
+    days: int = Query(30, ge=1, le=365, description="Delete logs older than this many days"),
 ) -> dict[str, Any]:
     """
     Clean up old log entries to manage storage.
@@ -231,13 +227,12 @@ async def cleanup_old_logs(
         # Count logs to be deleted
         count_result = db.execute(
             text("SELECT COUNT(*) FROM system_logs WHERE timestamp < :cutoff"),
-            {"cutoff": cutoff_time}
+            {"cutoff": cutoff_time},
         ).scalar()
 
         # Delete old logs
         db.execute(
-            text("DELETE FROM system_logs WHERE timestamp < :cutoff"),
-            {"cutoff": cutoff_time}
+            text("DELETE FROM system_logs WHERE timestamp < :cutoff"), {"cutoff": cutoff_time}
         )
         db.commit()
 
@@ -247,7 +242,7 @@ async def cleanup_old_logs(
         return {
             "success": True,
             "logs_deleted": count_result,
-            "cutoff_date": cutoff_time.isoformat()
+            "cutoff_date": cutoff_time.isoformat(),
         }
 
     except Exception:

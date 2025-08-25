@@ -207,10 +207,14 @@ class PanelAppUnifiedSource(UnifiedDataSource):
             if response.status_code == 200:
                 return response.json()
             else:
-                logger.sync_warning("Failed to fetch panel", panel_id=panel_id, status_code=response.status_code)
+                logger.sync_warning(
+                    "Failed to fetch panel", panel_id=panel_id, status_code=response.status_code
+                )
 
         except Exception as e:
-            logger.sync_error("Error fetching panel", panel_id=panel_id, panel_name=panel_name, error=e)
+            logger.sync_error(
+                "Error fetching panel", panel_id=panel_id, panel_name=panel_name, error=e
+            )
 
         return None
 
@@ -296,7 +300,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
             "PanelApp processing complete",
             total_panels=total_panels,
             total_gene_entries=total_genes,
-            unique_genes=len(gene_data_map)
+            unique_genes=len(gene_data_map),
         )
 
         return gene_data_map

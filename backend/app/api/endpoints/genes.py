@@ -48,22 +48,16 @@ async def get_gene_annotations(
         raise GeneNotFoundError(f"Gene {gene_id} not found")
 
     # Get all annotations for this gene
-    annotations = db.query(GeneAnnotation).filter(
-        GeneAnnotation.gene_id == gene.id
-    ).all()
+    annotations = db.query(GeneAnnotation).filter(GeneAnnotation.gene_id == gene.id).all()
 
     # Transform to response format
-    result = {
-        "gene_id": gene.id,
-        "gene_symbol": gene.approved_symbol,
-        "annotations": {}
-    }
+    result = {"gene_id": gene.id, "gene_symbol": gene.approved_symbol, "annotations": {}}
 
     for ann in annotations:
         result["annotations"][ann.source] = {
             "version": ann.version,
             "data": ann.annotations,
-            "updated_at": ann.updated_at.isoformat() if ann.updated_at else None
+            "updated_at": ann.updated_at.isoformat() if ann.updated_at else None,
         }
 
     return result
@@ -242,9 +236,7 @@ async def get_genes(
 
     # Get metadata for filters dynamically
     # Get max evidence count
-    max_count_result = db.execute(
-        text("SELECT MAX(evidence_count) FROM gene_scores")
-    ).scalar() or 0
+    max_count_result = db.execute(text("SELECT MAX(evidence_count) FROM gene_scores")).scalar() or 0
 
     # Get all available sources
     sources_result = db.execute(

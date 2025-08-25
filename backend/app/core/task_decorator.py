@@ -35,13 +35,17 @@ def managed_task(source_name: str):
             with get_db_context() as db:
                 try:
                     tracker = ProgressTracker(db, source_name, self.broadcast_callback)
-                    logger.sync_info("Starting source update", source_name=source_name, resume=resume)
+                    logger.sync_info(
+                        "Starting source update", source_name=source_name, resume=resume
+                    )
 
                     # Execute the actual task
                     result = await func(self, db, tracker, resume)
 
                     db.commit()  # Explicit commit on success
-                    logger.sync_info("Source update completed", source_name=source_name, result=result)
+                    logger.sync_info(
+                        "Source update completed", source_name=source_name, result=result
+                    )
                     return result
 
                 except Exception as e:
@@ -74,7 +78,9 @@ def executor_task(source_name: str):
             with get_db_context() as db:
                 try:
                     tracker = ProgressTracker(db, source_name, self.broadcast_callback)
-                    logger.sync_info("Starting source update", source_name=source_name, resume=resume)
+                    logger.sync_info(
+                        "Starting source update", source_name=source_name, resume=resume
+                    )
 
                     # Execute the actual task in thread executor
                     loop = asyncio.get_event_loop()
@@ -83,7 +89,9 @@ def executor_task(source_name: str):
                     )
 
                     db.commit()  # Explicit commit on success
-                    logger.sync_info("Source update completed", source_name=source_name, result=result)
+                    logger.sync_info(
+                        "Source update completed", source_name=source_name, result=result
+                    )
                     return result
 
                 except Exception as e:

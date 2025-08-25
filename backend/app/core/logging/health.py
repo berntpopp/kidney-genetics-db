@@ -18,6 +18,7 @@ logger = get_logger(__name__)
 
 class HealthStatus(str, Enum):
     """Health status levels."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     CRITICAL = "critical"
@@ -32,7 +33,7 @@ class LogHealthMonitor:
         error_rate_critical: float = 0.10,  # 10% error rate
         response_time_warning_ms: float = 1000,
         response_time_critical_ms: float = 3000,
-        min_logs_for_analysis: int = 100
+        min_logs_for_analysis: int = 100,
     ):
         """
         Initialize health monitor thresholds.
@@ -62,6 +63,7 @@ class LogHealthMonitor:
         """
         # Import here to avoid circular import
         from app.core.database import get_db
+
         db = next(get_db())
         try:
             cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
@@ -80,9 +82,7 @@ class LogHealthMonitor:
 
             # Determine overall health status
             overall_status = self._determine_overall_status(
-                error_stats,
-                perf_stats,
-                critical_patterns
+                error_stats, perf_stats, critical_patterns
             )
 
             result = {
@@ -93,14 +93,14 @@ class LogHealthMonitor:
                     "error_rate": error_stats,
                     "performance": perf_stats,
                     "critical_patterns": critical_patterns,
-                    "recent_issues": recent_issues
+                    "recent_issues": recent_issues,
                 },
                 "thresholds": {
                     "error_rate_warning": self.error_rate_warning,
                     "error_rate_critical": self.error_rate_critical,
                     "response_time_warning_ms": self.response_time_warning_ms,
-                    "response_time_critical_ms": self.response_time_critical_ms
-                }
+                    "response_time_critical_ms": self.response_time_critical_ms,
+                },
             }
 
             # Log health check result if not healthy
@@ -109,7 +109,7 @@ class LogHealthMonitor:
                     "System health degraded",
                     health_status=overall_status,
                     error_rate=error_stats.get("rate"),
-                    avg_response_time=perf_stats.get("avg_response_time_ms")
+                    avg_response_time=perf_stats.get("avg_response_time_ms"),
                 )
 
             return result
@@ -119,7 +119,7 @@ class LogHealthMonitor:
             return {
                 "status": HealthStatus.CRITICAL,
                 "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         finally:
             db.close()
@@ -138,10 +138,7 @@ class LogHealthMonitor:
         result = db.execute(text(query), {"cutoff": cutoff_time}).first()
 
         if result.total_logs < self.min_logs_for_analysis:
-            return {
-                "total_logs": result.total_logs,
-                "insufficient_data": True
-            }
+            return {"total_logs": result.total_logs, "insufficient_data": True}
 
         error_rate = result.error_count / result.total_logs if result.total_logs > 0 else 0
         warning_rate = result.warning_count / result.total_logs if result.total_logs > 0 else 0
@@ -152,7 +149,7 @@ class LogHealthMonitor:
             "warning_count": result.warning_count,
             "rate": round(error_rate, 4),
             "warning_rate": round(warning_rate, 4),
-            "status": self._get_error_rate_status(error_rate)
+            "status": self._get_error_rate_status(error_rate),
         }
 
     def _check_performance(self, db: Session, cutoff_time: datetime) -> dict:
@@ -179,7 +176,7 @@ class LogHealthMonitor:
             "avg_response_time_ms": round(result.avg_duration, 2),
             "max_response_time_ms": round(result.max_duration, 2),
             "p95_response_time_ms": round(result.p95_duration, 2),
-            "status": self._get_performance_status(result.avg_duration)
+            "status": self._get_performance_status(result.avg_duration),
         }
 
     def _check_critical_patterns(self, db: Session, cutoff_time: datetime) -> dict:
@@ -188,7 +185,7 @@ class LogHealthMonitor:
             "database_errors": "message ILIKE '%database%' AND level = 'ERROR'",
             "timeout_errors": "message ILIKE '%timeout%' AND level = 'ERROR'",
             "memory_errors": "message ILIKE '%memory%' AND level = 'ERROR'",
-            "authentication_errors": "message ILIKE '%auth%' AND level = 'ERROR'"
+            "authentication_errors": "message ILIKE '%auth%' AND level = 'ERROR'",
         }
 
         results = {}
@@ -218,17 +215,10 @@ class LogHealthMonitor:
             LIMIT :limit
         """
 
-        results = db.execute(
-            text(query),
-            {"cutoff": cutoff_time, "limit": limit}
-        ).fetchall()
+        results = db.execute(text(query), {"cutoff": cutoff_time, "limit": limit}).fetchall()
 
         return [
-            {
-                "message": row.message,
-                "source": row.source,
-                "occurrences": row.occurrence_count
-            }
+            {"message": row.message, "source": row.source, "occurrences": row.occurrence_count}
             for row in results
         ]
 
@@ -249,10 +239,7 @@ class LogHealthMonitor:
         return HealthStatus.HEALTHY
 
     def _determine_overall_status(
-        self,
-        error_stats: dict,
-        perf_stats: dict,
-        critical_patterns: dict
+        self, error_stats: dict, perf_stats: dict, critical_patterns: dict
     ) -> HealthStatus:
         """Determine overall system health status."""
         # If we have critical patterns, system is critical

@@ -231,13 +231,13 @@ class ProgressTracker:
                 logger.sync_debug(
                     "Progress update (sync context)",
                     source_name=self.source_name,
-                    status=self.progress_record.status.value if hasattr(self.progress_record.status, 'value') else str(self.progress_record.status)
+                    status=self.progress_record.status.value
+                    if hasattr(self.progress_record.status, "value")
+                    else str(self.progress_record.status),
                 )
         except Exception as e:
             logger.sync_error(
-                "Failed to update progress",
-                source_name=self.source_name,
-                error=str(e)
+                "Failed to update progress", source_name=self.source_name, error=str(e)
             )
             self.db.rollback()
 
@@ -266,12 +266,12 @@ class ProgressTracker:
         # Use structured logging with appropriate level
         log_data = {
             "source_name": self.source_name,
-            "progress_percentage": round(status['progress_percentage'], 1),
-            "items_processed": status['items_processed'],
-            "items_added": status['items_added'],
-            "items_updated": status['items_updated'],
-            "items_failed": status['items_failed'],
-            "current_operation": status['current_operation']
+            "progress_percentage": round(status["progress_percentage"], 1),
+            "items_processed": status["items_processed"],
+            "items_added": status["items_added"],
+            "items_updated": status["items_updated"],
+            "items_failed": status["items_failed"],
+            "current_operation": status["current_operation"],
         }
 
         if level.upper() == "DEBUG":

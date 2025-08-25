@@ -160,7 +160,9 @@ class UnifiedDataSource(DataSourceClient, ABC):
             if "timeout" in str(e).lower():
                 logger.sync_error("Timeout while fetching data", cache_key=full_key, error=e)
             elif "connection" in str(e).lower():
-                logger.sync_error("Connection error while fetching data", cache_key=full_key, error=e)
+                logger.sync_error(
+                    "Connection error while fetching data", cache_key=full_key, error=e
+                )
             elif "permission" in str(e).lower() or "unauthorized" in str(e).lower():
                 logger.sync_error("Authentication/authorization error", cache_key=full_key, error=e)
             else:
@@ -235,7 +237,9 @@ class UnifiedDataSource(DataSourceClient, ABC):
                                 try:
                                     await self.cache_service.set(cache_key, data, effective_ttl)
                                 except Exception as e:
-                                    logger.sync_warning("Failed to cache item", cache_key=cache_key, error=e)
+                                    logger.sync_warning(
+                                        "Failed to cache item", cache_key=cache_key, error=e
+                                    )
 
                 except Exception as e:
                     self.stats["errors"] += 1
@@ -422,8 +426,8 @@ class UnifiedDataSource(DataSourceClient, ABC):
         logger.sync_info(
             "Cache warmup completed",
             source_name=self.source_name,
-            items_cached=warmup_stats['items_cached'],
-            duration_seconds=round(duration, 2)
+            items_cached=warmup_stats["items_cached"],
+            duration_seconds=round(duration, 2),
         )
 
         return warmup_stats

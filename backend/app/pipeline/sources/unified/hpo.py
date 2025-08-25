@@ -144,7 +144,7 @@ class HPOUnifiedSource(UnifiedDataSource):
                     logger.sync_error(
                         "Failed to fetch HPO term",
                         root_term=root_term,
-                        status_code=response.status_code
+                        status_code=response.status_code,
                     )
                     return [root_term]
 
@@ -187,7 +187,7 @@ class HPOUnifiedSource(UnifiedDataSource):
                     logger.sync_debug(
                         "No gene associations for HPO term",
                         hpo_term=hpo_term,
-                        status_code=response.status_code
+                        status_code=response.status_code,
                     )
                     return []
 
@@ -236,7 +236,7 @@ class HPOUnifiedSource(UnifiedDataSource):
         logger.sync_info(
             "HPO processing complete",
             genes_processed=len(gene_data_map),
-            description="genes with kidney phenotypes"
+            description="genes with kidney phenotypes",
         )
 
         return gene_data_map
@@ -316,7 +316,9 @@ class HPOUnifiedSource(UnifiedDataSource):
                 if response.status_code == 200:
                     return response.json()
                 else:
-                    logger.sync_debug("Disease not found", disease_id=disease_id, status_code=response.status_code)
+                    logger.sync_debug(
+                        "Disease not found", disease_id=disease_id, status_code=response.status_code
+                    )
                     return None
 
             except Exception as e:

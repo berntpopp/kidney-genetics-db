@@ -83,7 +83,9 @@ class LiteratureSource(UnifiedDataSource):
         Returns:
             DataFrame with gene publication data
         """
-        logger.sync_info("Processing literature file", file_type=file_type, publication_id=publication_id)
+        logger.sync_info(
+            "Processing literature file", file_type=file_type, publication_id=publication_id
+        )
 
         try:
             if file_type == "json":
@@ -98,11 +100,15 @@ class LiteratureSource(UnifiedDataSource):
             # Add publication identifier to each row
             df["publication_id"] = publication_id
 
-            logger.sync_info("Parsed gene entries", entry_count=len(df), publication_id=publication_id)
+            logger.sync_info(
+                "Parsed gene entries", entry_count=len(df), publication_id=publication_id
+            )
             return df
 
         except Exception as e:
-            logger.sync_error("Failed to parse literature file", publication_id=publication_id, error=str(e))
+            logger.sync_error(
+                "Failed to parse literature file", publication_id=publication_id, error=str(e)
+            )
             raise
 
     def _parse_json(self, content: bytes) -> pd.DataFrame:
@@ -114,10 +120,7 @@ class LiteratureSource(UnifiedDataSource):
             if "genes" in data:
                 # Create records with both gene and publication data
                 records = []
-                pub_metadata = {
-                    k: v for k, v in data.items()
-                    if k not in ["genes"]
-                }
+                pub_metadata = {k: v for k, v in data.items() if k not in ["genes"]}
 
                 for gene in data["genes"]:
                     record = {**gene, **pub_metadata}
@@ -151,11 +154,9 @@ class LiteratureSource(UnifiedDataSource):
         Returns:
             Dictionary mapping gene symbols to aggregated evidence
         """
-        gene_data = defaultdict(lambda: {
-            "publications": set(),
-            "publication_details": {},
-            "hgnc_ids": set()
-        })
+        gene_data = defaultdict(
+            lambda: {"publications": set(), "publication_details": {}, "hgnc_ids": set()}
+        )
 
         for idx, row in df.iterrows():
             try:
@@ -318,9 +319,7 @@ class LiteratureSource(UnifiedDataSource):
                 record.evidence_date = datetime.now(timezone.utc).date()
 
                 logger.sync_debug(
-                    "Merged literature evidence",
-                    symbol=symbol,
-                    publication_count=len(merged_pubs)
+                    "Merged literature evidence", symbol=symbol, publication_count=len(merged_pubs)
                 )
                 stats["merged"] += 1
 
@@ -342,9 +341,7 @@ class LiteratureSource(UnifiedDataSource):
                 db.add(record)
 
                 logger.sync_debug(
-                    "Created literature evidence",
-                    symbol=symbol,
-                    publication=current_publication
+                    "Created literature evidence", symbol=symbol, publication=current_publication
                 )
                 stats["created"] += 1
 
@@ -366,7 +363,7 @@ class LiteratureSource(UnifiedDataSource):
                 "journal": "journal",
                 "publication_date": "publication_date",
                 "url": "url",
-                "doi": "doi"
+                "doi": "doi",
             }
 
             for field_key, field_name in pub_fields.items():
@@ -382,7 +379,6 @@ class LiteratureSource(UnifiedDataSource):
                 metadata[pub_id] = pub_data
 
         return metadata
-
 
     def is_kidney_related(self, record: dict[str, Any]) -> bool:
         """All manually uploaded literature data is considered kidney-related."""

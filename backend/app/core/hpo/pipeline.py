@@ -75,7 +75,9 @@ class HPOPipeline:
         logger.sync_info("Found kidney-related HPO terms", term_count=len(descendants))
 
         if not descendants:
-            logger.sync_error("No descendant terms found - API may be unavailable", root_term=self.root_term)
+            logger.sync_error(
+                "No descendant terms found - API may be unavailable", root_term=self.root_term
+            )
             return {}
 
         if tracker:
@@ -98,7 +100,7 @@ class HPOPipeline:
             logger.sync_info(
                 "Example annotation for first term",
                 first_term=first_term,
-                gene_count=len(first_annotation.genes) if first_annotation else 0
+                gene_count=len(first_annotation.genes) if first_annotation else 0,
             )
 
         # Step 3: Aggregate gene evidence

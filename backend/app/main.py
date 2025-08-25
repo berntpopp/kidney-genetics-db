@@ -66,12 +66,16 @@ async def lifespan(app: FastAPI):
         try:
             await task_manager.start_auto_updates()
         except Exception as e:
-            logger.sync_warning("Failed to start auto-updates. Continuing without auto-updates.",
-                               error=e, auto_update_enabled=settings.AUTO_UPDATE_ENABLED)
+            logger.sync_warning(
+                "Failed to start auto-updates. Continuing without auto-updates.",
+                error=e,
+                auto_update_enabled=settings.AUTO_UPDATE_ENABLED,
+            )
 
     # Start annotation scheduler
     logger.sync_info("Starting annotation scheduler...")
     from app.core.scheduler import annotation_scheduler
+
     annotation_scheduler.start()
 
     yield
@@ -110,7 +114,7 @@ app.add_middleware(
 app.add_middleware(
     LoggingMiddleware,
     log_request_body=False,  # Set to True for debugging, False for production
-    log_response_body=False, # Set to True for debugging, False for production
+    log_response_body=False,  # Set to True for debugging, False for production
     slow_request_threshold_ms=1000,
     exclude_paths=["/health", "/docs", "/redoc", "/openapi.json"],
 )

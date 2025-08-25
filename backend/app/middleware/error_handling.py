@@ -63,22 +63,20 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
         # Log at appropriate level based on exception type
         if isinstance(exception, GeneNotFoundError | ValidationError):
             logger.sync_warning(
-                "Domain exception",
-                exception_type=type(exception).__name__,
-                message=str(exception)
+                "Domain exception", exception_type=type(exception).__name__, message=str(exception)
             )
         elif isinstance(exception, AuthenticationError | PermissionDeniedError):
             logger.sync_warning(
                 "Security exception",
                 exception_type=type(exception).__name__,
-                message=str(exception)
+                message=str(exception),
             )
         else:
             logger.sync_error(
                 "Domain exception",
                 exception_type=type(exception).__name__,
                 message=str(exception),
-                error=exception
+                error=exception,
             )
 
         # Map exceptions to standardized responses
@@ -165,7 +163,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             exception_type=type(exception).__name__,
             request_path=str(request.url),
             request_method=request.method,
-            error=exception
+            error=exception,
         )
 
         return ResponseBuilder.build_internal_error(error_id, request)
@@ -225,9 +223,7 @@ def register_error_handlers(app: FastAPI):
         )
 
         logger.sync_error(
-            "Response validation error",
-            error_id=error_id,
-            validation_errors=exc.errors()
+            "Response validation error", error_id=error_id, validation_errors=exc.errors()
         )
 
         return ResponseBuilder.build_error_response(

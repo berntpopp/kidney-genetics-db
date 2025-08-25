@@ -15,8 +15,12 @@ from fastapi import Request
 _request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default=None)
 _user_id_var: contextvars.ContextVar[int | None] = contextvars.ContextVar("user_id", default=None)
 _username_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("username", default=None)
-_ip_address_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("ip_address", default=None)
-_user_agent_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("user_agent", default=None)
+_ip_address_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "ip_address", default=None
+)
+_user_agent_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "user_agent", default=None
+)
 _endpoint_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("endpoint", default=None)
 _method_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("method", default=None)
 

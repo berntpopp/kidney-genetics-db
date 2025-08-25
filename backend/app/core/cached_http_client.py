@@ -121,9 +121,7 @@ class CachedHttpClient:
             breaker["state"] = "open"
             breaker["opened_at"] = time.time()
             logger.sync_warning(
-                "Circuit breaker opened",
-                domain=domain,
-                failures=breaker['failures']
+                "Circuit breaker opened", domain=domain, failures=breaker["failures"]
             )
 
     async def get(
@@ -179,10 +177,7 @@ class CachedHttpClient:
             except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as e:
                 last_exception = e
                 logger.sync_warning(
-                    "HTTP request attempt failed",
-                    attempt=attempt + 1,
-                    url=url,
-                    error=str(e)
+                    "HTTP request attempt failed", attempt=attempt + 1, url=url, error=str(e)
                 )
 
                 if attempt < self.max_retries:
@@ -289,7 +284,9 @@ class CachedHttpClient:
 
             # If content not modified, return cached data
             if response.status_code == 304 and cached_data:
-                logger.sync_info("File not modified, using cached version", url=url, status_code=304)
+                logger.sync_info(
+                    "File not modified, using cached version", url=url, status_code=304
+                )
                 return cached_data
 
             # Download and cache new content
@@ -315,11 +312,7 @@ class CachedHttpClient:
                     }
                     await self.cache_service.set(f"{cache_key}:metadata", metadata, namespace)
 
-                logger.sync_info(
-                    "Downloaded and cached file",
-                    url=url,
-                    size_bytes=len(content)
-                )
+                logger.sync_info("Downloaded and cached file", url=url, size_bytes=len(content))
                 return content
 
             response.raise_for_status()
@@ -400,9 +393,7 @@ class CachedHttpClient:
             ]
         ):
             logger.sync_debug(
-                "Skipping database cache for binary content",
-                url=url,
-                content_type=content_type
+                "Skipping database cache for binary content", url=url, content_type=content_type
             )
             return
 
@@ -411,7 +402,7 @@ class CachedHttpClient:
             logger.sync_debug(
                 "Skipping database cache for large response",
                 url=url,
-                size_bytes=len(response.content)
+                size_bytes=len(response.content),
             )
             return
 

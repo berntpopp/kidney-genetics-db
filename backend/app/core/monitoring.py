@@ -87,7 +87,9 @@ class CacheMonitoringService:
                     if ns_stats.get("db_entries", 0) > 0 or ns_stats.get("memory_entries", 0) > 0:
                         stats["namespaces"][namespace] = ns_stats
                 except Exception as e:
-                    logger.sync_warning("Error getting stats for namespace", namespace=namespace, error=str(e))
+                    logger.sync_warning(
+                        "Error getting stats for namespace", namespace=namespace, error=str(e)
+                    )
 
             # Data source-specific statistics
             for source_name, client in self.data_source_clients.items():
@@ -96,7 +98,9 @@ class CacheMonitoringService:
                         source_stats = await client.get_cache_stats()
                         stats["data_sources"][source_name] = source_stats
                 except Exception as e:
-                    logger.sync_warning("Error getting stats for data source", source_name=source_name, error=str(e))
+                    logger.sync_warning(
+                        "Error getting stats for data source", source_name=source_name, error=str(e)
+                    )
 
             # HTTP cache statistics
             try:
@@ -224,7 +228,11 @@ class CacheMonitoringService:
                             "efficiency": self._calculate_cache_efficiency(ns_hit_rate),
                         }
                 except Exception as e:
-                    logger.sync_warning("Error getting performance stats for namespace", namespace=namespace, error=str(e))
+                    logger.sync_warning(
+                        "Error getting performance stats for namespace",
+                        namespace=namespace,
+                        error=str(e),
+                    )
 
             performance["namespaces"] = namespace_performance
 
@@ -429,7 +437,9 @@ class CacheMonitoringService:
                 result = task_results[i]
 
                 if isinstance(result, Exception):
-                    logger.sync_error("Error warming cache", source_name=source_name, error=str(result))
+                    logger.sync_error(
+                        "Error warming cache", source_name=source_name, error=str(result)
+                    )
                     results["sources"][source_name] = {
                         "status": "error",
                         "error": str(result),
@@ -452,8 +462,8 @@ class CacheMonitoringService:
 
         logger.sync_info(
             "Cache warming completed",
-            total_entries_cached=results['total_entries_cached'],
-            duration_seconds=duration
+            total_entries_cached=results["total_entries_cached"],
+            duration_seconds=duration,
         )
 
         return results
@@ -500,7 +510,9 @@ class CacheMonitoringService:
 
         results["completed_at"] = datetime.now(timezone.utc).isoformat()
 
-        logger.sync_info("Cache clearing completed", total_entries_cleared=results['total_entries_cleared'])
+        logger.sync_info(
+            "Cache clearing completed", total_entries_cleared=results["total_entries_cleared"]
+        )
 
         return results
 

@@ -72,9 +72,9 @@ def update_all_curations(db: Session) -> dict[str, Any]:
 
     logger.sync_info(
         "Curation update complete",
-        curations_created=stats['curations_created'],
-        curations_updated=stats['curations_updated'],
-        duration_seconds=stats['duration']
+        curations_created=stats["curations_created"],
+        curations_updated=stats["curations_updated"],
+        duration_seconds=stats["duration"],
     )
 
     return stats

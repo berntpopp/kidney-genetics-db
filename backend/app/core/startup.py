@@ -55,7 +55,11 @@ def register_data_sources() -> None:
                     existing.progress_metadata = new_metadata
                     existing.updated_at = datetime.now(timezone.utc)
                     updated_count += 1
-                    logger.sync_debug(f"Updated metadata for {source_name}", source=source_name, action="metadata_update")
+                    logger.sync_debug(
+                        f"Updated metadata for {source_name}",
+                        source=source_name,
+                        action="metadata_update",
+                    )
             else:
                 # Create new progress record
                 progress_record = DataSourceProgress(
@@ -72,7 +76,11 @@ def register_data_sources() -> None:
                 )
                 db.add(progress_record)
                 registered_count += 1
-                logger.sync_debug(f"Registered new data source: {source_name}", source=source_name, action="register_new")
+                logger.sync_debug(
+                    f"Registered new data source: {source_name}",
+                    source=source_name,
+                    action="register_new",
+                )
 
         db.commit()
 
@@ -80,7 +88,7 @@ def register_data_sources() -> None:
             logger.sync_info(
                 "Data source registration complete",
                 registered_count=registered_count,
-                updated_count=updated_count
+                updated_count=updated_count,
             )
         else:
             logger.sync_info("All data sources already registered and up-to-date")
@@ -124,7 +132,7 @@ def cleanup_orphaned_sources() -> None:
             # Don't automatically delete - log for manual review
             logger.sync_warning(
                 "Orphaned records found but not automatically removed",
-                action_required="Review and manually remove if no longer needed"
+                action_required="Review and manually remove if no longer needed",
             )
         else:
             logger.sync_info("No orphaned data source records found")
@@ -158,7 +166,9 @@ def validate_dependencies() -> None:
 
         for source_name, url in required_urls.items():
             if not url or not url.startswith("http"):
-                logger.sync_warning(f"Invalid {source_name} URL: {url}", source_name=source_name, url=url)
+                logger.sync_warning(
+                    f"Invalid {source_name} URL: {url}", source_name=source_name, url=url
+                )
 
         # Test cache service initialization
         try:

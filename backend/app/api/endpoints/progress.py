@@ -204,11 +204,17 @@ async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dic
         )
 
     # Trigger the update in background
-    await logger.info("About to call task_manager.run_source", source_name=source_name, task_manager_type=str(type(task_manager)))
+    await logger.info(
+        "About to call task_manager.run_source",
+        source_name=source_name,
+        task_manager_type=str(type(task_manager)),
+    )
 
     try:
         task = asyncio.create_task(task_manager.run_source(source_name))
-        await logger.info("Successfully created asyncio task", task_done=task.done(), source_name=source_name)
+        await logger.info(
+            "Successfully created asyncio task", task_done=task.done(), source_name=source_name
+        )
     except Exception as e:
         await logger.error("Exception creating task", error=e, source_name=source_name)
         raise

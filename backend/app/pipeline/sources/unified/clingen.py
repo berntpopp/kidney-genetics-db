@@ -93,8 +93,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         ]
 
         logger.sync_info(
-            "ClinGenUnifiedSource initialized",
-            kidney_panels=len(self.kidney_affiliate_ids)
+            "ClinGenUnifiedSource initialized", kidney_panels=len(self.kidney_affiliate_ids)
         )
 
     def _get_default_ttl(self) -> int:
@@ -120,7 +119,11 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             if panel_data:
                 all_validities.extend(panel_data)
                 panel_stats[affiliate_id] = len(panel_data)
-                logger.sync_info("Fetched records from affiliate", record_count=len(panel_data), affiliate_id=affiliate_id)
+                logger.sync_info(
+                    "Fetched records from affiliate",
+                    record_count=len(panel_data),
+                    affiliate_id=affiliate_id,
+                )
 
         return {
             "validities": all_validities,
@@ -154,12 +157,14 @@ class ClinGenUnifiedSource(UnifiedDataSource):
                     logger.sync_error(
                         "Failed to fetch affiliate",
                         affiliate_id=affiliate_id,
-                        status_code=response.status_code
+                        status_code=response.status_code,
                     )
                     return []
 
             except Exception as e:
-                logger.sync_error("Error fetching affiliate", affiliate_id=affiliate_id, error=str(e))
+                logger.sync_error(
+                    "Error fetching affiliate", affiliate_id=affiliate_id, error=str(e)
+                )
                 return []
 
         # Use unified caching
@@ -187,7 +192,9 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         total_validities = 0
         kidney_related = 0
 
-        logger.sync_info("Processing ClinGen validity assessments", assessment_count=len(raw_data['validities']))
+        logger.sync_info(
+            "Processing ClinGen validity assessments", assessment_count=len(raw_data["validities"])
+        )
 
         for validity in raw_data["validities"]:
             # Check if kidney-related
@@ -247,7 +254,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         logger.sync_info(
             "ClinGen processing complete",
             kidney_related_assessments=kidney_related,
-            unique_genes=len(gene_data_map)
+            unique_genes=len(gene_data_map),
         )
 
         return gene_data_map

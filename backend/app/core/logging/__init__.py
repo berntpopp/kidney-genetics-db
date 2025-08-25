@@ -67,7 +67,7 @@ def configure_logging(
         logging.basicConfig(
             level=getattr(logging, log_level.upper()),
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            force=True
+            force=True,
         )
 
     # Configure application loggers
@@ -79,4 +79,5 @@ def configure_logging(
     # Initialize database logger if enabled
     if database_enabled:
         from .database_logger import initialize_database_logger
+
         initialize_database_logger()
