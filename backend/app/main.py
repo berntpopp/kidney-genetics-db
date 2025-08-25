@@ -13,6 +13,7 @@ from app.api.endpoints import (
     admin_logs,
     cache,
     datasources,
+    gene_annotations,
     gene_staging,
     genes,
     ingestion,
@@ -68,9 +69,17 @@ async def lifespan(app: FastAPI):
             logger.sync_warning("Failed to start auto-updates. Continuing without auto-updates.",
                                error=e, auto_update_enabled=settings.AUTO_UPDATE_ENABLED)
 
+    # Start annotation scheduler
+    logger.sync_info("Starting annotation scheduler...")
+    from app.core.scheduler import annotation_scheduler
+    annotation_scheduler.start()
+
     yield
 
     # Shutdown
+    logger.sync_info("Shutting down annotation scheduler...")
+    annotation_scheduler.stop()
+
     logger.sync_info("Shutting down event bus...")
     await event_bus.stop()
 
@@ -111,6 +120,7 @@ register_error_handlers(app)
 
 # Include routers
 app.include_router(genes.router, prefix="/api/genes", tags=["genes"])
+app.include_router(gene_annotations.router, prefix="/api/annotations", tags=["annotations"])
 app.include_router(datasources.router, prefix="/api/datasources", tags=["datasources"])
 app.include_router(gene_staging.router, prefix="/api/staging", tags=["gene-staging"])
 app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
