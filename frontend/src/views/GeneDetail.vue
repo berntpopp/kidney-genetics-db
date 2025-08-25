@@ -85,73 +85,128 @@
                 </template>
                 <v-card-title>Gene Information</v-card-title>
               </v-card-item>
-              <v-card-text>
-                <v-list density="compact" class="transparent">
-                  <v-list-item>
-                    <template #prepend>
-                      <v-icon icon="mdi-tag" size="small" class="text-medium-emphasis" />
-                    </template>
-                    <v-list-item-title class="text-body-2 font-weight-medium"
-                      >Symbol</v-list-item-title
-                    >
-                    <v-list-item-subtitle class="font-mono">{{
-                      gene.approved_symbol
-                    }}</v-list-item-subtitle>
-                  </v-list-item>
-
-                  <v-list-item>
-                    <template #prepend>
-                      <v-icon icon="mdi-identifier" size="small" class="text-medium-emphasis" />
-                    </template>
-                    <v-list-item-title class="text-body-2 font-weight-medium"
-                      >HGNC ID</v-list-item-title
-                    >
-                    <v-list-item-subtitle class="font-mono">{{
-                      gene.hgnc_id
-                    }}</v-list-item-subtitle>
-                  </v-list-item>
-
-                  <v-list-item v-if="gene.alias_symbol?.length">
-                    <template #prepend>
-                      <v-icon icon="mdi-tag-multiple" size="small" class="text-medium-emphasis" />
-                    </template>
-                    <v-list-item-title class="text-body-2 font-weight-medium"
-                      >Aliases</v-list-item-title
-                    >
-                    <v-list-item-subtitle>
-                      <div class="d-flex flex-wrap ga-1 mt-1">
-                        <v-chip
-                          v-for="alias in gene.alias_symbol.slice(0, 3)"
-                          :key="alias"
-                          size="x-small"
-                          variant="outlined"
+              <v-card-text class="pb-3">
+                <!-- Gene Identifiers Row - Compact -->
+                <div class="d-flex align-center flex-wrap ga-2 text-body-2">
+                  <span class="font-weight-medium">{{ gene.approved_symbol }}</span>
+                  <span class="text-medium-emphasis">•</span>
+                  <span class="text-caption">{{ gene.hgnc_id }}</span>
+                  <template v-if="gene.chromosome">
+                    <span class="text-medium-emphasis">•</span>
+                    <span class="text-caption">Chr {{ gene.chromosome }}</span>
+                  </template>
+                  <template v-if="gene.alias_symbol?.length">
+                    <span class="text-medium-emphasis">•</span>
+                    <v-tooltip location="bottom">
+                      <template #activator="{ props }">
+                        <span
+                          class="text-caption text-medium-emphasis"
+                          v-bind="props"
+                          style="cursor: help"
                         >
-                          {{ alias }}
-                        </v-chip>
-                        <v-tooltip v-if="gene.alias_symbol.length > 3" location="bottom">
-                          <template #activator="{ props }">
-                            <v-chip size="x-small" variant="outlined" v-bind="props">
-                              +{{ gene.alias_symbol.length - 3 }}
-                            </v-chip>
-                          </template>
-                          <div class="pa-2">
-                            {{ gene.alias_symbol.slice(3).join(', ') }}
-                          </div>
-                        </v-tooltip>
+                          {{ gene.alias_symbol.length }} alias{{
+                            gene.alias_symbol.length > 1 ? 'es' : ''
+                          }}
+                        </span>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium mb-1">Gene Aliases</div>
+                        {{ gene.alias_symbol.join(', ') }}
                       </div>
-                    </v-list-item-subtitle>
-                  </v-list-item>
+                    </v-tooltip>
+                  </template>
+                </div>
 
-                  <v-list-item v-if="gene.chromosome">
-                    <template #prepend>
-                      <v-icon icon="mdi-map-marker" size="small" class="text-medium-emphasis" />
-                    </template>
-                    <v-list-item-title class="text-body-2 font-weight-medium"
-                      >Location</v-list-item-title
-                    >
-                    <v-list-item-subtitle>{{ gene.chromosome }}</v-list-item-subtitle>
-                  </v-list-item>
-                </v-list>
+                <v-divider class="my-2" />
+
+                <!-- gnomAD Constraint Scores - Primary Metrics -->
+                <div v-if="gnomadData">
+                  <div
+                    class="text-caption font-weight-medium mb-1 text-uppercase text-medium-emphasis"
+                  >
+                    Constraint
+                  </div>
+                  <div class="d-flex flex-wrap ga-2">
+                    <!-- pLI Score -->
+                    <v-tooltip location="bottom">
+                      <template #activator="{ props }">
+                        <v-chip
+                          :color="getPLIColor(gnomadData.pli)"
+                          variant="tonal"
+                          size="small"
+                          v-bind="props"
+                        >
+                          <v-icon size="x-small" start>mdi-alert-circle</v-icon>
+                          pLI: {{ formatPLI(gnomadData.pli) }}
+                        </v-chip>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium">Loss-of-Function Intolerance</div>
+                        <div class="text-caption">Probability of LoF intolerance (pLI)</div>
+                        <div class="text-caption mt-1">
+                          Score: {{ gnomadData.pli?.toFixed(4) || 'N/A' }}
+                        </div>
+                        <div class="text-caption">
+                          {{ getPLIInterpretation(gnomadData.pli) }}
+                        </div>
+                      </div>
+                    </v-tooltip>
+
+                    <!-- Missense Z-score -->
+                    <v-tooltip location="bottom">
+                      <template #activator="{ props }">
+                        <v-chip
+                          :color="getZScoreColor(gnomadData.mis_z)"
+                          variant="tonal"
+                          size="small"
+                          v-bind="props"
+                        >
+                          <v-icon size="x-small" start>mdi-dna</v-icon>
+                          Mis Z: {{ formatZScore(gnomadData.mis_z) }}
+                        </v-chip>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium">Missense Constraint</div>
+                        <div class="text-caption">Z-score for missense variants</div>
+                        <div class="text-caption mt-1">
+                          Score: {{ gnomadData.mis_z?.toFixed(2) || 'N/A' }}
+                        </div>
+                        <div class="text-caption">
+                          {{ getZScoreInterpretation(gnomadData.mis_z) }}
+                        </div>
+                      </div>
+                    </v-tooltip>
+
+                    <!-- LoF Z-score (secondary) -->
+                    <v-tooltip v-if="gnomadData.lof_z" location="bottom">
+                      <template #activator="{ props }">
+                        <v-chip color="grey" variant="outlined" size="x-small" v-bind="props">
+                          LoF Z: {{ formatZScore(gnomadData.lof_z) }}
+                        </v-chip>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium">LoF Constraint</div>
+                        <div class="text-caption">Z-score for loss-of-function variants</div>
+                        <div class="text-caption mt-1">
+                          Score: {{ gnomadData.lof_z?.toFixed(2) || 'N/A' }}
+                        </div>
+                        <div class="text-caption">
+                          {{ getZScoreInterpretation(gnomadData.lof_z) }}
+                        </div>
+                      </div>
+                    </v-tooltip>
+                  </div>
+                </div>
+
+                <!-- Loading indicator for annotations -->
+                <div v-else-if="loadingAnnotations">
+                  <div
+                    class="text-caption font-weight-medium mb-1 text-uppercase text-medium-emphasis"
+                  >
+                    Constraint
+                  </div>
+                  <v-skeleton-loader type="chip@2" class="d-inline-flex" />
+                </div>
               </v-card-text>
             </v-card>
           </v-col>
@@ -363,9 +418,11 @@ const route = useRoute()
 // Data
 const gene = ref(null)
 const evidence = ref(null)
+const annotations = ref(null)
 const relatedGenes = ref([])
 const loading = ref(true)
 const loadingEvidence = ref(true)
+const loadingAnnotations = ref(true)
 const showEvidenceFilters = ref(false)
 const selectedEvidenceSources = ref([])
 const evidenceSortOrder = ref('newest')
@@ -391,6 +448,11 @@ const breadcrumbs = computed(() => [
   { title: 'Gene Browser', to: '/genes' },
   { title: gene.value?.approved_symbol || 'Gene', disabled: true }
 ])
+
+const gnomadData = computed(() => {
+  if (!annotations.value?.annotations?.gnomad?.[0]) return null
+  return annotations.value.annotations.gnomad[0].data
+})
 
 const externalLinks = computed(() => {
   if (!gene.value) return []
@@ -488,6 +550,50 @@ const getScoreColor = score => {
   return 'error'
 }
 
+// gnomAD constraint score helpers
+const formatPLI = value => {
+  if (value === null || value === undefined) return 'N/A'
+  // pLI is a probability (0-1), show as 1.00 if very close to 1
+  if (value >= 0.9999) return '1.00'
+  return value.toFixed(2)
+}
+
+const formatZScore = value => {
+  if (value === null || value === undefined) return 'N/A'
+  // Z-scores can be any value, just format to 2 decimals
+  return value.toFixed(2)
+}
+
+const getPLIColor = pli => {
+  if (!pli && pli !== 0) return 'grey'
+  if (pli >= 0.9) return 'error' // Highly intolerant
+  if (pli >= 0.5) return 'warning' // Moderately intolerant
+  return 'success' // Tolerant
+}
+
+const getZScoreColor = zscore => {
+  if (!zscore && zscore !== 0) return 'grey'
+  const absZ = Math.abs(zscore)
+  if (absZ >= 3.09) return 'error' // p < 0.002, highly constrained
+  if (absZ >= 2) return 'warning' // p < 0.05, moderately constrained
+  return 'success' // Not significantly constrained
+}
+
+const getPLIInterpretation = pli => {
+  if (!pli && pli !== 0) return 'No data available'
+  if (pli >= 0.9) return 'Extremely intolerant to loss-of-function'
+  if (pli >= 0.5) return 'Moderately intolerant to loss-of-function'
+  return 'Tolerant to loss-of-function'
+}
+
+const getZScoreInterpretation = zscore => {
+  if (!zscore && zscore !== 0) return 'No data available'
+  const absZ = Math.abs(zscore)
+  if (absZ >= 3.09) return 'Highly constrained (p < 0.002)'
+  if (absZ >= 2) return 'Moderately constrained (p < 0.05)'
+  return 'Not significantly constrained'
+}
+
 // Removed unused score and format functions - handled by ScoreBreakdown component
 
 const clearEvidenceFilters = () => {
@@ -537,6 +643,19 @@ onMounted(async () => {
     console.error('Error loading gene:', error)
   } finally {
     loading.value = false
+  }
+
+  // Fetch annotations if we have a gene ID
+  if (gene.value?.id) {
+    try {
+      annotations.value = await geneApi.getGeneAnnotations(gene.value.id)
+    } catch (error) {
+      console.error('Error loading annotations:', error)
+    } finally {
+      loadingAnnotations.value = false
+    }
+  } else {
+    loadingAnnotations.value = false
   }
 
   try {
