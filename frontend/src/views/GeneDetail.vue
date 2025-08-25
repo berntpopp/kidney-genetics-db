@@ -204,6 +204,141 @@
                   </v-tooltip>
                 </div>
 
+                <!-- Kidney Expression Section -->
+                <div v-if="gtexData || descartesData" class="mt-2">
+                  <v-divider class="my-1" />
+                  <div class="text-caption text-medium-emphasis mb-1">Kidney Expression:</div>
+
+                  <!-- GTEx Expression -->
+                  <div v-if="gtexData" class="d-flex align-center flex-wrap ga-1 mb-1">
+                    <span class="text-caption text-medium-emphasis" style="width: 45px">GTEx:</span>
+                    <!-- Kidney Cortex -->
+                    <v-tooltip v-if="gtexData.tissues?.Kidney_Cortex" location="bottom">
+                      <template #activator="{ props }">
+                        <v-chip
+                          :color="getTPMColor(gtexData.tissues.Kidney_Cortex.median_tpm)"
+                          variant="tonal"
+                          size="x-small"
+                          density="compact"
+                          v-bind="props"
+                        >
+                          Cortex: {{ formatTPM(gtexData.tissues.Kidney_Cortex.median_tpm) }}
+                        </v-chip>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium">Kidney Cortex Expression</div>
+                        <div class="text-caption">GTEx v8 median TPM</div>
+                        <div class="text-caption mt-1">
+                          Value:
+                          {{ gtexData.tissues.Kidney_Cortex.median_tpm?.toFixed(2) || 'N/A' }} TPM
+                        </div>
+                        <div class="text-caption">
+                          {{ getTPMInterpretation(gtexData.tissues.Kidney_Cortex.median_tpm) }}
+                        </div>
+                      </div>
+                    </v-tooltip>
+                    <!-- Kidney Medulla -->
+                    <v-tooltip v-if="gtexData.tissues?.Kidney_Medulla" location="bottom">
+                      <template #activator="{ props }">
+                        <v-chip
+                          :color="getTPMColor(gtexData.tissues.Kidney_Medulla.median_tpm)"
+                          variant="tonal"
+                          size="x-small"
+                          density="compact"
+                          v-bind="props"
+                        >
+                          Medulla: {{ formatTPM(gtexData.tissues.Kidney_Medulla.median_tpm) }}
+                        </v-chip>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium">Kidney Medulla Expression</div>
+                        <div class="text-caption">GTEx v8 median TPM</div>
+                        <div class="text-caption mt-1">
+                          Value:
+                          {{ gtexData.tissues.Kidney_Medulla.median_tpm?.toFixed(2) || 'N/A' }} TPM
+                        </div>
+                        <div class="text-caption">
+                          {{ getTPMInterpretation(gtexData.tissues.Kidney_Medulla.median_tpm) }}
+                        </div>
+                      </div>
+                    </v-tooltip>
+                    <!-- No GTEx data -->
+                    <span
+                      v-if="!gtexData.tissues?.Kidney_Cortex && !gtexData.tissues?.Kidney_Medulla"
+                      class="text-caption text-medium-emphasis"
+                    >
+                      No data
+                    </span>
+                  </div>
+
+                  <!-- Descartes Expression -->
+                  <div v-if="descartesData" class="d-flex align-center flex-wrap ga-1">
+                    <span class="text-caption text-medium-emphasis" style="width: 45px"
+                      >scRNA:</span
+                    >
+                    <!-- Kidney TPM -->
+                    <v-tooltip v-if="descartesData.kidney_tpm !== null" location="bottom">
+                      <template #activator="{ props }">
+                        <v-chip
+                          :color="getTPMColor(descartesData.kidney_tpm)"
+                          variant="tonal"
+                          size="x-small"
+                          density="compact"
+                          v-bind="props"
+                        >
+                          TPM: {{ formatTPM(descartesData.kidney_tpm) }}
+                        </v-chip>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium">Single-cell Kidney Expression</div>
+                        <div class="text-caption">Descartes Human Cell Atlas</div>
+                        <div class="text-caption mt-1">
+                          TPM: {{ descartesData.kidney_tpm?.toFixed(2) || 'N/A' }}
+                        </div>
+                        <div v-if="descartesData.kidney_percentage" class="text-caption">
+                          Cells expressing:
+                          {{ (descartesData.kidney_percentage * 100)?.toFixed(2) }}%
+                        </div>
+                        <div class="text-caption">
+                          {{ getTPMInterpretation(descartesData.kidney_tpm) }}
+                        </div>
+                      </div>
+                    </v-tooltip>
+                    <!-- Cell percentage -->
+                    <v-tooltip v-if="descartesData.kidney_percentage !== null" location="bottom">
+                      <template #activator="{ props }">
+                        <v-chip
+                          :color="getPercentageColor(descartesData.kidney_percentage)"
+                          variant="outlined"
+                          size="x-small"
+                          density="compact"
+                          v-bind="props"
+                        >
+                          {{ (descartesData.kidney_percentage * 100)?.toFixed(2) }}% cells
+                        </v-chip>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium">Cell Expression Percentage</div>
+                        <div class="text-caption">Descartes Human Cell Atlas</div>
+                        <div class="text-caption mt-1">
+                          {{ (descartesData.kidney_percentage * 100)?.toFixed(2) }}% of kidney cells
+                          express this gene
+                        </div>
+                      </div>
+                    </v-tooltip>
+                    <!-- No Descartes data -->
+                    <span
+                      v-if="
+                        descartesData.kidney_tpm === null &&
+                        descartesData.kidney_percentage === null
+                      "
+                      class="text-caption text-medium-emphasis"
+                    >
+                      No data
+                    </span>
+                  </div>
+                </div>
+
                 <!-- Loading indicator for annotations -->
                 <div v-else-if="loadingAnnotations">
                   <div
@@ -465,6 +600,29 @@ const hgncData = computed(() => {
   return annotations.value.annotations.hgnc[0].data
 })
 
+const gtexData = computed(() => {
+  if (!annotations.value?.annotations?.gtex?.[0]) return null
+  return annotations.value.annotations.gtex[0].data
+})
+
+const descartesData = computed(() => {
+  // Handle both array format (like gtex) and direct object format
+  const descartes = annotations.value?.annotations?.descartes
+  if (!descartes) return null
+
+  // If it's an array (old format), use first element's data
+  if (Array.isArray(descartes) && descartes[0]?.data) {
+    return descartes[0].data
+  }
+
+  // If it's an object with data property (new format)
+  if (descartes?.data) {
+    return descartes.data
+  }
+
+  return null
+})
+
 const externalLinks = computed(() => {
   if (!gene.value) return []
 
@@ -603,6 +761,41 @@ const getZScoreInterpretation = zscore => {
   if (absZ >= 3.09) return 'Highly constrained (p < 0.002)'
   if (absZ >= 2) return 'Moderately constrained (p < 0.05)'
   return 'Not significantly constrained'
+}
+
+// GTEx helper functions
+const formatTPM = tpm => {
+  if (tpm === null || tpm === undefined) return 'N/A'
+  if (tpm < 1) return tpm.toFixed(2)
+  if (tpm < 10) return tpm.toFixed(1)
+  return Math.round(tpm).toString()
+}
+
+const getTPMColor = tpm => {
+  if (!tpm && tpm !== 0) return 'grey'
+  if (tpm >= 50) return 'success' // High expression
+  if (tpm >= 10) return 'info' // Moderate expression
+  if (tpm >= 1) return 'warning' // Low expression
+  return 'grey' // Very low/no expression
+}
+
+const getTPMInterpretation = tpm => {
+  if (!tpm && tpm !== 0) return 'No expression data'
+  if (tpm >= 50) return 'High expression (≥50 TPM)'
+  if (tpm >= 10) return 'Moderate expression (10-50 TPM)'
+  if (tpm >= 1) return 'Low expression (1-10 TPM)'
+  if (tpm > 0) return 'Very low expression (<1 TPM)'
+  return 'No detectable expression'
+}
+
+const getPercentageColor = proportion => {
+  if (!proportion && proportion !== 0) return 'grey'
+  const percentage = proportion * 100
+  if (percentage >= 75) return 'success' // Most cells express
+  if (percentage >= 50) return 'info' // Many cells express
+  if (percentage >= 25) return 'warning' // Some cells express
+  if (percentage >= 10) return 'warning' // Some cells express
+  return 'grey' // Few cells express
 }
 
 // Removed unused score and format functions - handled by ScoreBreakdown component

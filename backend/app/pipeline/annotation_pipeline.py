@@ -13,7 +13,9 @@ from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationSource
+from app.pipeline.sources.annotations.descartes import DescartesAnnotationSource
 from app.pipeline.sources.annotations.gnomad import GnomADAnnotationSource
+from app.pipeline.sources.annotations.gtex import GTExAnnotationSource
 from app.pipeline.sources.annotations.hgnc import HGNCAnnotationSource
 
 logger = get_logger(__name__)
@@ -47,7 +49,12 @@ class AnnotationPipeline:
         self.progress_tracker = None
 
         # Register available annotation sources
-        self.sources = {"hgnc": HGNCAnnotationSource, "gnomad": GnomADAnnotationSource}
+        self.sources = {
+            "hgnc": HGNCAnnotationSource,
+            "gnomad": GnomADAnnotationSource,
+            "gtex": GTExAnnotationSource,
+            "descartes": DescartesAnnotationSource,
+        }
 
     async def run_update(
         self,
