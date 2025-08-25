@@ -85,117 +85,123 @@
                 </template>
                 <v-card-title>Gene Information</v-card-title>
               </v-card-item>
-              <v-card-text class="pb-3">
-                <!-- Gene Identifiers Row - Compact -->
-                <div class="d-flex align-center flex-wrap ga-2 text-body-2">
-                  <span class="font-weight-medium">{{ gene.approved_symbol }}</span>
+              <v-card-text class="pb-2 pt-2">
+                <!-- Combined Gene Info & MANE Row - Ultra Compact -->
+                <div class="d-flex align-center flex-wrap ga-1 text-caption">
+                  <span class="font-weight-bold text-body-2">{{ gene.approved_symbol }}</span>
                   <span class="text-medium-emphasis">•</span>
-                  <span class="text-caption">{{ gene.hgnc_id }}</span>
-                  <template v-if="gene.chromosome">
-                    <span class="text-medium-emphasis">•</span>
-                    <span class="text-caption">Chr {{ gene.chromosome }}</span>
-                  </template>
-                  <template v-if="gene.alias_symbol?.length">
+                  <span>{{ gene.hgnc_id }}</span>
+                  <template v-if="hgncData?.mane_select">
                     <span class="text-medium-emphasis">•</span>
                     <v-tooltip location="bottom">
                       <template #activator="{ props }">
-                        <span
-                          class="text-caption text-medium-emphasis"
-                          v-bind="props"
-                          style="cursor: help"
-                        >
-                          {{ gene.alias_symbol.length }} alias{{
-                            gene.alias_symbol.length > 1 ? 'es' : ''
-                          }}
+                        <span class="font-mono" v-bind="props" style="cursor: help">
+                          {{ hgncData.mane_select.refseq_transcript_id || 'N/A' }}
                         </span>
                       </template>
                       <div class="pa-2">
-                        <div class="font-weight-medium mb-1">Gene Aliases</div>
-                        {{ gene.alias_symbol.join(', ') }}
+                        <div class="font-weight-medium mb-1">MANE Select Transcripts</div>
+                        <div class="text-caption">
+                          <div v-if="hgncData.mane_select.refseq_transcript_id">
+                            <span class="text-medium-emphasis">RefSeq:</span>
+                            <span class="font-mono">{{
+                              hgncData.mane_select.refseq_transcript_id
+                            }}</span>
+                          </div>
+                          <div v-if="hgncData.mane_select.ensembl_transcript_id">
+                            <span class="text-medium-emphasis">Ensembl:</span>
+                            <span class="font-mono">{{
+                              hgncData.mane_select.ensembl_transcript_id
+                            }}</span>
+                          </div>
+                        </div>
+                        <div class="text-caption mt-1 text-medium-emphasis">
+                          Matched Annotation from NCBI and EMBL-EBI
+                        </div>
                       </div>
                     </v-tooltip>
                   </template>
                 </div>
 
-                <v-divider class="my-2" />
+                <v-divider class="my-1" />
 
-                <!-- gnomAD Constraint Scores - Primary Metrics -->
-                <div v-if="gnomadData">
-                  <div
-                    class="text-caption font-weight-medium mb-1 text-uppercase text-medium-emphasis"
-                  >
-                    Constraint
-                  </div>
-                  <div class="d-flex flex-wrap ga-2">
-                    <!-- pLI Score -->
-                    <v-tooltip location="bottom">
-                      <template #activator="{ props }">
-                        <v-chip
-                          :color="getPLIColor(gnomadData.pli)"
-                          variant="tonal"
-                          size="small"
-                          v-bind="props"
-                        >
-                          <v-icon size="x-small" start>mdi-alert-circle</v-icon>
-                          pLI: {{ formatPLI(gnomadData.pli) }}
-                        </v-chip>
-                      </template>
-                      <div class="pa-2">
-                        <div class="font-weight-medium">Loss-of-Function Intolerance</div>
-                        <div class="text-caption">Probability of LoF intolerance (pLI)</div>
-                        <div class="text-caption mt-1">
-                          Score: {{ gnomadData.pli?.toFixed(4) || 'N/A' }}
-                        </div>
-                        <div class="text-caption">
-                          {{ getPLIInterpretation(gnomadData.pli) }}
-                        </div>
+                <!-- gnomAD Constraint Scores - Inline Compact -->
+                <div v-if="gnomadData" class="d-flex align-center flex-wrap ga-1">
+                  <span class="text-caption text-medium-emphasis mr-1">Constraint:</span>
+                  <!-- pLI Score -->
+                  <v-tooltip location="bottom">
+                    <template #activator="{ props }">
+                      <v-chip
+                        :color="getPLIColor(gnomadData.pli)"
+                        variant="tonal"
+                        size="x-small"
+                        density="compact"
+                        v-bind="props"
+                      >
+                        pLI: {{ formatPLI(gnomadData.pli) }}
+                      </v-chip>
+                    </template>
+                    <div class="pa-2">
+                      <div class="font-weight-medium">Loss-of-Function Intolerance</div>
+                      <div class="text-caption">Probability of LoF intolerance (pLI)</div>
+                      <div class="text-caption mt-1">
+                        Score: {{ gnomadData.pli?.toFixed(4) || 'N/A' }}
                       </div>
-                    </v-tooltip>
+                      <div class="text-caption">
+                        {{ getPLIInterpretation(gnomadData.pli) }}
+                      </div>
+                    </div>
+                  </v-tooltip>
 
-                    <!-- Missense Z-score -->
-                    <v-tooltip location="bottom">
-                      <template #activator="{ props }">
-                        <v-chip
-                          :color="getZScoreColor(gnomadData.mis_z)"
-                          variant="tonal"
-                          size="small"
-                          v-bind="props"
-                        >
-                          <v-icon size="x-small" start>mdi-dna</v-icon>
-                          Mis Z: {{ formatZScore(gnomadData.mis_z) }}
-                        </v-chip>
-                      </template>
-                      <div class="pa-2">
-                        <div class="font-weight-medium">Missense Constraint</div>
-                        <div class="text-caption">Z-score for missense variants</div>
-                        <div class="text-caption mt-1">
-                          Score: {{ gnomadData.mis_z?.toFixed(2) || 'N/A' }}
-                        </div>
-                        <div class="text-caption">
-                          {{ getZScoreInterpretation(gnomadData.mis_z) }}
-                        </div>
+                  <!-- Missense Z-score -->
+                  <v-tooltip location="bottom">
+                    <template #activator="{ props }">
+                      <v-chip
+                        :color="getZScoreColor(gnomadData.mis_z)"
+                        variant="tonal"
+                        size="x-small"
+                        density="compact"
+                        v-bind="props"
+                      >
+                        Mis Z: {{ formatZScore(gnomadData.mis_z) }}
+                      </v-chip>
+                    </template>
+                    <div class="pa-2">
+                      <div class="font-weight-medium">Missense Constraint</div>
+                      <div class="text-caption">Z-score for missense variants</div>
+                      <div class="text-caption mt-1">
+                        Score: {{ gnomadData.mis_z?.toFixed(2) || 'N/A' }}
                       </div>
-                    </v-tooltip>
+                      <div class="text-caption">
+                        {{ getZScoreInterpretation(gnomadData.mis_z) }}
+                      </div>
+                    </div>
+                  </v-tooltip>
 
-                    <!-- LoF Z-score (secondary) -->
-                    <v-tooltip v-if="gnomadData.lof_z" location="bottom">
-                      <template #activator="{ props }">
-                        <v-chip color="grey" variant="outlined" size="x-small" v-bind="props">
-                          LoF Z: {{ formatZScore(gnomadData.lof_z) }}
-                        </v-chip>
-                      </template>
-                      <div class="pa-2">
-                        <div class="font-weight-medium">LoF Constraint</div>
-                        <div class="text-caption">Z-score for loss-of-function variants</div>
-                        <div class="text-caption mt-1">
-                          Score: {{ gnomadData.lof_z?.toFixed(2) || 'N/A' }}
-                        </div>
-                        <div class="text-caption">
-                          {{ getZScoreInterpretation(gnomadData.lof_z) }}
-                        </div>
+                  <!-- LoF Z-score (secondary) -->
+                  <v-tooltip v-if="gnomadData.lof_z" location="bottom">
+                    <template #activator="{ props }">
+                      <v-chip
+                        color="grey"
+                        variant="outlined"
+                        size="x-small"
+                        density="compact"
+                        v-bind="props"
+                      >
+                        LoF Z: {{ formatZScore(gnomadData.lof_z) }}
+                      </v-chip>
+                    </template>
+                    <div class="pa-2">
+                      <div class="font-weight-medium">LoF Constraint</div>
+                      <div class="text-caption">Z-score for loss-of-function variants</div>
+                      <div class="text-caption mt-1">
+                        Score: {{ gnomadData.lof_z?.toFixed(2) || 'N/A' }}
                       </div>
-                    </v-tooltip>
-                  </div>
+                      <div class="text-caption">
+                        {{ getZScoreInterpretation(gnomadData.lof_z) }}
+                      </div>
+                    </div>
+                  </v-tooltip>
                 </div>
 
                 <!-- Loading indicator for annotations -->
@@ -452,6 +458,11 @@ const breadcrumbs = computed(() => [
 const gnomadData = computed(() => {
   if (!annotations.value?.annotations?.gnomad?.[0]) return null
   return annotations.value.annotations.gnomad[0].data
+})
+
+const hgncData = computed(() => {
+  if (!annotations.value?.annotations?.hgnc?.[0]) return null
+  return annotations.value.annotations.hgnc[0].data
 })
 
 const externalLinks = computed(() => {
