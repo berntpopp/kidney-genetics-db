@@ -112,7 +112,6 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "request_delay": 0.2,  # Small delay between batches (backoff handles rate limiting)
         # Cache settings
         "cache_ttl": 604800,  # 7 days - stable ontology releases
-
         # Classification configuration
         "clinical_groups": {
             "complement": {
@@ -182,7 +181,6 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
                 "weight": 1.0,
             },
         },
-
         "onset_groups": {
             "adult": {
                 "root_term": "HP:0003581",
@@ -197,7 +195,6 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
                 "name": "Congenital/Antenatal onset",
             },
         },
-
         "syndromic_indicators": {
             "growth": "HP:0001507",  # Growth abnormality
             "skeletal": "HP:0000924",  # Abnormality of the skeletal system
@@ -205,13 +202,38 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
             "head_neck": "HP:0000152",  # Abnormality of head or neck
         },
     },
+    "ClinVar": {
+        "display_name": "ClinVar",
+        "description": "Clinical variant database from NCBI",
+        "url": "https://www.ncbi.nlm.nih.gov/clinvar/",
+        "documentation_url": "https://www.ncbi.nlm.nih.gov/books/NBK174881/",
+        "auto_update": True,
+        "priority": 6,
+        # API settings
+        "api_url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils",
+        "batch_size": 200,  # Reduced to avoid URI too long errors
+        "search_batch_size": 10000,  # Maximum for esearch
+        # Review confidence levels
+        "review_confidence": {
+            "practice guideline": 4,
+            "reviewed by expert panel": 4,
+            "criteria provided, multiple submitters, no conflicts": 3,
+            "criteria provided, conflicting classifications": 2,
+            "criteria provided, single submitter": 2,
+            "no assertion for the individual variant": 1,
+            "no assertion criteria provided": 1,
+            "no classification provided": 0,
+        },
+        # Cache settings
+        "cache_ttl": 604800,  # 7 days - weekly updates
+    },
     "DiagnosticPanels": {
         "display_name": "Diagnostic Panels",
         "description": "Commercial diagnostic kidney gene panels from multiple providers",
         "url": None,
         "documentation_url": None,
         "auto_update": False,  # Manual upload via API
-        "priority": 6,
+        "priority": 7,
         "hybrid_source": True,  # Uses unified source pattern
     },
     "Literature": {
@@ -220,7 +242,7 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "url": None,
         "documentation_url": None,
         "auto_update": False,  # Manual upload via API
-        "priority": 7,
+        "priority": 8,
         "hybrid_source": True,  # Uses unified source pattern
     },
 }
