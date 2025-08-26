@@ -41,6 +41,11 @@ class HPOAnnotationSource(BaseAnnotationSource):
     _kidney_terms_cache = None
     _kidney_terms_cache_time = None
 
+    # Class-level caches for classification terms
+    _onset_descendants_cache = None
+    _syndromic_descendants_cache = None
+    _classification_cache_time = None
+
     def __init__(self, session):
         """Initialize the HPO annotation source."""
         super().__init__(session)
@@ -256,6 +261,196 @@ class HPOAnnotationSource(BaseAnnotationSource):
             if phenotype.get("id") in kidney_term_ids
         ]
 
+    async def get_classification_term_descendants(self, classification_type: str) -> dict[str, set[str]]:
+        """
+        Get all descendant terms for classification categories.
+        Reuses existing HPO pipeline for term traversal (DRY principle).
+        """
+        import time
+
+        from app.core.datasource_config import get_source_parameter
+
+        # Check cache (24-hour TTL like kidney terms)
+        if (self._classification_cache_time is not None and
+            time.time() - self._classification_cache_time < 86400):
+            # Return appropriate cache
+            if classification_type == "onset_groups":
+                return self._onset_descendants_cache or {}
+            elif classification_type == "syndromic_indicators":
+                return self._syndromic_descendants_cache or {}
+
+        # Need to refresh cache
+        from app.core.hpo.pipeline import HPOPipeline
+
+        pipeline = HPOPipeline()
+        classification_config = get_source_parameter("HPO", classification_type, {})
+
+        descendants_map = {}
+        for group_key, group_config in classification_config.items():
+            descendants = set()
+
+            # Handle both single root_term and multiple root_terms
+            root_terms = []
+            if isinstance(group_config, dict):
+                if "root_term" in group_config:
+                    root_terms = [group_config["root_term"]]
+                elif "root_terms" in group_config:
+                    root_terms = group_config["root_terms"]
+            else:
+                # For syndromic_indicators, the value is directly the term
+                root_terms = [group_config]
+
+            # Reuse existing pipeline to get descendants
+            for term in root_terms:
+                try:
+                    term_descendants = await pipeline.terms.get_descendants(
+                        term,
+                        max_depth=pipeline.max_depth,
+                        include_self=True
+                    )
+                    descendants.update(term_descendants)
+                except Exception as e:
+                    logger.sync_warning(f"Failed to get descendants for {term}: {e}")
+
+            descendants_map[group_key] = descendants
+
+        # Update cache
+        if classification_type == "onset_groups":
+            self._onset_descendants_cache = descendants_map
+        elif classification_type == "syndromic_indicators":
+            self._syndromic_descendants_cache = descendants_map
+
+        self._classification_cache_time = time.time()
+
+        return descendants_map
+
+    async def classify_gene_phenotypes(self, phenotypes: list[dict]) -> dict[str, Any]:
+        """
+        Classify phenotypes into clinical, onset, and syndromic groups.
+
+        Args:
+            phenotypes: List of HPO phenotype dictionaries
+
+        Returns:
+            Classification results with scores and confidence
+        """
+        phenotype_ids = {p.get("id") for p in phenotypes if p.get("id")}
+
+        classification = {
+            "clinical_group": await self._classify_clinical_group(phenotype_ids),
+            "onset_group": await self._classify_onset_group(phenotype_ids),
+            "syndromic_assessment": await self._assess_syndromic_features(phenotype_ids),
+        }
+
+        return classification
+
+    async def _classify_clinical_group(self, phenotype_ids: set[str]) -> dict:
+        """
+        Classify into clinical kidney disease groups based on signature terms.
+        """
+        from app.core.datasource_config import get_source_parameter
+
+        config = get_source_parameter("HPO", "clinical_groups", {})
+
+        scores = {}
+        all_matches = {}
+
+        for group_key, group_config in config.items():
+            signature_terms = set(group_config.get("signature_terms", []))
+
+            # Direct matches with signature terms
+            matches = phenotype_ids.intersection(signature_terms)
+
+            # Calculate score based on matches and weight
+            weight = group_config.get("weight", 1.0)
+            if signature_terms:
+                score = (len(matches) / len(signature_terms)) * weight
+            else:
+                score = 0.0
+
+            scores[group_key] = round(score, 3)
+            if matches:
+                all_matches[group_key] = list(matches)
+
+        # Normalize scores to sum to 1.0
+        total_score = sum(scores.values())
+        if total_score > 0:
+            scores = {k: round(v/total_score, 3) for k, v in scores.items()}
+
+        # Determine primary group (highest score)
+        primary = max(scores, key=scores.get) if scores and max(scores.values()) > 0 else None
+
+        return {
+            "primary": primary,
+            "scores": scores,
+            "supporting_terms": all_matches.get(primary, []) if primary else [],
+        }
+
+    async def _classify_onset_group(self, phenotype_ids: set[str]) -> dict:
+        """
+        Classify based on age of onset using HPO term hierarchy.
+        """
+        # Get cached descendants for onset groups
+        onset_descendants = await self.get_classification_term_descendants("onset_groups")
+
+        scores = {}
+        for group_key, descendant_terms in onset_descendants.items():
+            matches = phenotype_ids.intersection(descendant_terms)
+            scores[group_key] = len(matches)
+
+        # Normalize scores to probabilities
+        total = sum(scores.values())
+        if total > 0:
+            scores = {k: round(v/total, 3) for k, v in scores.items()}
+
+        primary = max(scores, key=scores.get) if scores and max(scores.values()) > 0 else None
+
+        return {
+            "primary": primary,
+            "scores": scores,
+        }
+
+    async def _assess_syndromic_features(self, phenotype_ids: set[str]) -> dict:
+        """
+        Assess syndromic features based on extra-renal phenotypes.
+        Uses proportional scoring consistent with other classification methods.
+        """
+        # Get descendants for syndromic indicator terms
+        syndromic_descendants = await self.get_classification_term_descendants("syndromic_indicators")
+
+        # Get kidney term descendants for exclusion
+        kidney_term_ids = await self.get_kidney_term_descendants()
+
+        # Find non-kidney phenotypes
+        non_kidney_phenotypes = phenotype_ids - kidney_term_ids
+
+        extra_renal_features = {}
+        for category, descendant_terms in syndromic_descendants.items():
+            matches = non_kidney_phenotypes.intersection(descendant_terms)
+            if matches:
+                extra_renal_features[category] = len(matches)
+
+        # Calculate syndromic score using proportional logic (consistent with clinical/onset scoring)
+        # Normalize by total phenotypes to get proportion of extra-renal features
+        total_phenotypes = len(phenotype_ids)
+        total_extra_renal = sum(extra_renal_features.values())
+
+        if total_phenotypes > 0:
+            syndromic_score = total_extra_renal / total_phenotypes
+        else:
+            syndromic_score = 0.0
+
+        # Determine if syndromic based on proportion of extra-renal features
+        # Using 0.3 as threshold (30% or more extra-renal features indicates syndromic)
+        is_syndromic = syndromic_score >= 0.3
+
+        return {
+            "is_syndromic": is_syndromic,
+            "extra_renal_categories": list(extra_renal_features.keys()),
+            "extra_renal_term_counts": extra_renal_features,
+            "syndromic_score": round(syndromic_score, 3),
+        }
+
     async def fetch_annotation(self, gene: Gene) -> dict[str, Any] | None:
         """
         Fetch HPO annotation for a gene.
@@ -283,6 +478,8 @@ class HPOAnnotationSource(BaseAnnotationSource):
                     "kidney_phenotypes": [],
                     "kidney_phenotype_count": 0,
                     "has_kidney_phenotype": False,
+                    "classification": {},
+                    "classification_confidence": "none",
                     "last_updated": datetime.now(timezone.utc).isoformat()
                 }
 
@@ -299,6 +496,12 @@ class HPOAnnotationSource(BaseAnnotationSource):
             # Step 3: Filter for kidney-related phenotypes
             kidney_phenotypes = await self.filter_kidney_phenotypes(phenotypes)
 
+            # Step 4: Classify phenotypes
+            classification = {}
+
+            if phenotypes:
+                classification = await self.classify_gene_phenotypes(phenotypes)
+
             return {
                 "gene_symbol": gene.approved_symbol,
                 "ncbi_gene_id": ncbi_gene_id,
@@ -310,6 +513,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
                 "kidney_phenotypes": kidney_phenotypes,
                 "kidney_phenotype_count": len(kidney_phenotypes),
                 "has_kidney_phenotype": len(kidney_phenotypes) > 0,
+                "classification": classification,
                 "last_updated": datetime.now(timezone.utc).isoformat()
             }
 

@@ -112,6 +112,98 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "request_delay": 0.2,  # Small delay between batches (backoff handles rate limiting)
         # Cache settings
         "cache_ttl": 604800,  # 7 days - stable ontology releases
+
+        # Classification configuration
+        "clinical_groups": {
+            "complement": {
+                "signature_terms": [
+                    "HP:0000093",  # Proteinuria
+                    "HP:0000100",  # Nephrotic syndrome
+                    "HP:0001970",  # Tubulointerstitial nephritis
+                    "HP:0000796",  # Urethral obstruction
+                    "HP:0003259",  # Elevated serum creatinine
+                ],
+                "name": "Complement-mediated kidney diseases",
+                "weight": 1.0,
+            },
+            "cakut": {
+                "signature_terms": [
+                    "HP:0000107",  # Renal cyst
+                    "HP:0000085",  # Horseshoe kidney
+                    "HP:0000089",  # Renal hypoplasia
+                    "HP:0000072",  # Hydroureter
+                    "HP:0000126",  # Hydronephrosis
+                ],
+                "name": "Congenital anomalies of kidney and urinary tract",
+                "weight": 1.0,
+            },
+            "glomerulopathy": {
+                "signature_terms": [
+                    "HP:0000097",  # Glomerulonephritis
+                    "HP:0003774",  # Stage 5 chronic kidney disease
+                    "HP:0000123",  # Nephritis
+                    "HP:0000099",  # Glomerulosclerosis
+                    "HP:0030888",  # C3 glomerulopathy
+                ],
+                "name": "Glomerular diseases",
+                "weight": 1.0,
+            },
+            "cyst_cilio": {
+                "signature_terms": [
+                    "HP:0005562",  # Multiple renal cysts
+                    "HP:0000107",  # Renal cyst
+                    "HP:0001737",  # Pancreatic cysts
+                    "HP:0000092",  # Renal tubular atrophy
+                    "HP:0000003",  # Multicystic kidney dysplasia
+                ],
+                "name": "Cystic and ciliopathy disorders",
+                "weight": 1.0,
+            },
+            "tubulopathy": {
+                "signature_terms": [
+                    "HP:0003127",  # Hypocalciuria
+                    "HP:0002900",  # Hypokalemia
+                    "HP:0002148",  # Hypophosphatemia
+                    "HP:0000114",  # Proximal tubulopathy
+                    "HP:0004918",  # Hyperchloremic metabolic acidosis
+                ],
+                "name": "Tubular disorders",
+                "weight": 1.0,
+            },
+            "nephrolithiasis": {
+                "signature_terms": [
+                    "HP:0000787",  # Nephrolithiasis
+                    "HP:0000121",  # Nephrocalcinosis
+                    "HP:0000791",  # Uric acid nephrolithiasis
+                    "HP:0008672",  # Calcium oxalate nephrolithiasis
+                    "HP:0004724",  # Calcium nephrolithiasis
+                ],
+                "name": "Kidney stones and nephrocalcinosis",
+                "weight": 1.0,
+            },
+        },
+
+        "onset_groups": {
+            "adult": {
+                "root_term": "HP:0003581",
+                "name": "Adult onset",
+            },
+            "pediatric": {
+                "root_terms": ["HP:0410280", "HP:0003623"],
+                "name": "Pediatric/Neonatal onset",
+            },
+            "congenital": {
+                "root_terms": ["HP:0003577", "HP:0030674"],
+                "name": "Congenital/Antenatal onset",
+            },
+        },
+
+        "syndromic_indicators": {
+            "growth": "HP:0001507",  # Growth abnormality
+            "skeletal": "HP:0000924",  # Abnormality of the skeletal system
+            "neurologic": "HP:0000707",  # Abnormality of the nervous system
+            "head_neck": "HP:0000152",  # Abnormality of head or neck
+        },
     },
     "DiagnosticPanels": {
         "display_name": "Diagnostic Panels",

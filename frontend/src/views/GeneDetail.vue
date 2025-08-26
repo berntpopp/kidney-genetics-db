@@ -339,6 +339,196 @@
                   </div>
                 </div>
 
+                <!-- HPO Human Phenotypes Section -->
+                <div v-if="hpoData" class="mt-2">
+                  <v-divider class="my-1" />
+                  <div class="text-caption text-medium-emphasis mb-1">Human Phenotypes:</div>
+
+                  <!-- HPO Classification -->
+                  <div
+                    v-if="hpoData.classification"
+                    class="d-flex align-center flex-wrap ga-1 mb-1"
+                  >
+                    <!-- Clinical Group -->
+                    <v-tooltip
+                      v-if="hpoData.classification.clinical_group?.primary"
+                      location="bottom"
+                    >
+                      <template #activator="{ props }">
+                        <v-chip
+                          :color="
+                            getClinicalGroupColor(hpoData.classification.clinical_group.primary)
+                          "
+                          variant="tonal"
+                          size="x-small"
+                          density="compact"
+                          v-bind="props"
+                        >
+                          {{ formatClinicalGroup(hpoData.classification.clinical_group.primary) }}
+                        </v-chip>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium">Clinical Classification</div>
+                        <div class="text-caption mb-1">
+                          Primary:
+                          {{ formatClinicalGroup(hpoData.classification.clinical_group.primary) }}
+                        </div>
+                        <div class="text-caption">
+                          Score:
+                          {{
+                            (
+                              hpoData.classification.clinical_group.scores[
+                                hpoData.classification.clinical_group.primary
+                              ] * 100
+                            ).toFixed(0)
+                          }}%
+                        </div>
+                      </div>
+                    </v-tooltip>
+
+                    <!-- Onset Group -->
+                    <v-tooltip v-if="hpoData.classification.onset_group?.primary" location="bottom">
+                      <template #activator="{ props }">
+                        <v-chip
+                          color="secondary"
+                          variant="outlined"
+                          size="x-small"
+                          density="compact"
+                          v-bind="props"
+                        >
+                          {{ formatOnsetGroup(hpoData.classification.onset_group.primary) }} onset
+                        </v-chip>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium">Age of Onset</div>
+                        <div class="text-caption">
+                          {{ formatOnsetGroup(hpoData.classification.onset_group.primary) }}
+                          ({{
+                            (
+                              hpoData.classification.onset_group.scores[
+                                hpoData.classification.onset_group.primary
+                              ] * 100
+                            ).toFixed(0)
+                          }}%)
+                        </div>
+                      </div>
+                    </v-tooltip>
+
+                    <!-- Syndromic Badge -->
+                    <v-tooltip v-if="hpoData.classification.syndromic_assessment" location="bottom">
+                      <template #activator="{ props }">
+                        <v-chip
+                          :color="
+                            hpoData.classification.syndromic_assessment.is_syndromic
+                              ? 'warning'
+                              : 'grey'
+                          "
+                          :variant="
+                            hpoData.classification.syndromic_assessment.is_syndromic
+                              ? 'tonal'
+                              : 'outlined'
+                          "
+                          size="x-small"
+                          density="compact"
+                          v-bind="props"
+                        >
+                          {{
+                            hpoData.classification.syndromic_assessment.is_syndromic
+                              ? 'Syndromic'
+                              : 'Isolated'
+                          }}
+                        </v-chip>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium">Presentation Type</div>
+                        <div class="text-caption">
+                          {{
+                            hpoData.classification.syndromic_assessment.is_syndromic
+                              ? 'Syndromic kidney disease'
+                              : 'Isolated kidney phenotype'
+                          }}
+                        </div>
+                        <div
+                          v-if="
+                            hpoData.classification.syndromic_assessment.extra_renal_categories
+                              ?.length
+                          "
+                          class="text-caption mt-1"
+                        >
+                          Extra-renal:
+                          {{
+                            hpoData.classification.syndromic_assessment.extra_renal_categories.join(
+                              ', '
+                            )
+                          }}
+                        </div>
+                      </div>
+                    </v-tooltip>
+                  </div>
+
+                  <!-- Phenotype Count -->
+                  <div class="d-flex align-center flex-wrap ga-1">
+                    <v-tooltip location="bottom">
+                      <template #activator="{ props }">
+                        <v-chip
+                          color="primary"
+                          variant="outlined"
+                          size="x-small"
+                          density="compact"
+                          v-bind="props"
+                        >
+                          {{ hpoData.kidney_phenotype_count }}/{{ hpoData.phenotype_count }} kidney
+                        </v-chip>
+                      </template>
+                      <div class="pa-2 max-width-300">
+                        <div class="font-weight-medium">HPO Phenotypes</div>
+                        <div class="text-caption mb-1">
+                          {{ hpoData.kidney_phenotype_count }} kidney-related phenotypes out of
+                          {{ hpoData.phenotype_count }} total
+                        </div>
+                        <div v-if="hpoData.kidney_phenotypes?.slice(0, 3)" class="text-caption">
+                          <div class="font-weight-medium mb-1">Sample phenotypes:</div>
+                          <div
+                            v-for="phenotype in hpoData.kidney_phenotypes.slice(0, 3)"
+                            :key="phenotype.id"
+                            class="mb-1"
+                          >
+                            <span class="font-mono">{{ phenotype.id }}</span
+                            >: {{ phenotype.name }}
+                          </div>
+                          <div
+                            v-if="hpoData.kidney_phenotype_count > 3"
+                            class="text-medium-emphasis"
+                          >
+                            +{{ hpoData.kidney_phenotype_count - 3 }} more
+                          </div>
+                        </div>
+                      </div>
+                    </v-tooltip>
+
+                    <!-- Disease associations -->
+                    <v-tooltip v-if="hpoData.disease_count > 0" location="bottom">
+                      <template #activator="{ props }">
+                        <v-chip
+                          color="info"
+                          variant="outlined"
+                          size="x-small"
+                          density="compact"
+                          v-bind="props"
+                        >
+                          {{ hpoData.disease_count }} diseases
+                        </v-chip>
+                      </template>
+                      <div class="pa-2">
+                        <div class="font-weight-medium">Disease Associations</div>
+                        <div class="text-caption">
+                          {{ hpoData.disease_count }} disease associations in HPO
+                        </div>
+                      </div>
+                    </v-tooltip>
+                  </div>
+                </div>
+
                 <!-- Mouse Phenotypes Section -->
                 <div v-if="mpoMgiData" class="mt-2">
                   <v-divider class="my-1" />
@@ -755,6 +945,11 @@ const mpoMgiData = computed(() => {
   return annotations.value.annotations.mpo_mgi[0].data
 })
 
+const hpoData = computed(() => {
+  if (!annotations.value?.annotations?.hpo?.[0]) return null
+  return annotations.value.annotations.hpo[0].data
+})
+
 const externalLinks = computed(() => {
   if (!gene.value) return []
 
@@ -818,6 +1013,40 @@ const filteredEvidence = computed(() => {
 
   return filtered
 })
+
+// HPO Classification helper functions
+const formatClinicalGroup = group => {
+  const groupNames = {
+    cyst_cilio: 'Cystic/Ciliopathy',
+    cakut: 'CAKUT',
+    glomerulopathy: 'Glomerulopathy',
+    tubulopathy: 'Tubulopathy',
+    complement: 'Complement',
+    nephrolithiasis: 'Nephrolithiasis'
+  }
+  return groupNames[group] || group
+}
+
+const getClinicalGroupColor = group => {
+  const colors = {
+    cyst_cilio: 'primary',
+    cakut: 'secondary',
+    glomerulopathy: 'error',
+    tubulopathy: 'warning',
+    complement: 'info',
+    nephrolithiasis: 'orange'
+  }
+  return colors[group] || 'grey'
+}
+
+const formatOnsetGroup = onset => {
+  const onsetNames = {
+    adult: 'Adult',
+    pediatric: 'Pediatric',
+    congenital: 'Congenital'
+  }
+  return onsetNames[onset] || onset
+}
 
 // Methods
 const getSourceColor = source => {
