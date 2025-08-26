@@ -16,6 +16,7 @@ from app.pipeline.sources.annotations.descartes import DescartesAnnotationSource
 from app.pipeline.sources.annotations.gnomad import GnomADAnnotationSource
 from app.pipeline.sources.annotations.gtex import GTExAnnotationSource
 from app.pipeline.sources.annotations.hgnc import HGNCAnnotationSource
+from app.pipeline.sources.annotations.hpo import HPOAnnotationSource
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -167,7 +168,7 @@ async def get_gene_annotation_summary(
 @router.post("/genes/{gene_id}/annotations/update")
 async def update_gene_annotations(
     gene_id: int,
-    sources: list[str] = Query(["hgnc", "gnomad", "gtex"], description="Sources to update"),
+    sources: list[str] = Query(["hgnc", "gnomad", "gtex", "hpo"], description="Sources to update"),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -198,6 +199,8 @@ async def update_gene_annotations(
             background_tasks.add_task(_update_gtex_annotation, gene, db)
         elif source_name == "descartes":
             background_tasks.add_task(_update_descartes_annotation, gene, db)
+        elif source_name == "hpo":
+            background_tasks.add_task(_update_hpo_annotation, gene, db)
 
     return {
         "status": "update_scheduled",
@@ -298,6 +301,29 @@ async def _update_descartes_annotation(gene: Gene, db: Session):
     except Exception as e:
         await logger.error(
             f"Error updating Descartes annotation: {str(e)}", gene_symbol=gene.approved_symbol
+        )
+
+
+async def _update_hpo_annotation(gene: Gene, db: Session):
+    """Background task to update HPO annotation."""
+    from app.core.cache import annotation_cache
+
+    try:
+        source = HPOAnnotationSource(db)
+        success = await source.update_gene(gene)
+
+        if success:
+            # Invalidate cache for this gene
+            annotation_cache.invalidate_gene(gene.id)
+
+            await logger.info("HPO annotation updated for gene", gene_symbol=gene.approved_symbol)
+        else:
+            await logger.warning(
+                "Failed to update HPO annotation", gene_symbol=gene.approved_symbol
+            )
+    except Exception as e:
+        await logger.error(
+            f"Error updating HPO annotation: {str(e)}", gene_symbol=gene.approved_symbol
         )
 
 
