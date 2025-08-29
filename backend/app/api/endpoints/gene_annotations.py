@@ -44,10 +44,16 @@ async def get_gene_annotations(
     Returns:
         Dictionary with annotations grouped by source
     """
-    from app.core.cache import annotation_cache
+    from app.core.cache_service import get_cache_service
 
     # Check cache first
-    cached = annotation_cache.get_annotation(gene_id, source)
+    cache_service = get_cache_service(db)
+    cache_key = f"{gene_id}:{source or 'all'}"
+    cached = await cache_service.get(
+        key=cache_key,
+        namespace="annotations",
+        default=None
+    )
     if cached:
         logger.sync_debug(f"Cache hit for gene {gene_id}", source=source)
         return cached
@@ -85,7 +91,12 @@ async def get_gene_annotations(
         )
 
     # Cache the result
-    annotation_cache.set_annotation(gene_id, result, source)
+    await cache_service.set(
+        key=cache_key,
+        value=result,
+        namespace="annotations",
+        ttl=3600
+    )
 
     return result
 
@@ -104,10 +115,16 @@ async def get_gene_annotation_summary(
     Returns:
         Summary of key annotation fields
     """
-    from app.core.cache import annotation_cache
+    from app.core.cache_service import get_cache_service
 
     # Check cache first
-    cached = annotation_cache.get_summary(gene_id)
+    cache_service = get_cache_service(db)
+    cache_key = f"summary:{gene_id}"
+    cached = await cache_service.get(
+        key=cache_key,
+        namespace="annotations",
+        default=None
+    )
     if cached:
         logger.sync_debug(f"Cache hit for summary of gene {gene_id}")
         return cached
@@ -163,7 +180,12 @@ async def get_gene_annotation_summary(
     }
 
     # Cache the result
-    annotation_cache.set_summary(gene_id, summary)
+    await cache_service.set(
+        key=cache_key,
+        value=summary,
+        namespace="annotations",
+        ttl=7200
+    )
 
     return summary
 
@@ -223,7 +245,7 @@ async def update_gene_annotations(
 
 async def _update_hgnc_annotation(gene: Gene, db: Session):
     """Background task to update HGNC annotation."""
-    from app.core.cache import annotation_cache
+    from app.core.cache_service import get_cache_service
 
     try:
         source = HGNCAnnotationSource(db)
@@ -231,7 +253,8 @@ async def _update_hgnc_annotation(gene: Gene, db: Session):
 
         if success:
             # Invalidate cache for this gene
-            annotation_cache.invalidate_gene(gene.id)
+            cache_service = get_cache_service(db)
+            await cache_service.delete(f"{gene.id}:*", namespace="annotations")
 
             await logger.info("HGNC annotation updated for gene", gene_symbol=gene.approved_symbol)
         else:
@@ -246,7 +269,7 @@ async def _update_hgnc_annotation(gene: Gene, db: Session):
 
 async def _update_gnomad_annotation(gene: Gene, db: Session):
     """Background task to update gnomAD annotation."""
-    from app.core.cache import annotation_cache
+    from app.core.cache_service import get_cache_service
 
     try:
         source = GnomADAnnotationSource(db)
@@ -254,7 +277,8 @@ async def _update_gnomad_annotation(gene: Gene, db: Session):
 
         if success:
             # Invalidate cache for this gene
-            annotation_cache.invalidate_gene(gene.id)
+            cache_service = get_cache_service(db)
+            await cache_service.delete(f"{gene.id}:*", namespace="annotations")
 
             await logger.info(
                 "gnomAD annotation updated for gene", gene_symbol=gene.approved_symbol
@@ -271,7 +295,7 @@ async def _update_gnomad_annotation(gene: Gene, db: Session):
 
 async def _update_gtex_annotation(gene: Gene, db: Session):
     """Background task to update GTEx annotation."""
-    from app.core.cache import annotation_cache
+    from app.core.cache_service import get_cache_service
 
     try:
         source = GTExAnnotationSource(db)
@@ -279,7 +303,8 @@ async def _update_gtex_annotation(gene: Gene, db: Session):
 
         if success:
             # Invalidate cache for this gene
-            annotation_cache.invalidate_gene(gene.id)
+            cache_service = get_cache_service(db)
+            await cache_service.delete(f"{gene.id}:*", namespace="annotations")
 
             await logger.info("GTEx annotation updated for gene", gene_symbol=gene.approved_symbol)
         else:
@@ -294,7 +319,7 @@ async def _update_gtex_annotation(gene: Gene, db: Session):
 
 async def _update_descartes_annotation(gene: Gene, db: Session):
     """Background task to update Descartes annotation."""
-    from app.core.cache import annotation_cache
+    from app.core.cache_service import get_cache_service
 
     try:
         source = DescartesAnnotationSource(db)
@@ -302,7 +327,8 @@ async def _update_descartes_annotation(gene: Gene, db: Session):
 
         if success:
             # Invalidate cache for this gene
-            annotation_cache.invalidate_gene(gene.id)
+            cache_service = get_cache_service(db)
+            await cache_service.delete(f"{gene.id}:*", namespace="annotations")
 
             await logger.info(
                 "Descartes annotation updated for gene", gene_symbol=gene.approved_symbol
@@ -319,7 +345,7 @@ async def _update_descartes_annotation(gene: Gene, db: Session):
 
 async def _update_hpo_annotation(gene: Gene, db: Session):
     """Background task to update HPO annotation."""
-    from app.core.cache import annotation_cache
+    from app.core.cache_service import get_cache_service
 
     try:
         source = HPOAnnotationSource(db)
@@ -327,7 +353,8 @@ async def _update_hpo_annotation(gene: Gene, db: Session):
 
         if success:
             # Invalidate cache for this gene
-            annotation_cache.invalidate_gene(gene.id)
+            cache_service = get_cache_service(db)
+            await cache_service.delete(f"{gene.id}:*", namespace="annotations")
 
             await logger.info("HPO annotation updated for gene", gene_symbol=gene.approved_symbol)
         else:
@@ -342,7 +369,7 @@ async def _update_hpo_annotation(gene: Gene, db: Session):
 
 async def _update_clinvar_annotation(gene: Gene, db: Session):
     """Background task to update ClinVar annotation."""
-    from app.core.cache import annotation_cache
+    from app.core.cache_service import get_cache_service
 
     try:
         source = ClinVarAnnotationSource(db)
@@ -350,7 +377,8 @@ async def _update_clinvar_annotation(gene: Gene, db: Session):
 
         if success:
             # Invalidate cache for this gene
-            annotation_cache.invalidate_gene(gene.id)
+            cache_service = get_cache_service(db)
+            await cache_service.delete(f"{gene.id}:*", namespace="annotations")
 
             await logger.info(
                 "ClinVar annotation updated for gene", gene_symbol=gene.approved_symbol
@@ -367,7 +395,7 @@ async def _update_clinvar_annotation(gene: Gene, db: Session):
 
 async def _update_mpo_mgi_annotation(gene: Gene, db: Session):
     """Background task to update MPO/MGI annotation."""
-    from app.core.cache import annotation_cache
+    from app.core.cache_service import get_cache_service
 
     try:
         source = MPOMGIAnnotationSource(db)
@@ -375,7 +403,8 @@ async def _update_mpo_mgi_annotation(gene: Gene, db: Session):
 
         if success:
             # Invalidate cache for this gene
-            annotation_cache.invalidate_gene(gene.id)
+            cache_service = get_cache_service(db)
+            await cache_service.delete(f"{gene.id}:*", namespace="annotations")
 
             await logger.info(
                 "MPO/MGI annotation updated for gene", gene_symbol=gene.approved_symbol
@@ -392,7 +421,7 @@ async def _update_mpo_mgi_annotation(gene: Gene, db: Session):
 
 async def _update_string_ppi_annotation(gene: Gene, db: Session):
     """Background task to update STRING PPI annotation."""
-    from app.core.cache import annotation_cache
+    from app.core.cache_service import get_cache_service
 
     try:
         source = StringPPIAnnotationSource(db)
@@ -400,7 +429,8 @@ async def _update_string_ppi_annotation(gene: Gene, db: Session):
 
         if success:
             # Invalidate cache for this gene
-            annotation_cache.invalidate_gene(gene.id)
+            cache_service = get_cache_service(db)
+            await cache_service.delete(f"{gene.id}:*", namespace="annotations")
 
             await logger.info(
                 "STRING PPI annotation updated for gene", gene_symbol=gene.approved_symbol
@@ -725,50 +755,11 @@ async def trigger_scheduled_job(job_id: str) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
 
 
-@router.get("/cache/stats")
-async def get_cache_statistics() -> dict[str, Any]:
-    """
-    Get cache statistics.
-
-    Returns:
-        Cache statistics and status
-    """
-    from app.core.cache import annotation_cache
-
-    return annotation_cache.get_stats()
-
-
-@router.delete("/cache/clear")
-async def clear_annotation_cache() -> dict[str, Any]:
-    """
-    Clear all annotation cache entries.
-
-    Returns:
-        Clear status
-    """
-    from app.core.cache import annotation_cache
-
-    annotation_cache.clear_all()
-
-    return {"status": "success", "message": "All annotation cache entries cleared"}
-
-
-@router.delete("/cache/gene/{gene_id}")
-async def invalidate_gene_cache(gene_id: int) -> dict[str, Any]:
-    """
-    Invalidate cache for a specific gene.
-
-    Args:
-        gene_id: Gene database ID
-
-    Returns:
-        Invalidation status
-    """
-    from app.core.cache import annotation_cache
-
-    annotation_cache.invalidate_gene(gene_id)
-
-    return {"status": "success", "message": f"Cache invalidated for gene {gene_id}"}
+# Cache management endpoints have been moved to /api/admin/cache
+# Use the unified cache management API for all cache operations:
+# - GET /api/admin/cache/stats - Get cache statistics
+# - DELETE /api/admin/cache/annotations - Clear annotation namespace
+# - DELETE /api/admin/cache/annotations/{key} - Delete specific cache key
 
 
 @router.post("/batch")

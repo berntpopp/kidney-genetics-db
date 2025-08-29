@@ -91,6 +91,12 @@ Documentation = "https://github.com/kidney-genetics/kidney-genetics-db/blob/main
 Repository = "https://github.com/kidney-genetics/kidney-genetics-db.git"
 "Bug Tracker" = "https://github.com/kidney-genetics/kidney-genetics-db/issues"
 
+[dependency-groups]
+dev = [
+    "psycopg-binary>=3.2.9",
+    "pytest-postgresql>=7.0.2",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"

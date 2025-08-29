@@ -9,12 +9,10 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.cache_service import get_cache_service
 from app.core.logging import get_logger
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationHistory, AnnotationSource, GeneAnnotation
-
-# from app.crud.crud_cache import cache  # TODO: Implement caching
-
 
 logger = get_logger(__name__)
 
@@ -188,49 +186,58 @@ class BaseAnnotationSource(ABC):
             True if successful, False otherwise
         """
         try:
+            # Get cache service
+            cache_service = get_cache_service(self.session)
+
             # Check cache first
-            # TODO: Implement caching
-            # cache_key = f"{self.source_name}:{gene.approved_symbol}"
-            # cached_data = await cache.get(
-            #     cache_key,
-            #     namespace=self.cache_namespace
-            # )
+            cache_key = f"{gene.approved_symbol}:{gene.hgnc_id}"
+            cached_data = await cache_service.get(
+                key=cache_key,
+                namespace=self.source_name.lower(),
+                default=None
+            )
 
-            # if cached_data:
-            #     logger.sync_info(
-            #         f"Using cached annotation for {gene.approved_symbol}",
-            #         source=self.source_name
-            #     )
-            #     annotation_data = cached_data
-            # else:
-            # Fetch from source
-            annotation_data = await self.fetch_annotation(gene)
+            if cached_data:
+                logger.sync_info(
+                    f"Using cached annotation for {gene.approved_symbol}",
+                    source=self.source_name
+                )
+                annotation_data = cached_data
+                metadata = {
+                    "retrieved_at": datetime.utcnow().isoformat(),
+                    "from_cache": True
+                }
+            else:
+                # Fetch from source
+                annotation_data = await self.fetch_annotation(gene)
 
-            # if annotation_data:
-            #     # Cache the result
-            #     await cache.set(
-            #         cache_key,
-            #         annotation_data,
-            #         namespace=self.cache_namespace,
-            #         ttl=timedelta(days=self.cache_ttl_days)
-            #     )
+                if annotation_data:
+                    # Cache the result
+                    await cache_service.set(
+                        key=cache_key,
+                        value=annotation_data,
+                        namespace=self.source_name.lower(),
+                        ttl=self.cache_ttl_days * 86400  # Convert days to seconds
+                    )
+                    metadata = {
+                        "retrieved_at": datetime.utcnow().isoformat(),
+                        "from_cache": False
+                    }
 
             if annotation_data:
-                self.store_annotation(
-                    gene,
-                    annotation_data,
-                    metadata={"retrieved_at": datetime.utcnow().isoformat(), "from_cache": False},
-                )
+                self.store_annotation(gene, annotation_data, metadata=metadata)
                 return True
 
             logger.sync_warning(
-                f"No annotation found for {gene.approved_symbol}", source=self.source_name
+                f"No annotation found for {gene.approved_symbol}",
+                source=self.source_name
             )
             return False
 
         except Exception as e:
             logger.sync_error(
-                f"Error updating gene {gene.approved_symbol}: {str(e)}", source=self.source_name
+                f"Error updating gene {gene.approved_symbol}: {str(e)}",
+                source=self.source_name
             )
             return False
 
