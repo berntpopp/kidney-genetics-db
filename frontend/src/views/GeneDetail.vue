@@ -35,6 +35,18 @@
 
           <!-- Action Buttons -->
           <div class="d-flex ga-2">
+            <!-- Curator/Admin Edit Button -->
+            <v-btn
+              v-if="authStore.isCurator"
+              variant="tonal"
+              size="small"
+              color="warning"
+              prepend-icon="mdi-pencil"
+              @click="editGene"
+            >
+              Edit
+            </v-btn>
+
             <v-btn variant="outlined" size="small" prepend-icon="mdi-download">Save</v-btn>
             <v-btn variant="outlined" size="small" prepend-icon="mdi-share-variant">Share</v-btn>
             <v-btn variant="outlined" size="small" prepend-icon="mdi-export">Export</v-btn>
@@ -48,6 +60,9 @@
                 </v-list-item>
                 <v-list-item @click="viewInHGNC">
                   <v-list-item-title>View in HGNC</v-list-item-title>
+                </v-list-item>
+                <v-list-item v-if="authStore.isAdmin" class="text-error" @click="deleteGene">
+                  <v-list-item-title>Delete Gene</v-list-item-title>
                 </v-list-item>
               </v-list>
             </v-menu>
@@ -171,13 +186,16 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { geneApi } from '../api/genes'
+import { useAuthStore } from '../stores/auth'
 import ScoreBreakdown from '../components/ScoreBreakdown.vue'
 import EvidenceCard from '../components/evidence/EvidenceCard.vue'
 import GeneInformationCard from '../components/gene/GeneInformationCard.vue'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 
 // Data
 const gene = ref(null)
@@ -299,6 +317,33 @@ const viewInHGNC = () => {
       `https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:${hgncId}`,
       '_blank'
     )
+  }
+}
+
+const editGene = () => {
+  // TODO: Implement gene editing functionality
+  console.log('Edit gene:', gene.value?.approved_symbol)
+  // Could navigate to an edit page or open a modal
+}
+
+const deleteGene = async () => {
+  if (!gene.value) return
+
+  // eslint-disable-next-line no-undef
+  if (
+    confirm(
+      `Are you sure you want to delete ${gene.value.approved_symbol}? This action cannot be undone.`
+    )
+  ) {
+    try {
+      // TODO: Implement API call to delete gene
+      console.log('Delete gene:', gene.value?.approved_symbol)
+      // await geneApi.deleteGene(gene.value.id)
+      // router.push('/genes')
+    } catch (error) {
+      console.error('Failed to delete gene:', error)
+      alert('Failed to delete gene. Please try again.') // eslint-disable-line no-undef
+    }
   }
 }
 

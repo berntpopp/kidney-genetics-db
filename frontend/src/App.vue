@@ -73,15 +73,27 @@
         </v-btn>
       </div>
 
-      <!-- Theme Toggle -->
-      <v-btn
-        icon
-        class="ml-2"
-        :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
-        @click="toggleTheme"
-      >
-        <v-icon :icon="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'" />
-      </v-btn>
+      <!-- Auth Controls -->
+      <div class="d-flex align-center ga-2">
+        <!-- User Menu for authenticated users -->
+        <UserMenu v-if="authStore.isAuthenticated" />
+
+        <!-- Login button for unauthenticated users -->
+        <v-btn v-else :to="'/login'" color="primary" size="small" variant="tonal">
+          <v-icon start>mdi-login</v-icon>
+          Login
+        </v-btn>
+
+        <!-- Theme Toggle -->
+        <v-btn
+          icon
+          class="ml-2"
+          :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+          @click="toggleTheme"
+        >
+          <v-icon :icon="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'" />
+        </v-btn>
+      </div>
 
       <!-- Mobile Menu -->
       <v-app-bar-nav-icon class="d-md-none" @click="drawer = !drawer" />
@@ -174,20 +186,28 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useTheme } from 'vuetify'
 // import { useRoute } from 'vue-router' // Removed unused import
 import KidneyGeneticsLogo from '@/components/KidneyGeneticsLogo.vue'
+import UserMenu from '@/components/auth/UserMenu.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const theme = useTheme()
 // const route = useRoute() // Removed unused variable
 const drawer = ref(false)
+const authStore = useAuthStore()
 
 const isDark = computed(() => theme.global.current.value.dark)
 
 const toggleTheme = () => {
   theme.global.name.value = isDark.value ? 'light' : 'dark'
 }
+
+// Initialize auth store on app mount
+onMounted(() => {
+  authStore.initialize()
+})
 </script>
 
 <style scoped>

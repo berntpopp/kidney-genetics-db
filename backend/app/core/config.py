@@ -21,10 +21,24 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://kidney_user:kidney_pass@localhost:5432/kidney_genetics"
     DATABASE_ECHO: bool = False
 
-    # Security
-    SECRET_KEY: str = "dev-secret-key-change-in-production"
+    # Security - JWT
+    JWT_SECRET_KEY: str = "13b45dbb75d5b321d69c6b71101c3d7b1e11d980cdb79b3eeab700d440b01c63"
+    JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    ALGORITHM: str = "HS256"
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # Security - Passwords
+    PASSWORD_MIN_LENGTH: int = 8
+    BCRYPT_ROUNDS: int = 12
+
+    # Security - Account
+    MAX_LOGIN_ATTEMPTS: int = 5
+    ACCOUNT_LOCKOUT_MINUTES: int = 15
+
+    # Default Admin (for initial setup only)
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_EMAIL: str = "admin@kidney-genetics.local"
+    ADMIN_PASSWORD: str = "ChangeMe!Admin2024"  # Change immediately after first login
 
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = [

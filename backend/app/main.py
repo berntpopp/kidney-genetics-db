@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.api.endpoints import (
     admin_logs,
+    auth,
     cache,
     datasources,
     gene_annotations,
@@ -123,6 +124,9 @@ app.add_middleware(
 register_error_handlers(app)
 
 # Include routers - organized by functional areas
+# 0. Authentication - User management and auth
+app.include_router(auth.router, tags=["Authentication"])
+
 # 1. Core Resources - Primary domain entities
 app.include_router(genes.router, prefix="/api/genes", tags=["Core Resources - Genes"])
 app.include_router(gene_annotations.router, prefix="/api/annotations", tags=["Core Resources - Annotations"])

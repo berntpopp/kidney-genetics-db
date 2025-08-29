@@ -12,6 +12,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.dependencies import require_admin
+from app.models.user import User
 
 router = APIRouter()
 
@@ -19,6 +21,7 @@ router = APIRouter()
 @router.get("/")
 async def query_logs(
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
     level: str | None = Query(None, description="Log level filter (INFO, WARNING, ERROR)"),
     source: str | None = Query(None, description="Source module filter"),
     request_id: str | None = Query(None, description="Request ID filter"),
@@ -120,6 +123,7 @@ async def query_logs(
 @router.get("/statistics")
 async def get_log_statistics(
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
     hours: int = Query(24, ge=1, le=168, description="Hours to analyze"),
 ) -> dict[str, Any]:
     """
@@ -214,6 +218,7 @@ async def get_log_statistics(
 @router.delete("/cleanup")
 async def cleanup_old_logs(
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
     days: int = Query(30, ge=1, le=365, description="Delete logs older than this many days"),
 ) -> dict[str, Any]:
     """

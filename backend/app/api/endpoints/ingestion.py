@@ -13,10 +13,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.dependencies import require_curator
 from app.core.exceptions import DataSourceError, ValidationError
 from app.core.logging import get_logger
 from app.core.responses import ResponseBuilder
 from app.models.gene import GeneEvidence
+from app.models.user import User
 from app.pipeline.sources.unified import get_unified_source
 
 logger = get_logger(__name__)
@@ -33,6 +35,7 @@ async def upload_evidence_file(
     file: UploadFile = File(...),
     provider_name: str | None = Form(None),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_curator),
 ) -> dict[str, Any]:
     """
     Upload evidence file for hybrid sources.
@@ -93,6 +96,8 @@ async def upload_evidence_file(
         filename=file.filename,
         file_size=file_size,
         provider_name=provider_name,
+        uploaded_by=current_user.username,
+        user_role=current_user.role,
     )
 
     try:
