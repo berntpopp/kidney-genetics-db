@@ -23,44 +23,8 @@ from app.schemas.gene import GeneCreate
 
 router = APIRouter()
 
-
-@router.get("/{gene_id}/annotations", response_model=dict)
-async def get_gene_annotations(
-    gene_id: int | str,
-    db: Session = Depends(get_db),
-) -> dict[str, Any]:
-    """
-    Get gene annotations (including gnomAD constraint scores).
-
-    Can be called with either gene ID or gene symbol.
-    """
-    from app.models.gene_annotation import GeneAnnotation
-
-    # Check if gene_id is numeric or symbol
-    try:
-        gene_id_int = int(gene_id)
-        gene = db.query(Gene).filter(Gene.id == gene_id_int).first()
-    except ValueError:
-        # It's a symbol
-        gene = db.query(Gene).filter(Gene.approved_symbol == gene_id).first()
-
-    if not gene:
-        raise GeneNotFoundError(f"Gene {gene_id} not found")
-
-    # Get all annotations for this gene
-    annotations = db.query(GeneAnnotation).filter(GeneAnnotation.gene_id == gene.id).all()
-
-    # Transform to response format
-    result = {"gene_id": gene.id, "gene_symbol": gene.approved_symbol, "annotations": {}}
-
-    for ann in annotations:
-        result["annotations"][ann.source] = {
-            "version": ann.version,
-            "data": ann.annotations,
-            "updated_at": ann.updated_at.isoformat() if ann.updated_at else None,
-        }
-
-    return result
+# Note: Gene annotations endpoint has been moved to the gene_annotations module
+# to maintain better separation of concerns and avoid duplicate endpoints
 
 
 def transform_gene_to_jsonapi(results) -> list[dict]:

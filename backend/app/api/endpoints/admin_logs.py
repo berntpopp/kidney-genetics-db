@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 
-router = APIRouter(prefix="/api/admin/logs", tags=["admin"])
+router = APIRouter()
 
 
 @router.get("/")

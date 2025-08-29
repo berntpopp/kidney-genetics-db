@@ -21,7 +21,7 @@ from app.pipeline.sources.unified import get_unified_source
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/sources", tags=["Hybrid Sources"])
+router = APIRouter()
 
 # Define which sources support file uploads
 UPLOAD_SOURCES = {"DiagnosticPanels", "Literature"}
