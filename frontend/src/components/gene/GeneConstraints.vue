@@ -55,22 +55,23 @@
   </div>
 </template>
 
-<script setup lang="ts">
-interface Props {
-  gnomadData?: any
-}
-
-defineProps<Props>()
+<script setup>
+defineProps({
+  gnomadData: {
+    type: Object,
+    default: null
+  }
+})
 
 // gnomAD constraint score colors
-const getPLIColor = (pli?: number): string => {
+const getPLIColor = pli => {
   if (!pli) return 'grey'
   if (pli >= 0.9) return 'error' // High intolerance
   if (pli >= 0.5) return 'warning' // Moderate intolerance
   return 'success' // Low intolerance
 }
 
-const getZScoreColor = (zScore?: number): string => {
+const getZScoreColor = zScore => {
   if (!zScore) return 'grey'
   if (zScore >= 3.09) return 'error' // Very intolerant (p < 0.001)
   if (zScore >= 2) return 'warning' // Intolerant
@@ -78,25 +79,25 @@ const getZScoreColor = (zScore?: number): string => {
 }
 
 // Formatting functions
-const formatPLI = (pli?: number): string => {
+const formatPLI = pli => {
   if (!pli) return 'N/A'
   return pli.toFixed(2)
 }
 
-const formatZScore = (zScore?: number): string => {
+const formatZScore = zScore => {
   if (!zScore) return 'N/A'
   return zScore.toFixed(2)
 }
 
 // Interpretation functions
-const getPLIInterpretation = (pli?: number): string => {
+const getPLIInterpretation = pli => {
   if (!pli) return 'No data available'
   if (pli >= 0.9) return 'Highly LoF intolerant'
   if (pli >= 0.5) return 'Moderately LoF intolerant'
   return 'LoF tolerant'
 }
 
-const getZScoreInterpretation = (zScore?: number): string => {
+const getZScoreInterpretation = zScore => {
   if (!zScore) return 'No data available'
   if (zScore >= 3.09) return 'Extremely intolerant (p < 0.001)'
   if (zScore >= 2) return 'Intolerant'

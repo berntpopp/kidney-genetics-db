@@ -35,13 +35,15 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import type { Gene } from '@/types/gene'
-
-interface Props {
-  gene: Gene
-  hgncData?: any
-}
-
-defineProps<Props>()
+<script setup>
+defineProps({
+  gene: {
+    type: Object,
+    required: true
+  },
+  hgncData: {
+    type: Object,
+    default: null
+  }
+})
 </script>

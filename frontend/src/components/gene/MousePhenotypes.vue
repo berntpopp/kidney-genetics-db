@@ -1,7 +1,7 @@
 <template>
   <div v-if="mouseData" class="mouse-phenotypes">
     <div class="text-caption text-medium-emphasis mb-2">Mouse Phenotypes (MGI/MPO):</div>
-    
+
     <div class="d-flex align-center flex-wrap ga-2 mb-2">
       <!-- Phenotype count with color coding -->
       <v-tooltip location="bottom">
@@ -27,7 +27,8 @@
               :key="phenotype.term"
               class="mb-1"
             >
-              <span class="font-mono">{{ phenotype.term }}</span>: {{ phenotype.name }}
+              <span class="font-mono">{{ phenotype.term }}</span
+              >: {{ phenotype.name }}
             </div>
             <div v-if="mouseData.phenotype_count > 5" class="text-medium-emphasis">
               +{{ mouseData.phenotype_count - 5 }} more phenotypes
@@ -42,12 +43,7 @@
         location="bottom"
       >
         <template #activator="{ props }">
-          <v-chip
-            color="error"
-            variant="outlined"
-            size="small"
-            v-bind="props"
-          >
+          <v-chip color="error" variant="outlined" size="small" v-bind="props">
             {{ mouseData.zygosity_analysis.homozygous.phenotype_count }} hm
           </v-chip>
         </template>
@@ -64,12 +60,7 @@
         location="bottom"
       >
         <template #activator="{ props }">
-          <v-chip
-            color="warning"
-            variant="outlined"
-            size="small"
-            v-bind="props"
-          >
+          <v-chip color="warning" variant="outlined" size="small" v-bind="props">
             {{ mouseData.zygosity_analysis.heterozygous.phenotype_count }} ht
           </v-chip>
         </template>
@@ -86,12 +77,7 @@
         location="bottom"
       >
         <template #activator="{ props }">
-          <v-chip
-            color="info"
-            variant="outlined"
-            size="small"
-            v-bind="props"
-          >
+          <v-chip color="info" variant="outlined" size="small" v-bind="props">
             {{ mouseData.zygosity_analysis.conditional.phenotype_count }} cn
           </v-chip>
         </template>
@@ -106,26 +92,23 @@
 
     <!-- System analysis if available -->
     <div v-if="mouseData.system_analysis?.renal_urinary" class="d-flex align-center flex-wrap ga-2">
-      <v-chip
-        color="purple"
-        variant="outlined"
-        size="small"
-      >
+      <v-chip color="purple" variant="outlined" size="small">
         Renal: {{ mouseData.system_analysis.renal_urinary.phenotype_count }} phenotypes
       </v-chip>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-interface Props {
-  mouseData?: any
-}
-
-defineProps<Props>()
+<script setup>
+defineProps({
+  mouseData: {
+    type: Object,
+    default: null
+  }
+})
 
 // Color coding for phenotype count
-const getPhenotypeCountColor = (count: number): string => {
+const getPhenotypeCountColor = count => {
   if (!count || count === 0) return 'grey'
   if (count >= 20) return 'error' // Many phenotypes (severe)
   if (count >= 10) return 'warning' // Moderate phenotypes

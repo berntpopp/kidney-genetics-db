@@ -78,11 +78,15 @@
   </div>
 </template>
 
-<script setup lang="ts">
-interface Props {
-  clinvarData?: any
-  geneSymbol: string
-}
-
-defineProps<Props>()
+<script setup>
+defineProps({
+  clinvarData: {
+    type: Object,
+    default: null
+  },
+  geneSymbol: {
+    type: String,
+    required: true
+  }
+})
 </script>

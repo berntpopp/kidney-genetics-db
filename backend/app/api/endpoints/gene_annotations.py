@@ -18,6 +18,8 @@ from app.pipeline.sources.annotations.gnomad import GnomADAnnotationSource
 from app.pipeline.sources.annotations.gtex import GTExAnnotationSource
 from app.pipeline.sources.annotations.hgnc import HGNCAnnotationSource
 from app.pipeline.sources.annotations.hpo import HPOAnnotationSource
+from app.pipeline.sources.annotations.mpo_mgi import MPOMGIAnnotationSource
+from app.pipeline.sources.annotations.string_ppi import StringPPIAnnotationSource
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -170,7 +172,7 @@ async def get_gene_annotation_summary(
 async def update_gene_annotations(
     gene_id: int,
     sources: list[str] = Query(
-        ["hgnc", "gnomad", "gtex", "hpo", "clinvar"], description="Sources to update"
+        ["hgnc", "gnomad", "gtex", "hpo", "clinvar", "string_ppi"], description="Sources to update"
     ),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
@@ -206,6 +208,10 @@ async def update_gene_annotations(
             background_tasks.add_task(_update_hpo_annotation, gene, db)
         elif source_name == "clinvar":
             background_tasks.add_task(_update_clinvar_annotation, gene, db)
+        elif source_name == "mpo_mgi":
+            background_tasks.add_task(_update_mpo_mgi_annotation, gene, db)
+        elif source_name == "string_ppi":
+            background_tasks.add_task(_update_string_ppi_annotation, gene, db)
 
     return {
         "status": "update_scheduled",
@@ -356,6 +362,56 @@ async def _update_clinvar_annotation(gene: Gene, db: Session):
     except Exception as e:
         await logger.error(
             f"Error updating ClinVar annotation: {str(e)}", gene_symbol=gene.approved_symbol
+        )
+
+
+async def _update_mpo_mgi_annotation(gene: Gene, db: Session):
+    """Background task to update MPO/MGI annotation."""
+    from app.core.cache import annotation_cache
+
+    try:
+        source = MPOMGIAnnotationSource(db)
+        success = await source.update_gene(gene)
+
+        if success:
+            # Invalidate cache for this gene
+            annotation_cache.invalidate_gene(gene.id)
+
+            await logger.info(
+                "MPO/MGI annotation updated for gene", gene_symbol=gene.approved_symbol
+            )
+        else:
+            await logger.warning(
+                "Failed to update MPO/MGI annotation", gene_symbol=gene.approved_symbol
+            )
+    except Exception as e:
+        await logger.error(
+            f"Error updating MPO/MGI annotation: {str(e)}", gene_symbol=gene.approved_symbol
+        )
+
+
+async def _update_string_ppi_annotation(gene: Gene, db: Session):
+    """Background task to update STRING PPI annotation."""
+    from app.core.cache import annotation_cache
+
+    try:
+        source = StringPPIAnnotationSource(db)
+        success = await source.update_gene(gene)
+
+        if success:
+            # Invalidate cache for this gene
+            annotation_cache.invalidate_gene(gene.id)
+
+            await logger.info(
+                "STRING PPI annotation updated for gene", gene_symbol=gene.approved_symbol
+            )
+        else:
+            await logger.warning(
+                "Failed to update STRING PPI annotation", gene_symbol=gene.approved_symbol
+            )
+    except Exception as e:
+        await logger.error(
+            f"Error updating STRING PPI annotation: {str(e)}", gene_symbol=gene.approved_symbol
         )
 
 

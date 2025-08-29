@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     # Background Tasks
     AUTO_UPDATE_ENABLED: bool = True
 
+    # STRING-DB Configuration
+    STRING_VERSION: str = "12.0"
+    STRING_MIN_SCORE: int = 400
+    STRING_MAX_INTERACTIONS_STORED: int = 30
+    STRING_DATA_DIR: str = "/home/bernt-popp/development/kidney-genetics-db/backend/data/string/v12.0"
+    STRING_CACHE_TTL_DAYS: int = 30
+
     # Gene Normalization
     HGNC_BATCH_SIZE: int = 50  # Genes per HGNC API batch request
     HGNC_RETRY_ATTEMPTS: int = 3  # Retry attempts for failed requests
