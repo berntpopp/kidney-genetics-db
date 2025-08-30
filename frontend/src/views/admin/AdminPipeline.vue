@@ -399,6 +399,8 @@ const getSourceIcon = source => {
       return 'mdi-file-document'
     case 'DiagnosticPanels':
       return 'mdi-medical-bag'
+    case 'Literature':
+      return 'mdi-book-open-page-variant'
     default:
       return 'mdi-database'
   }

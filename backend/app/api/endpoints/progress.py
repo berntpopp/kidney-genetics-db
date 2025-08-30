@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.datasource_config import DATA_SOURCE_CONFIG, get_auto_update_sources
 from app.core.events import EventTypes, event_bus
 from app.core.exceptions import DataSourceError
 from app.core.logging import get_logger
@@ -133,16 +134,25 @@ async def get_all_status(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     all_progress = db.query(DataSourceProgress).all()
 
-    # Categorize sources (only automated pipeline sources)
-    data_sources = ["PubTator", "PanelApp", "HPO", "ClinGen", "GenCC"]
-    internal_processes = ["Evidence_Aggregation", "HGNC_Normalization"]
+    # Get valid data sources from config - only include automated sources for pipeline
+    automated_sources = get_auto_update_sources()
+    # Also include hybrid sources that could be run manually
+    all_configured_sources = list(DATA_SOURCE_CONFIG.keys())
+    internal_processes = ["Evidence_Aggregation", "HGNC_Normalization", "annotation_pipeline"]
 
     result = []
     for p in all_progress:
+        # Skip obsolete entries that are no longer in DATA_SOURCE_CONFIG
+        if p.source_name not in all_configured_sources and p.source_name not in internal_processes:
+            continue
+
         status_dict = p.to_dict()
         # Add category field
-        if p.source_name in data_sources:
+        if p.source_name in automated_sources:
             status_dict["category"] = "data_source"
+        elif p.source_name in all_configured_sources:
+            # Hybrid sources like DiagnosticPanels and Literature
+            status_dict["category"] = "hybrid_source"
         elif p.source_name in internal_processes:
             status_dict["category"] = "internal_process"
         else:
