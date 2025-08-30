@@ -79,11 +79,16 @@ export const getNormalizationLogs = (params = {}) => {
 
 /**
  * Test normalization for a gene symbol
- * @param {string} symbol - Gene symbol to test
+ * @param {string} geneText - Gene text to test
+ * @param {string} [sourceName='Manual Test'] - Source name for testing
  * @returns {Promise} Normalization test result
  */
-export const testNormalization = symbol =>
-  apiClient.post('/api/staging/normalization/test', { gene_symbol: symbol })
+export const testNormalization = (geneText, sourceName = 'Manual Test') => {
+  const queryParams = new URLSearchParams()
+  queryParams.append('gene_text', geneText)
+  queryParams.append('source_name', sourceName)
+  return apiClient.post(`/api/staging/normalization/test?${queryParams.toString()}`)
+}
 
 /**
  * Bulk approve staging records
