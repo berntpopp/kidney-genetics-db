@@ -289,12 +289,12 @@
  */
 
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+// import { useAuthStore } from '@/stores/auth'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as cacheApi from '@/api/admin/cache'
 
-const authStore = useAuthStore()
+// const authStore = useAuthStore()
 
 // State
 const cacheStats = ref({})
@@ -357,6 +357,7 @@ const loadNamespaces = async () => {
   } catch (error) {
     console.error('Failed to load namespaces:', error)
     showSnackbar('Failed to load cache namespaces', 'error')
+    namespaces.value = [] // Ensure we have an array even on error
   } finally {
     namespacesLoading.value = false
   }
@@ -370,7 +371,21 @@ const checkHealth = async () => {
   checkingHealth.value = true
   try {
     const response = await cacheApi.getCacheHealth()
-    healthStatus.value = response.data || response
+    const data = response.data || response
+
+    // Map the API response to our expected format
+    healthStatus.value = {
+      healthy: data.status === 'healthy',
+      memory_cache: {
+        available: data.cache_enabled,
+        entry_count: data.memory_cache_size || 0
+      },
+      db_cache: {
+        available: data.database_connected,
+        entry_count: cacheStats.value.db_entries || 0
+      },
+      last_check: new Date().toISOString()
+    }
     showSnackbar('Health check completed', 'success')
   } catch (error) {
     console.error('Failed to check health:', error)

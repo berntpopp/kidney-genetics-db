@@ -328,12 +328,12 @@
  */
 
 import { ref, computed, onMounted, watch } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+// import { useAuthStore } from '@/stores/auth'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as logsApi from '@/api/admin/logs'
 
-const authStore = useAuthStore()
+// const authStore = useAuthStore()
 
 // State
 const logs = ref([])

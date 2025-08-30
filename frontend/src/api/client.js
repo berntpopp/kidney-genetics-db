@@ -49,7 +49,7 @@ apiClient.interceptors.response.use(
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${access_token}`
           return apiClient(originalRequest)
-        } catch (_refreshError) {
+        } catch {
           // Refresh failed, clear tokens and redirect to login
           localStorage.removeItem('access_token')
           localStorage.removeItem('refresh_token')

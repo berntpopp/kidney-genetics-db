@@ -272,13 +272,13 @@
  */
 
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+// import { useAuthStore } from '@/stores/auth'
 import { useWebSocket } from '@/services/websocket'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as pipelineApi from '@/api/admin/pipeline'
 
-const authStore = useAuthStore()
+// const authStore = useAuthStore()
 const { connected: wsConnected, connect, disconnect, subscribe } = useWebSocket()
 
 // State
