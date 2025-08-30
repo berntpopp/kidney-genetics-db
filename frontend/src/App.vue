@@ -78,8 +78,8 @@
         </v-btn>
       </div>
 
-      <!-- Auth Controls -->
-      <div class="d-flex align-center ga-2">
+      <!-- Desktop Auth Controls -->
+      <div class="d-none d-md-flex align-center ga-2">
         <!-- User Menu for authenticated users -->
         <UserMenu v-if="authStore.isAuthenticated" />
 
@@ -100,12 +100,58 @@
         </v-btn>
       </div>
 
-      <!-- Mobile Menu -->
+      <!-- Mobile Menu Button -->
       <v-app-bar-nav-icon class="d-md-none" @click="drawer = !drawer" />
     </v-app-bar>
 
     <!-- Mobile Navigation Drawer -->
     <v-navigation-drawer v-model="drawer" temporary location="right">
+      <!-- User Section for authenticated users -->
+      <template v-if="authStore.isAuthenticated">
+        <v-list density="comfortable">
+          <v-list-item>
+            <template #prepend>
+              <v-avatar color="primary" size="40">
+                <v-icon>mdi-account</v-icon>
+              </v-avatar>
+            </template>
+            <v-list-item-title class="font-weight-medium">
+              {{ authStore.user?.username }}
+            </v-list-item-title>
+            <v-list-item-subtitle>
+              {{ authStore.user?.email }}
+            </v-list-item-subtitle>
+          </v-list-item>
+        </v-list>
+        <v-divider />
+        <v-list density="comfortable" nav>
+          <v-list-item prepend-icon="mdi-account-circle" title="My Profile" :to="'/profile'" />
+          <v-list-item
+            v-if="authStore.isAdmin"
+            prepend-icon="mdi-shield-crown"
+            title="Admin Panel"
+            :to="'/admin'"
+          />
+          <v-list-item
+            v-if="authStore.isCurator"
+            prepend-icon="mdi-database-import"
+            title="Data Ingestion"
+            :to="'/ingestion'"
+          />
+          <v-list-item prepend-icon="mdi-logout" title="Logout" @click="handleLogout" />
+        </v-list>
+        <v-divider />
+      </template>
+
+      <!-- Login prompt for unauthenticated users -->
+      <template v-else>
+        <v-list density="comfortable">
+          <v-list-item prepend-icon="mdi-login" title="Login" :to="'/login'" />
+        </v-list>
+        <v-divider />
+      </template>
+
+      <!-- Navigation Links -->
       <v-list density="comfortable" nav>
         <v-list-item prepend-icon="mdi-home" title="Home" :to="'/'" :active="$route.path === '/'" />
         <v-list-item
@@ -132,17 +178,18 @@
           :to="'/about'"
           :active="$route.path === '/about'"
         />
-        <v-divider class="my-2" />
-        <v-list-item
-          prepend-icon="mdi-text-box-search-outline"
-          title="Log Viewer"
-          @click="logStore.showViewer"
-        >
-          <template v-if="logStore.errorCount > 0" #append>
-            <v-chip color="error" size="x-small">{{ logStore.errorCount }}</v-chip>
-          </template>
-        </v-list-item>
       </v-list>
+
+      <!-- Theme Toggle at Bottom -->
+      <template #append>
+        <v-list density="comfortable">
+          <v-list-item
+            :prepend-icon="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'"
+            :title="isDark ? 'Light Mode' : 'Dark Mode'"
+            @click="toggleTheme"
+          />
+        </v-list>
+      </template>
     </v-navigation-drawer>
 
     <!-- Main Content -->
@@ -233,6 +280,11 @@ const theme = useTheme()
 const drawer = ref(false)
 const authStore = useAuthStore()
 const logStore = useLogStore()
+
+const handleLogout = async () => {
+  drawer.value = false
+  await authStore.logout()
+}
 
 const isDark = computed(() => theme.global.current.value.dark)
 
