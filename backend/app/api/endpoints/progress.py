@@ -101,9 +101,40 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
     """
     await manager.connect(websocket)
     try:
-        # Send initial status of all sources
+        # Send initial status of all sources with same format as REST API
         all_progress = db.query(DataSourceProgress).all()
-        initial_status = {"type": "initial_status", "data": [p.to_dict() for p in all_progress]}
+
+        # Use same logic as get_all_status to format data consistently
+        automated_sources = get_auto_update_sources()
+        all_configured_sources = list(DATA_SOURCE_CONFIG.keys())
+        internal_processes = list(INTERNAL_PROCESS_CONFIG.keys())
+
+        formatted_data = []
+        for p in all_progress:
+            # Skip obsolete entries
+            if p.source_name not in all_configured_sources and p.source_name not in internal_processes:
+                continue
+
+            status_dict = p.to_dict()
+
+            # Add same category and metadata as REST API
+            if p.source_name in automated_sources:
+                status_dict["category"] = "data_source"
+            elif p.source_name in all_configured_sources:
+                status_dict["category"] = "hybrid_source"
+            elif p.source_name in internal_processes:
+                status_dict["category"] = "internal_process"
+                # Add proper display metadata for internal processes
+                process_config = get_internal_process_config(p.source_name)
+                if process_config:
+                    status_dict["display_name"] = process_config["display_name"]
+                    status_dict["description"] = process_config["description"]
+                    status_dict["icon"] = process_config["icon"]
+            else:
+                status_dict["category"] = "other"
+            formatted_data.append(status_dict)
+
+        initial_status = {"type": "initial_status", "data": formatted_data}
         await websocket.send_json(initial_status)
 
         # NO MORE POLLING! Just keep connection alive

@@ -569,6 +569,8 @@ const handleInitialStatus = data => {
     sources.value = data
   } else if (data?.data && Array.isArray(data.data)) {
     sources.value = data.data
+  } else {
+    console.warn('Unexpected initial status format:', data)
   }
 }
 
