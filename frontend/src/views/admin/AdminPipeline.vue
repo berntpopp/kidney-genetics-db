@@ -311,7 +311,8 @@ const loadSources = async () => {
   loading.value = true
   try {
     const response = await pipelineApi.getAllStatus()
-    sources.value = response.data || response || []
+    // API returns { data: [...], meta: {...} } structure
+    sources.value = response.data?.data || []
   } catch (error) {
     console.error('Failed to load sources:', error)
     showSnackbar('Failed to load pipeline status', 'error')
@@ -475,8 +476,11 @@ const handleTaskFailed = data => {
 }
 
 const handleInitialStatus = data => {
+  // Handle both array format and nested API response format
   if (Array.isArray(data)) {
     sources.value = data
+  } else if (data?.data && Array.isArray(data.data)) {
+    sources.value = data.data
   }
 }
 
