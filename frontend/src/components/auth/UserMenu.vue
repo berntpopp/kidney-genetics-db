@@ -1,7 +1,7 @@
 <template>
   <v-menu v-model="menu" :close-on-content-click="false" location="bottom">
     <template #activator="{ props }">
-      <v-btn v-bind="props" variant="tonal" size="small" color="primary">
+      <v-btn v-bind="props" variant="tonal" size="default" color="primary">
         <v-icon start>mdi-account</v-icon>
         {{ authStore.user?.username }}
         <v-icon end>mdi-chevron-down</v-icon>

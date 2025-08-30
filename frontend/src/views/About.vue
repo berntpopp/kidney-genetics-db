@@ -36,7 +36,7 @@
 
       <!-- Project Overview -->
       <v-row class="mb-8">
-        <v-col cols="12" lg="8">
+        <v-col cols="12">
           <div class="mb-6">
             <div class="d-flex align-center mb-4">
               <v-icon icon="mdi-information" size="small" class="mr-2" color="primary" />
@@ -45,74 +45,36 @@
             <v-card rounded="lg" class="overview-card">
               <v-card-text class="pa-6">
                 <div class="text-body-1 mb-4" style="line-height: 1.7">
-                  The Kidney Genetics Database represents a significant advancement in nephrology
-                  research infrastructure. Our platform modernizes genetic data curation by
-                  replacing legacy R-based pipelines with a scalable, cloud-native architecture
-                  built on Python/FastAPI and Vue.js.
+                  The Kidney Genetics Database advances nephrology research through comprehensive
+                  genetic data curation. Built on modern Python/FastAPI and Vue.js architecture,
+                  we integrate evidence from multiple authoritative genomic databases.
                 </div>
                 <div class="text-body-1 mb-4" style="line-height: 1.7">
-                  We integrate data from multiple authoritative sources, applying sophisticated
-                  evidence scoring algorithms to provide researchers with confidence levels for
-                  gene-disease associations. Our GenCC-compatible schema ensures international
-                  interoperability and supports regulatory compliance for clinical applications.
+                  Our platform applies sophisticated evidence scoring algorithms to provide
+                  researchers with confidence levels for gene-disease associations. The GenCC-compatible
+                  schema ensures international interoperability for clinical applications.
                 </div>
                 <div class="d-flex flex-wrap ga-2 mt-6">
-                  <v-chip color="primary" variant="tonal" size="small">
+                  <v-chip color="primary" variant="tonal" size="x-small">
                     <v-icon icon="mdi-shield-check" size="x-small" start />
                     GenCC Compatible
                   </v-chip>
-                  <v-chip color="success" variant="tonal" size="small">
-                    <v-icon icon="mdi-cloud-check" size="x-small" start />
-                    Cloud Native
-                  </v-chip>
-                  <v-chip color="info" variant="tonal" size="small">
+                  <v-chip color="success" variant="tonal" size="x-small">
                     <v-icon icon="mdi-chart-line" size="x-small" start />
                     Evidence Scoring
                   </v-chip>
-                  <v-chip color="secondary" variant="tonal" size="small">
+                  <v-chip color="info" variant="tonal" size="x-small">
                     <v-icon icon="mdi-api" size="x-small" start />
                     RESTful API
+                  </v-chip>
+                  <v-chip color="secondary" variant="tonal" size="x-small">
+                    <v-icon icon="mdi-database" size="x-small" start />
+                    Multi-Source Integration
                   </v-chip>
                 </div>
               </v-card-text>
             </v-card>
           </div>
-        </v-col>
-        <v-col cols="12" lg="4">
-          <v-card rounded="lg" class="stats-card h-100">
-            <v-card-item class="pa-6">
-              <v-card-title class="text-h6 mb-4">Project Metrics</v-card-title>
-              <v-list class="transparent">
-                <v-list-item class="px-0">
-                  <template #prepend>
-                    <v-avatar color="primary" size="40" class="mr-3">
-                      <v-icon icon="mdi-dna" color="white" />
-                    </v-avatar>
-                  </template>
-                  <v-list-item-title class="text-h5 font-weight-bold">403</v-list-item-title>
-                  <v-list-item-subtitle>Curated Genes</v-list-item-subtitle>
-                </v-list-item>
-                <v-list-item class="px-0">
-                  <template #prepend>
-                    <v-avatar color="success" size="40" class="mr-3">
-                      <v-icon icon="mdi-database-check" color="white" />
-                    </v-avatar>
-                  </template>
-                  <v-list-item-title class="text-h5 font-weight-bold">5</v-list-item-title>
-                  <v-list-item-subtitle>Data Sources</v-list-item-subtitle>
-                </v-list-item>
-                <v-list-item class="px-0">
-                  <template #prepend>
-                    <v-avatar color="info" size="40" class="mr-3">
-                      <v-icon icon="mdi-view-dashboard" color="white" />
-                    </v-avatar>
-                  </template>
-                  <v-list-item-title class="text-h5 font-weight-bold">27</v-list-item-title>
-                  <v-list-item-subtitle>Gene Panels</v-list-item-subtitle>
-                </v-list-item>
-              </v-list>
-            </v-card-item>
-          </v-card>
         </v-col>
       </v-row>
 
@@ -121,39 +83,21 @@
         <v-col cols="12">
           <div class="d-flex align-center mb-6">
             <v-icon icon="mdi-database" size="small" class="mr-2" color="primary" />
-            <h2 class="text-h4 font-weight-medium">Data Sources & Integration</h2>
+            <h2 class="text-h4 font-weight-medium">Data Sources</h2>
           </div>
           <v-row>
             <v-col v-for="source in dataSources" :key="source.name" cols="12" md="6" lg="4">
-              <v-card
-                class="source-card h-100"
-                rounded="lg"
-                :class="{ 'source-card--featured': source.featured }"
-              >
+              <v-card class="source-card h-100" rounded="lg">
                 <v-card-item>
                   <template #prepend>
-                    <v-avatar :color="source.color" size="48">
-                      <v-icon :icon="source.icon" color="white" />
+                    <v-avatar :color="source.color" size="40">
+                      <v-icon :icon="source.icon" color="white" size="small" />
                     </v-avatar>
                   </template>
-                  <v-card-title class="text-h6">{{ source.name }}</v-card-title>
-                  <template v-if="source.featured" #append>
-                    <v-chip color="primary" size="x-small" variant="flat">
-                      <v-icon icon="mdi-star" size="x-small" start />
-                      Primary
-                    </v-chip>
-                  </template>
+                  <v-card-title class="text-subtitle-1 font-weight-medium">{{ source.name }}</v-card-title>
                 </v-card-item>
                 <v-card-text class="pt-0">
-                  <p class="text-body-2 mb-3">{{ source.description }}</p>
-                  <div class="d-flex justify-space-between align-center">
-                    <v-chip size="small" variant="tonal" :color="source.color">
-                      {{ source.coverage }}
-                    </v-chip>
-                    <v-chip size="small" variant="outlined" prepend-icon="mdi-update">
-                      {{ source.frequency }}
-                    </v-chip>
-                  </div>
+                  <p class="text-body-2 text-medium-emphasis">{{ source.description }}</p>
                 </v-card-text>
               </v-card>
             </v-col>
@@ -161,109 +105,27 @@
         </v-col>
       </v-row>
 
-      <!-- Technology & Architecture -->
-      <v-row class="mb-8">
-        <v-col cols="12">
-          <div class="d-flex align-center mb-6">
-            <v-icon icon="mdi-cog" size="small" class="mr-2" color="primary" />
-            <h2 class="text-h4 font-weight-medium">Technology Stack</h2>
-          </div>
-          <v-row>
-            <v-col cols="12" md="6">
-              <v-card rounded="lg" class="tech-card">
-                <v-card-item>
-                  <template #prepend>
-                    <v-avatar color="primary" size="40">
-                      <v-icon icon="mdi-server" color="white" />
-                    </v-avatar>
-                  </template>
-                  <v-card-title class="text-h6">Backend Architecture</v-card-title>
-                </v-card-item>
-                <v-card-text>
-                  <v-list class="transparent" density="compact">
-                    <v-list-item v-for="tech in backendTech" :key="tech.name">
-                      <template #prepend>
-                        <v-icon :icon="tech.icon" size="small" :color="tech.color" class="mr-2" />
-                      </template>
-                      <v-list-item-title class="text-body-2 font-weight-medium">
-                        {{ tech.name }}
-                      </v-list-item-title>
-                      <v-list-item-subtitle>{{ tech.description }}</v-list-item-subtitle>
-                    </v-list-item>
-                  </v-list>
-                </v-card-text>
-              </v-card>
-            </v-col>
-            <v-col cols="12" md="6">
-              <v-card rounded="lg" class="tech-card">
-                <v-card-item>
-                  <template #prepend>
-                    <v-avatar color="secondary" size="40">
-                      <v-icon icon="mdi-monitor" color="white" />
-                    </v-avatar>
-                  </template>
-                  <v-card-title class="text-h6">Frontend Experience</v-card-title>
-                </v-card-item>
-                <v-card-text>
-                  <v-list class="transparent" density="compact">
-                    <v-list-item v-for="tech in frontendTech" :key="tech.name">
-                      <template #prepend>
-                        <v-icon :icon="tech.icon" size="small" :color="tech.color" class="mr-2" />
-                      </template>
-                      <v-list-item-title class="text-body-2 font-weight-medium">
-                        {{ tech.name }}
-                      </v-list-item-title>
-                      <v-list-item-subtitle>{{ tech.description }}</v-list-item-subtitle>
-                    </v-list-item>
-                  </v-list>
-                </v-card-text>
-              </v-card>
-            </v-col>
-          </v-row>
-        </v-col>
-      </v-row>
 
-      <!-- Team & Contact -->
+      <!-- Contact -->
       <v-row class="mb-8">
         <v-col cols="12" md="8" class="mx-auto">
           <v-card rounded="xl" class="contact-card">
             <v-card-item class="pa-8 text-center">
-              <v-icon icon="mdi-account-group" size="x-large" color="primary" class="mb-4" />
-              <h2 class="text-h4 font-weight-medium mb-4">Get Involved</h2>
-              <p class="text-h6 text-medium-emphasis mb-6" style="max-width: 600px; margin: 0 auto">
-                Join our growing community of researchers, clinicians, and developers working to
-                advance kidney disease genetics research.
+              <v-icon icon="mdi-github" size="x-large" color="primary" class="mb-4" />
+              <h2 class="text-h4 font-weight-medium mb-4">Open Source</h2>
+              <p class="text-body-1 text-medium-emphasis mb-6" style="max-width: 600px; margin: 0 auto">
+                This project is open source and available on GitHub.
               </p>
-              <div class="d-flex justify-center flex-wrap ga-3">
-                <v-btn
-                  color="primary"
-                  size="large"
-                  href="https://github.com/kidney-genetics/kidney-genetics-db"
-                  target="_blank"
-                  prepend-icon="mdi-github"
-                  variant="flat"
-                >
-                  View on GitHub
-                </v-btn>
-                <v-btn
-                  color="secondary"
-                  size="large"
-                  href="mailto:info@kidney-genetics.org"
-                  prepend-icon="mdi-email"
-                  variant="outlined"
-                >
-                  Contact Team
-                </v-btn>
-                <v-btn
-                  color="info"
-                  size="large"
-                  href="/genes"
-                  prepend-icon="mdi-database-search"
-                  variant="outlined"
-                >
-                  Explore Data
-                </v-btn>
-              </div>
+              <v-btn
+                color="primary"
+                size="large"
+                href="https://github.com/bernt-popp/kidney-genetics-db"
+                target="_blank"
+                prepend-icon="mdi-github"
+                variant="flat"
+              >
+                View on GitHub
+              </v-btn>
             </v-card-item>
           </v-card>
         </v-col>
@@ -279,104 +141,42 @@ import KidneyGeneticsLogo from '@/components/KidneyGeneticsLogo.vue'
 const dataSources = ref([
   {
     name: 'PanelApp',
-    description: 'Gene panels from Genomics England and Australian Genomics with expert curation',
+    description: 'Gene panels from Genomics England and Australian Genomics',
     color: 'primary',
-    icon: 'mdi-view-dashboard',
-    coverage: '27 panels',
-    frequency: 'Weekly',
-    featured: true
+    icon: 'mdi-view-dashboard'
   },
   {
     name: 'HPO',
-    description: 'Human Phenotype Ontology providing standardized phenotype-gene associations',
+    description: 'Human Phenotype Ontology standardized associations',
     color: 'secondary',
-    icon: 'mdi-human',
-    coverage: '500+ terms',
-    frequency: 'Monthly',
-    featured: true
+    icon: 'mdi-human'
+  },
+  {
+    name: 'ClinGen',
+    description: 'Clinical genome resource curated gene validity',
+    color: 'success',
+    icon: 'mdi-dna'
+  },
+  {
+    name: 'GenCC',
+    description: 'Gene Curation Coalition consensus data',
+    color: 'info',
+    icon: 'mdi-account-group'
   },
   {
     name: 'PubTator',
-    description: 'Automated literature mining for gene-disease associations from PubTator',
-    color: 'info',
-    icon: 'mdi-file-document',
-    coverage: '10K+ papers',
-    frequency: 'Daily',
-    featured: false
-  },
-  {
-    name: 'Literature',
-    description: 'Manual curation from peer-reviewed research and clinical guidelines',
-    color: 'success',
-    icon: 'mdi-book-open',
-    coverage: 'Curated',
-    frequency: 'Ongoing',
-    featured: false
+    description: 'Literature mining for gene-disease associations',
+    color: 'warning',
+    icon: 'mdi-file-document'
   },
   {
     name: 'Diagnostic Panels',
-    description: 'Commercial diagnostic panel data from certified laboratory providers',
-    color: 'warning',
-    icon: 'mdi-test-tube',
-    coverage: '15+ labs',
-    frequency: 'Quarterly',
-    featured: false
+    description: 'Commercial laboratory gene panel data',
+    color: 'error',
+    icon: 'mdi-test-tube'
   }
 ])
 
-const backendTech = ref([
-  {
-    name: 'FastAPI',
-    description: 'High-performance Python web framework',
-    icon: 'mdi-lightning-bolt',
-    color: 'primary'
-  },
-  {
-    name: 'PostgreSQL',
-    description: 'Advanced relational database',
-    icon: 'mdi-database',
-    color: 'info'
-  },
-  {
-    name: 'SQLAlchemy',
-    description: 'Python ORM and database toolkit',
-    icon: 'mdi-code-braces',
-    color: 'success'
-  },
-  {
-    name: 'Alembic',
-    description: 'Database migration management',
-    icon: 'mdi-source-branch',
-    color: 'warning'
-  }
-])
-
-const frontendTech = ref([
-  {
-    name: 'Vue 3',
-    description: 'Progressive JavaScript framework',
-    icon: 'mdi-vuejs',
-    color: 'success'
-  },
-  {
-    name: 'Vuetify 3',
-    description: 'Material Design component library',
-    icon: 'mdi-material-design',
-    color: 'primary'
-  },
-  {
-    name: 'Vite',
-    description: 'Fast build tool and dev server',
-    icon: 'mdi-flash',
-    color: 'warning'
-  },
-  {
-    name: 'TypeScript',
-    description: 'Type-safe JavaScript development',
-    icon: 'mdi-language-typescript',
-    color: 'info'
-  }
-])
 </script>
 
 <style scoped>
@@ -398,24 +198,16 @@ const frontendTech = ref([
 
 .mission-card,
 .overview-card,
-.stats-card,
 .source-card,
-.tech-card,
 .contact-card {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mission-card:hover,
 .overview-card:hover,
-.stats-card:hover,
 .source-card:hover,
-.tech-card:hover,
 .contact-card:hover {
   transform: translateY(-2px);
-}
-
-.source-card--featured {
-  border: 2px solid rgb(var(--v-theme-primary-lighten-2));
 }
 
 .transparent {

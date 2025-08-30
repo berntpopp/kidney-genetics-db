@@ -25,12 +25,13 @@
       <v-spacer />
 
       <!-- Navigation Links -->
-      <div class="d-none d-md-flex align-center ga-2">
+      <div class="d-none d-md-flex align-center ga-1 mr-4">
         <v-btn
           :to="'/'"
           variant="text"
           :color="$route.path === '/' ? 'primary' : ''"
           class="text-none"
+          size="default"
         >
           <v-icon icon="mdi-home" size="small" class="mr-1" />
           Home
@@ -40,6 +41,7 @@
           variant="text"
           :color="$route.path.startsWith('/genes') ? 'primary' : ''"
           class="text-none"
+          size="default"
         >
           <v-icon icon="mdi-dna" size="small" class="mr-1" />
           Gene Browser
@@ -49,6 +51,7 @@
           variant="text"
           :color="$route.path === '/dashboard' ? 'primary' : ''"
           class="text-none"
+          size="default"
         >
           <v-icon icon="mdi-view-dashboard" size="small" class="mr-1" />
           Dashboard
@@ -58,6 +61,7 @@
           variant="text"
           :color="$route.path === '/data-sources' ? 'primary' : ''"
           class="text-none"
+          size="default"
         >
           <v-icon icon="mdi-database-sync" size="small" class="mr-1" />
           Data Sources
@@ -67,6 +71,7 @@
           variant="text"
           :color="$route.path === '/about' ? 'primary' : ''"
           class="text-none"
+          size="default"
         >
           <v-icon icon="mdi-information" size="small" class="mr-1" />
           About
@@ -79,7 +84,7 @@
         <UserMenu v-if="authStore.isAuthenticated" />
 
         <!-- Login button for unauthenticated users -->
-        <v-btn v-else :to="'/login'" color="primary" size="small" variant="tonal">
+        <v-btn v-else :to="'/login'" color="primary" size="default" variant="tonal">
           <v-icon start>mdi-login</v-icon>
           Login
         </v-btn>
@@ -87,7 +92,7 @@
         <!-- Theme Toggle -->
         <v-btn
           icon
-          class="ml-2"
+          size="default"
           :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
           @click="toggleTheme"
         >
