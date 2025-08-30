@@ -71,17 +71,6 @@
           <v-icon icon="mdi-information" size="small" class="mr-1" />
           About
         </v-btn>
-        <!-- Admin Panel (only for admins) -->
-        <v-btn
-          v-if="authStore.isAdmin"
-          :to="'/admin'"
-          variant="text"
-          :color="$route.path.startsWith('/admin') ? 'primary' : ''"
-          class="text-none"
-        >
-          <v-icon icon="mdi-shield-crown" size="small" class="mr-1" />
-          Admin
-        </v-btn>
       </div>
 
       <!-- Auth Controls -->
