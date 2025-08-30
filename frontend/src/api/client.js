@@ -49,14 +49,14 @@ apiClient.interceptors.response.use(
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${access_token}`
           return apiClient(originalRequest)
-        } catch (refreshError) {
+        } catch (_refreshError) {
           // Refresh failed, clear tokens and redirect to login
           localStorage.removeItem('access_token')
           localStorage.removeItem('refresh_token')
           localStorage.removeItem('user')
 
           // Dispatch event for auth store to handle
-          window.dispatchEvent(new CustomEvent('auth:logout')) // eslint-disable-line no-undef
+          window.dispatchEvent(new CustomEvent('auth:logout'))
         }
       }
     }

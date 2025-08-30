@@ -3,6 +3,7 @@
  */
 
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const routes = [
   {
@@ -50,12 +51,68 @@ const routes = [
     path: '/profile',
     name: 'profile',
     component: () => import('../views/Profile.vue')
+  },
+  // Admin routes (protected)
+  {
+    path: '/admin',
+    name: 'admin',
+    component: () => import('../views/admin/AdminDashboard.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/users',
+    name: 'admin-users',
+    component: () => import('../views/admin/AdminUserManagement.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/cache',
+    name: 'admin-cache',
+    component: () => import('../views/admin/AdminCacheManagement.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/logs',
+    name: 'admin-logs',
+    component: () => import('../views/admin/AdminLogViewer.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/pipeline',
+    name: 'admin-pipeline',
+    component: () => import('../views/admin/AdminPipeline.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/staging',
+    name: 'admin-staging',
+    component: () => import('../views/admin/AdminGeneStaging.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/annotations',
+    name: 'admin-annotations',
+    component: () => import('../views/admin/AdminAnnotations.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
   }
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes
+})
+
+// Navigation guards
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore()
+
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    next('/login?redirect=' + to.fullPath)
+  } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
+    next('/')
+  } else {
+    next()
+  }
 })
 
 export default router

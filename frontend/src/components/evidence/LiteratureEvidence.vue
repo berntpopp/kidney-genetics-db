@@ -190,9 +190,9 @@ const remainingCount = computed(() => {
 })
 
 // Statistics
-const publicationCount = computed(() => {
-  return props.evidenceData?.publication_count || publications.value.length || 0
-})
+// const publicationCount = computed(() => {
+//   return props.evidenceData?.publication_count || publications.value.length || 0
+// })
 
 // Helper functions
 const formatAuthors = authors => {

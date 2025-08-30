@@ -186,7 +186,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { geneApi } from '../api/genes'
 import { useAuthStore } from '../stores/auth'
 import ScoreBreakdown from '../components/ScoreBreakdown.vue'
@@ -194,7 +194,7 @@ import EvidenceCard from '../components/evidence/EvidenceCard.vue'
 import GeneInformationCard from '../components/gene/GeneInformationCard.vue'
 
 const route = useRoute()
-const router = useRouter()
+// const router = useRouter() // Currently unused but may be needed for navigation
 const authStore = useAuthStore()
 
 // Data
@@ -329,7 +329,6 @@ const editGene = () => {
 const deleteGene = async () => {
   if (!gene.value) return
 
-  // eslint-disable-next-line no-undef
   if (
     confirm(
       `Are you sure you want to delete ${gene.value.approved_symbol}? This action cannot be undone.`

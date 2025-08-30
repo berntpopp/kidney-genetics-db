@@ -215,7 +215,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 
-/* global WebSocket, clearInterval, setInterval */
+// Browser globals are already defined in eslint config
 
 // State
 const expanded = ref(false)

@@ -2,17 +2,7 @@
  * Authentication API endpoints
  */
 
-import axios from 'axios'
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-
-// Create separate axios instance for auth to avoid circular dependencies
-const authClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
+import apiClient from './client'
 
 /**
  * Login with username/email and password
@@ -22,12 +12,12 @@ const authClient = axios.create({
  */
 export const login = async (username, password) => {
   // Use URLSearchParams for OAuth2 password flow
-  const formData = new URLSearchParams() // eslint-disable-line no-undef
+  const formData = new URLSearchParams()
   formData.append('username', username)
   formData.append('password', password)
   formData.append('grant_type', 'password')
 
-  const response = await authClient.post('/api/auth/login', formData, {
+  const response = await apiClient.post('/api/auth/login', formData, {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded'
     }
@@ -41,19 +31,8 @@ export const login = async (username, password) => {
  * @returns {Promise}
  */
 export const logout = async () => {
-  const token = localStorage.getItem('access_token')
-  if (!token) return
-
   try {
-    await authClient.post(
-      '/api/auth/logout',
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }
-    )
+    await apiClient.post('/api/auth/logout', {})
   } catch (error) {
     // Logout anyway even if request fails
     console.error('Logout request failed:', error)
@@ -65,14 +44,7 @@ export const logout = async () => {
  * @returns {Promise} Current user data
  */
 export const getCurrentUser = async () => {
-  const token = localStorage.getItem('access_token')
-  if (!token) throw new Error('No authentication token')
-
-  const response = await authClient.get('/api/auth/me', {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  })
+  const response = await apiClient.get('/api/auth/me')
 
   return response.data
 }
@@ -83,7 +55,7 @@ export const getCurrentUser = async () => {
  * @returns {Promise} New access token
  */
 export const refreshToken = async refreshToken => {
-  const response = await authClient.post('/api/auth/refresh', {
+  const response = await apiClient.post('/api/auth/refresh', {
     refresh_token: refreshToken
   })
 
@@ -96,7 +68,7 @@ export const refreshToken = async refreshToken => {
  * @returns {Promise}
  */
 export const requestPasswordReset = async email => {
-  const response = await authClient.post('/api/auth/forgot-password', {
+  const response = await apiClient.post('/api/auth/forgot-password', {
     email
   })
 
@@ -110,7 +82,7 @@ export const requestPasswordReset = async email => {
  * @returns {Promise}
  */
 export const resetPassword = async (token, newPassword) => {
-  const response = await authClient.post('/api/auth/reset-password', {
+  const response = await apiClient.post('/api/auth/reset-password', {
     token,
     new_password: newPassword
   })
@@ -125,21 +97,10 @@ export const resetPassword = async (token, newPassword) => {
  * @returns {Promise}
  */
 export const changePassword = async (currentPassword, newPassword) => {
-  const token = localStorage.getItem('access_token')
-  if (!token) throw new Error('No authentication token')
-
-  const response = await authClient.post(
-    '/api/auth/change-password',
-    {
-      current_password: currentPassword,
-      new_password: newPassword
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    }
-  )
+  const response = await apiClient.post('/api/auth/change-password', {
+    current_password: currentPassword,
+    new_password: newPassword
+  })
 
   return response.data
 }
@@ -152,14 +113,7 @@ export const changePassword = async (currentPassword, newPassword) => {
  * @returns {Promise} Created user
  */
 export const registerUser = async userData => {
-  const token = localStorage.getItem('access_token')
-  if (!token) throw new Error('No authentication token')
-
-  const response = await authClient.post('/api/auth/register', userData, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  })
+  const response = await apiClient.post('/api/auth/register', userData)
 
   return response.data
 }
@@ -169,14 +123,7 @@ export const registerUser = async userData => {
  * @returns {Promise} List of users
  */
 export const getAllUsers = async () => {
-  const token = localStorage.getItem('access_token')
-  if (!token) throw new Error('No authentication token')
-
-  const response = await authClient.get('/api/auth/users', {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  })
+  const response = await apiClient.get('/api/auth/users')
 
   return response.data
 }
@@ -188,14 +135,7 @@ export const getAllUsers = async () => {
  * @returns {Promise} Updated user
  */
 export const updateUser = async (userId, updates) => {
-  const token = localStorage.getItem('access_token')
-  if (!token) throw new Error('No authentication token')
-
-  const response = await authClient.put(`/api/auth/users/${userId}`, updates, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  })
+  const response = await apiClient.put(`/api/auth/users/${userId}`, updates)
 
   return response.data
 }
@@ -206,14 +146,7 @@ export const updateUser = async (userId, updates) => {
  * @returns {Promise}
  */
 export const deleteUser = async userId => {
-  const token = localStorage.getItem('access_token')
-  if (!token) throw new Error('No authentication token')
-
-  const response = await authClient.delete(`/api/auth/users/${userId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  })
+  const response = await apiClient.delete(`/api/auth/users/${userId}`)
 
   return response.data
 }
