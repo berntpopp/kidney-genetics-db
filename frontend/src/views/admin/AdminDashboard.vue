@@ -258,7 +258,7 @@ const loadStats = async () => {
       pendingStaging: staging?.total_pending || 0
     }
   } catch (error) {
-    console.error('Failed to load dashboard stats:', error)
+    window.logService.error('Failed to load dashboard stats:', error)
   } finally {
     statsLoading.value = false
   }
@@ -272,7 +272,7 @@ const fetchUserStats = async () => {
       activeCount: users.filter(u => u.is_active).length
     }
   } catch (error) {
-    console.error('Failed to fetch user stats:', error)
+    window.logService.error('Failed to fetch user stats:', error)
     return null
   }
 }
@@ -288,7 +288,7 @@ const fetchCacheStats = async () => {
     const data = await response.json()
     return data.data || data
   } catch (error) {
-    console.error('Failed to fetch cache stats:', error)
+    window.logService.error('Failed to fetch cache stats:', error)
     return null
   }
 }
@@ -304,7 +304,7 @@ const fetchPipelineStats = async () => {
     const data = await response.json()
     return data.data?.summary || null
   } catch (error) {
-    console.error('Failed to fetch pipeline stats:', error)
+    window.logService.error('Failed to fetch pipeline stats:', error)
     return null
   }
 }
@@ -320,7 +320,7 @@ const fetchStagingStats = async () => {
     const data = await response.json()
     return data.data || data
   } catch (error) {
-    console.error('Failed to fetch staging stats:', error)
+    window.logService.error('Failed to fetch staging stats:', error)
     return null
   }
 }
@@ -336,9 +336,9 @@ const refreshCache = async () => {
     })
     if (!response.ok) throw new Error('Failed to clear cache')
     // Show success message
-    console.log('Cache cleared successfully')
+    window.logService.info('Cache cleared successfully')
   } catch (error) {
-    console.error('Failed to refresh cache:', error)
+    window.logService.error('Failed to refresh cache:', error)
   } finally {
     refreshingCache.value = false
   }
@@ -369,9 +369,9 @@ const runPipeline = async () => {
       )
 
     await Promise.all(triggers)
-    console.log('All pipelines triggered successfully')
+    window.logService.info('All pipelines triggered successfully')
   } catch (error) {
-    console.error('Failed to run pipelines:', error)
+    window.logService.error('Failed to run pipelines:', error)
   } finally {
     runningPipeline.value = false
   }
@@ -388,9 +388,9 @@ const cleanupLogs = async () => {
     })
     if (!response.ok) throw new Error('Failed to cleanup logs')
     const result = await response.json()
-    console.log(`Deleted ${result.logs_deleted} old log entries`)
+    window.logService.info(`Deleted ${result.logs_deleted} old log entries`)
   } catch (error) {
-    console.error('Failed to cleanup logs:', error)
+    window.logService.error('Failed to cleanup logs:', error)
   } finally {
     cleaningLogs.value = false
   }
@@ -430,9 +430,9 @@ const exportStats = async () => {
     a.click()
     URL.revokeObjectURL(url)
 
-    console.log('Statistics exported successfully')
+    window.logService.info('Statistics exported successfully')
   } catch (error) {
-    console.error('Failed to export statistics:', error)
+    window.logService.error('Failed to export statistics:', error)
   } finally {
     exportingStats.value = false
   }

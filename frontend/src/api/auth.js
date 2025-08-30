@@ -35,7 +35,7 @@ export const logout = async () => {
     await apiClient.post('/api/auth/logout', {})
   } catch (error) {
     // Logout anyway even if request fails
-    console.error('Logout request failed:', error)
+    window.logService.error('Logout request failed:', error)
   }
 }
 

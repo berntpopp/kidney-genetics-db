@@ -402,7 +402,7 @@ const loadSources = async () => {
     // API returns { data: [...], meta: {...} } structure
     sources.value = response.data?.data || []
   } catch (error) {
-    console.error('Failed to load sources:', error)
+    window.logService.error('Failed to load sources:', error)
     showSnackbar('Failed to load pipeline status', 'error')
   } finally {
     loading.value = false
@@ -415,7 +415,7 @@ const triggerSource = async sourceName => {
     await pipelineApi.triggerUpdate(sourceName)
     showSnackbar(`Started ${sourceName}`, 'success')
   } catch (error) {
-    console.error(`Failed to trigger ${sourceName}:`, error)
+    window.logService.error(`Failed to trigger ${sourceName}:`, error)
     showSnackbar(`Failed to start ${sourceName}`, 'error')
   } finally {
     triggering.value[sourceName] = false
@@ -428,7 +428,7 @@ const pauseSource = async sourceName => {
     await pipelineApi.pauseSource(sourceName)
     showSnackbar(`Paused ${sourceName}`, 'success')
   } catch (error) {
-    console.error(`Failed to pause ${sourceName}:`, error)
+    window.logService.error(`Failed to pause ${sourceName}:`, error)
     showSnackbar(`Failed to pause ${sourceName}`, 'error')
   } finally {
     pausing.value[sourceName] = false
@@ -441,7 +441,7 @@ const resumeSource = async sourceName => {
     await pipelineApi.resumeSource(sourceName)
     showSnackbar(`Resumed ${sourceName}`, 'success')
   } catch (error) {
-    console.error(`Failed to resume ${sourceName}:`, error)
+    window.logService.error(`Failed to resume ${sourceName}:`, error)
     showSnackbar(`Failed to resume ${sourceName}`, 'error')
   } finally {
     resuming.value[sourceName] = false
@@ -459,7 +459,7 @@ const triggerAll = async () => {
 
     showSnackbar('All data sources triggered', 'success')
   } catch (error) {
-    console.error('Failed to trigger all:', error)
+    window.logService.error('Failed to trigger all:', error)
     showSnackbar('Failed to trigger all data sources', 'error')
   } finally {
     triggeringAll.value = false
@@ -570,7 +570,7 @@ const handleInitialStatus = data => {
   } else if (data?.data && Array.isArray(data.data)) {
     sources.value = data.data
   } else {
-    console.warn('Unexpected initial status format:', data)
+    window.logService.warn('Unexpected initial status format:', data)
   }
 }
 

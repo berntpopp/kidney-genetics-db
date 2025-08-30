@@ -127,6 +127,16 @@
           :to="'/about'"
           :active="$route.path === '/about'"
         />
+        <v-divider class="my-2" />
+        <v-list-item
+          prepend-icon="mdi-text-box-search-outline"
+          title="Log Viewer"
+          @click="logStore.showViewer"
+        >
+          <template v-if="logStore.errorCount > 0" #append>
+            <v-chip color="error" size="x-small">{{ logStore.errorCount }}</v-chip>
+          </template>
+        </v-list-item>
       </v-list>
     </v-navigation-drawer>
 
@@ -138,6 +148,9 @@
         </transition>
       </router-view>
     </v-main>
+
+    <!-- Log Viewer Component -->
+    <LogViewer />
 
     <!-- Footer -->
     <v-footer app class="bg-surface-light" height="auto">
@@ -178,6 +191,21 @@
               to="/about"
               title="Documentation"
             />
+            <v-btn
+              size="small"
+              variant="text"
+              :title="`Open Log Viewer (Ctrl+Shift+L) - ${logStore.errorCount} errors`"
+              @click="logStore.showViewer"
+            >
+              <v-badge
+                :content="logStore.errorCount"
+                :model-value="logStore.errorCount > 0"
+                color="error"
+                dot
+              >
+                <v-icon>mdi-text-box-search-outline</v-icon>
+              </v-badge>
+            </v-btn>
           </v-col>
         </v-row>
       </v-container>
@@ -186,17 +214,20 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useTheme } from 'vuetify'
 // import { useRoute } from 'vue-router' // Removed unused import
 import KidneyGeneticsLogo from '@/components/KidneyGeneticsLogo.vue'
 import UserMenu from '@/components/auth/UserMenu.vue'
+import LogViewer from '@/components/admin/LogViewer.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useLogStore } from '@/stores/logStore'
 
 const theme = useTheme()
 // const route = useRoute() // Removed unused variable
 const drawer = ref(false)
 const authStore = useAuthStore()
+const logStore = useLogStore()
 
 const isDark = computed(() => theme.global.current.value.dark)
 
@@ -204,9 +235,24 @@ const toggleTheme = () => {
   theme.global.name.value = isDark.value ? 'light' : 'dark'
 }
 
+// Keyboard shortcut for log viewer (Ctrl+Shift+L)
+const handleKeyPress = event => {
+  if (event.ctrlKey && event.shiftKey && event.key === 'L') {
+    event.preventDefault()
+    logStore.toggleViewer()
+  }
+}
+
 // Initialize auth store on app mount
 onMounted(() => {
   authStore.initialize()
+  // Add keyboard listener for log viewer
+  window.addEventListener('keydown', handleKeyPress)
+})
+
+onUnmounted(() => {
+  // Clean up keyboard listener
+  window.removeEventListener('keydown', handleKeyPress)
 })
 </script>
 

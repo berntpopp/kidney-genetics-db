@@ -258,7 +258,7 @@ const fetchGeneDetails = async () => {
     gene.value = response
     await Promise.all([fetchEvidence(), fetchAnnotations()])
   } catch (error) {
-    console.error('Failed to fetch gene details:', error)
+    window.logService.error('Failed to fetch gene details:', error)
     gene.value = null
   } finally {
     loading.value = false
@@ -273,7 +273,7 @@ const fetchEvidence = async () => {
     const response = await geneApi.getGeneEvidence(gene.value.approved_symbol)
     evidence.value = response.evidence || []
   } catch (error) {
-    console.error('Failed to fetch evidence:', error)
+    window.logService.error('Failed to fetch evidence:', error)
     evidence.value = []
   } finally {
     loadingEvidence.value = false
@@ -288,7 +288,7 @@ const fetchAnnotations = async () => {
     const response = await geneApi.getGeneAnnotations(gene.value.id)
     annotations.value = response
   } catch (error) {
-    console.error('Failed to fetch annotations:', error)
+    window.logService.error('Failed to fetch annotations:', error)
     annotations.value = null
   } finally {
     loadingAnnotations.value = false
@@ -322,7 +322,7 @@ const viewInHGNC = () => {
 
 const editGene = () => {
   // TODO: Implement gene editing functionality
-  console.log('Edit gene:', gene.value?.approved_symbol)
+  window.logService.info('Edit gene:', gene.value?.approved_symbol)
   // Could navigate to an edit page or open a modal
 }
 
@@ -336,11 +336,11 @@ const deleteGene = async () => {
   ) {
     try {
       // TODO: Implement API call to delete gene
-      console.log('Delete gene:', gene.value?.approved_symbol)
+      window.logService.info('Delete gene:', gene.value?.approved_symbol)
       // await geneApi.deleteGene(gene.value.id)
       // router.push('/genes')
     } catch (error) {
-      console.error('Failed to delete gene:', error)
+      window.logService.error('Failed to delete gene:', error)
       alert('Failed to delete gene. Please try again.') // eslint-disable-line no-undef
     }
   }

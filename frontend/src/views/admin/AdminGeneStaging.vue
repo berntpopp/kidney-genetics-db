@@ -643,7 +643,7 @@ const loadStats = async () => {
     Object.assign(stagingStats, stagingResponse.data)
     Object.assign(normalizationStats, normalizationResponse.data)
   } catch (error) {
-    console.error('Failed to load stats:', error)
+    window.logService.error('Failed to load stats:', error)
     showSnackbar('Failed to load statistics', 'error')
   } finally {
     statsLoading.value = false
@@ -662,7 +662,7 @@ const loadPendingReviews = async () => {
     const response = await stagingApi.getPendingStaging(params)
     pendingReviews.value = response.data
   } catch (error) {
-    console.error('Failed to load pending reviews:', error)
+    window.logService.error('Failed to load pending reviews:', error)
     showSnackbar('Failed to load pending reviews', 'error')
   } finally {
     loading.value = false
@@ -683,7 +683,7 @@ const testNormalization = async () => {
     const response = await stagingApi.testNormalization(testGeneText.value.trim())
     testResult.value = response.data
   } catch (error) {
-    console.error('Failed to test normalization:', error)
+    window.logService.error('Failed to test normalization:', error)
     testResult.value = {
       success: false,
       error: error.response?.data?.detail || error.message
@@ -728,7 +728,7 @@ const confirmApprove = async () => {
     approveDialog.value = false
     await loadData()
   } catch (error) {
-    console.error('Failed to approve staging:', error)
+    window.logService.error('Failed to approve staging:', error)
     showSnackbar('Failed to approve gene staging', 'error')
   } finally {
     actionLoading.value = false
@@ -749,7 +749,7 @@ const confirmReject = async () => {
     rejectDialog.value = false
     await loadData()
   } catch (error) {
-    console.error('Failed to reject staging:', error)
+    window.logService.error('Failed to reject staging:', error)
     showSnackbar('Failed to reject gene staging', 'error')
   } finally {
     actionLoading.value = false

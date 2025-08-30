@@ -314,7 +314,7 @@ const fetchStatus = async () => {
       expanded.value = true
     }
   } catch (error) {
-    console.error('Failed to fetch status:', error)
+    window.logService.error('Failed to fetch status:', error)
   }
 }
 
@@ -341,7 +341,7 @@ const connectWebSocket = () => {
   ws.value = new WebSocket(wsUrl)
 
   ws.value.onopen = () => {
-    console.log('WebSocket connected for progress updates')
+    window.logService.info('WebSocket connected for progress updates')
     if (reconnectInterval.value) {
       clearInterval(reconnectInterval.value)
       reconnectInterval.value = null
@@ -371,15 +371,15 @@ const connectWebSocket = () => {
   }
 
   ws.value.onerror = error => {
-    console.error('WebSocket error:', error)
+    window.logService.error('WebSocket error:', error)
   }
 
   ws.value.onclose = () => {
-    console.log('WebSocket disconnected')
+    window.logService.info('WebSocket disconnected')
     // Try to reconnect after 5 seconds
     if (!reconnectInterval.value) {
       reconnectInterval.value = setInterval(() => {
-        console.log('Attempting to reconnect WebSocket...')
+        window.logService.info('Attempting to reconnect WebSocket...')
         connectWebSocket()
       }, 5000)
     }
@@ -391,7 +391,7 @@ const triggerUpdate = async sourceName => {
   try {
     await axios.post(`http://localhost:8000/api/progress/trigger/${sourceName}`)
   } catch (error) {
-    console.error(`Failed to trigger ${sourceName}:`, error)
+    window.logService.error(`Failed to trigger ${sourceName}:`, error)
   } finally {
     triggering.value[sourceName] = false
   }
@@ -401,7 +401,7 @@ const pauseSource = async sourceName => {
   try {
     await axios.post(`http://localhost:8000/api/progress/pause/${sourceName}`)
   } catch (error) {
-    console.error(`Failed to pause ${sourceName}:`, error)
+    window.logService.error(`Failed to pause ${sourceName}:`, error)
   }
 }
 
@@ -409,7 +409,7 @@ const resumeSource = async sourceName => {
   try {
     await axios.post(`http://localhost:8000/api/progress/resume/${sourceName}`)
   } catch (error) {
-    console.error(`Failed to resume ${sourceName}:`, error)
+    window.logService.error(`Failed to resume ${sourceName}:`, error)
   }
 }
 

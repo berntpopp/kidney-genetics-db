@@ -342,7 +342,7 @@ const loadStats = async () => {
 
     cacheStats.value = data
   } catch (error) {
-    console.error('Failed to load cache stats:', error)
+    window.logService.error('Failed to load cache stats:', error)
     showSnackbar('Failed to load cache statistics', 'error')
   } finally {
     statsLoading.value = false
@@ -355,7 +355,7 @@ const loadNamespaces = async () => {
     const response = await cacheApi.getCacheNamespaces()
     namespaces.value = response.data || response || []
   } catch (error) {
-    console.error('Failed to load namespaces:', error)
+    window.logService.error('Failed to load namespaces:', error)
     showSnackbar('Failed to load cache namespaces', 'error')
     namespaces.value = [] // Ensure we have an array even on error
   } finally {
@@ -388,7 +388,7 @@ const checkHealth = async () => {
     }
     showSnackbar('Health check completed', 'success')
   } catch (error) {
-    console.error('Failed to check health:', error)
+    window.logService.error('Failed to check health:', error)
     showSnackbar('Failed to check cache health', 'error')
   } finally {
     checkingHealth.value = false
@@ -403,7 +403,7 @@ const warmCache = async () => {
     // Reload stats after warming
     setTimeout(loadData, 2000)
   } catch (error) {
-    console.error('Failed to warm cache:', error)
+    window.logService.error('Failed to warm cache:', error)
     showSnackbar('Failed to warm cache', 'error')
   } finally {
     warming.value = false
@@ -437,7 +437,7 @@ const executeClear = async () => {
     // Reload data
     await loadData()
   } catch (error) {
-    console.error('Failed to clear cache:', error)
+    window.logService.error('Failed to clear cache:', error)
     showSnackbar('Failed to clear cache', 'error')
   } finally {
     clearing.value = false
@@ -450,7 +450,7 @@ const showNamespaceDetails = async namespace => {
     selectedNamespace.value = response.data || response
     showDetailsDialog.value = true
   } catch (error) {
-    console.error('Failed to load namespace details:', error)
+    window.logService.error('Failed to load namespace details:', error)
     showSnackbar('Failed to load namespace details', 'error')
   }
 }

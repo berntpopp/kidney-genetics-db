@@ -223,7 +223,7 @@ const loadAvailableSources = async () => {
       }
     }
   } catch (err) {
-    console.error('Error loading available sources:', err)
+    window.logService.error('Error loading available sources:', err)
   }
 }
 
@@ -241,9 +241,9 @@ const loadData = async () => {
     }
 
     // Call API with selected sources
-    console.log('Calling API with sources:', selectedSources.value)
+    window.logService.info('Calling API with sources:', selectedSources.value)
     const response = await statisticsApi.getSourceOverlaps(selectedSources.value)
-    console.log('API response:', response.data)
+    window.logService.info('API response:', response.data)
     data.value = response.data
 
     // Render UpSet plot after data is loaded
@@ -254,7 +254,7 @@ const loadData = async () => {
     }, 100)
   } catch (err) {
     error.value = err.message || 'Failed to load source overlap data'
-    console.error('Error loading source overlaps:', err)
+    window.logService.error('Error loading source overlaps:', err)
   } finally {
     loading.value = false
   }
@@ -267,27 +267,27 @@ const refreshData = () => {
 // Source selection methods
 const addSource = source => {
   if (!selectedSources.value.includes(source)) {
-    console.log('Adding source:', source)
+    window.logService.info('Adding source:', source)
     // Create new array to ensure reactivity
     selectedSources.value = [...selectedSources.value, source]
-    console.log('New selected sources:', selectedSources.value)
+    window.logService.info('New selected sources:', selectedSources.value)
   }
 }
 
 const removeSource = async source => {
   const index = selectedSources.value.indexOf(source)
   if (index > -1) {
-    console.log('Removing source:', source)
+    window.logService.info('Removing source:', source)
     // Create new array to ensure reactivity
     selectedSources.value = selectedSources.value.filter(s => s !== source)
-    console.log('New selected sources:', selectedSources.value)
+    window.logService.info('New selected sources:', selectedSources.value)
   }
 }
 
 const selectAllSources = () => {
-  console.log('Selecting all sources')
+  window.logService.info('Selecting all sources')
   selectedSources.value = [...availableSources.value]
-  console.log('New selected sources:', selectedSources.value)
+  window.logService.info('New selected sources:', selectedSources.value)
 }
 
 // Watch for changes in selectedSources and reload data
@@ -296,9 +296,14 @@ watch(
   async (newSources, oldSources) => {
     // Only reload if sources actually changed and we're not in the initial load
     if (oldSources && newSources.length !== oldSources.length) {
-      console.log('Source count changed from', oldSources.length, 'to', newSources.length)
-      console.log('Previous sources:', oldSources)
-      console.log('New sources:', newSources)
+      window.logService.info(
+        'Source count changed from',
+        oldSources.length,
+        'to',
+        newSources.length
+      )
+      window.logService.info('Previous sources:', oldSources)
+      window.logService.info('New sources:', newSources)
       await loadData()
     }
   },
@@ -428,7 +433,7 @@ const renderUpSetPlot = () => {
     .style('cursor', 'pointer')
     .on('click', (event, d) => {
       selectedIntersection.value = d
-      console.log('Selected intersection:', d)
+      window.logService.info('Selected intersection:', d)
     })
     .on('mouseover', function () {
       // Highlight this bar
@@ -500,7 +505,7 @@ const renderUpSetPlot = () => {
         })
         .on('click', function () {
           selectedIntersection.value = intersection
-          console.log('Selected intersection via dot:', intersection)
+          window.logService.info('Selected intersection via dot:', intersection)
         })
     })
   })

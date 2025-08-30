@@ -448,7 +448,7 @@ const loadLogs = async () => {
     logs.value = data.logs || []
     totalLogs.value = data.pagination?.total || 0
   } catch (error) {
-    console.error('Failed to load logs:', error)
+    window.logService.error('Failed to load logs:', error)
     showSnackbar('Failed to load logs', 'error')
   } finally {
     loading.value = false
@@ -468,7 +468,7 @@ const loadStats = async () => {
       storageSize: data.storage?.table_size || '0 MB'
     }
   } catch (error) {
-    console.error('Failed to load log statistics:', error)
+    window.logService.error('Failed to load log statistics:', error)
   } finally {
     statsLoading.value = false
   }
@@ -515,7 +515,7 @@ const exportLogs = async () => {
 
     showSnackbar('Logs exported successfully', 'success')
   } catch (error) {
-    console.error('Failed to export logs:', error)
+    window.logService.error('Failed to export logs:', error)
     showSnackbar('Failed to export logs', 'error')
   } finally {
     exporting.value = false
@@ -534,7 +534,7 @@ const executeCleanup = async () => {
     // Reload logs and stats
     await Promise.all([loadLogs(), loadStats()])
   } catch (error) {
-    console.error('Failed to cleanup logs:', error)
+    window.logService.error('Failed to cleanup logs:', error)
     showSnackbar('Failed to cleanup logs', 'error')
   } finally {
     cleaning.value = false
@@ -596,7 +596,7 @@ const copyToClipboard = async text => {
     await navigator.clipboard.writeText(text)
     showSnackbar('Copied to clipboard', 'success')
   } catch (error) {
-    console.error('Failed to copy:', error)
+    window.logService.error('Failed to copy:', error)
     showSnackbar('Failed to copy', 'error')
   }
 }

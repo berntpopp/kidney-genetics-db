@@ -288,7 +288,7 @@ const loadUsers = async () => {
     const data = await authStore.getAllUsers()
     users.value = data
   } catch (error) {
-    console.error('Failed to load users:', error)
+    window.logService.error('Failed to load users:', error)
 
     // Check if it's an authentication error
     if (error.response?.status === 401) {
@@ -353,7 +353,7 @@ const toggleUserStatus = async user => {
       'success'
     )
   } catch (error) {
-    console.error('Failed to toggle user status:', error)
+    window.logService.error('Failed to toggle user status:', error)
     showSnackbar('Failed to update user status', 'error')
   }
 }
@@ -377,7 +377,7 @@ const deleteUser = async () => {
     showDeleteDialog.value = false
     deletingUser.value = null
   } catch (error) {
-    console.error('Failed to delete user:', error)
+    window.logService.error('Failed to delete user:', error)
     showSnackbar('Failed to delete user', 'error')
   } finally {
     deleting.value = false
@@ -426,7 +426,7 @@ const saveUser = async () => {
 
     closeDialog()
   } catch (error) {
-    console.error('Failed to save user:', error)
+    window.logService.error('Failed to save user:', error)
     showSnackbar(error.response?.data?.detail || 'Failed to save user', 'error')
   } finally {
     saving.value = false

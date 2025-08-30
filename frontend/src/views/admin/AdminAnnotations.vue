@@ -574,7 +574,7 @@ const loadStatistics = async () => {
     const response = await annotationsApi.getAnnotationStatistics()
     Object.assign(statistics, response.data)
   } catch (error) {
-    console.error('Failed to load statistics:', error)
+    window.logService.error('Failed to load statistics:', error)
     showSnackbar('Failed to load annotation statistics', 'error')
   } finally {
     statsLoading.value = false
@@ -586,7 +586,7 @@ const loadAnnotationSources = async () => {
     const response = await annotationsApi.getAnnotationSources()
     annotationSources.value = response.data
   } catch (error) {
-    console.error('Failed to load annotation sources:', error)
+    window.logService.error('Failed to load annotation sources:', error)
     showSnackbar('Failed to load annotation sources', 'error')
   }
 }
@@ -596,7 +596,7 @@ const loadPipelineStatus = async () => {
     const response = await annotationsApi.getPipelineStatus()
     Object.assign(pipelineStatus, response.data)
   } catch (error) {
-    console.error('Failed to load pipeline status:', error)
+    window.logService.error('Failed to load pipeline status:', error)
     showSnackbar('Failed to load pipeline status', 'error')
   }
 }
@@ -608,7 +608,7 @@ const loadScheduledJobs = async () => {
     Object.assign(schedulerInfo, response.data)
     scheduledJobs.value = response.data.jobs || []
   } catch (error) {
-    console.error('Failed to load scheduled jobs:', error)
+    window.logService.error('Failed to load scheduled jobs:', error)
     showSnackbar('Failed to load scheduled jobs', 'error')
   } finally {
     jobsLoading.value = false
@@ -636,7 +636,7 @@ const triggerPipelineUpdate = async () => {
     showSnackbar(`Pipeline update scheduled: ${response.data.task_id}`, 'success')
     await loadPipelineStatus()
   } catch (error) {
-    console.error('Failed to trigger pipeline update:', error)
+    window.logService.error('Failed to trigger pipeline update:', error)
     showSnackbar('Failed to trigger pipeline update', 'error')
   } finally {
     pipelineLoading.value = false
@@ -648,9 +648,9 @@ const validateAnnotations = async () => {
   try {
     const response = await annotationsApi.validateAnnotations()
     showSnackbar('Validation completed', 'success')
-    console.log('Validation results:', response.data)
+    window.logService.info('Validation results:', response.data)
   } catch (error) {
-    console.error('Failed to validate annotations:', error)
+    window.logService.error('Failed to validate annotations:', error)
     showSnackbar('Failed to validate annotations', 'error')
   } finally {
     pipelineLoading.value = false
@@ -663,7 +663,7 @@ const refreshMaterializedView = async () => {
     const response = await annotationsApi.refreshMaterializedView()
     showSnackbar(response.data.message, 'success')
   } catch (error) {
-    console.error('Failed to refresh materialized view:', error)
+    window.logService.error('Failed to refresh materialized view:', error)
     showSnackbar('Failed to refresh materialized view', 'error')
   } finally {
     pipelineLoading.value = false
@@ -683,7 +683,7 @@ const lookupGeneAnnotations = async () => {
     )
     lookupResult.value = response.data
   } catch (error) {
-    console.error('Failed to lookup gene annotations:', error)
+    window.logService.error('Failed to lookup gene annotations:', error)
     if (error.response?.status === 404) {
       showSnackbar('Gene not found', 'error')
     } else {
@@ -700,7 +700,7 @@ const updateSource = async sourceName => {
     // This would require a specific gene ID - for now just show a message
     showSnackbar(`Source update for ${sourceName} - requires specific gene ID`, 'warning')
   } catch (error) {
-    console.error(`Failed to update source ${sourceName}:`, error)
+    window.logService.error(`Failed to update source ${sourceName}:`, error)
     showSnackbar(`Failed to update source ${sourceName}`, 'error')
   } finally {
     sourceUpdateLoading[sourceName] = false
@@ -719,7 +719,7 @@ const triggerJob = async jobId => {
     showSnackbar(response.data.message, 'success')
     await loadScheduledJobs()
   } catch (error) {
-    console.error(`Failed to trigger job ${jobId}:`, error)
+    window.logService.error(`Failed to trigger job ${jobId}:`, error)
     showSnackbar(`Failed to trigger job ${jobId}`, 'error')
   } finally {
     jobTriggerLoading[jobId] = false

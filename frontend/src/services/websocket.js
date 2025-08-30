@@ -22,7 +22,7 @@ class WebSocketService {
    */
   connect(url = null) {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      console.log('WebSocket already connected')
+      window.logService.debug('WebSocket already connected')
       return
     }
 
@@ -33,11 +33,11 @@ class WebSocketService {
       url = `${protocol}//${host}/api/progress/ws`
     }
 
-    console.log('Connecting to WebSocket:', url)
+    window.logService.info('Connecting to WebSocket:', { url })
     this.ws = new WebSocket(url)
 
     this.ws.onopen = () => {
-      console.log('WebSocket connected')
+      window.logService.info('WebSocket connected')
       this.connected.value = true
       this.reconnectAttempts = 0
 
@@ -50,17 +50,17 @@ class WebSocketService {
         const data = JSON.parse(event.data)
         this.handleMessage(data)
       } catch (error) {
-        console.error('Failed to parse WebSocket message:', error)
+        window.logService.error('Failed to parse WebSocket message:', error)
       }
     }
 
     this.ws.onerror = error => {
-      console.error('WebSocket error:', error)
+      window.logService.error('WebSocket error:', error)
       this.connected.value = false
     }
 
     this.ws.onclose = () => {
-      console.log('WebSocket disconnected')
+      window.logService.info('WebSocket disconnected')
       this.connected.value = false
 
       // Notify handlers of disconnection
@@ -69,9 +69,10 @@ class WebSocketService {
       // Attempt reconnection if enabled
       if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
         this.reconnectAttempts++
-        console.log(
-          `Reconnecting in ${this.reconnectInterval}ms... (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
-        )
+        window.logService.info(`Reconnecting in ${this.reconnectInterval}ms...`, {
+          attempt: this.reconnectAttempts,
+          maxAttempts: this.maxReconnectAttempts
+        })
         setTimeout(() => this.connect(url), this.reconnectInterval)
       }
     }
@@ -84,7 +85,7 @@ class WebSocketService {
   handleMessage(message) {
     // Log all messages in development
     if (import.meta.env.DEV) {
-      console.log('WebSocket message:', message)
+      window.logService.debug('WebSocket message:', message)
     }
 
     // Handle ping/pong for keepalive
@@ -99,7 +100,7 @@ class WebSocketService {
       try {
         handler(message.data || message)
       } catch (error) {
-        console.error('Error in WebSocket message handler:', error)
+        window.logService.error('Error in WebSocket message handler:', error)
       }
     })
 
@@ -109,7 +110,7 @@ class WebSocketService {
       try {
         handler(message)
       } catch (error) {
-        console.error('Error in WebSocket wildcard handler:', error)
+        window.logService.error('Error in WebSocket wildcard handler:', error)
       }
     })
   }
@@ -151,7 +152,7 @@ class WebSocketService {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message))
     } else {
-      console.warn('WebSocket not connected, cannot send message:', message)
+      window.logService.warn('WebSocket not connected, cannot send message:', message)
     }
   }
 

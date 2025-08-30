@@ -137,7 +137,7 @@ const loadData = async () => {
     }
   } catch (err) {
     error.value = err.message || 'Failed to load source distribution data'
-    console.error('Error loading source distributions:', err)
+    window.logService.error('Error loading source distributions:', err)
   } finally {
     loading.value = false
   }

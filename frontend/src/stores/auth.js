@@ -64,7 +64,7 @@ export const useAuthStore = defineStore('auth', () => {
       return true
     } catch (err) {
       error.value = err.response?.data?.detail || 'Login failed'
-      console.error('Login error:', err)
+      window.logService.error('Login error:', err)
       return false
     } finally {
       isLoading.value = false
@@ -80,7 +80,7 @@ export const useAuthStore = defineStore('auth', () => {
       await authApi.logout()
     } catch (err) {
       // Continue with logout even if request fails
-      console.error('Logout request failed:', err)
+      window.logService.error('Logout request failed:', err)
     } finally {
       // Clear local state
       user.value = null
@@ -106,7 +106,7 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = userData
       localStorage.setItem('user', JSON.stringify(userData))
     } catch (err) {
-      console.error('Failed to fetch user:', err)
+      window.logService.error('Failed to fetch user:', err)
       // If fetch fails, token might be invalid
       if (err.response?.status === 401) {
         await logout()
@@ -124,7 +124,7 @@ export const useAuthStore = defineStore('auth', () => {
       try {
         user.value = JSON.parse(storedUser)
       } catch (err) {
-        console.error('Failed to parse stored user:', err)
+        window.logService.error('Failed to parse stored user:', err)
       }
     }
 
@@ -146,7 +146,7 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('access_token', response.access_token)
       return true
     } catch (err) {
-      console.error('Token refresh failed:', err)
+      window.logService.error('Token refresh failed:', err)
       // Refresh failed, logout user
       await logout()
       return false

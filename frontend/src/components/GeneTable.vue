@@ -437,7 +437,7 @@ const loadGenes = async (options = {}) => {
       }
     }
   } catch (error) {
-    console.error('Error loading genes:', error)
+    window.logService.error('Error loading genes:', error)
     genes.value = []
     totalItems.value = 0
   } finally {
@@ -494,7 +494,7 @@ const refreshData = () => {
 
 const exportData = () => {
   // TODO: Implement export functionality
-  console.log('Export functionality to be implemented')
+  window.logService.info('Export functionality to be implemented')
 }
 
 // Color and helper methods
