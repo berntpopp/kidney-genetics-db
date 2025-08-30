@@ -19,8 +19,8 @@
     <v-row class="mb-6">
       <v-col cols="12" sm="6" md="3">
         <AdminStatsCard
-          title="Total Sources"
-          :value="sources.length"
+          title="Data Sources"
+          :value="dataSources.length"
           icon="mdi-database"
           color="info"
         />
@@ -62,7 +62,7 @@
           :disabled="runningSources > 0"
           @click="triggerAll"
         >
-          Run All Sources
+          Run All Data Sources
         </v-btn>
         <v-btn
           color="warning"
@@ -86,8 +86,9 @@
     </v-card>
 
     <!-- Data Sources Grid -->
+    <h3 class="text-h5 mb-4">Data Sources</h3>
     <v-row>
-      <v-col v-for="source in sources" :key="source.source_name" cols="12" md="6" lg="4">
+      <v-col v-for="source in dataSources" :key="source.source_name" cols="12" md="6" lg="4">
         <v-card class="h-100">
           <v-card-title class="d-flex align-center">
             <v-icon
@@ -244,6 +245,83 @@
       </v-col>
     </v-row>
 
+    <!-- Internal Processes Section -->
+    <div v-if="internalProcesses.length > 0" class="mt-8">
+      <h3 class="text-h5 mb-4">Internal Processes</h3>
+      <v-row>
+        <v-col
+          v-for="process in internalProcesses"
+          :key="process.source_name"
+          cols="12"
+          md="6"
+          lg="4"
+        >
+          <v-card class="h-100" variant="outlined">
+            <v-card-title class="d-flex align-center">
+              <v-icon
+                :icon="process.icon || 'mdi-cog'"
+                :color="getStatusColor(process.status)"
+                class="mr-2"
+              />
+              {{ process.display_name || process.source_name }}
+              <v-spacer />
+              <v-chip :color="getStatusColor(process.status)" size="small" label>
+                {{ process.status }}
+              </v-chip>
+            </v-card-title>
+
+            <v-card-text>
+              <p class="text-body-2 text-medium-emphasis mb-3">
+                {{ process.description }}
+              </p>
+
+              <!-- Progress Bar -->
+              <div v-if="process.status === 'running'" class="mb-3">
+                <v-progress-linear
+                  :model-value="process.progress_percentage || 0"
+                  :color="getStatusColor(process.status)"
+                  height="20"
+                  rounded
+                >
+                  <template #default>
+                    <strong>{{ Math.round(process.progress_percentage || 0) }}%</strong>
+                  </template>
+                </v-progress-linear>
+                <p class="text-caption mt-1">
+                  {{ process.current_operation || 'Processing...' }}
+                </p>
+              </div>
+
+              <!-- Timing Info -->
+              <div v-if="process.started_at" class="text-caption">
+                <div v-if="process.status === 'running'">
+                  Started: {{ formatTime(process.started_at) }}
+                </div>
+                <div v-else-if="process.completed_at">
+                  Completed: {{ formatTime(process.completed_at) }}
+                </div>
+              </div>
+
+              <!-- Error Message -->
+              <v-alert v-if="process.last_error" type="error" density="compact" class="mt-3">
+                {{ process.last_error }}
+              </v-alert>
+            </v-card-text>
+
+            <v-card-actions>
+              <v-spacer />
+              <v-btn
+                icon="mdi-information"
+                size="small"
+                variant="text"
+                @click="showSourceDetails(process)"
+              />
+            </v-card-actions>
+          </v-card>
+        </v-col>
+      </v-row>
+    </div>
+
     <!-- Source Details Dialog -->
     <v-dialog v-model="showDetailsDialog" max-width="800">
       <v-card v-if="selectedSource">
@@ -300,11 +378,21 @@ const snackbarColor = ref('success')
 const unsubscribers = []
 
 // Computed
-const runningSources = computed(() => sources.value.filter(s => s.status === 'running').length)
+const dataSources = computed(() =>
+  sources.value.filter(s => s.category === 'data_source' || s.category === 'hybrid_source')
+)
 
-const completedSources = computed(() => sources.value.filter(s => s.status === 'completed').length)
+const internalProcesses = computed(() =>
+  sources.value.filter(s => s.category === 'internal_process')
+)
 
-const failedSources = computed(() => sources.value.filter(s => s.status === 'failed').length)
+const runningSources = computed(() => dataSources.value.filter(s => s.status === 'running').length)
+
+const completedSources = computed(
+  () => dataSources.value.filter(s => s.status === 'completed').length
+)
+
+const failedSources = computed(() => dataSources.value.filter(s => s.status === 'failed').length)
 
 // Methods
 const loadSources = async () => {
@@ -363,18 +451,16 @@ const resumeSource = async sourceName => {
 const triggerAll = async () => {
   triggeringAll.value = true
   try {
-    const dataSources = sources.value.filter(
-      s =>
-        s.category === 'data_source' &&
-        (s.status === 'idle' || s.status === 'failed' || s.status === 'completed')
+    const triggerable = dataSources.value.filter(
+      s => s.status === 'idle' || s.status === 'failed' || s.status === 'completed'
     )
 
-    await Promise.all(dataSources.map(source => triggerSource(source.source_name)))
+    await Promise.all(triggerable.map(source => triggerSource(source.source_name)))
 
-    showSnackbar('All pipelines triggered', 'success')
+    showSnackbar('All data sources triggered', 'success')
   } catch (error) {
     console.error('Failed to trigger all:', error)
-    showSnackbar('Failed to trigger all pipelines', 'error')
+    showSnackbar('Failed to trigger all data sources', 'error')
   } finally {
     triggeringAll.value = false
   }

@@ -222,6 +222,28 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
     },
 }
 
+# Internal process configurations with display metadata
+INTERNAL_PROCESS_CONFIG: dict[str, dict[str, Any]] = {
+    "annotation_pipeline": {
+        "display_name": "Gene Annotation Pipeline",
+        "description": "Post-processing pipeline that adds ClinVar annotations and computed scores",
+        "category": "internal_process",
+        "icon": "mdi-cog",
+    },
+    "Evidence_Aggregation": {
+        "display_name": "Evidence Aggregation",
+        "description": "Combines and scores evidence from all data sources",
+        "category": "internal_process",
+        "icon": "mdi-chart-timeline-variant",
+    },
+    "HGNC_Normalization": {
+        "display_name": "HGNC Normalization",
+        "description": "Normalizes gene symbols using HGNC database",
+        "category": "internal_process",
+        "icon": "mdi-format-align-center",
+    },
+}
+
 # List of sources that support automatic updates
 AUTO_UPDATE_SOURCES = [
     source for source, config in DATA_SOURCE_CONFIG.items() if config.get("auto_update", False)
@@ -269,6 +291,11 @@ def get_source_parameter(source_name: str, param_name: str, default: Any = None)
     if config:
         return config.get(param_name, default)
     return default
+
+
+def get_internal_process_config(process_name: str) -> dict[str, Any] | None:
+    """Get configuration for a specific internal process"""
+    return INTERNAL_PROCESS_CONFIG.get(process_name)
 
 
 def get_source_cache_ttl(source_name: str) -> int:

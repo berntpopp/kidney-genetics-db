@@ -11,7 +11,12 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.datasource_config import DATA_SOURCE_CONFIG, get_auto_update_sources
+from app.core.datasource_config import (
+    DATA_SOURCE_CONFIG,
+    INTERNAL_PROCESS_CONFIG,
+    get_auto_update_sources,
+    get_internal_process_config,
+)
 from app.core.events import EventTypes, event_bus
 from app.core.exceptions import DataSourceError
 from app.core.logging import get_logger
@@ -138,16 +143,17 @@ async def get_all_status(db: Session = Depends(get_db)) -> dict[str, Any]:
     automated_sources = get_auto_update_sources()
     # Also include hybrid sources that could be run manually
     all_configured_sources = list(DATA_SOURCE_CONFIG.keys())
-    internal_processes = ["Evidence_Aggregation", "HGNC_Normalization", "annotation_pipeline"]
+    internal_processes = list(INTERNAL_PROCESS_CONFIG.keys())
 
     result = []
     for p in all_progress:
-        # Skip obsolete entries that are no longer in DATA_SOURCE_CONFIG
+        # Skip obsolete entries that are no longer in any config
         if p.source_name not in all_configured_sources and p.source_name not in internal_processes:
             continue
 
         status_dict = p.to_dict()
-        # Add category field
+
+        # Add category and enhanced metadata
         if p.source_name in automated_sources:
             status_dict["category"] = "data_source"
         elif p.source_name in all_configured_sources:
@@ -155,11 +161,26 @@ async def get_all_status(db: Session = Depends(get_db)) -> dict[str, Any]:
             status_dict["category"] = "hybrid_source"
         elif p.source_name in internal_processes:
             status_dict["category"] = "internal_process"
+            # Add proper display metadata for internal processes
+            process_config = get_internal_process_config(p.source_name)
+            if process_config:
+                status_dict["display_name"] = process_config["display_name"]
+                status_dict["description"] = process_config["description"]
+                status_dict["icon"] = process_config["icon"]
         else:
             status_dict["category"] = "other"
         result.append(status_dict)
 
-    return ResponseBuilder.build_success_response(data=result, meta={"total_sources": len(result)})
+    # Count only actual data sources (not internal processes)
+    data_source_count = len([r for r in result if r["category"] in ["data_source", "hybrid_source"]])
+
+    return ResponseBuilder.build_success_response(
+        data=result,
+        meta={
+            "total_sources": data_source_count,  # Only count actual data sources
+            "total_entries": len(result),  # Total entries including internal processes
+        }
+    )
 
 
 @router.get("/status/{source_name}")
