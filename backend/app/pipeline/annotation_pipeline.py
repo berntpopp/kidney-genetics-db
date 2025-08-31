@@ -99,6 +99,23 @@ class AnnotationPipeline:
             # Get genes to update based on strategy
             genes_to_update = await self._get_genes_to_update(strategy, gene_ids)
 
+            # Check if there's anything to update
+            if not sources_to_update or not genes_to_update:
+                logger.sync_warning(
+                    "No sources or genes to update",
+                    sources_count=len(sources_to_update),
+                    genes_count=len(genes_to_update),
+                )
+                if self.progress_tracker:
+                    self.progress_tracker.complete(operation="No updates needed")
+                return {
+                    "sources_updated": [],
+                    "genes_updated": 0,
+                    "errors": [],
+                    "duration": 0,
+                    "message": "No sources or genes to update",
+                }
+
             logger.sync_info(
                 "Starting annotation update",
                 strategy=strategy.value,
@@ -117,8 +134,10 @@ class AnnotationPipeline:
                 logger.sync_info(f"Updating {source_name} annotations")
 
                 if self.progress_tracker:
+                    # Avoid division by zero
+                    progress = 0 if total_steps == 0 else int((current_step / total_steps) * 100)
                     self.progress_tracker.update(
-                        current_item=int((current_step / total_steps) * 100),
+                        current_item=progress,
                         operation=f"Updating {source_name} annotations",
                     )
 
@@ -200,7 +219,30 @@ class AnnotationPipeline:
             if force or source.is_update_due():
                 sources_to_update.append(source.source_name)
 
-        return sources_to_update
+        # Ensure HGNC runs first as it provides Ensembl IDs needed by other sources
+        priority_order = [
+            "hgnc",
+            "gnomad",
+            "gtex",
+            "descartes",
+            "mpo_mgi",
+            "string_ppi",
+            "hpo",
+            "clinvar",
+        ]
+        ordered_sources = []
+
+        # Add sources in priority order
+        for priority_source in priority_order:
+            if priority_source in sources_to_update:
+                ordered_sources.append(priority_source)
+
+        # Add any remaining sources not in priority list
+        for source in sources_to_update:
+            if source not in ordered_sources:
+                ordered_sources.append(source)
+
+        return ordered_sources
 
     async def _get_genes_to_update(
         self, strategy: UpdateStrategy, gene_ids: list[int] | None
@@ -266,7 +308,8 @@ class AnnotationPipeline:
             batch = genes[i : i + batch_size]
 
             if self.progress_tracker:
-                progress = int(((current_step + i) / total_steps) * 100)
+                # Avoid division by zero
+                progress = 0 if total_steps == 0 else int(((current_step + i) / total_steps) * 100)
                 self.progress_tracker.update(
                     current_item=progress,
                     operation=f"Updating {source_name}: {i}/{len(genes)} genes",

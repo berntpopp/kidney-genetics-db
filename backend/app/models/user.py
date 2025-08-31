@@ -20,7 +20,9 @@ class User(Base, TimestampMixin):
     full_name = Column(String(255), nullable=True)
 
     # Role and permissions
-    role = Column(String(20), default="viewer", nullable=False, index=True)  # admin, curator, viewer
+    role = Column(
+        String(20), default="viewer", nullable=False, index=True
+    )  # admin, curator, viewer
     permissions = Column(JSON, nullable=True)  # Computed from role
 
     # Account status
@@ -46,18 +48,27 @@ class User(Base, TimestampMixin):
         """Get user permissions based on role"""
         role_permissions = {
             "admin": [
-                "users:read", "users:write", "users:delete",
-                "genes:read", "genes:write", "genes:delete",
-                "annotations:read", "annotations:write", "annotations:delete",
-                "ingestion:run", "cache:manage", "logs:read", "system:manage"
+                "users:read",
+                "users:write",
+                "users:delete",
+                "genes:read",
+                "genes:write",
+                "genes:delete",
+                "annotations:read",
+                "annotations:write",
+                "annotations:delete",
+                "ingestion:run",
+                "cache:manage",
+                "logs:read",
+                "system:manage",
             ],
             "curator": [
-                "genes:read", "genes:write",
-                "annotations:read", "annotations:write",
-                "ingestion:run"
+                "genes:read",
+                "genes:write",
+                "annotations:read",
+                "annotations:write",
+                "ingestion:run",
             ],
-            "viewer": [
-                "genes:read", "annotations:read"
-            ]
+            "viewer": ["genes:read", "annotations:read"],
         }
         return role_permissions.get(self.role, [])

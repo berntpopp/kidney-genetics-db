@@ -15,11 +15,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-def cache(
-    namespace: str = "default",
-    ttl: int | None = None,
-    key_builder: Callable | None = None
-):
+def cache(namespace: str = "default", ttl: int | None = None, key_builder: Callable | None = None):
     """
     Cache decorator for async functions.
 
@@ -33,11 +29,12 @@ def cache(
         async def get_gene_data(gene_id: int):
             return expensive_operation(gene_id)
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
             # Get db session from kwargs if available
-            db_session = kwargs.get('db')
+            db_session = kwargs.get("db")
             cache_service = get_cache_service(db_session)
 
             # Build cache key
@@ -52,7 +49,7 @@ def cache(
                 # Create key from function name and arguments
                 key_parts = [func.__name__]
                 for name, value in bound.arguments.items():
-                    if name not in ('self', 'cls', 'db'):  # Skip common non-cache params
+                    if name not in ("self", "cls", "db"):  # Skip common non-cache params
                         key_parts.append(f"{name}:{value}")
 
                 raw_key = ":".join(key_parts)
@@ -74,16 +71,12 @@ def cache(
             return result
 
         return wrapper
+
     return decorator
 
 
 def cache_key_builder(
-    func: Callable,
-    namespace: str = "",
-    request = None,
-    response = None,
-    *args,
-    **kwargs
+    func: Callable, namespace: str = "", request=None, response=None, *args, **kwargs
 ) -> str:
     """
     Build a cache key based on function and request parameters.
@@ -122,7 +115,7 @@ def cache_key_builder(
         bound.apply_defaults()
 
         for name, value in bound.arguments.items():
-            if name not in ('self', 'cls', 'db', 'request', 'response'):
+            if name not in ("self", "cls", "db", "request", "response"):
                 # Convert complex types to string representation
                 if isinstance(value, dict | list):
                     value_str = json.dumps(value, sort_keys=True, default=str)
@@ -133,4 +126,3 @@ def cache_key_builder(
     # Create hash of the key for consistent length
     raw_key = ":".join(key_parts)
     return hashlib.sha256(raw_key.encode()).hexdigest()
-

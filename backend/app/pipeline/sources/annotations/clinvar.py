@@ -81,7 +81,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
     async def _search_variants(self, gene_symbol: str) -> list[str]:
         """
         Search for ClinVar variants with retry logic.
-        
+
         Args:
             gene_symbol: Gene symbol to search for
 
@@ -106,8 +106,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             id_list = data.get("esearchresult", {}).get("idlist", [])
 
             logger.sync_debug(  # Changed from info to debug for less noise
-                f"Found {len(id_list)} ClinVar variants",
-                gene_symbol=gene_symbol
+                f"Found {len(id_list)} ClinVar variants", gene_symbol=gene_symbol
             )
 
             return id_list
@@ -117,15 +116,13 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                 "Failed to search ClinVar variants",
                 gene_symbol=gene_symbol,
                 status_code=e.response.status_code,
-                response=e.response.text[:200]
+                response=e.response.text[:200],
             )
             raise  # Let retry decorator handle it
 
         except Exception as e:
             logger.sync_error(
-                "Error searching ClinVar variants",
-                gene_symbol=gene_symbol,
-                error=str(e)
+                "Error searching ClinVar variants", gene_symbol=gene_symbol, error=str(e)
             )
             raise
 
@@ -189,7 +186,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
     async def _fetch_variant_batch(self, variant_ids: list[str]) -> list[dict[str, Any]]:
         """
         Fetch variant details with retry logic and rate limiting.
-        
+
         Args:
             variant_ids: List of ClinVar variant IDs (max 200)
 
@@ -204,11 +201,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
 
         try:
             summary_url = f"{self.base_url}/esummary.fcgi"
-            params = {
-                "db": "clinvar",
-                "id": ",".join(variant_ids),
-                "retmode": "json"
-            }
+            params = {"db": "clinvar", "id": ",".join(variant_ids), "retmode": "json"}
 
             response = await client.get(summary_url, params=params)
             data = response.json()
@@ -232,21 +225,19 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                     "ClinVar rate limit hit",
                     status_code=e.response.status_code,
                     remaining_requests=remaining,
-                    batch_size=len(variant_ids)
+                    batch_size=len(variant_ids),
                 )
             else:
                 logger.sync_error(  # Changed from warning to error
                     "Failed to fetch ClinVar variant details",
                     status_code=e.response.status_code,
-                    batch_size=len(variant_ids)
+                    batch_size=len(variant_ids),
                 )
             raise
 
         except Exception as e:
             logger.sync_error(
-                "Error fetching ClinVar variant batch",
-                error=str(e),
-                batch_size=len(variant_ids)
+                "Error fetching ClinVar variant batch", error=str(e), batch_size=len(variant_ids)
             )
             raise
 
@@ -392,7 +383,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                         "Fetching ClinVar variants",
                         gene_symbol=gene.approved_symbol,
                         batch=f"{batch_num + 1}/{total_batches}",
-                        variants=f"{i}/{len(variant_ids)}"
+                        variants=f"{i}/{len(variant_ids)}",
                     )
 
                 try:
@@ -403,7 +394,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                         "Failed to fetch variant batch",
                         gene_symbol=gene.approved_symbol,
                         batch=batch_num,
-                        error=str(e)
+                        error=str(e),
                     )
                     # Continue with partial data rather than failing completely
                     if self.circuit_breaker and self.circuit_breaker.state == "open":
@@ -464,10 +455,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
 
         # ClinVar specific: must have variant counts and gene_symbol
         required_fields = ["total_variants", "gene_symbol"]
-        has_required = all(
-            field in annotation_data
-            for field in required_fields
-        )
+        has_required = all(field in annotation_data for field in required_fields)
 
         return has_required
 

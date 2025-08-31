@@ -65,7 +65,7 @@ class DescartesAnnotationSource(BaseAnnotationSource):
         "Sec-Fetch-Dest": "document",
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Site": "none",
-        "Cache-Control": "max-age=0"
+        "Cache-Control": "max-age=0",
     }
 
     # In-memory cache for parsed data
@@ -91,13 +91,12 @@ class DescartesAnnotationSource(BaseAnnotationSource):
 
         # Look up gene in cached data
         tpm = self._tpm_data.get(gene.approved_symbol) if self._tpm_data else None
-        percentage = self._percentage_data.get(gene.approved_symbol) if self._percentage_data else None
+        percentage = (
+            self._percentage_data.get(gene.approved_symbol) if self._percentage_data else None
+        )
 
         if tpm is None and percentage is None:
-            logger.sync_debug(
-                "No Descartes data found for gene",
-                gene_symbol=gene.approved_symbol
-            )
+            logger.sync_debug("No Descartes data found for gene", gene_symbol=gene.approved_symbol)
             return None
 
         return {
@@ -105,7 +104,7 @@ class DescartesAnnotationSource(BaseAnnotationSource):
             "kidney_percentage": percentage,
             "cell_type": "kidney",  # Could be expanded to include specific cell types
             "dataset_version": self.version,
-            "gene_symbol": gene.approved_symbol
+            "gene_symbol": gene.approved_symbol,
         }
 
     @retry_with_backoff(config=RetryConfig(max_retries=3))
@@ -145,10 +144,7 @@ class DescartesAnnotationSource(BaseAnnotationSource):
             self._tpm_data = cached_data.get("tpm_data", {})
             self._percentage_data = cached_data.get("percentage_data", {})
             self._last_fetch = cached_data.get("timestamp")
-            logger.sync_info(
-                "Loaded Descartes data from cache",
-                gene_count=len(self._tpm_data)
-            )
+            logger.sync_info("Loaded Descartes data from cache", gene_count=len(self._tpm_data))
             return
 
         # Try to load from local files first (for CloudFront-protected data)
@@ -164,17 +160,14 @@ class DescartesAnnotationSource(BaseAnnotationSource):
         try:
             # Download TPM data
             tpm_response = await client.get(
-                    self.tpm_url,
-                    timeout=60.0,
-                    headers=self.BROWSER_HEADERS,
-                    follow_redirects=True
-                )
+                self.tpm_url, timeout=60.0, headers=self.BROWSER_HEADERS, follow_redirects=True
+            )
 
             if tpm_response.status_code != 200:
                 logger.sync_warning(
                     "Cannot download Descartes data directly (CloudFront protected). "
                     "Please download manually and place in .cache/descartes/",
-                    status=tpm_response.status_code
+                    status=tpm_response.status_code,
                 )
                 return
 
@@ -183,13 +176,13 @@ class DescartesAnnotationSource(BaseAnnotationSource):
                 self.percentage_url,
                 timeout=60.0,
                 headers=self.BROWSER_HEADERS,
-                follow_redirects=True
+                follow_redirects=True,
             )
 
             if percentage_response.status_code != 200:
                 logger.sync_error(
                     "Failed to download Descartes percentage data",
-                    status=percentage_response.status_code
+                    status=percentage_response.status_code,
                 )
                 return
 
@@ -201,23 +194,22 @@ class DescartesAnnotationSource(BaseAnnotationSource):
             logger.sync_info(
                 "Downloaded and parsed Descartes data",
                 tpm_genes=len(self._tpm_data),
-                percentage_genes=len(self._percentage_data)
+                percentage_genes=len(self._percentage_data),
             )
 
             # Save to cache
-            await self._save_to_cache({
-                "tpm_data": self._tpm_data,
-                "percentage_data": self._percentage_data,
-                "timestamp": self._last_fetch
-            })
+            await self._save_to_cache(
+                {
+                    "tpm_data": self._tpm_data,
+                    "percentage_data": self._percentage_data,
+                    "timestamp": self._last_fetch,
+                }
+            )
 
         except httpx.TimeoutException:
             logger.sync_error("Timeout downloading Descartes data")
         except Exception as e:
-            logger.sync_error(
-                "Error downloading Descartes data",
-                    error=str(e)
-                )
+            logger.sync_error("Error downloading Descartes data", error=str(e))
 
     def _parse_csv(self, csv_text: str) -> dict[str, float]:
         """
@@ -238,10 +230,10 @@ class DescartesAnnotationSource(BaseAnnotationSource):
 
         try:
             # Descartes CSV has no header - parse directly
-            lines = csv_text.strip().split('\n')
+            lines = csv_text.strip().split("\n")
 
             for line in lines:
-                parts = line.strip().split(',')
+                parts = line.strip().split(",")
                 if len(parts) >= 2:
                     gene_symbol = parts[0].strip()
                     try:
@@ -250,15 +242,10 @@ class DescartesAnnotationSource(BaseAnnotationSource):
                     except (ValueError, IndexError):
                         continue
 
-            logger.sync_debug(
-                f"Parsed Descartes CSV: {len(data)} genes"
-            )
+            logger.sync_debug(f"Parsed Descartes CSV: {len(data)} genes")
 
         except Exception as e:
-            logger.sync_error(
-                "Error parsing Descartes CSV",
-                error=str(e)
-            )
+            logger.sync_error("Error parsing Descartes CSV", error=str(e))
 
         return data
 
@@ -294,16 +281,13 @@ class DescartesAnnotationSource(BaseAnnotationSource):
             logger.sync_info(
                 "Loaded Descartes data from local files",
                 tpm_genes=len(self._tpm_data),
-                percentage_genes=len(self._percentage_data)
+                percentage_genes=len(self._percentage_data),
             )
 
             return True
 
         except Exception as e:
-            logger.sync_error(
-                "Error loading Descartes data from local files",
-                error=str(e)
-            )
+            logger.sync_error("Error loading Descartes data from local files", error=str(e))
             return False
 
     async def _load_from_cache(self) -> dict[str, Any] | None:
@@ -385,12 +369,11 @@ class DescartesAnnotationSource(BaseAnnotationSource):
             "version": self.version,
             "last_fetch": self._last_fetch.isoformat() if self._last_fetch else None,
             "cache_age_days": (
-                (datetime.utcnow() - self._last_fetch).days
-                if self._last_fetch else None
+                (datetime.utcnow() - self._last_fetch).days if self._last_fetch else None
             ),
             "tpm_gene_count": len(self._tpm_data) if self._tpm_data else 0,
             "percentage_gene_count": len(self._percentage_data) if self._percentage_data else 0,
-            "cache_ttl_days": self.cache_ttl_days
+            "cache_ttl_days": self.cache_ttl_days,
         }
 
     async def clear_cache(self) -> None:

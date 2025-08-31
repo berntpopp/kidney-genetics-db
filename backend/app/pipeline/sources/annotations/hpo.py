@@ -52,7 +52,9 @@ class HPOAnnotationSource(BaseAnnotationSource):
         # Update source configuration
         if self.source_record:
             self.source_record.update_frequency = "weekly"
-            self.source_record.description = "Human phenotype terms and disease associations for genes"
+            self.source_record.description = (
+                "Human phenotype terms and disease associations for genes"
+            )
             self.source_record.base_url = self.hpo_api_url
             self.session.commit()
 
@@ -75,15 +77,14 @@ class HPOAnnotationSource(BaseAnnotationSource):
             search_url = f"{self.hpo_api_url}/network/search/gene"
             params = {
                 "q": gene_symbol,
-                "limit": -1  # Get all results
+                "limit": -1,  # Get all results
             }
 
             response = await client.get(search_url, params=params, timeout=30.0)
 
             if response.status_code != 200:
                 logger.sync_error(
-                    f"Gene search failed for {gene_symbol}",
-                    status_code=response.status_code
+                    f"Gene search failed for {gene_symbol}", status_code=response.status_code
                 )
                 return None
 
@@ -101,10 +102,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
                     gene_id = gene_result.get("id", "")
                     if gene_id.startswith("NCBIGene:"):
                         ncbi_id = gene_id.replace("NCBIGene:", "")
-                        logger.sync_info(
-                            f"Found NCBI Gene ID for {gene_symbol}",
-                            ncbi_id=ncbi_id
-                        )
+                        logger.sync_info(f"Found NCBI Gene ID for {gene_symbol}", ncbi_id=ncbi_id)
                         return ncbi_id
 
             # If no exact match, try case-insensitive match
@@ -116,7 +114,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
                         ncbi_id = gene_id.replace("NCBIGene:", "")
                         logger.sync_info(
                             f"Found NCBI Gene ID (case-insensitive) for {gene_symbol}",
-                            ncbi_id=ncbi_id
+                            ncbi_id=ncbi_id,
                         )
                         return ncbi_id
 
@@ -125,9 +123,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
 
         except Exception as e:
             logger.sync_error(
-                "Error searching for NCBI Gene ID",
-                gene_symbol=gene_symbol,
-                error=str(e)
+                "Error searching for NCBI Gene ID", gene_symbol=gene_symbol, error=str(e)
             )
             return None
 
@@ -152,19 +148,14 @@ class HPOAnnotationSource(BaseAnnotationSource):
             response = await client.get(annotation_url, timeout=30.0)
 
             if response.status_code == 404:
-                logger.sync_warning(
-                    f"No HPO annotations found for NCBIGene:{ncbi_gene_id}"
-                )
-                return {
-                    "phenotypes": [],
-                    "diseases": []
-                }
+                logger.sync_warning(f"No HPO annotations found for NCBIGene:{ncbi_gene_id}")
+                return {"phenotypes": [], "diseases": []}
 
             if response.status_code != 200:
                 logger.sync_warning(
                     "Failed to get HPO annotations",
                     ncbi_gene_id=ncbi_gene_id,
-                    status_code=response.status_code
+                    status_code=response.status_code,
                 )
                 return None
 
@@ -173,32 +164,31 @@ class HPOAnnotationSource(BaseAnnotationSource):
             # Extract phenotypes (HPO terms)
             phenotypes = []
             for phenotype in data.get("phenotypes", []):
-                phenotypes.append({
-                    "id": phenotype.get("id"),
-                    "name": phenotype.get("name"),
-                    "definition": phenotype.get("definition")
-                })
+                phenotypes.append(
+                    {
+                        "id": phenotype.get("id"),
+                        "name": phenotype.get("name"),
+                        "definition": phenotype.get("definition"),
+                    }
+                )
 
             # Extract diseases
             diseases = []
             for disease in data.get("diseases", []):
-                diseases.append({
-                    "id": disease.get("id"),
-                    "name": disease.get("name"),
-                    "dbId": disease.get("dbId"),
-                    "db": disease.get("db")
-                })
+                diseases.append(
+                    {
+                        "id": disease.get("id"),
+                        "name": disease.get("name"),
+                        "dbId": disease.get("dbId"),
+                        "db": disease.get("db"),
+                    }
+                )
 
-            return {
-                "phenotypes": phenotypes,
-                "diseases": diseases
-            }
+            return {"phenotypes": phenotypes, "diseases": diseases}
 
         except Exception as e:
             logger.sync_error(
-                "Error fetching HPO annotations",
-                ncbi_gene_id=ncbi_gene_id,
-                error=str(e)
+                "Error fetching HPO annotations", ncbi_gene_id=ncbi_gene_id, error=str(e)
             )
             return None
 
@@ -212,9 +202,11 @@ class HPOAnnotationSource(BaseAnnotationSource):
         from app.core.datasource_config import get_source_parameter
 
         # Check if we have a recent cache (cache for 24 hours)
-        if (self._kidney_terms_cache is not None and
-            self._kidney_terms_cache_time is not None and
-            time.time() - self._kidney_terms_cache_time < 86400):
+        if (
+            self._kidney_terms_cache is not None
+            and self._kidney_terms_cache_time is not None
+            and time.time() - self._kidney_terms_cache_time < 86400
+        ):
             return self._kidney_terms_cache
 
         # Use the existing HPO pipeline to get kidney terms
@@ -230,9 +222,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
         for root_term in kidney_root_terms:
             try:
                 descendants = await pipeline.terms.get_descendants(
-                    root_term,
-                    max_depth=pipeline.max_depth,
-                    include_self=True
+                    root_term, max_depth=pipeline.max_depth, include_self=True
                 )
                 kidney_term_ids.update(descendants)
             except Exception as e:
@@ -261,12 +251,11 @@ class HPOAnnotationSource(BaseAnnotationSource):
         kidney_term_ids = await self.get_kidney_term_descendants()
 
         # Simple filter - phenotype is kidney-related if its ID is in the descendant set
-        return [
-            phenotype for phenotype in phenotypes
-            if phenotype.get("id") in kidney_term_ids
-        ]
+        return [phenotype for phenotype in phenotypes if phenotype.get("id") in kidney_term_ids]
 
-    async def get_classification_term_descendants(self, classification_type: str) -> dict[str, set[str]]:
+    async def get_classification_term_descendants(
+        self, classification_type: str
+    ) -> dict[str, set[str]]:
         """
         Get all descendant terms for classification categories.
         Reuses existing HPO pipeline for term traversal (DRY principle).
@@ -276,8 +265,10 @@ class HPOAnnotationSource(BaseAnnotationSource):
         from app.core.datasource_config import get_source_parameter
 
         # Check cache (24-hour TTL like kidney terms)
-        if (self._classification_cache_time is not None and
-            time.time() - self._classification_cache_time < 86400):
+        if (
+            self._classification_cache_time is not None
+            and time.time() - self._classification_cache_time < 86400
+        ):
             # Return appropriate cache
             if classification_type == "onset_groups":
                 return self._onset_descendants_cache or {}
@@ -309,9 +300,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
             for term in root_terms:
                 try:
                     term_descendants = await pipeline.terms.get_descendants(
-                        term,
-                        max_depth=pipeline.max_depth,
-                        include_self=True
+                        term, max_depth=pipeline.max_depth, include_self=True
                     )
                     descendants.update(term_descendants)
                 except Exception as e:
@@ -380,7 +369,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
         # Normalize scores to sum to 1.0
         total_score = sum(scores.values())
         if total_score > 0:
-            scores = {k: round(v/total_score, 3) for k, v in scores.items()}
+            scores = {k: round(v / total_score, 3) for k, v in scores.items()}
 
         # Determine primary group (highest score)
         primary = max(scores, key=scores.get) if scores and max(scores.values()) > 0 else None
@@ -406,7 +395,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
         # Normalize scores to probabilities
         total = sum(scores.values())
         if total > 0:
-            scores = {k: round(v/total, 3) for k, v in scores.items()}
+            scores = {k: round(v / total, 3) for k, v in scores.items()}
 
         primary = max(scores, key=scores.get) if scores and max(scores.values()) > 0 else None
 
@@ -421,7 +410,9 @@ class HPOAnnotationSource(BaseAnnotationSource):
         Uses proportional scoring consistent with other classification methods.
         """
         # Get descendants for syndromic indicator terms
-        syndromic_descendants = await self.get_classification_term_descendants("syndromic_indicators")
+        syndromic_descendants = await self.get_classification_term_descendants(
+            "syndromic_indicators"
+        )
 
         # Get kidney term descendants for exclusion
         kidney_term_ids = await self.get_kidney_term_descendants()
@@ -485,7 +476,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
                     "has_kidney_phenotype": False,
                     "classification": {},
                     "classification_confidence": "none",
-                    "last_updated": datetime.now(timezone.utc).isoformat()
+                    "last_updated": datetime.now(timezone.utc).isoformat(),
                 }
 
             # Step 2: Get HPO annotations using NCBI Gene ID
@@ -519,13 +510,11 @@ class HPOAnnotationSource(BaseAnnotationSource):
                 "kidney_phenotype_count": len(kidney_phenotypes),
                 "has_kidney_phenotype": len(kidney_phenotypes) > 0,
                 "classification": classification,
-                "last_updated": datetime.now(timezone.utc).isoformat()
+                "last_updated": datetime.now(timezone.utc).isoformat(),
             }
 
         except Exception as e:
-            logger.sync_error(
-                f"Error fetching HPO annotation for {gene.approved_symbol}: {str(e)}"
-            )
+            logger.sync_error(f"Error fetching HPO annotation for {gene.approved_symbol}: {str(e)}")
             return None
 
     async def fetch_batch(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
@@ -544,7 +533,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
         batch_size = 10  # HPO API can handle moderate concurrency
 
         for i in range(0, len(genes), batch_size):
-            batch = genes[i:i + batch_size]
+            batch = genes[i : i + batch_size]
 
             # Create tasks for this batch
             tasks = [self.fetch_annotation(gene) for gene in batch]
@@ -578,7 +567,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
             "disease_count",
             "kidney_phenotypes",
             "kidney_phenotype_count",
-            "has_kidney_phenotype"
+            "has_kidney_phenotype",
         ]
         return all(field in annotation_data for field in required_fields)
 
@@ -593,6 +582,5 @@ class HPOAnnotationSource(BaseAnnotationSource):
             "hpo_phenotype_count": "(annotations->>'phenotype_count')::INTEGER",
             "hpo_disease_count": "(annotations->>'disease_count')::INTEGER",
             "has_kidney_phenotype": "(annotations->>'has_kidney_phenotype')::BOOLEAN",
-            "kidney_phenotype_count": "(annotations->>'kidney_phenotype_count')::INTEGER"
+            "kidney_phenotype_count": "(annotations->>'kidney_phenotype_count')::INTEGER",
         }
-

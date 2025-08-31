@@ -112,7 +112,10 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
         formatted_data = []
         for p in all_progress:
             # Skip obsolete entries
-            if p.source_name not in all_configured_sources and p.source_name not in internal_processes:
+            if (
+                p.source_name not in all_configured_sources
+                and p.source_name not in internal_processes
+            ):
                 continue
 
             status_dict = p.to_dict()
@@ -203,14 +206,16 @@ async def get_all_status(db: Session = Depends(get_db)) -> dict[str, Any]:
         result.append(status_dict)
 
     # Count only actual data sources (not internal processes)
-    data_source_count = len([r for r in result if r["category"] in ["data_source", "hybrid_source"]])
+    data_source_count = len(
+        [r for r in result if r["category"] in ["data_source", "hybrid_source"]]
+    )
 
     return ResponseBuilder.build_success_response(
         data=result,
         meta={
             "total_sources": data_source_count,  # Only count actual data sources
             "total_entries": len(result),  # Total entries including internal processes
-        }
+        },
     )
 
 

@@ -91,10 +91,10 @@ class GTExAnnotationSource(BaseAnnotationSource):
 
             # Now fetch expression data using the gencode ID
             expr_response = await client.get(
-                    f"{self.base_url}/expression/medianGeneExpression",
-                    params={"gencodeId": gencode_id, "datasetId": "gtex_v8", "format": "json"},
-                    headers=self.headers,
-                )
+                f"{self.base_url}/expression/medianGeneExpression",
+                params={"gencodeId": gencode_id, "datasetId": "gtex_v8", "format": "json"},
+                headers=self.headers,
+            )
 
             # Response validation handled by retry logic
 
@@ -116,24 +116,17 @@ class GTExAnnotationSource(BaseAnnotationSource):
                     }
 
             return {
-                    "tissues": tissues,
-                    "dataset_version": "gtex_v8",
-                    "gencode_id": gencode_id,
-                    "gene_symbol": symbol,
-                }
+                "tissues": tissues,
+                "dataset_version": "gtex_v8",
+                "gencode_id": gencode_id,
+                "gene_symbol": symbol,
+            }
 
         except httpx.HTTPStatusError as e:
-            logger.sync_error(
-                "GTEx API error",
-                symbol=symbol,
-                status_code=e.response.status_code
-            )
+            logger.sync_error("GTEx API error", symbol=symbol, status_code=e.response.status_code)
             raise
         except Exception as e:
-            logger.sync_error(
-                f"Error fetching GTEx data: {str(e)}",
-                symbol=symbol
-            )
+            logger.sync_error(f"Error fetching GTEx data: {str(e)}", symbol=symbol)
             raise
 
     async def fetch_batch(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:

@@ -139,9 +139,7 @@ class HGNCAnnotationSource(BaseAnnotationSource):
                     return data["response"]["docs"][0]
 
         except Exception as e:
-            logger.sync_error(
-                f"Error fetching HGNC by Ensembl ID: {str(e)}", ensembl_id=ensembl_id
-            )
+            logger.sync_error(f"Error fetching HGNC by Ensembl ID: {str(e)}", ensembl_id=ensembl_id)
             raise
 
         return None

@@ -99,11 +99,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
             try:
                 # Query JAX API for children
                 url = f"{self.jax_base_url}/vocab/mp_ontology/treeChildren"
-                params = {
-                    "id": term_id,
-                    "nodeID": str(node_id),
-                    "edgeType": "is-a"
-                }
+                params = {"id": term_id, "nodeID": str(node_id), "edgeType": "is-a"}
 
                 await self.apply_rate_limit()
                 client = await self.get_http_client()
@@ -148,9 +144,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         return all_terms
 
     async def query_mousemine_zygosity_phenotypes(
-        self,
-        human_gene_symbol: str,
-        mpo_terms: set[str]
+        self, human_gene_symbol: str, mpo_terms: set[str]
     ) -> dict[str, Any] | None:
         """
         Query MouseMine for mouse orthologs with zygosity-specific kidney phenotypes.
@@ -167,11 +161,11 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
             # First get mouse ortholog symbol(s) using the original approach
             base_result = await self.query_mousemine_phenotypes(human_gene_symbol, mpo_terms)
 
-            if not base_result or not base_result.get('mouse_orthologs'):
+            if not base_result or not base_result.get("mouse_orthologs"):
                 # No mouse orthologs found
                 return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
 
-            mouse_symbols = base_result.get('mouse_orthologs', [])
+            mouse_symbols = base_result.get("mouse_orthologs", [])
             if not mouse_symbols:
                 return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
 
@@ -182,22 +176,24 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                 # Query the _Genotype_Phenotype template for zygosity-specific phenotypes
                 url = f"{self.mousemine_url}/template/results"
                 params = {
-                    'name': '_Genotype_Phenotype',
-                    'constraint1': 'OntologyAnnotation.subject.symbol',
-                    'op1': 'CONTAINS',
-                    'value1': mouse_symbol,
-                    'format': 'json',
-                    'size': '10000'  # Get all genotype phenotypes
+                    "name": "_Genotype_Phenotype",
+                    "constraint1": "OntologyAnnotation.subject.symbol",
+                    "op1": "CONTAINS",
+                    "value1": mouse_symbol,
+                    "format": "json",
+                    "size": "10000",  # Get all genotype phenotypes
                 }
 
             response = await client.get(url, params=params, timeout=30.0)
 
             if response.status_code != 200:
-                logger.sync_warning(f"Genotype phenotype query failed for {mouse_symbol}: {response.status_code}")
+                logger.sync_warning(
+                    f"Genotype phenotype query failed for {mouse_symbol}: {response.status_code}"
+                )
                 return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
 
             data = response.json()
-            results = data.get('results', [])
+            results = data.get("results", [])
 
             if not results:
                 return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
@@ -205,42 +201,39 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                 # Process results by zygosity
                 # Column indices: 0=primaryId, 1=symbol, 2=background, 3=zygosity, 4=mpo_id, 5=mpo_name
                 zygosity_data = {
-                    'hm': [],  # homozygous
-                    'ht': [],  # heterozygous
-                    'cn': [],  # conditional
-                    'other': []  # other zygosity types
+                    "hm": [],  # homozygous
+                    "ht": [],  # heterozygous
+                    "cn": [],  # conditional
+                    "other": [],  # other zygosity types
                 }
 
                 for row in results:
                     if len(row) >= 6:
                         zygosity = row[3]  # Zygosity column
-                        mpo_id = row[4]    # MPO term ID
+                        mpo_id = row[4]  # MPO term ID
                         mpo_name = row[5]  # MPO term name
 
                         if mpo_id and mpo_name:
-                            phenotype_entry = {
-                                'term': mpo_id,
-                                'name': mpo_name
-                            }
+                            phenotype_entry = {"term": mpo_id, "name": mpo_name}
 
-                            if zygosity == 'hm':
-                                zygosity_data['hm'].append(phenotype_entry)
-                            elif zygosity == 'ht':
-                                zygosity_data['ht'].append(phenotype_entry)
-                            elif zygosity == 'cn':
-                                zygosity_data['cn'].append(phenotype_entry)
+                            if zygosity == "hm":
+                                zygosity_data["hm"].append(phenotype_entry)
+                            elif zygosity == "ht":
+                                zygosity_data["ht"].append(phenotype_entry)
+                            elif zygosity == "cn":
+                                zygosity_data["cn"].append(phenotype_entry)
                             else:
-                                zygosity_data['other'].append(phenotype_entry)
+                                zygosity_data["other"].append(phenotype_entry)
 
                 # Filter by kidney-related MPO terms and create analysis
-                hm_kidney_phenotypes = [p for p in zygosity_data['hm'] if p['term'] in mpo_terms]
-                ht_kidney_phenotypes = [p for p in zygosity_data['ht'] if p['term'] in mpo_terms]
-                cn_kidney_phenotypes = [p for p in zygosity_data['cn'] if p['term'] in mpo_terms]
+                hm_kidney_phenotypes = [p for p in zygosity_data["hm"] if p["term"] in mpo_terms]
+                ht_kidney_phenotypes = [p for p in zygosity_data["ht"] if p["term"] in mpo_terms]
+                cn_kidney_phenotypes = [p for p in zygosity_data["cn"] if p["term"] in mpo_terms]
 
                 # Remove duplicates while preserving order
-                hm_kidney_phenotypes = list({p['term']: p for p in hm_kidney_phenotypes}.values())
-                ht_kidney_phenotypes = list({p['term']: p for p in ht_kidney_phenotypes}.values())
-                cn_kidney_phenotypes = list({p['term']: p for p in cn_kidney_phenotypes}.values())
+                hm_kidney_phenotypes = list({p["term"]: p for p in hm_kidney_phenotypes}.values())
+                ht_kidney_phenotypes = list({p["term"]: p for p in ht_kidney_phenotypes}.values())
+                cn_kidney_phenotypes = list({p["term"]: p for p in cn_kidney_phenotypes}.values())
 
                 # Create summary in R-compatible format (matching original R implementation)
                 hm_result = "true" if hm_kidney_phenotypes else "false"
@@ -248,74 +241,78 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                 summary = f"hm ({hm_result}); ht ({ht_result})"
 
                 # Build complete result - include all zygosity types in total
-                all_kidney_phenotypes = hm_kidney_phenotypes + ht_kidney_phenotypes + cn_kidney_phenotypes
+                all_kidney_phenotypes = (
+                    hm_kidney_phenotypes + ht_kidney_phenotypes + cn_kidney_phenotypes
+                )
                 # Remove duplicates from combined list
-                all_kidney_phenotypes = list({p['term']: p for p in all_kidney_phenotypes}.values())
+                all_kidney_phenotypes = list({p["term"]: p for p in all_kidney_phenotypes}.values())
 
                 return {
-                    'gene_symbol': human_gene_symbol,
-                    'has_kidney_phenotype': len(all_kidney_phenotypes) > 0,
-                    'mouse_orthologs': mouse_symbols,
-                    'phenotypes': all_kidney_phenotypes,
-                    'phenotype_count': len(all_kidney_phenotypes),
-                    'mpo_terms_searched': len(mpo_terms),
-                    'zygosity_analysis': {
-                        'homozygous': {
-                            'has_kidney_phenotype': len(hm_kidney_phenotypes) > 0,
-                            'phenotype_count': len(hm_kidney_phenotypes),
-                            'phenotypes': hm_kidney_phenotypes
+                    "gene_symbol": human_gene_symbol,
+                    "has_kidney_phenotype": len(all_kidney_phenotypes) > 0,
+                    "mouse_orthologs": mouse_symbols,
+                    "phenotypes": all_kidney_phenotypes,
+                    "phenotype_count": len(all_kidney_phenotypes),
+                    "mpo_terms_searched": len(mpo_terms),
+                    "zygosity_analysis": {
+                        "homozygous": {
+                            "has_kidney_phenotype": len(hm_kidney_phenotypes) > 0,
+                            "phenotype_count": len(hm_kidney_phenotypes),
+                            "phenotypes": hm_kidney_phenotypes,
                         },
-                        'heterozygous': {
-                            'has_kidney_phenotype': len(ht_kidney_phenotypes) > 0,
-                            'phenotype_count': len(ht_kidney_phenotypes),
-                            'phenotypes': ht_kidney_phenotypes
+                        "heterozygous": {
+                            "has_kidney_phenotype": len(ht_kidney_phenotypes) > 0,
+                            "phenotype_count": len(ht_kidney_phenotypes),
+                            "phenotypes": ht_kidney_phenotypes,
                         },
-                        'conditional': {
-                            'has_kidney_phenotype': len(cn_kidney_phenotypes) > 0,
-                            'phenotype_count': len(cn_kidney_phenotypes),
-                            'phenotypes': cn_kidney_phenotypes
+                        "conditional": {
+                            "has_kidney_phenotype": len(cn_kidney_phenotypes) > 0,
+                            "phenotype_count": len(cn_kidney_phenotypes),
+                            "phenotypes": cn_kidney_phenotypes,
                         },
-                        'summary': summary
-                    }
+                        "summary": summary,
+                    },
                 }
 
         except Exception as e:
-            logger.sync_error(f"Error querying MouseMine zygosity phenotypes for {human_gene_symbol}: {str(e)}")
+            logger.sync_error(
+                f"Error querying MouseMine zygosity phenotypes for {human_gene_symbol}: {str(e)}"
+            )
             return None
 
-    def _create_empty_zygosity_result(self, human_gene_symbol: str, mpo_terms: set[str]) -> dict[str, Any]:
+    def _create_empty_zygosity_result(
+        self, human_gene_symbol: str, mpo_terms: set[str]
+    ) -> dict[str, Any]:
         """Create an empty result structure with zygosity analysis"""
         return {
-            'gene_symbol': human_gene_symbol,
-            'has_kidney_phenotype': False,
-            'mouse_orthologs': [],
-            'phenotypes': [],
-            'phenotype_count': 0,
-            'mpo_terms_searched': len(mpo_terms),
-            'zygosity_analysis': {
-                'homozygous': {
-                    'has_kidney_phenotype': False,
-                    'phenotype_count': 0,
-                    'phenotypes': []
+            "gene_symbol": human_gene_symbol,
+            "has_kidney_phenotype": False,
+            "mouse_orthologs": [],
+            "phenotypes": [],
+            "phenotype_count": 0,
+            "mpo_terms_searched": len(mpo_terms),
+            "zygosity_analysis": {
+                "homozygous": {
+                    "has_kidney_phenotype": False,
+                    "phenotype_count": 0,
+                    "phenotypes": [],
                 },
-                'heterozygous': {
-                    'has_kidney_phenotype': False,
-                    'phenotype_count': 0,
-                    'phenotypes': []
+                "heterozygous": {
+                    "has_kidney_phenotype": False,
+                    "phenotype_count": 0,
+                    "phenotypes": [],
                 },
-                'conditional': {
-                    'has_kidney_phenotype': False,
-                    'phenotype_count': 0,
-                    'phenotypes': []
+                "conditional": {
+                    "has_kidney_phenotype": False,
+                    "phenotype_count": 0,
+                    "phenotypes": [],
                 },
-                'summary': 'hm (NA); ht (NA)'
-            }
+                "summary": "hm (NA); ht (NA)",
+            },
         }
 
     async def query_mousemine_phenotypes(
-        self,
-        human_gene_symbol: str,
-        mpo_terms: set[str]
+        self, human_gene_symbol: str, mpo_terms: set[str]
     ) -> dict[str, Any] | None:
         """
         Query MouseMine for mouse orthologs with kidney phenotypes.
@@ -342,13 +339,15 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                 "value1": human_gene_symbol,
                 "extra1": "H. sapiens",
                 "format": "json",
-                "size": "10000"  # Get all phenotypes
+                "size": "10000",  # Get all phenotypes
             }
 
             response = await client.get(url, params=params, timeout=30.0)
 
             if response.status_code != 200:
-                logger.sync_warning(f"MouseMine template query failed for {human_gene_symbol}: {response.status_code}")
+                logger.sync_warning(
+                    f"MouseMine template query failed for {human_gene_symbol}: {response.status_code}"
+                )
                 return {
                     "has_kidney_phenotype": False,
                     "mouse_orthologs": [],
@@ -394,10 +393,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
             # Format phenotypes as list of objects with term and name separated
             # Include ALL matched phenotypes, no truncation
             kidney_phenotype_list = [
-                {
-                    "term": term_id,
-                    "name": name
-                }
+                {"term": term_id, "name": name}
                 for term_id, name in sorted(kidney_phenotypes.items())
             ]  # NO LIMIT - return all matches
 
@@ -406,7 +402,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                 "mouse_orthologs": list(mouse_symbols),
                 "phenotypes": kidney_phenotype_list,
                 "phenotype_count": len(kidney_phenotypes),
-                "total_phenotypes": len(all_phenotypes)
+                "total_phenotypes": len(all_phenotypes),
             }
 
         except Exception as e:
@@ -430,11 +426,14 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                 # Try to load from file first
                 import json
                 import os
+
                 cache_file = "/home/bernt-popp/development/kidney-genetics-db/backend/data/mpo_kidney_terms.json"
                 if os.path.exists(cache_file):
                     with open(cache_file) as f:
                         self._mpo_terms_cache = set(json.load(f))
-                    logger.sync_info(f"Loaded {len(self._mpo_terms_cache)} MPO terms from cache file")
+                    logger.sync_info(
+                        f"Loaded {len(self._mpo_terms_cache)} MPO terms from cache file"
+                    )
                 else:
                     # If no file, just use empty set to avoid timeout
                     logger.sync_warning("MPO terms file not found, using empty set")
@@ -459,32 +458,33 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                         "homozygous": {
                             "has_kidney_phenotype": False,
                             "phenotype_count": 0,
-                            "phenotypes": []
+                            "phenotypes": [],
                         },
                         "heterozygous": {
                             "has_kidney_phenotype": False,
                             "phenotype_count": 0,
-                            "phenotypes": []
+                            "phenotypes": [],
                         },
                         "conditional": {
                             "has_kidney_phenotype": False,
                             "phenotype_count": 0,
-                            "phenotypes": []
+                            "phenotypes": [],
                         },
-                        "summary": "hm (NA); ht (NA)"
-                    }
+                        "summary": "hm (NA); ht (NA)",
+                    },
                 }
 
             # Add metadata to result
-            result.update({
-                "gene_symbol": gene.approved_symbol,
-                "mpo_terms_searched": len(mpo_terms)
-            })
+            result.update(
+                {"gene_symbol": gene.approved_symbol, "mpo_terms_searched": len(mpo_terms)}
+            )
 
             return result
 
         except Exception as e:
-            logger.sync_error(f"Error fetching MPO/MGI annotation for {gene.approved_symbol}: {str(e)}")
+            logger.sync_error(
+                f"Error fetching MPO/MGI annotation for {gene.approved_symbol}: {str(e)}"
+            )
             return None
 
     async def fetch_batch(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
@@ -511,7 +511,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         batch_size = 5  # MouseMine can be slow, limit concurrent requests
 
         for i in range(0, len(genes), batch_size):
-            batch = genes[i:i + batch_size]
+            batch = genes[i : i + batch_size]
 
             # Create tasks for this batch
             tasks = [self.fetch_annotation(gene) for gene in batch]
@@ -522,7 +522,9 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
             # Process results
             for gene, result in zip(batch, batch_results, strict=False):
                 if isinstance(result, Exception):
-                    logger.sync_error(f"Failed to fetch MPO/MGI for {gene.approved_symbol}: {result}")
+                    logger.sync_error(
+                        f"Failed to fetch MPO/MGI for {gene.approved_symbol}: {result}"
+                    )
                     results[gene.id] = None
                 else:
                     results[gene.id] = result
@@ -552,8 +554,8 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                     annotation_data,
                     metadata={
                         "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                        "mousemine_version": await self._get_mousemine_version()
-                    }
+                        "mousemine_version": await self._get_mousemine_version(),
+                    },
                 )
                 return True
 
@@ -569,7 +571,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
             "has_kidney_phenotype",
             "mouse_orthologs",
             "phenotypes",
-            "phenotype_count"
+            "phenotype_count",
         ]
         return all(field in annotation_data for field in required_fields)
 
@@ -581,5 +583,5 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         return {
             "has_mouse_kidney_phenotype": "(annotations->>'has_kidney_phenotype')::BOOLEAN",
             "mouse_phenotype_count": "(annotations->>'phenotype_count')::INTEGER",
-            "mouse_orthologs": "annotations->'mouse_orthologs'"
+            "mouse_orthologs": "annotations->'mouse_orthologs'",
         }

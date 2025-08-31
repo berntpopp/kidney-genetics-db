@@ -219,7 +219,9 @@ async def get_log_statistics(
 async def cleanup_old_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
-    days: int = Query(30, ge=0, le=365, description="Delete logs older than this many days (0 = all logs)"),
+    days: int = Query(
+        30, ge=0, le=365, description="Delete logs older than this many days (0 = all logs)"
+    ),
 ) -> dict[str, Any]:
     """
     Clean up old log entries to manage storage.
@@ -235,7 +237,7 @@ async def cleanup_old_logs(
         else:
             # Delete logs older than specified days
             cutoff_time = datetime.now(timezone.utc) - timedelta(days=days)
-            
+
             # Count logs to be deleted
             count_result = db.execute(
                 text("SELECT COUNT(*) FROM system_logs WHERE timestamp < :cutoff"),
@@ -246,7 +248,7 @@ async def cleanup_old_logs(
             db.execute(
                 text("DELETE FROM system_logs WHERE timestamp < :cutoff"), {"cutoff": cutoff_time}
             )
-        
+
         db.commit()
 
         # Logging removed to avoid circular import

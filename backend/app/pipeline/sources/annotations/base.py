@@ -55,7 +55,7 @@ class BaseAnnotationSource(ABC):
     def __init__(self, session: Session):
         """
         Initialize annotation source with retry capabilities.
-        
+
         Args:
             session: SQLAlchemy database session
         """
@@ -66,6 +66,7 @@ class BaseAnnotationSource(ABC):
 
         # Load configuration from datasource_config if available
         from app.core.datasource_config import get_annotation_config
+
         config = get_annotation_config(self.source_name) or {}
 
         # Apply configuration with defaults
@@ -92,7 +93,7 @@ class BaseAnnotationSource(ABC):
         self.circuit_breaker = CircuitBreaker(
             failure_threshold=circuit_breaker_threshold,
             recovery_timeout=60.0,
-            expected_exception=httpx.HTTPStatusError
+            expected_exception=httpx.HTTPStatusError,
         )
 
         # Get or create source record
@@ -152,20 +153,20 @@ class BaseAnnotationSource(ABC):
     async def get_http_client(self) -> RetryableHTTPClient:
         """
         Get or create a RetryableHTTPClient with proper configuration.
-        
+
         Returns:
             Configured HTTP client with retry logic
         """
         if not self.http_client:
             base_client = httpx.AsyncClient(
                 timeout=httpx.Timeout(60.0),
-                limits=httpx.Limits(max_keepalive_connections=10, max_connections=20)
+                limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
             )
 
             self.http_client = RetryableHTTPClient(
                 client=base_client,
                 retry_config=self.retry_config,
-                circuit_breaker=self.circuit_breaker
+                circuit_breaker=self.circuit_breaker,
             )
 
         return self.http_client
@@ -219,7 +220,7 @@ class BaseAnnotationSource(ABC):
                 annotations=annotation_data,
                 source_metadata=metadata,
                 created_at=now,
-                updated_at=now
+                updated_at=now,
             )
             self.session.add(annotation)
 
@@ -250,7 +251,7 @@ class BaseAnnotationSource(ABC):
     async def update_gene(self, gene: Gene) -> bool:
         """
         Update annotations for a single gene with proper retry and cache validation.
-        
+
         Args:
             gene: Gene to update
 
@@ -263,22 +264,16 @@ class BaseAnnotationSource(ABC):
 
             # Check cache first
             cached_data = await cache_service.get(
-                key=cache_key,
-                namespace=self.source_name.lower(),
-                default=None
+                key=cache_key, namespace=self.source_name.lower(), default=None
             )
 
             # Validate cached data - don't use empty/null responses
             if cached_data and self._is_valid_annotation(cached_data):
                 logger.sync_debug(  # Changed from info to debug
-                    f"Using cached annotation for {gene.approved_symbol}",
-                    source=self.source_name
+                    f"Using cached annotation for {gene.approved_symbol}", source=self.source_name
                 )
                 annotation_data = cached_data
-                metadata = {
-                    "retrieved_at": datetime.utcnow().isoformat(),
-                    "from_cache": True
-                }
+                metadata = {"retrieved_at": datetime.utcnow().isoformat(), "from_cache": True}
             else:
                 # Fetch from source with retry
                 annotation_data = await self.fetch_annotation(gene)
@@ -289,17 +284,14 @@ class BaseAnnotationSource(ABC):
                         key=cache_key,
                         value=annotation_data,
                         namespace=self.source_name.lower(),
-                        ttl=self.cache_ttl_days * 86400
+                        ttl=self.cache_ttl_days * 86400,
                     )
-                    metadata = {
-                        "retrieved_at": datetime.utcnow().isoformat(),
-                        "from_cache": False
-                    }
+                    metadata = {"retrieved_at": datetime.utcnow().isoformat(), "from_cache": False}
                 else:
                     # Don't cache invalid responses
                     logger.sync_warning(  # Keep as warning for missing data
                         f"Invalid or missing annotation for {gene.approved_symbol}",
-                        source=self.source_name
+                        source=self.source_name,
                     )
                     return False
 
@@ -313,7 +305,7 @@ class BaseAnnotationSource(ABC):
             logger.sync_error(  # Already correct
                 f"Error updating gene {gene.approved_symbol}: {str(e)}",
                 source=self.source_name,
-                gene_id=gene.id
+                gene_id=gene.id,
             )
             return False
 
@@ -422,8 +414,9 @@ class BaseAnnotationSource(ABC):
         # Check for empty results
         if isinstance(annotation_data, dict):
             # Must have at least one non-metadata field
-            meaningful_keys = [k for k in annotation_data.keys()
-                              if k not in ["source", "version", "timestamp"]]
+            meaningful_keys = [
+                k for k in annotation_data.keys() if k not in ["source", "version", "timestamp"]
+            ]
             return len(meaningful_keys) > 0
 
         return True

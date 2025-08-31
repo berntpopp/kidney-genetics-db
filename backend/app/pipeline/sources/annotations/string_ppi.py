@@ -67,18 +67,20 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         protein_info_path = self.data_dir / self.protein_info_file
         if not protein_info_path.exists():
             # Try gzipped version
-            gz_path = protein_info_path.with_suffix('.txt.gz')
+            gz_path = protein_info_path.with_suffix(".txt.gz")
             if gz_path.exists():
                 logger.sync_info("Loading gzipped protein info file")
-                df_info = pd.read_csv(gz_path, sep='\t', compression='gzip')
+                df_info = pd.read_csv(gz_path, sep="\t", compression="gzip")
             else:
                 raise FileNotFoundError(f"STRING protein info file not found: {protein_info_path}")
         else:
-            df_info = pd.read_csv(protein_info_path, sep='\t')
+            df_info = pd.read_csv(protein_info_path, sep="\t")
 
         # Create bidirectional mappings
-        df_info['protein_id'] = df_info['#string_protein_id'].str.replace('9606.', '')
-        self._protein_to_gene = dict(zip(df_info['protein_id'], df_info['preferred_name'], strict=False))
+        df_info["protein_id"] = df_info["#string_protein_id"].str.replace("9606.", "")
+        self._protein_to_gene = dict(
+            zip(df_info["protein_id"], df_info["preferred_name"], strict=False)
+        )
         self._gene_to_protein = {}
         for protein, gene in self._protein_to_gene.items():
             if gene not in self._gene_to_protein:
@@ -91,28 +93,30 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         physical_links_path = self.data_dir / self.physical_links_file
         if not physical_links_path.exists():
             # Try gzipped version
-            gz_path = physical_links_path.with_suffix('.txt.gz')
+            gz_path = physical_links_path.with_suffix(".txt.gz")
             if gz_path.exists():
                 logger.sync_info("Loading gzipped physical links file")
-                df_links = pd.read_csv(gz_path, sep=' ', compression='gzip')
+                df_links = pd.read_csv(gz_path, sep=" ", compression="gzip")
             else:
-                raise FileNotFoundError(f"STRING physical links file not found: {physical_links_path}")
+                raise FileNotFoundError(
+                    f"STRING physical links file not found: {physical_links_path}"
+                )
         else:
-            df_links = pd.read_csv(physical_links_path, sep=' ')
+            df_links = pd.read_csv(physical_links_path, sep=" ")
 
         # Clean protein IDs
-        df_links['protein1'] = df_links['protein1'].str.replace('9606.', '')
-        df_links['protein2'] = df_links['protein2'].str.replace('9606.', '')
+        df_links["protein1"] = df_links["protein1"].str.replace("9606.", "")
+        df_links["protein2"] = df_links["protein2"].str.replace("9606.", "")
 
         # Filter by minimum score
-        df_links = df_links[df_links['combined_score'] >= self.min_string_score]
+        df_links = df_links[df_links["combined_score"] >= self.min_string_score]
 
         # Map proteins to gene symbols
-        df_links['gene1'] = df_links['protein1'].map(self._protein_to_gene)
-        df_links['gene2'] = df_links['protein2'].map(self._protein_to_gene)
+        df_links["gene1"] = df_links["protein1"].map(self._protein_to_gene)
+        df_links["gene2"] = df_links["protein2"].map(self._protein_to_gene)
 
         # Remove rows where mapping failed
-        df_links = df_links.dropna(subset=['gene1', 'gene2'])
+        df_links = df_links.dropna(subset=["gene1", "gene2"])
 
         self._interactions = df_links
         logger.sync_info(f"Loaded {len(self._interactions)} interactions above threshold")
@@ -124,11 +128,13 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
 
         from sqlalchemy import text
 
-        result = self.session.execute(text('''
+        result = self.session.execute(
+            text("""
             SELECT approved_symbol, percentage_score
             FROM gene_scores
             WHERE percentage_score > 0
-        '''))
+        """)
+        )
 
         kidney_genes = []
         evidence_scores = {}
@@ -185,65 +191,61 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
 
             # Get all interactions for this gene
             gene_interactions = self._interactions[
-                (self._interactions['gene1'] == gene_symbol) |
-                (self._interactions['gene2'] == gene_symbol)
+                (self._interactions["gene1"] == gene_symbol)
+                | (self._interactions["gene2"] == gene_symbol)
             ].copy()
 
             if len(gene_interactions) == 0:
                 # No interactions found
                 raw_scores[gene.id] = 0
-                results[gene.id] = self._format_annotation(
-                    gene_symbol, 0, 0, 0, []
-                )
+                results[gene.id] = self._format_annotation(gene_symbol, 0, 0, 0, [])
                 continue
 
             # Identify partners
-            gene_interactions['partner'] = gene_interactions.apply(
-                lambda row, gs=gene_symbol: row['gene2'] if row['gene1'] == gs else row['gene1'],
-                axis=1
+            gene_interactions["partner"] = gene_interactions.apply(
+                lambda row, gs=gene_symbol: row["gene2"] if row["gene1"] == gs else row["gene1"],
+                axis=1,
             )
 
             # Filter for kidney gene partners only
             gene_interactions = gene_interactions[
-                gene_interactions['partner'].isin(self._kidney_genes)
+                gene_interactions["partner"].isin(self._kidney_genes)
             ]
 
             if len(gene_interactions) == 0:
                 # No kidney gene interactions
                 raw_scores[gene.id] = 0
-                results[gene.id] = self._format_annotation(
-                    gene_symbol, 0, 0, 0, []
-                )
+                results[gene.id] = self._format_annotation(gene_symbol, 0, 0, 0, [])
                 continue
 
             # Aggregate interactions by partner gene (handling multiple isoforms)
             partner_interactions = {}
 
             for _, interaction in gene_interactions.iterrows():
-                partner = interaction['partner']
-                string_score = interaction['combined_score']
+                partner = interaction["partner"]
+                string_score = interaction["combined_score"]
                 partner_evidence = self._gene_evidence_scores.get(partner, 0)
 
                 # If we already have this partner, keep the highest scoring interaction
                 if partner in partner_interactions:
-                    if string_score > partner_interactions[partner]['string_score']:
+                    if string_score > partner_interactions[partner]["string_score"]:
                         partner_interactions[partner] = {
-                            'partner_symbol': partner,
-                            'string_score': string_score,
-                            'partner_evidence': round(partner_evidence, 1),
-                            'weighted_score': round((string_score / 1000) * partner_evidence, 2)
+                            "partner_symbol": partner,
+                            "string_score": string_score,
+                            "partner_evidence": round(partner_evidence, 1),
+                            "weighted_score": round((string_score / 1000) * partner_evidence, 2),
                         }
                 else:
                     partner_interactions[partner] = {
-                        'partner_symbol': partner,
-                        'string_score': string_score,
-                        'partner_evidence': round(partner_evidence, 1),
-                        'weighted_score': round((string_score / 1000) * partner_evidence, 2)
+                        "partner_symbol": partner,
+                        "string_score": string_score,
+                        "partner_evidence": round(partner_evidence, 1),
+                        "weighted_score": round((string_score / 1000) * partner_evidence, 2),
                     }
 
             # Convert to list and calculate total weighted sum
             interaction_details = list(partner_interactions.values())
-            weighted_sum = sum(i['weighted_score'] for i in interaction_details)
+            weighted_sum = sum(i["weighted_score"] for i in interaction_details)
 
             # Calculate degree (number of UNIQUE kidney gene partners)
             degree = len(partner_interactions)
@@ -257,29 +259,31 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
             raw_scores[gene.id] = raw_score
 
             # Sort interactions by weighted score and keep top N
-            interaction_details.sort(key=lambda x: x['weighted_score'], reverse=True)
-            top_interactions = interaction_details[:self.max_interactions_stored]
+            interaction_details.sort(key=lambda x: x["weighted_score"], reverse=True)
+            top_interactions = interaction_details[: self.max_interactions_stored]
 
             # Create summary statistics
             summary = {
-                'total_interactions': degree,
-                'raw_sum': round(sum(i['string_score'] for i in interaction_details), 2),
-                'weighted_sum': round(weighted_sum, 2),
-                'avg_string_score': round(
-                    sum(i['string_score'] for i in interaction_details) / degree
-                    if degree > 0 else 0, 2
+                "total_interactions": degree,
+                "raw_sum": round(sum(i["string_score"] for i in interaction_details), 2),
+                "weighted_sum": round(weighted_sum, 2),
+                "avg_string_score": round(
+                    sum(i["string_score"] for i in interaction_details) / degree
+                    if degree > 0
+                    else 0,
+                    2,
                 ),
-                'strong_interactions': len([
-                    i for i in interaction_details if i['string_score'] > 800
-                ])
+                "strong_interactions": len(
+                    [i for i in interaction_details if i["string_score"] > 800]
+                ),
             }
 
             # Store preliminary results (will add percentile after normalization)
             results[gene.id] = {
-                'ppi_score': round(raw_score, 2),
-                'ppi_degree': degree,
-                'interactions': top_interactions,
-                'summary': summary
+                "ppi_score": round(raw_score, 2),
+                "ppi_degree": degree,
+                "interactions": top_interactions,
+                "summary": summary,
             }
 
         # Calculate percentile normalization
@@ -290,47 +294,44 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
                 if gene_id in results:
                     # Calculate percentile
                     percentile = (scores_array < score).mean()
-                    results[gene_id]['ppi_percentile'] = round(percentile, 3)
+                    results[gene_id]["ppi_percentile"] = round(percentile, 3)
 
         logger.sync_info(
             f"Calculated PPI scores for {len(results)} genes",
-            zero_score_genes=len([1 for s in raw_scores.values() if s == 0])
+            zero_score_genes=len([1 for s in raw_scores.values() if s == 0]),
         )
 
         return results
 
     def _format_annotation(
-        self,
-        gene_symbol: str,
-        score: float,
-        percentile: float,
-        degree: int,
-        interactions: list
+        self, gene_symbol: str, score: float, percentile: float, degree: int, interactions: list
     ) -> dict[str, Any]:
         """Format annotation data for storage."""
         return {
-            'ppi_score': round(score, 2),
-            'ppi_percentile': round(percentile, 3),
-            'ppi_degree': degree,
-            'interactions': interactions,
-            'summary': {
-                'total_interactions': degree,
-                'raw_sum': 0,
-                'weighted_sum': 0,
-                'avg_string_score': 0,
-                'strong_interactions': 0
-            }
+            "ppi_score": round(score, 2),
+            "ppi_percentile": round(percentile, 3),
+            "ppi_degree": degree,
+            "interactions": interactions,
+            "summary": {
+                "total_interactions": degree,
+                "raw_sum": 0,
+                "weighted_sum": 0,
+                "avg_string_score": 0,
+                "strong_interactions": 0,
+            },
         }
 
     def get_default_config(self) -> dict[str, Any]:
         """Get default configuration for this source."""
         config = super().get_default_config()
-        config.update({
-            'min_string_score': self.min_string_score,
-            'max_interactions_stored': self.max_interactions_stored,
-            'data_version': self.version,
-            'data_dir': str(self.data_dir)
-        })
+        config.update(
+            {
+                "min_string_score": self.min_string_score,
+                "max_interactions_stored": self.max_interactions_stored,
+                "data_version": self.version,
+                "data_dir": str(self.data_dir),
+            }
+        )
         return config
 
     async def validate_data_files(self) -> bool:
@@ -340,13 +341,11 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
 
         # Check for either regular or gzipped versions
         protein_info_exists = (
-            protein_info_path.exists() or
-            protein_info_path.with_suffix('.txt.gz').exists()
+            protein_info_path.exists() or protein_info_path.with_suffix(".txt.gz").exists()
         )
 
         physical_links_exists = (
-            physical_links_path.exists() or
-            physical_links_path.with_suffix('.txt.gz').exists()
+            physical_links_path.exists() or physical_links_path.with_suffix(".txt.gz").exists()
         )
 
         if not protein_info_exists:

@@ -129,8 +129,12 @@ app.include_router(auth.router, tags=["Authentication"])
 
 # 1. Core Resources - Primary domain entities
 app.include_router(genes.router, prefix="/api/genes", tags=["Core Resources - Genes"])
-app.include_router(gene_annotations.router, prefix="/api/annotations", tags=["Core Resources - Annotations"])
-app.include_router(datasources.router, prefix="/api/datasources", tags=["Core Resources - Data Sources"])
+app.include_router(
+    gene_annotations.router, prefix="/api/annotations", tags=["Core Resources - Annotations"]
+)
+app.include_router(
+    datasources.router, prefix="/api/datasources", tags=["Core Resources - Data Sources"]
+)
 
 # 2. Data Pipeline - Ingestion and processing operations
 app.include_router(gene_staging.router, prefix="/api/staging", tags=["Pipeline - Staging"])
@@ -142,7 +146,9 @@ app.include_router(statistics.router, prefix="/api/statistics", tags=["Analytics
 
 # 4. Administration - System management and monitoring
 app.include_router(admin_logs.router, prefix="/api/admin/logs", tags=["Administration - Logging"])
-app.include_router(cache.router, prefix="/api/admin/cache", tags=["Administration - Cache Management"])
+app.include_router(
+    cache.router, prefix="/api/admin/cache", tags=["Administration - Cache Management"]
+)
 
 
 @app.get("/", tags=["System"])
@@ -151,7 +157,7 @@ async def root() -> dict[str, str]:
     return {
         "service": "Kidney Genetics Database API",
         "version": settings.APP_VERSION,
-        "documentation": "/docs"
+        "documentation": "/docs",
     }
 
 
@@ -175,5 +181,5 @@ async def health_check() -> dict[str, str]:
         "status": "healthy",
         "service": "kidney-genetics-api",
         "version": settings.APP_VERSION,
-        "database": db_status
+        "database": db_status,
     }

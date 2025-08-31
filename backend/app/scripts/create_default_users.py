@@ -26,8 +26,7 @@ def create_default_users():
         # Check if admin already exists
         result = db.execute(
             select(User).where(
-                (User.username == settings.ADMIN_USERNAME) |
-                (User.email == settings.ADMIN_EMAIL)
+                (User.username == settings.ADMIN_USERNAME) | (User.email == settings.ADMIN_EMAIL)
             )
         )
         admin = result.scalar_one_or_none()
@@ -51,7 +50,7 @@ def create_default_users():
                 is_admin=True,
                 is_active=True,
                 is_verified=True,
-                failed_login_attempts=0
+                failed_login_attempts=0,
             )
             db.add(admin)
             db.commit()
@@ -61,27 +60,25 @@ def create_default_users():
             print("  ⚠️  IMPORTANT: Change the admin password immediately after first login!")
 
         # Optionally create a test curator
-        if hasattr(settings, 'CURATOR_USERNAME'):
-            result = db.execute(
-                select(User).where(User.username == settings.CURATOR_USERNAME)
-            )
+        if hasattr(settings, "CURATOR_USERNAME"):
+            result = db.execute(select(User).where(User.username == settings.CURATOR_USERNAME))
             curator = result.scalar_one_or_none()
 
             if curator:
                 print(f"Curator user already exists: {curator.username}")
             else:
                 curator = User(
-                    email=getattr(settings, 'CURATOR_EMAIL', 'curator@kidney-genetics.local'),
+                    email=getattr(settings, "CURATOR_EMAIL", "curator@kidney-genetics.local"),
                     username=settings.CURATOR_USERNAME,
                     hashed_password=get_password_hash(
-                        getattr(settings, 'CURATOR_PASSWORD', 'ChangeMe!Curator2024')
+                        getattr(settings, "CURATOR_PASSWORD", "ChangeMe!Curator2024")
                     ),
                     full_name="Test Curator",
                     role="curator",
                     is_admin=False,
                     is_active=True,
                     is_verified=True,
-                    failed_login_attempts=0
+                    failed_login_attempts=0,
                 )
                 db.add(curator)
                 db.commit()

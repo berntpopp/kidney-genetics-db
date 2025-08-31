@@ -854,9 +854,7 @@ async def cache_delete(
 
 # Annotation-specific helper methods for compatibility
 async def get_annotation(
-    gene_id: int,
-    source: str | None = None,
-    db_session: Session | AsyncSession | None = None
+    gene_id: int, source: str | None = None, db_session: Session | AsyncSession | None = None
 ) -> dict[str, Any] | None:
     """Get cached annotation for a gene (compatibility method)."""
     cache = get_cache_service(db_session)
@@ -869,7 +867,7 @@ async def set_annotation(
     data: dict[str, Any],
     source: str | None = None,
     ttl: int = 3600,
-    db_session: Session | AsyncSession | None = None
+    db_session: Session | AsyncSession | None = None,
 ) -> bool:
     """Cache annotation data for a gene (compatibility method)."""
     cache = get_cache_service(db_session)
@@ -877,16 +875,22 @@ async def set_annotation(
     return await cache.set(key, data, namespace="annotations", ttl=ttl)
 
 
-async def invalidate_gene(
-    gene_id: int,
-    db_session: Session | AsyncSession | None = None
-) -> int:
+async def invalidate_gene(gene_id: int, db_session: Session | AsyncSession | None = None) -> int:
     """Invalidate all cached data for a specific gene."""
     cache = get_cache_service(db_session)
     count = 0
 
     # Clear from all namespaces
-    for namespace in ["annotations", "summary", "hgnc", "gnomad", "gtex", "hpo", "clinvar", "string_ppi"]:
+    for namespace in [
+        "annotations",
+        "summary",
+        "hgnc",
+        "gnomad",
+        "gtex",
+        "hpo",
+        "clinvar",
+        "string_ppi",
+    ]:
         pattern_key = f"{gene_id}:*"
         if await cache.delete(pattern_key, namespace):
             count += 1
@@ -895,8 +899,7 @@ async def invalidate_gene(
 
 
 async def get_summary(
-    gene_id: int,
-    db_session: Session | AsyncSession | None = None
+    gene_id: int, db_session: Session | AsyncSession | None = None
 ) -> dict[str, Any] | None:
     """Get cached annotation summary."""
     cache = get_cache_service(db_session)
@@ -907,29 +910,27 @@ async def set_summary(
     gene_id: int,
     data: dict[str, Any],
     ttl: int = 7200,
-    db_session: Session | AsyncSession | None = None
+    db_session: Session | AsyncSession | None = None,
 ) -> bool:
     """Cache annotation summary."""
     cache = get_cache_service(db_session)
     return await cache.set(f"summary:{gene_id}", data, namespace="annotations", ttl=ttl)
 
 
-async def clear_all_annotations(
-    db_session: Session | AsyncSession | None = None
-) -> int:
+async def clear_all_annotations(db_session: Session | AsyncSession | None = None) -> int:
     """Clear all annotation cache entries."""
     cache = get_cache_service(db_session)
     return await cache.clear_namespace("annotations")
 
 
 def get_stats_sync(
-    namespace: str | None = None,
-    db_session: Session | AsyncSession | None = None
+    namespace: str | None = None, db_session: Session | AsyncSession | None = None
 ) -> dict[str, Any]:
     """Get cache statistics (sync version for compatibility)."""
     cache = get_cache_service(db_session)
     # Create async task to get stats
     import asyncio
+
     try:
         loop = asyncio.get_event_loop()
     except RuntimeError:

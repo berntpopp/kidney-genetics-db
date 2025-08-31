@@ -96,6 +96,7 @@ Repository = "https://github.com/kidney-genetics/kidney-genetics-db.git"
 dev = [
     "psycopg-binary>=3.2.9",
     "pytest-postgresql>=7.0.2",
+    "ruff>=0.12.9",
 ]
 
 [tool.ruff]

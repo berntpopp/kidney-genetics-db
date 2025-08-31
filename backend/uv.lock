@@ -929,6 +929,7 @@ test = [
 dev = [
     { name = "psycopg-binary" },
     { name = "pytest-postgresql" },
+    { name = "ruff" },
 ]
 
 [package.metadata]
@@ -980,6 +981,7 @@ provides-extras = ["dev", "test"]
 dev = [
     { name = "psycopg-binary", specifier = ">=3.2.9" },
     { name = "pytest-postgresql", specifier = ">=7.0.2" },
+    { name = "ruff", specifier = ">=0.12.9" },
 ]
 
 [[package]]

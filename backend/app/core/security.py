@@ -117,11 +117,7 @@ def verify_token(token: str, token_type: str = "access") -> dict | None:
         Decoded token payload if valid, None otherwise
     """
     try:
-        payload = jwt.decode(
-            token,
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM]
-        )
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
 
         # Check token type
         if payload.get("type") != token_type:
@@ -140,6 +136,7 @@ def generate_password_reset_token() -> str:
         A secure random token string
     """
     import secrets
+
     return secrets.token_urlsafe(32)
 
 
@@ -151,6 +148,7 @@ def generate_email_verification_token() -> str:
         A secure random token string
     """
     import secrets
+
     return secrets.token_urlsafe(32)
 
 

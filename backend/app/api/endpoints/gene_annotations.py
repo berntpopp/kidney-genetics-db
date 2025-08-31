@@ -49,11 +49,7 @@ async def get_gene_annotations(
     # Check cache first
     cache_service = get_cache_service(db)
     cache_key = f"{gene_id}:{source or 'all'}"
-    cached = await cache_service.get(
-        key=cache_key,
-        namespace="annotations",
-        default=None
-    )
+    cached = await cache_service.get(key=cache_key, namespace="annotations", default=None)
     if cached:
         logger.sync_debug(f"Cache hit for gene {gene_id}", source=source)
         return cached
@@ -91,12 +87,7 @@ async def get_gene_annotations(
         )
 
     # Cache the result
-    await cache_service.set(
-        key=cache_key,
-        value=result,
-        namespace="annotations",
-        ttl=3600
-    )
+    await cache_service.set(key=cache_key, value=result, namespace="annotations", ttl=3600)
 
     return result
 
@@ -120,11 +111,7 @@ async def get_gene_annotation_summary(
     # Check cache first
     cache_service = get_cache_service(db)
     cache_key = f"summary:{gene_id}"
-    cached = await cache_service.get(
-        key=cache_key,
-        namespace="annotations",
-        default=None
-    )
+    cached = await cache_service.get(key=cache_key, namespace="annotations", default=None)
     if cached:
         logger.sync_debug(f"Cache hit for summary of gene {gene_id}")
         return cached
@@ -180,12 +167,7 @@ async def get_gene_annotation_summary(
     }
 
     # Cache the result
-    await cache_service.set(
-        key=cache_key,
-        value=summary,
-        namespace="annotations",
-        ttl=7200
-    )
+    await cache_service.set(key=cache_key, value=summary, namespace="annotations", ttl=7200)
 
     return summary
 
