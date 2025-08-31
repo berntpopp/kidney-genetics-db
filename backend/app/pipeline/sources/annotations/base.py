@@ -180,7 +180,7 @@ class BaseAnnotationSource(ABC):
         self, gene: Gene, annotation_data: dict[str, Any], metadata: dict[str, Any] | None = None
     ) -> GeneAnnotation:
         """
-        Store annotation in database.
+        Store annotation in database and invalidate API cache.
 
         Args:
             gene: Gene object
@@ -227,7 +227,70 @@ class BaseAnnotationSource(ABC):
             self._record_history(gene_id=gene.id, operation="insert", new_data=annotation_data)
 
         self.session.commit()
+        
+        # Invalidate API cache after successful database update
+        # This ensures the API will fetch fresh data on next request
+        # We use sync version since store_annotation is called from both sync and async contexts
+        self._invalidate_api_cache_sync(gene.id)
+        
         return annotation
+
+    def _invalidate_api_cache_sync(self, gene_id: int):
+        """
+        Synchronously invalidate API cache for a gene's annotations.
+        
+        This clears both the specific source cache and the 'all' cache
+        used by the API endpoint.
+        """
+        try:
+            # Create event loop if needed to run async operations
+            import asyncio
+            
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Run the async invalidation
+            loop.run_until_complete(self._invalidate_api_cache(gene_id))
+            
+        except Exception as e:
+            # Don't fail the update if cache invalidation fails
+            logger.sync_warning(
+                f"Failed to invalidate cache for gene {gene_id}: {str(e)}",
+                source=self.source_name
+            )
+    
+    async def _invalidate_api_cache(self, gene_id: int):
+        """
+        Invalidate API cache for a gene's annotations (async version).
+        
+        This clears both the specific source cache and the 'all' cache
+        used by the API endpoint.
+        """
+        try:
+            cache_service = get_cache_service(self.session)
+            
+            # Invalidate the 'all' cache (used by API when no source specified)
+            cache_key_all = f"{gene_id}:all"
+            await cache_service.delete(cache_key_all, namespace="annotations")
+            
+            # Invalidate the specific source cache
+            cache_key_source = f"{gene_id}:{self.source_name.lower()}"
+            await cache_service.delete(cache_key_source, namespace="annotations")
+            
+            logger.sync_debug(
+                f"Invalidated API cache for gene {gene_id}",
+                source=self.source_name,
+                keys=[cache_key_all, cache_key_source]
+            )
+        except Exception as e:
+            # Don't fail the update if cache invalidation fails
+            logger.sync_warning(
+                f"Failed to invalidate cache for gene {gene_id}: {str(e)}",
+                source=self.source_name
+            )
 
     def _record_history(
         self,
