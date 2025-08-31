@@ -255,6 +255,13 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         while True:
             try:
+                # DEBUG: Log every 10 pages to track progress
+                if state["page"] % 10 == 0:
+                    logger.sync_debug(
+                        f"DEBUG: Starting page {state['page']}, processed={state['processed_count']}, "
+                        f"saved={len(state['results'])}, chunk_size={len(state['chunk'])}"
+                    )
+                
                 # Check resource limits periodically
                 if state["page"] % 100 == 0 and not self._check_resources():
                     logger.sync_warning("Resource limit reached, stopping")
@@ -262,10 +269,15 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
                 # Build request parameters
                 params = self._build_request_params(query, state["page"])
+                logger.sync_debug(f"DEBUG: Fetching page {state['page']} with params: {params}")
 
                 # Make API request
+                logger.sync_debug(f"DEBUG: About to fetch page {state['page']}")
                 response = await self._fetch_page(params, state["page"])
+                logger.sync_debug(f"DEBUG: Fetched page {state['page']}, response={response is not None}")
+                
                 if response is None:
+                    logger.sync_debug(f"DEBUG: Page {state['page']} failed, consecutive_failures={state['consecutive_failures']}")
                     state["consecutive_failures"] += 1
                     if state["consecutive_failures"] >= config["max_failures"]:
                         logger.sync_error("Too many failures, stopping")
@@ -276,8 +288,10 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 state["consecutive_failures"] = 0
 
                 # Parse response
+                logger.sync_debug(f"DEBUG: Parsing response for page {state['page']}")
                 data = response.json()
                 results = data.get("results", [])
+                logger.sync_debug(f"DEBUG: Page {state['page']} has {len(results)} results")
 
                 # Initialize total pages
                 if state["total_pages"] is None:
@@ -300,21 +314,27 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
                 # Process chunk when it reaches threshold
                 if len(state["chunk"]) >= config["chunk_size"]:
+                    logger.sync_debug(f"DEBUG: Processing chunk at page {state['page']}, chunk_size={len(state['chunk'])}")
+                    
                     # Filter duplicates in smart mode
                     if mode == "smart" and existing_pmids:
                         filtered_chunk = [
                             a for a in state["chunk"]
                             if str(a.get("pmid", "")) not in existing_pmids
                         ]
+                        logger.sync_debug(f"DEBUG: Filtered chunk from {len(state['chunk'])} to {len(filtered_chunk)}")
                     else:
                         filtered_chunk = state["chunk"]
 
                     # Add to results (up to limit)
                     remaining_space = config["max_results"] - len(state["results"])
+                    logger.sync_debug(f"DEBUG: Remaining space={remaining_space}, adding up to {min(len(filtered_chunk), remaining_space)} articles")
+                    
                     if remaining_space > 0:
                         state["results"].extend(filtered_chunk[:remaining_space])
 
                     # Clear chunk and collect garbage
+                    logger.sync_debug(f"DEBUG: Clearing chunk and running GC")
                     state["chunk"] = []
                     gc.collect()
 
@@ -528,15 +548,20 @@ class PubTatorUnifiedSource(UnifiedDataSource):
     async def _fetch_page(self, params: dict, page: int) -> httpx.Response | None:
         """Fetch a single page with timeout protection using cached HTTP client."""
         search_url = f"{self.base_url}/search/"
+        
+        logger.sync_debug(f"DEBUG _fetch_page: Starting request for page {page}, URL: {search_url}")
 
         try:
+            logger.sync_debug(f"DEBUG _fetch_page: Setting up 30s timeout for page {page}")
             async with asyncio.timeout(30):  # 30s timeout
                 # Use the cached HTTP client instead of raw httpx
+                logger.sync_debug(f"DEBUG _fetch_page: Calling http_client.get for page {page}")
                 response = await self.http_client.get(
                     search_url,
                     params=params,
                     timeout=30  # CachedHttpClient takes timeout in seconds
                 )
+                logger.sync_debug(f"DEBUG _fetch_page: Got response for page {page}, status={response.status_code}")
 
             if response.status_code != 200:
                 logger.sync_error(f"Bad status on page {page}: {response.status_code}")
