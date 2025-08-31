@@ -219,7 +219,7 @@ async def get_log_statistics(
 async def cleanup_old_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
-    days: int = Query(30, ge=1, le=365, description="Delete logs older than this many days"),
+    days: int = Query(30, ge=0, le=365, description="Delete logs older than this many days (0 = all logs)"),
 ) -> dict[str, Any]:
     """
     Clean up old log entries to manage storage.
@@ -227,18 +227,26 @@ async def cleanup_old_logs(
     Deletes log entries older than the specified number of days.
     """
     try:
-        cutoff_time = datetime.now(timezone.utc) - timedelta(days=days)
+        if days == 0:
+            # Delete all logs
+            count_result = db.execute(text("SELECT COUNT(*) FROM system_logs")).scalar()
+            db.execute(text("DELETE FROM system_logs"))
+            cutoff_time = None
+        else:
+            # Delete logs older than specified days
+            cutoff_time = datetime.now(timezone.utc) - timedelta(days=days)
+            
+            # Count logs to be deleted
+            count_result = db.execute(
+                text("SELECT COUNT(*) FROM system_logs WHERE timestamp < :cutoff"),
+                {"cutoff": cutoff_time},
+            ).scalar()
 
-        # Count logs to be deleted
-        count_result = db.execute(
-            text("SELECT COUNT(*) FROM system_logs WHERE timestamp < :cutoff"),
-            {"cutoff": cutoff_time},
-        ).scalar()
-
-        # Delete old logs
-        db.execute(
-            text("DELETE FROM system_logs WHERE timestamp < :cutoff"), {"cutoff": cutoff_time}
-        )
+            # Delete old logs
+            db.execute(
+                text("DELETE FROM system_logs WHERE timestamp < :cutoff"), {"cutoff": cutoff_time}
+            )
+        
         db.commit()
 
         # Logging removed to avoid circular import
@@ -247,7 +255,7 @@ async def cleanup_old_logs(
         return {
             "success": True,
             "logs_deleted": count_result,
-            "cutoff_date": cutoff_time.isoformat(),
+            "cutoff_date": cutoff_time.isoformat() if cutoff_time else "All logs deleted",
         }
 
     except Exception:
