@@ -5,17 +5,23 @@ Complete documentation for the kidney-genetics database project, a modern web pl
 
 ## Project Status
 - **Current Version**: 0.1.0-alpha
-- **Stage**: Alpha Development
-- **Total Genes**: 571 from 4 active data sources
+- **Stage**: Alpha Development - Core functionality operational
+- **Total Genes**: 571+ with annotations from 9 sources
 - **Architecture**: PostgreSQL + FastAPI + Vue.js
-- **Warning**: This is alpha software - NOT for production use
+- **Status Document**: [PROJECT_STATUS.md](PROJECT_STATUS.md) - Comprehensive status and metrics
 
 ## Documentation Structure
 
 ### 📐 Architecture
 - [Database Implementation](./architecture/database-implementation.md) - PostgreSQL schema with evidence scoring views
 - [Backend Implementation](./architecture/backend-implementation.md) - FastAPI with WebSocket support
-- [Frontend Architecture](./architecture/frontend-architecture.md) - Vue.js/Vuetify interface
+- [Logging System](./development/logging-system.md) - Unified structured logging
+
+### ✨ Features
+- [Annotations System](./features/annotations.md) - 9-source annotation pipeline
+- [Admin Panel](./features/admin-panel.md) - Comprehensive administrative interface
+- [User Management](./features/user-management.md) - JWT authentication & RBAC
+- [Caching System](./features/caching.md) - Unified multi-layer cache
 
 ### 🔧 Development
 - [Setup Guide](./development/setup-guide.md) - Complete development environment setup
@@ -27,10 +33,18 @@ Complete documentation for the kidney-genetics database project, a modern web pl
 - [ClinGen & GenCC](./data-sources/clingen-gencc.md) - Expert curation data sources
 - [Active Sources](./data-sources/active-sources.md) - Currently integrated data sources
 
-### 🏗️ Implementation
+### 🏗️ Implementation Details
 - [Evidence Scoring](./implementation/evidence-scoring.md) - Scoring methodology and calculations
-- [Gene Normalization](./implementation/gene-normalization.md) - HGNC standardization workflow
-- [Pipeline Architecture](./implementation/pipeline-architecture.md) - Data processing pipeline
+- [Cache Refactor](./implementation/cache-refactor-summary.md) - August 2025 consolidation
+- [ClinVar Integration](./implementation/clinvar-implementation.md) - Variant annotation implementation
+- [STRING PPI](./implementation/string-ppi-implementation.md) - Protein interaction scoring
+- [Admin Panel Implementation](./implementation/admin-panel-implementation.md) - Frontend admin system
+
+### 📋 Planning Documents
+- [Gene Annotations Plan](./planning/gene-annotations-plan.md) - Original annotation system design
+- [Cache Refactor Plan](./planning/cache-refactor-plan.md) - Cache consolidation strategy
+- [User Management Plan](./planning/user-management-plan.md) - Authentication system design
+- [Annotation Rate Limiting](./planning/annotation-rate-limiting-plan.md) - API optimization strategy
 
 ## Quick Start
 
