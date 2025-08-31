@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 
@@ -52,6 +53,7 @@ class GTExAnnotationSource(BaseAnnotationSource):
 
         return expression_data
 
+    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _fetch_by_symbol(self, symbol: str) -> dict | None:
         """
         Fetch GTEx data using gene symbol.
@@ -62,81 +64,77 @@ class GTExAnnotationSource(BaseAnnotationSource):
         Returns:
             Dictionary with expression data or None
         """
-        async with httpx.AsyncClient() as client:
-            try:
-                # First, search for the gene to get its gencode ID
-                search_response = await client.get(
-                    f"{self.base_url}/reference/geneSearch",
-                    params={"geneId": symbol, "limit": 1},
-                    headers=self.headers,
-                    timeout=30.0,
-                )
+        await self.apply_rate_limit()
+        client = await self.get_http_client()
 
-                if search_response.status_code != 200:
-                    logger.sync_debug(
-                        "GTEx gene search failed", symbol=symbol, status=search_response.status_code
-                    )
-                    return None
+        try:
+            # First, search for the gene to get its gencode ID
+            search_response = await client.get(
+                f"{self.base_url}/reference/geneSearch",
+                params={"geneId": symbol, "limit": 1},
+                headers=self.headers,
+            )
 
-                search_data = search_response.json()
-                if not search_data.get("data"):
-                    logger.sync_debug("Gene not found in GTEx", symbol=symbol)
-                    return None
+            # Response validation handled by retry logic
 
-                # Get the gencode ID from search results
-                gene_info = search_data["data"][0]
-                gencode_id = gene_info.get("gencodeId")
-                if not gencode_id:
-                    logger.sync_warning("No gencode ID in GTEx response", symbol=symbol)
-                    return None
+            search_data = search_response.json()
+            if not search_data.get("data"):
+                logger.sync_debug("Gene not found in GTEx", symbol=symbol)
+                return None
 
-                # Now fetch expression data using the gencode ID
-                expr_response = await client.get(
+            # Get the gencode ID from search results
+            gene_info = search_data["data"][0]
+            gencode_id = gene_info.get("gencodeId")
+            if not gencode_id:
+                logger.sync_warning("No gencode ID in GTEx response", symbol=symbol)
+                return None
+
+            # Now fetch expression data using the gencode ID
+            expr_response = await client.get(
                     f"{self.base_url}/expression/medianGeneExpression",
                     params={"gencodeId": gencode_id, "datasetId": "gtex_v8", "format": "json"},
                     headers=self.headers,
-                    timeout=60.0,
                 )
 
-                if expr_response.status_code != 200:
-                    logger.sync_warning(
-                        "GTEx expression query failed",
-                        symbol=symbol,
-                        gencode_id=gencode_id,
-                        status=expr_response.status_code,
-                    )
-                    return None
+            # Response validation handled by retry logic
 
-                expr_data = expr_response.json()
-                if not expr_data.get("data"):
-                    logger.sync_debug(
-                        "No expression data in GTEx", symbol=symbol, gencode_id=gencode_id
-                    )
-                    return None
+            expr_data = expr_response.json()
+            if not expr_data.get("data"):
+                logger.sync_debug(
+                    "No expression data in GTEx", symbol=symbol, gencode_id=gencode_id
+                )
+                return None
 
-                # Build tissue expression map
-                tissues = {}
-                for expr in expr_data["data"]:
-                    tissue_id = expr.get("tissueSiteDetailId")
-                    if tissue_id:
-                        tissues[tissue_id] = {
-                            "median_tpm": expr.get("median", 0),
-                            "unit": expr.get("unit", "TPM"),
-                        }
+            # Build tissue expression map
+            tissues = {}
+            for expr in expr_data["data"]:
+                tissue_id = expr.get("tissueSiteDetailId")
+                if tissue_id:
+                    tissues[tissue_id] = {
+                        "median_tpm": expr.get("median", 0),
+                        "unit": expr.get("unit", "TPM"),
+                    }
 
-                return {
+            return {
                     "tissues": tissues,
                     "dataset_version": "gtex_v8",
                     "gencode_id": gencode_id,
                     "gene_symbol": symbol,
                 }
 
-            except httpx.TimeoutException:
-                logger.sync_error("GTEx API timeout", symbol=symbol)
-            except Exception as e:
-                logger.sync_error(f"Error fetching GTEx data: {str(e)}", symbol=symbol)
-
-        return None
+        except httpx.HTTPStatusError as e:
+            logger.sync_error(
+                "GTEx API error",
+                symbol=symbol,
+                status_code=e.response.status_code
+            )
+            raise
+        except Exception as e:
+            logger.sync_error(
+                f"Error fetching GTEx data: {str(e)}",
+                symbol=symbol
+            )
+            raise
 
     async def fetch_batch(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
         """

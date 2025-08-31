@@ -322,3 +322,80 @@ def get_source_api_url(source_name: str) -> str | None:
         API URL or None
     """
     return get_source_parameter(source_name, "api_url")
+
+
+# Annotation source configurations with retry and rate limiting settings
+ANNOTATION_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
+    "gnomad": {
+        "requests_per_second": 3.0,
+        "max_retries": 5,
+        "cache_ttl_days": 30,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 5,
+    },
+    "clinvar": {
+        "requests_per_second": 2.5,  # NCBI limit without API key
+        "max_retries": 5,
+        "cache_ttl_days": 7,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 5,
+        # Review status confidence levels
+        "review_confidence": {
+            "practice guideline": 4,
+            "reviewed by expert panel": 4,
+            "criteria provided, multiple submitters, no conflicts": 3,
+            "criteria provided, conflicting classifications": 2,
+            "criteria provided, single submitter": 2,
+            "no assertion for the individual variant": 1,
+            "no assertion criteria provided": 1,
+            "no classification provided": 0,
+        },
+    },
+    "hpo": {
+        "requests_per_second": 10.0,
+        "max_retries": 3,
+        "cache_ttl_days": 7,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 5,
+    },
+    "mpo_mgi": {
+        "requests_per_second": 2.0,  # MGI servers are slower
+        "max_retries": 3,
+        "cache_ttl_days": 14,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 3,
+    },
+    "hgnc": {
+        "requests_per_second": 5.0,
+        "max_retries": 3,
+        "cache_ttl_days": 30,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 3,
+    },
+    "string_ppi": {
+        "requests_per_second": 5.0,
+        "max_retries": 3,
+        "cache_ttl_days": 14,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 3,
+    },
+    "gtex": {
+        "requests_per_second": 3.0,
+        "max_retries": 3,
+        "cache_ttl_days": 30,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 3,
+    },
+    "descartes": {
+        "requests_per_second": 5.0,
+        "max_retries": 3,
+        "cache_ttl_days": 30,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 3,
+    },
+}
+
+
+def get_annotation_config(source_name: str) -> dict[str, Any] | None:
+    """Get configuration for a specific annotation source"""
+    return ANNOTATION_SOURCE_CONFIG.get(source_name)

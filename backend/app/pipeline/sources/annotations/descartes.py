@@ -22,6 +22,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 
@@ -107,6 +108,7 @@ class DescartesAnnotationSource(BaseAnnotationSource):
             "gene_symbol": gene.approved_symbol
         }
 
+    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _ensure_data_loaded(self) -> None:
         """
         Ensure Descartes data is loaded into memory.
@@ -156,62 +158,64 @@ class DescartesAnnotationSource(BaseAnnotationSource):
         # Download fresh data (may fail due to CloudFront protection)
         logger.sync_info("Attempting to download fresh Descartes data...")
 
-        async with httpx.AsyncClient() as client:
-            try:
-                # Download TPM data
-                tpm_response = await client.get(
+        await self.apply_rate_limit()
+        client = await self.get_http_client()
+
+        try:
+            # Download TPM data
+            tpm_response = await client.get(
                     self.tpm_url,
                     timeout=60.0,
                     headers=self.BROWSER_HEADERS,
                     follow_redirects=True
                 )
 
-                if tpm_response.status_code != 200:
-                    logger.sync_warning(
-                        "Cannot download Descartes data directly (CloudFront protected). "
-                        "Please download manually and place in .cache/descartes/",
-                        status=tpm_response.status_code
-                    )
-                    return
-
-                # Download percentage data
-                percentage_response = await client.get(
-                    self.percentage_url,
-                    timeout=60.0,
-                    headers=self.BROWSER_HEADERS,
-                    follow_redirects=True
+            if tpm_response.status_code != 200:
+                logger.sync_warning(
+                    "Cannot download Descartes data directly (CloudFront protected). "
+                    "Please download manually and place in .cache/descartes/",
+                    status=tpm_response.status_code
                 )
+                return
 
-                if percentage_response.status_code != 200:
-                    logger.sync_error(
-                        "Failed to download Descartes percentage data",
-                        status=percentage_response.status_code
-                    )
-                    return
+            # Download percentage data
+            percentage_response = await client.get(
+                self.percentage_url,
+                timeout=60.0,
+                headers=self.BROWSER_HEADERS,
+                follow_redirects=True
+            )
 
-                # Parse CSV data (httpx handles decompression automatically)
-                self._tpm_data = self._parse_csv(tpm_response.text)
-                self._percentage_data = self._parse_csv(percentage_response.text)
-                self._last_fetch = datetime.utcnow()
-
-                logger.sync_info(
-                    "Downloaded and parsed Descartes data",
-                    tpm_genes=len(self._tpm_data),
-                    percentage_genes=len(self._percentage_data)
-                )
-
-                # Save to cache
-                await self._save_to_cache({
-                    "tpm_data": self._tpm_data,
-                    "percentage_data": self._percentage_data,
-                    "timestamp": self._last_fetch
-                })
-
-            except httpx.TimeoutException:
-                logger.sync_error("Timeout downloading Descartes data")
-            except Exception as e:
+            if percentage_response.status_code != 200:
                 logger.sync_error(
-                    "Error downloading Descartes data",
+                    "Failed to download Descartes percentage data",
+                    status=percentage_response.status_code
+                )
+                return
+
+            # Parse CSV data (httpx handles decompression automatically)
+            self._tpm_data = self._parse_csv(tpm_response.text)
+            self._percentage_data = self._parse_csv(percentage_response.text)
+            self._last_fetch = datetime.utcnow()
+
+            logger.sync_info(
+                "Downloaded and parsed Descartes data",
+                tpm_genes=len(self._tpm_data),
+                percentage_genes=len(self._percentage_data)
+            )
+
+            # Save to cache
+            await self._save_to_cache({
+                "tpm_data": self._tpm_data,
+                "percentage_data": self._percentage_data,
+                "timestamp": self._last_fetch
+            })
+
+        except httpx.TimeoutException:
+            logger.sync_error("Timeout downloading Descartes data")
+        except Exception as e:
+            logger.sync_error(
+                "Error downloading Descartes data",
                     error=str(e)
                 )
 

@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 
@@ -64,13 +65,16 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
             return True
         return datetime.now(timezone.utc) - self._mpo_cache_timestamp > self.mpo_cache_ttl
 
+    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _get_mousemine_version(self) -> str:
         """Fetch the current MouseMine version"""
+        await self.apply_rate_limit()
+        client = await self.get_http_client()
+
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{self.mousemine_url}/version", timeout=10.0)
-                if response.status_code == 200:
-                    return response.text.strip()
+            response = await client.get(f"{self.mousemine_url}/version", timeout=10.0)
+            if response.status_code == 200:
+                return response.text.strip()
         except Exception as e:
             logger.sync_warning(f"Failed to fetch MouseMine version: {e}")
 
@@ -85,6 +89,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         all_terms = set()
         all_terms.add(self.kidney_root_term)  # Include root term
 
+        @retry_with_backoff(config=RetryConfig(max_retries=3))
         async def fetch_children(term_id: str, node_id: int, depth: int = 0):
             """Recursive function to fetch all children of a term"""
             if depth > 20:  # Safety limit for recursion depth
@@ -100,10 +105,12 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                     "edgeType": "is-a"
                 }
 
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(url, params=params, timeout=30.0)
-                    response.raise_for_status()
-                    data = response.json()
+                await self.apply_rate_limit()
+                client = await self.get_http_client()
+
+                response = await client.get(url, params=params, timeout=30.0)
+                response.raise_for_status()
+                data = response.json()
 
                 # JAX API returns a list with the node as first element
                 if isinstance(data, list) and data:
@@ -183,17 +190,17 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                     'size': '10000'  # Get all genotype phenotypes
                 }
 
-                response = await client.get(url, params=params, timeout=30.0)
+            response = await client.get(url, params=params, timeout=30.0)
 
-                if response.status_code != 200:
-                    logger.sync_warning(f"Genotype phenotype query failed for {mouse_symbol}: {response.status_code}")
-                    return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
+            if response.status_code != 200:
+                logger.sync_warning(f"Genotype phenotype query failed for {mouse_symbol}: {response.status_code}")
+                return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
 
-                data = response.json()
-                results = data.get('results', [])
+            data = response.json()
+            results = data.get('results', [])
 
-                if not results:
-                    return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
+            if not results:
+                return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
 
                 # Process results by zygosity
                 # Column indices: 0=primaryId, 1=symbol, 2=background, 3=zygosity, 4=mpo_id, 5=mpo_name
@@ -323,82 +330,84 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         """
         try:
             # Use the HGene_MPhenotype template via REST API
-            async with httpx.AsyncClient() as client:
-                # Query for all phenotypes of the human gene's mouse ortholog
-                url = f"{self.mousemine_url}/template/results"
-                params = {
-                    "name": "HGene_MPhenotype",
-                    "constraint1": "Gene",
-                    "op1": "LOOKUP",
-                    "value1": human_gene_symbol,
-                    "extra1": "H. sapiens",
-                    "format": "json",
-                    "size": "10000"  # Get all phenotypes
-                }
+            await self.apply_rate_limit()
+            client = await self.get_http_client()
 
-                response = await client.get(url, params=params, timeout=30.0)
+            # Query for all phenotypes of the human gene's mouse ortholog
+            url = f"{self.mousemine_url}/template/results"
+            params = {
+                "name": "HGene_MPhenotype",
+                "constraint1": "Gene",
+                "op1": "LOOKUP",
+                "value1": human_gene_symbol,
+                "extra1": "H. sapiens",
+                "format": "json",
+                "size": "10000"  # Get all phenotypes
+            }
 
-                if response.status_code != 200:
-                    logger.sync_warning(f"MouseMine template query failed for {human_gene_symbol}: {response.status_code}")
-                    return {
-                        "has_kidney_phenotype": False,
-                        "mouse_orthologs": [],
-                        "phenotypes": [],
-                        "phenotype_count": 0,
-                    }
+            response = await client.get(url, params=params, timeout=30.0)
 
-                data = response.json()
-                results = data.get("results", [])
-
-                if not results:
-                    # No mouse ortholog or no phenotypes
-                    return {
-                        "has_kidney_phenotype": False,
-                        "mouse_orthologs": [],
-                        "phenotypes": [],
-                        "phenotype_count": 0,
-                    }
-
-                # Parse results
-                # Columns: [human_id, human_symbol, human_organism, mouse_id, mouse_symbol, mouse_organism, mpo_id, mpo_name]
-                mouse_symbols = set()
-                all_phenotypes = {}
-                kidney_phenotypes = {}
-
-                for row in results:
-                    if len(row) >= 8:
-                        mouse_symbol = row[4]  # Mouse gene symbol
-                        mpo_id = row[6]  # MPO term ID
-                        mpo_name = row[7]  # MPO term name
-
-                        if mouse_symbol:
-                            mouse_symbols.add(mouse_symbol)
-
-                        if mpo_id and mpo_name:
-                            all_phenotypes[mpo_id] = mpo_name
-
-                            # Check if it's a kidney phenotype
-                            # ONLY use MPO term matching (no keyword matching)
-                            if mpo_id in mpo_terms:
-                                kidney_phenotypes[mpo_id] = mpo_name
-
-                # Format phenotypes as list of objects with term and name separated
-                # Include ALL matched phenotypes, no truncation
-                kidney_phenotype_list = [
-                    {
-                        "term": term_id,
-                        "name": name
-                    }
-                    for term_id, name in sorted(kidney_phenotypes.items())
-                ]  # NO LIMIT - return all matches
-
+            if response.status_code != 200:
+                logger.sync_warning(f"MouseMine template query failed for {human_gene_symbol}: {response.status_code}")
                 return {
-                    "has_kidney_phenotype": len(kidney_phenotypes) > 0,
-                    "mouse_orthologs": list(mouse_symbols),
-                    "phenotypes": kidney_phenotype_list,
-                    "phenotype_count": len(kidney_phenotypes),
-                    "total_phenotypes": len(all_phenotypes)
+                    "has_kidney_phenotype": False,
+                    "mouse_orthologs": [],
+                    "phenotypes": [],
+                    "phenotype_count": 0,
                 }
+
+            data = response.json()
+            results = data.get("results", [])
+
+            if not results:
+                # No mouse ortholog or no phenotypes
+                return {
+                    "has_kidney_phenotype": False,
+                    "mouse_orthologs": [],
+                    "phenotypes": [],
+                    "phenotype_count": 0,
+                }
+
+            # Parse results
+            # Columns: [human_id, human_symbol, human_organism, mouse_id, mouse_symbol, mouse_organism, mpo_id, mpo_name]
+            mouse_symbols = set()
+            all_phenotypes = {}
+            kidney_phenotypes = {}
+
+            for row in results:
+                if len(row) >= 8:
+                    mouse_symbol = row[4]  # Mouse gene symbol
+                    mpo_id = row[6]  # MPO term ID
+                    mpo_name = row[7]  # MPO term name
+
+                    if mouse_symbol:
+                        mouse_symbols.add(mouse_symbol)
+
+                    if mpo_id and mpo_name:
+                        all_phenotypes[mpo_id] = mpo_name
+
+                        # Check if it's a kidney phenotype
+                        # ONLY use MPO term matching (no keyword matching)
+                        if mpo_id in mpo_terms:
+                            kidney_phenotypes[mpo_id] = mpo_name
+
+            # Format phenotypes as list of objects with term and name separated
+            # Include ALL matched phenotypes, no truncation
+            kidney_phenotype_list = [
+                {
+                    "term": term_id,
+                    "name": name
+                }
+                for term_id, name in sorted(kidney_phenotypes.items())
+            ]  # NO LIMIT - return all matches
+
+            return {
+                "has_kidney_phenotype": len(kidney_phenotypes) > 0,
+                "mouse_orthologs": list(mouse_symbols),
+                "phenotypes": kidney_phenotype_list,
+                "phenotype_count": len(kidney_phenotypes),
+                "total_phenotypes": len(all_phenotypes)
+            }
 
         except Exception as e:
             logger.sync_error(f"Error querying MouseMine for {human_gene_symbol}: {str(e)}")

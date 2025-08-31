@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 
@@ -15,7 +16,7 @@ logger = get_logger(__name__)
 
 class GnomADAnnotationSource(BaseAnnotationSource):
     """
-    gnomAD (Genome Aggregation Database) annotation source.
+    gnomAD (Genome Aggregation Database) annotation source with proper rate limiting.
 
     Fetches gene constraint scores from gnomAD GraphQL API including:
     - pLI (probability of loss-of-function intolerance)
@@ -185,10 +186,11 @@ class GnomADAnnotationSource(BaseAnnotationSource):
 
         return None
 
+    @retry_with_backoff(config=RetryConfig(max_retries=5))
     async def _execute_query(self, query: str, variables: dict) -> dict | None:
         """
-        Execute a GraphQL query against the gnomAD API.
-
+        Execute a GraphQL query with retry logic and rate limiting.
+        
         Args:
             query: GraphQL query string
             variables: Query variables
@@ -196,37 +198,57 @@ class GnomADAnnotationSource(BaseAnnotationSource):
         Returns:
             Query result data or None if error
         """
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(
-                    self.graphql_url,
-                    json={"query": query, "variables": variables},
-                    headers=self.headers,
-                    timeout=60.0,  # Longer timeout for GraphQL
+        # Apply rate limiting
+        await self.apply_rate_limit()
+
+        # Get configured HTTP client
+        client = await self.get_http_client()
+
+        try:
+            response = await client.post(
+                self.graphql_url,
+                json={"query": query, "variables": variables},
+                headers=self.headers,
+            )
+
+            data = response.json()
+
+            # Check for GraphQL errors
+            if data.get("errors"):
+                logger.sync_error(  # Keep as error
+                    "GraphQL errors in gnomAD response",
+                    errors=data["errors"],
+                    gene_symbol=variables.get("gene_symbol")
                 )
+                return None
 
-                if response.status_code == 200:
-                    data = response.json()
+            return data.get("data")
 
-                    # Check for GraphQL errors
-                    if data.get("errors"):
-                        logger.sync_error(
-                            "GraphQL errors in gnomAD response", errors=data["errors"]
-                        )
-                        return None
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 429:
+                # Parse Retry-After header if present
+                retry_after = e.response.headers.get("retry-after")
+                logger.sync_error(
+                    "gnomAD rate limit hit",
+                    status_code=429,
+                    retry_after=retry_after,
+                    gene_symbol=variables.get("gene_symbol")
+                )
+                raise  # Let retry decorator handle it
+            else:
+                logger.sync_error(
+                    "gnomAD API error",
+                    status_code=e.response.status_code,
+                    gene_symbol=variables.get("gene_symbol")
+                )
+                raise
 
-                    return data.get("data")
-                else:
-                    logger.sync_error(
-                        "gnomAD API error",
-                        status_code=response.status_code,
-                        response=response.text[:500],
-                    )
-
-            except Exception as e:
-                logger.sync_error(f"Error querying gnomAD API: {str(e)}", variables=variables)
-
-        return None
+        except Exception as e:
+            logger.sync_error(
+                f"Unexpected error querying gnomAD: {str(e)}",
+                gene_symbol=variables.get("gene_symbol")
+            )
+            raise
 
     def _extract_constraint_data(self, gene_data: dict) -> dict[str, Any]:
         """
@@ -302,10 +324,10 @@ class GnomADAnnotationSource(BaseAnnotationSource):
 
     async def fetch_batch(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
         """
-        Fetch annotations for multiple genes.
-
+        Fetch annotations for multiple genes with proper rate limiting.
+        
         Note: gnomAD doesn't have a batch endpoint, so we fetch individually
-        but use async to parallelize requests.
+        with rate limiting to avoid 429 errors.
 
         Args:
             genes: List of Gene objects
@@ -313,40 +335,65 @@ class GnomADAnnotationSource(BaseAnnotationSource):
         Returns:
             Dictionary mapping gene_id to annotation data
         """
-        import asyncio
-
         results = {}
+        failed_genes = []
 
-        # Create tasks for all genes
-        tasks = []
-        for gene in genes:
-            tasks.append(self.fetch_annotation(gene))
-
-        # Execute all tasks concurrently (limit concurrency to avoid rate limiting)
-        # Process in smaller batches to avoid overwhelming the API
-        batch_size = 10
-        for i in range(0, len(tasks), batch_size):
-            batch_tasks = tasks[i : i + batch_size]
-            batch_genes = genes[i : i + batch_size]
-
-            annotations = await asyncio.gather(*batch_tasks, return_exceptions=True)
-
-            # Map results back to gene IDs
-            for gene, annotation in zip(batch_genes, annotations, strict=False):
-                if annotation and not isinstance(annotation, Exception):
-                    results[gene.id] = annotation
-                elif isinstance(annotation, Exception):
-                    logger.sync_error(
-                        "Error fetching annotation for gene",
-                        gene_symbol=gene.approved_symbol,
-                        error=str(annotation),
+        # Process sequentially with rate limiting instead of concurrent batches
+        for i, gene in enumerate(genes):
+            try:
+                # Show progress
+                if i % 10 == 0:
+                    logger.sync_info(
+                        "Processing gnomAD annotations",
+                        progress=f"{i}/{len(genes)}",
+                        source=self.source_name
                     )
 
-            # Small delay between batches to be respectful to the API
-            if i + batch_size < len(tasks):
-                await asyncio.sleep(1)
+                # Fetch with retry logic
+                annotation = await self.fetch_annotation(gene)
+
+                if annotation and self._is_valid_annotation(annotation):
+                    results[gene.id] = annotation
+                else:
+                    failed_genes.append(gene.approved_symbol)
+
+            except Exception as e:
+                logger.sync_error(
+                    f"Failed to fetch gnomAD annotation for {gene.approved_symbol}",
+                    error=str(e)
+                )
+                failed_genes.append(gene.approved_symbol)
+
+                # If circuit breaker is open, stop processing
+                if self.circuit_breaker and self.circuit_breaker.state == "open":
+                    logger.sync_error(
+                        "Circuit breaker open, stopping batch processing",
+                        failed_count=len(failed_genes)
+                    )
+                    break
+
+        if failed_genes:
+            logger.sync_warning(
+                "Failed to fetch gnomAD annotations",
+                failed_genes=failed_genes[:10],  # Log first 10
+                total_failed=len(failed_genes)
+            )
 
         return results
+
+    def _is_valid_annotation(self, annotation_data: dict) -> bool:
+        """Validate gnomAD annotation data."""
+        if not super()._is_valid_annotation(annotation_data):
+            return False
+
+        # gnomAD specific: must have at least one constraint score
+        constraint_fields = ["pli", "lof_z", "oe_lof", "mis_z", "syn_z"]
+        has_constraint = any(
+            annotation_data.get(field) is not None
+            for field in constraint_fields
+        )
+
+        return has_constraint
 
     async def get_transcript_constraint(self, transcript_id: str) -> dict | None:
         """

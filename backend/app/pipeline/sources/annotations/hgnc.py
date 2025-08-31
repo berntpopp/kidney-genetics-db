@@ -4,9 +4,8 @@ HGNC annotation source for gene annotations.
 
 from typing import Any
 
-import httpx
-
 from app.core.logging import get_logger
+from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 
@@ -74,64 +73,76 @@ class HGNCAnnotationSource(BaseAnnotationSource):
         # Extract and structure the annotation data
         return self._extract_annotations(hgnc_data)
 
+    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _fetch_by_hgnc_id(self, hgnc_id: str) -> dict | None:
         """Fetch HGNC data by HGNC ID."""
         # Clean HGNC ID (remove "HGNC:" prefix if present)
         clean_id = hgnc_id.replace("HGNC:", "")
 
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(
-                    f"{self.base_url}/fetch/hgnc_id/{clean_id}", headers=self.headers, timeout=30.0
-                )
+        await self.apply_rate_limit()
+        client = await self.get_http_client()
 
-                if response.status_code == 200:
-                    data = response.json()
-                    if data.get("response", {}).get("docs"):
-                        return data["response"]["docs"][0]
+        try:
+            response = await client.get(
+                f"{self.base_url}/fetch/hgnc_id/{clean_id}", headers=self.headers, timeout=30.0
+            )
 
-            except Exception as e:
-                logger.sync_error(f"Error fetching HGNC by ID: {str(e)}", hgnc_id=hgnc_id)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("response", {}).get("docs"):
+                    return data["response"]["docs"][0]
+
+        except Exception as e:
+            logger.sync_error(f"Error fetching HGNC by ID: {str(e)}", hgnc_id=hgnc_id)
+            raise
 
         return None
 
+    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _fetch_by_symbol(self, symbol: str) -> dict | None:
         """Fetch HGNC data by gene symbol."""
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(
-                    f"{self.base_url}/fetch/symbol/{symbol}", headers=self.headers, timeout=30.0
-                )
+        await self.apply_rate_limit()
+        client = await self.get_http_client()
 
-                if response.status_code == 200:
-                    data = response.json()
-                    if data.get("response", {}).get("docs"):
-                        return data["response"]["docs"][0]
+        try:
+            response = await client.get(
+                f"{self.base_url}/fetch/symbol/{symbol}", headers=self.headers, timeout=30.0
+            )
 
-            except Exception as e:
-                logger.sync_error(f"Error fetching HGNC by symbol: {str(e)}", symbol=symbol)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("response", {}).get("docs"):
+                    return data["response"]["docs"][0]
+
+        except Exception as e:
+            logger.sync_error(f"Error fetching HGNC by symbol: {str(e)}", symbol=symbol)
+            raise
 
         return None
 
+    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _fetch_by_ensembl_id(self, ensembl_id: str) -> dict | None:
         """Fetch HGNC data by Ensembl gene ID."""
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(
-                    f"{self.base_url}/fetch/ensembl_gene_id/{ensembl_id}",
-                    headers=self.headers,
-                    timeout=30.0,
-                )
+        await self.apply_rate_limit()
+        client = await self.get_http_client()
 
-                if response.status_code == 200:
-                    data = response.json()
-                    if data.get("response", {}).get("docs"):
-                        return data["response"]["docs"][0]
+        try:
+            response = await client.get(
+                f"{self.base_url}/fetch/ensembl_gene_id/{ensembl_id}",
+                headers=self.headers,
+                timeout=30.0,
+            )
 
-            except Exception as e:
-                logger.sync_error(
-                    f"Error fetching HGNC by Ensembl ID: {str(e)}", ensembl_id=ensembl_id
-                )
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("response", {}).get("docs"):
+                    return data["response"]["docs"][0]
+
+        except Exception as e:
+            logger.sync_error(
+                f"Error fetching HGNC by Ensembl ID: {str(e)}", ensembl_id=ensembl_id
+            )
+            raise
 
         return None
 
@@ -258,6 +269,7 @@ class HGNCAnnotationSource(BaseAnnotationSource):
 
         return results
 
+    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def search_genes(self, query: str, limit: int = 10) -> list[dict]:
         """
         Search for genes in HGNC by query string.
@@ -269,20 +281,23 @@ class HGNCAnnotationSource(BaseAnnotationSource):
         Returns:
             List of gene data dictionaries
         """
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(
-                    f"{self.base_url}/search/{query}",
-                    headers=self.headers,
-                    params={"rows": limit},
-                    timeout=30.0,
-                )
+        await self.apply_rate_limit()
+        client = await self.get_http_client()
 
-                if response.status_code == 200:
-                    data = response.json()
-                    return data.get("response", {}).get("docs", [])
+        try:
+            response = await client.get(
+                f"{self.base_url}/search/{query}",
+                headers=self.headers,
+                params={"rows": limit},
+                timeout=30.0,
+            )
 
-            except Exception as e:
-                logger.sync_error(f"Error searching HGNC: {str(e)}", query=query)
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("response", {}).get("docs", [])
+
+        except Exception as e:
+            logger.sync_error(f"Error searching HGNC: {str(e)}", query=query)
+            raise
 
         return []

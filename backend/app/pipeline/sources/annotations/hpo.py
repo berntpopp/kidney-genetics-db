@@ -9,9 +9,8 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Any
 
-import httpx
-
 from app.core.logging import get_logger
+from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 
@@ -57,6 +56,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
             self.source_record.base_url = self.hpo_api_url
             self.session.commit()
 
+    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def search_gene_for_ncbi_id(self, gene_symbol: str) -> str | None:
         """
         Search for a gene symbol to get its NCBI Gene ID.
@@ -67,59 +67,61 @@ class HPOAnnotationSource(BaseAnnotationSource):
         Returns:
             NCBI Gene ID (e.g., "2904") or None if not found
         """
+        await self.apply_rate_limit()
+        client = await self.get_http_client()
+
         try:
-            async with httpx.AsyncClient() as client:
-                # Search for the gene using the gene search endpoint
-                search_url = f"{self.hpo_api_url}/network/search/gene"
-                params = {
-                    "q": gene_symbol,
-                    "limit": -1  # Get all results
-                }
+            # Search for the gene using the gene search endpoint
+            search_url = f"{self.hpo_api_url}/network/search/gene"
+            params = {
+                "q": gene_symbol,
+                "limit": -1  # Get all results
+            }
 
-                response = await client.get(search_url, params=params, timeout=30.0)
+            response = await client.get(search_url, params=params, timeout=30.0)
 
-                if response.status_code != 200:
-                    logger.sync_warning(
-                        f"Gene search failed for {gene_symbol}",
-                        status_code=response.status_code
-                    )
-                    return None
-
-                # Parse JSON response
-                data = response.json()
-
-                # The response has a "results" array
-                results = data.get("results", [])
-
-                # Find exact match first
-                for gene_result in results:
-                    if gene_result.get("name") == gene_symbol:
-                        # Extract NCBI Gene ID from the id field
-                        # Format is "NCBIGene:12345"
-                        gene_id = gene_result.get("id", "")
-                        if gene_id.startswith("NCBIGene:"):
-                            ncbi_id = gene_id.replace("NCBIGene:", "")
-                            logger.sync_info(
-                                f"Found NCBI Gene ID for {gene_symbol}",
-                                ncbi_id=ncbi_id
-                            )
-                            return ncbi_id
-
-                # If no exact match, try case-insensitive match
-                gene_symbol_upper = gene_symbol.upper()
-                for gene_result in results:
-                    if gene_result.get("name", "").upper() == gene_symbol_upper:
-                        gene_id = gene_result.get("id", "")
-                        if gene_id.startswith("NCBIGene:"):
-                            ncbi_id = gene_id.replace("NCBIGene:", "")
-                            logger.sync_info(
-                                f"Found NCBI Gene ID (case-insensitive) for {gene_symbol}",
-                                ncbi_id=ncbi_id
-                            )
-                            return ncbi_id
-
-                logger.sync_warning(f"No NCBI Gene ID found for {gene_symbol}")
+            if response.status_code != 200:
+                logger.sync_error(
+                    f"Gene search failed for {gene_symbol}",
+                    status_code=response.status_code
+                )
                 return None
+
+            # Parse JSON response
+            data = response.json()
+
+            # The response has a "results" array
+            results = data.get("results", [])
+
+            # Find exact match first
+            for gene_result in results:
+                if gene_result.get("name") == gene_symbol:
+                    # Extract NCBI Gene ID from the id field
+                    # Format is "NCBIGene:12345"
+                    gene_id = gene_result.get("id", "")
+                    if gene_id.startswith("NCBIGene:"):
+                        ncbi_id = gene_id.replace("NCBIGene:", "")
+                        logger.sync_info(
+                            f"Found NCBI Gene ID for {gene_symbol}",
+                            ncbi_id=ncbi_id
+                        )
+                        return ncbi_id
+
+            # If no exact match, try case-insensitive match
+            gene_symbol_upper = gene_symbol.upper()
+            for gene_result in results:
+                if gene_result.get("name", "").upper() == gene_symbol_upper:
+                    gene_id = gene_result.get("id", "")
+                    if gene_id.startswith("NCBIGene:"):
+                        ncbi_id = gene_id.replace("NCBIGene:", "")
+                        logger.sync_info(
+                            f"Found NCBI Gene ID (case-insensitive) for {gene_symbol}",
+                            ncbi_id=ncbi_id
+                        )
+                        return ncbi_id
+
+            logger.sync_warning(f"No NCBI Gene ID found for {gene_symbol}")
+            return None
 
         except Exception as e:
             logger.sync_error(
@@ -129,6 +131,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
             )
             return None
 
+    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def get_gene_annotations(self, ncbi_gene_id: str) -> dict[str, Any] | None:
         """
         Get HPO annotations for a gene using its NCBI Gene ID.
@@ -139,55 +142,57 @@ class HPOAnnotationSource(BaseAnnotationSource):
         Returns:
             Dictionary with phenotypes and diseases or None if error
         """
+        await self.apply_rate_limit()
+        client = await self.get_http_client()
+
         try:
-            async with httpx.AsyncClient() as client:
-                # Get annotations using the NCBI Gene ID
-                annotation_url = f"{self.hpo_api_url}/network/annotation/NCBIGene:{ncbi_gene_id}"
+            # Get annotations using the NCBI Gene ID
+            annotation_url = f"{self.hpo_api_url}/network/annotation/NCBIGene:{ncbi_gene_id}"
 
-                response = await client.get(annotation_url, timeout=30.0)
+            response = await client.get(annotation_url, timeout=30.0)
 
-                if response.status_code == 404:
-                    logger.sync_warning(
-                        f"No HPO annotations found for NCBIGene:{ncbi_gene_id}"
-                    )
-                    return {
-                        "phenotypes": [],
-                        "diseases": []
-                    }
-
-                if response.status_code != 200:
-                    logger.sync_warning(
-                        "Failed to get HPO annotations",
-                        ncbi_gene_id=ncbi_gene_id,
-                        status_code=response.status_code
-                    )
-                    return None
-
-                data = response.json()
-
-                # Extract phenotypes (HPO terms)
-                phenotypes = []
-                for phenotype in data.get("phenotypes", []):
-                    phenotypes.append({
-                        "id": phenotype.get("id"),
-                        "name": phenotype.get("name"),
-                        "definition": phenotype.get("definition")
-                    })
-
-                # Extract diseases
-                diseases = []
-                for disease in data.get("diseases", []):
-                    diseases.append({
-                        "id": disease.get("id"),
-                        "name": disease.get("name"),
-                        "dbId": disease.get("dbId"),
-                        "db": disease.get("db")
-                    })
-
+            if response.status_code == 404:
+                logger.sync_warning(
+                    f"No HPO annotations found for NCBIGene:{ncbi_gene_id}"
+                )
                 return {
-                    "phenotypes": phenotypes,
-                    "diseases": diseases
+                    "phenotypes": [],
+                    "diseases": []
                 }
+
+            if response.status_code != 200:
+                logger.sync_warning(
+                    "Failed to get HPO annotations",
+                    ncbi_gene_id=ncbi_gene_id,
+                    status_code=response.status_code
+                )
+                return None
+
+            data = response.json()
+
+            # Extract phenotypes (HPO terms)
+            phenotypes = []
+            for phenotype in data.get("phenotypes", []):
+                phenotypes.append({
+                    "id": phenotype.get("id"),
+                    "name": phenotype.get("name"),
+                    "definition": phenotype.get("definition")
+                })
+
+            # Extract diseases
+            diseases = []
+            for disease in data.get("diseases", []):
+                diseases.append({
+                    "id": disease.get("id"),
+                    "name": disease.get("name"),
+                    "dbId": disease.get("dbId"),
+                    "db": disease.get("db")
+                })
+
+            return {
+                "phenotypes": phenotypes,
+                "diseases": diseases
+            }
 
         except Exception as e:
             logger.sync_error(

@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 
@@ -21,7 +22,7 @@ logger = get_logger(__name__)
 
 class ClinVarAnnotationSource(BaseAnnotationSource):
     """
-    ClinVar variant annotation source using NCBI eUtils API.
+    ClinVar variant annotation source with proper rate limiting.
 
     Fetches pathogenic variant counts and classifications for genes.
     Uses a two-step process:
@@ -76,51 +77,57 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             )
         return self._review_confidence_levels
 
+    @retry_with_backoff(config=RetryConfig(max_retries=5))
     async def _search_variants(self, gene_symbol: str) -> list[str]:
         """
-        Search for all ClinVar variant IDs for a gene.
-
+        Search for ClinVar variants with retry logic.
+        
         Args:
             gene_symbol: Gene symbol to search for
 
         Returns:
             List of ClinVar variant IDs
         """
+        await self.apply_rate_limit()
+        client = await self.get_http_client()
+
         try:
-            async with httpx.AsyncClient() as client:
-                # Build search query
-                search_url = f"{self.base_url}/esearch.fcgi"
-                params = {
-                    "db": "clinvar",
-                    "term": f"{gene_symbol}[gene] AND single_gene[prop]",
-                    "retmax": self.search_batch_size,
-                    "retmode": "json",
-                }
+            search_url = f"{self.base_url}/esearch.fcgi"
+            params = {
+                "db": "clinvar",
+                "term": f"{gene_symbol}[gene] AND single_gene[prop]",
+                "retmax": self.search_batch_size,
+                "retmode": "json",
+            }
 
-                response = await client.get(search_url, params=params, timeout=30.0)
+            response = await client.get(search_url, params=params)
+            data = response.json()
 
-                if response.status_code != 200:
-                    logger.sync_warning(
-                        "Failed to search ClinVar variants",
-                        gene_symbol=gene_symbol,
-                        status_code=response.status_code,
-                    )
-                    return []
+            id_list = data.get("esearchresult", {}).get("idlist", [])
 
-                data = response.json()
-                id_list = data.get("esearchresult", {}).get("idlist", [])
+            logger.sync_debug(  # Changed from info to debug for less noise
+                f"Found {len(id_list)} ClinVar variants",
+                gene_symbol=gene_symbol
+            )
 
-                logger.sync_info(
-                    "Found ClinVar variants", gene_symbol=gene_symbol, variant_count=len(id_list)
-                )
+            return id_list
 
-                return id_list
+        except httpx.HTTPStatusError as e:
+            logger.sync_error(  # Changed from warning to error
+                "Failed to search ClinVar variants",
+                gene_symbol=gene_symbol,
+                status_code=e.response.status_code,
+                response=e.response.text[:200]
+            )
+            raise  # Let retry decorator handle it
 
         except Exception as e:
             logger.sync_error(
-                "Error searching ClinVar variants", gene_symbol=gene_symbol, error=str(e)
+                "Error searching ClinVar variants",
+                gene_symbol=gene_symbol,
+                error=str(e)
             )
-            return []
+            raise
 
     def _parse_variant(self, variant_data: dict[str, Any]) -> dict[str, Any]:
         """
@@ -178,12 +185,13 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
 
         return result
 
+    @retry_with_backoff(config=RetryConfig(max_retries=5))
     async def _fetch_variant_batch(self, variant_ids: list[str]) -> list[dict[str, Any]]:
         """
-        Fetch details for a batch of variant IDs.
-
+        Fetch variant details with retry logic and rate limiting.
+        
         Args:
-            variant_ids: List of ClinVar variant IDs (max 500)
+            variant_ids: List of ClinVar variant IDs (max 200)
 
         Returns:
             List of parsed variant data
@@ -191,39 +199,56 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
         if not variant_ids:
             return []
 
+        await self.apply_rate_limit()
+        client = await self.get_http_client()
+
         try:
-            async with httpx.AsyncClient() as client:
-                # Fetch variant details
-                summary_url = f"{self.base_url}/esummary.fcgi"
-                params = {"db": "clinvar", "id": ",".join(variant_ids), "retmode": "json"}
+            summary_url = f"{self.base_url}/esummary.fcgi"
+            params = {
+                "db": "clinvar",
+                "id": ",".join(variant_ids),
+                "retmode": "json"
+            }
 
-                response = await client.get(summary_url, params=params, timeout=30.0)
+            response = await client.get(summary_url, params=params)
+            data = response.json()
 
-                if response.status_code != 200:
-                    logger.sync_warning(
-                        "Failed to fetch ClinVar variant details",
-                        status_code=response.status_code,
-                        batch_size=len(variant_ids),
-                    )
-                    return []
+            result = data.get("result", {})
 
-                data = response.json()
-                result = data.get("result", {})
+            # Parse each variant
+            variants = []
+            for uid in result.get("uids", []):
+                if uid in result:
+                    variant = self._parse_variant(result[uid])
+                    variants.append(variant)
 
-                # Parse each variant
-                variants = []
-                for uid in result.get("uids", []):
-                    if uid in result:
-                        variant = self._parse_variant(result[uid])
-                        variants.append(variant)
+            return variants
 
-                return variants
+        except httpx.HTTPStatusError as e:
+            # Check rate limit headers
+            if e.response.status_code == 429 or "X-RateLimit-Remaining" in e.response.headers:
+                remaining = e.response.headers.get("X-RateLimit-Remaining", "unknown")
+                logger.sync_error(
+                    "ClinVar rate limit hit",
+                    status_code=e.response.status_code,
+                    remaining_requests=remaining,
+                    batch_size=len(variant_ids)
+                )
+            else:
+                logger.sync_error(  # Changed from warning to error
+                    "Failed to fetch ClinVar variant details",
+                    status_code=e.response.status_code,
+                    batch_size=len(variant_ids)
+                )
+            raise
 
         except Exception as e:
             logger.sync_error(
-                "Error fetching ClinVar variant batch", error=str(e), batch_size=len(variant_ids)
+                "Error fetching ClinVar variant batch",
+                error=str(e),
+                batch_size=len(variant_ids)
             )
-            return []
+            raise
 
     def _aggregate_variants(self, variants: list[dict[str, Any]]) -> dict[str, Any]:
         """
@@ -354,16 +379,36 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                     "last_updated": datetime.now(timezone.utc).isoformat(),
                 }
 
-            # Step 2: Fetch variant details in batches
+            # Step 2: Fetch variant details in batches with progress
             all_variants = []
-            for i in range(0, len(variant_ids), self.batch_size):
-                batch_ids = variant_ids[i : i + self.batch_size]
-                batch_variants = await self._fetch_variant_batch(batch_ids)
-                all_variants.extend(batch_variants)
+            total_batches = (len(variant_ids) + self.batch_size - 1) // self.batch_size
 
-                # Small delay between batches to be nice to the API
-                if i + self.batch_size < len(variant_ids):
-                    await asyncio.sleep(0.1)
+            for batch_num, i in enumerate(range(0, len(variant_ids), self.batch_size)):
+                batch_ids = variant_ids[i : i + self.batch_size]
+
+                # Show progress
+                if batch_num % 5 == 0:  # Log every 5th batch
+                    logger.sync_debug(
+                        "Fetching ClinVar variants",
+                        gene_symbol=gene.approved_symbol,
+                        batch=f"{batch_num + 1}/{total_batches}",
+                        variants=f"{i}/{len(variant_ids)}"
+                    )
+
+                try:
+                    batch_variants = await self._fetch_variant_batch(batch_ids)
+                    all_variants.extend(batch_variants)
+                except Exception as e:
+                    logger.sync_error(
+                        "Failed to fetch variant batch",
+                        gene_symbol=gene.approved_symbol,
+                        batch=batch_num,
+                        error=str(e)
+                    )
+                    # Continue with partial data rather than failing completely
+                    if self.circuit_breaker and self.circuit_breaker.state == "open":
+                        logger.sync_error("Circuit breaker open, using partial data")
+                        break
 
             # Step 3: Aggregate statistics
             stats = self._aggregate_variants(all_variants)
@@ -411,6 +456,20 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                 "Error fetching ClinVar annotation", gene_symbol=gene.approved_symbol, error=str(e)
             )
             return None
+
+    def _is_valid_annotation(self, annotation_data: dict) -> bool:
+        """Validate ClinVar annotation data."""
+        if not super()._is_valid_annotation(annotation_data):
+            return False
+
+        # ClinVar specific: must have variant counts and gene_symbol
+        required_fields = ["total_variants", "gene_symbol"]
+        has_required = all(
+            field in annotation_data
+            for field in required_fields
+        )
+
+        return has_required
 
     async def fetch_batch(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
         """

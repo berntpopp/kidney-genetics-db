@@ -2,15 +2,22 @@
 Base annotation source class for gene annotations.
 """
 
+import asyncio
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import httpx
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.cache_service import get_cache_service
 from app.core.logging import get_logger
+from app.core.retry_utils import (
+    CircuitBreaker,
+    RetryableHTTPClient,
+    RetryConfig,
+)
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationHistory, AnnotationSource, GeneAnnotation
 
@@ -37,10 +44,18 @@ class BaseAnnotationSource(ABC):
     # Batch processing
     batch_size: int = 50
 
+    # Retry configuration
+    retry_config: RetryConfig = None
+    circuit_breaker: CircuitBreaker = None
+    http_client: RetryableHTTPClient = None
+
+    # Rate limiting
+    requests_per_second: float = 2.0  # Default 2 req/s
+
     def __init__(self, session: Session):
         """
-        Initialize annotation source.
-
+        Initialize annotation source with retry capabilities.
+        
         Args:
             session: SQLAlchemy database session
         """
@@ -48,6 +63,37 @@ class BaseAnnotationSource(ABC):
 
         if not self.source_name:
             raise ValueError("source_name must be defined in subclass")
+
+        # Load configuration from datasource_config if available
+        from app.core.datasource_config import get_annotation_config
+        config = get_annotation_config(self.source_name) or {}
+
+        # Apply configuration with defaults
+        if config:
+            self.requests_per_second = config.get("requests_per_second", self.requests_per_second)
+            self.cache_ttl_days = config.get("cache_ttl_days", self.cache_ttl_days)
+            max_retries = config.get("max_retries", 5)
+            circuit_breaker_threshold = config.get("circuit_breaker_threshold", 5)
+        else:
+            max_retries = 5
+            circuit_breaker_threshold = 5
+
+        # Initialize retry configuration
+        self.retry_config = RetryConfig(
+            max_retries=max_retries,
+            initial_delay=1.0,
+            max_delay=60.0,
+            exponential_base=2.0,
+            jitter=True,
+            retry_on_status_codes=(429, 500, 502, 503, 504),
+        )
+
+        # Initialize circuit breaker
+        self.circuit_breaker = CircuitBreaker(
+            failure_threshold=circuit_breaker_threshold,
+            recovery_timeout=60.0,
+            expected_exception=httpx.HTTPStatusError
+        )
 
         # Get or create source record
         self.source_record = self._get_or_create_source()
@@ -102,6 +148,32 @@ class BaseAnnotationSource(ABC):
             Dictionary mapping gene_id to annotation data
         """
         pass
+
+    async def get_http_client(self) -> RetryableHTTPClient:
+        """
+        Get or create a RetryableHTTPClient with proper configuration.
+        
+        Returns:
+            Configured HTTP client with retry logic
+        """
+        if not self.http_client:
+            base_client = httpx.AsyncClient(
+                timeout=httpx.Timeout(60.0),
+                limits=httpx.Limits(max_keepalive_connections=10, max_connections=20)
+            )
+
+            self.http_client = RetryableHTTPClient(
+                client=base_client,
+                retry_config=self.retry_config,
+                circuit_breaker=self.circuit_breaker
+            )
+
+        return self.http_client
+
+    async def apply_rate_limit(self):
+        """Apply rate limiting between requests."""
+        delay = 1.0 / self.requests_per_second
+        await asyncio.sleep(delay)
 
     def store_annotation(
         self, gene: Gene, annotation_data: dict[str, Any], metadata: dict[str, Any] | None = None
@@ -177,8 +249,8 @@ class BaseAnnotationSource(ABC):
 
     async def update_gene(self, gene: Gene) -> bool:
         """
-        Update annotations for a single gene.
-
+        Update annotations for a single gene with proper retry and cache validation.
+        
         Args:
             gene: Gene to update
 
@@ -186,19 +258,19 @@ class BaseAnnotationSource(ABC):
             True if successful, False otherwise
         """
         try:
-            # Get cache service
             cache_service = get_cache_service(self.session)
+            cache_key = f"{gene.approved_symbol}:{gene.hgnc_id}"
 
             # Check cache first
-            cache_key = f"{gene.approved_symbol}:{gene.hgnc_id}"
             cached_data = await cache_service.get(
                 key=cache_key,
                 namespace=self.source_name.lower(),
                 default=None
             )
 
-            if cached_data:
-                logger.sync_info(
+            # Validate cached data - don't use empty/null responses
+            if cached_data and self._is_valid_annotation(cached_data):
+                logger.sync_debug(  # Changed from info to debug
                     f"Using cached annotation for {gene.approved_symbol}",
                     source=self.source_name
                 )
@@ -208,36 +280,40 @@ class BaseAnnotationSource(ABC):
                     "from_cache": True
                 }
             else:
-                # Fetch from source
+                # Fetch from source with retry
                 annotation_data = await self.fetch_annotation(gene)
 
-                if annotation_data:
-                    # Cache the result
+                # Only cache valid responses
+                if annotation_data and self._is_valid_annotation(annotation_data):
                     await cache_service.set(
                         key=cache_key,
                         value=annotation_data,
                         namespace=self.source_name.lower(),
-                        ttl=self.cache_ttl_days * 86400  # Convert days to seconds
+                        ttl=self.cache_ttl_days * 86400
                     )
                     metadata = {
                         "retrieved_at": datetime.utcnow().isoformat(),
                         "from_cache": False
                     }
+                else:
+                    # Don't cache invalid responses
+                    logger.sync_warning(  # Keep as warning for missing data
+                        f"Invalid or missing annotation for {gene.approved_symbol}",
+                        source=self.source_name
+                    )
+                    return False
 
             if annotation_data:
                 self.store_annotation(gene, annotation_data, metadata=metadata)
                 return True
 
-            logger.sync_warning(
-                f"No annotation found for {gene.approved_symbol}",
-                source=self.source_name
-            )
             return False
 
         except Exception as e:
-            logger.sync_error(
+            logger.sync_error(  # Already correct
                 f"Error updating gene {gene.approved_symbol}: {str(e)}",
-                source=self.source_name
+                source=self.source_name,
+                gene_id=gene.id
             )
             return False
 
@@ -330,6 +406,27 @@ class BaseAnnotationSource(ABC):
                 logger.sync_info("Materialized view refreshed (non-concurrent)")
             except Exception as e2:
                 logger.sync_error(f"Failed to refresh materialized view: {str(e2)}")
+
+    def _is_valid_annotation(self, annotation_data: dict) -> bool:
+        """
+        Validate annotation data to ensure it's not empty or error response.
+        Override in subclasses for source-specific validation.
+        """
+        if not annotation_data:
+            return False
+
+        # Check for common error indicators
+        if annotation_data.get("error") or annotation_data.get("status") == "error":
+            return False
+
+        # Check for empty results
+        if isinstance(annotation_data, dict):
+            # Must have at least one non-metadata field
+            meaningful_keys = [k for k in annotation_data.keys()
+                              if k not in ["source", "version", "timestamp"]]
+            return len(meaningful_keys) > 0
+
+        return True
 
     def get_statistics(self) -> dict[str, Any]:
         """
