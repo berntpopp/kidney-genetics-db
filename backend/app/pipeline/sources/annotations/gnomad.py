@@ -92,12 +92,21 @@ class GnomADAnnotationSource(BaseAnnotationSource):
 
         if not constraint_data:
             await logger.warning(
-                "No gnomAD constraint data found for gene",
+                "No gnomAD gene data found",
                 gene_id=gene.id,
                 gene_symbol=gene.approved_symbol,
                 hgnc_id=gene.hgnc_id,
             )
             return None
+        
+        # Check if this is a "no constraint available" annotation
+        if constraint_data.get("constraint_not_available"):
+            await logger.info(
+                "Gene found in gnomAD but constraint scores not available",
+                gene_id=gene.id,
+                gene_symbol=gene.approved_symbol,
+                hgnc_id=gene.hgnc_id,
+            )
 
         return constraint_data
 
@@ -354,7 +363,25 @@ class GnomADAnnotationSource(BaseAnnotationSource):
                     "exp_syn": exac_constraint.get("exp_syn"),
                     "flags": [],
                 }
-            return None
+            # No constraint data available in gnomAD or ExAC
+            # Return a special marker annotation to indicate this gene was checked but has no data
+            return {
+                "source_version": "gnomad_v4",
+                "gene_id": gene_data.get("gene_id"),
+                "gene_symbol": gene_data.get("symbol"),
+                "gene_name": gene_data.get("name"),
+                "canonical_transcript": gene_data.get("canonical_transcript_id"),
+                "constraint_not_available": True,
+                "message": "Constraint not available for this gene",
+                # Include empty constraint fields to maintain consistency
+                "pli": None,
+                "lof_z": None,
+                "mis_z": None,
+                "syn_z": None,
+                "oe_lof": None,
+                "obs_lof": None,
+                "exp_lof": None,
+            }
 
         annotations = {
             "source_version": "gnomad_v4",
@@ -453,6 +480,11 @@ class GnomADAnnotationSource(BaseAnnotationSource):
         """Validate gnomAD annotation data."""
         if not super()._is_valid_annotation(annotation_data):
             return False
+
+        # Check if this is a "no constraint data available" annotation
+        if annotation_data.get("constraint_not_available"):
+            # This is a valid annotation indicating no constraint data exists
+            return True
 
         # gnomAD specific: must have at least one constraint score
         constraint_fields = ["pli", "lof_z", "oe_lof", "mis_z", "syn_z"]

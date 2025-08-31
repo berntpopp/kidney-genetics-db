@@ -1,7 +1,17 @@
 <template>
   <div v-if="gnomadData" class="gene-constraints">
-    <div class="text-caption text-medium-emphasis mb-2">Constraint Scores:</div>
-    <div class="d-flex flex-wrap ga-2">
+    <div class="text-caption text-medium-emphasis mb-2">Constraint Scores (gnomAD):</div>
+
+    <!-- Show special message if constraint data is not available -->
+    <div v-if="gnomadData.constraint_not_available" class="d-flex align-center">
+      <v-chip color="grey" variant="tonal" size="small">
+        <v-icon size="x-small" start>mdi-information-outline</v-icon>
+        No constraint scores available
+      </v-chip>
+    </div>
+
+    <!-- Show constraint scores if available -->
+    <div v-else class="d-flex flex-wrap ga-2">
       <!-- pLI Score -->
       <v-tooltip location="bottom">
         <template #activator="{ props }">

@@ -1,8 +1,16 @@
 <template>
   <div v-if="gtexData || descartesData" class="gene-expression">
-    <div class="text-caption text-medium-emphasis mb-2">Kidney Expression:</div>
+    <div class="text-caption text-medium-emphasis mb-2">Kidney Expression (GTEx/scRNA):</div>
 
-    <div class="d-flex align-center flex-wrap ga-2">
+    <!-- Show special message if no expression data available -->
+    <div v-if="hasNoData" class="d-flex align-center">
+      <v-chip color="grey" variant="tonal" size="small">
+        <v-icon size="x-small" start>mdi-information-outline</v-icon>
+        No expression data available
+      </v-chip>
+    </div>
+
+    <div v-else class="d-flex align-center flex-wrap ga-2">
       <!-- GTEx Expression -->
       <template v-if="gtexData">
         <span class="text-caption text-medium-emphasis">GTEx:</span>
@@ -128,7 +136,9 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   gtexData: {
     type: Object,
     default: null
@@ -137,6 +147,23 @@ defineProps({
     type: Object,
     default: null
   }
+})
+
+// Check if there's no data to display
+const hasNoData = computed(() => {
+  const gtexNoData =
+    props.gtexData?.no_data_available ||
+    (!props.gtexData?.tissues?.Kidney_Cortex && !props.gtexData?.tissues?.Kidney_Medulla)
+
+  const descartesNoData =
+    props.descartesData?.no_data_available ||
+    (props.descartesData?.kidney_tpm === null && props.descartesData?.kidney_percentage === null)
+
+  return (
+    (props.gtexData && gtexNoData && !props.descartesData) ||
+    (props.descartesData && descartesNoData && !props.gtexData) ||
+    (props.gtexData && props.descartesData && gtexNoData && descartesNoData)
+  )
 })
 
 // Color functions

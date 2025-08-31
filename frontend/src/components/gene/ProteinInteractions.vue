@@ -1,8 +1,19 @@
 <template>
-  <div v-if="stringPpiData && stringPpiData.ppi_degree > 0" class="protein-interactions">
+  <div v-if="stringPpiData" class="protein-interactions">
     <div class="text-caption text-medium-emphasis mb-2">Protein Interactions (STRING):</div>
 
-    <div class="d-flex align-center flex-wrap ga-2">
+    <!-- Show special message if no interactions available -->
+    <div
+      v-if="stringPpiData.ppi_degree === 0 || stringPpiData.no_data_available"
+      class="d-flex align-center"
+    >
+      <v-chip color="grey" variant="tonal" size="small">
+        <v-icon size="x-small" start>mdi-information-outline</v-icon>
+        No interactions available
+      </v-chip>
+    </div>
+
+    <div v-else class="d-flex align-center flex-wrap ga-2">
       <!-- PPI Score chip -->
       <v-tooltip location="bottom">
         <template #activator="{ props: tooltipProps }">

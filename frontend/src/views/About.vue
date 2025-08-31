@@ -46,13 +46,14 @@
               <v-card-text class="pa-6">
                 <div class="text-body-1 mb-4" style="line-height: 1.7">
                   The Kidney Genetics Database advances nephrology research through comprehensive
-                  genetic data curation. Built on modern Python/FastAPI and Vue.js architecture,
-                  we integrate evidence from multiple authoritative genomic databases.
+                  genetic data curation. Built on modern Python/FastAPI and Vue.js architecture, we
+                  integrate evidence from multiple authoritative genomic databases.
                 </div>
                 <div class="text-body-1 mb-4" style="line-height: 1.7">
                   Our platform applies sophisticated evidence scoring algorithms to provide
-                  researchers with confidence levels for gene-disease associations. The GenCC-compatible
-                  schema ensures international interoperability for clinical applications.
+                  researchers with confidence levels for gene-disease associations. The
+                  GenCC-compatible schema ensures international interoperability for clinical
+                  applications.
                 </div>
                 <div class="d-flex flex-wrap ga-2 mt-6">
                   <v-chip color="primary" variant="tonal" size="x-small">
@@ -94,7 +95,9 @@
                       <v-icon :icon="source.icon" color="white" size="small" />
                     </v-avatar>
                   </template>
-                  <v-card-title class="text-subtitle-1 font-weight-medium">{{ source.name }}</v-card-title>
+                  <v-card-title class="text-subtitle-1 font-weight-medium">{{
+                    source.name
+                  }}</v-card-title>
                 </v-card-item>
                 <v-card-text class="pt-0">
                   <p class="text-body-2 text-medium-emphasis">{{ source.description }}</p>
@@ -105,7 +108,6 @@
         </v-col>
       </v-row>
 
-
       <!-- Contact -->
       <v-row class="mb-8">
         <v-col cols="12" md="8" class="mx-auto">
@@ -113,7 +115,10 @@
             <v-card-item class="pa-8 text-center">
               <v-icon icon="mdi-github" size="x-large" color="primary" class="mb-4" />
               <h2 class="text-h4 font-weight-medium mb-4">Open Source</h2>
-              <p class="text-body-1 text-medium-emphasis mb-6" style="max-width: 600px; margin: 0 auto">
+              <p
+                class="text-body-1 text-medium-emphasis mb-6"
+                style="max-width: 600px; margin: 0 auto"
+              >
                 This project is open source and available on GitHub.
               </p>
               <v-btn
@@ -176,7 +181,6 @@ const dataSources = ref([
     icon: 'mdi-test-tube'
   }
 ])
-
 </script>
 
 <style scoped>

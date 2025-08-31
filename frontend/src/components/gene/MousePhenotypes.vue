@@ -2,7 +2,19 @@
   <div v-if="mouseData" class="mouse-phenotypes">
     <div class="text-caption text-medium-emphasis mb-2">Mouse Phenotypes (MGI/MPO):</div>
 
-    <div class="d-flex align-center flex-wrap ga-2 mb-2">
+    <!-- Show special message if no phenotypes available -->
+    <div
+      v-if="mouseData.phenotype_count === 0 || mouseData.no_data_available"
+      class="d-flex align-center"
+    >
+      <v-chip color="grey" variant="tonal" size="small">
+        <v-icon size="x-small" start>mdi-information-outline</v-icon>
+        No phenotypes available
+      </v-chip>
+    </div>
+
+    <!-- Show phenotype data if available -->
+    <div v-else class="d-flex align-center flex-wrap ga-2">
       <!-- Phenotype count with color coding -->
       <v-tooltip location="bottom">
         <template #activator="{ props }">
@@ -91,7 +103,10 @@
     </div>
 
     <!-- System analysis if available -->
-    <div v-if="mouseData.system_analysis?.renal_urinary" class="d-flex align-center flex-wrap ga-2">
+    <div
+      v-if="mouseData.system_analysis?.renal_urinary"
+      class="d-flex align-center flex-wrap ga-2 mt-2"
+    >
       <v-chip color="purple" variant="outlined" size="small">
         Renal: {{ mouseData.system_analysis.renal_urinary.phenotype_count }} phenotypes
       </v-chip>

@@ -1,8 +1,19 @@
 <template>
-  <div v-if="clinvarData && clinvarData.total_variants > 0" class="clinvar-variants">
-    <div class="text-caption text-medium-emphasis mb-2">ClinVar Variants:</div>
+  <div v-if="clinvarData" class="clinvar-variants">
+    <div class="text-caption text-medium-emphasis mb-2">Clinical Variants (ClinVar):</div>
 
-    <div class="d-flex align-center flex-wrap ga-2">
+    <!-- Show special message if no variants available -->
+    <div
+      v-if="clinvarData.total_variants === 0 || clinvarData.no_data_available"
+      class="d-flex align-center"
+    >
+      <v-chip color="grey" variant="tonal" size="small">
+        <v-icon size="x-small" start>mdi-information-outline</v-icon>
+        No variants available
+      </v-chip>
+    </div>
+
+    <div v-else class="d-flex align-center flex-wrap ga-2">
       <!-- Total variants chip -->
       <v-tooltip location="bottom">
         <template #activator="{ props }">

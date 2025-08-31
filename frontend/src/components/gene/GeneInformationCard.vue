@@ -46,7 +46,10 @@
         <!-- Left Column: Gene Identity & Clinical Data -->
         <v-col cols="12" md="6">
           <!-- Genomic Constraint -->
-          <GeneConstraints v-if="gnomadData" :gnomad-data="gnomadData" />
+          <GeneConstraints
+            v-if="gnomadData || gnomadNoData"
+            :gnomad-data="gnomadData || gnomadNoData"
+          />
 
           <!-- Clinical Variants -->
           <template v-if="clinvarData">
@@ -125,7 +128,18 @@ const hgncData = computed(() => {
 
 const gnomadData = computed(() => {
   if (!props.annotations?.annotations?.gnomad?.[0]) return null
-  return props.annotations.annotations.gnomad[0].data
+  const data = props.annotations.annotations.gnomad[0].data
+  // Don't return data if it's a "no constraint available" response
+  if (data?.constraint_not_available) return null
+  return data
+})
+
+const gnomadNoData = computed(() => {
+  if (!props.annotations?.annotations?.gnomad?.[0]) return null
+  const data = props.annotations.annotations.gnomad[0].data
+  // Only return if this is a "no constraint available" response
+  if (data?.constraint_not_available) return data
+  return null
 })
 
 const gtexData = computed(() => {

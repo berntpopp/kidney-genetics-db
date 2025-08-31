@@ -2,8 +2,19 @@
   <div v-if="hpoData" class="gene-phenotypes">
     <div class="text-caption text-medium-emphasis mb-2">Human Phenotypes (HPO):</div>
 
+    <!-- Show special message if no phenotypes available -->
+    <div
+      v-if="hpoData.phenotype_count === 0 || hpoData.no_data_available"
+      class="d-flex align-center"
+    >
+      <v-chip color="grey" variant="tonal" size="small">
+        <v-icon size="x-small" start>mdi-information-outline</v-icon>
+        No phenotypes available
+      </v-chip>
+    </div>
+
     <!-- All HPO data in one row for better space usage -->
-    <div class="d-flex align-center flex-wrap ga-2">
+    <div v-else class="d-flex align-center flex-wrap ga-2">
       <!-- Clinical Group -->
       <v-tooltip v-if="hpoData.classification?.clinical_group?.primary" location="bottom">
         <template #activator="{ props }">
