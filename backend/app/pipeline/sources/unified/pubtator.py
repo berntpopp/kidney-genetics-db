@@ -339,11 +339,6 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 # Progress tracking (rate limiting handled by CachedHttpClient's retry logic)
                 state["page"] += 1
 
-                # Be polite to the API - small delay between successful requests
-                # This is much smaller than the old 0.5s fixed delay
-                # Failed requests will get exponential backoff from CachedHttpClient
-                await asyncio.sleep(0.1)  # 100ms courtesy delay
-
                 if state["page"] % 50 == 0:
                     self._log_progress(state)
 
