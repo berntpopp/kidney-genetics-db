@@ -53,18 +53,20 @@ class BackgroundTaskManager(TaskMixin):
         finally:
             db.close()
 
-    async def run_source(self, source_name: str, resume: bool = False):
+    async def run_source(self, source_name: str, resume: bool = False, mode: str = "smart"):
         """
         Run update for a specific data source using dynamic dispatch.
 
         Args:
             source_name: Name of the data source
             resume: Whether to resume from previous position
+            mode: Update mode - "smart" (incremental) or "full" (complete refresh)
         """
         logger.sync_info(
             "Task manager run_source() called",
             source_name=source_name,
             resume=resume,
+            mode=mode,
             running_tasks=list(self.running_tasks.keys()),
         )
 
@@ -105,7 +107,7 @@ class BackgroundTaskManager(TaskMixin):
 
         try:
             logger.sync_info("Creating asyncio task", source_name=source_name)
-            task = asyncio.create_task(task_method(resume=resume))
+            task = asyncio.create_task(task_method(resume=resume, mode=mode))
             logger.sync_debug("Created task", task=str(task))
 
             self.running_tasks[source_name] = task

@@ -38,10 +38,18 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         # API settings
         "api_url": "https://www.ncbi.nlm.nih.gov/research/pubtator-api",
         # Search configuration
-        "max_pages": 100,  # Maximum pages to fetch per run
+        "max_pages": 100,  # Maximum pages to fetch per run (smart mode default)
+        # Update modes configuration
+        "smart_update": {
+            "max_pages": 500,  # Stop after 500 pages max for smart updates
+            "duplicate_threshold": 0.9,  # Stop at 90% duplicates
+            "consecutive_pages": 3,  # Need 3 consecutive high-duplicate pages
+        },
+        "full_update": {
+            "max_pages": None,  # No limit (get all pages) for full updates
+        },
         "min_publications": 3,  # Minimum publications for gene inclusion
         "search_query": '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)',
-        "min_date": "2015",  # Focus on recent literature
         "batch_size": 100,  # PMIDs per batch for annotation fetching
         "rate_limit_delay": 0.3,  # Seconds between API calls
         # Cache settings

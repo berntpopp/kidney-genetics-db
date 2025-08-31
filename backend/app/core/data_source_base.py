@@ -58,9 +58,13 @@ class DataSourceClient(ABC):
         pass
 
     @abstractmethod
-    async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> Any:
+    async def fetch_raw_data(self, tracker: "ProgressTracker" = None, mode: str = "smart") -> Any:
         """
         Fetch raw data from the external source.
+
+        Args:
+            tracker: Progress tracker for real-time updates
+            mode: Update mode - "smart" (incremental) or "full" (complete refresh)
 
         Returns:
             Raw data in whatever format the source provides
@@ -93,7 +97,9 @@ class DataSourceClient(ABC):
         """
         pass
 
-    async def update_data(self, db: Session, tracker: ProgressTracker) -> dict[str, Any]:
+    async def update_data(
+        self, db: Session, tracker: ProgressTracker, mode: str = "smart"
+    ) -> dict[str, Any]:
         """
         Template method for the complete data update process.
 
@@ -107,6 +113,7 @@ class DataSourceClient(ABC):
         Args:
             db: Database session
             tracker: Progress tracker for real-time updates
+            mode: Update mode - "smart" (incremental) or "full" (complete refresh)
 
         Returns:
             Dictionary with comprehensive update statistics
@@ -120,7 +127,7 @@ class DataSourceClient(ABC):
             # Step 1: Fetch raw data
             tracker.update(operation="Fetching data from source")
             logger.sync_info("Fetching data from source", source_name=self.source_name)
-            raw_data = await self.fetch_raw_data(tracker=tracker)
+            raw_data = await self.fetch_raw_data(tracker=tracker, mode=mode)
             stats["data_fetched"] = True
 
             # Step 2: Process data

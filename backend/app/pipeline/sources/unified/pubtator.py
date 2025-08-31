@@ -11,12 +11,14 @@ from datetime import datetime, timezone
 # Import for type hint only
 from typing import TYPE_CHECKING, Any
 
+import httpx
 from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.datasource_config import get_source_parameter
 from app.core.logging import get_logger
+from app.models.gene import GeneEvidence
 from app.pipeline.sources.unified.base import UnifiedDataSource
 
 if TYPE_CHECKING:
@@ -85,7 +87,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         """Get default TTL for PubTator data."""
         return get_source_parameter("PubTator", "cache_ttl", 604800)
 
-    async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> dict[str, Any]:
+    async def fetch_raw_data(
+        self, tracker: "ProgressTracker" = None, mode: str = "smart"
+    ) -> dict[str, Any]:
         """
         Fetch kidney disease-related publications directly from PubTator3.
         Uses PubTator3's native search API which returns annotations directly.
@@ -98,7 +102,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         # Search PubTator3 directly - returns complete results with annotations
         logger.sync_info("PUBTATOR SOURCE: Calling _search_pubtator3()")
-        search_results = await self._search_pubtator3(self.kidney_query, tracker)
+        search_results = await self._search_pubtator3(self.kidney_query, tracker, mode)
         logger.sync_info(
             "PUBTATOR SOURCE: Search returned articles", article_count=len(search_results)
         )
@@ -203,69 +207,146 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         return genes
 
-    async def _search_pubtator3(self, query: str, tracker: "ProgressTracker" = None) -> list[dict]:
+    async def _search_pubtator3(
+        self, query: str, tracker: "ProgressTracker" = None, mode: str = "smart"
+    ) -> list[dict]:
         """
-        Search PubTator3 directly using its native search API.
+        Search PubTator3 with intelligent duplicate detection.
 
         Args:
             query: Search query
+            tracker: Progress tracker
+            mode: Update mode - "smart" (incremental) or "full" (complete refresh)
 
         Returns:
             List of article results with annotations
         """
+
+        # Handle full mode: Clear existing entries first
+        if mode == "full":
+            deleted = (
+                self.db_session.query(GeneEvidence)
+                .filter(GeneEvidence.source_name == "PubTator")
+                .delete()
+            )
+            self.db_session.commit()
+            logger.sync_info(f"Full update: Deleted {deleted} existing PubTator entries")
+            existing_pmids = set()
+        else:
+            # Smart mode: Get existing PMIDs from database
+            existing_pmids = await self._get_existing_pmids_from_db()
+            logger.sync_info(
+                f"Smart update: Found {len(existing_pmids)} existing PMIDs in database"
+            )
+
         all_results = []
         page = 1
-        total_fetched = 0
-        total_pages = None  # Will be set from API response
-        consecutive_failures = 0  # Track consecutive failures
-        max_consecutive_failures = 3  # Stop after 3 consecutive failures
+        total_pages = None
+        consecutive_duplicate_pages = 0
+        max_consecutive_failures = 3
+        consecutive_failures = 0
+
+        # Smart update limits
+        smart_max_pages = 500
+        duplicate_threshold = 0.9  # 90%
+        consecutive_duplicate_limit = 3
 
         while True:
+            # Safeguard 4: Resource monitoring and circuit breaker
+            if page > 1 and page % 100 == 0:  # Check every 100 pages
+                import psutil
+
+                memory_percent = psutil.virtual_memory().percent
+                if memory_percent > 85:  # Stop if memory usage > 85%
+                    logger.sync_warning(
+                        "High memory usage detected, stopping update",
+                        page=page,
+                        memory_percent=memory_percent,
+                    )
+                    break
+                logger.sync_info("Resource check", page=page, memory_percent=memory_percent)
+
+            # Safeguard 5: Progress milestone logging for recovery
+            if page % 250 == 0:  # Every 250 pages
+                progress_pct = (page / total_pages * 100) if total_pages else 0
+                logger.sync_info(
+                    "Progress milestone",
+                    page=page,
+                    total_pages=total_pages,
+                    progress_percent=f"{progress_pct:.1f}%",
+                    articles_collected=len(all_results),
+                )
+
             # Use PubTator3's native search endpoint
             search_url = f"{self.base_url}/search/"
             params = {
                 "text": query,
-                "filters": "{}",  # Empty filters object
+                "filters": "{}",
                 "page": page,
-                "sort": self.sort_order,  # Configurable: "score desc" or "date desc"
+                "sort": self.sort_order,  # Always "score desc" for consistent ordering
             }
 
             # Log progress
-            if self.max_pages is not None:
-                logger.sync_info(
-                    "PubTator3 search page", current_page=page, max_pages=self.max_pages
-                )
+            if mode == "smart":
+                max_pages_display = smart_max_pages
             else:
-                logger.sync_info(
-                    "PubTator3 search page",
-                    current_page=page,
-                    total_pages=total_pages if total_pages else "?",
+                # Full mode: Use full_update max_pages from config (None = no limit)
+                full_max_pages = get_source_parameter("PubTator", "full_update", {}).get(
+                    "max_pages"
                 )
+                max_pages_display = full_max_pages or "ALL"
+            logger.sync_info(
+                f"PubTator3 search page (mode: {mode})",
+                current_page=page,
+                max_pages=max_pages_display,
+                total_pages=total_pages if total_pages else "?",
+            )
 
             try:
-                logger.sync_info("Starting request to PubTator API", page=page)
-                logger.sync_debug("PubTator API URL", page=page, url=search_url)
-                logger.sync_debug("PubTator API params", page=page, params=params)
-                logger.sync_debug("Using retry strategy", page=page, timeout="60s")
+                logger.sync_info("Starting request to PubTator API", page=page, mode=mode)
 
-                # Use existing retry strategy - it already has exponential backoff
-                response = await self.retry_strategy.execute_async(
-                    lambda url=search_url, p=params: self.http_client.get(url, params=p, timeout=60)
+                # SAFEGUARD SYSTEM: Multiple layers of protection against hangs
+                logger.sync_debug("About to execute HTTP request", url=search_url, params=params)
+
+                # Safeguard 1: Asyncio timeout wrapper (120s absolute maximum)
+                try:
+                    async with asyncio.timeout(120):  # 120s failsafe timeout
+                        # Safeguard 2: Enhanced HTTP timeouts with connection limits
+                        response = await self.retry_strategy.execute_async(
+                            lambda url=search_url, p=params: self.http_client.get(
+                                url,
+                                params=p,
+                                timeout=httpx.Timeout(
+                                    connect=30.0,  # 30s connection timeout
+                                    read=60.0,  # 60s read timeout
+                                    write=30.0,  # 30s write timeout
+                                    pool=30.0,  # 30s pool timeout
+                                ),
+                            )
+                        )
+
+                except asyncio.TimeoutError:
+                    logger.sync_error("Request timed out after 120 seconds", page=page, mode=mode)
+                    consecutive_failures += 1
+                    if consecutive_failures >= max_consecutive_failures:
+                        logger.sync_error(
+                            "Stopping after consecutive timeout failures",
+                            failures=consecutive_failures,
+                        )
+                        break
+                    await asyncio.sleep(self.rate_limit_delay * 2)  # Longer delay after timeout
+                    page += 1
+                    continue
+
+                logger.sync_debug(
+                    "HTTP request returned", page=page, status_code=response.status_code
                 )
-
                 logger.sync_info("Request completed successfully", page=page)
-
-                # Reset consecutive failures on successful response
                 consecutive_failures = 0
-                logger.sync_debug("Response received", page=page, status_code=response.status_code)
-                logger.sync_debug("Response headers", page=page, headers=dict(response.headers))
 
                 if response.status_code != 200:
                     logger.sync_error(
                         "PubTator3 search failed", page=page, status_code=response.status_code
-                    )
-                    logger.sync_error(
-                        "Response content preview", content_preview=response.text[:500]
                     )
                     consecutive_failures += 1
                     if consecutive_failures >= max_consecutive_failures:
@@ -276,18 +357,11 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                         break
                     continue
 
-                logger.sync_debug("Starting JSON parsing", page=page)
                 try:
                     data = response.json()
                     logger.sync_debug("JSON parsed successfully", page=page, keys=list(data.keys()))
-                    logger.sync_debug("Response size", page=page, size_bytes=len(response.text))
                 except Exception as json_err:
                     logger.sync_error("Failed to parse JSON", page=page, error=str(json_err))
-                    logger.sync_error(
-                        "JSON parse error - response preview",
-                        page=page,
-                        content_preview=response.text[:500],
-                    )
                     consecutive_failures += 1
                     if consecutive_failures >= max_consecutive_failures:
                         logger.sync_error(
@@ -312,54 +386,115 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
                     # Initialize tracker with actual limit we'll process
                     if tracker:
-                        actual_pages = (
-                            min(self.max_pages, total_pages) if self.max_pages else total_pages
-                        )
-                        actual_items = (
-                            min(self.max_pages * 10, total_available)
-                            if self.max_pages
-                            else total_available
-                        )
+                        if mode == "smart":
+                            actual_pages = min(smart_max_pages, total_pages)
+                            actual_items = min(smart_max_pages * 10, total_available)
+                        else:
+                            # Full mode: Use full_update config
+                            full_max_pages = get_source_parameter(
+                                "PubTator", "full_update", {}
+                            ).get("max_pages")
+                            if full_max_pages is not None:
+                                actual_pages = min(full_max_pages, total_pages)
+                                actual_items = min(full_max_pages * 10, total_available)
+                            else:
+                                # No limit - process all pages
+                                actual_pages = total_pages
+                                actual_items = total_available
                         tracker.update(total_pages=actual_pages, total_items=actual_items)
 
                 if not results:
                     logger.sync_info("No more results", page=page)
                     break
 
-                all_results.extend(results)
-                total_fetched += len(results)
+                # Smart mode: Database duplicate checking
+                if mode == "smart":
+                    page_pmids = {str(r.get("pmid")) for r in results if r.get("pmid")}
+                    new_pmids = page_pmids - existing_pmids
+                    duplicate_rate = 1 - (len(new_pmids) / len(page_pmids)) if page_pmids else 0
 
-                # Progress logging and tracker update
-                total_available = data.get("count", 0)
-                logger.sync_info(
-                    "Page results",
-                    page=page,
-                    results_count=len(results),
-                    total_fetched=total_fetched,
-                    total_available=total_available,
-                )
-                logger.sync_debug("Memory usage", page=page, all_results_count=len(all_results))
-
-                # Update tracker with current progress
-                if tracker:
-                    actual_pages = (
-                        min(self.max_pages, total_pages) if self.max_pages else total_pages
+                    logger.sync_info(
+                        "Database duplicate check",
+                        page=page,
+                        total_on_page=len(page_pmids),
+                        already_in_db=len(page_pmids) - len(new_pmids),
+                        new=len(new_pmids),
+                        duplicate_rate=f"{duplicate_rate:.1%}",
                     )
-                    logger.sync_debug("Updating tracker", page=page, current_item=total_fetched)
+
+                    # Stop if high duplicate rate
+                    if duplicate_rate > duplicate_threshold:
+                        consecutive_duplicate_pages += 1
+                        if consecutive_duplicate_pages >= consecutive_duplicate_limit:
+                            logger.sync_info(
+                                "Stopping smart update: High database duplicate rate",
+                                consecutive_pages=consecutive_duplicate_pages,
+                                duplicate_rate=f"{duplicate_rate:.1%}",
+                            )
+                            break
+                    else:
+                        consecutive_duplicate_pages = 0
+
+                    # Only add results with new PMIDs
+                    new_results = [r for r in results if str(r.get("pmid")) in new_pmids]
+                    all_results.extend(new_results)
+
+                    logger.sync_info(
+                        f"Smart mode: Added {len(new_results)} new results from page {page}"
+                    )
+                else:
+                    # Full mode: Add everything
+                    all_results.extend(results)
+                    logger.sync_info(f"Full mode: Added {len(results)} results from page {page}")
+
+                # Update progress
+                if tracker:
+                    total_fetched = len(all_results)
+                    if mode == "smart":
+                        actual_pages = min(smart_max_pages, total_pages)
+                    else:
+                        # Full mode: Use full_update max_pages from config (None = no limit)
+                        full_max_pages = get_source_parameter("PubTator", "full_update", {}).get(
+                            "max_pages"
+                        )
+                        actual_pages = (
+                            min(full_max_pages, total_pages) if full_max_pages else total_pages
+                        )
+
                     tracker.update(
                         current_page=page,
                         current_item=total_fetched,
-                        operation=f"Fetching PubTator data: page {page}/{actual_pages} ({total_fetched} articles)",
+                        operation=f"Fetching PubTator data ({mode} mode): page {page}/{actual_pages} ({total_fetched} articles)",
                     )
-                    logger.sync_debug("Tracker updated successfully", page=page)
+
+                    # Safeguard 3: Periodic database commit to prevent long transactions
+                    if page % 50 == 0:  # Commit every 50 pages
+                        try:
+                            self.db_session.commit()
+                            logger.sync_debug("Periodic database commit", page=page)
+                        except Exception as commit_err:
+                            logger.sync_warning(
+                                "Periodic commit failed", page=page, error=str(commit_err)
+                            )
 
                 # Check stopping conditions
-                # 1. If we have a max_pages limit and reached it
-                if self.max_pages is not None and page >= self.max_pages:
-                    logger.sync_info("Reached configured max pages limit", max_pages=self.max_pages)
-                    break
+                if mode == "smart":
+                    # Smart mode: Stop after reasonable number of pages
+                    if page >= smart_max_pages:
+                        logger.sync_info(
+                            "Smart update page limit reached", max_pages=smart_max_pages
+                        )
+                        break
+                else:
+                    # Full mode: Get full_update max_pages from config (None = no limit)
+                    full_max_pages = get_source_parameter("PubTator", "full_update", {}).get(
+                        "max_pages"
+                    )
+                    if full_max_pages is not None and page >= full_max_pages:
+                        logger.sync_info("Reached full update page limit", max_pages=full_max_pages)
+                        break
 
-                # 2. If we've reached the last page available from API
+                # Check if we've reached the last page available from API
                 if page >= total_pages:
                     logger.sync_info(
                         "Reached last available page", current_page=page, total_pages=total_pages
@@ -367,32 +502,22 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                     break
 
                 # Rate limiting
+                logger.sync_debug("Rate limiting sleep", delay=self.rate_limit_delay)
                 await asyncio.sleep(self.rate_limit_delay)
                 page += 1
+                logger.sync_debug("Moving to next page", next_page=page)
 
                 # Progress indicator every 100 pages
                 if page % 100 == 0:
                     logger.sync_info(
-                        "Progress update", total_fetched=total_fetched, pages_completed=page - 1
+                        "Progress update", total_fetched=len(all_results), pages_completed=page - 1
                     )
 
             except Exception as e:
                 logger.sync_error(
                     "Error on page", page=page, error_type=type(e).__name__, error=str(e)
                 )
-                logger.sync_error("Full exception details", exc_info=True)
-
-                # Add more context about the failure
-                logger.sync_debug("Failed after retry strategy exhausted", page=page)
-                logger.sync_debug("Total fetched so far", page=page, total_fetched=total_fetched)
-
                 consecutive_failures += 1
-                logger.sync_info(
-                    "Consecutive failures",
-                    page=page,
-                    consecutive_failures=consecutive_failures,
-                    max_failures=max_consecutive_failures,
-                )
 
                 if consecutive_failures >= max_consecutive_failures:
                     logger.sync_warning(
@@ -401,15 +526,41 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                     )
                     break
 
-                # Skip to next page if we haven't hit the limit
-                logger.sync_info("Skipping to next page after error", page=page)
                 page += 1
                 continue
 
         logger.sync_info(
-            "PubTator3 search complete", total_articles=total_fetched, pages_processed=page - 1
+            f"PubTator3 search complete ({mode} mode)",
+            total_articles=len(all_results),
+            pages_processed=page - 1,
+            mode=mode,
         )
         return all_results
+
+    async def _get_existing_pmids_from_db(self) -> set[str]:
+        """
+        Get all PMIDs currently in database for PubTator source.
+
+        Returns:
+            Set of existing PMIDs
+        """
+        logger.sync_info("Loading existing PMIDs from database")
+
+        # Query gene_evidence table for PubTator entries
+        staging_records = (
+            self.db_session.query(GeneEvidence).filter(GeneEvidence.source_name == "PubTator").all()
+        )
+
+        existing_pmids = set()
+        for record in staging_records:
+            if record.evidence_data and "pmids" in record.evidence_data:
+                pmids = record.evidence_data["pmids"]
+                if isinstance(pmids, list):
+                    existing_pmids.update(str(pmid) for pmid in pmids)
+
+        logger.sync_info("Loaded existing PMIDs from database", count=len(existing_pmids))
+
+        return existing_pmids
 
     async def process_data(self, raw_data: dict[str, Any]) -> dict[str, Any]:
         """

@@ -291,7 +291,7 @@ function formatTimestamp(timestamp) {
 function formatLogData(data) {
   try {
     return JSON.stringify(data, null, 2)
-  } catch (error) {
+  } catch {
     return String(data)
   }
 }

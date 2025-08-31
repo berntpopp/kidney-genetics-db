@@ -27,7 +27,7 @@ def managed_task(source_name: str):
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        async def wrapper(self, resume: bool = False) -> dict[str, Any]:
+        async def wrapper(self, resume: bool = False, mode: str = "smart") -> dict[str, Any]:
             """Wrapper with ROBUST database management."""
             tracker = None
 
@@ -36,11 +36,11 @@ def managed_task(source_name: str):
                 try:
                     tracker = ProgressTracker(db, source_name, self.broadcast_callback)
                     logger.sync_info(
-                        "Starting source update", source_name=source_name, resume=resume
+                        "Starting source update", source_name=source_name, resume=resume, mode=mode
                     )
 
                     # Execute the actual task
-                    result = await func(self, db, tracker, resume)
+                    result = await func(self, db, tracker, resume, mode)
 
                     db.commit()  # Explicit commit on success
                     logger.sync_info(
@@ -125,10 +125,10 @@ class TaskMixin:
         )
 
     @managed_task("PubTator")
-    async def _run_pubtator(self, db, tracker, resume: bool = False):
+    async def _run_pubtator(self, db, tracker, resume: bool = False, mode: str = "smart"):
         """Run PubTator update using the unified template method."""
         source = self._get_source_instance("PubTator", db)
-        return await source.update_data(db, tracker)
+        return await source.update_data(db, tracker, mode=mode)
 
     @managed_task("GenCC")
     async def _run_gencc(self, db, tracker, resume: bool = False):

@@ -98,7 +98,7 @@ class GnomADAnnotationSource(BaseAnnotationSource):
                 hgnc_id=gene.hgnc_id,
             )
             return None
-        
+
         # Check if this is a "no constraint available" annotation
         if constraint_data.get("constraint_not_available"):
             await logger.info(
