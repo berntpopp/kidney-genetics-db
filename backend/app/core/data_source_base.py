@@ -127,7 +127,14 @@ class DataSourceClient(ABC):
             # Step 1: Fetch raw data
             tracker.update(operation="Fetching data from source")
             logger.sync_info("Fetching data from source", source_name=self.source_name)
-            raw_data = await self.fetch_raw_data(tracker=tracker, mode=mode)
+
+            # Check if fetch_raw_data accepts mode parameter
+            import inspect
+            sig = inspect.signature(self.fetch_raw_data)
+            if 'mode' in sig.parameters:
+                raw_data = await self.fetch_raw_data(tracker=tracker, mode=mode)
+            else:
+                raw_data = await self.fetch_raw_data(tracker=tracker)
             stats["data_fetched"] = True
 
             # Step 2: Process data

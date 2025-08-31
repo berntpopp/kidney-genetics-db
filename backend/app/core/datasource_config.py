@@ -51,7 +51,7 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "min_publications": 3,  # Minimum publications for gene inclusion
         "search_query": '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)',
         "batch_size": 100,  # PMIDs per batch for annotation fetching
-        "rate_limit_delay": 0.3,  # Seconds between API calls
+        "rate_limit_delay": 0.1,  # Small courtesy delay between API calls (handled by retry system)
         # Cache settings
         "cache_ttl": 604800,  # 7 days - literature updates periodically
         "use_cache": True,  # Enable caching of PubTator results

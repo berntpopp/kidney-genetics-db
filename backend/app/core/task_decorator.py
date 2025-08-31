@@ -40,7 +40,13 @@ def managed_task(source_name: str):
                     )
 
                     # Execute the actual task
-                    result = await func(self, db, tracker, resume, mode)
+                    # Check if the function accepts mode parameter
+                    import inspect
+                    sig = inspect.signature(func)
+                    if 'mode' in sig.parameters:
+                        result = await func(self, db, tracker, resume, mode)
+                    else:
+                        result = await func(self, db, tracker, resume)
 
                     db.commit()  # Explicit commit on success
                     logger.sync_info(
