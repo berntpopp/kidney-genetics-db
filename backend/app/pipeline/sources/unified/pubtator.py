@@ -261,7 +261,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                         f"DEBUG: Starting page {state['page']}, processed={state['processed_count']}, "
                         f"saved={len(state['results'])}, chunk_size={len(state['chunk'])}"
                     )
-                
+
                 # Check resource limits periodically
                 if state["page"] % 100 == 0 and not self._check_resources():
                     logger.sync_warning("Resource limit reached, stopping")
@@ -275,7 +275,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 logger.sync_debug(f"DEBUG: About to fetch page {state['page']}")
                 response = await self._fetch_page(params, state["page"])
                 logger.sync_debug(f"DEBUG: Fetched page {state['page']}, response={response is not None}")
-                
+
                 if response is None:
                     logger.sync_debug(f"DEBUG: Page {state['page']} failed, consecutive_failures={state['consecutive_failures']}")
                     state["consecutive_failures"] += 1
@@ -315,7 +315,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 # Process chunk when it reaches threshold
                 if len(state["chunk"]) >= config["chunk_size"]:
                     logger.sync_debug(f"DEBUG: Processing chunk at page {state['page']}, chunk_size={len(state['chunk'])}")
-                    
+
                     # Filter duplicates in smart mode
                     if mode == "smart" and existing_pmids:
                         filtered_chunk = [
@@ -329,12 +329,12 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                     # Add to results (up to limit)
                     remaining_space = config["max_results"] - len(state["results"])
                     logger.sync_debug(f"DEBUG: Remaining space={remaining_space}, adding up to {min(len(filtered_chunk), remaining_space)} articles")
-                    
+
                     if remaining_space > 0:
                         state["results"].extend(filtered_chunk[:remaining_space])
 
                     # Clear chunk and collect garbage
-                    logger.sync_debug(f"DEBUG: Clearing chunk and running GC")
+                    logger.sync_debug("DEBUG: Clearing chunk and running GC")
                     state["chunk"] = []
                     gc.collect()
 
@@ -548,7 +548,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
     async def _fetch_page(self, params: dict, page: int) -> httpx.Response | None:
         """Fetch a single page with timeout protection using cached HTTP client."""
         search_url = f"{self.base_url}/search/"
-        
+
         logger.sync_debug(f"DEBUG _fetch_page: Starting request for page {page}, URL: {search_url}")
 
         try:
