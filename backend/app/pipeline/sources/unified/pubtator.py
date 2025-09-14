@@ -38,6 +38,12 @@ class PubTatorUnifiedSource(UnifiedDataSource):
     - Proper evidence merging (no data loss)
     - Checkpoint-based resume capability
     - Uses existing infrastructure (CachedHttpClient, retry logic)
+    - Minimum publication filtering for quality control
+
+    Publication Filtering:
+    - Genes must have >= min_publications (default: 3) to be included
+    - Filters out low-confidence genes with insufficient evidence
+    - Reduces noise from single-publication mentions
     """
 
     @property
@@ -68,6 +74,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)',
         )
         self.max_pages = get_source_parameter("PubTator", "max_pages", None)  # None = unlimited
+        self.min_publications = get_source_parameter("PubTator", "min_publications", 3)  # Min publications required
         self.sort_order = "score desc"
         self.chunk_size = 1000  # Optimal for PostgreSQL bulk operations
         self.transaction_size = 5000  # Commit every 5000 records
@@ -75,6 +82,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         logger.sync_info(
             "PubTatorUnifiedSource initialized",
             max_pages="ALL" if self.max_pages is None else str(self.max_pages),
+            min_publications=self.min_publications,
             chunk_size=self.chunk_size,
         )
 
@@ -395,10 +403,19 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         # Final commit
         self.db_session.commit()
 
+        # Add filtering summary to stats
+        genes_filtered = stats.get("genes_filtered", 0)
+        genes_kept = stats["processed_genes"] - genes_filtered
+        filter_rate = (genes_filtered / stats["processed_genes"] * 100) if stats["processed_genes"] > 0 else 0
+
         logger.sync_info(
             "PubTator processing complete",
             processed_articles=stats["processed_articles"],
-            processed_genes=stats["processed_genes"],
+            total_genes_found=stats["processed_genes"],
+            genes_kept=genes_kept,
+            genes_filtered=genes_filtered,
+            filter_rate=f"{filter_rate:.1f}%",
+            min_publications=self.min_publications,
             last_page=stats["current_page"]
         )
 
@@ -456,6 +473,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         # Process each gene with the parent class method
         # which handles normalization and gene creation
         processed_genes = {}
+        filtered_count = 0
+
         for gene_symbol, new_data in gene_buffer.items():
             # Convert sets to lists for the new data
             processed_data = new_data.copy()
@@ -463,6 +482,11 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             processed_data["identifiers"] = list(new_data["identifiers"])
             processed_data["publication_count"] = len(processed_data["pmids"])
             processed_data["total_mentions"] = len(processed_data["mentions"])
+
+            # Apply minimum publication filter for quality control
+            if processed_data["publication_count"] < self.min_publications:
+                filtered_count += 1
+                continue  # Skip genes with insufficient publications
 
             # Calculate average score
             if processed_data["publication_count"] > 0:
@@ -489,9 +513,11 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         # Update stats
         stats["processed_articles"] += len(article_buffer)
         stats["processed_genes"] = stats.get("processed_genes", 0) + len(gene_buffer)
+        stats["genes_filtered"] = stats.get("genes_filtered", 0) + filtered_count
 
         logger.sync_info(
-            f"Flushed buffers: {len(article_buffer)} articles, {len(gene_buffer)} genes"
+            f"Flushed buffers: {len(article_buffer)} articles, {len(gene_buffer)} genes "
+            f"({len(processed_genes)} kept, {filtered_count} filtered by min_publications={self.min_publications})"
         )
 
     async def _create_or_update_evidence(

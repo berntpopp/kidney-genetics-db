@@ -28,13 +28,25 @@
 - Inherits from `UnifiedDataSource` base class
 - Uses `UnifiedLogger` for structured logging
 
+### 5. Publication Count Filtering ✅
+- Implements `min_publications` threshold (default: 3)
+- Filters genes with fewer than 3 publications
+- Reduces noise from single-publication mentions
+- Improves data quality by requiring multiple evidence sources
+
 ## Production Statistics
 
-### Data Coverage
-- **4,195 genes** with PubTator evidence
-- **19,064 unique PMIDs** extracted and stored
+### Data Coverage (Before Filtering)
+- **4,195 genes** found with PubTator evidence
+- **19,064 unique PMIDs** extracted
 - **54,824 articles** processed in total
 - **~42.5%** of articles contain gene annotations
+
+### After Min Publications Filter (≥3 publications)
+- **1,477 genes** kept (high-confidence subset)
+- **2,718 genes** filtered out (64.8% filter rate)
+- **Median**: 2 publications per gene (before filtering)
+- **Top genes**: PKD1 (1,195), PKD2 (969), APOL1 (537)
 
 ### Performance Metrics
 - Memory usage: Constant ~200-500MB
