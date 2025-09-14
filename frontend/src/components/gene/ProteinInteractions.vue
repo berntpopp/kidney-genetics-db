@@ -19,15 +19,49 @@
         <template #activator="{ props: tooltipProps }">
           <v-chip color="primary" variant="tonal" size="small" v-bind="tooltipProps">
             Score: {{ stringPpiData.ppi_score?.toFixed(1) || '0' }}
-            <span v-if="stringPpiData.ppi_percentile" class="ml-1 text-caption">
-              ({{ (stringPpiData.ppi_percentile * 100).toFixed(0) }}%)
-            </span>
           </v-chip>
         </template>
         <div class="pa-2">
-          <div class="font-weight-medium">PPI Score</div>
-          <div class="text-caption">Weighted protein interaction score</div>
-          <div class="text-caption mt-1">Formula: Σ(STRING/1000 × partner_evidence) / √degree</div>
+          <div class="font-weight-medium">
+            PPI Score: {{ stringPpiData.ppi_score?.toFixed(1) || '0' }}
+          </div>
+          <div class="text-caption">Weighted protein interaction score (0-100 scale)</div>
+          <div class="text-caption mt-1">
+            <strong>Percentile Rank:</strong>
+            {{
+              stringPpiData.ppi_percentile
+                ? `${(stringPpiData.ppi_percentile * 100).toFixed(0)}th percentile`
+                : 'N/A'
+            }}
+          </div>
+          <div class="text-caption mt-2">
+            <strong>Calculation:</strong><br />
+            Σ(STRING/1000 × partner_evidence) / √degree
+          </div>
+          <div class="text-caption mt-2 text-warning">
+            <strong>Note:</strong> This is NOT a percentage. It's a normalized score based on
+            interaction confidence and partner relevance.
+          </div>
+        </div>
+      </v-tooltip>
+
+      <!-- Percentile Rank chip (separate for clarity) -->
+      <v-tooltip v-if="stringPpiData.ppi_percentile" location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <v-chip color="info" variant="outlined" size="small" v-bind="tooltipProps">
+            <v-icon size="x-small" start>mdi-chart-bell-curve</v-icon>
+            {{ (stringPpiData.ppi_percentile * 100).toFixed(0) }}<sup>th</sup> percentile
+          </v-chip>
+        </template>
+        <div class="pa-2">
+          <div class="font-weight-medium">Percentile Rank</div>
+          <div class="text-caption">
+            This gene's PPI score ranks higher than
+            {{ (stringPpiData.ppi_percentile * 100).toFixed(0) }}% of all kidney genes
+          </div>
+          <div class="text-caption mt-1">
+            Higher percentile = stronger protein interactions relative to other genes
+          </div>
         </div>
       </v-tooltip>
 

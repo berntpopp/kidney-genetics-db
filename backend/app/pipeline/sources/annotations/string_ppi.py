@@ -9,7 +9,6 @@ import math
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import pandas as pd
 
 from app.core.config import settings
@@ -286,14 +285,23 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
                 "summary": summary,
             }
 
-        # Calculate percentile normalization
+        # Calculate percentile normalization with proper tie handling
         if raw_scores:
-            scores_array = np.array(list(raw_scores.values()))
+            # Use scipy's rankdata for proper percentile calculation with ties
+            from scipy.stats import rankdata
 
-            for gene_id, score in raw_scores.items():
+            # Get gene IDs in same order as scores
+            gene_ids = list(raw_scores.keys())
+            scores = list(raw_scores.values())
+
+            # Calculate percentile ranks (method='average' handles ties)
+            # Subtract 1 to make it 0-based, then divide by (n-1) for percentiles
+            ranks = rankdata(scores, method="average")
+            percentiles = (ranks - 1) / (len(ranks) - 1) if len(ranks) > 1 else ranks
+
+            # Assign percentiles to results
+            for gene_id, percentile in zip(gene_ids, percentiles, strict=False):
                 if gene_id in results:
-                    # Calculate percentile
-                    percentile = (scores_array < score).mean()
                     results[gene_id]["ppi_percentile"] = round(percentile, 3)
 
         logger.sync_info(
