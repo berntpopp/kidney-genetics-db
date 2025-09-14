@@ -97,6 +97,19 @@ class DataSourceClient(ABC):
         """
         pass
 
+    async def _clear_existing_entries(self, db: Session) -> int:
+        """Clear existing entries for this source (for full mode).
+
+        Returns:
+            Number of deleted entries
+        """
+        deleted = db.query(GeneEvidence)\
+            .filter(GeneEvidence.source_name == self.source_name)\
+            .delete()
+        db.commit()
+        logger.sync_info(f"Cleared {deleted} existing {self.source_name} entries")
+        return deleted
+
     async def update_data(
         self, db: Session, tracker: ProgressTracker, mode: str = "smart"
     ) -> dict[str, Any]:
@@ -105,10 +118,11 @@ class DataSourceClient(ABC):
 
         This method implements the common workflow:
         1. Initialize statistics
-        2. Fetch raw data from source
-        3. Process data into gene information
-        4. Store processed data in database
-        5. Return comprehensive statistics
+        2. Clear existing data if full mode
+        3. Fetch raw data from source
+        4. Process data into gene information
+        5. Store processed data in database
+        6. Return comprehensive statistics
 
         Args:
             db: Database session
@@ -121,8 +135,15 @@ class DataSourceClient(ABC):
         stats = self._initialize_stats()
 
         try:
-            tracker.start(f"Starting {self.source_name} update")
-            logger.sync_info("Starting data update", source_name=self.source_name)
+            tracker.start(f"Starting {self.source_name} update (mode: {mode})")
+            logger.sync_info("Starting data update", source_name=self.source_name, mode=mode)
+
+            # Clear existing entries if full mode
+            if mode == "full":
+                tracker.update(operation="Clearing existing entries")
+                deleted = await self._clear_existing_entries(db)
+                stats["entries_deleted"] = deleted
+                logger.sync_info(f"Full mode: deleted {deleted} existing entries")
 
             # Step 1: Fetch raw data
             tracker.update(operation="Fetching data from source")

@@ -107,11 +107,8 @@ class BackgroundTaskManager(TaskMixin):
 
         try:
             logger.sync_info("Creating asyncio task", source_name=source_name)
-            # Only pass mode parameter to methods that support it (currently only PubTator)
-            if source_name.lower() == "pubtator":
-                task = asyncio.create_task(task_method(resume=resume, mode=mode))
-            else:
-                task = asyncio.create_task(task_method(resume=resume))
+            # Pass mode parameter to all sources uniformly
+            task = asyncio.create_task(task_method(resume=resume, mode=mode))
             logger.sync_debug("Created task", task=str(task))
 
             self.running_tasks[source_name] = task

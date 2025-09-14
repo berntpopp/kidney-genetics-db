@@ -25,6 +25,28 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "au_panels": [217, 363],  # Australia Panel IDs (kidney related)
         "confidence_levels": ["green", "amber"],  # Confidence levels to include
         "min_evidence_level": 3,  # Minimum evidence level
+        # Kidney-related keywords for panel search
+        "kidney_keywords": [
+            "kidney",
+            "renal",
+            "nephro",
+            "glomerul",
+            # "tubul",  # REMOVED - too broad, matches tubulinopathies (brain disorders)
+            "tubulopathy",  # More specific for kidney tubule disorders
+            "tubulointerstitial",  # Specific for kidney tubule disorders
+            "polycystic",
+            "alport",
+            "nephritis",
+            "cystic kidney",  # More specific than just "cystic"
+            "ciliopathy",  # Note: ciliopathies are multi-system, may need review
+            "complement",
+            "cakut",
+            "focal segmental",
+            "steroid resistant",
+            "nephrotic",
+            "proteinuria",
+            "hematuria",
+        ],
         # Cache settings
         "cache_ttl": 21600,  # 6 hours - moderate update frequency
     },
@@ -49,6 +71,8 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
             "max_pages": None,  # No limit (get all pages) for full updates
         },
         "min_publications": 3,  # Minimum publications for gene inclusion
+        "min_publications_enabled": True,  # Enable filtering for PubTator
+        "filter_after_complete": True,  # Apply filter after all chunks processed
         "search_query": '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)',
         "batch_size": 100,  # PMIDs per batch for annotation fetching
         # Cache settings
@@ -90,6 +114,34 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "excel_url": "https://search.thegencc.org/download/action/submissions-export-csv",
         # Filtering settings
         "confidence_categories": ["definitive", "strong", "moderate"],
+        # Kidney-related keywords for disease filtering
+        "kidney_keywords": [
+            "kidney",
+            "renal",
+            "nephro",
+            "glomerul",
+            # "tubul",  # REMOVED - too broad, matches tubulinopathies (brain disorders)
+            "tubulopathy",  # More specific for kidney tubule disorders
+            "tubulointerstitial",  # Specific for kidney tubule disorders
+            "polycystic",
+            "alport",
+            "nephritis",
+            "cystic kidney",  # More specific than just "cystic"
+            "ciliopathy",  # Note: ciliopathies are multi-system, may need review
+            "complement",
+            "cakut",
+        ],
+        # Classification weights for evidence scoring
+        "classification_weights": {
+            "Definitive": 1.0,
+            "Strong": 0.8,
+            "Moderate": 0.6,
+            "Supportive": 0.5,
+            "Limited": 0.3,
+            "Disputed Evidence": 0.1,
+            "No Known Disease Relationship": 0.0,
+            "Refuted Evidence": 0.0,
+        },
         # Cache settings
         "cache_ttl": 43200,  # 12 hours - regular submission updates
     },
@@ -217,6 +269,8 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "auto_update": False,  # Manual upload via API
         "priority": 6,
         "hybrid_source": True,  # Uses unified source pattern
+        "min_panels": 2,  # Minimum number of providers (panels) for gene inclusion
+        "min_panels_enabled": False,  # Disabled because filtering happens after all uploads
     },
     "Literature": {
         "display_name": "Literature",
@@ -226,6 +280,8 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "auto_update": False,  # Manual upload via API
         "priority": 7,
         "hybrid_source": True,  # Uses unified source pattern
+        "min_publications": 2,  # Minimum publications for gene inclusion
+        "min_publications_enabled": False,  # Disabled - filter after all uploads
     },
 }
 

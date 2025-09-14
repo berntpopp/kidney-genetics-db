@@ -57,33 +57,37 @@ class GenCCUnifiedSource(UnifiedDataSource):
         # GenCC configuration
         self.download_url = "https://search.thegencc.org/download/action/submissions-export-xlsx"
 
-        # Kidney-related keywords for filtering
-        self.kidney_keywords = [
-            "kidney",
-            "renal",
-            "nephro",
-            "glomerul",
-            "tubul",
-            "polycystic",
-            "alport",
-            "nephritis",
-            "cystic",
-            "ciliopathy",
-            "complement",
-            "cakut",
-        ]
+        # Kidney-related keywords for filtering from config
+        self.kidney_keywords = get_source_parameter(
+            "GenCC",
+            "kidney_keywords",
+            [
+                "kidney",
+                "renal",
+                "nephro",
+                "glomerul",
+                "polycystic",
+                "alport",
+                "nephritis",
+                "cakut",
+            ],
+        )
 
-        # GenCC classification weights for evidence scoring
-        self.classification_weights = {
-            "Definitive": 1.0,
-            "Strong": 0.8,
-            "Moderate": 0.6,
-            "Supportive": 0.5,
-            "Limited": 0.3,
-            "Disputed Evidence": 0.1,
-            "No Known Disease Relationship": 0.0,
-            "Refuted Evidence": 0.0,
-        }
+        # GenCC classification weights for evidence scoring from config
+        self.classification_weights = get_source_parameter(
+            "GenCC",
+            "classification_weights",
+            {
+                "Definitive": 1.0,
+                "Strong": 0.8,
+                "Moderate": 0.6,
+                "Supportive": 0.5,
+                "Limited": 0.3,
+                "Disputed Evidence": 0.1,
+                "No Known Disease Relationship": 0.0,
+                "Refuted Evidence": 0.0,
+            },
+        )
 
         logger.sync_info("GenCCUnifiedSource initialized", cache_ttl=self.cache_ttl)
 

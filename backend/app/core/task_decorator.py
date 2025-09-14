@@ -137,28 +137,28 @@ class TaskMixin:
         return await source.update_data(db, tracker, mode=mode)
 
     @managed_task("GenCC")
-    async def _run_gencc(self, db, tracker, resume: bool = False):
+    async def _run_gencc(self, db, tracker, resume: bool = False, mode: str = "smart"):
         """Run GenCC update using the unified template method."""
         source = self._get_source_instance("GenCC", db)
-        return await source.update_data(db, tracker)
+        return await source.update_data(db, tracker, mode=mode)
 
     @managed_task("PanelApp")
-    async def _run_panelapp(self, db, tracker, resume: bool = False):
+    async def _run_panelapp(self, db, tracker, resume: bool = False, mode: str = "smart"):
         """Run PanelApp update using the unified template method."""
         source = self._get_source_instance("PanelApp", db)
-        return await source.update_data(db, tracker)
+        return await source.update_data(db, tracker, mode=mode)
 
     @managed_task("HPO")
-    async def _run_hpo(self, db, tracker, resume: bool = False):
+    async def _run_hpo(self, db, tracker, resume: bool = False, mode: str = "smart"):
         """Run HPO update using the unified template method."""
         source = self._get_source_instance("HPO", db)
-        return await source.update_data(db, tracker)
+        return await source.update_data(db, tracker, mode=mode)
 
     @managed_task("ClinGen")
-    async def _run_clingen(self, db, tracker, resume: bool = False):
+    async def _run_clingen(self, db, tracker, resume: bool = False, mode: str = "smart"):
         """Run ClinGen update using the unified template method."""
         source = self._get_source_instance("ClinGen", db)
-        return await source.update_data(db, tracker)
+        return await source.update_data(db, tracker, mode=mode)
 
     @executor_task("HGNC_Normalization")
     def _run_hgnc_normalization(self, db, tracker, resume: bool = False):
