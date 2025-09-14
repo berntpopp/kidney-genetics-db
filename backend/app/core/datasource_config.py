@@ -38,7 +38,7 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         # API settings
         "api_url": "https://www.ncbi.nlm.nih.gov/research/pubtator-api",
         # Search configuration
-        "max_pages": 100,  # Maximum pages to fetch per run (smart mode default)
+        "max_pages": None,  # None = unlimited, process all pages
         # Update modes configuration
         "smart_update": {
             "max_pages": 500,  # Stop after 500 pages max for smart updates
