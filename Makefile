@@ -421,28 +421,7 @@ print('  Tier 2:'); \
 # Refresh all database views
 db-refresh-views:
 	@echo "🔄 Refreshing all database views..."
-	@cd backend && uv run python -c "\
-from sqlalchemy import create_engine, text; \
-from app.core.config import settings; \
-from app.db.views import ALL_VIEWS; \
-from app.db.replaceable_objects import topological_sort; \
-engine = create_engine(settings.DATABASE_URL); \
-sorted_views = topological_sort(ALL_VIEWS); \
-with engine.connect() as conn: \
-    trans = conn.begin(); \
-    try: \
-        for view in reversed(sorted_views): \
-            conn.execute(text(view.drop_statement())); \
-            print(f'  Dropped: {view.name}'); \
-        for view in sorted_views: \
-            conn.execute(text(view.create_statement())); \
-            print(f'  Created: {view.name}'); \
-        trans.commit(); \
-        print('All views refreshed successfully'); \
-    except Exception as e: \
-        trans.rollback(); \
-        print(f'Error refreshing views: {e}'); \
-"
+	@cd backend && uv run python -c "from sqlalchemy import create_engine, text; from app.core.config import settings; from app.db.views import ALL_VIEWS; from app.db.replaceable_objects import topological_sort; engine = create_engine(settings.DATABASE_URL); sorted_views = topological_sort(ALL_VIEWS); conn = engine.connect(); trans = conn.begin(); [conn.execute(text(view.drop_statement())) for view in reversed(sorted_views)]; [conn.execute(text(view.create_statement())) for view in sorted_views]; trans.commit(); conn.close(); print('✅ All views refreshed successfully')"
 
 # Create log directory if it doesn't exist
 $(shell mkdir -p logs)

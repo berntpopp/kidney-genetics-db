@@ -57,42 +57,25 @@ evidence_classification_weights = ReplaceableObject(
             g.id AS gene_id,
             g.approved_symbol,
             ge.source_name,
-            CASE
-                WHEN jsonb_array_length(ge.evidence_data -> 'classifications'::text) > 0 THEN
-                    (0.5 * (sum(power(
-                        CASE
-                            WHEN lower(elem.value::text) = '"definitive"'::text THEN 1.0
-                            WHEN lower(elem.value::text) = '"strong"'::text THEN 0.8
-                            WHEN lower(elem.value::text) = '"moderate"'::text THEN 0.6
-                            WHEN lower(elem.value::text) = '"supportive"'::text THEN 0.5
-                            WHEN lower(elem.value::text) = '"limited"'::text THEN 0.4
-                            WHEN lower(elem.value::text) = '"disputed"'::text THEN 0.2
-                            WHEN lower(elem.value::text) = '"refuted"'::text THEN 0.1
-                            ELSE 0.3
-                        END, 2::numeric)) / NULLIF(sum(
-                        CASE
-                            WHEN lower(elem.value::text) = '"definitive"'::text THEN 1.0
-                            WHEN lower(elem.value::text) = '"strong"'::text THEN 0.8
-                            WHEN lower(elem.value::text) = '"moderate"'::text THEN 0.6
-                            WHEN lower(elem.value::text) = '"supportive"'::text THEN 0.5
-                            WHEN lower(elem.value::text) = '"limited"'::text THEN 0.4
-                            WHEN lower(elem.value::text) = '"disputed"'::text THEN 0.2
-                            WHEN lower(elem.value::text) = '"refuted"'::text THEN 0.1
-                            ELSE 0.3
-                        END), 0::numeric)))::double precision
-                    + 0.3::double precision * LEAST(1.0::double precision, sqrt(jsonb_array_length(ge.evidence_data -> 'classifications'::text)::double precision / 5.0::double precision))
-                    + 0.2::double precision * (sum(
-                        CASE
-                            WHEN lower(elem.value::text) = ANY (ARRAY['"definitive"'::text, '"strong"'::text]) THEN 1
-                            ELSE 0
-                        END)::double precision / NULLIF(jsonb_array_length(ge.evidence_data -> 'classifications'::text), 0)::double precision)
-                ELSE 0.3::double precision
-            END AS classification_weight
+            -- Simple MAX approach - take the best classification
+            COALESCE(
+                (SELECT MAX(
+                    CASE lower(replace(elem.value::text, '"', ''))
+                        WHEN 'definitive' THEN 1.0
+                        WHEN 'strong' THEN 0.8
+                        WHEN 'moderate' THEN 0.6
+                        WHEN 'supportive' THEN 0.5
+                        WHEN 'limited' THEN 0.4
+                        WHEN 'disputed evidence' THEN 0.2
+                        WHEN 'no known disease relationship' THEN 0.0
+                        ELSE 0.0  -- Unknown = no evidence
+                    END
+                ) FROM jsonb_array_elements(ge.evidence_data -> 'classifications') elem),
+                0.0
+            ) AS classification_weight
         FROM gene_evidence ge
         JOIN genes g ON ge.gene_id = g.id
-        CROSS JOIN LATERAL jsonb_array_elements(ge.evidence_data -> 'classifications'::text) elem(value)
         WHERE ge.source_name::text = 'GenCC'::text
-        GROUP BY ge.id, g.id, g.approved_symbol, ge.source_name, ge.evidence_data
     ), clingen_weights AS (
         SELECT ge.id AS evidence_id,
             g.id AS gene_id,
@@ -106,8 +89,9 @@ evidence_classification_weights = ReplaceableObject(
                         WHEN 'Moderate'::text THEN 0.6
                         WHEN 'Limited'::text THEN 0.4
                         WHEN 'Disputed'::text THEN 0.2
-                        WHEN 'Refuted'::text THEN 0.1
-                        ELSE 0.3
+                        WHEN 'No Known Disease Relationship'::text THEN 0.0
+                        WHEN 'No Known Disease Relationship*'::text THEN 0.0
+                        ELSE 0.0  -- Unknown = no evidence
                     END
                 WHEN (ge.evidence_data ->> 'classification'::text) IS NOT NULL THEN
                     CASE ge.evidence_data ->> 'classification'::text
@@ -116,10 +100,11 @@ evidence_classification_weights = ReplaceableObject(
                         WHEN 'Moderate'::text THEN 0.6
                         WHEN 'Limited'::text THEN 0.4
                         WHEN 'Disputed'::text THEN 0.2
-                        WHEN 'Refuted'::text THEN 0.1
-                        ELSE 0.3
+                        WHEN 'No Known Disease Relationship'::text THEN 0.0
+                        WHEN 'No Known Disease Relationship*'::text THEN 0.0
+                        ELSE 0.0  -- Unknown = no evidence
                     END
-                ELSE 0.3
+                ELSE 0.0  -- Unknown = no evidence
             END AS classification_weight
         FROM gene_evidence ge
         JOIN genes g ON ge.gene_id = g.id
@@ -154,7 +139,10 @@ evidence_count_percentiles = ReplaceableObject(
         evidence_source_counts.approved_symbol,
         evidence_source_counts.source_name,
         evidence_source_counts.source_count,
-        percent_rank() OVER (PARTITION BY evidence_source_counts.source_name ORDER BY evidence_source_counts.source_count) AS percentile_score
+        percent_rank() OVER (
+            PARTITION BY evidence_source_counts.source_name
+            ORDER BY LN(1.0 + evidence_source_counts.source_count)
+        ) AS percentile_score
     FROM evidence_source_counts
     WHERE evidence_source_counts.source_count > 0
     """,
@@ -166,16 +154,6 @@ evidence_count_percentiles = ReplaceableObject(
 evidence_normalized_scores = ReplaceableObject(
     name="evidence_normalized_scores",
     sqltext="""
-    WITH gencc_percentiles AS (
-        SELECT evidence_classification_weights.evidence_id,
-            evidence_classification_weights.gene_id,
-            evidence_classification_weights.approved_symbol,
-            evidence_classification_weights.source_name,
-            evidence_classification_weights.classification_weight,
-            percent_rank() OVER (ORDER BY evidence_classification_weights.classification_weight) AS percentile_score
-        FROM evidence_classification_weights
-        WHERE evidence_classification_weights.source_name::text = 'GenCC'::text
-    )
     SELECT evidence_count_percentiles.evidence_id,
         evidence_count_percentiles.gene_id,
         evidence_count_percentiles.approved_symbol,
@@ -192,12 +170,13 @@ evidence_normalized_scores = ReplaceableObject(
     FROM evidence_classification_weights
     WHERE evidence_classification_weights.source_name::text = 'ClinGen'::text
     UNION ALL
-    SELECT gencc_percentiles.evidence_id,
-        gencc_percentiles.gene_id,
-        gencc_percentiles.approved_symbol,
-        gencc_percentiles.source_name,
-        gencc_percentiles.percentile_score AS normalized_score
-    FROM gencc_percentiles
+    SELECT evidence_classification_weights.evidence_id,
+        evidence_classification_weights.gene_id,
+        evidence_classification_weights.approved_symbol,
+        evidence_classification_weights.source_name,
+        evidence_classification_weights.classification_weight AS normalized_score
+    FROM evidence_classification_weights
+    WHERE evidence_classification_weights.source_name::text = 'GenCC'::text
     """,
     dependencies=["evidence_count_percentiles", "evidence_classification_weights"],
 )
@@ -249,33 +228,25 @@ gene_scores = ReplaceableObject(
                g.approved_symbol,
                g.hgnc_id,
                ces.source_name,
-               MAX(ces.normalized_score) AS source_score,
-               COUNT(ces.evidence_id) AS evidence_count_for_source
+               MAX(ces.normalized_score) AS source_score
         FROM genes g
         INNER JOIN combined_evidence_scores ces ON g.id = ces.gene_id
         GROUP BY g.id, g.approved_symbol, g.hgnc_id, ces.source_name
     )
-    SELECT sspg.gene_id,
-           sspg.approved_symbol,
-           sspg.hgnc_id,
-
-           -- Count of evidence records and sources
-           SUM(sspg.evidence_count_for_source) AS evidence_count,
-           COUNT(sspg.source_name) AS source_count,
-
-           -- Corrected scoring: sum of MAX scores per source, scaled by total active sources
-           COALESCE(SUM(sspg.source_score), 0) AS raw_score,
-           COALESCE(SUM(sspg.source_score), 0) /
-               (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 AS percentage_score,
-
-           -- Source breakdown using MAX scores per source
-           jsonb_object_agg(sspg.source_name, ROUND(sspg.source_score::numeric, 4)) AS source_scores,
-
-           -- Dynamic count of all active sources
+    SELECT gene_id,
+           approved_symbol,
+           hgnc_id,
+           COUNT(DISTINCT source_name) AS source_count,
+           COUNT(DISTINCT source_name) AS evidence_count,  -- Alias for backward compatibility
+           SUM(source_score) AS raw_score,
+           -- Sum of scores divided by total possible sources, as percentage
+           SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 AS percentage_score,
+           -- Source breakdown
+           jsonb_object_agg(source_name, ROUND(source_score::numeric, 4)) AS source_scores,
+           -- Total active sources for reference
            (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) AS total_active_sources
-
-    FROM source_scores_per_gene sspg
-    GROUP BY sspg.gene_id, sspg.approved_symbol, sspg.hgnc_id
+    FROM source_scores_per_gene
+    GROUP BY gene_id, approved_symbol, hgnc_id
     """,
     dependencies=["combined_evidence_scores"],
 )
