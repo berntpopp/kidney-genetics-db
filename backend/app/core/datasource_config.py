@@ -70,8 +70,8 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "full_update": {
             "max_pages": None,  # No limit (get all pages) for full updates
         },
-        "min_publications": 3,  # Minimum publications for gene inclusion
-        "min_publications_enabled": True,  # Enable filtering for PubTator
+        "min_publications": 1,  # Minimum publications for gene inclusion (1 = include everything)
+        "min_publications_enabled": True,  # Enable filtering for PubTator (threshold of 1 includes all)
         "filter_after_complete": True,  # Apply filter after all chunks processed
         "search_query": '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)',
         "batch_size": 100,  # PMIDs per batch for annotation fetching
@@ -270,8 +270,8 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "auto_update": False,  # Manual upload via API
         "priority": 6,
         "hybrid_source": True,  # Uses unified source pattern
-        "min_panels": 2,  # Minimum number of providers (panels) for gene inclusion
-        "min_panels_enabled": False,  # Disabled because filtering happens after all uploads
+        "min_panels": 1,  # Minimum number of providers (panels) for gene inclusion (1 = include everything)
+        "min_panels_enabled": True,  # Enabled but threshold of 1 includes all genes
     },
     "Literature": {
         "display_name": "Literature",
@@ -281,8 +281,8 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "auto_update": False,  # Manual upload via API
         "priority": 7,
         "hybrid_source": True,  # Uses unified source pattern
-        "min_publications": 2,  # Minimum publications for gene inclusion
-        "min_publications_enabled": False,  # Disabled - filter after all uploads
+        "min_publications": 1,  # Minimum publications for gene inclusion (1 = include everything)
+        "min_publications_enabled": True,  # Enabled but threshold of 1 includes all genes
     },
 }
 
