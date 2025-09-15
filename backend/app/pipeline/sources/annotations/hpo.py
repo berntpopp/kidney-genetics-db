@@ -406,45 +406,48 @@ class HPOAnnotationSource(BaseAnnotationSource):
 
     async def _assess_syndromic_features(self, phenotype_ids: set[str]) -> dict:
         """
-        Assess syndromic features based on extra-renal phenotypes.
-        Uses proportional scoring consistent with other classification methods.
+        Assess syndromic features with sub-category scoring.
+        Matches R implementation: checks ALL phenotypes and calculates per-category scores.
         """
-        # Get descendants for syndromic indicator terms
+        # Get descendants for syndromic indicator terms (cached)
         syndromic_descendants = await self.get_classification_term_descendants(
             "syndromic_indicators"
         )
 
-        # Get kidney term descendants for exclusion
-        kidney_term_ids = await self.get_kidney_term_descendants()
-
-        # Find non-kidney phenotypes
-        non_kidney_phenotypes = phenotype_ids - kidney_term_ids
-
-        extra_renal_features = {}
-        for category, descendant_terms in syndromic_descendants.items():
-            matches = non_kidney_phenotypes.intersection(descendant_terms)
-            if matches:
-                extra_renal_features[category] = len(matches)
-
-        # Calculate syndromic score using proportional logic (consistent with clinical/onset scoring)
-        # Normalize by total phenotypes to get proportion of extra-renal features
+        # Calculate matches and scores for each category
+        category_matches = {}
+        category_scores = {}
         total_phenotypes = len(phenotype_ids)
-        total_extra_renal = sum(extra_renal_features.values())
 
-        if total_phenotypes > 0:
-            syndromic_score = total_extra_renal / total_phenotypes
-        else:
-            syndromic_score = 0.0
+        if total_phenotypes == 0:
+            return {
+                "is_syndromic": False,
+                "syndromic_score": 0.0,
+                "category_scores": {},
+                "extra_renal_categories": [],
+                "extra_renal_term_counts": {},
+            }
 
-        # Determine if syndromic based on proportion of extra-renal features
-        # Using 0.3 as threshold (30% or more extra-renal features indicates syndromic)
+        # Check ALL phenotypes against each syndromic category
+        for category, descendant_terms in syndromic_descendants.items():
+            matches = phenotype_ids.intersection(descendant_terms)
+            if matches:
+                category_matches[category] = matches
+                # Calculate proportional score for this category
+                category_scores[category] = round(len(matches) / total_phenotypes, 3)
+
+        # Calculate overall syndromic score
+        syndromic_score = sum(category_scores.values())
+
+        # Determine if syndromic (30% threshold)
         is_syndromic = syndromic_score >= 0.3
 
         return {
             "is_syndromic": is_syndromic,
-            "extra_renal_categories": list(extra_renal_features.keys()),
-            "extra_renal_term_counts": extra_renal_features,
             "syndromic_score": round(syndromic_score, 3),
+            "category_scores": category_scores,  # Sub-category scores like R
+            "extra_renal_categories": list(category_matches.keys()),
+            "extra_renal_term_counts": {k: len(v) for k, v in category_matches.items()},
         }
 
     async def fetch_annotation(self, gene: Gene) -> dict[str, Any] | None:

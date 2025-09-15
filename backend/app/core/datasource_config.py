@@ -171,6 +171,13 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "request_delay": 0.2,  # Small delay between batches (backoff handles rate limiting)
         # Cache settings
         "cache_ttl": 604800,  # 7 days - stable ontology releases
+        # Syndromic classification configuration (matching R implementation)
+        "syndromic_indicators": {
+            "growth": "HP:0001507",  # Growth abnormality
+            "skeletal": "HP:0000924",  # Skeletal system abnormality
+            "neurologic": "HP:0000707",  # Abnormality of the nervous system
+            "head_neck": "HP:0000152",  # Head and neck abnormality
+        },
         # Classification configuration
         "clinical_groups": {
             "complement": {
@@ -253,12 +260,6 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
                 "root_terms": ["HP:0003577", "HP:0030674"],
                 "name": "Congenital/Antenatal onset",
             },
-        },
-        "syndromic_indicators": {
-            "growth": "HP:0001507",  # Growth abnormality
-            "skeletal": "HP:0000924",  # Abnormality of the skeletal system
-            "neurologic": "HP:0000707",  # Abnormality of the nervous system
-            "head_neck": "HP:0000152",  # Abnormality of head or neck
         },
     },
     "DiagnosticPanels": {

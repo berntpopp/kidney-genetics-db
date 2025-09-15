@@ -22,6 +22,10 @@ from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene, GeneEvidence
 from app.models.progress import DataSourceProgress
 from app.pipeline.sources.unified.base import UnifiedDataSource
+from app.pipeline.sources.unified.filtering_utils import (
+    apply_database_filter,
+    validate_threshold_config,
+)
 
 if TYPE_CHECKING:
     from app.core.progress_tracker import ProgressTracker
@@ -74,15 +78,29 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)',
         )
         self.max_pages = get_source_parameter("PubTator", "max_pages", None)  # None = unlimited
-        self.min_publications = get_source_parameter("PubTator", "min_publications", 3)  # Min publications required
+
+        # Load filtering configuration with validation
+        raw_threshold = get_source_parameter("PubTator", "min_publications", 3)
+        self.min_publications = validate_threshold_config(
+            raw_threshold, "publications", self.source_name
+        )
+        self.filtering_enabled = get_source_parameter(
+            "PubTator", "min_publications_enabled", True
+        )
+        self.filter_after_complete = get_source_parameter(
+            "PubTator", "filter_after_complete", True
+        )
+
         self.sort_order = "score desc"
         self.chunk_size = 1000  # Optimal for PostgreSQL bulk operations
         self.transaction_size = 5000  # Commit every 5000 records
 
         logger.sync_info(
-            "PubTatorUnifiedSource initialized",
+            f"{self.source_name} initialized with filtering",
             max_pages="ALL" if self.max_pages is None else str(self.max_pages),
             min_publications=self.min_publications,
+            filtering_enabled=self.filtering_enabled,
+            filter_after_complete=self.filter_after_complete,
             chunk_size=self.chunk_size,
         )
 
@@ -400,22 +418,65 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             await self._flush_buffers(article_buffer, gene_data_buffer, stats, tracker)
             await self._save_checkpoint(stats["current_page"], mode, query_hash)
 
-        # Final commit
+        # Final commit before filtering
         self.db_session.commit()
 
-        # Add filtering summary to stats
-        genes_filtered = stats.get("genes_filtered", 0)
-        genes_kept = stats["processed_genes"] - genes_filtered
-        filter_rate = (genes_filtered / stats["processed_genes"] * 100) if stats["processed_genes"] > 0 else 0
+        # Apply final filtering if enabled
+        if self.filtering_enabled and self.filter_after_complete:
+            logger.sync_info(
+                "Applying final filter to complete PubTator dataset",
+                min_publications=self.min_publications
+            )
+
+            try:
+                # Apply filter on complete database
+                filter_stats = apply_database_filter(
+                    db=self.db_session,
+                    source_name=self.source_name,
+                    count_field="publication_count",
+                    min_threshold=self.min_publications,
+                    entity_name="publications",
+                    enabled=self.filtering_enabled
+                )
+
+                # Commit the deletions
+                self.db_session.commit()
+
+                # Add filter stats to overall stats
+                stats["genes_filtered"] = filter_stats.filtered_count
+                stats["genes_kept"] = filter_stats.total_after
+                stats["filter_rate"] = filter_stats.filter_rate
+
+                # Log filter statistics (metadata storage removed - method doesn't exist)
+                logger.sync_info(
+                    "PubTator filter statistics",
+                    filtered_count=filter_stats.filtered_count,
+                    filter_rate=f"{filter_stats.filter_rate:.1f}%",
+                    min_publications=self.min_publications
+                )
+
+            except Exception as e:
+                self.db_session.rollback()
+                logger.sync_error(
+                    "Failed to apply final filter",
+                    source=self.source_name,
+                    error=str(e)
+                )
+                raise
+        else:
+            # No filtering applied, set stats to reflect all genes kept
+            stats["genes_filtered"] = 0
+            stats["genes_kept"] = stats["processed_genes"]
+            stats["filter_rate"] = 0
 
         logger.sync_info(
             "PubTator processing complete",
             processed_articles=stats["processed_articles"],
             total_genes_found=stats["processed_genes"],
-            genes_kept=genes_kept,
-            genes_filtered=genes_filtered,
-            filter_rate=f"{filter_rate:.1f}%",
-            min_publications=self.min_publications,
+            genes_kept=stats.get("genes_kept", stats["processed_genes"]),
+            genes_filtered=stats.get("genes_filtered", 0),
+            filter_rate=f"{stats.get('filter_rate', 0):.1f}%",
+            min_publications=self.min_publications if self.filtering_enabled else "disabled",
             last_page=stats["current_page"]
         )
 
@@ -473,7 +534,6 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         # Process each gene with the parent class method
         # which handles normalization and gene creation
         processed_genes = {}
-        filtered_count = 0
 
         for gene_symbol, new_data in gene_buffer.items():
             # Convert sets to lists for the new data
@@ -483,10 +543,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             processed_data["publication_count"] = len(processed_data["pmids"])
             processed_data["total_mentions"] = len(processed_data["mentions"])
 
-            # Apply minimum publication filter for quality control
-            if processed_data["publication_count"] < self.min_publications:
-                filtered_count += 1
-                continue  # Skip genes with insufficient publications
+            # NO FILTERING HERE - moved to end of processing for chunk boundary safety
+            # Filtering will be applied after all chunks are processed
 
             # Calculate average score
             if processed_data["publication_count"] > 0:
@@ -513,11 +571,10 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         # Update stats
         stats["processed_articles"] += len(article_buffer)
         stats["processed_genes"] = stats.get("processed_genes", 0) + len(gene_buffer)
-        stats["genes_filtered"] = stats.get("genes_filtered", 0) + filtered_count
 
         logger.sync_info(
-            f"Flushed buffers: {len(article_buffer)} articles, {len(gene_buffer)} genes "
-            f"({len(processed_genes)} kept, {filtered_count} filtered by min_publications={self.min_publications})"
+            f"Flushed buffers: {len(article_buffer)} articles, "
+            f"{len(processed_genes)} genes processed (filtering will be applied after all chunks)"
         )
 
     async def _create_or_update_evidence(

@@ -17,9 +17,14 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
+from app.core.datasource_config import get_source_parameter
 from app.core.logging import get_logger
 from app.models.gene import Gene, GeneEvidence
 from app.pipeline.sources.unified.base import UnifiedDataSource
+from app.pipeline.sources.unified.filtering_utils import (
+    apply_memory_filter,
+    validate_threshold_config,
+)
 
 if TYPE_CHECKING:
     from app.core.progress_tracker import ProgressTracker
@@ -58,7 +63,21 @@ class DiagnosticPanelsSource(UnifiedDataSource):
     ):
         """Initialize diagnostic panels source."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
-        logger.sync_info("DiagnosticPanelsSource initialized")
+
+        # Load filtering configuration
+        raw_threshold = get_source_parameter("DiagnosticPanels", "min_panels", 1)
+        self.min_panels = validate_threshold_config(
+            raw_threshold, "panels", self.source_name
+        )
+        self.filtering_enabled = get_source_parameter(
+            "DiagnosticPanels", "min_panels_enabled", False
+        )
+
+        logger.sync_info(
+            f"{self.source_name} initialized with filtering",
+            min_panels=self.min_panels,
+            filtering_enabled=self.filtering_enabled
+        )
 
     def _get_default_ttl(self) -> int:
         """Get default TTL - manual uploads don't expire."""
@@ -84,10 +103,15 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             DataFrame with gene panel data
         """
         logger.sync_info(
-            "Processing file from provider", file_type=file_type, provider_name=provider_name
+            "DiagnosticPanels.fetch_raw_data START",
+            file_type=file_type,
+            provider_name=provider_name,
+            content_size=len(file_content)
         )
 
         try:
+            logger.sync_debug(f"Parsing {file_type} file")
+
             if file_type == "json":
                 df = self._parse_json(file_content)
             elif file_type in ["csv", "tsv"]:
@@ -97,11 +121,20 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             else:
                 raise ValueError(f"Unsupported file type: {file_type}")
 
+            logger.sync_debug(
+                "File parsed successfully",
+                row_count=len(df),
+                column_count=len(df.columns),
+                columns=list(df.columns)
+            )
+
             # Add provider metadata to each row
             df["provider"] = provider_name
 
             logger.sync_info(
-                "Parsed gene entries", entry_count=len(df), provider_name=provider_name
+                "DiagnosticPanels.fetch_raw_data COMPLETE",
+                entry_count=len(df),
+                provider_name=provider_name
             )
             return df
 
@@ -156,6 +189,12 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         Returns:
             Dictionary mapping gene symbols to aggregated evidence
         """
+        logger.sync_info(
+            "DiagnosticPanels.process_data START",
+            row_count=len(df),
+            has_provider=('provider' in df.columns)
+        )
+
         gene_data = defaultdict(lambda: {"panels": set(), "providers": set(), "hgnc_ids": set()})
 
         for idx, row in df.iterrows():
@@ -163,7 +202,13 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 # Extract gene symbol (handle multiple field names)
                 symbol = self._extract_gene_symbol(row)
                 if not symbol:
+                    logger.sync_debug(f"No symbol found in row {idx}")
                     continue
+
+                logger.sync_debug(
+                    f"Processing row {idx}",
+                    symbol=symbol
+                )
 
                 # Aggregate panels
                 panels = self._extract_panels(row)
@@ -196,7 +241,12 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 "hgnc_ids": sorted(data["hgnc_ids"]),  # Keep for reference
             }
 
-        logger.sync_info("Processed unique genes", unique_gene_count=len(result))
+        logger.sync_info(
+            "DiagnosticPanels.process_data COMPLETE",
+            unique_gene_count=len(result),
+            total_panels=sum(len(data["panels"]) for data in result.values()),
+            total_providers=len({p for data in result.values() for p in data.get("providers", [])})
+        )
         return result
 
     def _extract_gene_symbol(self, row: pd.Series) -> str | None:
@@ -252,31 +302,70 @@ class DiagnosticPanelsSource(UnifiedDataSource):
     async def store_evidence(
         self, db: Session, gene_data: dict[str, Any], source_detail: str | None = None
     ) -> dict[str, Any]:
-        """Store evidence with MERGE semantics for diagnostic panels."""
+        """Store evidence with MERGE semantics and filtering for diagnostic panels."""
+
+        logger.sync_info(
+            "DiagnosticPanels.store_evidence START",
+            gene_count=len(gene_data) if gene_data else 0,
+            source_detail=source_detail
+        )
 
         if not gene_data:
-            return {"merged": 0, "created": 0, "failed": 0}
+            logger.sync_warning("No gene data provided to store_evidence")
+            return {"merged": 0, "created": 0, "failed": 0, "filtered": 0}
 
-        stats = {"merged": 0, "created": 0, "failed": 0}
+        stats = {"merged": 0, "created": 0, "failed": 0, "filtered": 0}
 
         # Get gene IDs for all symbols
         gene_symbols = list(gene_data.keys())
         gene_map = {}
+
+        logger.sync_debug(
+            "Fetching gene IDs from database",
+            symbol_count=len(gene_symbols),
+            first_symbols=gene_symbols[:5] if gene_symbols else []
+        )
 
         # Batch fetch genes
         stmt = select(Gene).where(Gene.approved_symbol.in_(gene_symbols))
         genes = db.execute(stmt).scalars().all()
         gene_map = {g.approved_symbol: g.id for g in genes}
 
+        logger.sync_debug(
+            "Gene IDs fetched",
+            found_count=len(gene_map),
+            missing_count=len(gene_symbols) - len(gene_map)
+        )
+
         # Get existing evidence for these genes
         gene_ids = list(gene_map.values())
+
+        logger.sync_debug(
+            "Fetching existing evidence",
+            gene_id_count=len(gene_ids),
+            source_name=self.source_name
+        )
+
         stmt = select(GeneEvidence).where(
             GeneEvidence.gene_id.in_(gene_ids), GeneEvidence.source_name == self.source_name
         )
         existing_evidence = db.execute(stmt).scalars().all()
         existing_map = {e.gene_id: e for e in existing_evidence}
 
-        # Process each gene
+        logger.sync_debug(
+            "Existing evidence fetched",
+            existing_count=len(existing_map),
+            new_count=len(gene_ids) - len(existing_map)
+        )
+
+        # Current provider from source_detail
+        current_provider = source_detail or "unknown"
+
+        # First pass: merge data in memory
+        merged_gene_data = {}
+
+        logger.sync_debug("Starting memory merge pass", total_genes=len(gene_data))
+
         for symbol, data in gene_data.items():
             gene_id = gene_map.get(symbol)
             if not gene_id:
@@ -284,61 +373,146 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 stats["failed"] += 1
                 continue
 
-            # Current provider from source_detail
-            current_provider = source_detail or "unknown"
-
             if gene_id in existing_map:
-                # MERGE: Update existing evidence
+                # MERGE: Prepare merged data
                 record = existing_map[gene_id]
                 current_data = record.evidence_data or {}
 
                 # Merge panels and providers
                 existing_panels = set(current_data.get("panels", []))
                 new_panels = set(data["panels"])
-                merged_panels = list(existing_panels | new_panels)
+                merged_panels = sorted(existing_panels | new_panels)
 
                 existing_providers = set(current_data.get("providers", []))
                 new_providers = {current_provider}
-                merged_providers = list(existing_providers | new_providers)
+                merged_providers = sorted(existing_providers | new_providers)
 
                 existing_hgnc = set(current_data.get("hgnc_ids", []))
                 new_hgnc = set(data.get("hgnc_ids", []))
-                merged_hgnc = list(existing_hgnc | new_hgnc)
+                merged_hgnc = sorted(existing_hgnc | new_hgnc)
 
-                # Update evidence with merged data
-                record.evidence_data = {
+                merged_data = {
                     "panels": merged_panels,
                     "providers": merged_providers,
                     "hgnc_ids": merged_hgnc,
                     "panel_count": len(merged_panels),
                     "provider_count": len(merged_providers),
-                    "evidence_score": len(merged_panels) * 10.0,  # 10 points per panel
                 }
-                record.source_detail = self._get_source_detail(record.evidence_data)
-                record.evidence_date = datetime.now(timezone.utc).date()
+
+                merged_gene_data[symbol] = {
+                    "gene_id": gene_id,
+                    "data": merged_data,
+                    "record": record,
+                    "is_new": False
+                }
 
                 logger.sync_debug(
-                    "Merged evidence",
+                    "Merged existing gene",
                     symbol=symbol,
-                    panel_count=len(merged_panels),
-                    provider_count=len(merged_providers),
+                    old_panels=len(existing_panels),
+                    new_panels=len(new_panels),
+                    total_panels=len(merged_panels)
                 )
-                stats["merged"] += 1
-
             else:
+                # NEW: Prepare new data
+                new_data = {
+                    "panels": data["panels"],
+                    "providers": [current_provider],
+                    "hgnc_ids": data.get("hgnc_ids", []),
+                    "panel_count": data["panel_count"],
+                    "provider_count": 1,
+                }
+
+                merged_gene_data[symbol] = {
+                    "gene_id": gene_id,
+                    "data": new_data,
+                    "record": None,
+                    "is_new": True
+                }
+
+                logger.sync_debug(
+                    "Added new gene",
+                    symbol=symbol,
+                    panel_count=data["panel_count"]
+                )
+
+        logger.sync_info(
+            "Memory merge complete",
+            total_genes=len(merged_gene_data),
+            new_genes=sum(1 for info in merged_gene_data.values() if info["is_new"]),
+            existing_genes=sum(1 for info in merged_gene_data.values() if not info["is_new"])
+        )
+
+        # Apply filtering if enabled
+        if self.filtering_enabled and self.min_panels > 1:
+            logger.sync_info(
+                "Applying filter",
+                min_panels=self.min_panels,
+                genes_before_filter=len(merged_gene_data)
+            )
+            # Extract data for filtering
+            data_to_filter = {
+                symbol: info["data"]
+                for symbol, info in merged_gene_data.items()
+            }
+
+            filtered_data, filter_stats = apply_memory_filter(
+                data_dict=data_to_filter,
+                count_field="provider_count",
+                min_threshold=self.min_panels,
+                entity_name="providers",
+                source_name=self.source_name,
+                enabled=self.filtering_enabled
+            )
+
+            # Handle filtered genes
+            genes_to_remove = []
+            for symbol, info in merged_gene_data.items():
+                if symbol not in filtered_data:
+                    if not info["is_new"] and info["record"]:
+                        # Delete existing record that now fails filter
+                        db.delete(info["record"])
+                        logger.sync_info(
+                            "Removing gene below threshold",
+                            symbol=symbol,
+                            provider_count=info["data"]["provider_count"],
+                            threshold=self.min_panels
+                        )
+                    genes_to_remove.append(symbol)
+                    stats["filtered"] += 1
+
+            # Remove filtered genes from processing
+            for symbol in genes_to_remove:
+                del merged_gene_data[symbol]
+
+            logger.sync_info(
+                "Filter applied",
+                removed_count=len(genes_to_remove),
+                remaining_count=len(merged_gene_data)
+            )
+
+            # Log filter statistics (metadata storage removed - method doesn't exist)
+            logger.sync_info(
+                "Filter statistics",
+                source=self.source_name,
+                filtered_count=filter_stats.filtered_count,
+                filter_rate=f"{filter_stats.filter_rate:.1f}%"
+            )
+
+        # Process remaining genes (after filtering)
+        logger.sync_info(
+            "Starting database updates",
+            genes_to_process=len(merged_gene_data)
+        )
+
+        for symbol, info in merged_gene_data.items():
+            if info["is_new"]:
                 # CREATE: New evidence record
                 record = GeneEvidence(
-                    gene_id=gene_id,
+                    gene_id=info["gene_id"],
                     source_name=self.source_name,
-                    source_detail=self._get_source_detail(data),
-                    evidence_data={
-                        "panels": data["panels"],
-                        "providers": [current_provider],
-                        "hgnc_ids": data.get("hgnc_ids", []),
-                        "panel_count": data["panel_count"],
-                        "provider_count": 1,
-                        "evidence_score": data["panel_count"] * 10.0,  # 10 points per panel
-                    },
+                    source_detail=self._get_source_detail(info["data"]),
+                    evidence_data=info["data"],
                     evidence_date=datetime.now(timezone.utc).date(),
                 )
                 db.add(record)
@@ -346,10 +520,33 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 logger.sync_debug(
                     "Created evidence",
                     symbol=symbol,
-                    panel_count=data["panel_count"],
+                    panel_count=info["data"]["panel_count"],
                     provider=current_provider,
                 )
                 stats["created"] += 1
+            else:
+                # UPDATE: Existing record
+                record = info["record"]
+                record.evidence_data = info["data"]
+                record.source_detail = self._get_source_detail(info["data"])
+                record.evidence_date = datetime.now(timezone.utc).date()
+
+                logger.sync_debug(
+                    "Merged evidence",
+                    symbol=symbol,
+                    panel_count=info["data"]["panel_count"],
+                    provider_count=info["data"]["provider_count"],
+                )
+                stats["merged"] += 1
+
+        logger.sync_info(
+            "DiagnosticPanels.store_evidence COMPLETE",
+            created=stats["created"],
+            merged=stats["merged"],
+            failed=stats["failed"],
+            filtered=stats["filtered"],
+            total_processed=stats["created"] + stats["merged"]
+        )
 
         return stats
 

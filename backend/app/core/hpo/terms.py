@@ -241,3 +241,21 @@ class HPOTerms(HPOAPIBase):
         except Exception as e:
             logger.sync_error("Failed to search HPO terms", query=query, error=str(e))
             return []
+
+
+# Module-level convenience function
+async def get_hpo_term_descendants(hpo_id: str, include_self: bool = True) -> set[str]:
+    """
+    Get all descendant terms for an HPO ID.
+
+    Convenience function that creates an HPOTerms instance and gets descendants.
+
+    Args:
+        hpo_id: HPO term ID (e.g., "HP:0000707")
+        include_self: Whether to include the original term
+
+    Returns:
+        Set of descendant HPO IDs
+    """
+    terms_client = HPOTerms()
+    return await terms_client.get_descendants(hpo_id, include_self=include_self)

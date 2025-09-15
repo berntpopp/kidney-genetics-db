@@ -147,20 +147,18 @@ db-reset: services-up
 # Clean all data from database (keep structure)
 db-clean:
 	@echo "🧹 Cleaning database data..."
-	@cd backend && uv run python -c "\
-from sqlalchemy import create_engine, text; \
-from app.core.config import settings; \
-engine = create_engine(settings.DATABASE_URL); \
-with engine.connect() as conn: \
-    tables = ['gene_evidence', 'gene_curations', 'genes', 'data_source_progress']; \
-    for table in tables: \
-        try: \
-            result = conn.execute(text(f'DELETE FROM {table}')); \
-            conn.commit(); \
-            print(f'  ✓ Cleaned {result.rowcount} rows from {table}'); \
-        except Exception as e: \
-            print(f'  ✗ Error cleaning {table}: {e}');"
+	@cd backend && uv run python scripts/clean_database.py
 	@echo "✅ Database cleaned!"
+
+# Run all data sources from scratch
+data-rebuild:
+	@echo "🔄 Rebuilding all data sources..."
+	@cd backend && uv run python scripts/rebuild_data.py
+	@echo "✅ Data rebuild complete!"
+
+# Full database reset and rebuild
+db-rebuild: db-clean data-rebuild
+	@echo "✅ Full database rebuild complete!"
 
 # ════════════════════════════════════════════════════════════════════
 # MONITORING
