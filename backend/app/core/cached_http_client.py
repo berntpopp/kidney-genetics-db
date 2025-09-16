@@ -146,10 +146,19 @@ class CachedHttpClient:
         """
         domain = self._get_domain(url)
 
+        # Build full URL with query parameters for cache key generation
+        # This ensures each unique request gets its own cache entry
+        if "params" in kwargs and kwargs["params"]:
+            from urllib.parse import urlencode
+            params_str = urlencode(sorted(kwargs["params"].items()))
+            full_url_for_cache = f"{url}?{params_str}"
+        else:
+            full_url_for_cache = url
+
         # Check circuit breaker
         if self._is_circuit_open(domain):
             logger.sync_warning("Circuit breaker open, attempting cache fallback", domain=domain)
-            return await self._get_from_fallback_cache(url, namespace, cache_key)
+            return await self._get_from_fallback_cache(full_url_for_cache, namespace, cache_key)
 
         # Prepare request headers
         headers = kwargs.get("headers", {})
@@ -169,7 +178,7 @@ class CachedHttpClient:
                 # Store successful response in database cache as fallback
                 if response.status_code == 200:
                     await self._store_fallback_cache(
-                        url, response, namespace, cache_key, fallback_ttl
+                        full_url_for_cache, response, namespace, cache_key, fallback_ttl
                     )
 
                 return response
@@ -188,7 +197,7 @@ class CachedHttpClient:
                     # All retries failed, record failure and try cache fallback
                     self._record_failure(domain)
                     logger.sync_error("All retry attempts failed, trying cache fallback", url=url)
-                    return await self._get_from_fallback_cache(url, namespace, cache_key)
+                    return await self._get_from_fallback_cache(full_url_for_cache, namespace, cache_key)
 
             except Exception as e:
                 # Non-recoverable error
@@ -377,6 +386,8 @@ class CachedHttpClient:
         if response.status_code != 200:
             return
 
+        logger.sync_debug("Storing fallback cache", cache_key=cache_key, url=url)
+
         # Skip caching binary content in database (too large and problematic)
         content_type = response.headers.get("content-type", "").lower()
         if any(
@@ -424,7 +435,7 @@ class CachedHttpClient:
             }
 
             await self.cache_service.set(cache_key, cached_response, namespace, ttl)
-            logger.sync_debug("Stored fallback cache", url=url)
+            logger.sync_debug("Stored fallback cache", cache_key=cache_key, url=url)
 
         except Exception as e:
             logger.sync_error("Error storing fallback cache", url=url, error=str(e))
