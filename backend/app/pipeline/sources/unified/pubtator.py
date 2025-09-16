@@ -298,9 +298,10 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         if checkpoint.get("mode") != mode:
             logger.sync_info(f"Mode changed from {checkpoint.get('mode')} to {mode}")
             if mode == "full":
-                # Full mode: clear existing entries
+                # Full mode: clear existing entries and start from beginning
                 await self._clear_existing_entries()
-            start_page = 1
+                start_page = 1
+            # For smart mode, keep the checkpoint and continue from where we left off
 
         # Initialize streaming state
         article_buffer = []
