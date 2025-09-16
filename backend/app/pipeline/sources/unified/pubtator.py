@@ -18,7 +18,7 @@ from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.datasource_config import get_source_parameter
 from app.core.logging import get_logger
-from app.core.retry_utils import RetryConfig, retry_with_backoff
+from app.core.retry_utils import RetryConfig, retry_with_backoff, SimpleRateLimiter
 from app.models.gene import Gene, GeneEvidence
 from app.models.progress import DataSourceProgress
 from app.pipeline.sources.unified.base import UnifiedDataSource
@@ -91,17 +91,25 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             "PubTator", "filter_after_complete", True
         )
 
+        # Rate limiting - CRITICAL for API compliance
+        self.rate_limiter = SimpleRateLimiter(
+            requests_per_second=get_source_parameter("PubTator", "requests_per_second", 3.0)
+        )
+
         self.sort_order = "score desc"
-        self.chunk_size = 1000  # Optimal for PostgreSQL bulk operations
-        self.transaction_size = 5000  # Commit every 5000 records
+        # Load optimized chunk configuration
+        self.chunk_size = get_source_parameter("PubTator", "chunk_size", 300)  # Reduced from 1000
+        self.transaction_size = get_source_parameter("PubTator", "transaction_size", 1000)  # Reduced from 5000
 
         logger.sync_info(
-            f"{self.source_name} initialized with filtering",
+            f"{self.source_name} initialized with rate limiting and filtering",
             max_pages="ALL" if self.max_pages is None else str(self.max_pages),
+            rate_limit_req_per_sec=get_source_parameter("PubTator", "requests_per_second", 3.0),
             min_publications=self.min_publications,
             filtering_enabled=self.filtering_enabled,
             filter_after_complete=self.filter_after_complete,
             chunk_size=self.chunk_size,
+            transaction_size=self.transaction_size,
         )
 
     def _get_default_ttl(self) -> int:
@@ -226,14 +234,19 @@ class PubTatorUnifiedSource(UnifiedDataSource):
     ))
     async def _fetch_page(self, page: int, query: str) -> dict | None:
         """
-        Fetch a single page using CachedHttpClient.
+        Fetch a single page using CachedHttpClient with rate limiting.
 
         The client automatically handles:
         - HTTP caching (Hishel)
         - Database fallback caching
         - Circuit breakers
         - Timeout handling
+
+        Rate limiting ensures compliance with PubTator3 API limits (3 req/s).
         """
+        # Rate limit BEFORE making request - CRITICAL for API compliance
+        await self.rate_limiter.wait()
+
         params = {
             "text": query,
             "page": page,
@@ -305,11 +318,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             "errors": 0,
         }
 
-        # Get existing PMIDs for smart mode
-        existing_pmids = set()
-        if mode == "smart":
-            existing_pmids = await self._get_existing_pmids_from_db()
-            logger.sync_info(f"Smart mode: Found {len(existing_pmids)} existing PMIDs")
+        # Smart mode: will check PMIDs in batches instead of loading all into memory
+        # This reduces memory usage from O(50000) to O(batch_size)
 
         # Streaming loop
         page = start_page
@@ -354,23 +364,50 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                         )
 
                 # Process articles in this page
-                new_articles = 0
+                # In smart mode, collect articles first then check in batch
+                page_articles = []
                 for article in results:
                     pmid = str(article.get("pmid", ""))
+                    if pmid:
+                        page_articles.append(article)
 
-                    # Skip if already exists (smart mode)
-                    if mode == "smart" and pmid in existing_pmids:
+                # Batch check for existing PMIDs in smart mode
+                if mode == "smart" and page_articles:
+                    # Extract PMIDs from this page
+                    page_pmids = [str(a.get("pmid", "")) for a in page_articles]
+
+                    # Check which PMIDs already exist (database query, not memory)
+                    existing_pmids_in_page = await self._check_pmids_exist_batch(page_pmids)
+
+                    # Filter out existing articles
+                    new_articles_list = [
+                        a for a in page_articles
+                        if str(a.get("pmid", "")) not in existing_pmids_in_page
+                    ]
+
+                    # Track duplicates for early stopping
+                    duplicate_count = len(page_articles) - len(new_articles_list)
+                    if duplicate_count > len(page_articles) * 0.9:  # >90% duplicates
                         consecutive_duplicates += 1
-                        continue
+                    else:
+                        consecutive_duplicates = 0
 
-                    consecutive_duplicates = 0
-                    new_articles += 1
+                    # Add new articles to buffer
+                    article_buffer.extend(new_articles_list)
+                else:
+                    # Full mode: add all articles
+                    article_buffer.extend(page_articles)
 
-                    # Add to buffer
-                    article_buffer.append(article)
-
-                    # Extract and accumulate gene data
-                    self._accumulate_gene_data(article, gene_data_buffer)
+                # Extract and accumulate gene data for new articles only
+                # (articles just added to the buffer in this iteration)
+                if mode == "smart" and page_articles:
+                    # In smart mode, only process genuinely new articles
+                    for article in new_articles_list:
+                        self._accumulate_gene_data(article, gene_data_buffer)
+                elif mode != "smart":
+                    # In full mode, process all articles from this page
+                    for article in page_articles:
+                        self._accumulate_gene_data(article, gene_data_buffer)
 
                 # Check for high duplicate rate in smart mode
                 if mode == "smart" and consecutive_duplicates > 100:
@@ -749,22 +786,38 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         self.db_session.commit()
         logger.sync_info(f"Cleared {deleted} existing PubTator entries")
 
-    async def _get_existing_pmids_from_db(self) -> set[str]:
-        """Get existing PMIDs for smart mode duplicate detection."""
-        records = (
-            self.db_session.query(GeneEvidence)
-            .filter(GeneEvidence.source_name == "PubTator")
-            .all()
-        )
+    async def _check_pmids_exist_batch(self, pmids: list[str]) -> set[str]:
+        """
+        Check which PMIDs already exist using database query.
 
-        existing_pmids = set()
-        for record in records:
-            if record.evidence_data and "pmids" in record.evidence_data:
-                pmids = record.evidence_data["pmids"]
-                if isinstance(pmids, list):
-                    existing_pmids.update(str(pmid) for pmid in pmids)
+        Uses PostgreSQL's efficient JSONB containment to check for existing PMIDs
+        without loading all PMIDs into memory. This reduces memory usage from O(n)
+        to O(batch_size).
 
-        return existing_pmids
+        Args:
+            pmids: List of PMIDs to check
+
+        Returns:
+            Set of PMIDs that already exist in the database
+        """
+        if not pmids:
+            return set()
+
+        from sqlalchemy import text
+
+        # Use PostgreSQL's efficient JSONB operations
+        result = self.db_session.execute(
+            text("""
+                SELECT DISTINCT pmid
+                FROM gene_evidence,
+                     LATERAL jsonb_array_elements_text(evidence_data->'pmids') AS pmid
+                WHERE source_name = 'PubTator'
+                AND pmid = ANY(:pmid_list)
+            """),
+            {"pmid_list": pmids}
+        ).fetchall()
+
+        return {row[0] for row in result}
 
     def _extract_genes_from_highlight(self, text_hl: str | None) -> list[dict]:
         """Extract gene annotations from PubTator3's highlighted text."""

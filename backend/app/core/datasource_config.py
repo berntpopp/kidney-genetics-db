@@ -59,6 +59,8 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "priority": 2,
         # API settings
         "api_url": "https://www.ncbi.nlm.nih.gov/research/pubtator-api",
+        # Rate limiting - CRITICAL for API compliance
+        "requests_per_second": 3.0,  # PubTator3 official limit - DO NOT exceed
         # Search configuration
         "max_pages": None,  # None = unlimited, process all pages
         # Update modes configuration
@@ -75,6 +77,9 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "filter_after_complete": True,  # Apply filter after all chunks processed
         "search_query": '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)',
         "batch_size": 100,  # PMIDs per batch for annotation fetching
+        # Optimized chunking for more frequent saves and reduced memory
+        "chunk_size": 300,  # Reduced from 1000 - more frequent saves
+        "transaction_size": 1000,  # Reduced from 5000 - more frequent commits
         # Cache settings
         "cache_ttl": 604800,  # 7 days - literature updates periodically
         "use_cache": True,  # Enable caching of PubTator results

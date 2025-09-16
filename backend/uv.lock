@@ -930,6 +930,7 @@ test = [
 [package.dev-dependencies]
 dev = [
     { name = "psycopg-binary" },
+    { name = "pytest-asyncio" },
     { name = "pytest-postgresql" },
     { name = "ruff" },
 ]
@@ -983,6 +984,7 @@ provides-extras = ["dev", "test"]
 [package.metadata.requires-dev]
 dev = [
     { name = "psycopg-binary", specifier = ">=3.2.9" },
+    { name = "pytest-asyncio", specifier = ">=1.1.0" },
     { name = "pytest-postgresql", specifier = ">=7.0.2" },
     { name = "ruff", specifier = ">=0.12.9" },
 ]

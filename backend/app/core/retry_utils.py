@@ -380,3 +380,30 @@ class RetryableHTTPClient:
     async def close(self):
         """Close the underlying client."""
         await self.client.aclose()
+
+
+class SimpleRateLimiter:
+    """
+    Simple rate limiter - no bursts, just consistent rate.
+
+    Ensures requests are spaced at least 1/requests_per_second apart.
+    Perfect for APIs with strict rate limits like PubTator3 (3 req/s).
+    """
+
+    def __init__(self, requests_per_second: float = 3.0):
+        """
+        Initialize rate limiter.
+
+        Args:
+            requests_per_second: Maximum requests per second (e.g., 3.0 for PubTator)
+        """
+        self.min_interval = 1.0 / requests_per_second
+        self.last_request = 0
+
+    async def wait(self):
+        """Wait if needed to maintain rate limit."""
+        now = time.monotonic()
+        elapsed = now - self.last_request
+        if elapsed < self.min_interval:
+            await asyncio.sleep(self.min_interval - elapsed)
+        self.last_request = time.monotonic()
