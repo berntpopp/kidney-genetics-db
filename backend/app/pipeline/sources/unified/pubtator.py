@@ -18,7 +18,7 @@ from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
 from app.core.datasource_config import get_source_parameter
 from app.core.logging import get_logger
-from app.core.retry_utils import RetryConfig, retry_with_backoff, SimpleRateLimiter
+from app.core.retry_utils import RetryConfig, SimpleRateLimiter, retry_with_backoff
 from app.models.gene import Gene, GeneEvidence
 from app.models.progress import DataSourceProgress
 from app.pipeline.sources.unified.base import UnifiedDataSource

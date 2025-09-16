@@ -41,6 +41,7 @@ evidence_source_counts = ReplaceableObject(
                                                 jsonb_array_length(ge.evidence_data -> 'panels'::text)))::bigint
             WHEN 'GenCC'::text THEN (COALESCE(jsonb_array_length(ge.evidence_data -> 'classifications'::text), 0))::bigint
             WHEN 'ClinGen'::text THEN (COALESCE((ge.evidence_data ->> 'assertion_count'::text)::integer, 1))::bigint
+            WHEN 'Literature'::text THEN (COALESCE((ge.evidence_data ->> 'publication_count'::text)::integer, jsonb_array_length(ge.evidence_data -> 'publications'::text)))::bigint
             ELSE (0)::bigint
         END AS source_count
     FROM gene_evidence ge
