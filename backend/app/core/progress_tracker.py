@@ -53,11 +53,35 @@ class ProgressTracker:
         progress = self.db.query(DataSourceProgress).filter_by(source_name=self.source_name).first()
 
         if not progress:
+            logger.sync_info(
+                "Creating new progress record",
+                source_name=self.source_name,
+            )
             progress = DataSourceProgress(
                 source_name=self.source_name, status=SourceStatus.idle, progress_metadata={}
             )
             self.db.add(progress)
             self.db.commit()
+            logger.sync_info(
+                "Progress record created",
+                source_name=self.source_name,
+                progress_id=progress.id,
+            )
+        else:
+            logger.sync_info(
+                "Found existing progress record",
+                source_name=self.source_name,
+                progress_id=progress.id,
+                current_status=str(progress.status),
+                last_updated=str(progress.updated_at),
+            )
+            # Ensure the progress record is attached to current session
+            if progress not in self.db:
+                logger.sync_warning(
+                    "Progress record not in current session, merging",
+                    source_name=self.source_name,
+                )
+                progress = self.db.merge(progress)
 
         return progress
 
@@ -115,6 +139,16 @@ class ProgressTracker:
             items_failed: Number of items failed (incremental)
             force: Force immediate database update
         """
+        # Log update call
+        logger.sync_debug(
+            "ProgressTracker.update() called",
+            source_name=self.source_name,
+            current_page=current_page,
+            current_item=current_item,
+            operation=operation,
+            force=force,
+        )
+
         # Update counters
         if current_item is not None:
             self.progress_record.current_item = current_item
@@ -160,7 +194,19 @@ class ProgressTracker:
 
         # Only commit if enough time has passed or forced
         now = datetime.now(timezone.utc)
-        if force or (now - self._last_update_time).total_seconds() >= self._update_interval:
+        time_since_last = (now - self._last_update_time).total_seconds()
+        should_update = force or time_since_last >= self._update_interval
+
+        logger.sync_debug(
+            "ProgressTracker.update() commit decision",
+            source_name=self.source_name,
+            force=force,
+            time_since_last=time_since_last,
+            update_interval=self._update_interval,
+            should_update=should_update,
+        )
+
+        if should_update:
             self._commit_and_broadcast()
             self._last_update_time = now
 
@@ -202,11 +248,44 @@ class ProgressTracker:
 
     def _commit_and_broadcast(self):
         """Commit to database and publish update to event bus - NO MORE DIRECT CALLBACKS!"""
+        logger.sync_debug(
+            "_commit_and_broadcast() called",
+            source_name=self.source_name,
+            status=str(self.progress_record.status),
+            current_page=self.progress_record.current_page,
+            current_operation=self.progress_record.current_operation,
+        )
+
         try:
             # Don't commit manual upload sources to database
             manual_upload_sources = ["DiagnosticPanels"]
             if self.source_name not in manual_upload_sources:
+                logger.sync_debug(
+                    "Committing to database",
+                    source_name=self.source_name,
+                    progress_id=self.progress_record.id if hasattr(self.progress_record, 'id') else None,
+                )
+                # Ensure the progress record is marked as modified
+                if self.progress_record in self.db:
+                    # Mark object as dirty to ensure SQLAlchemy tracks changes
+                    self.db.add(self.progress_record)
+                else:
+                    logger.sync_warning(
+                        "Progress record not in session, adding it",
+                        source_name=self.source_name,
+                    )
+                    self.db.add(self.progress_record)
+
                 self.db.commit()
+                logger.sync_debug(
+                    "Database commit successful",
+                    source_name=self.source_name,
+                )
+            else:
+                logger.sync_debug(
+                    "Skipping database commit for manual upload source",
+                    source_name=self.source_name,
+                )
 
             # Publish to event bus instead of direct callback
             # This eliminates the need for complex async/sync handling
@@ -226,10 +305,15 @@ class ProgressTracker:
             try:
                 asyncio.get_running_loop()
                 asyncio.create_task(event_bus.publish(event_type, progress_data))
+                logger.sync_debug(
+                    "Event published to event bus",
+                    source_name=self.source_name,
+                    event_type=event_type,
+                )
             except RuntimeError:
                 # Not in async context, log instead
                 logger.sync_debug(
-                    "Progress update (sync context)",
+                    "Progress update (sync context - no event bus)",
                     source_name=self.source_name,
                     status=self.progress_record.status.value
                     if hasattr(self.progress_record.status, "value")
@@ -237,9 +321,13 @@ class ProgressTracker:
                 )
         except Exception as e:
             logger.sync_error(
-                "Failed to update progress", source_name=self.source_name, error=str(e)
+                "Failed to update progress - rolling back",
+                source_name=self.source_name,
+                error=str(e),
+                traceback=str(e.__traceback__),
             )
             self.db.rollback()
+            raise  # Re-raise to see what's failing
 
     async def _broadcast_update(self):
         """Broadcast update via callback"""
