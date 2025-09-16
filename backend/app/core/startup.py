@@ -42,6 +42,17 @@ def register_data_sources() -> None:
 
             if existing:
                 # Update metadata if configuration has changed
+                # IMPORTANT: Preserve checkpoint data (last_page, mode, query_hash)
+                current_metadata = existing.progress_metadata or {}
+
+                # Preserve checkpoint fields if they exist
+                checkpoint_fields = {"last_page", "mode", "query_hash", "updated_at"}
+                preserved_checkpoint = {
+                    k: v for k, v in current_metadata.items()
+                    if k in checkpoint_fields
+                }
+
+                # New configuration metadata
                 new_metadata = {
                     "auto_update": config.get("auto_update", False),
                     "priority": config.get("priority", 999),
@@ -51,14 +62,24 @@ def register_data_sources() -> None:
                     "documentation_url": config.get("documentation_url"),
                 }
 
-                if existing.progress_metadata != new_metadata:
-                    existing.progress_metadata = new_metadata
+                # Merge: config metadata + preserved checkpoint
+                merged_metadata = {**new_metadata, **preserved_checkpoint}
+
+                # Only update if config portion changed
+                config_changed = any(
+                    current_metadata.get(k) != v
+                    for k, v in new_metadata.items()
+                )
+
+                if config_changed:
+                    existing.progress_metadata = merged_metadata
                     existing.updated_at = datetime.now(timezone.utc)
                     updated_count += 1
                     logger.sync_debug(
-                        f"Updated metadata for {source_name}",
+                        f"Updated metadata for {source_name} (preserved checkpoint)",
                         source=source_name,
                         action="metadata_update",
+                        checkpoint_preserved=bool(preserved_checkpoint),
                     )
             else:
                 # Create new progress record

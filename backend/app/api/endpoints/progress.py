@@ -294,7 +294,7 @@ async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dic
 
 
 @router.post("/pause/{source_name}")
-def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+async def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Pause a running data source update
 
@@ -318,11 +318,9 @@ def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, A
     progress.current_operation = "Paused by user"
     db.commit()
 
-    # Broadcast update
-    asyncio.create_task(
-        manager.broadcast(
-            {"type": "status_change", "source": source_name, "data": progress.to_dict()}
-        )
+    # Broadcast update - now in async context so this works
+    await manager.broadcast(
+        {"type": "status_change", "source": source_name, "data": progress.to_dict()}
     )
 
     return ResponseBuilder.build_success_response(
@@ -353,7 +351,7 @@ async def resume_source(source_name: str, db: Session = Depends(get_db)) -> dict
             data={"status": "not_paused", "message": f"{source_name} is not paused"}
         )
 
-    # Resume the update in background
+    # Resume the update in background - now properly in async context
     asyncio.create_task(task_manager.run_source(source_name, resume=True))
 
     return ResponseBuilder.build_success_response(

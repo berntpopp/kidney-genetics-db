@@ -139,6 +139,29 @@ class BackgroundTaskManager(TaskMixin):
             )
             raise
 
+    def cancel_task(self, source_name: str) -> bool:
+        """
+        Cancel a running task for a specific source
+
+        Args:
+            source_name: Name of the source to cancel
+
+        Returns:
+            True if task was cancelled, False if no task was running
+        """
+        if source_name in self.running_tasks:
+            task = self.running_tasks[source_name]
+            if not task.done():
+                logger.sync_info(f"Cancelling task for {source_name}")
+                task.cancel()
+                # Remove from running tasks
+                del self.running_tasks[source_name]
+                return True
+            elif task.done():
+                # Clean up completed task
+                del self.running_tasks[source_name]
+        return False
+
     async def shutdown(self):
         """Gracefully shutdown all running tasks"""
         logger.sync_info("Shutting down background tasks...")

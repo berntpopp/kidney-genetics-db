@@ -173,13 +173,14 @@ class ProgressTracker:
             self.progress_record.items_processed += items_failed
 
         # Calculate progress percentage
-        if self.progress_record.total_items and self.progress_record.total_items > 0:
-            self.progress_record.progress_percentage = (
-                self.progress_record.current_item / self.progress_record.total_items * 100
-            )
-        elif self.progress_record.total_pages and self.progress_record.total_pages > 0:
+        # Prefer pages over items for better accuracy when both are available
+        if self.progress_record.total_pages and self.progress_record.total_pages > 0:
             self.progress_record.progress_percentage = (
                 self.progress_record.current_page / self.progress_record.total_pages * 100
+            )
+        elif self.progress_record.total_items and self.progress_record.total_items > 0:
+            self.progress_record.progress_percentage = (
+                self.progress_record.current_item / self.progress_record.total_items * 100
             )
 
         # Estimate completion time
@@ -248,12 +249,24 @@ class ProgressTracker:
 
     def _commit_and_broadcast(self):
         """Commit to database and publish update to event bus - NO MORE DIRECT CALLBACKS!"""
+        # Always recalculate progress percentage before committing
+        # Prefer pages over items for better accuracy when both are available
+        if self.progress_record.total_pages and self.progress_record.total_pages > 0:
+            self.progress_record.progress_percentage = (
+                self.progress_record.current_page / self.progress_record.total_pages * 100
+            )
+        elif self.progress_record.total_items and self.progress_record.total_items > 0:
+            self.progress_record.progress_percentage = (
+                self.progress_record.current_item / self.progress_record.total_items * 100
+            )
+
         logger.sync_debug(
             "_commit_and_broadcast() called",
             source_name=self.source_name,
             status=str(self.progress_record.status),
             current_page=self.progress_record.current_page,
             current_operation=self.progress_record.current_operation,
+            progress_percentage=self.progress_record.progress_percentage,
         )
 
         try:

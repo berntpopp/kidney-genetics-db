@@ -286,7 +286,17 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         """
         # Load checkpoint for resume
         checkpoint = await self._load_checkpoint()
-        start_page = checkpoint.get("last_page", 0) + 1
+
+        # Detailed logging for checkpoint state
+        logger.sync_info(
+            "Checkpoint state before processing",
+            checkpoint_exists=bool(checkpoint),
+            last_page=checkpoint.get("last_page"),
+            mode=checkpoint.get("mode"),
+            requested_mode=mode
+        )
+
+        start_page = checkpoint.get("last_page", 0) + 1 if checkpoint else 1
         query_hash = hashlib.md5(query.encode()).hexdigest()[:8]
 
         # Verify same query on resume
@@ -294,14 +304,28 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             logger.sync_warning("Query changed, starting from beginning")
             start_page = 1
 
-        # Handle mode change
-        if checkpoint.get("mode") != mode:
-            logger.sync_info(f"Mode changed from {checkpoint.get('mode')} to {mode}")
+        # Handle mode change - only reset if switching TO full mode
+        if checkpoint and checkpoint.get("mode") and checkpoint.get("mode") != mode:
+            logger.sync_info(
+                "Mode change detected",
+                old_mode=checkpoint.get("mode"),
+                new_mode=mode,
+                action="resetting" if mode == "full" else "continuing"
+            )
             if mode == "full":
                 # Full mode: clear existing entries and start from beginning
+                logger.sync_info("Full mode requested - clearing existing entries and resetting")
                 await self._clear_existing_entries()
                 start_page = 1
-            # For smart mode, keep the checkpoint and continue from where we left off
+            else:
+                # Smart mode: continue from checkpoint
+                logger.sync_info(
+                    "Smart mode requested - continuing from checkpoint",
+                    resume_page=start_page
+                )
+        elif not checkpoint:
+            logger.sync_info("No checkpoint found - starting from page 1")
+            start_page = 1
 
         # Initialize streaming state
         article_buffer = []
@@ -740,18 +764,41 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
     async def _load_checkpoint(self) -> dict:
         """Load checkpoint from DataSourceProgress table."""
+        logger.sync_debug("Starting checkpoint load for PubTator")
+
         progress = self.db_session.query(DataSourceProgress).filter_by(
             source_name="PubTator"
         ).first()
 
-        if progress and progress.progress_metadata:
-            checkpoint = progress.progress_metadata
-            logger.sync_info(
-                "Loaded checkpoint",
-                last_page=checkpoint.get("last_page"),
-                mode=checkpoint.get("mode")
+        logger.sync_debug(
+            "Database query complete",
+            progress_found=progress is not None,
+            has_metadata=progress.progress_metadata is not None if progress else False
+        )
+
+        if progress:
+            # Log the raw metadata from database
+            logger.sync_debug(
+                "Progress record found",
+                current_page=progress.current_page,
+                status=progress.status.value if progress.status else None,
+                metadata_type=type(progress.progress_metadata).__name__,
+                metadata_content=progress.progress_metadata
             )
-            return checkpoint
+
+            if progress.progress_metadata:
+                checkpoint = progress.progress_metadata
+                logger.sync_info(
+                    "Checkpoint loaded successfully",
+                    last_page=checkpoint.get("last_page"),
+                    mode=checkpoint.get("mode"),
+                    query_hash=checkpoint.get("query_hash")
+                )
+                return checkpoint
+            else:
+                logger.sync_warning("Progress record exists but metadata is empty")
+        else:
+            logger.sync_info("No checkpoint found for PubTator - starting fresh")
 
         return {}
 
