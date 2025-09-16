@@ -80,8 +80,20 @@ class ProgressTracker:
                 logger.sync_warning(
                     "Progress record not in current session, merging",
                     source_name=self.source_name,
+                    current_status=str(progress.status)
                 )
+                # Store the current status before merge
+                current_status = progress.status
                 progress = self.db.merge(progress)
+                # Restore status if it was changed by merge
+                if progress.status != current_status:
+                    logger.sync_warning(
+                        "Status changed during merge, restoring",
+                        source_name=self.source_name,
+                        old_status=str(current_status),
+                        new_status=str(progress.status)
+                    )
+                    progress.status = current_status
 
         return progress
 
@@ -100,6 +112,12 @@ class ProgressTracker:
 
     def start(self, operation: str = "Starting update"):
         """Mark source as running"""
+        logger.sync_debug(
+            "ProgressTracker.start() called",
+            source_name=self.source_name,
+            operation=operation,
+            old_status=str(self.progress_record.status)
+        )
         self._start_time = datetime.now(timezone.utc)
         self.progress_record.status = SourceStatus.running
         self.progress_record.current_operation = operation
@@ -112,6 +130,11 @@ class ProgressTracker:
         self.progress_record.items_failed = 0
         self.progress_record.progress_percentage = 0.0
         self._commit_and_broadcast()
+        logger.sync_debug(
+            "ProgressTracker.start() completed",
+            source_name=self.source_name,
+            new_status=str(self.progress_record.status)
+        )
 
     def update(
         self,
@@ -147,7 +170,16 @@ class ProgressTracker:
             current_item=current_item,
             operation=operation,
             force=force,
+            current_status=str(self.progress_record.status)
         )
+
+        # Preserve running status if already set
+        if self.progress_record.status != SourceStatus.running:
+            logger.sync_warning(
+                "Update called but status is not running!",
+                source_name=self.source_name,
+                current_status=str(self.progress_record.status)
+            )
 
         # Update counters
         if current_item is not None:
@@ -237,10 +269,22 @@ class ProgressTracker:
 
     def resume(self):
         """Resume from paused state"""
+        logger.sync_debug(
+            "ProgressTracker.resume() called",
+            source_name=self.source_name,
+            old_status=str(self.progress_record.status),
+            progress_id=self.progress_record.id if hasattr(self.progress_record, 'id') else None
+        )
         self.progress_record.status = SourceStatus.running
         self.progress_record.current_operation = "Resumed"
         self._start_time = datetime.now(timezone.utc)  # Reset start time for accurate estimates
+        # Force immediate database commit to persist status change
         self._commit_and_broadcast()
+        logger.sync_debug(
+            "ProgressTracker.resume() completed",
+            source_name=self.source_name,
+            new_status=str(self.progress_record.status)
+        )
 
     def set_metadata(self, metadata: dict[str, Any]):
         """Update metadata"""
@@ -281,13 +325,26 @@ class ProgressTracker:
                 # Ensure the progress record is marked as modified
                 if self.progress_record in self.db:
                     # Mark object as dirty to ensure SQLAlchemy tracks changes
+                    # Explicitly set the status to ensure it's not overwritten
+                    current_status = self.progress_record.status
                     self.db.add(self.progress_record)
+                    # Double-check status didn't change after adding to session
+                    if self.progress_record.status != current_status:
+                        logger.sync_warning(
+                            "Status changed after adding to session!",
+                            source_name=self.source_name,
+                            expected_status=str(current_status),
+                            actual_status=str(self.progress_record.status),
+                        )
+                        # Force the correct status
+                        self.progress_record.status = current_status
                 else:
                     logger.sync_warning(
-                        "Progress record not in session, adding it",
+                        "Progress record not in session, merging it",
                         source_name=self.source_name,
                     )
-                    self.db.add(self.progress_record)
+                    # Use merge instead of add to avoid conflicts
+                    self.progress_record = self.db.merge(self.progress_record)
 
                 self.db.commit()
                 logger.sync_debug(

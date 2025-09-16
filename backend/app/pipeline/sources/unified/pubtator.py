@@ -297,6 +297,34 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         )
 
         start_page = checkpoint.get("last_page", 0) + 1 if checkpoint else 1
+
+        # Debug tracker status
+        logger.sync_info(
+            "Tracker status check",
+            current_status=str(tracker.progress_record.status),
+            status_value=str(tracker.progress_record.status.value) if hasattr(tracker.progress_record.status, 'value') else "No value",
+            status_type=type(tracker.progress_record.status).__name__,
+            has_checkpoint=bool(checkpoint)
+        )
+
+        # Ensure tracker is in running state when resuming
+        from app.models.progress import SourceStatus
+        if checkpoint and tracker.progress_record.status != SourceStatus.running:
+            logger.sync_info(
+                "Resuming from checkpoint - setting status to running",
+                old_status=str(tracker.progress_record.status)
+            )
+            tracker.resume()  # This sets status to running
+            # Force immediate update to ensure status is persisted
+            tracker.update(
+                operation=f"Resumed from page {start_page-1}",
+                force=True
+            )
+            # Log status after resume
+            logger.sync_info(
+                "Status after resume",
+                new_status=str(tracker.progress_record.status)
+            )
         query_hash = hashlib.md5(query.encode()).hexdigest()[:8]
 
         # Verify same query on resume
