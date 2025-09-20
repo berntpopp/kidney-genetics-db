@@ -51,6 +51,7 @@ class AnnotationPipeline:
         """
         self.db = db_session
         self.progress_tracker = None
+        self.source_name = "annotation_pipeline"  # For progress tracking
 
         # Register available annotation sources
         self.sources = {
@@ -87,17 +88,46 @@ class AnnotationPipeline:
         """
         start_time = datetime.utcnow()
 
+        logger.sync_info(
+            "AnnotationPipeline.run_update started",
+            strategy=strategy.value,
+            sources=sources,
+            gene_ids=gene_ids[:5] if gene_ids else None,
+            force=force,
+            task_id=task_id
+        )
+
         # Initialize progress tracking
-        if task_id:
-            self.progress_tracker = ProgressTracker(self.db, "annotation_pipeline")
+        self.progress_tracker = ProgressTracker(self.db, self.source_name)
+
+        # Check if we're resuming a paused update
+        if self.progress_tracker.is_paused():
+            logger.sync_info(
+                "Resuming paused annotation update",
+                strategy=strategy.value,
+                last_operation=self.progress_tracker.get_current_operation()
+            )
+        else:
             self.progress_tracker.start(operation=f"Starting annotation update ({strategy.value})")
 
         try:
             # Determine which sources to update
+            logger.sync_debug("Getting sources to update...")
             sources_to_update = await self._get_sources_to_update(sources, force)
+            logger.sync_info(
+                "Sources to update determined",
+                sources_to_update=sources_to_update,
+                count=len(sources_to_update)
+            )
 
             # Get genes to update based on strategy
+            logger.sync_debug("Getting genes to update...")
             genes_to_update = await self._get_genes_to_update(strategy, gene_ids)
+            logger.sync_info(
+                "Genes to update determined",
+                gene_count=len(genes_to_update),
+                first_5_genes=[g.approved_symbol for g in genes_to_update[:5]] if genes_to_update else []
+            )
 
             # Check if there's anything to update
             if not sources_to_update or not genes_to_update:
@@ -131,6 +161,27 @@ class AnnotationPipeline:
             current_step = 0
 
             for source_name in sources_to_update:
+                # Check for pause before processing each source
+                if self.progress_tracker and self.progress_tracker.is_paused():
+                    logger.sync_info(
+                        "Annotation pipeline paused by user",
+                        current_source=source_name,
+                        progress=f"{current_step}/{total_steps}"
+                    )
+                    # Save checkpoint for resumption
+                    self.progress_tracker.update(
+                        current_item=current_step,
+                        operation=f"Paused at {source_name}",
+                        checkpoint={"source": source_name, "step": current_step}
+                    )
+                    return {
+                        "status": "paused",
+                        "sources_updated": list(results.keys()),
+                        "genes_updated": sum(r.get("successful", 0) for r in results.values()),
+                        "checkpoint": {"source": source_name, "step": current_step},
+                        "message": f"Pipeline paused at {source_name}",
+                    }
+
                 logger.sync_info(f"Updating {source_name} annotations")
 
                 if self.progress_tracker:
@@ -295,6 +346,13 @@ class AnnotationPipeline:
         Returns:
             Update results for this source
         """
+        logger.sync_info(
+            f"Starting update for source {source_name}",
+            source_name=source_name,
+            gene_count=len(genes),
+            force=force
+        )
+
         source_class = self.sources[source_name]
         source = source_class(self.db)
 
@@ -303,9 +361,31 @@ class AnnotationPipeline:
 
         # Process genes in batches
         batch_size = source.batch_size
+        logger.sync_debug(
+            f"Processing {source_name} in batches",
+            batch_size=batch_size,
+            total_batches=(len(genes) + batch_size - 1) // batch_size
+        )
 
         for i in range(0, len(genes), batch_size):
+            # Check for pause before processing each batch
+            if self.progress_tracker and self.progress_tracker.is_paused():
+                logger.sync_info(
+                    f"Paused during {source_name} batch processing",
+                    batch_num=i // batch_size + 1,
+                    genes_processed=i
+                )
+                return {"successful": successful, "failed": failed, "paused_at": i}
+
             batch = genes[i : i + batch_size]
+            batch_num = i // batch_size + 1
+
+            logger.sync_debug(
+                f"Processing {source_name} batch",
+                batch_num=batch_num,
+                batch_size=len(batch),
+                batch_genes=[g.approved_symbol for g in batch[:3]]  # First 3 gene symbols
+            )
 
             if self.progress_tracker:
                 # Avoid division by zero
@@ -315,37 +395,27 @@ class AnnotationPipeline:
                     operation=f"Updating {source_name}: {i}/{len(genes)} genes",
                 )
 
-            # Try batch update first
-            try:
-                batch_results = await source.fetch_batch(batch)
-
-                for gene in batch:
-                    if gene.id in batch_results:
-                        source.store_annotation(
-                            gene,
-                            batch_results[gene.id],
-                            metadata={
-                                "retrieved_at": datetime.utcnow().isoformat(),
-                                "pipeline_run": True,
-                            },
-                        )
-                        successful += 1
-                    else:
-                        failed += 1
-
-            except NotImplementedError:
-                # Fall back to individual updates
-                for gene in batch:
+            # Always use update_gene which handles caching properly
+            # This follows DRY principle - BaseAnnotationSource.update_gene handles:
+            # 1. Cache checking
+            # 2. Fetching if not cached
+            # 3. Storing in cache
+            # 4. Storing in database
+            for gene in batch:
+                try:
                     success = await source.update_gene(gene)
                     if success:
                         successful += 1
                     else:
                         failed += 1
-            except Exception as e:
-                logger.sync_error(
-                    f"Batch update error for {source_name}", error=str(e), batch_start=i
-                )
-                failed += len(batch)
+                except Exception as e:
+                    logger.sync_error(
+                        f"Error updating gene {gene.approved_symbol} with {source_name}",
+                        gene_symbol=gene.approved_symbol,
+                        source_name=source_name,
+                        error=str(e)
+                    )
+                    failed += 1
 
         # Update source metadata
         source_record = source.source_record

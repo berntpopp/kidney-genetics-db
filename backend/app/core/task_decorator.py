@@ -195,3 +195,51 @@ class TaskMixin:
         )
         tracker.complete(f"Aggregated evidence for {result.get('genes_processed', 0)} genes")
         return result
+
+    @managed_task("annotation_pipeline")
+    async def _run_annotation_pipeline(self, db, tracker, resume: bool = False, mode: str = "smart"):
+        """Run annotation pipeline with managed lifecycle and pause/resume support."""
+        from app.pipeline.annotation_pipeline import AnnotationPipeline, UpdateStrategy
+
+        # Create pipeline instance with the current database session
+        pipeline = AnnotationPipeline(db)
+
+        # Determine strategy based on mode
+        strategy = UpdateStrategy.INCREMENTAL if mode == "smart" else UpdateStrategy.FULL
+
+        # Check if we're resuming a paused run
+        if resume:
+            # Get checkpoint data from tracker if available
+            checkpoint = tracker.get_checkpoint()
+            sources = checkpoint.get("sources") if checkpoint else None
+            logger.sync_info(
+                "Resuming annotation pipeline",
+                checkpoint=checkpoint,
+                sources=sources
+            )
+        else:
+            sources = None  # Will use all sources
+
+        # Run the pipeline update
+        result = await pipeline.run_update(
+            strategy=strategy,
+            sources=sources,
+            force=False,
+            task_id=tracker.task_id if hasattr(tracker, 'task_id') else None
+        )
+
+        # Update progress based on results
+        if result.get("success"):
+            tracker.complete(
+                f"Annotation pipeline completed: {result.get('sources_updated')} sources, "
+                f"{result.get('genes_processed')} genes"
+            )
+        elif result.get("status") == "paused":
+            tracker.update(
+                current_operation=result.get("message", "Pipeline paused"),
+                checkpoint=result.get("checkpoint")
+            )
+        else:
+            tracker.error(f"Pipeline failed: {result.get('errors', [])}")
+
+        return result

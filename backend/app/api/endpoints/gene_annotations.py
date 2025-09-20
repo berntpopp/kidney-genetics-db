@@ -624,6 +624,15 @@ async def _run_pipeline_update(
     strategy, sources: list[str] | None, gene_ids: list[int] | None, force: bool, task_id: str
 ):
     """Background task to run pipeline update."""
+    await logger.info(
+        "Background pipeline update started",
+        task_id=task_id,
+        strategy=strategy.value if hasattr(strategy, 'value') else strategy,
+        sources=sources,
+        gene_ids=gene_ids[:5] if gene_ids else None,
+        force=force
+    )
+
     from app.core.database import SessionLocal
     from app.pipeline.annotation_pipeline import AnnotationPipeline
 
@@ -631,20 +640,33 @@ async def _run_pipeline_update(
     db = SessionLocal()
 
     try:
+        await logger.debug("Creating AnnotationPipeline instance", task_id=task_id)
         pipeline = AnnotationPipeline(db)
+
+        await logger.debug("Starting pipeline.run_update", task_id=task_id)
         results = await pipeline.run_update(
             strategy=strategy, sources=sources, gene_ids=gene_ids, force=force, task_id=task_id
         )
 
-        await logger.info("Pipeline update completed", task_id=task_id, results=results)
+        await logger.info(
+            "Pipeline update completed",
+            task_id=task_id,
+            results=results,
+            sources_updated=results.get("sources_updated", []),
+            genes_updated=results.get("genes_updated", 0)
+        )
     except Exception as e:
         import traceback
 
         await logger.error(
-            f"Pipeline update failed: {str(e)}", task_id=task_id, traceback=traceback.format_exc()
+            f"Pipeline update failed: {str(e)}",
+            task_id=task_id,
+            error_type=type(e).__name__,
+            traceback=traceback.format_exc()
         )
     finally:
         db.close()
+        await logger.debug("Database session closed", task_id=task_id)
 
 
 @router.get("/pipeline/status")

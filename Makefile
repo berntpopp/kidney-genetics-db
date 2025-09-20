@@ -140,15 +140,17 @@ db-reset: services-up
 	@docker exec kidney_genetics_postgres psql -U kidney_user -d postgres -c "CREATE DATABASE kidney_genetics;"
 	@echo "📦 Running migrations..."
 	@cd backend && uv run alembic upgrade head
-	@echo "🎯 Initializing progress tracking..."
-	@cd backend && uv run python -c "from sqlalchemy import create_engine, text; from app.core.config import settings; from datetime import datetime, timezone; engine = create_engine(settings.DATABASE_URL); conn = engine.connect(); sources = ['PubTator', 'PanelApp', 'HPO', 'ClinGen', 'GenCC', 'Literature', 'Evidence_Aggregation', 'HGNC_Normalization']; [conn.execute(text('INSERT INTO data_source_progress (source_name, status, progress_percentage, current_operation, created_at, updated_at) VALUES (:source, \\'idle\\', 0, \\'Ready to start\\', :now, :now) ON CONFLICT (source_name) DO UPDATE SET status = \\'idle\\', progress_percentage = 0, current_operation = \\'Ready to start\\', updated_at = :now'), {'source': source, 'now': datetime.now(timezone.utc)}) for source in sources]; conn.commit(); conn.close(); print('Progress tracking initialized')"
+	@echo "🎯 Running full database initialization..."
+	@cd backend && uv run python scripts/initialize_database.py
 	@echo "✅ Database reset complete!"
 
 # Clean all data from database (keep structure)
 db-clean:
 	@echo "🧹 Cleaning database data..."
 	@cd backend && uv run python scripts/clean_database.py
-	@echo "✅ Database cleaned!"
+	@echo "🔄 Re-initializing database (views, admin, cache)..."
+	@cd backend && uv run python scripts/initialize_database.py
+	@echo "✅ Database cleaned and re-initialized!"
 
 # Run all data sources from scratch
 data-rebuild:

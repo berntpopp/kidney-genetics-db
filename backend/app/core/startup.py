@@ -225,7 +225,40 @@ def run_startup_tasks() -> None:
     logger.sync_info("Running application startup tasks...")
 
     try:
-        # Validate dependencies first
+        # Initialize database first (views, admin user, cache cleanup)
+        import asyncio
+
+        from app.core.database_init import initialize_database
+
+        db = next(get_db())
+        try:
+            # Check if there's already an event loop running
+            try:
+                loop = asyncio.get_running_loop()
+                # If we're in an async context, can't use run_until_complete
+                # Skip database init in async context - it will be handled on startup
+                logger.sync_info(
+                    "Skipping database init in async context - will be handled by startup event"
+                )
+            except RuntimeError:
+                # No loop running, we can create one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    init_status = loop.run_until_complete(initialize_database(db))
+                    logger.sync_info(
+                        "Database initialization completed",
+                        views_created=init_status.get("views_created"),
+                        admin_created=init_status.get("admin_created"),
+                        cache_cleared=init_status.get("cache_cleared"),
+                        aggregation_completed=init_status.get("aggregation_completed"),
+                    )
+                finally:
+                    loop.close()
+        finally:
+            db.close()
+
+        # Validate dependencies
         validate_dependencies()
 
         # Register data sources
@@ -237,6 +270,8 @@ def run_startup_tasks() -> None:
         logger.sync_info("Application startup tasks completed successfully")
 
     except Exception as e:
-        logger.sync_error("Startup tasks failed", error=e)
+        logger.sync_error("Startup tasks failed", error=str(e), traceback=True)
+        import traceback
+        traceback.print_exc()  # Print full traceback for debugging
         # Don't re-raise - allow app to start even if startup tasks fail
         # This prevents the app from failing to start due to database issues
