@@ -286,6 +286,10 @@ class ProgressTracker:
             new_status=str(self.progress_record.status)
         )
 
+    def is_paused(self) -> bool:
+        """Check if the source is currently paused"""
+        return self.progress_record.status == SourceStatus.paused
+
     def set_metadata(self, metadata: dict[str, Any]):
         """Update metadata"""
         self.progress_record.progress_metadata = metadata
