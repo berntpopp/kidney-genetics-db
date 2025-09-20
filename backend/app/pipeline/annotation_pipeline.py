@@ -312,60 +312,63 @@ class AnnotationPipeline:
             List of Gene objects to update, ordered by importance
         """
         from sqlalchemy import func, desc
-
-        # Start with base query joining gene_scores view for prioritization
-        query = self.db.query(Gene)
-
-        # Join with gene_scores view to get evidence scores
-        # Use outer join to include genes without scores (they'll be sorted last)
-        query = query.outerjoin(
-            text("gene_scores"),
-            text("genes.id = gene_scores.gene_id")
-        )
+        from sqlalchemy.orm import aliased
 
         if gene_ids:
-            # Specific genes requested
-            query = query.filter(Gene.id.in_(gene_ids))
+            # Specific genes requested - simple query
+            query = self.db.query(Gene).filter(Gene.id.in_(gene_ids))
+            genes = query.order_by(Gene.id).all()
         elif strategy == UpdateStrategy.INCREMENTAL:
-            # Only genes without annotations or outdated ones
-            # Join with annotations to count them
-            subquery = (
-                self.db.query(
-                    Gene.id.label("gene_id"),
-                    func.count(text("gene_annotations.id")).label("annotation_count")
-                )
-                .outerjoin(text("gene_annotations"), text("genes.id = gene_annotations.gene_id"))
+            # Get genes with incomplete annotations, ordered by clinical importance
+            # First get gene scores for prioritization
+            scores_subq = (
+                self.db.execute(
+                    text("""
+                    SELECT g.id, COALESCE(gs.raw_score, 0) as score
+                    FROM genes g
+                    LEFT JOIN gene_scores gs ON g.id = gs.gene_id
+                    """)
+                ).fetchall()
+            )
+            score_dict = {row[0]: row[1] for row in scores_subq}
+
+            # Get genes with fewer annotations than sources
+            genes = (
+                self.db.query(Gene)
+                .outerjoin(Gene.annotations)
                 .group_by(Gene.id)
-                .subquery()
+                .having(func.count(text("gene_annotations.id")) < len(self.sources))
+                .all()
             )
 
-            query = query.join(subquery, Gene.id == subquery.c.gene_id)
-            # Get genes with fewer annotations than active sources
-            query = query.filter(subquery.c.annotation_count < len(self.sources))
-        elif strategy == UpdateStrategy.FULL or strategy == UpdateStrategy.FORCED:
-            # All genes - no filtering needed
-            pass
-
-        # SMART PRIORITIZATION:
-        # 1. Highest evidence scores first (most clinically important)
-        # 2. Then by number of existing annotations (fewer annotations = higher priority)
-        # 3. Finally by gene ID for consistency
-
-        if strategy == UpdateStrategy.INCREMENTAL:
-            # For incremental, also consider annotation count
-            query = query.order_by(
-                desc(text("COALESCE(gene_scores.raw_score, 0)")),  # Highest scores first
-                text("annotation_count"),  # Fewer annotations first
-                Gene.id  # Consistent ordering by ID
-            )
+            # Sort by score (highest first), then by ID
+            genes.sort(key=lambda g: (-score_dict.get(g.id, 0), g.id))
         else:
-            # For full update, just use score and ID
-            query = query.order_by(
-                desc(text("COALESCE(gene_scores.raw_score, 0)")),  # Highest scores first
-                Gene.id  # Consistent ordering by ID
+            # FULL or FORCED - get all genes ordered by clinical importance
+            # Get gene scores for prioritization
+            scores_subq = (
+                self.db.execute(
+                    text("""
+                    SELECT g.id, COALESCE(gs.raw_score, 0) as score
+                    FROM genes g
+                    LEFT JOIN gene_scores gs ON g.id = gs.gene_id
+                    ORDER BY COALESCE(gs.raw_score, 0) DESC, g.id
+                    """)
+                ).fetchall()
             )
 
-        genes = query.all()
+            # Get genes in the prioritized order
+            gene_ids_ordered = [row[0] for row in scores_subq]
+
+            # Fetch Gene objects in this order
+            if gene_ids_ordered:
+                genes = self.db.query(Gene).filter(Gene.id.in_(gene_ids_ordered)).all()
+                # Create a dict for quick lookup
+                gene_dict = {g.id: g for g in genes}
+                # Return in the prioritized order
+                genes = [gene_dict[gid] for gid in gene_ids_ordered if gid in gene_dict]
+            else:
+                genes = []
 
         logger.sync_info(
             "Genes selected for annotation update",
