@@ -301,33 +301,80 @@ class AnnotationPipeline:
         """
         Get list of genes to update based on strategy.
 
+        Prioritizes genes by clinical importance (evidence score) to ensure
+        the most important genes get annotations first.
+
         Args:
             strategy: Update strategy
             gene_ids: Specific gene IDs if provided
 
         Returns:
-            List of Gene objects to update
+            List of Gene objects to update, ordered by importance
         """
+        from sqlalchemy import func, desc
+
+        # Start with base query joining gene_scores view for prioritization
         query = self.db.query(Gene)
+
+        # Join with gene_scores view to get evidence scores
+        # Use outer join to include genes without scores (they'll be sorted last)
+        query = query.outerjoin(
+            text("gene_scores"),
+            text("genes.id = gene_scores.gene_id")
+        )
 
         if gene_ids:
             # Specific genes requested
             query = query.filter(Gene.id.in_(gene_ids))
         elif strategy == UpdateStrategy.INCREMENTAL:
             # Only genes without annotations or outdated ones
-            # For now, get genes that don't have annotations from all sources
-            query = (
-                query.outerjoin(Gene.annotations)
-                .group_by(Gene.id)
-                .having(
-                    text("COUNT(gene_annotations.id) < 2")  # Less than 2 sources
+            # Join with annotations to count them
+            subquery = (
+                self.db.query(
+                    Gene.id.label("gene_id"),
+                    func.count(text("gene_annotations.id")).label("annotation_count")
                 )
+                .outerjoin(text("gene_annotations"), text("genes.id = gene_annotations.gene_id"))
+                .group_by(Gene.id)
+                .subquery()
             )
+
+            query = query.join(subquery, Gene.id == subquery.c.gene_id)
+            # Get genes with fewer annotations than active sources
+            query = query.filter(subquery.c.annotation_count < len(self.sources))
         elif strategy == UpdateStrategy.FULL or strategy == UpdateStrategy.FORCED:
-            # All genes
+            # All genes - no filtering needed
             pass
 
+        # SMART PRIORITIZATION:
+        # 1. Highest evidence scores first (most clinically important)
+        # 2. Then by number of existing annotations (fewer annotations = higher priority)
+        # 3. Finally by gene ID for consistency
+
+        if strategy == UpdateStrategy.INCREMENTAL:
+            # For incremental, also consider annotation count
+            query = query.order_by(
+                desc(text("COALESCE(gene_scores.raw_score, 0)")),  # Highest scores first
+                text("annotation_count"),  # Fewer annotations first
+                Gene.id  # Consistent ordering by ID
+            )
+        else:
+            # For full update, just use score and ID
+            query = query.order_by(
+                desc(text("COALESCE(gene_scores.raw_score, 0)")),  # Highest scores first
+                Gene.id  # Consistent ordering by ID
+            )
+
         genes = query.all()
+
+        logger.sync_info(
+            "Genes selected for annotation update",
+            strategy=strategy.value,
+            total_genes=len(genes),
+            top_5_genes=[g.approved_symbol for g in genes[:5]] if genes else [],
+            prioritization="evidence_score"
+        )
+
         return genes
 
     async def _update_source(
