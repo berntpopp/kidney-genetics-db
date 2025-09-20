@@ -60,6 +60,7 @@ class BaseAnnotationSource(ABC):
             session: SQLAlchemy database session
         """
         self.session = session
+        self.batch_mode = False  # Flag to disable cache invalidation during batch updates
 
         if not self.source_name:
             raise ValueError("source_name must be defined in subclass")
@@ -177,7 +178,8 @@ class BaseAnnotationSource(ABC):
         await asyncio.sleep(delay)
 
     def store_annotation(
-        self, gene: Gene, annotation_data: dict[str, Any], metadata: dict[str, Any] | None = None
+        self, gene: Gene, annotation_data: dict[str, Any], metadata: dict[str, Any] | None = None,
+        skip_cache_invalidation: bool = False
     ) -> GeneAnnotation:
         """
         Store annotation in database and invalidate API cache.
@@ -230,8 +232,9 @@ class BaseAnnotationSource(ABC):
 
         # Invalidate API cache after successful database update
         # This ensures the API will fetch fresh data on next request
-        # We use sync version since store_annotation is called from both sync and async contexts
-        self._invalidate_api_cache_sync(gene.id)
+        # Skip during batch mode to avoid thousands of async operations
+        if not self.batch_mode and not skip_cache_invalidation:
+            self._invalidate_api_cache_sync(gene.id)
 
         return annotation
 
@@ -241,33 +244,56 @@ class BaseAnnotationSource(ABC):
         This clears both the specific source cache and the 'all' cache
         used by the API endpoint.
         """
+        # Skip individual cache invalidation during batch mode
+        # We'll clear the entire cache at the end of the batch
+        if self.batch_mode:
+            return
+
         try:
             import asyncio
+            import inspect
 
-            # Check if we're already in an async context
-            try:
-                loop = asyncio.get_running_loop()
-                # We're in an async context - schedule the task instead of blocking
-                asyncio.create_task(self._invalidate_api_cache(gene_id))
-                return
-            except RuntimeError:
-                # No running loop - we're in sync context
-                pass
+            # Check if we're in an async context by looking at the call stack
+            # This is more reliable than checking for running event loop
+            if any(inspect.iscoroutinefunction(frame.frame.f_code)
+                   for frame in inspect.stack()[1:10]):  # Check up to 10 frames
+                # We're being called from an async function
+                # Try to get the current running loop
+                try:
+                    asyncio.get_running_loop()
+                    # Schedule as a task in the existing loop
+                    asyncio.create_task(self._invalidate_api_cache(gene_id))
+                    # Don't wait for it - fire and forget
+                    return
+                except RuntimeError:
+                    # No running loop, fall through to sync handling
+                    pass
 
-            # Create new event loop for sync context
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                # Run the async invalidation
-                loop.run_until_complete(self._invalidate_api_cache(gene_id))
-            finally:
-                loop.close()
-                asyncio.set_event_loop(None)
+            # We're in a true sync context - use threading to avoid blocking
+            import threading
+
+            def run_async_in_thread():
+                # Create a new event loop in this thread
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    new_loop.run_until_complete(self._invalidate_api_cache(gene_id))
+                finally:
+                    new_loop.close()
+                    asyncio.set_event_loop(None)
+
+            # Run in a daemon thread so we don't block
+            thread = threading.Thread(target=run_async_in_thread, daemon=True)
+            thread.start()
+            # Don't wait for completion - fire and forget
 
         except Exception as e:
             # Don't fail the update if cache invalidation fails
-            logger.sync_warning(
-                f"Failed to invalidate cache for gene {gene_id}: {str(e)}", source=self.source_name
+            # This is expected during batch operations
+            logger.sync_debug(
+                f"Cache invalidation skipped: {str(e)}",
+                source=self.source_name,
+                gene_id=gene_id
             )
 
     async def _invalidate_api_cache(self, gene_id: int):
@@ -390,6 +416,9 @@ class BaseAnnotationSource(ABC):
         """
         logger.sync_info(f"Starting bulk update for {self.source_name}", limit=limit)
 
+        # Enable batch mode to skip individual cache invalidations
+        self.batch_mode = True
+
         # Get genes to update
         query = self.session.query(Gene)
         if limit:
@@ -441,6 +470,33 @@ class BaseAnnotationSource(ABC):
         self.source_record.last_update = datetime.utcnow()
         self.source_record.next_update = datetime.utcnow() + timedelta(days=self.cache_ttl_days)
         self.session.commit()
+
+        # Disable batch mode
+        self.batch_mode = False
+
+        # Clear the entire annotations cache namespace after batch update
+        # This is more efficient than clearing individual entries
+        try:
+            cache_service = get_cache_service(self.session)
+            if cache_service:
+                try:
+                    # We're in an async context (update_all_genes is async)
+                    # Just await the cache clear directly
+                    await cache_service.clear_namespace("annotations")
+                    logger.sync_info(
+                        "Cleared annotations cache after batch update",
+                        source=self.source_name
+                    )
+                except Exception as e:
+                    logger.sync_debug(
+                        f"Could not clear cache after batch: {str(e)}",
+                        source=self.source_name
+                    )
+        except Exception as e:
+            logger.sync_debug(
+                f"Cache service not available: {str(e)}",
+                source=self.source_name
+            )
 
         # Refresh materialized view
         self._refresh_materialized_view()

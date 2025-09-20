@@ -497,6 +497,9 @@ class AnnotationPipeline:
         source_class = self.sources[source_name]
         source = source_class(self.db)
 
+        # Enable batch mode to prevent individual cache invalidations
+        source.batch_mode = True
+
         successful = 0
         failed = 0
         failed_genes = []
@@ -573,6 +576,21 @@ class AnnotationPipeline:
                         logger.sync_info(f"Successfully retried {gene.approved_symbol}")
                 except Exception as e:
                     logger.sync_error(f"Failed to retry {gene.approved_symbol}", error=str(e))
+
+        # Disable batch mode
+        source.batch_mode = False
+
+        # Clear cache after batch update
+        try:
+            from app.core.cache_service import get_cache_service
+            cache_service = get_cache_service(self.db)
+            if cache_service:
+                # Clear both the source-specific and general annotations cache
+                await cache_service.clear_namespace(source_name.lower())
+                await cache_service.clear_namespace("annotations")
+                logger.sync_debug(f"Cleared cache for {source_name}")
+        except Exception as e:
+            logger.sync_debug(f"Cache clear failed: {e}")
 
         # Update source metadata
         source_record = source.source_record
