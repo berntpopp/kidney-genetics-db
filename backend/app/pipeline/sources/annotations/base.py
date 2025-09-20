@@ -242,17 +242,27 @@ class BaseAnnotationSource(ABC):
         used by the API endpoint.
         """
         try:
-            # Create event loop if needed to run async operations
             import asyncio
 
+            # Check if we're already in an async context
             try:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
+                # We're in an async context - schedule the task instead of blocking
+                asyncio.create_task(self._invalidate_api_cache(gene_id))
+                return
             except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                # No running loop - we're in sync context
+                pass
 
-            # Run the async invalidation
-            loop.run_until_complete(self._invalidate_api_cache(gene_id))
+            # Create new event loop for sync context
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                # Run the async invalidation
+                loop.run_until_complete(self._invalidate_api_cache(gene_id))
+            finally:
+                loop.close()
+                asyncio.set_event_loop(None)
 
         except Exception as e:
             # Don't fail the update if cache invalidation fails
