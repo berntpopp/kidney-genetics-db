@@ -44,7 +44,9 @@ class ConnectionManager:
 
     async def _handle_progress_update(self, data: dict):
         """Handle progress updates from event bus - NO MORE POLLING!"""
-        await self.broadcast({"type": "progress_update", "data": data})
+        # Wrap single update in array for frontend compatibility
+        data_array = [data] if isinstance(data, dict) else data
+        await self.broadcast({"type": "progress_update", "data": data_array})
 
     async def _handle_task_started(self, data: dict):
         """Handle task started events"""
