@@ -129,6 +129,8 @@ class ProgressTracker:
         self.progress_record.items_updated = 0
         self.progress_record.items_failed = 0
         self.progress_record.progress_percentage = 0.0
+        self.progress_record.current_item = 0
+        self.progress_record.total_items = None
         self._commit_and_broadcast()
         logger.sync_debug(
             "ProgressTracker.start() completed",

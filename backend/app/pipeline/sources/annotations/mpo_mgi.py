@@ -174,6 +174,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
             async with httpx.AsyncClient() as client:
                 # Query the _Genotype_Phenotype template for zygosity-specific phenotypes
+                logger.sync_debug(f"Querying MouseMine for zygosity phenotypes of {mouse_symbol}")
                 url = f"{self.mousemine_url}/template/results"
                 params = {
                     "name": "_Genotype_Phenotype",
@@ -184,95 +185,95 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                     "size": "10000",  # Get all genotype phenotypes
                 }
 
-            response = await client.get(url, params=params, timeout=30.0)
+                response = await client.get(url, params=params, timeout=30.0)
 
-            if response.status_code != 200:
-                logger.sync_warning(
-                    f"Genotype phenotype query failed for {mouse_symbol}: {response.status_code}"
-                )
-                return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
+                if response.status_code != 200:
+                    logger.sync_warning(
+                        f"Genotype phenotype query failed for {mouse_symbol}: {response.status_code}"
+                    )
+                    return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
 
-            data = response.json()
-            results = data.get("results", [])
+                data = response.json()
+                results = data.get("results", [])
 
             if not results:
                 return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
 
-                # Process results by zygosity
-                # Column indices: 0=primaryId, 1=symbol, 2=background, 3=zygosity, 4=mpo_id, 5=mpo_name
-                zygosity_data = {
-                    "hm": [],  # homozygous
-                    "ht": [],  # heterozygous
-                    "cn": [],  # conditional
-                    "other": [],  # other zygosity types
-                }
+            # Process results by zygosity
+            # Column indices: 0=primaryId, 1=symbol, 2=background, 3=zygosity, 4=mpo_id, 5=mpo_name
+            zygosity_data = {
+                "hm": [],  # homozygous
+                "ht": [],  # heterozygous
+                "cn": [],  # conditional
+                "other": [],  # other zygosity types
+            }
 
-                for row in results:
-                    if len(row) >= 6:
-                        zygosity = row[3]  # Zygosity column
-                        mpo_id = row[4]  # MPO term ID
-                        mpo_name = row[5]  # MPO term name
+            for row in results:
+                if len(row) >= 6:
+                    zygosity = row[3]  # Zygosity column
+                    mpo_id = row[4]  # MPO term ID
+                    mpo_name = row[5]  # MPO term name
 
-                        if mpo_id and mpo_name:
-                            phenotype_entry = {"term": mpo_id, "name": mpo_name}
+                    if mpo_id and mpo_name:
+                        phenotype_entry = {"term": mpo_id, "name": mpo_name}
 
-                            if zygosity == "hm":
-                                zygosity_data["hm"].append(phenotype_entry)
-                            elif zygosity == "ht":
-                                zygosity_data["ht"].append(phenotype_entry)
-                            elif zygosity == "cn":
-                                zygosity_data["cn"].append(phenotype_entry)
-                            else:
-                                zygosity_data["other"].append(phenotype_entry)
+                        if zygosity == "hm":
+                            zygosity_data["hm"].append(phenotype_entry)
+                        elif zygosity == "ht":
+                            zygosity_data["ht"].append(phenotype_entry)
+                        elif zygosity == "cn":
+                            zygosity_data["cn"].append(phenotype_entry)
+                        else:
+                            zygosity_data["other"].append(phenotype_entry)
 
-                # Filter by kidney-related MPO terms and create analysis
-                hm_kidney_phenotypes = [p for p in zygosity_data["hm"] if p["term"] in mpo_terms]
-                ht_kidney_phenotypes = [p for p in zygosity_data["ht"] if p["term"] in mpo_terms]
-                cn_kidney_phenotypes = [p for p in zygosity_data["cn"] if p["term"] in mpo_terms]
+            # Filter by kidney-related MPO terms and create analysis
+            hm_kidney_phenotypes = [p for p in zygosity_data["hm"] if p["term"] in mpo_terms]
+            ht_kidney_phenotypes = [p for p in zygosity_data["ht"] if p["term"] in mpo_terms]
+            cn_kidney_phenotypes = [p for p in zygosity_data["cn"] if p["term"] in mpo_terms]
 
-                # Remove duplicates while preserving order
-                hm_kidney_phenotypes = list({p["term"]: p for p in hm_kidney_phenotypes}.values())
-                ht_kidney_phenotypes = list({p["term"]: p for p in ht_kidney_phenotypes}.values())
-                cn_kidney_phenotypes = list({p["term"]: p for p in cn_kidney_phenotypes}.values())
+            # Remove duplicates while preserving order
+            hm_kidney_phenotypes = list({p["term"]: p for p in hm_kidney_phenotypes}.values())
+            ht_kidney_phenotypes = list({p["term"]: p for p in ht_kidney_phenotypes}.values())
+            cn_kidney_phenotypes = list({p["term"]: p for p in cn_kidney_phenotypes}.values())
 
-                # Create summary in R-compatible format (matching original R implementation)
-                hm_result = "true" if hm_kidney_phenotypes else "false"
-                ht_result = "true" if ht_kidney_phenotypes else "false"
-                summary = f"hm ({hm_result}); ht ({ht_result})"
+            # Create summary in R-compatible format (matching original R implementation)
+            hm_result = "true" if hm_kidney_phenotypes else "false"
+            ht_result = "true" if ht_kidney_phenotypes else "false"
+            summary = f"hm ({hm_result}); ht ({ht_result})"
 
-                # Build complete result - include all zygosity types in total
-                all_kidney_phenotypes = (
-                    hm_kidney_phenotypes + ht_kidney_phenotypes + cn_kidney_phenotypes
-                )
-                # Remove duplicates from combined list
-                all_kidney_phenotypes = list({p["term"]: p for p in all_kidney_phenotypes}.values())
+            # Build complete result - include all zygosity types in total
+            all_kidney_phenotypes = (
+                hm_kidney_phenotypes + ht_kidney_phenotypes + cn_kidney_phenotypes
+            )
+            # Remove duplicates from combined list
+            all_kidney_phenotypes = list({p["term"]: p for p in all_kidney_phenotypes}.values())
 
-                return {
-                    "gene_symbol": human_gene_symbol,
-                    "has_kidney_phenotype": len(all_kidney_phenotypes) > 0,
-                    "mouse_orthologs": mouse_symbols,
-                    "phenotypes": all_kidney_phenotypes,
-                    "phenotype_count": len(all_kidney_phenotypes),
-                    "mpo_terms_searched": len(mpo_terms),
-                    "zygosity_analysis": {
-                        "homozygous": {
-                            "has_kidney_phenotype": len(hm_kidney_phenotypes) > 0,
-                            "phenotype_count": len(hm_kidney_phenotypes),
-                            "phenotypes": hm_kidney_phenotypes,
-                        },
-                        "heterozygous": {
-                            "has_kidney_phenotype": len(ht_kidney_phenotypes) > 0,
-                            "phenotype_count": len(ht_kidney_phenotypes),
-                            "phenotypes": ht_kidney_phenotypes,
-                        },
-                        "conditional": {
-                            "has_kidney_phenotype": len(cn_kidney_phenotypes) > 0,
-                            "phenotype_count": len(cn_kidney_phenotypes),
-                            "phenotypes": cn_kidney_phenotypes,
-                        },
-                        "summary": summary,
+            return {
+                "gene_symbol": human_gene_symbol,
+                "has_kidney_phenotype": len(all_kidney_phenotypes) > 0,
+                "mouse_orthologs": mouse_symbols,
+                "phenotypes": all_kidney_phenotypes,
+                "phenotype_count": len(all_kidney_phenotypes),
+                "mpo_terms_searched": len(mpo_terms),
+                "zygosity_analysis": {
+                    "homozygous": {
+                        "has_kidney_phenotype": len(hm_kidney_phenotypes) > 0,
+                        "phenotype_count": len(hm_kidney_phenotypes),
+                        "phenotypes": hm_kidney_phenotypes,
                     },
-                }
+                    "heterozygous": {
+                        "has_kidney_phenotype": len(ht_kidney_phenotypes) > 0,
+                        "phenotype_count": len(ht_kidney_phenotypes),
+                        "phenotypes": ht_kidney_phenotypes,
+                    },
+                    "conditional": {
+                        "has_kidney_phenotype": len(cn_kidney_phenotypes) > 0,
+                        "phenotype_count": len(cn_kidney_phenotypes),
+                        "phenotypes": cn_kidney_phenotypes,
+                    },
+                    "summary": summary,
+                },
+            }
 
         except Exception as e:
             logger.sync_error(

@@ -370,36 +370,49 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                     "last_updated": datetime.now(timezone.utc).isoformat(),
                 }
 
-            # Step 2: Fetch variant details in batches with progress
+            # Step 2: Fetch variant details in batches with limited concurrency
             all_variants = []
             total_batches = (len(variant_ids) + self.batch_size - 1) // self.batch_size
 
+            # Use semaphore to limit concurrent requests to NCBI API
+            semaphore = asyncio.Semaphore(2)  # Max 2 concurrent requests to NCBI
+
+            async def fetch_batch_with_semaphore(batch_ids, batch_num):
+                async with semaphore:
+                    try:
+                        if batch_num % 5 == 0:  # Log every 5th batch
+                            logger.sync_debug(
+                                "Fetching ClinVar variants",
+                                gene_symbol=gene.approved_symbol,
+                                batch=f"{batch_num + 1}/{total_batches}",
+                                variants=f"{batch_num * self.batch_size}/{len(variant_ids)}",
+                            )
+                        return await self._fetch_variant_batch(batch_ids)
+                    except Exception as e:
+                        logger.sync_error(
+                            "Failed to fetch variant batch",
+                            gene_symbol=gene.approved_symbol,
+                            batch=batch_num,
+                            error=str(e),
+                        )
+                        # Continue with partial data rather than failing completely
+                        if self.circuit_breaker and self.circuit_breaker.state == "open":
+                            logger.sync_error("Circuit breaker open, using partial data")
+                        return []
+
+            # Create tasks for all batches
+            tasks = []
             for batch_num, i in enumerate(range(0, len(variant_ids), self.batch_size)):
                 batch_ids = variant_ids[i : i + self.batch_size]
+                tasks.append(fetch_batch_with_semaphore(batch_ids, batch_num))
 
-                # Show progress
-                if batch_num % 5 == 0:  # Log every 5th batch
-                    logger.sync_debug(
-                        "Fetching ClinVar variants",
-                        gene_symbol=gene.approved_symbol,
-                        batch=f"{batch_num + 1}/{total_batches}",
-                        variants=f"{i}/{len(variant_ids)}",
-                    )
+            # Execute all batch fetches concurrently
+            batch_results = await asyncio.gather(*tasks, return_exceptions=False)
 
-                try:
-                    batch_variants = await self._fetch_variant_batch(batch_ids)
+            # Combine all results
+            for batch_variants in batch_results:
+                if batch_variants:  # Only extend if we got results
                     all_variants.extend(batch_variants)
-                except Exception as e:
-                    logger.sync_error(
-                        "Failed to fetch variant batch",
-                        gene_symbol=gene.approved_symbol,
-                        batch=batch_num,
-                        error=str(e),
-                    )
-                    # Continue with partial data rather than failing completely
-                    if self.circuit_breaker and self.circuit_breaker.state == "open":
-                        logger.sync_error("Circuit breaker open, using partial data")
-                        break
 
             # Step 3: Aggregate statistics
             stats = self._aggregate_variants(all_variants)

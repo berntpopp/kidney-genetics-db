@@ -191,8 +191,51 @@
                     {{ source.items_processed }} processed
                   </span>
                   <v-spacer />
-                  <!-- Internal processes typically run automatically, no manual trigger -->
-                  <v-chip v-if="source.status === 'completed'" size="x-small" color="success" label>
+                  <!-- Show pause/resume for annotation_pipeline like PubTator -->
+                  <v-btn
+                    v-if="
+                      source.source_name === 'annotation_pipeline' &&
+                      (source.status === 'idle' || source.status === 'failed')
+                    "
+                    icon
+                    size="x-small"
+                    variant="text"
+                    color="primary"
+                    :loading="triggering[source.source_name]"
+                    @click="triggerUpdate(source.source_name)"
+                  >
+                    <v-icon size="small">mdi-play</v-icon>
+                  </v-btn>
+                  <v-btn
+                    v-else-if="
+                      source.source_name === 'annotation_pipeline' && source.status === 'running'
+                    "
+                    icon
+                    size="x-small"
+                    variant="text"
+                    color="warning"
+                    @click="pauseSource(source.source_name)"
+                  >
+                    <v-icon size="small">mdi-pause</v-icon>
+                  </v-btn>
+                  <v-btn
+                    v-else-if="
+                      source.source_name === 'annotation_pipeline' && source.status === 'paused'
+                    "
+                    icon
+                    size="x-small"
+                    variant="text"
+                    color="success"
+                    @click="resumeSource(source.source_name)"
+                  >
+                    <v-icon size="small">mdi-play</v-icon>
+                  </v-btn>
+                  <v-chip
+                    v-else-if="source.status === 'completed'"
+                    size="x-small"
+                    color="success"
+                    label
+                  >
                     <v-icon size="x-small" start>mdi-check</v-icon>
                     Complete
                   </v-chip>

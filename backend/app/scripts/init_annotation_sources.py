@@ -6,10 +6,10 @@ This script ensures all annotation sources are properly registered and configure
 
 import asyncio
 from datetime import datetime, timezone
-from sqlalchemy.orm import Session
+
 from app.core.database import get_db
-from app.models.gene_annotation import AnnotationSource
 from app.core.logging import get_logger
+from app.models.gene_annotation import AnnotationSource
 
 logger = get_logger(__name__)
 

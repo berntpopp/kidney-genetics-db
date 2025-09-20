@@ -254,32 +254,59 @@ class HPOAnnotationSource(BaseAnnotationSource):
         return [phenotype for phenotype in phenotypes if phenotype.get("id") in kidney_term_ids]
 
     async def get_classification_term_descendants(
-        self, classification_type: str
+        self, classification_type: str, force_refresh: bool = False
     ) -> dict[str, set[str]]:
         """
         Get all descendant terms for classification categories.
         Reuses existing HPO pipeline for term traversal (DRY principle).
+
+        Args:
+            classification_type: Type of classification ("onset_groups" or "syndromic_indicators")
+            force_refresh: Force cache refresh if True
         """
         import time
 
         from app.core.datasource_config import get_source_parameter
 
-        # Check cache (24-hour TTL like kidney terms)
+        logger.sync_info(f"Getting classification descendants for {classification_type}")
+
+        # Check cache (24-hour TTL like kidney terms) - only if not forcing refresh
         if (
-            self._classification_cache_time is not None
+            not force_refresh
+            and self._classification_cache_time is not None
             and time.time() - self._classification_cache_time < 86400
         ):
             # Return appropriate cache
-            if classification_type == "onset_groups":
-                return self._onset_descendants_cache or {}
-            elif classification_type == "syndromic_indicators":
-                return self._syndromic_descendants_cache or {}
+            if classification_type == "onset_groups" and self._onset_descendants_cache:
+                logger.sync_info(
+                    f"Using cached onset descendants: {len(self._onset_descendants_cache)} groups"
+                )
+                return self._onset_descendants_cache
+            elif classification_type == "syndromic_indicators" and self._syndromic_descendants_cache:
+                logger.sync_info(
+                    f"Using cached syndromic descendants: {len(self._syndromic_descendants_cache)} groups"
+                )
+                return self._syndromic_descendants_cache
 
         # Need to refresh cache
+        logger.sync_info(f"Refreshing {classification_type} descendants cache")
+
+        # Import with proper initialization
+        from app.core.cache_service import get_cache_service
+        from app.core.cached_http_client import CachedHttpClient
         from app.core.hpo.pipeline import HPOPipeline
 
-        pipeline = HPOPipeline()
+        # Ensure proper pipeline initialization with cache and http client
+        try:
+            cache_service = get_cache_service(self.session) if self.session else None
+            http_client = CachedHttpClient(cache_service=cache_service) if cache_service else None
+            pipeline = HPOPipeline(cache_service=cache_service, http_client=http_client)
+        except Exception as e:
+            logger.sync_warning(f"Could not initialize full pipeline, using basic: {e}")
+            pipeline = HPOPipeline()
+
         classification_config = get_source_parameter("HPO", classification_type, {})
+        logger.sync_info(f"Classification config for {classification_type}: {classification_config}")
 
         descendants_map = {}
         for group_key, group_config in classification_config.items():
@@ -296,6 +323,8 @@ class HPOAnnotationSource(BaseAnnotationSource):
                 # For syndromic_indicators, the value is directly the term
                 root_terms = [group_config]
 
+            logger.sync_info(f"Fetching descendants for {group_key}: root terms {root_terms}")
+
             # Reuse existing pipeline to get descendants
             for term in root_terms:
                 try:
@@ -303,10 +332,27 @@ class HPOAnnotationSource(BaseAnnotationSource):
                         term, max_depth=pipeline.max_depth, include_self=True
                     )
                     descendants.update(term_descendants)
+                    logger.sync_info(
+                        f"Got {len(term_descendants)} descendants for {term} in {group_key}"
+                    )
                 except Exception as e:
-                    logger.sync_warning(f"Failed to get descendants for {term}: {e}")
+                    logger.sync_error(
+                        f"Failed to get descendants for {term} in {group_key}",
+                        error=str(e),
+                        classification_type=classification_type
+                    )
+                    # Continue with other terms
 
             descendants_map[group_key] = descendants
+            logger.sync_info(f"{group_key}: Total {len(descendants)} descendant terms")
+
+        # Log summary
+        total_descendants = sum(len(d) for d in descendants_map.values())
+        logger.sync_info(
+            f"Classification {classification_type} complete",
+            groups=len(descendants_map),
+            total_descendants=total_descendants
+        )
 
         # Update cache
         if classification_type == "onset_groups":
@@ -409,9 +455,20 @@ class HPOAnnotationSource(BaseAnnotationSource):
         Assess syndromic features with sub-category scoring.
         Matches R implementation: checks ALL phenotypes and calculates per-category scores.
         """
+        logger.sync_debug(
+            f"Assessing syndromic features for {len(phenotype_ids)} phenotypes"
+        )
+
         # Get descendants for syndromic indicator terms (cached)
         syndromic_descendants = await self.get_classification_term_descendants(
             "syndromic_indicators"
+        )
+
+        # Log what we got
+        logger.sync_debug(
+            "Syndromic descendants loaded",
+            categories=list(syndromic_descendants.keys()),
+            sizes={k: len(v) for k, v in syndromic_descendants.items()}
         )
 
         # Calculate matches and scores for each category
@@ -420,6 +477,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
         total_phenotypes = len(phenotype_ids)
 
         if total_phenotypes == 0:
+            logger.sync_debug("No phenotypes to assess, returning default")
             return {
                 "is_syndromic": False,
                 "syndromic_score": 0.0,
@@ -430,11 +488,18 @@ class HPOAnnotationSource(BaseAnnotationSource):
 
         # Check ALL phenotypes against each syndromic category
         for category, descendant_terms in syndromic_descendants.items():
+            if not descendant_terms:
+                logger.sync_warning(f"No descendant terms for category {category}")
+                continue
+
             matches = phenotype_ids.intersection(descendant_terms)
             if matches:
                 category_matches[category] = matches
                 # Calculate proportional score for this category
                 category_scores[category] = round(len(matches) / total_phenotypes, 3)
+                logger.sync_debug(
+                    f"Category {category}: {len(matches)} matches, score {category_scores[category]}"
+                )
 
         # Calculate overall syndromic score
         syndromic_score = sum(category_scores.values())
@@ -442,13 +507,22 @@ class HPOAnnotationSource(BaseAnnotationSource):
         # Determine if syndromic (30% threshold)
         is_syndromic = syndromic_score >= 0.3
 
-        return {
+        result = {
             "is_syndromic": is_syndromic,
             "syndromic_score": round(syndromic_score, 3),
             "category_scores": category_scores,  # Sub-category scores like R
             "extra_renal_categories": list(category_matches.keys()),
             "extra_renal_term_counts": {k: len(v) for k, v in category_matches.items()},
         }
+
+        logger.sync_debug(
+            "Syndromic assessment complete",
+            is_syndromic=is_syndromic,
+            score=syndromic_score,
+            categories_matched=len(category_matches)
+        )
+
+        return result
 
     async def fetch_annotation(self, gene: Gene) -> dict[str, Any] | None:
         """

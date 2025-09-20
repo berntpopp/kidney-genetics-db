@@ -2,6 +2,7 @@
 Annotation pipeline orchestrator for managing gene annotation updates.
 """
 
+import asyncio
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
@@ -11,8 +12,10 @@ from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
+from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationSource
+from app.models.progress import DataSourceProgress
 from app.pipeline.sources.annotations.clinvar import ClinVarAnnotationSource
 from app.pipeline.sources.annotations.descartes import DescartesAnnotationSource
 from app.pipeline.sources.annotations.gnomad import GnomADAnnotationSource
@@ -52,6 +55,7 @@ class AnnotationPipeline:
         self.db = db_session
         self.progress_tracker = None
         self.source_name = "annotation_pipeline"  # For progress tracking
+        self.checkpoint_data = None  # For storing checkpoint state
 
         # Register available annotation sources
         self.sources = {
@@ -101,6 +105,19 @@ class AnnotationPipeline:
         self.progress_tracker = ProgressTracker(self.db, self.source_name)
 
         # Check if we're resuming a paused update
+        checkpoint = await self._load_checkpoint()
+        if checkpoint:
+            logger.sync_info(
+                "Resuming from checkpoint",
+                strategy=strategy.value,
+                checkpoint=checkpoint
+            )
+            # Restore state from checkpoint
+            if not sources:
+                sources = checkpoint.get("sources_remaining")
+            if not gene_ids:
+                gene_ids = checkpoint.get("gene_ids_remaining")
+
         if self.progress_tracker.is_paused():
             logger.sync_info(
                 "Resuming paused annotation update",
@@ -153,59 +170,52 @@ class AnnotationPipeline:
                 gene_count=len(genes_to_update),
             )
 
-            # Run updates for each source
+            # Run updates with parallel processing where possible
             results = {}
             errors = []
+            sources_completed = []
 
-            total_steps = len(sources_to_update) * len(genes_to_update)
-            current_step = 0
-
-            for source_name in sources_to_update:
-                # Check for pause before processing each source
-                if self.progress_tracker and self.progress_tracker.is_paused():
-                    logger.sync_info(
-                        "Annotation pipeline paused by user",
-                        current_source=source_name,
-                        progress=f"{current_step}/{total_steps}"
-                    )
-                    # Save checkpoint for resumption
-                    self.progress_tracker.update(
-                        current_item=current_step,
-                        operation=f"Paused at {source_name}",
-                        checkpoint={"source": source_name, "step": current_step}
-                    )
-                    return {
-                        "status": "paused",
-                        "sources_updated": list(results.keys()),
-                        "genes_updated": sum(r.get("successful", 0) for r in results.values()),
-                        "checkpoint": {"source": source_name, "step": current_step},
-                        "message": f"Pipeline paused at {source_name}",
-                    }
-
-                logger.sync_info(f"Updating {source_name} annotations")
-
-                if self.progress_tracker:
-                    # Avoid division by zero
-                    progress = 0 if total_steps == 0 else int((current_step / total_steps) * 100)
-                    self.progress_tracker.update(
-                        current_item=progress,
-                        operation=f"Updating {source_name} annotations",
-                    )
-
+            # Phase 1: HGNC must complete first (provides Ensembl IDs)
+            if "hgnc" in sources_to_update:
+                logger.sync_info("Processing HGNC first (dependency for other sources)")
                 try:
-                    source_results = await self._update_source(
-                        source_name, genes_to_update, force, current_step, total_steps
+                    hgnc_results = await self._update_source_with_recovery(
+                        "hgnc", genes_to_update, force
                     )
-                    results[source_name] = source_results
-                    current_step += len(genes_to_update)
-
+                    results["hgnc"] = hgnc_results
+                    sources_completed.append("hgnc")
+                    sources_to_update.remove("hgnc")
                 except Exception as e:
-                    logger.sync_error(f"Error updating {source_name}", error=str(e))
-                    errors.append({"source": source_name, "error": str(e)})
-                    current_step += len(genes_to_update)
+                    logger.sync_error("HGNC update failed - critical dependency", error=str(e))
+                    errors.append({"source": "hgnc", "error": str(e), "critical": True})
+                    # HGNC failure may impact other sources
 
-            # Refresh materialized view
-            await self._refresh_materialized_view()
+            # Phase 2: Process remaining sources in parallel
+            if sources_to_update:
+                logger.sync_info(f"Processing {len(sources_to_update)} sources in parallel")
+
+                # Save checkpoint before parallel processing
+                await self._save_checkpoint({
+                    "sources_remaining": sources_to_update,
+                    "sources_completed": sources_completed,
+                    "gene_ids": [g.id for g in genes_to_update],
+                    "strategy": strategy.value
+                })
+
+                parallel_results = await self._update_sources_parallel(
+                    sources_to_update, genes_to_update, force
+                )
+
+                for source_name, result in parallel_results.items():
+                    if "error" in result:
+                        errors.append({"source": source_name, "error": result["error"]})
+                    else:
+                        results[source_name] = result
+                        sources_completed.append(source_name)
+
+            # Refresh materialized view ONCE after all sources complete
+            if results:
+                await self._refresh_materialized_view()
 
             # Calculate summary statistics
             end_time = datetime.utcnow()
@@ -311,8 +321,7 @@ class AnnotationPipeline:
         Returns:
             List of Gene objects to update, ordered by importance
         """
-        from sqlalchemy import func, desc
-        from sqlalchemy.orm import aliased
+        from sqlalchemy import func
 
         if gene_ids:
             # Specific genes requested - simple query
@@ -380,24 +389,106 @@ class AnnotationPipeline:
 
         return genes
 
-    async def _update_source(
-        self, source_name: str, genes: list[Gene], force: bool, current_step: int, total_steps: int
+    async def _save_checkpoint(self, state: dict) -> None:
+        """Save pipeline checkpoint for resume capability."""
+        try:
+            progress = self.db.query(DataSourceProgress).filter_by(
+                source_name="annotation_pipeline"
+            ).first()
+
+            if not progress:
+                progress = DataSourceProgress(
+                    source_name="annotation_pipeline",
+                    status="running"
+                )
+                self.db.add(progress)
+
+            progress.progress_metadata = {
+                "sources_remaining": state.get("sources_remaining", []),
+                "sources_completed": state.get("sources_completed", []),
+                "gene_ids": state.get("gene_ids", []),
+                "batch_index": state.get("batch_index", 0),
+                "strategy": state.get("strategy", "incremental"),
+                "timestamp": datetime.utcnow().isoformat(),
+                "version": "2.0"
+            }
+            self.db.commit()
+            logger.sync_debug("Checkpoint saved", state=state)
+        except Exception as e:
+            logger.sync_error("Failed to save checkpoint", error=str(e))
+
+    async def _load_checkpoint(self) -> dict | None:
+        """Load pipeline checkpoint if exists."""
+        try:
+            progress = self.db.query(DataSourceProgress).filter_by(
+                source_name="annotation_pipeline"
+            ).first()
+
+            if progress and progress.progress_metadata:
+                logger.sync_info(
+                    "Checkpoint found",
+                    sources_remaining=progress.progress_metadata.get("sources_remaining"),
+                    sources_completed=progress.progress_metadata.get("sources_completed")
+                )
+                return progress.progress_metadata
+        except Exception as e:
+            logger.sync_error("Failed to load checkpoint", error=str(e))
+        return None
+
+    async def _update_sources_parallel(
+        self,
+        sources: list[str],
+        genes: list[Gene],
+        force: bool = False
     ) -> dict[str, Any]:
-        """
-        Update annotations from a specific source.
+        """Update multiple sources with controlled parallelism."""
+        results = {}
 
-        Args:
-            source_name: Name of the annotation source
-            genes: List of genes to update
-            force: Force update
-            current_step: Current progress step
-            total_steps: Total progress steps
+        # Limit concurrent sources to respect API limits
+        semaphore = asyncio.Semaphore(3)  # Max 3 concurrent sources
 
-        Returns:
-            Update results for this source
-        """
+        async def rate_limited_update(source_name: str) -> tuple[str, dict]:
+            """Update single source with rate limiting."""
+            async with semaphore:
+                try:
+                    # Check if paused - skip this check for now as it's not critical
+                    # Can be added later with proper implementation
+
+                    logger.sync_info(f"Starting parallel update for {source_name}")
+                    result = await self._update_source_with_recovery(
+                        source_name, genes, force
+                    )
+                    return (source_name, result)
+                except Exception as e:
+                    logger.sync_error(f"Error in parallel update for {source_name}", error=str(e))
+                    return (source_name, {"error": str(e)})
+
+        # Create tasks for all sources
+        tasks = [rate_limited_update(src) for src in sources]
+
+        # Use gather with return_exceptions=True to handle failures independently
+        parallel_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Process results
+        for result in parallel_results:
+            if isinstance(result, Exception):
+                logger.sync_error(f"Task failed with exception: {result}")
+                continue
+            if isinstance(result, tuple) and len(result) == 2:
+                source_name, source_result = result
+                results[source_name] = source_result
+
+        return results
+
+    async def _update_source_with_recovery(
+        self,
+        source_name: str,
+        genes: list[Gene],
+        force: bool = False
+    ) -> dict[str, Any]:
+        """Update source with gene-level error recovery and retry."""
         logger.sync_info(
-            f"Starting update for source {source_name}",
+            f"Starting update with recovery for {source_name}",
             source_name=source_name,
             gene_count=len(genes),
             force=force
@@ -408,64 +499,80 @@ class AnnotationPipeline:
 
         successful = 0
         failed = 0
+        failed_genes = []
 
-        # Process genes in batches
+        # Process genes in batches with concurrency
         batch_size = source.batch_size
-        logger.sync_debug(
-            f"Processing {source_name} in batches",
-            batch_size=batch_size,
-            total_batches=(len(genes) + batch_size - 1) // batch_size
-        )
+        max_concurrent = 3 if source_name == "clinvar" else 5
 
         for i in range(0, len(genes), batch_size):
-            # Check for pause before processing each batch
+            # Check for pause
             if self.progress_tracker and self.progress_tracker.is_paused():
-                logger.sync_info(
-                    f"Paused during {source_name} batch processing",
-                    batch_num=i // batch_size + 1,
-                    genes_processed=i
-                )
-                return {"successful": successful, "failed": failed, "paused_at": i}
+                await self._save_checkpoint({
+                    "sources_remaining": [source_name],
+                    "gene_ids": [g.id for g in genes[i:]],
+                    "batch_index": i
+                })
+                logger.sync_info(f"Paused at batch {i}/{len(genes)}")
+                return {"successful": successful, "failed": failed, "paused": True}
 
             batch = genes[i : i + batch_size]
-            batch_num = i // batch_size + 1
-
-            logger.sync_debug(
-                f"Processing {source_name} batch",
-                batch_num=batch_num,
-                batch_size=len(batch),
-                batch_genes=[g.approved_symbol for g in batch[:3]]  # First 3 gene symbols
-            )
 
             if self.progress_tracker:
-                # Avoid division by zero
-                progress = 0 if total_steps == 0 else int(((current_step + i) / total_steps) * 100)
                 self.progress_tracker.update(
-                    current_item=progress,
-                    operation=f"Updating {source_name}: {i}/{len(genes)} genes",
+                    current_item=i,
+                    operation=f"Updating {source_name}: {i}/{len(genes)} genes"
                 )
 
-            # Always use update_gene which handles caching properly
-            # This follows DRY principle - BaseAnnotationSource.update_gene handles:
-            # 1. Cache checking
-            # 2. Fetching if not cached
-            # 3. Storing in cache
-            # 4. Storing in database
-            for gene in batch:
-                try:
-                    success = await source.update_gene(gene)
-                    if success:
-                        successful += 1
-                    else:
-                        failed += 1
-                except Exception as e:
-                    logger.sync_error(
-                        f"Error updating gene {gene.approved_symbol} with {source_name}",
-                        gene_symbol=gene.approved_symbol,
-                        source_name=source_name,
-                        error=str(e)
-                    )
+            # Process batch with concurrency
+            semaphore = asyncio.Semaphore(max_concurrent)
+
+            async def update_with_semaphore(gene: Gene, sem: asyncio.Semaphore) -> tuple[Gene, bool]:
+                async with sem:
+                    try:
+                        success = await source.update_gene(gene)
+                        return (gene, success)
+                    except Exception as e:
+                        logger.sync_warning(
+                            f"Failed to update {gene.approved_symbol}",
+                            error=str(e)
+                        )
+                        return (gene, False)
+
+            # Execute batch concurrently
+            tasks = [update_with_semaphore(gene, semaphore) for gene in batch]
+            batch_results = await asyncio.gather(*tasks)
+
+            # Process results
+            for gene, success in batch_results:
+                if success:
+                    successful += 1
+                else:
+                    failed_genes.append(gene)
                     failed += 1
+
+        # Retry failed genes with exponential backoff
+        if failed_genes:
+            logger.sync_info(f"Retrying {len(failed_genes)} failed genes with backoff")
+            retry_config = RetryConfig(
+                max_retries=3,
+                initial_delay=2.0,
+                exponential_base=2.0,
+                max_delay=30.0
+            )
+
+            @retry_with_backoff(config=retry_config)
+            async def retry_gene(gene: Gene):
+                return await source.update_gene(gene)
+
+            for gene in failed_genes:
+                try:
+                    if await retry_gene(gene):
+                        successful += 1
+                        failed -= 1
+                        logger.sync_info(f"Successfully retried {gene.approved_symbol}")
+                except Exception as e:
+                    logger.sync_error(f"Failed to retry {gene.approved_symbol}", error=str(e))
 
         # Update source metadata
         source_record = source.source_record
@@ -473,7 +580,12 @@ class AnnotationPipeline:
         source_record.next_update = datetime.utcnow() + timedelta(days=source.cache_ttl_days)
         self.db.commit()
 
-        return {"successful": successful, "failed": failed, "total": len(genes)}
+        return {
+            "successful": successful,
+            "failed": failed,
+            "total": len(genes),
+            "recovery_attempted": len(failed_genes) > 0
+        }
 
     async def _refresh_materialized_view(self):
         """Refresh the gene_annotations_summary materialized view."""
