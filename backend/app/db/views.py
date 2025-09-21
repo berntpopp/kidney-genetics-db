@@ -252,6 +252,27 @@ gene_scores = ReplaceableObject(
     dependencies=["combined_evidence_scores"],
 )
 
+# STRING PPI percentiles view for global percentile calculation
+string_ppi_percentiles = ReplaceableObject(
+    name="string_ppi_percentiles",
+    sqltext="""
+    SELECT
+        ga.gene_id,
+        g.approved_symbol,
+        CAST(ga.annotations->'ppi_score' AS FLOAT) as ppi_score,
+        PERCENT_RANK() OVER (
+            ORDER BY CAST(ga.annotations->'ppi_score' AS FLOAT)
+        ) AS percentile_rank
+    FROM gene_annotations ga
+    JOIN genes g ON g.id = ga.gene_id
+    WHERE ga.annotations ? 'ppi_score'
+      AND ga.annotations->>'ppi_score' IS NOT NULL
+      AND ga.annotations->>'ppi_score' != 'null'
+      AND CAST(ga.annotations->>'ppi_score' AS FLOAT) > 0
+    """,
+    dependencies=[],
+)
+
 
 # List of all views in dependency order
 ALL_VIEWS = [
@@ -259,6 +280,7 @@ ALL_VIEWS = [
     cache_stats,
     evidence_source_counts,
     evidence_classification_weights,
+    string_ppi_percentiles,  # New view for STRING PPI percentiles
     # Tier 2 (depend on Tier 1)
     evidence_count_percentiles,
     evidence_normalized_scores,

@@ -3,8 +3,8 @@
 ## Overview
 Modern web platform for curating and exploring kidney disease-related genes, modernizing the original R-based pipeline into a scalable Python/FastAPI + Vue.js architecture.
 
-**Version**: Alpha v0.1.0  
-**Last Updated**: August 31, 2025  
+**Version**: Alpha v0.1.0
+**Last Updated**: September 21, 2025
 **Status**: 🟢 Operational with core functionality
 
 ## System Architecture
@@ -46,7 +46,7 @@ Modern web platform for curating and exploring kidney disease-related genes, mod
 - GTEx - Expression data ✅
 - Descartes - Single-cell ✅
 - MPO/MGI - Mouse phenotypes ✅
-- STRING PPI - Protein interactions ✅ (99.9% coverage issue fixed)
+- STRING PPI - Protein interactions ✅ (Global percentiles fixed Sep 21)
 - PubTator - Literature mining ✅
 
 #### Caching System

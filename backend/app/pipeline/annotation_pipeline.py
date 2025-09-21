@@ -219,6 +219,21 @@ class AnnotationPipeline:
             if results:
                 await self._refresh_materialized_view()
 
+            # Update global percentiles for STRING PPI after batch completion
+            if "string_ppi" in sources_completed:
+                try:
+                    from app.pipeline.tasks.percentile_updater import update_percentiles_for_source
+
+                    await logger.info("Triggering STRING PPI global percentile recalculation")
+                    await update_percentiles_for_source(self.db, "string_ppi")
+                    await logger.info("STRING PPI percentiles updated successfully")
+                except Exception as e:
+                    # Log but don't fail the pipeline
+                    await logger.error(
+                        f"Failed to update STRING PPI percentiles: {e}",
+                        exc_info=True
+                    )
+
             # Calculate summary statistics
             end_time = datetime.utcnow()
             duration = (end_time - start_time).total_seconds()

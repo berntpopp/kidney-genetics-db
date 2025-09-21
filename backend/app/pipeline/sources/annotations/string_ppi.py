@@ -169,8 +169,8 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         """
         Fetch annotations for multiple genes.
 
-        This is the main processing method that calculates PPI scores
-        for all genes at once to enable percentile normalization.
+        Now uses global percentiles instead of batch-relative calculation.
+        Gracefully falls back to None if percentiles unavailable.
         """
         # Load data if not already loaded
         await self._load_data()
@@ -277,7 +277,7 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
                 ),
             }
 
-            # Store preliminary results (will add percentile after normalization)
+            # Store preliminary results (will add percentile after getting global values)
             results[gene.id] = {
                 "ppi_score": round(raw_score, 2),
                 "ppi_degree": degree,
@@ -285,24 +285,48 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
                 "summary": summary,
             }
 
-        # Calculate percentile normalization with proper tie handling
+        # NEW: Get global percentiles instead of calculating batch-relative
         if raw_scores:
-            # Use scipy's rankdata for proper percentile calculation with ties
-            from scipy.stats import rankdata
+            # Try to get global percentiles with proper error handling
+            global_percentiles = None
 
-            # Get gene IDs in same order as scores
-            gene_ids = list(raw_scores.keys())
-            scores = list(raw_scores.values())
+            try:
+                from app.core.percentile_service import PercentileService
 
-            # Calculate percentile ranks (method='average' handles ties)
-            # Subtract 1 to make it 0-based, then divide by (n-1) for percentiles
-            ranks = rankdata(scores, method="average")
-            percentiles = (ranks - 1) / (len(ranks) - 1) if len(ranks) > 1 else ranks
+                percentile_service = PercentileService(self.session)
+                # Only get cached percentiles - don't trigger recalculation
+                global_percentiles = await percentile_service.get_cached_percentiles_only(
+                    "string_ppi"
+                )
 
-            # Assign percentiles to results
-            for gene_id, percentile in zip(gene_ids, percentiles, strict=False):
-                if gene_id in results:
-                    results[gene_id]["ppi_percentile"] = round(percentile, 3)
+                if not global_percentiles:
+                    # Try one calculation attempt (non-blocking)
+                    global_percentiles = await percentile_service.calculate_global_percentiles(
+                        "string_ppi",
+                        "ppi_score",
+                        force=False  # Respect frequency limiting
+                    )
+
+            except Exception as e:
+                # Log but don't fail - graceful degradation
+                logger.sync_debug(f"Percentile service unavailable: {e}")
+                global_percentiles = None
+
+            # Apply global percentiles with fallback
+            for gene_id in results:
+                if global_percentiles and gene_id in global_percentiles:
+                    results[gene_id]["ppi_percentile"] = global_percentiles[gene_id]
+                else:
+                    # CRITICAL: Return None, not 1.0 (misleading 100th percentile)
+                    results[gene_id]["ppi_percentile"] = None
+
+                    # Only warn once per batch to avoid log spam
+                    if not hasattr(self, '_percentile_warning_shown'):
+                        logger.sync_warning(
+                            "No global percentiles available - returning None. "
+                            "Run percentile calculation after all genes processed."
+                        )
+                        self._percentile_warning_shown = True
 
         logger.sync_info(
             f"Calculated PPI scores for {len(results)} genes",
@@ -317,7 +341,7 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         """Format annotation data for storage."""
         return {
             "ppi_score": round(score, 2),
-            "ppi_percentile": round(percentile, 3),
+            "ppi_percentile": None if percentile == 0 else round(percentile, 3),  # Use None for no data
             "ppi_degree": degree,
             "interactions": interactions,
             "summary": {
@@ -365,3 +389,26 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
             return False
 
         return True
+
+    async def recalculate_global_percentiles(self):
+        """
+        Trigger global percentile recalculation after batch updates.
+        Should be called after annotation pipeline runs.
+        """
+        from app.core.percentile_service import PercentileService
+
+        try:
+            service = PercentileService(self.session)
+            percentiles = await service.calculate_global_percentiles(
+                "string_ppi",
+                "ppi_score",
+                force=True  # Force recalculation after batch
+            )
+
+            if percentiles:
+                logger.sync_info(f"Updated global STRING PPI percentiles for {len(percentiles)} genes")
+            else:
+                logger.sync_warning("No percentiles calculated - may need to check view")
+
+        except Exception as e:
+            logger.sync_error(f"Failed to recalculate global percentiles: {e}")
