@@ -14,7 +14,7 @@ from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
 from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
-from app.models.gene_annotation import AnnotationSource
+from app.models.gene_annotation import AnnotationSource, GeneAnnotation
 from app.models.progress import DataSourceProgress
 from app.pipeline.sources.annotations.clinvar import ClinVarAnnotationSource
 from app.pipeline.sources.annotations.descartes import DescartesAnnotationSource
@@ -331,51 +331,65 @@ class AnnotationPipeline:
             genes = query.order_by(Gene.id).all()
         elif strategy == UpdateStrategy.INCREMENTAL:
             # Get genes with incomplete annotations, ordered by clinical importance
-            # First get gene scores for prioritization
-            scores_subq = self.db.execute(
-                text("""
-                    SELECT g.id, COALESCE(gs.raw_score, 0) as score
-                    FROM genes g
-                    LEFT JOIN gene_scores gs ON g.id = gs.gene_id
-                    """)
-            ).fetchall()
-            score_dict = {row[0]: row[1] for row in scores_subq}
+            # Using SQLAlchemy ORM to avoid SQL errors
+            from app.models.gene import GeneCuration
 
             # Get genes with fewer annotations than sources
             genes = (
                 self.db.query(Gene)
                 .outerjoin(Gene.annotations)
                 .group_by(Gene.id)
-                .having(func.count(text("gene_annotations.id")) < len(self.sources))
+                .having(func.count(GeneAnnotation.id) < len(self.sources))
                 .all()
             )
 
+            # Get scores for prioritization using ORM
+            gene_ids = [g.id for g in genes]
+            if gene_ids:
+                scores = (
+                    self.db.query(GeneCuration.gene_id, GeneCuration.evidence_score)
+                    .filter(GeneCuration.gene_id.in_(gene_ids))
+                    .all()
+                )
+                score_dict = dict(scores)
+            else:
+                score_dict = {}
+
             # Sort by score (highest first), then by ID
             genes.sort(key=lambda g: (-score_dict.get(g.id, 0), g.id))
+        elif strategy == UpdateStrategy.SELECTIVE:
+            # SELECTIVE: Get all genes for selective source update
+            # Similar to FULL but the source filtering happens in run_update
+            logger.sync_info("Using SELECTIVE strategy - all genes will be processed for specific sources")
+
+            # Use ORM to get genes with scores, avoiding SQL errors
+            from app.models.gene import GeneCuration
+
+            # Query genes with their scores using ORM
+            genes_with_scores = (
+                self.db.query(Gene, func.coalesce(GeneCuration.evidence_score, 0).label('score'))
+                .outerjoin(GeneCuration, Gene.id == GeneCuration.gene_id)
+                .order_by(func.coalesce(GeneCuration.evidence_score, 0).desc(), Gene.id)
+                .all()
+            )
+
+            # Extract just the Gene objects
+            genes = [gene for gene, score in genes_with_scores]
         else:
             # FULL or FORCED - get all genes ordered by clinical importance
-            # Get gene scores for prioritization
-            scores_subq = self.db.execute(
-                text("""
-                    SELECT g.id, COALESCE(gs.raw_score, 0) as score
-                    FROM genes g
-                    LEFT JOIN gene_scores gs ON g.id = gs.gene_id
-                    ORDER BY COALESCE(gs.raw_score, 0) DESC, g.id
-                    """)
-            ).fetchall()
+            # Use ORM to avoid SQL errors
+            from app.models.gene import GeneCuration
 
-            # Get genes in the prioritized order
-            gene_ids_ordered = [row[0] for row in scores_subq]
+            # Query all genes with their scores using ORM
+            genes_with_scores = (
+                self.db.query(Gene, func.coalesce(GeneCuration.evidence_score, 0).label('score'))
+                .outerjoin(GeneCuration, Gene.id == GeneCuration.gene_id)
+                .order_by(func.coalesce(GeneCuration.evidence_score, 0).desc(), Gene.id)
+                .all()
+            )
 
-            # Fetch Gene objects in this order
-            if gene_ids_ordered:
-                genes = self.db.query(Gene).filter(Gene.id.in_(gene_ids_ordered)).all()
-                # Create a dict for quick lookup
-                gene_dict = {g.id: g for g in genes}
-                # Return in the prioritized order
-                genes = [gene_dict[gid] for gid in gene_ids_ordered if gid in gene_dict]
-            else:
-                genes = []
+            # Extract just the Gene objects
+            genes = [gene for gene, score in genes_with_scores]
 
         logger.sync_info(
             "Genes selected for annotation update",

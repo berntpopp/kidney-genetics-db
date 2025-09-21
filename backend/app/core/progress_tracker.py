@@ -419,6 +419,10 @@ class ProgressTracker:
         except Exception as e:
             logger.sync_error("Failed to broadcast progress update", error=str(e))
 
+    def get_current_operation(self) -> str | None:
+        """Get the current operation being performed"""
+        return self.progress_record.current_operation if self.progress_record else None
+
     def get_status(self) -> dict[str, Any]:
         """Get current status as dictionary"""
         return self.progress_record.to_dict()

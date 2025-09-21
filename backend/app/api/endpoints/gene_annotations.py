@@ -2,14 +2,17 @@
 API endpoints for gene annotations.
 """
 
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.api.deps import AdminRequired, get_current_user_optional
 from app.core.database import get_db
 from app.core.logging import get_logger
+from app.models.auth import User
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationSource, GeneAnnotation
 from app.pipeline.sources.annotations.clinvar import ClinVarAnnotationSource
@@ -175,10 +178,10 @@ async def get_gene_annotation_summary(
 @router.post("/genes/{gene_id}/annotations/update")
 async def update_gene_annotations(
     gene_id: int,
+    background_tasks: BackgroundTasks,
     sources: list[str] = Query(
         ["hgnc", "gnomad", "gtex", "hpo", "clinvar", "string_ppi"], description="Sources to update"
     ),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
@@ -565,13 +568,13 @@ async def get_annotation_statistics(db: Session = Depends(get_db)) -> dict[str, 
 
 @router.post("/pipeline/update")
 async def trigger_pipeline_update(
+    background_tasks: BackgroundTasks,
     strategy: str = Query(
         "incremental", description="Update strategy: full, incremental, forced, selective"
     ),
     sources: list[str] | None = Query(None, description="Specific sources to update"),
     gene_ids: list[int] | None = Query(None, description="Specific gene IDs to update"),
     force: bool = Query(False, description="Force update regardless of TTL"),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
@@ -620,6 +623,199 @@ async def trigger_pipeline_update(
     }
 
 
+@router.post("/pipeline/update-failed")
+async def update_failed_annotations(
+    background_tasks: BackgroundTasks,
+    sources: list[str] | None = Query(None, description="Specific sources to retry"),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Retry annotations for genes that failed in the last pipeline run.
+
+    Args:
+        sources: Optional list of sources to filter failed genes
+        db: Database session
+
+    Returns:
+        Update result with count of genes being retried
+    """
+    from app.pipeline.annotation_pipeline import UpdateStrategy
+
+    await logger.info("Failed annotations update requested", sources=sources)
+
+    # Query genes that have incomplete annotations
+    # We'll define "failed" as genes with evidence score but missing annotations
+    from sqlalchemy import and_, exists
+
+    from app.models.gene import GeneCuration
+    from app.models.gene_annotation import GeneAnnotation
+
+    # Find genes with evidence score but missing/incomplete annotations
+    failed_query = db.query(Gene).join(
+        GeneCuration,
+        GeneCuration.gene_id == Gene.id
+    ).filter(
+        and_(
+            GeneCuration.evidence_score > 0,
+            ~exists().where(GeneAnnotation.gene_id == Gene.id)
+        )
+    )
+
+    failed_genes = failed_query.limit(50).all()  # Limit to 50 genes at a time
+
+    if not failed_genes:
+        await logger.info("No failed genes found to retry")
+        return {"message": "No failed genes to retry", "count": 0, "status": "completed"}
+
+    # Generate task ID
+    import uuid
+    task_id = str(uuid.uuid4())
+
+    # Schedule background update
+    background_tasks.add_task(
+        _run_pipeline_update,
+        UpdateStrategy.INCREMENTAL,
+        sources,
+        [g.id for g in failed_genes],
+        False,  # force
+        task_id
+    )
+
+    await logger.info(
+        "Failed annotations update scheduled",
+        gene_count=len(failed_genes),
+        task_id=task_id
+    )
+
+    return {
+        "task_id": task_id,
+        "status": "scheduled",
+        "message": f"Scheduled retry for {len(failed_genes)} failed genes",
+        "count": len(failed_genes),
+        "gene_ids": [g.id for g in failed_genes][:10],  # First 10 for preview
+    }
+
+
+@router.post("/pipeline/update-new")
+async def update_new_genes(
+    background_tasks: BackgroundTasks,
+    days_back: int = Query(7, description="Number of days to look back for new genes"),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Process genes added recently without annotations.
+
+    Args:
+        days_back: Number of days to look back for new genes
+        db: Database session
+
+    Returns:
+        Update result with count of new genes being processed
+    """
+
+    from app.pipeline.annotation_pipeline import UpdateStrategy
+
+    await logger.info("New genes update requested", days_back=days_back)
+
+    # Query genes without annotations
+    # Using left outer join to find genes with no annotations
+    new_genes = db.query(Gene).outerjoin(
+        GeneAnnotation,
+        Gene.id == GeneAnnotation.gene_id
+    ).filter(
+        GeneAnnotation.id.is_(None)
+    ).all()
+
+    # If no genes found, return early
+    if not new_genes:
+        await logger.info("No new genes without annotations found")
+        return {"message": "No new genes found", "count": 0, "status": "completed"}
+
+    # Generate task ID
+    import uuid
+    task_id = str(uuid.uuid4())
+
+    # Schedule background update
+    background_tasks.add_task(
+        _run_pipeline_update,
+        UpdateStrategy.FULL,
+        None,  # sources
+        [g.id for g in new_genes],
+        False,  # force
+        task_id
+    )
+
+    await logger.info(
+        "New genes update scheduled",
+        gene_count=len(new_genes),
+        task_id=task_id
+    )
+
+    return {
+        "task_id": task_id,
+        "status": "scheduled",
+        "message": f"Scheduled processing for {len(new_genes)} new genes",
+        "count": len(new_genes),
+        "gene_ids": [g.id for g in new_genes][:10],  # First 10 for preview
+    }
+
+
+@router.post("/pipeline/update-missing/{source_name}")
+async def update_missing_source(
+    source_name: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Update genes missing annotations from specific source.
+
+    Args:
+        source_name: Name of the annotation source
+        db: Database session
+
+    Returns:
+        Update result with count of genes being updated
+    """
+
+    await logger.info("Missing source update requested", source=source_name)
+
+    # Validate source exists
+    source = db.query(AnnotationSource).filter_by(
+        source_name=source_name,
+        is_active=True
+    ).first()
+
+    if not source:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Source {source_name} not found or inactive"
+        )
+
+    # Generate task ID
+    import uuid
+    task_id = str(uuid.uuid4())
+
+    # Schedule background update - the heavy query will be done in the background
+    background_tasks.add_task(
+        _run_missing_source_update,
+        source_name,
+        task_id
+    )
+
+    await logger.info(
+        f"{source_name} missing update scheduled",
+        task_id=task_id
+    )
+
+    return {
+        "task_id": task_id,
+        "status": "scheduled",
+        "message": f"Scheduled update for genes missing {source_name} annotations",
+        "source": source_name,
+        "description": "Finding and updating genes without this source's annotations"
+    }
+
+
 async def _run_pipeline_update(
     strategy, sources: list[str] | None, gene_ids: list[int] | None, force: bool, task_id: str
 ):
@@ -660,6 +856,75 @@ async def _run_pipeline_update(
 
         await logger.error(
             f"Pipeline update failed: {str(e)}",
+            task_id=task_id,
+            error_type=type(e).__name__,
+            traceback=traceback.format_exc()
+        )
+    finally:
+        db.close()
+        await logger.debug("Database session closed", task_id=task_id)
+
+
+async def _run_missing_source_update(source_name: str, task_id: str):
+    """Background task to update genes missing a specific source."""
+    await logger.info(
+        "Background missing source update started",
+        task_id=task_id,
+        source=source_name
+    )
+
+    from sqlalchemy import exists
+
+    from app.core.database import SessionLocal
+    from app.pipeline.annotation_pipeline import AnnotationPipeline, UpdateStrategy
+
+    # Create new database session for background task
+    db = SessionLocal()
+
+    try:
+        # Find genes without this source's annotations
+        # This heavy query now runs in background
+        genes_with_source_subq = exists().where(
+            GeneAnnotation.gene_id == Gene.id,
+            GeneAnnotation.source == source_name
+        )
+
+        missing_genes = db.query(Gene).filter(
+            ~genes_with_source_subq
+        ).all()
+
+        if not missing_genes:
+            await logger.info(
+                f"All genes have {source_name} annotations",
+                task_id=task_id
+            )
+            return
+
+        await logger.info(
+            f"Found {len(missing_genes)} genes missing {source_name}",
+            task_id=task_id
+        )
+
+        # Create pipeline instance and run update
+        pipeline = AnnotationPipeline(db)
+        results = await pipeline.run_update(
+            strategy=UpdateStrategy.SELECTIVE,
+            sources=[source_name],
+            gene_ids=[g.id for g in missing_genes],
+            force=False,
+            task_id=task_id
+        )
+
+        await logger.info(
+            f"Missing source update completed for {source_name}",
+            task_id=task_id,
+            gene_count=len(missing_genes),
+            results=results
+        )
+    except Exception as e:
+        import traceback
+        await logger.error(
+            f"Missing source update failed for {source_name}: {str(e)}",
             task_id=task_id,
             error_type=type(e).__name__,
             traceback=traceback.format_exc()
@@ -822,3 +1087,132 @@ async def batch_get_annotations(
         "total_genes": len(gene_ids),
         "genes_with_annotations": len(results),
     }
+
+
+@router.delete("/reset", dependencies=[Depends(AdminRequired())])
+async def reset_gene_annotations(
+    background_tasks: BackgroundTasks,
+    source: str | None = None,
+    gene_ids: list[int] | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_optional),
+) -> dict[str, Any]:
+    """
+    Reset/clear gene annotations from the database.
+
+    This endpoint allows administrators to clear annotation data, optionally filtered
+    by source and/or specific gene IDs. This is useful for:
+    - Forcing a complete refresh of annotation data
+    - Clearing corrupted or outdated annotations
+    - Resetting specific sources before re-importing
+
+    Args:
+        source: Optional source name to filter deletions (e.g., 'hgnc', 'clinvar')
+        gene_ids: Optional list of gene IDs to limit the reset to specific genes
+        background_tasks: FastAPI background tasks
+        db: Database session
+        current_user: Current authenticated user (must be admin)
+
+    Returns:
+        Dictionary with deletion confirmation and statistics
+    """
+    task_id = str(uuid.uuid4())
+
+    await logger.warning(
+        "Gene annotation reset requested",
+        task_id=task_id,
+        user_id=current_user.id if current_user else None,
+        source=source,
+        gene_ids_count=len(gene_ids) if gene_ids else None
+    )
+
+    # Run the actual reset in the background
+    background_tasks.add_task(
+        _run_annotation_reset,
+        source=source,
+        gene_ids=gene_ids,
+        task_id=task_id,
+        user_id=current_user.id if current_user else None
+    )
+
+    return {
+        "status": "accepted",
+        "task_id": task_id,
+        "message": f"Annotation reset initiated for {source or 'all sources'}",
+        "affected_genes": len(gene_ids) if gene_ids else "all",
+    }
+
+
+async def _run_annotation_reset(
+    source: str | None,
+    gene_ids: list[int] | None,
+    task_id: str,
+    user_id: int | None
+):
+    """Background task to reset gene annotations."""
+    from app.core.database import SessionLocal
+
+    db = SessionLocal()
+
+    try:
+        await logger.info(
+            "Starting annotation reset",
+            task_id=task_id,
+            source=source,
+            gene_ids_count=len(gene_ids) if gene_ids else None
+        )
+
+        # Build the query
+        query = db.query(GeneAnnotation)
+
+        # Apply filters
+        if source:
+            query = query.filter(GeneAnnotation.source == source)
+        if gene_ids:
+            query = query.filter(GeneAnnotation.gene_id.in_(gene_ids))
+
+        # Count before deletion for logging
+        count_before = query.count()
+
+        # Perform the deletion
+        query.delete(synchronize_session=False)
+        db.commit()
+
+        # Clear cache for affected data
+        from app.core.cache_service import get_cache_service
+        cache = get_cache_service(db)
+
+        # Clear relevant cache namespaces
+        if source:
+            await cache.invalidate_pattern(f"annotations:{source}:*")
+        else:
+            # Clear all annotation caches
+            await cache.invalidate_pattern("annotations:*")
+
+        # If specific genes, clear their individual caches
+        if gene_ids:
+            for gene_id in gene_ids:
+                await cache.invalidate_pattern(f"gene:{gene_id}:*")
+
+        await logger.info(
+            "Annotation reset completed",
+            task_id=task_id,
+            user_id=user_id,
+            source=source,
+            deleted_count=count_before,
+            gene_ids_count=len(gene_ids) if gene_ids else None
+        )
+
+    except Exception as e:
+        import traceback
+        await logger.error(
+            f"Annotation reset failed: {str(e)}",
+            task_id=task_id,
+            user_id=user_id,
+            error_type=type(e).__name__,
+            traceback=traceback.format_exc()
+        )
+        raise
+    finally:
+        db.close()
+# Trigger reload
