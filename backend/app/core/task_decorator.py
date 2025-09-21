@@ -42,8 +42,9 @@ def managed_task(source_name: str):
                     # Execute the actual task
                     # Check if the function accepts mode parameter
                     import inspect
+
                     sig = inspect.signature(func)
-                    if 'mode' in sig.parameters:
+                    if "mode" in sig.parameters:
                         result = await func(self, db, tracker, resume, mode)
                     else:
                         result = await func(self, db, tracker, resume)
@@ -197,7 +198,9 @@ class TaskMixin:
         return result
 
     @managed_task("annotation_pipeline")
-    async def _run_annotation_pipeline(self, db, tracker, resume: bool = False, mode: str = "smart"):
+    async def _run_annotation_pipeline(
+        self, db, tracker, resume: bool = False, mode: str = "smart"
+    ):
         """Run annotation pipeline with managed lifecycle and pause/resume support."""
         from app.pipeline.annotation_pipeline import AnnotationPipeline, UpdateStrategy
 
@@ -209,13 +212,18 @@ class TaskMixin:
 
         # Check if we're resuming a paused run
         if resume:
-            # Get checkpoint data from tracker if available
-            checkpoint = tracker.get_checkpoint()
+            # Get checkpoint data from progress metadata
+            from app.models.progress import DataSourceProgress
+
+            progress = (
+                db.query(DataSourceProgress).filter_by(source_name="annotation_pipeline").first()
+            )
+
+            checkpoint = progress.progress_metadata if progress else None
             sources = checkpoint.get("sources") if checkpoint else None
+
             logger.sync_info(
-                "Resuming annotation pipeline",
-                checkpoint=checkpoint,
-                sources=sources
+                "Resuming annotation pipeline", checkpoint=bool(checkpoint), sources=sources
             )
         else:
             sources = None  # Will use all sources
@@ -225,7 +233,7 @@ class TaskMixin:
             strategy=strategy,
             sources=sources,
             force=False,
-            task_id=tracker.task_id if hasattr(tracker, 'task_id') else None
+            task_id=tracker.task_id if hasattr(tracker, "task_id") else None,
         )
 
         # Update progress based on results
@@ -237,7 +245,7 @@ class TaskMixin:
         elif result.get("status") == "paused":
             tracker.update(
                 current_operation=result.get("message", "Pipeline paused"),
-                checkpoint=result.get("checkpoint")
+                checkpoint=result.get("checkpoint"),
             )
         else:
             tracker.error(f"Pipeline failed: {result.get('errors', [])}")

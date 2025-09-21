@@ -98,7 +98,7 @@ class AnnotationPipeline:
             sources=sources,
             gene_ids=gene_ids[:5] if gene_ids else None,
             force=force,
-            task_id=task_id
+            task_id=task_id,
         )
 
         # Initialize progress tracking
@@ -108,9 +108,7 @@ class AnnotationPipeline:
         checkpoint = await self._load_checkpoint()
         if checkpoint:
             logger.sync_info(
-                "Resuming from checkpoint",
-                strategy=strategy.value,
-                checkpoint=checkpoint
+                "Resuming from checkpoint", strategy=strategy.value, checkpoint=checkpoint
             )
             # Restore state from checkpoint
             if not sources:
@@ -122,7 +120,7 @@ class AnnotationPipeline:
             logger.sync_info(
                 "Resuming paused annotation update",
                 strategy=strategy.value,
-                last_operation=self.progress_tracker.get_current_operation()
+                last_operation=self.progress_tracker.get_current_operation(),
             )
         else:
             self.progress_tracker.start(operation=f"Starting annotation update ({strategy.value})")
@@ -134,7 +132,7 @@ class AnnotationPipeline:
             logger.sync_info(
                 "Sources to update determined",
                 sources_to_update=sources_to_update,
-                count=len(sources_to_update)
+                count=len(sources_to_update),
             )
 
             # Get genes to update based on strategy
@@ -143,7 +141,9 @@ class AnnotationPipeline:
             logger.sync_info(
                 "Genes to update determined",
                 gene_count=len(genes_to_update),
-                first_5_genes=[g.approved_symbol for g in genes_to_update[:5]] if genes_to_update else []
+                first_5_genes=[g.approved_symbol for g in genes_to_update[:5]]
+                if genes_to_update
+                else [],
             )
 
             # Check if there's anything to update
@@ -195,12 +195,14 @@ class AnnotationPipeline:
                 logger.sync_info(f"Processing {len(sources_to_update)} sources in parallel")
 
                 # Save checkpoint before parallel processing
-                await self._save_checkpoint({
-                    "sources_remaining": sources_to_update,
-                    "sources_completed": sources_completed,
-                    "gene_ids": [g.id for g in genes_to_update],
-                    "strategy": strategy.value
-                })
+                await self._save_checkpoint(
+                    {
+                        "sources_remaining": sources_to_update,
+                        "sources_completed": sources_completed,
+                        "gene_ids": [g.id for g in genes_to_update],
+                        "strategy": strategy.value,
+                    }
+                )
 
                 parallel_results = await self._update_sources_parallel(
                     sources_to_update, genes_to_update, force
@@ -330,15 +332,13 @@ class AnnotationPipeline:
         elif strategy == UpdateStrategy.INCREMENTAL:
             # Get genes with incomplete annotations, ordered by clinical importance
             # First get gene scores for prioritization
-            scores_subq = (
-                self.db.execute(
-                    text("""
+            scores_subq = self.db.execute(
+                text("""
                     SELECT g.id, COALESCE(gs.raw_score, 0) as score
                     FROM genes g
                     LEFT JOIN gene_scores gs ON g.id = gs.gene_id
                     """)
-                ).fetchall()
-            )
+            ).fetchall()
             score_dict = {row[0]: row[1] for row in scores_subq}
 
             # Get genes with fewer annotations than sources
@@ -355,16 +355,14 @@ class AnnotationPipeline:
         else:
             # FULL or FORCED - get all genes ordered by clinical importance
             # Get gene scores for prioritization
-            scores_subq = (
-                self.db.execute(
-                    text("""
+            scores_subq = self.db.execute(
+                text("""
                     SELECT g.id, COALESCE(gs.raw_score, 0) as score
                     FROM genes g
                     LEFT JOIN gene_scores gs ON g.id = gs.gene_id
                     ORDER BY COALESCE(gs.raw_score, 0) DESC, g.id
                     """)
-                ).fetchall()
-            )
+            ).fetchall()
 
             # Get genes in the prioritized order
             gene_ids_ordered = [row[0] for row in scores_subq]
@@ -384,7 +382,7 @@ class AnnotationPipeline:
             strategy=strategy.value,
             total_genes=len(genes),
             top_5_genes=[g.approved_symbol for g in genes[:5]] if genes else [],
-            prioritization="evidence_score"
+            prioritization="evidence_score",
         )
 
         return genes
@@ -392,15 +390,14 @@ class AnnotationPipeline:
     async def _save_checkpoint(self, state: dict) -> None:
         """Save pipeline checkpoint for resume capability."""
         try:
-            progress = self.db.query(DataSourceProgress).filter_by(
-                source_name="annotation_pipeline"
-            ).first()
+            progress = (
+                self.db.query(DataSourceProgress)
+                .filter_by(source_name="annotation_pipeline")
+                .first()
+            )
 
             if not progress:
-                progress = DataSourceProgress(
-                    source_name="annotation_pipeline",
-                    status="running"
-                )
+                progress = DataSourceProgress(source_name="annotation_pipeline", status="running")
                 self.db.add(progress)
 
             progress.progress_metadata = {
@@ -410,7 +407,7 @@ class AnnotationPipeline:
                 "batch_index": state.get("batch_index", 0),
                 "strategy": state.get("strategy", "incremental"),
                 "timestamp": datetime.utcnow().isoformat(),
-                "version": "2.0"
+                "version": "2.0",
             }
             self.db.commit()
             logger.sync_debug("Checkpoint saved", state=state)
@@ -420,15 +417,17 @@ class AnnotationPipeline:
     async def _load_checkpoint(self) -> dict | None:
         """Load pipeline checkpoint if exists."""
         try:
-            progress = self.db.query(DataSourceProgress).filter_by(
-                source_name="annotation_pipeline"
-            ).first()
+            progress = (
+                self.db.query(DataSourceProgress)
+                .filter_by(source_name="annotation_pipeline")
+                .first()
+            )
 
             if progress and progress.progress_metadata:
                 logger.sync_info(
                     "Checkpoint found",
                     sources_remaining=progress.progress_metadata.get("sources_remaining"),
-                    sources_completed=progress.progress_metadata.get("sources_completed")
+                    sources_completed=progress.progress_metadata.get("sources_completed"),
                 )
                 return progress.progress_metadata
         except Exception as e:
@@ -436,10 +435,7 @@ class AnnotationPipeline:
         return None
 
     async def _update_sources_parallel(
-        self,
-        sources: list[str],
-        genes: list[Gene],
-        force: bool = False
+        self, sources: list[str], genes: list[Gene], force: bool = False
     ) -> dict[str, Any]:
         """Update multiple sources with controlled parallelism."""
         results = {}
@@ -451,13 +447,13 @@ class AnnotationPipeline:
             """Update single source with rate limiting."""
             async with semaphore:
                 try:
-                    # Check if paused - skip this check for now as it's not critical
-                    # Can be added later with proper implementation
+                    # Refresh database connection for long-running operation
+                    if hasattr(self.db, "execute"):
+                        # Ping database to ensure connection is alive
+                        self.db.execute(text("SELECT 1"))
 
                     logger.sync_info(f"Starting parallel update for {source_name}")
-                    result = await self._update_source_with_recovery(
-                        source_name, genes, force
-                    )
+                    result = await self._update_source_with_recovery(source_name, genes, force)
                     return (source_name, result)
                 except Exception as e:
                     logger.sync_error(f"Error in parallel update for {source_name}", error=str(e))
@@ -481,17 +477,14 @@ class AnnotationPipeline:
         return results
 
     async def _update_source_with_recovery(
-        self,
-        source_name: str,
-        genes: list[Gene],
-        force: bool = False
+        self, source_name: str, genes: list[Gene], force: bool = False
     ) -> dict[str, Any]:
         """Update source with gene-level error recovery and retry."""
         logger.sync_info(
             f"Starting update with recovery for {source_name}",
             source_name=source_name,
             gene_count=len(genes),
-            force=force
+            force=force,
         )
 
         source_class = self.sources[source_name]
@@ -511,11 +504,13 @@ class AnnotationPipeline:
         for i in range(0, len(genes), batch_size):
             # Check for pause
             if self.progress_tracker and self.progress_tracker.is_paused():
-                await self._save_checkpoint({
-                    "sources_remaining": [source_name],
-                    "gene_ids": [g.id for g in genes[i:]],
-                    "batch_index": i
-                })
+                await self._save_checkpoint(
+                    {
+                        "sources_remaining": [source_name],
+                        "gene_ids": [g.id for g in genes[i:]],
+                        "batch_index": i,
+                    }
+                )
                 logger.sync_info(f"Paused at batch {i}/{len(genes)}")
                 return {"successful": successful, "failed": failed, "paused": True}
 
@@ -523,22 +518,22 @@ class AnnotationPipeline:
 
             if self.progress_tracker:
                 self.progress_tracker.update(
-                    current_item=i,
-                    operation=f"Updating {source_name}: {i}/{len(genes)} genes"
+                    current_item=i, operation=f"Updating {source_name}: {i}/{len(genes)} genes"
                 )
 
             # Process batch with concurrency
             semaphore = asyncio.Semaphore(max_concurrent)
 
-            async def update_with_semaphore(gene: Gene, sem: asyncio.Semaphore) -> tuple[Gene, bool]:
+            async def update_with_semaphore(
+                gene: Gene, sem: asyncio.Semaphore
+            ) -> tuple[Gene, bool]:
                 async with sem:
                     try:
                         success = await source.update_gene(gene)
                         return (gene, success)
                     except Exception as e:
                         logger.sync_warning(
-                            f"Failed to update {gene.approved_symbol}",
-                            error=str(e)
+                            f"Failed to update {gene.approved_symbol}", error=str(e)
                         )
                         return (gene, False)
 
@@ -558,10 +553,7 @@ class AnnotationPipeline:
         if failed_genes:
             logger.sync_info(f"Retrying {len(failed_genes)} failed genes with backoff")
             retry_config = RetryConfig(
-                max_retries=3,
-                initial_delay=2.0,
-                exponential_base=2.0,
-                max_delay=30.0
+                max_retries=3, initial_delay=2.0, exponential_base=2.0, max_delay=30.0
             )
 
             @retry_with_backoff(config=retry_config)
@@ -580,15 +572,29 @@ class AnnotationPipeline:
         # Disable batch mode
         source.batch_mode = False
 
-        # Clear cache after batch update
+        # Schedule cache clearing in thread pool to avoid blocking
         try:
+            from concurrent.futures import ThreadPoolExecutor
+
             from app.core.cache_service import get_cache_service
-            cache_service = get_cache_service(self.db)
-            if cache_service:
-                # Clear both the source-specific and general annotations cache
-                await cache_service.clear_namespace(source_name.lower())
-                await cache_service.clear_namespace("annotations")
-                logger.sync_debug(f"Cleared cache for {source_name}")
+
+            # Reuse existing executor or create if needed
+            if not hasattr(self, "_executor"):
+                self._executor = ThreadPoolExecutor(max_workers=2)
+
+            # Clear cache in background thread (non-blocking)
+            def clear_cache_sync():
+                cache_service = get_cache_service(self.db)
+                if cache_service:
+                    # Use sync methods since we're in thread
+                    cache_service.clear_namespace_sync(source_name.lower())
+                    cache_service.clear_namespace_sync("annotations")
+                    logger.sync_debug(f"Cleared cache for {source_name}")
+
+            # Schedule in thread pool
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(self._executor, clear_cache_sync)
+
         except Exception as e:
             logger.sync_debug(f"Cache clear failed: {e}")
 
@@ -602,23 +608,42 @@ class AnnotationPipeline:
             "successful": successful,
             "failed": failed,
             "total": len(genes),
-            "recovery_attempted": len(failed_genes) > 0
+            "recovery_attempted": len(failed_genes) > 0,
         }
 
     async def _refresh_materialized_view(self):
-        """Refresh the gene_annotations_summary materialized view."""
-        try:
-            self.db.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY gene_annotations_summary"))
-            self.db.commit()
-            logger.sync_info("Materialized view refreshed")
-        except Exception:
-            # Try without CONCURRENTLY
+        """Refresh the gene_annotations_summary materialized view without blocking."""
+
+        def refresh_sync():
             try:
-                self.db.execute(text("REFRESH MATERIALIZED VIEW gene_annotations_summary"))
+                # Try concurrent refresh first
+                self.db.execute(
+                    text("REFRESH MATERIALIZED VIEW CONCURRENTLY gene_annotations_summary")
+                )
                 self.db.commit()
-                logger.sync_info("Materialized view refreshed (non-concurrent)")
-            except Exception as e2:
-                logger.sync_error(f"Failed to refresh materialized view: {str(e2)}")
+                logger.sync_info("Materialized view refreshed concurrently")
+                return True
+            except Exception:
+                # Fallback to non-concurrent
+                try:
+                    self.db.execute(text("REFRESH MATERIALIZED VIEW gene_annotations_summary"))
+                    self.db.commit()
+                    logger.sync_info("Materialized view refreshed (non-concurrent)")
+                    return True
+                except Exception as e:
+                    logger.sync_error(f"Failed to refresh materialized view: {str(e)}")
+                    self.db.rollback()
+                    return False
+
+        # Execute in thread pool to avoid blocking
+        if not hasattr(self, "_executor"):
+            from concurrent.futures import ThreadPoolExecutor
+
+            self._executor = ThreadPoolExecutor(max_workers=2)
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(self._executor, refresh_sync)
+        return result
 
     async def check_source_status(self) -> list[dict[str, Any]]:
         """

@@ -178,8 +178,11 @@ class BaseAnnotationSource(ABC):
         await asyncio.sleep(delay)
 
     def store_annotation(
-        self, gene: Gene, annotation_data: dict[str, Any], metadata: dict[str, Any] | None = None,
-        skip_cache_invalidation: bool = False
+        self,
+        gene: Gene,
+        annotation_data: dict[str, Any],
+        metadata: dict[str, Any] | None = None,
+        skip_cache_invalidation: bool = False,
     ) -> GeneAnnotation:
         """
         Store annotation in database and invalidate API cache.
@@ -228,7 +231,8 @@ class BaseAnnotationSource(ABC):
 
             self._record_history(gene_id=gene.id, operation="insert", new_data=annotation_data)
 
-        self.session.commit()
+        # Commit will happen at batch boundaries, not per-gene
+        # self.session.commit()  # Removed to prevent blocking
 
         # Invalidate API cache after successful database update
         # This ensures the API will fetch fresh data on next request
@@ -255,8 +259,9 @@ class BaseAnnotationSource(ABC):
 
             # Check if we're in an async context by looking at the call stack
             # This is more reliable than checking for running event loop
-            if any(inspect.iscoroutinefunction(frame.frame.f_code)
-                   for frame in inspect.stack()[1:10]):  # Check up to 10 frames
+            if any(
+                inspect.iscoroutinefunction(frame.frame.f_code) for frame in inspect.stack()[1:10]
+            ):  # Check up to 10 frames
                 # We're being called from an async function
                 # Try to get the current running loop
                 try:
@@ -291,9 +296,7 @@ class BaseAnnotationSource(ABC):
             # Don't fail the update if cache invalidation fails
             # This is expected during batch operations
             logger.sync_debug(
-                f"Cache invalidation skipped: {str(e)}",
-                source=self.source_name,
-                gene_id=gene_id
+                f"Cache invalidation skipped: {str(e)}", source=self.source_name, gene_id=gene_id
             )
 
     async def _invalidate_api_cache(self, gene_id: int):
@@ -466,6 +469,11 @@ class BaseAnnotationSource(ABC):
                 logger.sync_error(f"Batch processing error: {str(e)}", batch_start=i)
                 failed += len(batch)
 
+            # Commit every 100 genes to balance performance and safety
+            if (i + self.batch_size) % 100 == 0:
+                self.session.commit()
+                logger.sync_debug(f"Committed at gene {i + self.batch_size}")
+
         # Update source record
         self.source_record.last_update = datetime.utcnow()
         self.source_record.next_update = datetime.utcnow() + timedelta(days=self.cache_ttl_days)
@@ -484,19 +492,14 @@ class BaseAnnotationSource(ABC):
                     # Just await the cache clear directly
                     await cache_service.clear_namespace("annotations")
                     logger.sync_info(
-                        "Cleared annotations cache after batch update",
-                        source=self.source_name
+                        "Cleared annotations cache after batch update", source=self.source_name
                     )
                 except Exception as e:
                     logger.sync_debug(
-                        f"Could not clear cache after batch: {str(e)}",
-                        source=self.source_name
+                        f"Could not clear cache after batch: {str(e)}", source=self.source_name
                     )
         except Exception as e:
-            logger.sync_debug(
-                f"Cache service not available: {str(e)}",
-                source=self.source_name
-            )
+            logger.sync_debug(f"Cache service not available: {str(e)}", source=self.source_name)
 
         # Refresh materialized view
         self._refresh_materialized_view()

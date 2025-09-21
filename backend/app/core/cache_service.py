@@ -11,6 +11,7 @@ This module provides a unified caching interface that combines:
 import asyncio
 import hashlib
 import json
+import time
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any, TypeVar
@@ -422,6 +423,60 @@ class CacheService:
         except Exception as e:
             self.stats.errors += 1
             logger.sync_error("Error clearing namespace", namespace=namespace, error=str(e))
+            return 0
+
+    def clear_namespace_sync(self, namespace: str) -> int:
+        """Synchronous version of clear_namespace for thread pool execution."""
+        if not self.enabled:
+            return 0
+
+        try:
+            count = 0
+
+            # L1 Cache: Clear memory entries (fast)
+            keys_to_remove = [k for k, v in self.memory_cache.items() if v.namespace == namespace]
+            for key in keys_to_remove:
+                del self.memory_cache[key]
+                count += 1
+
+            # L2 Cache: Clear database entries in chunks
+            if self.db_session:
+                # Use chunked deletion to prevent long locks
+                chunk_size = 1000
+                while True:
+                    # Delete in small chunks
+                    query = text("""
+                        DELETE FROM cache_entries
+                        WHERE namespace = :namespace
+                        AND id IN (
+                            SELECT id FROM cache_entries
+                            WHERE namespace = :namespace
+                            LIMIT :chunk_size
+                        )
+                    """)
+
+                    result = self.db_session.execute(
+                        query, {"namespace": namespace, "chunk_size": chunk_size}
+                    )
+
+                    deleted = result.rowcount
+                    if deleted == 0:
+                        break
+
+                    count += deleted
+                    self.db_session.commit()
+
+                    # Small delay between chunks
+                    time.sleep(0.01)
+
+            logger.sync_info("Cleared namespace", namespace=namespace, count=count)
+            return count
+
+        except Exception as e:
+            self.stats.errors += 1
+            logger.sync_error("Error clearing namespace", namespace=namespace, error=str(e))
+            if self.db_session:
+                self.db_session.rollback()
             return 0
 
     async def cleanup_expired(self) -> int:
