@@ -15,7 +15,7 @@
 
     <div v-else class="d-flex align-center flex-wrap ga-2">
       <!-- Total variants chip -->
-      <v-tooltip location="bottom">
+      <v-tooltip location="bottom" max-width="350">
         <template #activator="{ props }">
           <v-chip color="primary" variant="tonal" size="small" v-bind="props">
             {{ clinvarData.total_variants }} total
@@ -24,8 +24,23 @@
         <div class="pa-2">
           <div class="font-weight-medium">Total ClinVar Variants</div>
           <div class="text-caption">All variants submitted to ClinVar for {{ geneSymbol }}</div>
-          <div class="text-caption mt-1">
-            High confidence: {{ clinvarData.high_confidence_percentage }}%
+
+          <v-divider class="my-2"></v-divider>
+
+          <div class="text-caption">
+            <div class="font-weight-medium mb-1">Review Confidence:</div>
+            <div class="d-flex align-center">
+              <v-icon size="x-small" class="mr-1" color="success">mdi-shield-check</v-icon>
+              <span class="font-weight-medium">{{ clinvarData.high_confidence_percentage }}%</span>
+              <span class="ml-1">with high-quality review</span>
+            </div>
+            <div class="text-caption mt-1 text-medium-emphasis" style="font-size: 0.7rem;">
+              ({{ clinvarData.high_confidence_count || Math.round(clinvarData.total_variants * clinvarData.high_confidence_percentage / 100) }} of {{ clinvarData.total_variants }} variants)
+            </div>
+            <div class="text-caption mt-2 text-medium-emphasis" style="font-size: 0.7rem;">
+              High-quality = Expert panel reviewed or<br>
+              multiple submitters with no conflicts
+            </div>
           </div>
         </div>
       </v-tooltip>
