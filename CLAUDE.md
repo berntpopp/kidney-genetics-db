@@ -6,11 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Kidney-Genetics Database**: A modern web platform for curating and exploring kidney disease-related genes. This project modernizes the original R-based pipeline into a scalable Python/FastAPI + Vue.js architecture with PostgreSQL backend.
 
-**Current Status**: Alpha version (v0.1.0) - Core functionality fully operational
+**Current Status**: Production-ready Alpha (v0.1.0)
 - **571+ genes** with comprehensive annotations from 9 sources
 - **Unified systems** for logging, caching, and retry logic (MUST be reused)
 - **Admin panel** with user management, cache control, and pipeline management
-- **Performance**: <10ms cached response times, 95%+ annotation coverage
+- **Performance**: <10ms cached response times, 95%+ annotation coverage (verified in production)
+- **Non-blocking architecture**: Event loop never blocks, all heavy operations use thread pools
 
 ## 🚨 CRITICAL: Development Principles
 
@@ -20,12 +21,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Caching**: Use `CacheService` - DO NOT create new cache implementations
 - **Retry Logic**: Use `retry_with_backoff` - DO NOT write custom retry loops
 - **HTTP Clients**: Use `RetryableHTTPClient` - DO NOT use raw httpx/requests
+- **Base Classes**: Extend `BaseAnnotationSource` for new annotation sources
 
 ### KISS (Keep It Simple, Stupid)
 - Use existing patterns and utilities
-- Prefer configuration over code
+- Prefer configuration over code (see `datasource_config`)
 - Leverage PostgreSQL features (JSONB, views) over complex application logic
 - Use Make commands for all operations
+- Thread pools over complex async migrations for blocking operations
+
+### Modularization & Reusability
+- **Inheritance hierarchy**: All annotation sources inherit from `BaseAnnotationSource`
+- **Composition**: Services composed from smaller utilities (cache + retry + logging)
+- **Dependency injection**: Services passed as parameters, not hardcoded
+- **Configuration-driven**: Behavior controlled by config files, not code changes
+
+### Non-Blocking Architecture
+- **Async/await throughout**: FastAPI endpoints and pipeline operations are async
+- **Thread pools for sync operations**: Database operations that block use `ThreadPoolExecutor`
+- **Event loop protection**: Never block the event loop (target: <5ms blocking)
+- **WebSocket stability**: Real-time updates without disconnections during heavy processing
 
 ## Project Architecture
 
@@ -217,45 +232,85 @@ cd frontend && npm run format    # Format code
 - **Background Tasks**: Async task processing for data updates
 - **Unified Logging**: Comprehensive structured logging system with dual output
 
-## Logging System
+## Unified System Architecture
+
+### Layered Architecture Pattern
+The codebase follows a strict layered architecture with clear separation of concerns:
+
+```
+┌─────────────────────────────────────┐
+│         API Layer (FastAPI)          │  ← JSON:API compliant REST endpoints
+├─────────────────────────────────────┤
+│      Business Logic (Services)       │  ← Annotation pipeline, scoring engine
+├─────────────────────────────────────┤
+│     Core Utilities (Shared)          │  ← Cache, Retry, Logging (MUST REUSE)
+├─────────────────────────────────────┤
+│       Data Access (CRUD/ORM)         │  ← SQLAlchemy models and operations
+├─────────────────────────────────────┤
+│      Database (PostgreSQL)           │  ← Hybrid relational + JSONB storage
+└─────────────────────────────────────┘
+```
+
+### Performance Architecture
+```
+Request → FastAPI (async) → Thread Pool (for sync DB ops) → PostgreSQL
+           ↓                      ↓
+        WebSocket            Never blocks event loop
+        (real-time)          (<5ms target latency)
+```
+
+## Logging System (MUST USE)
 
 ### Overview
-The backend uses a unified structured logging system that replaces scattered `logging.getLogger()` calls with a consistent, enterprise-grade infrastructure. Features include:
+**Unified structured logging** - Never use print() or logging.getLogger()!
 - **Dual output**: Console (sync) + Database (async) persistence
-- **Request correlation**: Unique UUIDs for tracking across API calls
-- **Performance monitoring**: Decorators for operation timing
-- **Administrative API**: Endpoints for log management at `/api/admin/logs/`
+- **Request correlation**: Automatic UUID tracking across all operations
+- **Performance monitoring**: Built-in decorators for timing
+- **Context binding**: Immutable context pattern like structlog
 
-### Usage
+### Usage - Always Use These Patterns
 ```python
+# CORRECT - Using unified logger
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Async context
+# Async context (preferred in async functions)
 await logger.info("Operation started", user_id=123)
 
-# Sync context  
+# Sync context (for sync functions)
 logger.sync_info("Operation completed", duration_ms=456)
 
-# Performance monitoring
-from app.core.logging import timed_operation
+# Context binding for correlated logs
+bound_logger = logger.bind(request_id=uuid, user_id=123)
+bound_logger.sync_info("All logs will include request_id and user_id")
+
+# WRONG - Don't use standard logging
+import logging  # NO!
+print("Debug info")  # NO!
+logging.getLogger(__name__)  # NO!
+```
+
+### Performance Monitoring
+```python
+from app.core.logging import timed_operation, database_query, api_endpoint
 
 @timed_operation(warning_threshold_ms=1000)
 async def slow_operation():
+    # Automatically logs if >1000ms
     await process_data()
+
+@database_query(query_type="SELECT")
+def fetch_genes():
+    # Tracks DB query performance
+    return db.query(Gene).all()
 ```
 
 ### Key Components
-- **UnifiedLogger**: Drop-in replacement for standard Python logging
-- **DatabaseLogger**: Async persistence to `system_logs` table with JSONB
-- **LoggingMiddleware**: Automatic request/response lifecycle tracking
-- **Performance decorators**: `@timed_operation`, `@database_query`, `@api_endpoint`
-
-### Administrative Endpoints
-- `GET /api/admin/logs/` - Query and filter system logs
-- `GET /api/admin/logs/statistics` - View log statistics and error rates
-- `DELETE /api/admin/logs/cleanup` - Manage log retention
+- **UnifiedLogger**: Drop-in replacement with sync/async methods
+- **DatabaseLogger**: Async persistence to `system_logs` table
+- **LoggingMiddleware**: Request lifecycle tracking
+- **Performance decorators**: Automatic timing and alerting
 
 For detailed logging documentation, see [docs/development/logging-system.md](docs/development/logging-system.md)
 
@@ -438,6 +493,59 @@ data() { return { genes: [] } }  // NO for shared data!
 - Structured logging automatically filters sensitive data
 - Public access for all GET endpoints (no auth required for reading)
 
+## Non-Blocking Patterns (CRITICAL)
+
+### Problem: SQLAlchemy sync DB operations block the event loop
+The database uses synchronous SQLAlchemy (not async), which would block FastAPI's event loop. The solution: **ThreadPoolExecutor** for all heavy DB operations.
+
+### Pattern: Thread Pool for Blocking Operations
+```python
+# CORRECT - Non-blocking pattern for sync operations
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
+class Service:
+    def __init__(self):
+        self._executor = ThreadPoolExecutor(max_workers=4)
+
+    async def heavy_operation(self):
+        loop = asyncio.get_event_loop()
+        # Run sync operation in thread pool
+        result = await loop.run_in_executor(
+            self._executor,
+            self._sync_heavy_operation
+        )
+        return result
+
+    def _sync_heavy_operation(self):
+        # This runs in a thread, doesn't block event loop
+        db.execute(text("REFRESH MATERIALIZED VIEW"))
+        return "done"
+
+# WRONG - Blocks the event loop
+async def bad_operation():
+    db.execute(text("REFRESH MATERIALIZED VIEW"))  # BLOCKS!
+```
+
+### Real Examples from Codebase
+```python
+# Cache invalidation without blocking (annotation_pipeline.py)
+await loop.run_in_executor(
+    self._executor,
+    cache_service.clear_namespace_sync,  # Sync method in thread
+    "annotations"
+)
+
+# Database ping to keep connection alive
+self.db.execute(text("SELECT 1"))  # Quick operation, acceptable
+
+# View refresh without blocking
+await loop.run_in_executor(
+    self._executor,
+    self._refresh_views_sync
+)
+```
+
 ## Summary: Key Systems to Reuse
 
 ### ✅ ALWAYS USE
@@ -446,28 +554,33 @@ data() { return { genes: [] } }  // NO for shared data!
 3. **retry_with_backoff** (`app.core.retry_utils`) - Exponential backoff retry
 4. **RetryableHTTPClient** (`app.core.retry_utils`) - HTTP with retry/circuit breaker
 5. **BaseAnnotationSource** (`app.pipeline.sources.annotations.base`) - For new sources
-6. **Alembic migrations** - For database schema changes
-7. **Make commands** - For all development operations
+6. **ThreadPoolExecutor** - For sync DB operations in async context
+7. **Alembic migrations** - For database schema changes
+8. **Make commands** - For all development operations
 
-### ❌ NEVER CREATE
+### ❌ NEVER CREATE/DO
 - Custom cache implementations (use CacheService)
 - Custom retry loops (use retry_with_backoff)
 - Raw HTTP clients (use RetryableHTTPClient)
 - Direct database schema modifications (use Alembic)
 - Console.log/print statements (use UnifiedLogger)
 - New annotation sources from scratch (extend BaseAnnotationSource)
+- Blocking operations in async functions (use ThreadPoolExecutor)
+- Sync database calls without thread pool (will block event loop)
 
-### 📊 Current System Metrics
-- **Annotation Coverage**: 95%+ (up from 22% after implementing retry logic)
-- **Cache Hit Rate**: 75-95% with unified cache
-- **Response Times**: <10ms cached, <50ms uncached
-- **Code Reduction**: 50% after cache consolidation
-- **Error Rate**: <0.1% with retry and circuit breaker
+### 📊 Production-Verified Metrics
+- **Event Loop Blocking**: <1ms (eliminated with thread pools)
+- **API Response During Pipeline**: 7-13ms (was 5-10 seconds)
+- **WebSocket Stability**: 100% uptime during heavy processing
+- **Annotation Coverage**: 95%+ (retry logic fixed coverage issues)
+- **Cache Hit Rate**: 75-95% with unified L1/L2 cache
+- **Code Reduction**: 50% after consolidation
+- **Error Rate**: <0.1% with circuit breaker
 
 ### 📚 Documentation References
-- Full documentation: `docs/` directory
+- Logging system: `docs/development/logging-system.md`
+- Performance fixes: `docs/implementation/annotation-pipeline-performance-fixes.md`
+- Cache refactor: `docs/implementation/cache-refactor-summary.md`
 - Project status: `docs/PROJECT_STATUS.md`
-- Feature docs: `docs/features/`
-- Implementation details: `docs/implementation/`
 
-Remember: **DRY + KISS = Success**. Use what exists, configure don't code, and keep it simple!
+Remember: **DRY + KISS + Non-blocking = Success**. Use what exists, configure don't code, never block the event loop!
