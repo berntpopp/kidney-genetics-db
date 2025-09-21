@@ -31,7 +31,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
     version = "1.0"
 
     # Cache configuration
-    cache_ttl_days = 7
+    cache_ttl_days = 90
 
     # API endpoints
     hpo_api_url = "https://ontology.jax.org/api"

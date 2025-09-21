@@ -132,6 +132,49 @@ export const getBatchAnnotations = (geneIds, sources = null) => {
   })
 }
 
+/**
+ * Pause running pipeline
+ * @returns {Promise} Pause result
+ */
+export const pausePipeline = () => apiClient.post('/api/progress/pause/annotation_pipeline')
+
+/**
+ * Resume paused pipeline
+ * @returns {Promise} Resume result
+ */
+export const resumePipeline = () => apiClient.post('/api/progress/resume/annotation_pipeline')
+
+/**
+ * Update only failed genes
+ * @param {string[]} [sources] - Optional source filter
+ * @returns {Promise} Update result
+ */
+export const updateFailedGenes = (sources = null) => {
+  const queryParams = new URLSearchParams()
+  if (sources) sources.forEach(source => queryParams.append('sources', source))
+  const query = queryParams.toString()
+  return apiClient.post(`/api/annotations/pipeline/update-failed${query ? `?${query}` : ''}`)
+}
+
+/**
+ * Update only new genes without annotations
+ * @param {number} [daysBack=7] - Number of days to look back
+ * @returns {Promise} Update result
+ */
+export const updateNewGenes = (daysBack = 7) => {
+  const queryParams = new URLSearchParams()
+  queryParams.append('days_back', daysBack)
+  return apiClient.post(`/api/annotations/pipeline/update-new?${queryParams.toString()}`)
+}
+
+/**
+ * Update missing annotations for specific source
+ * @param {string} sourceName - Source name
+ * @returns {Promise} Update result
+ */
+export const updateMissingForSource = sourceName =>
+  apiClient.post(`/api/annotations/pipeline/update-missing/${sourceName}`)
+
 export default {
   getAnnotationSources,
   getAnnotationStatistics,
@@ -144,5 +187,10 @@ export default {
   validateAnnotations,
   getScheduledJobs,
   triggerScheduledJob,
-  getBatchAnnotations
+  getBatchAnnotations,
+  pausePipeline,
+  resumePipeline,
+  updateFailedGenes,
+  updateNewGenes,
+  updateMissingForSource
 }

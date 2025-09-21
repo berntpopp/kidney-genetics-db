@@ -33,7 +33,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
     version = "1.0"  # Our implementation version
 
     # Cache configuration
-    cache_ttl_days = 7
+    cache_ttl_days = 90
 
     # API endpoints
     jax_base_url = "https://www.informatics.jax.org"

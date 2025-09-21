@@ -398,14 +398,14 @@ ANNOTATION_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
     "gnomad": {
         "requests_per_second": 3.0,
         "max_retries": 5,
-        "cache_ttl_days": 30,
+        "cache_ttl_days": 90,
         "use_http_cache": True,
         "circuit_breaker_threshold": 5,
     },
     "clinvar": {
         "requests_per_second": 2.5,  # NCBI limit without API key
         "max_retries": 5,
-        "cache_ttl_days": 7,
+        "cache_ttl_days": 90,
         "use_http_cache": True,
         "circuit_breaker_threshold": 5,
         # Review status confidence levels
@@ -423,42 +423,42 @@ ANNOTATION_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
     "hpo": {
         "requests_per_second": 10.0,
         "max_retries": 3,
-        "cache_ttl_days": 7,
+        "cache_ttl_days": 90,
         "use_http_cache": True,
         "circuit_breaker_threshold": 5,
     },
     "mpo_mgi": {
         "requests_per_second": 2.0,  # MGI servers are slower
         "max_retries": 3,
-        "cache_ttl_days": 14,
+        "cache_ttl_days": 90,
         "use_http_cache": True,
         "circuit_breaker_threshold": 3,
     },
     "hgnc": {
         "requests_per_second": 5.0,
         "max_retries": 3,
-        "cache_ttl_days": 30,
+        "cache_ttl_days": 90,
         "use_http_cache": True,
         "circuit_breaker_threshold": 3,
     },
     "string_ppi": {
         "requests_per_second": 5.0,
         "max_retries": 3,
-        "cache_ttl_days": 14,
+        "cache_ttl_days": 90,
         "use_http_cache": True,
         "circuit_breaker_threshold": 3,
     },
     "gtex": {
         "requests_per_second": 3.0,
         "max_retries": 3,
-        "cache_ttl_days": 30,
+        "cache_ttl_days": 90,
         "use_http_cache": True,
         "circuit_breaker_threshold": 3,
     },
     "descartes": {
         "requests_per_second": 5.0,
         "max_retries": 3,
-        "cache_ttl_days": 30,
+        "cache_ttl_days": 90,
         "use_http_cache": True,
         "circuit_breaker_threshold": 3,
     },

@@ -36,7 +36,7 @@ class GnomADAnnotationSource(BaseAnnotationSource):
     headers = {"Content-Type": "application/json", "User-Agent": "KidneyGeneticsDB/1.0"}
 
     # Cache configuration
-    cache_ttl_days = 30  # gnomAD data updates less frequently
+    cache_ttl_days = 90  # gnomAD data updates less frequently
 
     # Reference genome
     reference_genome = "GRCh38"  # Default to GRCh38 for v4

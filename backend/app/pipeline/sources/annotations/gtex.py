@@ -30,7 +30,7 @@ class GTExAnnotationSource(BaseAnnotationSource):
     headers = {"Accept": "application/json", "User-Agent": "KidneyGeneticsDB/1.0"}
 
     # Cache configuration
-    cache_ttl_days = 30
+    cache_ttl_days = 90
 
     async def fetch_annotation(self, gene: Gene) -> dict[str, Any] | None:
         """

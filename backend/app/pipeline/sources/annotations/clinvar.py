@@ -35,7 +35,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
     version = "1.0"
 
     # Cache configuration
-    cache_ttl_days = 7  # ClinVar updates weekly
+    cache_ttl_days = 90  # ClinVar updates weekly
 
     # API configuration
     base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"

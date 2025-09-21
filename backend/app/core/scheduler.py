@@ -99,10 +99,21 @@ class AnnotationScheduler:
                         name=f"Update {source.display_name}",
                         replace_existing=True,
                     )
+                elif source.update_frequency == "quarterly":
+                    # Schedule quarterly on the 1st of Jan, Apr, Jul, Oct at 1 AM
+                    self.scheduler.add_job(
+                        self._run_source_update,
+                        CronTrigger(month="1,4,7,10", day=1, hour=1, minute=0),
+                        args=[source.source_name],
+                        id=f"source_{source.source_name}",
+                        name=f"Update {source.display_name}",
+                        replace_existing=True,
+                    )
 
-                logger.sync_info(
-                    f"Scheduled {source.update_frequency} update for {source.display_name}"
-                )
+                if source.update_frequency in ["daily", "weekly", "monthly", "quarterly"]:
+                    logger.sync_info(
+                        f"Scheduled {source.update_frequency} update for {source.display_name}"
+                    )
         finally:
             db.close()
 

@@ -9,10 +9,10 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.api.deps import AdminRequired, get_current_user_optional
 from app.core.database import get_db
+from app.core.dependencies import require_admin
 from app.core.logging import get_logger
-from app.models.auth import User
+from app.models.user import User
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationSource, GeneAnnotation
 from app.pipeline.sources.annotations.clinvar import ClinVarAnnotationSource
@@ -1089,13 +1089,13 @@ async def batch_get_annotations(
     }
 
 
-@router.delete("/reset", dependencies=[Depends(AdminRequired())])
+@router.delete("/reset")
 async def reset_gene_annotations(
     background_tasks: BackgroundTasks,
     source: str | None = None,
     gene_ids: list[int] | None = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_optional),
+    current_user: User = Depends(require_admin),
 ) -> dict[str, Any]:
     """
     Reset/clear gene annotations from the database.

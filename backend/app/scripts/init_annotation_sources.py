@@ -20,11 +20,11 @@ ANNOTATION_SOURCES = [
         "display_name": "HGNC",
         "description": "HUGO Gene Nomenclature Committee - Gene symbols and identifiers",
         "base_url": "https://www.genenames.org",
-        "update_frequency": "weekly",
+        "update_frequency": "quarterly",
         "is_active": True,
         "priority": 10,  # Highest priority - provides base identifiers
         "config": {
-            "cache_ttl_days": 7,
+            "cache_ttl_days": 90,
             "batch_size": 100,
             "requests_per_second": 10.0
         }
@@ -34,11 +34,11 @@ ANNOTATION_SOURCES = [
         "display_name": "gnomAD",
         "description": "Genome Aggregation Database - Population allele frequencies and constraint scores",
         "base_url": "https://gnomad.broadinstitute.org",
-        "update_frequency": "monthly",
+        "update_frequency": "quarterly",
         "is_active": True,
         "priority": 9,
         "config": {
-            "cache_ttl_days": 30,
+            "cache_ttl_days": 90,
             "batch_size": 50,
             "requests_per_second": 5.0
         }
@@ -62,11 +62,11 @@ ANNOTATION_SOURCES = [
         "display_name": "ClinVar",
         "description": "Clinical Variants - Pathogenicity and clinical significance",
         "base_url": "https://www.ncbi.nlm.nih.gov/clinvar/",
-        "update_frequency": "weekly",
+        "update_frequency": "quarterly",
         "is_active": True,
         "priority": 7,
         "config": {
-            "cache_ttl_days": 7,
+            "cache_ttl_days": 90,
             "batch_size": 20,
             "requests_per_second": 3.0
         }
@@ -76,11 +76,11 @@ ANNOTATION_SOURCES = [
         "display_name": "HPO",
         "description": "Human Phenotype Ontology - Phenotype associations",
         "base_url": "https://hpo.jax.org",
-        "update_frequency": "monthly",
+        "update_frequency": "quarterly",
         "is_active": True,
         "priority": 6,
         "config": {
-            "cache_ttl_days": 30,
+            "cache_ttl_days": 90,
             "batch_size": 50,
             "requests_per_second": 5.0
         }
@@ -90,11 +90,11 @@ ANNOTATION_SOURCES = [
         "display_name": "MPO/MGI",
         "description": "Mouse Phenotype Ontology / Mouse Genome Informatics - Mouse orthologs and phenotypes",
         "base_url": "http://www.informatics.jax.org",
-        "update_frequency": "monthly",
+        "update_frequency": "quarterly",
         "is_active": True,
         "priority": 5,
         "config": {
-            "cache_ttl_days": 30,
+            "cache_ttl_days": 90,
             "batch_size": 50,
             "requests_per_second": 5.0
         }

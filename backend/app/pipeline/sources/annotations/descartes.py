@@ -51,7 +51,7 @@ class DescartesAnnotationSource(BaseAnnotationSource):
     percentage_url = f"{base_url}/tissue_percentage/kidney.csv"
 
     # Cache configuration
-    cache_ttl_days = 30  # Refresh monthly
+    cache_ttl_days = 90  # Refresh monthly
     cache_key_prefix = "descartes_kidney_data"
 
     # Browser headers to bypass CloudFront

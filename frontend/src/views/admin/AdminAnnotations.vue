@@ -126,7 +126,7 @@
               :items="strategyOptions"
               density="compact"
               variant="outlined"
-              hint="Incremental = only update stale data, Full = update everything"
+              hint="Incremental = update stale/missing data only | Full = update all genes | Selective = update selected sources only | Forced = full update ignoring cache"
               persistent-hint
               class="mb-3"
             />
@@ -141,18 +141,102 @@
           </v-col>
         </v-row>
 
+        <!-- Source Selection for SELECTIVE Strategy -->
+        <v-expand-transition>
+          <v-row v-if="pipelineForm.strategy === 'selective'" class="mt-4">
+            <v-col cols="12">
+              <v-card variant="outlined" color="primary">
+                <v-card-text>
+                  <div class="d-flex align-center mb-3">
+                    <v-icon color="primary" size="small" class="mr-2">mdi-database-check</v-icon>
+                    <span class="text-subtitle-2 font-weight-medium">Select Sources to Update</span>
+                    <v-spacer />
+                    <v-btn
+                      variant="text"
+                      size="x-small"
+                      @click="pipelineForm.sources = sourceFilterOptions.map(s => s.value)"
+                    >
+                      Select All
+                    </v-btn>
+                    <v-btn variant="text" size="x-small" @click="pipelineForm.sources = []">
+                      Clear All
+                    </v-btn>
+                  </div>
+                  <v-chip-group
+                    v-model="pipelineForm.sources"
+                    column
+                    multiple
+                    filter
+                    variant="outlined"
+                    selected-class="text-primary"
+                  >
+                    <v-chip
+                      v-for="source in sourceFilterOptions"
+                      :key="source.value"
+                      :value="source.value"
+                      size="small"
+                      label
+                    >
+                      <v-icon
+                        v-if="pipelineForm.sources.includes(source.value)"
+                        start
+                        size="x-small"
+                      >
+                        mdi-check-circle
+                      </v-icon>
+                      {{ source.title }}
+                    </v-chip>
+                  </v-chip-group>
+                  <div
+                    v-if="pipelineForm.sources.length === 0"
+                    class="text-warning text-caption mt-2"
+                  >
+                    <v-icon size="x-small" class="mr-1">mdi-alert</v-icon>
+                    Please select at least one source to update
+                  </div>
+                </v-card-text>
+              </v-card>
+            </v-col>
+          </v-row>
+        </v-expand-transition>
+
         <v-divider class="my-4" />
 
-        <div class="d-flex ga-2 flex-wrap">
+        <!-- Main Pipeline Controls -->
+        <div class="d-flex ga-2 flex-wrap mb-3">
           <v-btn
+            v-if="!pipelineStatus?.status || pipelineStatus?.status !== 'running'"
             color="primary"
             variant="elevated"
             prepend-icon="mdi-rocket-launch"
             :loading="pipelineLoading"
             @click="triggerPipelineUpdate"
           >
-            Run Annotation Update
+            Run Full Update
           </v-btn>
+
+          <v-btn
+            v-else-if="pipelineStatus?.status === 'running'"
+            color="warning"
+            variant="elevated"
+            prepend-icon="mdi-pause"
+            :loading="pauseLoading"
+            @click="pauseUpdate"
+          >
+            Pause Pipeline
+          </v-btn>
+
+          <v-btn
+            v-if="pipelineStatus?.status === 'paused'"
+            color="success"
+            variant="elevated"
+            prepend-icon="mdi-play-pause"
+            :loading="resumeLoading"
+            @click="resumeUpdate"
+          >
+            Resume Pipeline
+          </v-btn>
+
           <v-btn
             color="info"
             variant="tonal"
@@ -160,7 +244,7 @@
             :loading="pipelineLoading"
             @click="validateAnnotations"
           >
-            Validate Data Quality
+            Validate Data
           </v-btn>
           <v-btn
             color="success"
@@ -169,7 +253,34 @@
             :loading="pipelineLoading"
             @click="refreshMaterializedView"
           >
-            Refresh Summary Cache
+            Refresh Cache
+          </v-btn>
+        </div>
+
+        <!-- Smart Update Actions -->
+        <div class="d-flex ga-2 flex-wrap">
+          <v-btn
+            color="error"
+            variant="tonal"
+            prepend-icon="mdi-alert-circle"
+            :loading="failedLoading"
+            :disabled="pipelineStatus?.status === 'running'"
+            size="small"
+            @click="updateFailed"
+          >
+            Retry Failed
+          </v-btn>
+
+          <v-btn
+            color="info"
+            variant="tonal"
+            prepend-icon="mdi-new-box"
+            :loading="newLoading"
+            :disabled="pipelineStatus?.status === 'running'"
+            size="small"
+            @click="updateNew"
+          >
+            Update New Genes
           </v-btn>
         </div>
       </v-card-text>
@@ -480,6 +591,10 @@ const lookupLoading = ref(false)
 const jobsLoading = ref(false)
 const sourceUpdateLoading = reactive({})
 const jobTriggerLoading = reactive({})
+const pauseLoading = ref(false)
+const resumeLoading = ref(false)
+const failedLoading = ref(false)
+const newLoading = ref(false)
 
 // Data
 const statistics = reactive({
@@ -630,6 +745,12 @@ const loadData = async () => {
 }
 
 const triggerPipelineUpdate = async () => {
+  // Validate SELECTIVE strategy has sources selected
+  if (pipelineForm.strategy === 'selective' && pipelineForm.sources.length === 0) {
+    showSnackbar('Please select at least one source for selective update', 'warning')
+    return
+  }
+
   pipelineLoading.value = true
   try {
     const response = await annotationsApi.triggerPipelineUpdate(pipelineForm)
@@ -697,13 +818,74 @@ const lookupGeneAnnotations = async () => {
 const updateSource = async sourceName => {
   sourceUpdateLoading[sourceName] = true
   try {
-    // This would require a specific gene ID - for now just show a message
-    showSnackbar(`Source update for ${sourceName} - requires specific gene ID`, 'warning')
+    // Use the new update-missing endpoint for source-specific updates
+    const response = await annotationsApi.updateMissingForSource(sourceName)
+    showSnackbar(
+      `Updating ${response.data.count} genes missing ${sourceName} annotations`,
+      'success'
+    )
+    await loadStatistics()
   } catch (error) {
     window.logService.error(`Failed to update source ${sourceName}:`, error)
     showSnackbar(`Failed to update source ${sourceName}`, 'error')
   } finally {
     sourceUpdateLoading[sourceName] = false
+  }
+}
+
+const pauseUpdate = async () => {
+  pauseLoading.value = true
+  try {
+    await annotationsApi.pausePipeline()
+    showSnackbar('Pipeline paused successfully', 'success')
+    await loadPipelineStatus()
+  } catch (error) {
+    window.logService.error('Failed to pause pipeline:', error)
+    showSnackbar(`Error pausing pipeline: ${error.message}`, 'error')
+  } finally {
+    pauseLoading.value = false
+  }
+}
+
+const resumeUpdate = async () => {
+  resumeLoading.value = true
+  try {
+    await annotationsApi.resumePipeline()
+    showSnackbar('Pipeline resumed successfully', 'success')
+    await loadPipelineStatus()
+  } catch (error) {
+    window.logService.error('Failed to resume pipeline:', error)
+    showSnackbar(`Error resuming pipeline: ${error.message}`, 'error')
+  } finally {
+    resumeLoading.value = false
+  }
+}
+
+const updateFailed = async () => {
+  failedLoading.value = true
+  try {
+    const response = await annotationsApi.updateFailedGenes()
+    showSnackbar(`Retrying ${response.data.count} failed genes`, 'info')
+    await loadPipelineStatus()
+  } catch (error) {
+    window.logService.error('Failed to update failed genes:', error)
+    showSnackbar(`Error updating failed genes: ${error.message}`, 'error')
+  } finally {
+    failedLoading.value = false
+  }
+}
+
+const updateNew = async () => {
+  newLoading.value = true
+  try {
+    const response = await annotationsApi.updateNewGenes()
+    showSnackbar(`Processing ${response.data.count} new genes`, 'info')
+    await loadPipelineStatus()
+  } catch (error) {
+    window.logService.error('Failed to update new genes:', error)
+    showSnackbar(`Error updating new genes: ${error.message}`, 'error')
+  } finally {
+    newLoading.value = false
   }
 }
 
