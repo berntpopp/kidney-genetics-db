@@ -365,6 +365,7 @@ async def _update_clinvar_annotation(gene: Gene, db: Session):
         success = await source.update_gene(gene)
 
         if success:
+            # Transaction is already committed by store_annotation when not in batch mode
             # Invalidate cache for this gene
             cache_service = get_cache_service(db)
             await cache_service.delete(f"{gene.id}:*", namespace="annotations")

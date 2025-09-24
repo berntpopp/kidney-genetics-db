@@ -269,8 +269,8 @@ class TestCacheKeyBuilder:
             pass
 
         # These should produce the same key
-        key1 = cache_key_builder(test_func, arg1="value")
-        key2 = cache_key_builder(test_func, arg1="value", db="session", request="req")
+        _ = cache_key_builder(test_func, arg1="value")
+        _ = cache_key_builder(test_func, arg1="value", db="session", request="req")
 
         # db and request are excluded, but since the function signature binding
         # would be different, keys might differ. This test may need adjustment
@@ -285,7 +285,7 @@ class TestDecoratorWithRealCache:
         """Test decorator with actual cache service."""
         from app.core.cache_service import get_cache_service
 
-        cache_service = get_cache_service(db_session)
+        _ = get_cache_service(db_session)  # Ensures cache service is initialized for decorator
 
         call_count = 0
 

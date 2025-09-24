@@ -173,7 +173,8 @@ def test_unique_constraint(db_session: Session):
     )
     db_session.add(ann2)
 
-    with pytest.raises(Exception):  # Should raise IntegrityError
+    from sqlalchemy.exc import IntegrityError
+    with pytest.raises(IntegrityError):
         db_session.commit()
 
     db_session.rollback()

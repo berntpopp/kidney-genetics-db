@@ -351,7 +351,7 @@ class TestErrorHandling:
         obj = NonSerializable()
 
         # This should handle the error gracefully
-        with pytest.raises(Exception):
+        with pytest.raises(TypeError):
             await cache_service.set("key", obj, "namespace")
 
     @pytest.mark.asyncio

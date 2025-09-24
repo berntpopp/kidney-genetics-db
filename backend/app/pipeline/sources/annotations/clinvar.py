@@ -144,6 +144,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             "classification": "Not classified",
             "review_status": "No data",
             "traits": [],
+            "molecular_consequences": variant_data.get("molecular_consequence_list", []),
         }
 
         # Extract germline classification
@@ -263,6 +264,17 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             "high_confidence_count": 0,
             "variant_type_counts": defaultdict(int),
             "traits_summary": defaultdict(int),
+            "molecular_consequences": defaultdict(int),
+            "consequence_categories": {
+                "truncating": 0,        # nonsense + frameshift + essential splice
+                "missense": 0,          # missense variants
+                "inframe": 0,           # inframe insertions/deletions
+                "splice_region": 0,     # non-essential splice variants
+                "regulatory": 0,        # UTR variants
+                "intronic": 0,          # intronic variants
+                "synonymous": 0,        # synonymous variants
+                "other": 0,             # everything else
+            },
         }
 
         # Get confidence levels
@@ -307,6 +319,53 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
 
         # Convert defaultdicts to regular dicts
         stats["variant_type_counts"] = dict(stats["variant_type_counts"])
+
+        # Define truncating consequences
+        TRUNCATING_CONSEQUENCES = {
+            "nonsense", "frameshift variant",
+            "splice donor variant", "splice acceptor variant"
+        }
+
+        # Process molecular consequences
+        for variant in variants:
+            for consequence in variant.get("molecular_consequences", []):
+                stats["molecular_consequences"][consequence] += 1
+
+                # Categorize (count most severe category per variant)
+                if consequence in TRUNCATING_CONSEQUENCES:
+                    stats["consequence_categories"]["truncating"] += 1
+                elif "missense" in consequence.lower():
+                    stats["consequence_categories"]["missense"] += 1
+                elif "synonymous" in consequence.lower():
+                    stats["consequence_categories"]["synonymous"] += 1
+                elif "inframe" in consequence.lower():
+                    stats["consequence_categories"]["inframe"] += 1
+                elif "splice" in consequence.lower() and consequence not in TRUNCATING_CONSEQUENCES:
+                    stats["consequence_categories"]["splice_region"] += 1
+                elif "UTR" in consequence:
+                    stats["consequence_categories"]["regulatory"] += 1
+                elif "intron" in consequence.lower():
+                    stats["consequence_categories"]["intronic"] += 1
+                else:
+                    stats["consequence_categories"]["other"] += 1
+
+        # Get top 10 molecular consequences
+        top_consequences = sorted(
+            stats["molecular_consequences"].items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:10]
+        stats["top_molecular_consequences"] = [
+            {"consequence": c[0], "count": c[1]} for c in top_consequences
+        ]
+
+        # Calculate percentages
+        if stats["total_count"] > 0:
+            for category in stats["consequence_categories"]:
+                stats[f"{category}_percentage"] = round(
+                    (stats["consequence_categories"][category] / stats["total_count"]) * 100, 1
+                )
+
 
         # Get top 5 traits
         top_traits = sorted(stats["traits_summary"].items(), key=lambda x: x[1], reverse=True)[:5]
@@ -434,9 +493,14 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                 "high_confidence_percentage": stats["high_confidence_percentage"],
                 "variant_types": stats["variant_type_counts"],
                 "top_traits": stats["top_traits"],
+                "molecular_consequences": dict(stats["molecular_consequences"]),
+                "consequence_categories": stats["consequence_categories"],
+                "top_molecular_consequences": stats["top_molecular_consequences"],
+                "truncating_percentage": stats.get("truncating_percentage", 0),
+                "missense_percentage": stats.get("missense_percentage", 0),
+                "synonymous_percentage": stats.get("synonymous_percentage", 0),
                 "last_updated": datetime.now(timezone.utc).isoformat(),
             }
-
             # Generate summary text
             if stats["has_pathogenic"]:
                 p_count = stats["pathogenic_count"] + stats["likely_pathogenic_count"]
@@ -453,6 +517,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                 pathogenic=stats["pathogenic_count"] + stats["likely_pathogenic_count"],
             )
 
+            # Don't store here - update_gene() handles storage
             return annotation
 
         except Exception as e:

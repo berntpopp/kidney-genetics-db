@@ -231,8 +231,21 @@ class BaseAnnotationSource(ABC):
 
             self._record_history(gene_id=gene.id, operation="insert", new_data=annotation_data)
 
-        # Commit will happen at batch boundaries, not per-gene
-        # self.session.commit()  # Removed to prevent blocking
+        # Commit immediately when not in batch mode (single gene updates)
+        if not self.batch_mode:
+            self.session.commit()
+            # Update source record timestamp only occasionally to avoid excessive DB updates
+            # This prevents performance issues when updating many genes
+            if hasattr(self, '_update_count'):
+                self._update_count += 1
+            else:
+                self._update_count = 1
+
+            # Update timestamp every 10 genes or on first update
+            if self._update_count == 1 or self._update_count % 10 == 0:
+                self.source_record.last_update = datetime.utcnow()
+                self.source_record.next_update = datetime.utcnow() + timedelta(days=self.cache_ttl_days)
+                self.session.commit()
 
         # Invalidate API cache after successful database update
         # This ensures the API will fetch fresh data on next request

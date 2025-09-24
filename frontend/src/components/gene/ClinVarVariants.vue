@@ -34,11 +34,17 @@
               <span class="font-weight-medium">{{ clinvarData.high_confidence_percentage }}%</span>
               <span class="ml-1">with high-quality review</span>
             </div>
-            <div class="text-caption mt-1 text-medium-emphasis" style="font-size: 0.7rem;">
-              ({{ clinvarData.high_confidence_count || Math.round(clinvarData.total_variants * clinvarData.high_confidence_percentage / 100) }} of {{ clinvarData.total_variants }} variants)
+            <div class="text-caption mt-1 text-medium-emphasis" style="font-size: 0.7rem">
+              ({{
+                clinvarData.high_confidence_count ||
+                Math.round(
+                  (clinvarData.total_variants * clinvarData.high_confidence_percentage) / 100
+                )
+              }}
+              of {{ clinvarData.total_variants }} variants)
             </div>
-            <div class="text-caption mt-2 text-medium-emphasis" style="font-size: 0.7rem;">
-              High-quality = Expert panel reviewed or<br>
+            <div class="text-caption mt-2 text-medium-emphasis" style="font-size: 0.7rem">
+              High-quality = Expert panel reviewed or<br />
               multiple submitters with no conflicts
             </div>
           </div>
@@ -62,6 +68,17 @@
             <div>Likely pathogenic: {{ clinvarData.likely_pathogenic_count }}</div>
             <div class="mt-1 text-medium-emphasis">
               {{ clinvarData.pathogenic_percentage }}% of all variants
+            </div>
+            <div v-if="clinvarData.consequence_categories" class="mt-2">
+              <v-divider class="my-1" />
+              <div class="text-caption">
+                <span v-if="clinvarData.consequence_categories.truncating">
+                  Truncating: {{ clinvarData.consequence_categories.truncating }}<br />
+                </span>
+                <span v-if="clinvarData.consequence_categories.missense">
+                  Missense: {{ clinvarData.consequence_categories.missense }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -97,6 +114,75 @@
           <div class="text-caption">
             <div>Benign: {{ clinvarData.benign_count }}</div>
             <div>Likely benign: {{ clinvarData.likely_benign_count }}</div>
+          </div>
+        </div>
+      </v-tooltip>
+
+      <!-- Molecular consequences chip (if data available) -->
+      <v-tooltip
+        v-if="clinvarData.consequence_categories && clinvarData.total_variants > 0"
+        location="bottom"
+        max-width="400"
+      >
+        <template #activator="{ props }">
+          <v-chip color="deep-purple" variant="tonal" size="small" v-bind="props">
+            <v-icon size="x-small" start>mdi-dna</v-icon>
+            Consequences
+          </v-chip>
+        </template>
+        <div class="pa-2">
+          <div class="font-weight-medium mb-2">Molecular Consequences</div>
+
+          <!-- Highlight truncating if present -->
+          <div
+            v-if="clinvarData.consequence_categories.truncating > 0"
+            class="mb-2 pa-2 rounded"
+            style="background-color: rgba(255, 82, 82, 0.1)"
+          >
+            <div class="d-flex align-center">
+              <v-icon size="small" color="error" class="mr-1">mdi-alert</v-icon>
+              <strong>{{ clinvarData.consequence_categories.truncating }} Truncating</strong>
+            </div>
+            <div class="text-caption text-medium-emphasis">
+              {{ clinvarData.truncating_percentage }}% of all variants
+              <br />
+              <span style="font-size: 0.7rem">
+                (nonsense, frameshift, essential splice sites)
+              </span>
+            </div>
+          </div>
+
+          <!-- Other categories -->
+          <div class="text-caption">
+            <div v-if="clinvarData.consequence_categories.missense > 0">
+              <strong>Missense:</strong> {{ clinvarData.consequence_categories.missense }} ({{
+                clinvarData.missense_percentage
+              }}%)
+            </div>
+            <div v-if="clinvarData.consequence_categories.synonymous > 0">
+              <strong>Synonymous:</strong> {{ clinvarData.consequence_categories.synonymous }} ({{
+                clinvarData.synonymous_percentage
+              }}%)
+            </div>
+            <div v-if="clinvarData.consequence_categories.inframe > 0">
+              <strong>In-frame:</strong> {{ clinvarData.consequence_categories.inframe }}
+            </div>
+            <div v-if="clinvarData.consequence_categories.splice_region > 0">
+              <strong>Splice region:</strong> {{ clinvarData.consequence_categories.splice_region }}
+            </div>
+          </div>
+
+          <!-- Top specific consequences -->
+          <div v-if="clinvarData.top_molecular_consequences?.length" class="mt-2">
+            <v-divider class="my-2" />
+            <div class="text-caption text-medium-emphasis">Most common:</div>
+            <div
+              v-for="(cons, idx) in clinvarData.top_molecular_consequences.slice(0, 3)"
+              :key="idx"
+              class="text-caption"
+            >
+              • {{ cons.consequence }}: {{ cons.count }}
+            </div>
           </div>
         </div>
       </v-tooltip>

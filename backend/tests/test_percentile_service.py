@@ -1,7 +1,8 @@
 """Tests for the percentile service."""
 
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from scipy.stats import rankdata
 
 from app.core.percentile_service import PercentileService
@@ -84,7 +85,7 @@ async def test_percentile_service_frequency_limiting():
 
         # Second call within interval should be skipped
         with patch("time.time", return_value=1100):  # 100 seconds later
-            result2 = await service.calculate_global_percentiles("test", "score", force=False)
+            _ = await service.calculate_global_percentiles("test", "score", force=False)
             # Should return cached or empty (not recalculated)
             assert mock_cache.get.called
 
