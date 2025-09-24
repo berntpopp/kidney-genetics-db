@@ -5,6 +5,7 @@ Database initialization script for automatic setup on reset/clean.
 
 import asyncio
 import sys
+
 from app.core.database import get_db_context
 from app.core.database_init import initialize_database
 
@@ -19,7 +20,7 @@ def main():
             result = loop.run_until_complete(initialize_database(db))
 
             # Print results
-            print(f"✅ Initialization complete:")
+            print("✅ Initialization complete:")
             print(f"   Views created: {result.get('views_created')}")
             print(f"   Admin created: {result.get('admin_created')}")
             print(f"   Cache cleared: {result.get('cache_cleared')} entries")

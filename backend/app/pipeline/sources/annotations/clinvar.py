@@ -39,7 +39,13 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
 
     # API configuration
     base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
-    batch_size = 200  # Reduced batch size to avoid URI too long errors
+
+    # IMPORTANT: batch_size is for GENE processing concurrency in the pipeline
+    # Not for variant batching. Keep this low to respect NCBI rate limits.
+    batch_size = 10  # Process 10 genes at a time (was 200 - caused rate limit issues)
+
+    # These are for the actual API calls
+    variant_batch_size = 200  # How many variants to fetch per esummary call
     search_batch_size = 10000  # Maximum for esearch
 
     # Review status confidence levels (from configuration)
@@ -431,7 +437,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
 
             # Step 2: Fetch variant details in batches with limited concurrency
             all_variants = []
-            total_batches = (len(variant_ids) + self.batch_size - 1) // self.batch_size
+            total_batches = (len(variant_ids) + self.variant_batch_size - 1) // self.variant_batch_size
 
             # Use semaphore to limit concurrent requests to NCBI API
             semaphore = asyncio.Semaphore(2)  # Max 2 concurrent requests to NCBI
@@ -444,7 +450,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                                 "Fetching ClinVar variants",
                                 gene_symbol=gene.approved_symbol,
                                 batch=f"{batch_num + 1}/{total_batches}",
-                                variants=f"{batch_num * self.batch_size}/{len(variant_ids)}",
+                                variants=f"{batch_num * self.variant_batch_size}/{len(variant_ids)}",
                             )
                         return await self._fetch_variant_batch(batch_ids)
                     except Exception as e:
@@ -461,8 +467,8 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
 
             # Create tasks for all batches
             tasks = []
-            for batch_num, i in enumerate(range(0, len(variant_ids), self.batch_size)):
-                batch_ids = variant_ids[i : i + self.batch_size]
+            for batch_num, i in enumerate(range(0, len(variant_ids), self.variant_batch_size)):
+                batch_ids = variant_ids[i : i + self.variant_batch_size]
                 tasks.append(fetch_batch_with_semaphore(batch_ids, batch_num))
 
             # Execute all batch fetches concurrently

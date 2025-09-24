@@ -403,7 +403,9 @@ ANNOTATION_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "circuit_breaker_threshold": 5,
     },
     "clinvar": {
-        "requests_per_second": 2.5,  # NCBI limit without API key
+        # NCBI eUtils allows 3 req/s without API key (not 10 as sometimes documented)
+        # Using 2.5 to stay safely below limit and avoid 429 errors
+        "requests_per_second": 2.5,
         "max_retries": 5,
         "cache_ttl_days": 90,
         "use_http_cache": True,

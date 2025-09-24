@@ -4,8 +4,9 @@ Test syndromic classification implementation.
 Verifies the fix for issue #8 and sub-category scoring.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
 @pytest.mark.asyncio

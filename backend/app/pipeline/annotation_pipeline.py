@@ -528,7 +528,8 @@ class AnnotationPipeline:
 
         # Process genes in batches with concurrency
         batch_size = source.batch_size
-        max_concurrent = 3 if source_name == "clinvar" else 5
+        # Reduce concurrency for ClinVar to respect NCBI rate limits
+        max_concurrent = 1 if source_name == "clinvar" else 5
 
         for i in range(0, len(genes), batch_size):
             # Check for pause

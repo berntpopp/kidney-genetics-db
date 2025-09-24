@@ -2,12 +2,14 @@
 """Run all unified data sources from scratch."""
 
 import asyncio
-from app.pipeline.sources.unified.panelapp import PanelAppUnifiedSource
-from app.pipeline.sources.unified.hpo import HPOUnifiedSource
+
+from app.core.database import SessionLocal
 from app.pipeline.sources.unified.clingen import ClinGenUnifiedSource
 from app.pipeline.sources.unified.gencc import GenCCUnifiedSource
+from app.pipeline.sources.unified.hpo import HPOUnifiedSource
+from app.pipeline.sources.unified.panelapp import PanelAppUnifiedSource
 from app.pipeline.sources.unified.pubtator import PubTatorUnifiedSource
-from app.core.database import SessionLocal
+
 
 async def run_all_sources():
     db = SessionLocal()

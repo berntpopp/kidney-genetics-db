@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Upload diagnostic panels and literature data with new thresholds."""
 
-import json
-import os
 from pathlib import Path
 
 import httpx
