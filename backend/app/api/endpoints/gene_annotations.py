@@ -792,14 +792,22 @@ async def update_new_genes(
 
     await logger.info("New genes update requested", days_back=days_back)
 
-    # Query genes without annotations
+    # Query genes without annotations, ordered by clinical importance
     # Using left outer join to find genes with no annotations
-    new_genes = db.query(Gene).outerjoin(
-        GeneAnnotation,
-        Gene.id == GeneAnnotation.gene_id
-    ).filter(
-        GeneAnnotation.id.is_(None)
-    ).all()
+    from sqlalchemy import func
+    from app.models.gene_curation import GeneCuration
+
+    new_genes = (
+        db.query(Gene)
+        .outerjoin(GeneAnnotation, Gene.id == GeneAnnotation.gene_id)
+        .outerjoin(GeneCuration, Gene.id == GeneCuration.gene_id)
+        .filter(GeneAnnotation.id.is_(None))
+        .order_by(
+            func.coalesce(GeneCuration.evidence_score, 0).desc(),
+            Gene.id
+        )
+        .all()
+    )
 
     # If no genes found, return early
     if not new_genes:
@@ -964,9 +972,20 @@ async def _run_missing_source_update(source_name: str, task_id: str):
             GeneAnnotation.source == source_name
         )
 
-        missing_genes = db.query(Gene).filter(
-            ~genes_with_source_subq
-        ).all()
+        # Order by evidence_score DESC to prioritize clinically important genes
+        from sqlalchemy import func
+        from app.models.gene_curation import GeneCuration
+
+        missing_genes = (
+            db.query(Gene)
+            .outerjoin(GeneCuration, Gene.id == GeneCuration.gene_id)
+            .filter(~genes_with_source_subq)
+            .order_by(
+                func.coalesce(GeneCuration.evidence_score, 0).desc(),
+                Gene.id
+            )
+            .all()
+        )
 
         if not missing_genes:
             await logger.info(

@@ -404,16 +404,16 @@ ANNOTATION_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
     },
     "clinvar": {
         # NCBI eUtils allows 3 req/s without API key (not 10 as sometimes documented)
-        # Using 2.5 to stay safely below limit and avoid 429 errors
-        "requests_per_second": 2.5,
+        # Using 2.8 to stay just below limit while maximizing throughput
+        "requests_per_second": 2.8,
         "max_retries": 5,
         "cache_ttl_days": 90,
         "use_http_cache": True,
         "circuit_breaker_threshold": 5,
 
         # Gene processing configuration
-        "gene_batch_size": 10,  # How many genes to process in parallel
-        "max_concurrent_genes": 1,  # Max concurrent gene updates for ClinVar
+        "gene_batch_size": 20,  # How many genes to process per batch (sequentially with concurrency=1)
+        "max_concurrent_genes": 1,  # Keep at 1 to respect NCBI rate limits
 
         # Variant fetching configuration
         "variant_batch_size": 200,  # How many variants to fetch per esummary call
