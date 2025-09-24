@@ -410,6 +410,15 @@ ANNOTATION_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "cache_ttl_days": 90,
         "use_http_cache": True,
         "circuit_breaker_threshold": 5,
+
+        # Gene processing configuration
+        "gene_batch_size": 10,  # How many genes to process in parallel
+        "max_concurrent_genes": 1,  # Max concurrent gene updates for ClinVar
+
+        # Variant fetching configuration
+        "variant_batch_size": 200,  # How many variants to fetch per esummary call
+        "search_batch_size": 10000,  # Maximum for esearch
+        "max_concurrent_variant_fetches": 2,  # Max concurrent variant batch fetches
         # Review status confidence levels
         "review_confidence": {
             "practice guideline": 4,

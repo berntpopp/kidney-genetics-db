@@ -528,8 +528,11 @@ class AnnotationPipeline:
 
         # Process genes in batches with concurrency
         batch_size = source.batch_size
-        # Reduce concurrency for ClinVar to respect NCBI rate limits
-        max_concurrent = 1 if source_name == "clinvar" else 5
+
+        # Get source-specific concurrency from config
+        from app.core.datasource_config import get_annotation_config
+        config = get_annotation_config(source_name) or {}
+        max_concurrent = config.get("max_concurrent_genes", 5)
 
         for i in range(0, len(genes), batch_size):
             # Check for pause

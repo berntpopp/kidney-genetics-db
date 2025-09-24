@@ -34,26 +34,32 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
     display_name = "ClinVar"
     version = "1.0"
 
-    # Cache configuration
-    cache_ttl_days = 90  # ClinVar updates weekly
-
-    # API configuration
+    # Base configuration
     base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 
-    # IMPORTANT: batch_size is for GENE processing concurrency in the pipeline
-    # Not for variant batching. Keep this low to respect NCBI rate limits.
-    batch_size = 10  # Process 10 genes at a time (was 200 - caused rate limit issues)
+    # Default values (overridden by config)
+    batch_size = 50  # Default from base class
+    variant_batch_size = 200
+    search_batch_size = 10000
+    max_concurrent_variant_fetches = 2
 
-    # These are for the actual API calls
-    variant_batch_size = 200  # How many variants to fetch per esummary call
-    search_batch_size = 10000  # Maximum for esearch
-
-    # Review status confidence levels (from configuration)
+    # Review status confidence levels (loaded from configuration)
     _review_confidence_levels = None
 
     def __init__(self, session):
         """Initialize the ClinVar annotation source."""
         super().__init__(session)
+
+        # Load configuration from DATA_SOURCE_CONFIG
+        from app.core.datasource_config import get_annotation_config
+
+        config = get_annotation_config("clinvar") or {}
+
+        # Apply ClinVar-specific configuration
+        self.batch_size = config.get("gene_batch_size", 10)
+        self.variant_batch_size = config.get("variant_batch_size", 200)
+        self.search_batch_size = config.get("search_batch_size", 10000)
+        self.max_concurrent_variant_fetches = config.get("max_concurrent_variant_fetches", 2)
 
         # Update source configuration
         if self.source_record:
@@ -440,7 +446,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             total_batches = (len(variant_ids) + self.variant_batch_size - 1) // self.variant_batch_size
 
             # Use semaphore to limit concurrent requests to NCBI API
-            semaphore = asyncio.Semaphore(2)  # Max 2 concurrent requests to NCBI
+            semaphore = asyncio.Semaphore(self.max_concurrent_variant_fetches)
 
             async def fetch_batch_with_semaphore(batch_ids, batch_num):
                 async with semaphore:
