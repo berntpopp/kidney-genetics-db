@@ -7,7 +7,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 
-from app.core.database import Base
+from app.models.base import Base
 
 
 class GeneNormalizationStaging(Base):
