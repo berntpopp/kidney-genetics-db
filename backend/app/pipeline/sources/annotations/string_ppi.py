@@ -44,6 +44,9 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
     protein_info_file = "9606.protein.info.v12.0.txt"
     physical_links_file = "9606.protein.physical.links.v12.0.txt"
 
+    # Class-level flag for one-time warnings
+    _percentile_warning_shown = False
+
     def __init__(self, session):
         """Initialize STRING PPI annotation source."""
         super().__init__(session)
@@ -321,12 +324,12 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
                     results[gene_id]["ppi_percentile"] = None
 
                     # Only warn once per batch to avoid log spam
-                    if not hasattr(self, '_percentile_warning_shown'):
+                    if not StringPPIAnnotationSource._percentile_warning_shown:
                         logger.sync_warning(
                             "No global percentiles available - returning None. "
                             "Run percentile calculation after all genes processed."
                         )
-                        self._percentile_warning_shown = True
+                        StringPPIAnnotationSource._percentile_warning_shown = True
 
         logger.sync_info(
             f"Calculated PPI scores for {len(results)} genes",

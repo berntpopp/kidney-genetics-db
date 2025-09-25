@@ -9,6 +9,7 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Any
 
+from app.core.datasource_config import ANNOTATION_COMMON_CONFIG
 from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
@@ -205,7 +206,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
         if (
             self._kidney_terms_cache is not None
             and self._kidney_terms_cache_time is not None
-            and time.time() - self._kidney_terms_cache_time < 86400
+            and time.time() - self._kidney_terms_cache_time < ANNOTATION_COMMON_CONFIG["cache_time_day"]
         ):
             return self._kidney_terms_cache
 
@@ -274,7 +275,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
         if (
             not force_refresh
             and self._classification_cache_time is not None
-            and time.time() - self._classification_cache_time < 86400
+            and time.time() - self._classification_cache_time < ANNOTATION_COMMON_CONFIG["cache_time_day"]
         ):
             # Return appropriate cache
             if classification_type == "onset_groups" and self._onset_descendants_cache:

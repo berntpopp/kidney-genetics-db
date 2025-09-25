@@ -85,12 +85,12 @@ class TestCacheDecorator:
             call_args = mock_cache_service.get.call_args
             cache_key = call_args[0][0]
 
-            # Key should be an MD5 hash
-            assert len(cache_key) == 32  # MD5 hash length
+            # Key should be a SHA256 hash
+            assert len(cache_key) == 64  # SHA256 hash length
 
             # Verify the raw key components
             expected_raw = "test_func:arg1:value1:arg2:value2:kwarg1:custom"
-            expected_hash = hashlib.md5(expected_raw.encode()).hexdigest()
+            expected_hash = hashlib.sha256(expected_raw.encode()).hexdigest()
             assert cache_key == expected_hash
 
     @pytest.mark.asyncio

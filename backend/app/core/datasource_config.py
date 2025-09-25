@@ -394,6 +394,17 @@ def get_source_api_url(source_name: str) -> str | None:
 
 
 # Annotation source configurations with retry and rate limiting settings
+# Common configuration values for annotation sources
+ANNOTATION_COMMON_CONFIG = {
+    "default_timeout": 30.0,  # Default HTTP request timeout in seconds
+    "long_timeout": 60.0,  # Timeout for long-running requests
+    "short_timeout": 10.0,  # Timeout for quick health checks
+    "user_agent": "KidneyGeneticsDB/1.0",  # User agent for API requests
+    "cache_time_day": 86400,  # Seconds in a day
+    "cache_time_week": 604800,  # Seconds in a week
+    "cache_time_month": 2592000,  # Seconds in 30 days
+}
+
 ANNOTATION_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
     "gnomad": {
         "requests_per_second": 3.0,
@@ -444,6 +455,8 @@ ANNOTATION_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "cache_ttl_days": 90,
         "use_http_cache": True,
         "circuit_breaker_threshold": 3,
+        # MPO kidney terms cache file - relative to backend directory
+        "mpo_kidney_terms_file": "data/mpo_kidney_terms.json",
     },
     "hgnc": {
         "requests_per_second": 5.0,

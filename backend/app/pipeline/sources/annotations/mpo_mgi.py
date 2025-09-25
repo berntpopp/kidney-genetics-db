@@ -426,10 +426,18 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                 logger.sync_info("Loading MPO terms from cache or fetching")
                 # Try to load from file first
                 import json
-                import os
+                from pathlib import Path
 
-                cache_file = "/home/bernt-popp/development/kidney-genetics-db/backend/data/mpo_kidney_terms.json"
-                if os.path.exists(cache_file):
+                # Get cache file path from config
+                from app.core.datasource_config import get_annotation_source_config
+                config = get_annotation_source_config("mpo_mgi") or {}
+                cache_file_relative = config.get("mpo_kidney_terms_file", "data/mpo_kidney_terms.json")
+
+                # Build absolute path relative to backend directory
+                backend_dir = Path(__file__).parent.parent.parent.parent
+                cache_file = backend_dir / cache_file_relative
+
+                if cache_file.exists():
                     with open(cache_file) as f:
                         self._mpo_terms_cache = set(json.load(f))
                     logger.sync_info(

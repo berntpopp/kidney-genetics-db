@@ -53,7 +53,7 @@ def cache(namespace: str = "default", ttl: int | None = None, key_builder: Calla
                         key_parts.append(f"{name}:{value}")
 
                 raw_key = ":".join(key_parts)
-                cache_key = hashlib.md5(raw_key.encode()).hexdigest()
+                cache_key = hashlib.sha256(raw_key.encode()).hexdigest()
 
             # Try to get from cache
             cached_value = await cache_service.get(cache_key, namespace)
