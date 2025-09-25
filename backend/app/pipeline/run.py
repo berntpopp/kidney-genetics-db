@@ -55,11 +55,12 @@ async def update(source: str):
         db.commit()
 
         all_stats = []
-        tracker = ProgressTracker(source_name=source)
 
         # The unified sources handle async internally even with sync session
         if source in ["all", "panelapp"]:
             await logger.info("Updating PanelApp data")
+            # Create tracker specific to this source
+            tracker = ProgressTracker(db=db, source_name="PanelApp")
             source_obj = PanelAppUnifiedSource(db_session=db)
             stats = await source_obj.update_data(db, tracker)
             all_stats.append(stats)
@@ -67,6 +68,8 @@ async def update(source: str):
 
         if source in ["all", "hpo"]:
             await logger.info("Updating HPO data")
+            # Create tracker specific to this source
+            tracker = ProgressTracker(db=db, source_name="HPO")
             source_obj = HPOUnifiedSource(db_session=db)
             stats = await source_obj.update_data(db, tracker)
             all_stats.append(stats)
@@ -74,6 +77,8 @@ async def update(source: str):
 
         if source in ["all", "pubtator"]:
             await logger.info("Updating PubTator data")
+            # Create tracker specific to this source
+            tracker = ProgressTracker(db=db, source_name="PubTator")
             source_obj = PubTatorUnifiedSource(db_session=db)
             stats = await source_obj.update_data(db, tracker)
             all_stats.append(stats)
@@ -81,6 +86,8 @@ async def update(source: str):
 
         if source in ["all", "clingen"]:
             await logger.info("Updating ClinGen data")
+            # Create tracker specific to this source
+            tracker = ProgressTracker(db=db, source_name="ClinGen")
             source_obj = ClinGenUnifiedSource(db_session=db)
             stats = await source_obj.update_data(db, tracker)
             all_stats.append(stats)
@@ -88,6 +95,8 @@ async def update(source: str):
 
         if source in ["all", "gencc"]:
             await logger.info("Updating GenCC data")
+            # Create tracker specific to this source
+            tracker = ProgressTracker(db=db, source_name="GenCC")
             source_obj = GenCCUnifiedSource(db_session=db)
             stats = await source_obj.update_data(db, tracker)
             all_stats.append(stats)

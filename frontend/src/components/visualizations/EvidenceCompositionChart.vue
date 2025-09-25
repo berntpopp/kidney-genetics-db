@@ -115,7 +115,7 @@ const loadData = async () => {
     data.value = response.data
   } catch (err) {
     error.value = err.message || 'Failed to load evidence composition data'
-    console.error('Error loading evidence composition:', err)
+    window.logService.error('Error loading evidence composition:', err)
   } finally {
     loading.value = false
   }

@@ -195,7 +195,7 @@ class CRUDGene:
 
         base_query = """
             SELECT gs.gene_id, gs.approved_symbol, gs.source_count, gs.evidence_count,
-                   gs.raw_score, gs.percentage_score, gs.total_active_sources,
+                   gs.raw_score, gs.percentage_score,
                    g.hgnc_id, g.aliases, g.created_at, g.updated_at
             FROM gene_scores gs
             JOIN genes g ON gs.gene_id = g.id
@@ -328,7 +328,6 @@ class CRUDGene:
                     gs.evidence_count,
                     gs.raw_score,
                     gs.percentage_score,
-                    gs.total_active_sources,
                     g.hgnc_id,
                     g.aliases,
                     g.created_at,
@@ -357,7 +356,7 @@ class CRUDGene:
             base_query += """
                 GROUP BY gs.gene_id, gs.approved_symbol, gs.source_count,
                          gs.evidence_count, gs.raw_score, gs.percentage_score,
-                         gs.total_active_sources, g.hgnc_id, g.aliases,
+                         g.hgnc_id, g.aliases,
                          g.created_at, g.updated_at
             """
 

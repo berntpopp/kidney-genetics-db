@@ -2,9 +2,9 @@
 Data source API endpoints
 """
 
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -253,16 +253,23 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     active_count = len([s for s in sources if s.status == "active"])
 
     # Get actual unique gene count (only genes with evidence)
-    unique_genes = db.execute(text("SELECT COUNT(DISTINCT gene_id) FROM gene_evidence")).scalar() or 0
+    unique_genes = (
+        db.execute(text("SELECT COUNT(DISTINCT gene_id) FROM gene_evidence")).scalar() or 0
+    )
 
     # Get orphaned gene count
-    orphaned_genes = db.execute(text("""
+    orphaned_genes = (
+        db.execute(
+            text("""
         SELECT COUNT(*)
         FROM genes g
         WHERE NOT EXISTS (
             SELECT 1 FROM gene_evidence ge WHERE ge.gene_id = g.id
         )
-    """)).scalar() or 0
+    """)
+        ).scalar()
+        or 0
+    )
 
     # Get total evidence records
     total_evidence = db.execute(text("SELECT COUNT(*) FROM gene_evidence")).scalar() or 0
@@ -402,17 +409,31 @@ async def get_datasource(source_name: str, db: Session = Depends(get_db)) -> dic
 
 
 @router.post("/{source_name}/update")
-async def update_datasource(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+async def update_datasource(
+    source_name: str,
+    mode: Literal["smart", "full"] = Query(
+        "smart", description="Update mode: smart (incremental) or full (complete refresh)"
+    ),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
     """
-    Trigger update for a specific data source
+    Trigger update for a specific data source with mode selection.
+
+    Modes:
+    - smart: Incremental update, stops when hitting database duplicates (default)
+    - full: Complete refresh, deletes existing entries first
     """
     if source_name not in DATA_SOURCE_CONFIG:
         raise DataSourceError(source_name, "update", "Unknown data source")
 
     try:
-        await task_manager.run_source(source_name)
+        await task_manager.run_source(source_name, mode=mode)
         return ResponseBuilder.build_success_response(
-            data={"message": f"Update triggered for {source_name}", "status": "started"}
+            data={
+                "message": f"{mode.capitalize()} update triggered for {source_name}",
+                "status": "started",
+                "mode": mode,
+            }
         )
     except Exception as e:
         raise DataSourceError(source_name, "update", f"Failed to start update: {e!s}") from e

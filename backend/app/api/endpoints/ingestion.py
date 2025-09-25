@@ -13,15 +13,17 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.dependencies import require_curator
 from app.core.exceptions import DataSourceError, ValidationError
 from app.core.logging import get_logger
 from app.core.responses import ResponseBuilder
 from app.models.gene import GeneEvidence
+from app.models.user import User
 from app.pipeline.sources.unified import get_unified_source
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/sources", tags=["Hybrid Sources"])
+router = APIRouter()
 
 # Define which sources support file uploads
 UPLOAD_SOURCES = {"DiagnosticPanels", "Literature"}
@@ -33,6 +35,7 @@ async def upload_evidence_file(
     file: UploadFile = File(...),
     provider_name: str | None = Form(None),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_curator),
 ) -> dict[str, Any]:
     """
     Upload evidence file for hybrid sources.
@@ -92,22 +95,53 @@ async def upload_evidence_file(
         source_name=source_name,
         filename=file.filename,
         file_size=file_size,
-        provider_name=provider_name
+        provider_name=provider_name,
+        uploaded_by=current_user.username,
+        user_role=current_user.role,
     )
 
     try:
         # Get source processor
+        await logger.info(
+            "Getting source processor",
+            source_name=source_name
+        )
         source = get_unified_source(source_name, db_session=db)
 
+        await logger.info(
+            "Source processor obtained",
+            source_class=source.__class__.__name__
+        )
+
         # Process through source pipeline
-        # Process through source pipeline
+        await logger.info(
+            "Fetching raw data from file",
+            file_extension=file_extension,
+            provider_name=provider_name
+        )
         raw_data = await source.fetch_raw_data(file_content, file_extension, provider_name)
 
+        await logger.info(
+            "Raw data fetched",
+            row_count=len(raw_data) if hasattr(raw_data, '__len__') else 'unknown'
+        )
+
         # Process data
+        await logger.info("Processing raw data")
         processed_data = await source.process_data(raw_data)
+
+        await logger.info(
+            "Data processed",
+            gene_count=len(processed_data) if processed_data else 0
+        )
 
         # Set provider context for evidence creation
         source._current_provider = provider_name
+
+        await logger.info(
+            "Starting hybrid gene creation/evidence merging",
+            provider=provider_name
+        )
 
         # Use hybrid source approach with gene creation + evidence merging
         from app.core.gene_normalizer import normalize_genes_batch_async
@@ -120,6 +154,13 @@ async def upload_evidence_file(
         batch_size = 50
         total_batches = (len(gene_symbols) + batch_size - 1) // batch_size
 
+        await logger.info(
+            "Starting gene normalization",
+            total_symbols=len(gene_symbols),
+            batch_size=batch_size,
+            total_batches=total_batches
+        )
+
         genes_created = 0
         genes_updated = 0
 
@@ -130,33 +171,81 @@ async def upload_evidence_file(
 
             tracker.update(operation=f"Creating genes batch {batch_num + 1}/{total_batches}")
 
+            await logger.debug(
+                "Processing batch",
+                batch_num=batch_num + 1,
+                batch_size=len(batch_symbols)
+            )
+
             # Normalize gene symbols and create missing genes
             normalization_results = await normalize_genes_batch_async(
                 db, batch_symbols, source_name
+            )
+
+            await logger.debug(
+                "Batch normalized",
+                batch_num=batch_num + 1,
+                normalized_count=len(normalization_results)
             )
 
             # Create missing genes
             for symbol in batch_symbols:
                 norm_result = normalization_results.get(symbol, {})
                 if norm_result.get("status") == "normalized":
-                    gene = await source._get_or_create_gene(db, norm_result, symbol, {"genes_created": 0, "genes_updated": 0})
+                    gene = await source._get_or_create_gene(
+                        db, norm_result, symbol, {"genes_created": 0, "genes_updated": 0}
+                    )
                     if gene:
                         genes_created += 1 if norm_result.get("created") else 0
                         genes_updated += 1 if not norm_result.get("created") else 0
 
             db.commit()
 
+            await logger.debug(
+                "Batch committed",
+                batch_num=batch_num + 1,
+                batch_created=sum(1 for s in batch_symbols if normalization_results.get(s, {}).get("created")),
+                batch_updated=sum(1 for s in batch_symbols if normalization_results.get(s, {}).get("status") == "normalized" and not normalization_results.get(s, {}).get("created"))
+            )
+
+        await logger.info(
+            "Gene normalization complete",
+            genes_created=genes_created,
+            genes_updated=genes_updated
+        )
+
         # Step 2: Store evidence using custom merge logic
         tracker.update(operation="Storing evidence with aggregation")
+
+        await logger.info(
+            "Starting evidence storage",
+            gene_count=len(processed_data),
+            provider=provider_name
+        )
+
         evidence_stats = await source.store_evidence(db, processed_data, provider_name)
+
+        await logger.info(
+            "Evidence storage complete",
+            stats=evidence_stats
+        )
+
         db.commit()
+
+        await logger.info("Database committed")
 
         # Convert to expected format
         stats = {
             "created": evidence_stats.get("created", 0) + genes_created,
             "merged": evidence_stats.get("merged", 0),
-            "failed": evidence_stats.get("failed", 0)
+            "failed": evidence_stats.get("failed", 0),
+            "filtered": evidence_stats.get("filtered", 0),
         }
+
+        await logger.info(
+            "Upload processing complete",
+            final_stats=stats
+        )
 
         # Return comprehensive response
         upload_result = {
@@ -182,7 +271,7 @@ async def upload_evidence_file(
             "Validation error processing upload",
             error=e,
             source_name=source_name,
-            traceback=traceback.format_exc()
+            traceback=traceback.format_exc(),
         )
         raise ValidationError(field="file_content", reason=str(e)) from e
     except Exception as e:
@@ -192,7 +281,7 @@ async def upload_evidence_file(
             "Failed to process upload",
             error=e,
             source_name=source_name,
-            traceback=traceback.format_exc()
+            traceback=traceback.format_exc(),
         )
         raise DataSourceError(source_name, "file_processing", f"Processing failed: {str(e)}") from e
 

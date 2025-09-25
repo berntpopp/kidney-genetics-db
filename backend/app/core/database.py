@@ -3,10 +3,14 @@ Database configuration and session management
 OPTIMIZED: Includes robust connection management and pool monitoring
 """
 
+import asyncio
 from collections.abc import Generator
 from contextlib import contextmanager
+from typing import Any
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.exc import DisconnectionError
+from sqlalchemy.exc import TimeoutError as SQLTimeoutError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import Pool
@@ -16,13 +20,27 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Create database engine
+# Create database engine with robust connection management
 engine = create_engine(
     settings.DATABASE_URL,
     echo=settings.DATABASE_ECHO,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    # Connection pooling with robustness settings
+    pool_size=20,
+    max_overflow=30,
+    pool_timeout=30,
+    pool_recycle=3600,  # Recycle connections after 1 hour
+    pool_pre_ping=True,  # Test connections before use
+    pool_use_lifo=True,  # Use LIFO for better connection reuse
+    pool_reset_on_return="rollback",  # Always rollback on return
+    # Connection-level timeouts and settings
+    connect_args={
+        "options": "-c idle_in_transaction_session_timeout=30000",  # 30 second timeout
+        "connect_timeout": 10,
+    }
+    if "postgresql" in settings.DATABASE_URL
+    else {},
+    # Enable pool logging for debugging
+    echo_pool=settings.DATABASE_ECHO,
 )
 
 # Create session factory
@@ -53,9 +71,27 @@ def get_db_context() -> Generator[Session, None, None]:
     try:
         db = SessionLocal()
         yield db
+        # Commit if we get here without exception
+        db.commit()
+    except (DisconnectionError, SQLTimeoutError, asyncio.TimeoutError) as e:
+        # Critical errors that may corrupt session state
+        if db:
+            try:
+                db.invalidate()  # Don't return connection to pool
+            except Exception:
+                pass
+        logger.sync_error("Database connection error - session invalidated", error=e)
+        raise
     except Exception as e:
         if db:
-            db.rollback()
+            try:
+                db.rollback()
+            except Exception:
+                # If rollback fails, invalidate the session
+                try:
+                    db.invalidate()
+                except Exception:
+                    pass
         logger.sync_error("Database error in context", error=e)
         raise
     finally:
@@ -64,6 +100,64 @@ def get_db_context() -> Generator[Session, None, None]:
                 db.close()
             except Exception as e:
                 logger.sync_error("Error closing database session", error=e)
+
+
+@contextmanager
+def transactional_context(timeout_seconds: int = 300) -> Generator[Session, None, None]:
+    """
+    Context manager for transactional database operations with timeout.
+    ROBUST: Includes timeout protection and proper error handling.
+    """
+    db = None
+    start_time = (
+        asyncio.get_event_loop().time()
+        if hasattr(asyncio, "_get_running_loop") and asyncio._get_running_loop()
+        else 0
+    )
+
+    try:
+        db = SessionLocal()
+
+        # Set a statement timeout for long-running operations
+        if "postgresql" in settings.DATABASE_URL:
+            db.execute(text(f"SET statement_timeout = {timeout_seconds * 1000}"))
+
+        yield db
+
+        # Check if we've exceeded our timeout
+        if start_time and (asyncio.get_event_loop().time() - start_time) > timeout_seconds:
+            raise asyncio.TimeoutError(f"Transaction exceeded {timeout_seconds} seconds")
+
+        db.commit()
+
+    except (DisconnectionError, SQLTimeoutError, asyncio.TimeoutError) as e:
+        # Critical errors - invalidate session
+        if db:
+            try:
+                db.invalidate()
+            except Exception:
+                pass
+        logger.sync_error(
+            "Transaction failed with critical error", error=e, timeout_seconds=timeout_seconds
+        )
+        raise
+    except Exception as e:
+        if db:
+            try:
+                db.rollback()
+            except Exception:
+                try:
+                    db.invalidate()
+                except Exception:
+                    pass
+        logger.sync_error("Transaction failed", error=e)
+        raise
+    finally:
+        if db:
+            try:
+                db.close()
+            except Exception as e:
+                logger.sync_error("Error closing transactional session", error=e)
 
 
 # Connection pool monitoring for debugging and optimization
@@ -82,8 +176,7 @@ def increment_connect(dbapi_conn, connection_record):
     """Track new connections created"""
     connection_stats["connections_created"] += 1
     logger.sync_debug(
-        "New database connection created",
-        total_connections=connection_stats['connections_created']
+        "New database connection created", total_connections=connection_stats["connections_created"]
     )
 
 
@@ -121,8 +214,107 @@ def get_pool_status() -> dict:
     pool = engine.pool
     return {
         "size": pool.size(),
-        "checked_in": pool.checkedout(),
+        "checked_out": pool.checkedout(),
         "overflow": pool.overflow(),
         "total": pool.size() + pool.overflow(),
         "stats": connection_stats.copy(),
+        "pool_timeout": getattr(pool, "_timeout", None),
+        "pool_recycle": getattr(pool, "_recycle", None),
     }
+
+
+def check_database_health() -> dict[str, Any]:
+    """
+    Comprehensive database health check.
+    ROBUST: Tests connectivity, pool status, and basic operations.
+    """
+    try:
+        with get_db_context() as db:
+            # Test basic connectivity
+            result = db.execute(text("SELECT 1 as health_check"))
+            health_result = result.scalar()
+
+            if health_result != 1:
+                raise ValueError("Unexpected health check result")
+
+            # Get pool status
+            pool_status = get_pool_status()
+
+            return {
+                "status": "healthy",
+                "database_responsive": True,
+                "pool_status": pool_status,
+                "test_query_result": health_result,
+            }
+
+    except (DisconnectionError, SQLTimeoutError) as e:
+        logger.sync_error("Database health check failed - connection issue", error=e)
+        return {
+            "status": "unhealthy",
+            "database_responsive": False,
+            "error": "Connection/timeout error",
+            "error_details": str(e),
+            "pool_status": get_pool_status(),
+        }
+    except Exception as e:
+        logger.sync_error("Database health check failed", error=e)
+        return {
+            "status": "unhealthy",
+            "database_responsive": False,
+            "error": "General database error",
+            "error_details": str(e),
+            "pool_status": get_pool_status(),
+        }
+
+
+def cleanup_idle_sessions() -> dict[str, Any]:
+    """
+    Clean up idle database sessions that might be blocking.
+    ROBUST: Helps prevent session accumulation and hanging transactions.
+    """
+    try:
+        with get_db_context() as db:
+            if "postgresql" in settings.DATABASE_URL:
+                # Find idle transactions older than 5 minutes
+                result = db.execute(
+                    text("""
+                    SELECT pid, state, query_start, state_change,
+                           EXTRACT(EPOCH FROM (NOW() - query_start)) as seconds_old,
+                           query
+                    FROM pg_stat_activity
+                    WHERE state = 'idle in transaction'
+                    AND EXTRACT(EPOCH FROM (NOW() - state_change)) > 300
+                    AND pid != pg_backend_pid()
+                """)
+                )
+
+                idle_sessions = result.fetchall()
+                terminated_count = 0
+
+                # Terminate sessions that have been idle too long
+                for session in idle_sessions:
+                    try:
+                        db.execute(text("SELECT pg_terminate_backend(:pid)"), {"pid": session.pid})
+                        terminated_count += 1
+                        logger.sync_warning(
+                            "Terminated idle database session",
+                            pid=session.pid,
+                            seconds_old=session.seconds_old,
+                        )
+                    except Exception as e:
+                        logger.sync_error("Failed to terminate session", pid=session.pid, error=e)
+
+                return {
+                    "cleanup_performed": True,
+                    "idle_sessions_found": len(idle_sessions),
+                    "sessions_terminated": terminated_count,
+                }
+            else:
+                return {"cleanup_performed": False, "reason": "Non-PostgreSQL database"}
+
+    except Exception as e:
+        logger.sync_error("Failed to cleanup idle sessions", error=e)
+        return {
+            "cleanup_performed": False,
+            "error": str(e),
+        }

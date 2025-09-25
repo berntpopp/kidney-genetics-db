@@ -33,6 +33,9 @@ class Gene(Base, TimestampMixin):
     # Relationships
     evidence = relationship("GeneEvidence", back_populates="gene", cascade="all, delete-orphan")
     curation = relationship("GeneCuration", back_populates="gene", uselist=False)
+    annotations = relationship(
+        "GeneAnnotation", back_populates="gene", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Gene(symbol='{self.approved_symbol}', hgnc_id='{self.hgnc_id}')>"

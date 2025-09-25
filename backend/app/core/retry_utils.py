@@ -132,10 +132,7 @@ class CircuitBreaker:
 
         if self.failure_count >= self.failure_threshold:
             self.state = "open"
-            logger.sync_warning(
-                "Circuit breaker opened",
-                failure_count=self.failure_count
-            )
+            logger.sync_warning("Circuit breaker opened", failure_count=self.failure_count)
 
 
 def retry_with_backoff(
@@ -180,7 +177,7 @@ def retry_with_backoff(
                                     delay = float(retry_after)
                                     logger.sync_info(
                                         "Rate limited. Waiting as requested by server",
-                                        delay_seconds=delay
+                                        delay_seconds=delay,
                                     )
                                 except ValueError:
                                     delay = config.calculate_delay(attempt)
@@ -198,11 +195,13 @@ def retry_with_backoff(
                             attempt=attempt + 1,
                             max_attempts=config.max_retries + 1,
                             error=str(e),
-                            retry_delay=delay
+                            retry_delay=delay,
                         )
                         await asyncio.sleep(delay)
                     else:
-                        logger.sync_error("All attempts failed", max_attempts=config.max_retries + 1)
+                        logger.sync_error(
+                            "All attempts failed", max_attempts=config.max_retries + 1
+                        )
 
             # If we get here, all retries failed
             if last_exception:
@@ -233,11 +232,13 @@ def retry_with_backoff(
                             attempt=attempt + 1,
                             max_attempts=config.max_retries + 1,
                             error=str(e),
-                            retry_delay=delay
+                            retry_delay=delay,
                         )
                         time.sleep(delay)
                     else:
-                        logger.sync_error("All attempts failed", max_attempts=config.max_retries + 1)
+                        logger.sync_error(
+                            "All attempts failed", max_attempts=config.max_retries + 1
+                        )
 
             # If we get here, all retries failed
             if last_exception:
@@ -379,3 +380,30 @@ class RetryableHTTPClient:
     async def close(self):
         """Close the underlying client."""
         await self.client.aclose()
+
+
+class SimpleRateLimiter:
+    """
+    Simple rate limiter - no bursts, just consistent rate.
+
+    Ensures requests are spaced at least 1/requests_per_second apart.
+    Perfect for APIs with strict rate limits like PubTator3 (3 req/s).
+    """
+
+    def __init__(self, requests_per_second: float = 3.0):
+        """
+        Initialize rate limiter.
+
+        Args:
+            requests_per_second: Maximum requests per second (e.g., 3.0 for PubTator)
+        """
+        self.min_interval = 1.0 / requests_per_second
+        self.last_request = 0
+
+    async def wait(self):
+        """Wait if needed to maintain rate limit."""
+        now = time.monotonic()
+        elapsed = now - self.last_request
+        if elapsed < self.min_interval:
+            await asyncio.sleep(self.min_interval - elapsed)
+        self.last_request = time.monotonic()

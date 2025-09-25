@@ -58,9 +58,13 @@ class DataSourceClient(ABC):
         pass
 
     @abstractmethod
-    async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> Any:
+    async def fetch_raw_data(self, tracker: "ProgressTracker" = None, mode: str = "smart") -> Any:
         """
         Fetch raw data from the external source.
+
+        Args:
+            tracker: Progress tracker for real-time updates
+            mode: Update mode - "smart" (incremental) or "full" (complete refresh)
 
         Returns:
             Raw data in whatever format the source provides
@@ -93,20 +97,37 @@ class DataSourceClient(ABC):
         """
         pass
 
-    async def update_data(self, db: Session, tracker: ProgressTracker) -> dict[str, Any]:
+    async def _clear_existing_entries(self, db: Session) -> int:
+        """Clear existing entries for this source (for full mode).
+
+        Returns:
+            Number of deleted entries
+        """
+        deleted = db.query(GeneEvidence)\
+            .filter(GeneEvidence.source_name == self.source_name)\
+            .delete()
+        db.commit()
+        logger.sync_info(f"Cleared {deleted} existing {self.source_name} entries")
+        return deleted
+
+    async def update_data(
+        self, db: Session, tracker: ProgressTracker, mode: str = "smart"
+    ) -> dict[str, Any]:
         """
         Template method for the complete data update process.
 
         This method implements the common workflow:
         1. Initialize statistics
-        2. Fetch raw data from source
-        3. Process data into gene information
-        4. Store processed data in database
-        5. Return comprehensive statistics
+        2. Clear existing data if full mode
+        3. Fetch raw data from source
+        4. Process data into gene information
+        5. Store processed data in database
+        6. Return comprehensive statistics
 
         Args:
             db: Database session
             tracker: Progress tracker for real-time updates
+            mode: Update mode - "smart" (incremental) or "full" (complete refresh)
 
         Returns:
             Dictionary with comprehensive update statistics
@@ -114,13 +135,27 @@ class DataSourceClient(ABC):
         stats = self._initialize_stats()
 
         try:
-            tracker.start(f"Starting {self.source_name} update")
-            logger.sync_info("Starting data update", source_name=self.source_name)
+            tracker.start(f"Starting {self.source_name} update (mode: {mode})")
+            logger.sync_info("Starting data update", source_name=self.source_name, mode=mode)
+
+            # Clear existing entries if full mode
+            if mode == "full":
+                tracker.update(operation="Clearing existing entries")
+                deleted = await self._clear_existing_entries(db)
+                stats["entries_deleted"] = deleted
+                logger.sync_info(f"Full mode: deleted {deleted} existing entries")
 
             # Step 1: Fetch raw data
             tracker.update(operation="Fetching data from source")
             logger.sync_info("Fetching data from source", source_name=self.source_name)
-            raw_data = await self.fetch_raw_data(tracker=tracker)
+
+            # Check if fetch_raw_data accepts mode parameter
+            import inspect
+            sig = inspect.signature(self.fetch_raw_data)
+            if 'mode' in sig.parameters:
+                raw_data = await self.fetch_raw_data(tracker=tracker, mode=mode)
+            else:
+                raw_data = await self.fetch_raw_data(tracker=tracker)
             stats["data_fetched"] = True
 
             # Step 2: Process data
@@ -139,7 +174,7 @@ class DataSourceClient(ABC):
             logger.sync_info(
                 "Storing genes in database",
                 source_name=self.source_name,
-                gene_count=len(processed_data)
+                gene_count=len(processed_data),
             )
             await self._store_genes_in_database(db, processed_data, stats, tracker)
 
@@ -172,8 +207,8 @@ class DataSourceClient(ABC):
                 source_name=self.source_name,
                 total_genes=total_genes,
                 total_evidence=total_evidence,
-                genes_created=stats['genes_created'],
-                evidence_created=stats['evidence_created']
+                genes_created=stats["genes_created"],
+                evidence_created=stats["evidence_created"],
             )
 
             tracker.complete(
@@ -269,11 +304,7 @@ class DataSourceClient(ABC):
                         await self._create_or_update_evidence(db, gene, data, stats)
 
                 except Exception as e:
-                    logger.sync_error(
-                        "Error processing gene",
-                        symbol=symbol,
-                        error=str(e)
-                    )
+                    logger.sync_error("Error processing gene", symbol=symbol, error=str(e))
                     stats["errors"] += 1
 
             # Commit batch
@@ -306,9 +337,7 @@ class DataSourceClient(ABC):
                 gene = gene_crud.create(db, gene_create)
                 stats["genes_created"] += 1
                 logger.sync_debug(
-                    "Created new gene",
-                    approved_symbol=approved_symbol,
-                    hgnc_id=hgnc_id
+                    "Created new gene", approved_symbol=approved_symbol, hgnc_id=hgnc_id
                 )
             except Exception as e:
                 # Handle race condition: another task may have created the gene
@@ -316,7 +345,7 @@ class DataSourceClient(ABC):
                     logger.sync_debug(
                         "Gene constraint violation, retrying fetch",
                         approved_symbol=approved_symbol,
-                        hgnc_id=hgnc_id
+                        hgnc_id=hgnc_id,
                     )
 
                     # Try to get the gene that was created by another task
@@ -330,13 +359,13 @@ class DataSourceClient(ABC):
                         logger.sync_debug(
                             "Found gene after race condition",
                             approved_symbol=gene.approved_symbol,
-                            hgnc_id=gene.hgnc_id
+                            hgnc_id=gene.hgnc_id,
                         )
                     else:
                         logger.sync_error(
                             "Race condition: gene still not found after creation attempt",
                             approved_symbol=approved_symbol,
-                            hgnc_id=hgnc_id
+                            hgnc_id=hgnc_id,
                         )
                         return None
                 else:
@@ -344,7 +373,7 @@ class DataSourceClient(ABC):
                         "Error creating gene",
                         approved_symbol=approved_symbol,
                         hgnc_id=hgnc_id,
-                        error=str(e)
+                        error=str(e),
                     )
                     return None
         else:
@@ -387,7 +416,7 @@ class DataSourceClient(ABC):
                 logger.sync_debug(
                     "Updated evidence for gene",
                     gene_symbol=gene.approved_symbol,
-                    source_name=self.source_name
+                    source_name=self.source_name,
                 )
             else:
                 # Create new evidence with proper constraint handling
@@ -405,7 +434,7 @@ class DataSourceClient(ABC):
                     logger.sync_debug(
                         "Created evidence for gene",
                         gene_symbol=gene.approved_symbol,
-                        source_name=self.source_name
+                        source_name=self.source_name,
                     )
                 except Exception as constraint_error:
                     # Handle race condition: another process may have created the evidence
@@ -416,7 +445,7 @@ class DataSourceClient(ABC):
                         db.rollback()  # Rollback failed transaction
                         logger.sync_debug(
                             "Race condition detected for gene, retrying...",
-                            gene_symbol=gene.approved_symbol
+                            gene_symbol=gene.approved_symbol,
                         )
 
                         # Try to get the evidence that was created by another process
@@ -438,13 +467,13 @@ class DataSourceClient(ABC):
                             stats["evidence_updated"] += 1
                             logger.sync_debug(
                                 "Updated evidence after race condition",
-                                gene_symbol=gene.approved_symbol
+                                gene_symbol=gene.approved_symbol,
                             )
                         else:
                             # Should not happen, but log if it does
                             logger.sync_error(
                                 "Evidence not found after race condition",
-                                gene_symbol=gene.approved_symbol
+                                gene_symbol=gene.approved_symbol,
                             )
                             stats["errors"] += 1
                     else:
@@ -452,7 +481,7 @@ class DataSourceClient(ABC):
                         logger.sync_error(
                             "Constraint error for gene",
                             gene_symbol=gene.approved_symbol,
-                            error=str(constraint_error)
+                            error=str(constraint_error),
                         )
                         stats["errors"] += 1
                         raise
@@ -461,7 +490,7 @@ class DataSourceClient(ABC):
             logger.sync_error(
                 "Error creating/updating evidence for gene",
                 gene_symbol=gene.approved_symbol,
-                error=str(e)
+                error=str(e),
             )
             stats["errors"] += 1
 

@@ -5,7 +5,6 @@ This module replaces the previous implementations (panelapp.py, panelapp_cached.
 with a single, async-first implementation using the unified data source architecture.
 """
 
-import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -65,26 +64,21 @@ class PanelAppUnifiedSource(UnifiedDataSource):
         # Regions to fetch from
         self.regions = regions or ["UK", "Australia"]
 
-        # Kidney-related search terms
-        self.kidney_keywords = [
-            "kidney",
-            "renal",
-            "nephro",
-            "glomerul",
-            "tubul",
-            "polycystic",
-            "alport",
-            "nephritis",
-            "cystic",
-            "ciliopathy",
-            "complement",
-            "cakut",
-            "focal segmental",
-            "steroid resistant",
-            "nephrotic",
-            "proteinuria",
-            "hematuria",
-        ]
+        # Kidney-related search terms from config
+        self.kidney_keywords = get_source_parameter(
+            "PanelApp",
+            "kidney_keywords",
+            [
+                "kidney",
+                "renal",
+                "nephro",
+                "glomerul",
+                "polycystic",
+                "alport",
+                "nephritis",
+                "cakut",
+            ],
+        )
 
         # Confidence levels (green list)
         self.green_confidence_levels = ["3", "4", "green"]
@@ -207,10 +201,14 @@ class PanelAppUnifiedSource(UnifiedDataSource):
             if response.status_code == 200:
                 return response.json()
             else:
-                logger.sync_warning("Failed to fetch panel", panel_id=panel_id, status_code=response.status_code)
+                logger.sync_warning(
+                    "Failed to fetch panel", panel_id=panel_id, status_code=response.status_code
+                )
 
         except Exception as e:
-            logger.sync_error("Error fetching panel", panel_id=panel_id, panel_name=panel_name, error=e)
+            logger.sync_error(
+                "Error fetching panel", panel_id=panel_id, panel_name=panel_name, error=e
+            )
 
         return None
 
@@ -296,7 +294,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
             "PanelApp processing complete",
             total_panels=total_panels,
             total_gene_entries=total_genes,
-            unique_genes=len(gene_data_map)
+            unique_genes=len(gene_data_map),
         )
 
         return gene_data_map
@@ -313,6 +311,10 @@ class PanelAppUnifiedSource(UnifiedDataSource):
         """
         Check if a panel is kidney-related based on name and description.
 
+        Simply checks if any kidney keyword appears in the panel name or description.
+        We already searched for these panels using kidney keywords, so they should
+        be kidney-related.
+
         Args:
             panel: Panel data
 
@@ -321,27 +323,12 @@ class PanelAppUnifiedSource(UnifiedDataSource):
         """
         name = (panel.get("name") or "").lower()
         description = (panel.get("description") or "").lower()
-
-        # Check for kidney keywords
-        for keyword in ["kidney", "renal", "nephro", "cakut"]:
-            if keyword in name or keyword in description:
-                return True
-
-        # Check for specific kidney-related panels
-        kidney_panel_patterns = [
-            r"focal\s+segmental",
-            r"steroid\s+resistant",
-            r"nephrotic",
-            r"glomerul",
-            r"tubul",
-            r"alport",
-            r"polycystic",
-            r"ciliopathy",
-        ]
-
         combined_text = f"{name} {description}"
-        for pattern in kidney_panel_patterns:
-            if re.search(pattern, combined_text, re.IGNORECASE):
+
+        # Simple check: does it contain any core kidney terms?
+        # If we found it via kidney keyword search, it's likely relevant
+        for keyword in ["kidney", "renal", "nephro", "cakut", "tubulopathy", "glomerul"]:
+            if keyword in combined_text:
                 return True
 
         return False

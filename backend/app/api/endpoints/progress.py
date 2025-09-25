@@ -11,6 +11,12 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.datasource_config import (
+    DATA_SOURCE_CONFIG,
+    INTERNAL_PROCESS_CONFIG,
+    get_auto_update_sources,
+    get_internal_process_config,
+)
 from app.core.events import EventTypes, event_bus
 from app.core.exceptions import DataSourceError
 from app.core.logging import get_logger
@@ -38,7 +44,9 @@ class ConnectionManager:
 
     async def _handle_progress_update(self, data: dict):
         """Handle progress updates from event bus - NO MORE POLLING!"""
-        await self.broadcast({"type": "progress_update", "data": data})
+        # Wrap single update in array for frontend compatibility
+        data_array = [data] if isinstance(data, dict) else data
+        await self.broadcast({"type": "progress_update", "data": data_array})
 
     async def _handle_task_started(self, data: dict):
         """Handle task started events"""
@@ -95,9 +103,43 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
     """
     await manager.connect(websocket)
     try:
-        # Send initial status of all sources
+        # Send initial status of all sources with same format as REST API
         all_progress = db.query(DataSourceProgress).all()
-        initial_status = {"type": "initial_status", "data": [p.to_dict() for p in all_progress]}
+
+        # Use same logic as get_all_status to format data consistently
+        automated_sources = get_auto_update_sources()
+        all_configured_sources = list(DATA_SOURCE_CONFIG.keys())
+        internal_processes = list(INTERNAL_PROCESS_CONFIG.keys())
+
+        formatted_data = []
+        for p in all_progress:
+            # Skip obsolete entries
+            if (
+                p.source_name not in all_configured_sources
+                and p.source_name not in internal_processes
+            ):
+                continue
+
+            status_dict = p.to_dict()
+
+            # Add same category and metadata as REST API
+            if p.source_name in automated_sources:
+                status_dict["category"] = "data_source"
+            elif p.source_name in all_configured_sources:
+                status_dict["category"] = "hybrid_source"
+            elif p.source_name in internal_processes:
+                status_dict["category"] = "internal_process"
+                # Add proper display metadata for internal processes
+                process_config = get_internal_process_config(p.source_name)
+                if process_config:
+                    status_dict["display_name"] = process_config["display_name"]
+                    status_dict["description"] = process_config["description"]
+                    status_dict["icon"] = process_config["icon"]
+            else:
+                status_dict["category"] = "other"
+            formatted_data.append(status_dict)
+
+        initial_status = {"type": "initial_status", "data": formatted_data}
         await websocket.send_json(initial_status)
 
         # NO MORE POLLING! Just keep connection alive
@@ -133,23 +175,50 @@ async def get_all_status(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     all_progress = db.query(DataSourceProgress).all()
 
-    # Categorize sources (only automated pipeline sources)
-    data_sources = ["PubTator", "PanelApp", "HPO", "ClinGen", "GenCC"]
-    internal_processes = ["Evidence_Aggregation", "HGNC_Normalization"]
+    # Get valid data sources from config - only include automated sources for pipeline
+    automated_sources = get_auto_update_sources()
+    # Also include hybrid sources that could be run manually
+    all_configured_sources = list(DATA_SOURCE_CONFIG.keys())
+    internal_processes = list(INTERNAL_PROCESS_CONFIG.keys())
 
     result = []
     for p in all_progress:
+        # Skip obsolete entries that are no longer in any config
+        if p.source_name not in all_configured_sources and p.source_name not in internal_processes:
+            continue
+
         status_dict = p.to_dict()
-        # Add category field
-        if p.source_name in data_sources:
+
+        # Add category and enhanced metadata
+        if p.source_name in automated_sources:
             status_dict["category"] = "data_source"
+        elif p.source_name in all_configured_sources:
+            # Hybrid sources like DiagnosticPanels and Literature
+            status_dict["category"] = "hybrid_source"
         elif p.source_name in internal_processes:
             status_dict["category"] = "internal_process"
+            # Add proper display metadata for internal processes
+            process_config = get_internal_process_config(p.source_name)
+            if process_config:
+                status_dict["display_name"] = process_config["display_name"]
+                status_dict["description"] = process_config["description"]
+                status_dict["icon"] = process_config["icon"]
         else:
             status_dict["category"] = "other"
         result.append(status_dict)
 
-    return ResponseBuilder.build_success_response(data=result, meta={"total_sources": len(result)})
+    # Count only actual data sources (not internal processes)
+    data_source_count = len(
+        [r for r in result if r["category"] in ["data_source", "hybrid_source"]]
+    )
+
+    return ResponseBuilder.build_success_response(
+        data=result,
+        meta={
+            "total_sources": data_source_count,  # Only count actual data sources
+            "total_entries": len(result),  # Total entries including internal processes
+        },
+    )
 
 
 @router.get("/status/{source_name}")
@@ -204,11 +273,17 @@ async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dic
         )
 
     # Trigger the update in background
-    await logger.info("About to call task_manager.run_source", source_name=source_name, task_manager_type=str(type(task_manager)))
+    await logger.info(
+        "About to call task_manager.run_source",
+        source_name=source_name,
+        task_manager_type=str(type(task_manager)),
+    )
 
     try:
         task = asyncio.create_task(task_manager.run_source(source_name))
-        await logger.info("Successfully created asyncio task", task_done=task.done(), source_name=source_name)
+        await logger.info(
+            "Successfully created asyncio task", task_done=task.done(), source_name=source_name
+        )
     except Exception as e:
         await logger.error("Exception creating task", error=e, source_name=source_name)
         raise
@@ -221,7 +296,7 @@ async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dic
 
 
 @router.post("/pause/{source_name}")
-def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+async def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Pause a running data source update
 
@@ -245,11 +320,9 @@ def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, A
     progress.current_operation = "Paused by user"
     db.commit()
 
-    # Broadcast update
-    asyncio.create_task(
-        manager.broadcast(
-            {"type": "status_change", "source": source_name, "data": progress.to_dict()}
-        )
+    # Broadcast update - now in async context so this works
+    await manager.broadcast(
+        {"type": "status_change", "source": source_name, "data": progress.to_dict()}
     )
 
     return ResponseBuilder.build_success_response(
@@ -280,7 +353,7 @@ async def resume_source(source_name: str, db: Session = Depends(get_db)) -> dict
             data={"status": "not_paused", "message": f"{source_name} is not paused"}
         )
 
-    # Resume the update in background
+    # Resume the update in background - now properly in async context
     asyncio.create_task(task_manager.run_source(source_name, resume=True))
 
     return ResponseBuilder.build_success_response(

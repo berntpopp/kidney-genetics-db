@@ -144,7 +144,7 @@ class HPOUnifiedSource(UnifiedDataSource):
                     logger.sync_error(
                         "Failed to fetch HPO term",
                         root_term=root_term,
-                        status_code=response.status_code
+                        status_code=response.status_code,
                     )
                     return [root_term]
 
@@ -187,7 +187,7 @@ class HPOUnifiedSource(UnifiedDataSource):
                     logger.sync_debug(
                         "No gene associations for HPO term",
                         hpo_term=hpo_term,
-                        status_code=response.status_code
+                        status_code=response.status_code,
                     )
                     return []
 
@@ -226,17 +226,24 @@ class HPOUnifiedSource(UnifiedDataSource):
             if not gene_symbol or len(gene_symbol) < 2:
                 continue
 
-            # Structure the evidence data - only HPO terms now
+            # Structure the evidence data including syndromic assessment
+            hpo_terms = evidence_data.get("hpo_terms", [])
+            phenotype_ids = {term["id"] for term in hpo_terms if "id" in term}
+
+            # Calculate syndromic assessment
+            syndromic_assessment = await self._assess_syndromic_features(phenotype_ids)
+
             gene_data_map[gene_symbol] = {
-                "hpo_terms": evidence_data.get("hpo_terms", []),
+                "hpo_terms": hpo_terms,
                 "evidence_score": self._calculate_hpo_score(evidence_data),
+                "syndromic_assessment": syndromic_assessment,
                 "last_updated": datetime.now(timezone.utc).isoformat(),
             }
 
         logger.sync_info(
             "HPO processing complete",
             genes_processed=len(gene_data_map),
-            description="genes with kidney phenotypes"
+            description="genes with kidney phenotypes",
         )
 
         return gene_data_map
@@ -316,7 +323,9 @@ class HPOUnifiedSource(UnifiedDataSource):
                 if response.status_code == 200:
                     return response.json()
                 else:
-                    logger.sync_debug("Disease not found", disease_id=disease_id, status_code=response.status_code)
+                    logger.sync_debug(
+                        "Disease not found", disease_id=disease_id, status_code=response.status_code
+                    )
                     return None
 
             except Exception as e:
@@ -332,3 +341,82 @@ class HPOUnifiedSource(UnifiedDataSource):
         )
 
         return disease_info
+
+    async def _assess_syndromic_features(self, phenotype_ids: set[str]) -> dict:
+        """
+        Assess if gene has syndromic features based on HPO phenotypes.
+
+        Args:
+            phenotype_ids: Set of HPO term IDs for the gene
+
+        Returns:
+            Dictionary with syndromic assessment results
+        """
+        from app.core.datasource_config import get_source_parameter
+
+        # If no phenotypes, return default assessment
+        if not phenotype_ids:
+            return {
+                "is_syndromic": False,
+                "category_scores": {},
+                "syndromic_score": 0,
+                "extra_renal_categories": [],
+                "extra_renal_term_counts": {},
+            }
+
+        # Get syndromic indicators configuration
+        syndromic_indicators = get_source_parameter("HPO", "syndromic_indicators", {})
+
+        # Fetch descendants for each syndromic indicator term
+        from app.core.cache_service import get_cache_service
+        from app.core.cached_http_client import CachedHttpClient
+        from app.core.hpo.pipeline import HPOPipeline
+
+        cache_service = self.cache_service
+        http_client = self.http_client
+
+        # Create HPO pipeline if we don't have cache/client
+        if not cache_service or not http_client:
+            cache_service = get_cache_service(self.db_session) if self.db_session else None
+            http_client = CachedHttpClient(cache_service=cache_service) if cache_service else None
+
+        pipeline = HPOPipeline(cache_service=cache_service, http_client=http_client)
+
+        # Get descendants for each category
+        syndromic_descendants = {}
+        for category, root_term in syndromic_indicators.items():
+            descendants = await pipeline.terms.get_descendants(
+                root_term,
+                max_depth=pipeline.max_depth,
+                include_self=True
+            )
+            syndromic_descendants[category] = descendants or set()
+
+        # Calculate matches for each category
+        category_matches = {}
+        category_scores = {}
+
+        for category, descendant_terms in syndromic_descendants.items():
+            matches = phenotype_ids.intersection(descendant_terms)
+            if matches:
+                category_matches[category] = len(matches)
+                # Calculate proportional score for this category
+                category_scores[category] = len(matches) / len(phenotype_ids)
+
+        # Calculate overall syndromic score (average of category scores)
+        syndromic_score = (
+            sum(category_scores.values()) / len(category_scores)
+            if category_scores
+            else 0
+        )
+
+        # Determine if syndromic (using 30% threshold as in R implementation)
+        is_syndromic = syndromic_score >= 0.3
+
+        return {
+            "is_syndromic": is_syndromic,
+            "category_scores": category_scores,
+            "syndromic_score": syndromic_score,
+            "extra_renal_categories": list(category_matches.keys()),
+            "extra_renal_term_counts": category_matches,
+        }

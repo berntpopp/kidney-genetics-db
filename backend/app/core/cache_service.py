@@ -11,6 +11,7 @@ This module provides a unified caching interface that combines:
 import asyncio
 import hashlib
 import json
+import time
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any, TypeVar
@@ -183,7 +184,7 @@ class CacheService:
                 "Error serializing value",
                 error=str(e),
                 value_type=str(type(value)),
-                value_repr=repr(value)[:200] if value else 'None'
+                value_repr=repr(value)[:200] if value else "None",
             )
             raise
 
@@ -213,7 +214,9 @@ class CacheService:
             # Handle string serialization
             if isinstance(serialized, str):
                 if not serialized or serialized.strip() == "":
-                    logger.sync_warning("Attempted to deserialize empty string value, returning None")
+                    logger.sync_warning(
+                        "Attempted to deserialize empty string value, returning None"
+                    )
                     return None
 
                 data = json.loads(serialized)
@@ -231,7 +234,7 @@ class CacheService:
             # Handle other types by converting to string first
             logger.sync_warning(
                 "Unexpected type for cache value, converting to string",
-                value_type=str(type(serialized))
+                value_type=str(type(serialized)),
             )
             return json.loads(str(serialized))
 
@@ -239,7 +242,7 @@ class CacheService:
             logger.sync_error(
                 "Error deserializing value",
                 error=str(e),
-                serialized_preview=str(serialized)[:100] if serialized else repr(serialized)
+                serialized_preview=str(serialized)[:100] if serialized else repr(serialized),
             )
             # Return None instead of raising to allow graceful recovery
             return None
@@ -292,10 +295,7 @@ class CacheService:
         except Exception as e:
             self.stats.errors += 1
             logger.sync_error(
-                "Error getting cache entry",
-                namespace=namespace,
-                key=str(key),
-                error=str(e)
+                "Error getting cache entry", namespace=namespace, key=str(key), error=str(e)
             )
             return default
 
@@ -333,10 +333,7 @@ class CacheService:
         except Exception as e:
             self.stats.errors += 1
             logger.sync_error(
-                "Error setting cache entry",
-                namespace=namespace,
-                key=str(key),
-                error=str(e)
+                "Error setting cache entry", namespace=namespace, key=str(key), error=str(e)
             )
             return False
 
@@ -363,10 +360,7 @@ class CacheService:
         except Exception as e:
             self.stats.errors += 1
             logger.sync_error(
-                "Error deleting cache entry",
-                namespace=namespace,
-                key=str(key),
-                error=str(e)
+                "Error deleting cache entry", namespace=namespace, key=str(key), error=str(e)
             )
             return False
 
@@ -400,10 +394,7 @@ class CacheService:
 
         except Exception as e:
             logger.sync_error(
-                "Error in fetch function",
-                namespace=namespace,
-                key=str(key),
-                error=str(e)
+                "Error in fetch function", namespace=namespace, key=str(key), error=str(e)
             )
             raise
 
@@ -432,6 +423,60 @@ class CacheService:
         except Exception as e:
             self.stats.errors += 1
             logger.sync_error("Error clearing namespace", namespace=namespace, error=str(e))
+            return 0
+
+    def clear_namespace_sync(self, namespace: str) -> int:
+        """Synchronous version of clear_namespace for thread pool execution."""
+        if not self.enabled:
+            return 0
+
+        try:
+            count = 0
+
+            # L1 Cache: Clear memory entries (fast)
+            keys_to_remove = [k for k, v in self.memory_cache.items() if v.namespace == namespace]
+            for key in keys_to_remove:
+                del self.memory_cache[key]
+                count += 1
+
+            # L2 Cache: Clear database entries in chunks
+            if self.db_session:
+                # Use chunked deletion to prevent long locks
+                chunk_size = 1000
+                while True:
+                    # Delete in small chunks
+                    query = text("""
+                        DELETE FROM cache_entries
+                        WHERE namespace = :namespace
+                        AND id IN (
+                            SELECT id FROM cache_entries
+                            WHERE namespace = :namespace
+                            LIMIT :chunk_size
+                        )
+                    """)
+
+                    result = self.db_session.execute(
+                        query, {"namespace": namespace, "chunk_size": chunk_size}
+                    )
+
+                    deleted = result.rowcount
+                    if deleted == 0:
+                        break
+
+                    count += deleted
+                    self.db_session.commit()
+
+                    # Small delay between chunks
+                    time.sleep(0.01)
+
+            logger.sync_info("Cleared namespace", namespace=namespace, count=count)
+            return count
+
+        except Exception as e:
+            self.stats.errors += 1
+            logger.sync_error("Error clearing namespace", namespace=namespace, error=str(e))
+            if self.db_session:
+                self.db_session.rollback()
             return 0
 
     async def cleanup_expired(self) -> int:
@@ -783,7 +828,9 @@ class CacheService:
                 result = self.db_session.execute(query)
 
             namespaces = [row[0] for row in result.fetchall()]
-            logger.sync_debug("Found distinct namespaces", count=len(namespaces), namespaces=namespaces)
+            logger.sync_debug(
+                "Found distinct namespaces", count=len(namespaces), namespaces=namespaces
+            )
             return namespaces
 
         except Exception as e:
@@ -858,3 +905,91 @@ async def cache_delete(
     """Delete a value from cache."""
     cache = get_cache_service(db_session)
     return await cache.delete(key, namespace)
+
+
+# Annotation-specific helper methods for compatibility
+async def get_annotation(
+    gene_id: int, source: str | None = None, db_session: Session | AsyncSession | None = None
+) -> dict[str, Any] | None:
+    """Get cached annotation for a gene (compatibility method)."""
+    cache = get_cache_service(db_session)
+    key = f"{gene_id}:{source or 'all'}"
+    return await cache.get(key, namespace="annotations")
+
+
+async def set_annotation(
+    gene_id: int,
+    data: dict[str, Any],
+    source: str | None = None,
+    ttl: int = 3600,
+    db_session: Session | AsyncSession | None = None,
+) -> bool:
+    """Cache annotation data for a gene (compatibility method)."""
+    cache = get_cache_service(db_session)
+    key = f"{gene_id}:{source or 'all'}"
+    return await cache.set(key, data, namespace="annotations", ttl=ttl)
+
+
+async def invalidate_gene(gene_id: int, db_session: Session | AsyncSession | None = None) -> int:
+    """Invalidate all cached data for a specific gene."""
+    cache = get_cache_service(db_session)
+    count = 0
+
+    # Clear from all namespaces
+    for namespace in [
+        "annotations",
+        "summary",
+        "hgnc",
+        "gnomad",
+        "gtex",
+        "hpo",
+        "clinvar",
+        "string_ppi",
+    ]:
+        pattern_key = f"{gene_id}:*"
+        if await cache.delete(pattern_key, namespace):
+            count += 1
+
+    return count
+
+
+async def get_summary(
+    gene_id: int, db_session: Session | AsyncSession | None = None
+) -> dict[str, Any] | None:
+    """Get cached annotation summary."""
+    cache = get_cache_service(db_session)
+    return await cache.get(f"summary:{gene_id}", namespace="annotations")
+
+
+async def set_summary(
+    gene_id: int,
+    data: dict[str, Any],
+    ttl: int = 7200,
+    db_session: Session | AsyncSession | None = None,
+) -> bool:
+    """Cache annotation summary."""
+    cache = get_cache_service(db_session)
+    return await cache.set(f"summary:{gene_id}", data, namespace="annotations", ttl=ttl)
+
+
+async def clear_all_annotations(db_session: Session | AsyncSession | None = None) -> int:
+    """Clear all annotation cache entries."""
+    cache = get_cache_service(db_session)
+    return await cache.clear_namespace("annotations")
+
+
+def get_stats_sync(
+    namespace: str | None = None, db_session: Session | AsyncSession | None = None
+) -> dict[str, Any]:
+    """Get cache statistics (sync version for compatibility)."""
+    cache = get_cache_service(db_session)
+    # Create async task to get stats
+    import asyncio
+
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    return loop.run_until_complete(cache.get_stats(namespace))

@@ -23,6 +23,9 @@ from app.schemas.gene import GeneCreate
 
 router = APIRouter()
 
+# Note: Gene annotations endpoint has been moved to the gene_annotations module
+# to maintain better separation of concerns and avoid duplicate endpoints
+
 
 def transform_gene_to_jsonapi(results) -> list[dict]:
     """Transform gene query results to JSON:API format."""
@@ -197,9 +200,7 @@ async def get_genes(
 
     # Get metadata for filters dynamically
     # Get max evidence count
-    max_count_result = db.execute(
-        text("SELECT MAX(evidence_count) FROM gene_scores")
-    ).scalar() or 0
+    max_count_result = db.execute(text("SELECT MAX(evidence_count) FROM gene_scores")).scalar() or 0
 
     # Get all available sources
     sources_result = db.execute(

@@ -140,27 +140,27 @@ db-reset: services-up
 	@docker exec kidney_genetics_postgres psql -U kidney_user -d postgres -c "CREATE DATABASE kidney_genetics;"
 	@echo "📦 Running migrations..."
 	@cd backend && uv run alembic upgrade head
-	@echo "🎯 Initializing progress tracking..."
-	@cd backend && uv run python -c "from sqlalchemy import create_engine, text; from app.core.config import settings; from datetime import datetime, timezone; engine = create_engine(settings.DATABASE_URL); conn = engine.connect(); sources = ['PubTator', 'PanelApp', 'HPO', 'ClinGen', 'GenCC', 'Literature', 'Evidence_Aggregation', 'HGNC_Normalization']; [conn.execute(text('INSERT INTO data_source_progress (source_name, status, progress_percentage, current_operation, created_at, updated_at) VALUES (:source, \\'idle\\', 0, \\'Ready to start\\', :now, :now) ON CONFLICT (source_name) DO UPDATE SET status = \\'idle\\', progress_percentage = 0, current_operation = \\'Ready to start\\', updated_at = :now'), {'source': source, 'now': datetime.now(timezone.utc)}) for source in sources]; conn.commit(); conn.close(); print('Progress tracking initialized')"
+	@echo "🎯 Running full database initialization..."
+	@cd backend && uv run python scripts/initialize_database.py
 	@echo "✅ Database reset complete!"
 
 # Clean all data from database (keep structure)
 db-clean:
 	@echo "🧹 Cleaning database data..."
-	@cd backend && uv run python -c "\
-from sqlalchemy import create_engine, text; \
-from app.core.config import settings; \
-engine = create_engine(settings.DATABASE_URL); \
-with engine.connect() as conn: \
-    tables = ['gene_evidence', 'gene_curations', 'genes', 'data_source_progress']; \
-    for table in tables: \
-        try: \
-            result = conn.execute(text(f'DELETE FROM {table}')); \
-            conn.commit(); \
-            print(f'  ✓ Cleaned {result.rowcount} rows from {table}'); \
-        except Exception as e: \
-            print(f'  ✗ Error cleaning {table}: {e}');"
-	@echo "✅ Database cleaned!"
+	@cd backend && uv run python scripts/clean_database.py
+	@echo "🔄 Re-initializing database (views, admin, cache)..."
+	@cd backend && uv run python scripts/initialize_database.py
+	@echo "✅ Database cleaned and re-initialized!"
+
+# Run all data sources from scratch
+data-rebuild:
+	@echo "🔄 Rebuilding all data sources..."
+	@cd backend && uv run python scripts/rebuild_data.py
+	@echo "✅ Data rebuild complete!"
+
+# Full database reset and rebuild
+db-rebuild: db-clean data-rebuild
+	@echo "✅ Full database rebuild complete!"
 
 # ════════════════════════════════════════════════════════════════════
 # MONITORING
@@ -423,28 +423,7 @@ print('  Tier 2:'); \
 # Refresh all database views
 db-refresh-views:
 	@echo "🔄 Refreshing all database views..."
-	@cd backend && uv run python -c "\
-from sqlalchemy import create_engine, text; \
-from app.core.config import settings; \
-from app.db.views import ALL_VIEWS; \
-from app.db.replaceable_objects import topological_sort; \
-engine = create_engine(settings.DATABASE_URL); \
-sorted_views = topological_sort(ALL_VIEWS); \
-with engine.connect() as conn: \
-    trans = conn.begin(); \
-    try: \
-        for view in reversed(sorted_views): \
-            conn.execute(text(view.drop_statement())); \
-            print(f'  Dropped: {view.name}'); \
-        for view in sorted_views: \
-            conn.execute(text(view.create_statement())); \
-            print(f'  Created: {view.name}'); \
-        trans.commit(); \
-        print('All views refreshed successfully'); \
-    except Exception as e: \
-        trans.rollback(); \
-        print(f'Error refreshing views: {e}'); \
-"
+	@cd backend && uv run python -c "from sqlalchemy import create_engine, text; from app.core.config import settings; from app.db.views import ALL_VIEWS; from app.db.replaceable_objects import topological_sort; engine = create_engine(settings.DATABASE_URL); sorted_views = topological_sort(ALL_VIEWS); conn = engine.connect(); trans = conn.begin(); [conn.execute(text(view.drop_statement())) for view in reversed(sorted_views)]; [conn.execute(text(view.create_statement())) for view in sorted_views]; trans.commit(); conn.close(); print('✅ All views refreshed successfully')"
 
 # Create log directory if it doesn't exist
 $(shell mkdir -p logs)

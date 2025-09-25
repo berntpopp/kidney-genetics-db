@@ -170,9 +170,9 @@
     <!-- Data Table -->
     <v-card rounded="lg">
       <v-data-table-server
-        v-model:items-per-page="itemsPerPage"
-        v-model:page="page"
-        v-model:sort-by="sortBy"
+        :items-per-page="itemsPerPage"
+        :page="page"
+        :sort-by="sortBy"
         :headers="headers"
         :items="genes"
         :items-length="totalItems"
@@ -183,7 +183,7 @@
         :show-select="false"
         :must-sort="true"
         :no-data-text="noDataText"
-        @update:options="loadGenes"
+        @update:options="handleTableUpdate"
       >
         <!-- Gene Symbol with Link -->
         <template #[`item.approved_symbol`]="{ item }">
@@ -304,9 +304,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { geneApi } from '../api/genes'
 import ScoreBreakdown from './ScoreBreakdown.vue'
+
+const route = useRoute()
+const router = useRouter()
 
 // Data
 const genes = ref([])
@@ -322,8 +326,13 @@ const sortOption = ref('score_desc')
 const filterMeta = ref(null)
 const sortBy = ref([{ key: 'evidence_score', order: 'desc' }])
 
+// Track initialization to prevent circular updates
+const isInitializing = ref(true)
+const isNavigating = ref(false)
+
 // Options
 const itemsPerPageOptions = [
+  { value: 5, title: '5' },
   { value: 10, title: '10' },
   { value: 20, title: '20' },
   { value: 50, title: '50' },
@@ -378,27 +387,132 @@ const noDataText = computed(() => {
   return 'No gene data available'
 })
 
+// Parse URL parameters and apply to component state
+const parseUrlParams = () => {
+  const query = route.query
+
+  if (query.page) {
+    const parsedPage = parseInt(query.page)
+    if (!isNaN(parsedPage) && parsedPage > 0) {
+      page.value = parsedPage
+    }
+  }
+
+  if (query.per_page) {
+    const parsedPerPage = parseInt(query.per_page)
+    if (!isNaN(parsedPerPage) && itemsPerPageOptions.some(opt => opt.value === parsedPerPage)) {
+      itemsPerPage.value = parsedPerPage
+    }
+  }
+
+  if (query.search) {
+    search.value = query.search
+  }
+
+  if (query.sort_by && query.sort_order) {
+    sortBy.value = [{ key: query.sort_by, order: query.sort_order }]
+    // Update sortOption for dropdown
+    const sortMap = {
+      evidence_score_desc: 'score_desc',
+      evidence_score_asc: 'score_asc',
+      approved_symbol_asc: 'symbol_asc',
+      approved_symbol_desc: 'symbol_desc',
+      evidence_count_desc: 'count_desc',
+      evidence_count_asc: 'count_asc'
+    }
+    sortOption.value = sortMap[`${query.sort_by}_${query.sort_order}`] || 'score_desc'
+  }
+
+  if (query.min_score) {
+    evidenceScoreRange.value[0] = parseInt(query.min_score) || 0
+  }
+  if (query.max_score) {
+    evidenceScoreRange.value[1] = parseInt(query.max_score) || 100
+  }
+
+  if (query.min_count) {
+    evidenceCountRange.value[0] = parseInt(query.min_count) || 0
+  }
+  if (query.max_count) {
+    evidenceCountRange.value[1] = parseInt(query.max_count) || 7
+  }
+
+  if (query.source) {
+    selectedSources.value = [query.source]
+  }
+}
+
+// Update URL with current state
+const updateUrl = () => {
+  if (isInitializing.value) return
+
+  const query = {}
+
+  if (page.value !== 1) query.page = page.value
+  if (itemsPerPage.value !== 10) query.per_page = itemsPerPage.value
+  if (search.value) query.search = search.value
+
+  if (sortBy.value.length > 0) {
+    query.sort_by = sortBy.value[0].key
+    query.sort_order = sortBy.value[0].order
+  }
+
+  if (evidenceScoreRange.value[0] > 0) query.min_score = evidenceScoreRange.value[0]
+  if (evidenceScoreRange.value[1] < 100) query.max_score = evidenceScoreRange.value[1]
+  if (evidenceCountRange.value[0] > 0) query.min_count = evidenceCountRange.value[0]
+  if (evidenceCountRange.value[1] < 7) query.max_count = evidenceCountRange.value[1]
+  if (selectedSources.value.length > 0) query.source = selectedSources.value[0]
+
+  router.replace({ query })
+}
+
+// Handle table update events
+const handleTableUpdate = options => {
+  // During initialization or navigation, ignore the table's events
+  if (isInitializing.value || isNavigating.value) {
+    return
+  }
+
+  // Update our local state from the table options
+  let needsReload = false
+
+  if (options.page !== undefined && options.page !== page.value) {
+    page.value = options.page
+    needsReload = true
+  }
+
+  if (options.itemsPerPage !== undefined && options.itemsPerPage !== itemsPerPage.value) {
+    itemsPerPage.value = options.itemsPerPage
+    page.value = 1 // Reset to first page when changing items per page
+    needsReload = true
+  }
+
+  if (
+    options.sortBy?.length > 0 &&
+    JSON.stringify(options.sortBy) !== JSON.stringify(sortBy.value)
+  ) {
+    sortBy.value = options.sortBy
+    needsReload = true
+  }
+
+  if (needsReload) {
+    // Update URL with the new state
+    updateUrl()
+    // Load data with the new options
+    loadGenes()
+  }
+}
+
 // Methods
-const loadGenes = async (options = {}) => {
+const loadGenes = async () => {
   // Prevent duplicate loading
   if (loading.value) return
 
   loading.value = true
   try {
-    // Update pagination from options if provided
-    if (options.page) page.value = options.page
-    if (options.itemsPerPage) itemsPerPage.value = options.itemsPerPage
-
-    // Parse sorting from options
-    let sortByField = null
-    let sortDesc = false
-
-    if (options.sortBy?.length > 0) {
-      sortByField = options.sortBy[0].key
-      sortDesc = options.sortBy[0].order === 'desc'
-      sortBy.value = options.sortBy
-    }
-
+    // Parse sorting for API - always use current state values
+    let sortByField = sortBy.value?.[0]?.key || 'evidence_score'
+    let sortDesc = sortBy.value?.[0]?.order === 'desc'
     const response = await geneApi.getGenes({
       page: page.value,
       perPage: itemsPerPage.value,
@@ -437,7 +551,7 @@ const loadGenes = async (options = {}) => {
       }
     }
   } catch (error) {
-    console.error('Error loading genes:', error)
+    window.logService.error('Error loading genes:', error)
     genes.value = []
     totalItems.value = 0
   } finally {
@@ -448,12 +562,14 @@ const loadGenes = async (options = {}) => {
 // Event handlers
 const updatePage = newPage => {
   page.value = newPage
+  updateUrl()
   loadGenes()
 }
 
 const updateItemsPerPage = newValue => {
   itemsPerPage.value = newValue
   page.value = 1 // Reset to first page
+  updateUrl()
   loadGenes()
 }
 
@@ -465,7 +581,8 @@ const applySorting = () => {
     count: 'evidence_count'
   }
   sortBy.value = [{ key: fieldMap[field], order }]
-  loadGenes({ sortBy: sortBy.value })
+  updateUrl()
+  loadGenes()
 }
 
 let searchTimeout
@@ -473,6 +590,7 @@ const debouncedSearch = () => {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => {
     page.value = 1
+    updateUrl()
     loadGenes()
   }, 300)
 }
@@ -485,6 +603,7 @@ const clearAllFilters = () => {
   sortOption.value = 'score_desc'
   sortBy.value = [{ key: 'evidence_score', order: 'desc' }]
   page.value = 1
+  updateUrl()
   loadGenes()
 }
 
@@ -494,7 +613,7 @@ const refreshData = () => {
 
 const exportData = () => {
   // TODO: Implement export functionality
-  console.log('Export functionality to be implemented')
+  window.logService.info('Export functionality to be implemented')
 }
 
 // Color and helper methods
@@ -523,9 +642,42 @@ const getEvidenceStrength = count => {
   return max > 0 ? Math.min((count / max) * 100, 100) : 0
 }
 
-// Lifecycle - Only load once on mount
-onMounted(() => {
-  loadGenes()
+// Watch for route changes - this handles when the component is kept alive
+// and the route changes (e.g., query parameter changes on the same page)
+watch(
+  () => route.query,
+  (newQuery, oldQuery) => {
+    // Only react if we're not initializing and the query actually changed
+    if (!isInitializing.value && JSON.stringify(newQuery) !== JSON.stringify(oldQuery)) {
+      isNavigating.value = true
+      parseUrlParams()
+      loadGenes().then(() => {
+        setTimeout(() => {
+          isNavigating.value = false
+        }, 100)
+      })
+    }
+  },
+  { deep: true }
+)
+
+// Lifecycle - Parse URL and load data on mount
+// This runs when component is created (including when navigating back)
+onMounted(async () => {
+  // Reset initialization flag on mount
+  isInitializing.value = true
+
+  // Parse URL parameters first
+  parseUrlParams()
+
+  // Load the data with parsed parameters
+  await loadGenes()
+
+  // Wait for the data table to stabilize
+  await new Promise(resolve => setTimeout(resolve, 100))
+
+  // Mark initialization as complete
+  isInitializing.value = false
 })
 </script>
 

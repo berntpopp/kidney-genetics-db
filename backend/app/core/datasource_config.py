@@ -25,6 +25,28 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "au_panels": [217, 363],  # Australia Panel IDs (kidney related)
         "confidence_levels": ["green", "amber"],  # Confidence levels to include
         "min_evidence_level": 3,  # Minimum evidence level
+        # Kidney-related keywords for panel search
+        "kidney_keywords": [
+            "kidney",
+            "renal",
+            "nephro",
+            "glomerul",
+            # "tubul",  # REMOVED - too broad, matches tubulinopathies (brain disorders)
+            "tubulopathy",  # More specific for kidney tubule disorders
+            "tubulointerstitial",  # Specific for kidney tubule disorders
+            "polycystic",
+            "alport",
+            "nephritis",
+            "cystic kidney",  # More specific than just "cystic"
+            "ciliopathy",  # Note: ciliopathies are multi-system, may need review
+            "complement",
+            "cakut",
+            "focal segmental",
+            "steroid resistant",
+            "nephrotic",
+            "proteinuria",
+            "hematuria",
+        ],
         # Cache settings
         "cache_ttl": 21600,  # 6 hours - moderate update frequency
     },
@@ -37,13 +59,27 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "priority": 2,
         # API settings
         "api_url": "https://www.ncbi.nlm.nih.gov/research/pubtator-api",
+        # Rate limiting - CRITICAL for API compliance
+        "requests_per_second": 3.0,  # PubTator3 official limit - DO NOT exceed
         # Search configuration
-        "max_pages": 100,  # Maximum pages to fetch per run
-        "min_publications": 3,  # Minimum publications for gene inclusion
+        "max_pages": None,  # None = unlimited, process all pages
+        # Update modes configuration
+        "smart_update": {
+            "max_pages": 500,  # Stop after 500 pages max for smart updates
+            "duplicate_threshold": 0.9,  # Stop at 90% duplicates
+            "consecutive_pages": 3,  # Need 3 consecutive high-duplicate pages
+        },
+        "full_update": {
+            "max_pages": None,  # No limit (get all pages) for full updates
+        },
+        "min_publications": 1,  # Minimum publications for gene inclusion (1 = include everything)
+        "min_publications_enabled": True,  # Enable filtering for PubTator (threshold of 1 includes all)
+        "filter_after_complete": True,  # Apply filter after all chunks processed
         "search_query": '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)',
-        "min_date": "2015",  # Focus on recent literature
         "batch_size": 100,  # PMIDs per batch for annotation fetching
-        "rate_limit_delay": 0.3,  # Seconds between API calls
+        # Optimized chunking for more frequent saves and reduced memory
+        "chunk_size": 300,  # Reduced from 1000 - more frequent saves
+        "transaction_size": 1000,  # Reduced from 5000 - more frequent commits
         # Cache settings
         "cache_ttl": 604800,  # 7 days - literature updates periodically
         "use_cache": True,  # Enable caching of PubTator results
@@ -83,6 +119,34 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "excel_url": "https://search.thegencc.org/download/action/submissions-export-csv",
         # Filtering settings
         "confidence_categories": ["definitive", "strong", "moderate"],
+        # Kidney-related keywords for disease filtering
+        "kidney_keywords": [
+            "kidney",
+            "renal",
+            "nephro",
+            "glomerul",
+            # "tubul",  # REMOVED - too broad, matches tubulinopathies (brain disorders)
+            "tubulopathy",  # More specific for kidney tubule disorders
+            "tubulointerstitial",  # Specific for kidney tubule disorders
+            "polycystic",
+            "alport",
+            "nephritis",
+            "cystic kidney",  # More specific than just "cystic"
+            "ciliopathy",  # Note: ciliopathies are multi-system, may need review
+            "complement",
+            "cakut",
+        ],
+        # Classification weights for evidence scoring
+        "classification_weights": {
+            "Definitive": 1.0,
+            "Strong": 0.8,
+            "Moderate": 0.6,
+            "Supportive": 0.5,
+            "Limited": 0.3,
+            "Disputed Evidence": 0.1,
+            "No Known Disease Relationship": 0.0,
+            "Refuted Evidence": 0.0,
+        },
         # Cache settings
         "cache_ttl": 43200,  # 12 hours - regular submission updates
     },
@@ -112,6 +176,96 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "request_delay": 0.2,  # Small delay between batches (backoff handles rate limiting)
         # Cache settings
         "cache_ttl": 604800,  # 7 days - stable ontology releases
+        # Syndromic classification configuration (matching R implementation)
+        "syndromic_indicators": {
+            "growth": "HP:0001507",  # Growth abnormality
+            "skeletal": "HP:0000924",  # Skeletal system abnormality
+            "neurologic": "HP:0000707",  # Abnormality of the nervous system
+            "head_neck": "HP:0000152",  # Head and neck abnormality
+        },
+        # Classification configuration
+        "clinical_groups": {
+            "complement": {
+                "signature_terms": [
+                    "HP:0000093",  # Proteinuria
+                    "HP:0000100",  # Nephrotic syndrome
+                    "HP:0001970",  # Tubulointerstitial nephritis
+                    "HP:0000796",  # Urethral obstruction
+                    "HP:0003259",  # Elevated serum creatinine
+                ],
+                "name": "Complement-mediated kidney diseases",
+                "weight": 1.0,
+            },
+            "cakut": {
+                "signature_terms": [
+                    "HP:0000107",  # Renal cyst
+                    "HP:0000085",  # Horseshoe kidney
+                    "HP:0000089",  # Renal hypoplasia
+                    "HP:0000072",  # Hydroureter
+                    "HP:0000126",  # Hydronephrosis
+                ],
+                "name": "Congenital anomalies of kidney and urinary tract",
+                "weight": 1.0,
+            },
+            "glomerulopathy": {
+                "signature_terms": [
+                    "HP:0000097",  # Glomerulonephritis
+                    "HP:0003774",  # Stage 5 chronic kidney disease
+                    "HP:0000123",  # Nephritis
+                    "HP:0000099",  # Glomerulosclerosis
+                    "HP:0030888",  # C3 glomerulopathy
+                ],
+                "name": "Glomerular diseases",
+                "weight": 1.0,
+            },
+            "cyst_cilio": {
+                "signature_terms": [
+                    "HP:0005562",  # Multiple renal cysts
+                    "HP:0000107",  # Renal cyst
+                    "HP:0001737",  # Pancreatic cysts
+                    "HP:0000092",  # Renal tubular atrophy
+                    "HP:0000003",  # Multicystic kidney dysplasia
+                ],
+                "name": "Cystic and ciliopathy disorders",
+                "weight": 1.0,
+            },
+            "tubulopathy": {
+                "signature_terms": [
+                    "HP:0003127",  # Hypocalciuria
+                    "HP:0002900",  # Hypokalemia
+                    "HP:0002148",  # Hypophosphatemia
+                    "HP:0000114",  # Proximal tubulopathy
+                    "HP:0004918",  # Hyperchloremic metabolic acidosis
+                ],
+                "name": "Tubular disorders",
+                "weight": 1.0,
+            },
+            "nephrolithiasis": {
+                "signature_terms": [
+                    "HP:0000787",  # Nephrolithiasis
+                    "HP:0000121",  # Nephrocalcinosis
+                    "HP:0000791",  # Uric acid nephrolithiasis
+                    "HP:0008672",  # Calcium oxalate nephrolithiasis
+                    "HP:0004724",  # Calcium nephrolithiasis
+                ],
+                "name": "Kidney stones and nephrocalcinosis",
+                "weight": 1.0,
+            },
+        },
+        "onset_groups": {
+            "adult": {
+                "root_term": "HP:0003581",
+                "name": "Adult onset",
+            },
+            "pediatric": {
+                "root_terms": ["HP:0410280", "HP:0003623"],
+                "name": "Pediatric/Neonatal onset",
+            },
+            "congenital": {
+                "root_terms": ["HP:0003577", "HP:0030674"],
+                "name": "Congenital/Antenatal onset",
+            },
+        },
     },
     "DiagnosticPanels": {
         "display_name": "Diagnostic Panels",
@@ -121,6 +275,8 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "auto_update": False,  # Manual upload via API
         "priority": 6,
         "hybrid_source": True,  # Uses unified source pattern
+        "min_panels": 1,  # Minimum number of providers (panels) for gene inclusion (1 = include everything)
+        "min_panels_enabled": True,  # Enabled but threshold of 1 includes all genes
     },
     "Literature": {
         "display_name": "Literature",
@@ -130,6 +286,30 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
         "auto_update": False,  # Manual upload via API
         "priority": 7,
         "hybrid_source": True,  # Uses unified source pattern
+        "min_publications": 1,  # Minimum publications for gene inclusion (1 = include everything)
+        "min_publications_enabled": True,  # Enabled but threshold of 1 includes all genes
+    },
+}
+
+# Internal process configurations with display metadata
+INTERNAL_PROCESS_CONFIG: dict[str, dict[str, Any]] = {
+    "annotation_pipeline": {
+        "display_name": "Gene Annotation Pipeline",
+        "description": "Post-processing pipeline that adds ClinVar annotations and computed scores",
+        "category": "internal_process",
+        "icon": "mdi-cog",
+    },
+    "Evidence_Aggregation": {
+        "display_name": "Evidence Aggregation",
+        "description": "Combines and scores evidence from all data sources",
+        "category": "internal_process",
+        "icon": "mdi-chart-timeline-variant",
+    },
+    "HGNC_Normalization": {
+        "display_name": "HGNC Normalization",
+        "description": "Normalizes gene symbols using HGNC database",
+        "category": "internal_process",
+        "icon": "mdi-format-align-center",
     },
 }
 
@@ -182,6 +362,11 @@ def get_source_parameter(source_name: str, param_name: str, default: Any = None)
     return default
 
 
+def get_internal_process_config(process_name: str) -> dict[str, Any] | None:
+    """Get configuration for a specific internal process"""
+    return INTERNAL_PROCESS_CONFIG.get(process_name)
+
+
 def get_source_cache_ttl(source_name: str) -> int:
     """
     Get cache TTL for a data source.
@@ -206,3 +391,104 @@ def get_source_api_url(source_name: str) -> str | None:
         API URL or None
     """
     return get_source_parameter(source_name, "api_url")
+
+
+# Annotation source configurations with retry and rate limiting settings
+# Common configuration values for annotation sources
+ANNOTATION_COMMON_CONFIG = {
+    "default_timeout": 30.0,  # Default HTTP request timeout in seconds
+    "long_timeout": 60.0,  # Timeout for long-running requests
+    "short_timeout": 10.0,  # Timeout for quick health checks
+    "user_agent": "KidneyGeneticsDB/1.0",  # User agent for API requests
+    "cache_time_day": 86400,  # Seconds in a day
+    "cache_time_week": 604800,  # Seconds in a week
+    "cache_time_month": 2592000,  # Seconds in 30 days
+}
+
+ANNOTATION_SOURCE_CONFIG: dict[str, dict[str, Any]] = {
+    "gnomad": {
+        "requests_per_second": 3.0,
+        "max_retries": 5,
+        "cache_ttl_days": 90,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 5,
+    },
+    "clinvar": {
+        # NCBI eUtils allows 3 req/s without API key (not 10 as sometimes documented)
+        # Using 2.8 to stay just below limit while maximizing throughput
+        "requests_per_second": 2.8,
+        "max_retries": 5,
+        "cache_ttl_days": 90,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 5,
+
+        # Gene processing configuration
+        "gene_batch_size": 20,  # How many genes to process per batch (sequentially with concurrency=1)
+        "max_concurrent_genes": 1,  # Keep at 1 to respect NCBI rate limits
+
+        # Variant fetching configuration
+        "variant_batch_size": 200,  # How many variants to fetch per esummary call
+        "search_batch_size": 10000,  # Maximum for esearch
+        "max_concurrent_variant_fetches": 2,  # Max concurrent variant batch fetches
+        # Review status confidence levels
+        "review_confidence": {
+            "practice guideline": 4,
+            "reviewed by expert panel": 4,
+            "criteria provided, multiple submitters, no conflicts": 3,
+            "criteria provided, conflicting classifications": 2,
+            "criteria provided, single submitter": 2,
+            "no assertion for the individual variant": 1,
+            "no assertion criteria provided": 1,
+            "no classification provided": 0,
+        },
+    },
+    "hpo": {
+        "requests_per_second": 10.0,
+        "max_retries": 3,
+        "cache_ttl_days": 90,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 5,
+    },
+    "mpo_mgi": {
+        "requests_per_second": 2.0,  # MGI servers are slower
+        "max_retries": 3,
+        "cache_ttl_days": 90,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 3,
+        # MPO kidney terms cache file - relative to backend directory
+        "mpo_kidney_terms_file": "data/mpo_kidney_terms.json",
+    },
+    "hgnc": {
+        "requests_per_second": 5.0,
+        "max_retries": 3,
+        "cache_ttl_days": 90,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 3,
+    },
+    "string_ppi": {
+        "requests_per_second": 5.0,
+        "max_retries": 3,
+        "cache_ttl_days": 90,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 3,
+    },
+    "gtex": {
+        "requests_per_second": 3.0,
+        "max_retries": 3,
+        "cache_ttl_days": 90,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 3,
+    },
+    "descartes": {
+        "requests_per_second": 5.0,
+        "max_retries": 3,
+        "cache_ttl_days": 90,
+        "use_http_cache": True,
+        "circuit_breaker_threshold": 3,
+    },
+}
+
+
+def get_annotation_config(source_name: str) -> dict[str, Any] | None:
+    """Get configuration for a specific annotation source"""
+    return ANNOTATION_SOURCE_CONFIG.get(source_name)

@@ -53,8 +53,12 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     def _sanitize_headers(self, headers: dict) -> dict:
         """Remove sensitive headers from logging."""
         sensitive_headers = {
-            "authorization", "cookie", "x-api-key", "x-auth-token",
-            "x-access-token", "authentication"
+            "authorization",
+            "cookie",
+            "x-api-key",
+            "x-auth-token",
+            "x-access-token",
+            "authentication",
         }
         return {
             key: "[REDACTED]" if key.lower() in sensitive_headers else value
@@ -72,7 +76,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 return f"[BODY TOO LARGE: {len(body)} bytes]"
 
             try:
-                return body.decode("utf-8")[:self.max_body_size]
+                return body.decode("utf-8")[: self.max_body_size]
             except UnicodeDecodeError:
                 return f"[BINARY BODY: {len(body)} bytes]"
         except Exception:
@@ -172,9 +176,13 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                     try:
                         response_data["response_body"] = body_bytes.decode("utf-8")
                     except UnicodeDecodeError:
-                        response_data["response_body"] = f"[BINARY RESPONSE: {len(body_bytes)} bytes]"
+                        response_data["response_body"] = (
+                            f"[BINARY RESPONSE: {len(body_bytes)} bytes]"
+                        )
                 else:
-                    response_data["response_body"] = f"[RESPONSE TOO LARGE: {len(body_bytes)} bytes]"
+                    response_data["response_body"] = (
+                        f"[RESPONSE TOO LARGE: {len(body_bytes)} bytes]"
+                    )
             except Exception:
                 response_data["response_body"] = "[ERROR READING RESPONSE]"
 

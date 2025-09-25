@@ -60,9 +60,7 @@ class EventBus:
                             callback(data)
                     except Exception as e:
                         logger.sync_error(
-                            "Error in event handler",
-                            event_type=event_type,
-                            error=str(e)
+                            "Error in event handler", event_type=event_type, error=str(e)
                         )
 
             except asyncio.TimeoutError:

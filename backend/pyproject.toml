@@ -62,6 +62,11 @@ dependencies = [
     "asyncclick>=8.1.8",
     # Pagination
     "fastapi-pagination>=0.12.0",
+    "apscheduler>=3.11.0",
+    "redis>=6.4.0",
+    "brotli>=1.1.0",
+    "email-validator>=2.2.0",
+    "scipy>=1.15.3",
 ]
 
 [project.optional-dependencies]
@@ -87,6 +92,14 @@ Homepage = "https://github.com/kidney-genetics/kidney-genetics-db"
 Documentation = "https://github.com/kidney-genetics/kidney-genetics-db/blob/main/docs/"
 Repository = "https://github.com/kidney-genetics/kidney-genetics-db.git"
 "Bug Tracker" = "https://github.com/kidney-genetics/kidney-genetics-db/issues"
+
+[dependency-groups]
+dev = [
+    "psycopg-binary>=3.2.9",
+    "pytest-asyncio>=1.1.0",
+    "pytest-postgresql>=7.0.2",
+    "ruff>=0.12.9",
+]
 
 [tool.ruff]
 line-length = 100

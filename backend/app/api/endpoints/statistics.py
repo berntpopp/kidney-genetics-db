@@ -19,8 +19,10 @@ router = APIRouter()
 
 @router.get("/source-overlaps")
 async def get_source_overlaps(
-    sources: list[str] | None = Query(None, description="Specific source names to include in analysis"),
-    db: Session = Depends(get_db)
+    sources: list[str] | None = Query(
+        None, description="Specific source names to include in analysis"
+    ),
+    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
     Get gene intersections between data sources for UpSet plot visualization.

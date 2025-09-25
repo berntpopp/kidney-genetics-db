@@ -11,8 +11,10 @@ from sqlalchemy.orm import Session
 
 from app.api.endpoints import (
     admin_logs,
+    auth,
     cache,
     datasources,
+    gene_annotations,
     gene_staging,
     genes,
     ingestion,
@@ -65,12 +67,24 @@ async def lifespan(app: FastAPI):
         try:
             await task_manager.start_auto_updates()
         except Exception as e:
-            logger.sync_warning("Failed to start auto-updates. Continuing without auto-updates.",
-                               error=e, auto_update_enabled=settings.AUTO_UPDATE_ENABLED)
+            logger.sync_warning(
+                "Failed to start auto-updates. Continuing without auto-updates.",
+                error=e,
+                auto_update_enabled=settings.AUTO_UPDATE_ENABLED,
+            )
+
+    # Start annotation scheduler
+    logger.sync_info("Starting annotation scheduler...")
+    from app.core.scheduler import annotation_scheduler
+
+    annotation_scheduler.start()
 
     yield
 
     # Shutdown
+    logger.sync_info("Shutting down annotation scheduler...")
+    annotation_scheduler.stop()
+
     logger.sync_info("Shutting down event bus...")
     await event_bus.stop()
 
@@ -80,8 +94,8 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title=settings.APP_NAME,
-    description="API for kidney disease gene curation with real-time progress tracking",
+    title="Kidney Genetics Database API",
+    description="RESTful API for kidney disease gene curation, evidence aggregation, and real-time data pipeline management",
     version=settings.APP_VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
@@ -101,7 +115,7 @@ app.add_middleware(
 app.add_middleware(
     LoggingMiddleware,
     log_request_body=False,  # Set to True for debugging, False for production
-    log_response_body=False, # Set to True for debugging, False for production
+    log_response_body=False,  # Set to True for debugging, False for production
     slow_request_threshold_ms=1000,
     exclude_paths=["/health", "/docs", "/redoc", "/openapi.json"],
 )
@@ -109,43 +123,63 @@ app.add_middleware(
 # Register standardized error handlers (enhanced by logging middleware)
 register_error_handlers(app)
 
-# Include routers
-app.include_router(genes.router, prefix="/api/genes", tags=["genes"])
-app.include_router(datasources.router, prefix="/api/datasources", tags=["datasources"])
-app.include_router(gene_staging.router, prefix="/api/staging", tags=["gene-staging"])
-app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
-app.include_router(cache.router, prefix="/api/admin/cache", tags=["cache-admin"])
-app.include_router(admin_logs.router)  # Admin logs management (already has prefix)
-app.include_router(statistics.router, prefix="/api/statistics", tags=["statistics"])
-app.include_router(ingestion.router)
+# Include routers - organized by functional areas
+# 0. Authentication - User management and auth
+app.include_router(auth.router, tags=["Authentication"])
+
+# 1. Core Resources - Primary domain entities
+app.include_router(genes.router, prefix="/api/genes", tags=["Core Resources - Genes"])
+app.include_router(
+    gene_annotations.router, prefix="/api/annotations", tags=["Core Resources - Annotations"]
+)
+app.include_router(
+    datasources.router, prefix="/api/datasources", tags=["Core Resources - Data Sources"]
+)
+
+# 2. Data Pipeline - Ingestion and processing operations
+app.include_router(gene_staging.router, prefix="/api/staging", tags=["Pipeline - Staging"])
+app.include_router(ingestion.router, prefix="/api/ingestion", tags=["Pipeline - Ingestion"])
+app.include_router(progress.router, prefix="/api/progress", tags=["Pipeline - Progress Monitoring"])
+
+# 3. Analytics - Statistics and reporting
+app.include_router(statistics.router, prefix="/api/statistics", tags=["Analytics"])
+
+# 4. Administration - System management and monitoring
+app.include_router(admin_logs.router, prefix="/api/admin/logs", tags=["Administration - Logging"])
+app.include_router(
+    cache.router, prefix="/api/admin/cache", tags=["Administration - Cache Management"]
+)
 
 
-@app.get("/")
+@app.get("/", tags=["System"])
 async def root() -> dict[str, str]:
-    """Root endpoint"""
-    return {"message": "Kidney Genetics API", "version": "0.1.0"}
+    """Root endpoint - API information"""
+    return {
+        "service": "Kidney Genetics Database API",
+        "version": settings.APP_VERSION,
+        "documentation": "/docs",
+    }
 
 
-@app.get("/health")
+@app.get("/health", tags=["System"])
 async def health_check() -> dict[str, str]:
-    """Health check endpoint"""
+    """Health check endpoint for monitoring and load balancers"""
     # Test database connection
     try:
         from sqlalchemy import text
 
         db: Session = next(get_db())
         db.execute(text("SELECT 1"))
-        db_status = "connected"
+        db_status = "healthy"
     except Exception as e:
         db_status = f"error: {e!s}"
     finally:
         if "db" in locals():
             db.close()
 
-    return {"status": "healthy", "service": "kidney-genetics-api", "database": db_status}
-
-
-@app.get("/api/test")
-async def test_endpoint() -> dict[str, str]:
-    """Test endpoint to verify API routing"""
-    return {"message": "API is working!", "path": "/api/test"}
+    return {
+        "status": "healthy",
+        "service": "kidney-genetics-api",
+        "version": settings.APP_VERSION,
+        "database": db_status,
+    }

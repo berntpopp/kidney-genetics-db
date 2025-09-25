@@ -42,6 +42,17 @@ def register_data_sources() -> None:
 
             if existing:
                 # Update metadata if configuration has changed
+                # IMPORTANT: Preserve checkpoint data (last_page, mode, query_hash)
+                current_metadata = existing.progress_metadata or {}
+
+                # Preserve checkpoint fields if they exist
+                checkpoint_fields = {"last_page", "mode", "query_hash", "updated_at"}
+                preserved_checkpoint = {
+                    k: v for k, v in current_metadata.items()
+                    if k in checkpoint_fields
+                }
+
+                # New configuration metadata
                 new_metadata = {
                     "auto_update": config.get("auto_update", False),
                     "priority": config.get("priority", 999),
@@ -51,11 +62,25 @@ def register_data_sources() -> None:
                     "documentation_url": config.get("documentation_url"),
                 }
 
-                if existing.progress_metadata != new_metadata:
-                    existing.progress_metadata = new_metadata
+                # Merge: config metadata + preserved checkpoint
+                merged_metadata = {**new_metadata, **preserved_checkpoint}
+
+                # Only update if config portion changed
+                config_changed = any(
+                    current_metadata.get(k) != v
+                    for k, v in new_metadata.items()
+                )
+
+                if config_changed:
+                    existing.progress_metadata = merged_metadata
                     existing.updated_at = datetime.now(timezone.utc)
                     updated_count += 1
-                    logger.sync_debug(f"Updated metadata for {source_name}", source=source_name, action="metadata_update")
+                    logger.sync_debug(
+                        f"Updated metadata for {source_name} (preserved checkpoint)",
+                        source=source_name,
+                        action="metadata_update",
+                        checkpoint_preserved=bool(preserved_checkpoint),
+                    )
             else:
                 # Create new progress record
                 progress_record = DataSourceProgress(
@@ -72,7 +97,11 @@ def register_data_sources() -> None:
                 )
                 db.add(progress_record)
                 registered_count += 1
-                logger.sync_debug(f"Registered new data source: {source_name}", source=source_name, action="register_new")
+                logger.sync_debug(
+                    f"Registered new data source: {source_name}",
+                    source=source_name,
+                    action="register_new",
+                )
 
         db.commit()
 
@@ -80,7 +109,7 @@ def register_data_sources() -> None:
             logger.sync_info(
                 "Data source registration complete",
                 registered_count=registered_count,
-                updated_count=updated_count
+                updated_count=updated_count,
             )
         else:
             logger.sync_info("All data sources already registered and up-to-date")
@@ -124,7 +153,7 @@ def cleanup_orphaned_sources() -> None:
             # Don't automatically delete - log for manual review
             logger.sync_warning(
                 "Orphaned records found but not automatically removed",
-                action_required="Review and manually remove if no longer needed"
+                action_required="Review and manually remove if no longer needed",
             )
         else:
             logger.sync_info("No orphaned data source records found")
@@ -158,7 +187,9 @@ def validate_dependencies() -> None:
 
         for source_name, url in required_urls.items():
             if not url or not url.startswith("http"):
-                logger.sync_warning(f"Invalid {source_name} URL: {url}", source_name=source_name, url=url)
+                logger.sync_warning(
+                    f"Invalid {source_name} URL: {url}", source_name=source_name, url=url
+                )
 
         # Test cache service initialization
         try:
@@ -194,7 +225,40 @@ def run_startup_tasks() -> None:
     logger.sync_info("Running application startup tasks...")
 
     try:
-        # Validate dependencies first
+        # Initialize database first (views, admin user, cache cleanup)
+        import asyncio
+
+        from app.core.database_init import initialize_database
+
+        db = next(get_db())
+        try:
+            # Check if there's already an event loop running
+            try:
+                loop = asyncio.get_running_loop()
+                # If we're in an async context, can't use run_until_complete
+                # Skip database init in async context - it will be handled on startup
+                logger.sync_info(
+                    "Skipping database init in async context - will be handled by startup event"
+                )
+            except RuntimeError:
+                # No loop running, we can create one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    init_status = loop.run_until_complete(initialize_database(db))
+                    logger.sync_info(
+                        "Database initialization completed",
+                        views_created=init_status.get("views_created"),
+                        admin_created=init_status.get("admin_created"),
+                        cache_cleared=init_status.get("cache_cleared"),
+                        aggregation_completed=init_status.get("aggregation_completed"),
+                    )
+                finally:
+                    loop.close()
+        finally:
+            db.close()
+
+        # Validate dependencies
         validate_dependencies()
 
         # Register data sources
@@ -206,6 +270,8 @@ def run_startup_tasks() -> None:
         logger.sync_info("Application startup tasks completed successfully")
 
     except Exception as e:
-        logger.sync_error("Startup tasks failed", error=e)
+        logger.sync_error("Startup tasks failed", error=str(e), traceback=True)
+        import traceback
+        traceback.print_exc()  # Print full traceback for debugging
         # Don't re-raise - allow app to start even if startup tasks fail
         # This prevents the app from failing to start due to database issues

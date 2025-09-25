@@ -21,9 +21,11 @@ from app.core.cached_http_client import get_cached_http_client
 from app.core.config import settings
 from app.core.database import get_pool_status
 from app.core.datasource_config import get_source_cache_ttl
+from app.core.dependencies import require_admin
 from app.core.exceptions import CacheError, ValidationError
 from app.core.logging import get_logger
 from app.core.monitoring import get_monitoring_service
+from app.models.user import User
 
 logger = get_logger(__name__)
 
@@ -296,7 +298,11 @@ async def list_cache_keys(
 
 
 @router.delete("/{namespace}", response_model=CacheClearResponse)
-async def clear_namespace(namespace: str, db: AsyncSession = Depends(get_db)) -> CacheClearResponse:
+async def clear_namespace(
+    namespace: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+) -> CacheClearResponse:
     """
     Clear all cache entries in a specific namespace.
     """
@@ -318,7 +324,10 @@ async def clear_namespace(namespace: str, db: AsyncSession = Depends(get_db)) ->
 
 @router.delete("/{namespace}/{key}", response_model=CacheClearResponse)
 async def delete_cache_key(
-    namespace: str, key: str, db: AsyncSession = Depends(get_db)
+    namespace: str,
+    key: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
 ) -> CacheClearResponse:
     """
     Delete a specific cache key.
@@ -340,7 +349,10 @@ async def delete_cache_key(
 
 
 @router.post("/cleanup")
-async def cleanup_expired_entries(db: AsyncSession = Depends(get_db)) -> CacheClearResponse:
+async def cleanup_expired_entries(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+) -> CacheClearResponse:
     """
     Manually trigger cleanup of expired cache entries.
     """
@@ -362,7 +374,9 @@ async def cleanup_expired_entries(db: AsyncSession = Depends(get_db)) -> CacheCl
 
 @router.post("/warm", response_model=CacheWarmResponse)
 async def warm_cache(
-    request: CacheWarmRequest, db: AsyncSession = Depends(get_db)
+    request: CacheWarmRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
 ) -> CacheWarmResponse:
     """
     Warm up cache by preloading data from specified sources.
@@ -383,7 +397,9 @@ async def warm_cache(
         for source in request.sources:
             if source.lower() in ["hgnc", "pubtator", "gencc", "panelapp", "hpo", "clingen"]:
                 # Placeholder for warming logic
-                await logger.info("Warming cache for source", source=source, force_refresh=request.force_refresh)
+                await logger.info(
+                    "Warming cache for source", source=source, force_refresh=request.force_refresh
+                )
                 sources_warmed.append(source)
                 # entries_created += await warm_source_cache(source, request.force_refresh)
 
@@ -510,7 +526,10 @@ async def get_performance_metrics(db: AsyncSession = Depends(get_db)) -> dict[st
 
 
 @router.post("/monitoring/warm-all")
-async def warm_all_caches(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+async def warm_all_caches(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+) -> dict[str, Any]:
     """
     Warm all data source caches in parallel.
 
@@ -533,7 +552,10 @@ async def warm_all_caches(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
 
 
 @router.post("/monitoring/clear-all")
-async def clear_all_caches(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+async def clear_all_caches(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+) -> dict[str, Any]:
     """
     Clear all data source caches.
 

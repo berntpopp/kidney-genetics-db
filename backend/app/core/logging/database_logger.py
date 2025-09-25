@@ -66,13 +66,21 @@ class DatabaseLogger:
             # Use async task to avoid blocking
             asyncio.create_task(
                 self._write_log_entry(
-                    level, message, source, request, request_id,
-                    extra_data, error, processing_time_ms, status_code
+                    level,
+                    message,
+                    source,
+                    request,
+                    request_id,
+                    extra_data,
+                    error,
+                    processing_time_ms,
+                    status_code,
                 )
             )
         except Exception as e:
             # Fallback to console logging if database write fails
             import logging
+
             fallback_logger = logging.getLogger("database_logger")
             fallback_logger.error(f"Failed to write log to database: {e}")
 
@@ -126,7 +134,9 @@ class DatabaseLogger:
             error_traceback = None
             if error:
                 error_type = type(error).__name__
-                error_traceback = traceback.format_exception(type(error), error, error.__traceback__)
+                error_traceback = traceback.format_exception(
+                    type(error), error, error.__traceback__
+                )
                 error_traceback = "".join(error_traceback)
 
             # Prepare extra data as JSONB - serialize to JSON string for PostgreSQL
@@ -145,40 +155,45 @@ class DatabaseLogger:
                 )
             """)
 
-            db.execute(insert_query, {
-                "timestamp": datetime.now(timezone.utc),
-                "level": level,
-                "message": message,
-                "source": source,
-                "request_id": request_id,
-                "endpoint": endpoint,
-                "method": method,
-                "status_code": status_code,
-                "processing_time_ms": processing_time_ms,
-                "user_id": user_id,
-                "ip_address": ip_address,
-                "user_agent": user_agent,
-                "extra_data": jsonb_data,
-                "error_type": error_type,
-                "error_traceback": error_traceback,
-            })
+            db.execute(
+                insert_query,
+                {
+                    "timestamp": datetime.now(timezone.utc),
+                    "level": level,
+                    "message": message,
+                    "source": source,
+                    "request_id": request_id,
+                    "endpoint": endpoint,
+                    "method": method,
+                    "status_code": status_code,
+                    "processing_time_ms": processing_time_ms,
+                    "user_id": user_id,
+                    "ip_address": ip_address,
+                    "user_agent": user_agent,
+                    "extra_data": jsonb_data,
+                    "error_type": error_type,
+                    "error_traceback": error_traceback,
+                },
+            )
 
             db.commit()
 
         except SQLAlchemyError as e:
             # Database-specific error handling
             import logging
+
             fallback_logger = logging.getLogger("database_logger")
             fallback_logger.error(f"SQLAlchemy error writing log: {e}")
 
         except Exception as e:
             # General error handling
             import logging
+
             fallback_logger = logging.getLogger("database_logger")
             fallback_logger.error(f"Unexpected error writing log: {e}")
 
         finally:
-            if 'db' in locals():
+            if "db" in locals():
                 db.close()
 
     # Convenience methods for different log levels

@@ -191,8 +191,51 @@
                     {{ source.items_processed }} processed
                   </span>
                   <v-spacer />
-                  <!-- Internal processes typically run automatically, no manual trigger -->
-                  <v-chip v-if="source.status === 'completed'" size="x-small" color="success" label>
+                  <!-- Show pause/resume for annotation_pipeline like PubTator -->
+                  <v-btn
+                    v-if="
+                      source.source_name === 'annotation_pipeline' &&
+                      (source.status === 'idle' || source.status === 'failed')
+                    "
+                    icon
+                    size="x-small"
+                    variant="text"
+                    color="primary"
+                    :loading="triggering[source.source_name]"
+                    @click="triggerUpdate(source.source_name)"
+                  >
+                    <v-icon size="small">mdi-play</v-icon>
+                  </v-btn>
+                  <v-btn
+                    v-else-if="
+                      source.source_name === 'annotation_pipeline' && source.status === 'running'
+                    "
+                    icon
+                    size="x-small"
+                    variant="text"
+                    color="warning"
+                    @click="pauseSource(source.source_name)"
+                  >
+                    <v-icon size="small">mdi-pause</v-icon>
+                  </v-btn>
+                  <v-btn
+                    v-else-if="
+                      source.source_name === 'annotation_pipeline' && source.status === 'paused'
+                    "
+                    icon
+                    size="x-small"
+                    variant="text"
+                    color="success"
+                    @click="resumeSource(source.source_name)"
+                  >
+                    <v-icon size="small">mdi-play</v-icon>
+                  </v-btn>
+                  <v-chip
+                    v-else-if="source.status === 'completed'"
+                    size="x-small"
+                    color="success"
+                    label
+                  >
                     <v-icon size="x-small" start>mdi-check</v-icon>
                     Complete
                   </v-chip>
@@ -215,7 +258,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 
-/* global WebSocket, clearInterval, setInterval */
+// Browser globals are already defined in eslint config
 
 // State
 const expanded = ref(false)
@@ -314,7 +357,7 @@ const fetchStatus = async () => {
       expanded.value = true
     }
   } catch (error) {
-    console.error('Failed to fetch status:', error)
+    window.logService.error('Failed to fetch status:', error)
   }
 }
 
@@ -341,7 +384,7 @@ const connectWebSocket = () => {
   ws.value = new WebSocket(wsUrl)
 
   ws.value.onopen = () => {
-    console.log('WebSocket connected for progress updates')
+    window.logService.info('WebSocket connected for progress updates')
     if (reconnectInterval.value) {
       clearInterval(reconnectInterval.value)
       reconnectInterval.value = null
@@ -371,15 +414,15 @@ const connectWebSocket = () => {
   }
 
   ws.value.onerror = error => {
-    console.error('WebSocket error:', error)
+    window.logService.error('WebSocket error:', error)
   }
 
   ws.value.onclose = () => {
-    console.log('WebSocket disconnected')
+    window.logService.info('WebSocket disconnected')
     // Try to reconnect after 5 seconds
     if (!reconnectInterval.value) {
       reconnectInterval.value = setInterval(() => {
-        console.log('Attempting to reconnect WebSocket...')
+        window.logService.info('Attempting to reconnect WebSocket...')
         connectWebSocket()
       }, 5000)
     }
@@ -391,7 +434,7 @@ const triggerUpdate = async sourceName => {
   try {
     await axios.post(`http://localhost:8000/api/progress/trigger/${sourceName}`)
   } catch (error) {
-    console.error(`Failed to trigger ${sourceName}:`, error)
+    window.logService.error(`Failed to trigger ${sourceName}:`, error)
   } finally {
     triggering.value[sourceName] = false
   }
@@ -401,7 +444,7 @@ const pauseSource = async sourceName => {
   try {
     await axios.post(`http://localhost:8000/api/progress/pause/${sourceName}`)
   } catch (error) {
-    console.error(`Failed to pause ${sourceName}:`, error)
+    window.logService.error(`Failed to pause ${sourceName}:`, error)
   }
 }
 
@@ -409,7 +452,7 @@ const resumeSource = async sourceName => {
   try {
     await axios.post(`http://localhost:8000/api/progress/resume/${sourceName}`)
   } catch (error) {
-    console.error(`Failed to resume ${sourceName}:`, error)
+    window.logService.error(`Failed to resume ${sourceName}:`, error)
   }
 }
 

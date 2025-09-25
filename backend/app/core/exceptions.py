@@ -221,7 +221,7 @@ def log_exception(exception: Exception, context: dict[str, Any] | None = None) -
         exception_type=type(exception).__name__,
         exception_message=str(exception),
         context=context or {},
-        traceback=traceback.format_exc()
+        traceback=traceback.format_exc(),
     )
 
     return error_id

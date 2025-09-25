@@ -24,7 +24,7 @@ class ContextualFormatter(logging.Formatter):
         context = get_context()
 
         # Add context to record if not already present
-        if context and not hasattr(record, 'request_id'):
+        if context and not hasattr(record, "request_id"):
             for key, value in context.items():
                 setattr(record, key, value)
 
@@ -60,11 +60,29 @@ class JSONFormatter(logging.Formatter):
         extra_data = {}
         for key, value in record.__dict__.items():
             if key not in {
-                'name', 'msg', 'args', 'levelname', 'levelno', 'pathname',
-                'filename', 'module', 'exc_info', 'exc_text', 'stack_info',
-                'lineno', 'funcName', 'created', 'msecs', 'relativeCreated',
-                'thread', 'threadName', 'processName', 'process', 'getMessage',
-                'message', 'asctime'
+                "name",
+                "msg",
+                "args",
+                "levelname",
+                "levelno",
+                "pathname",
+                "filename",
+                "module",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "lineno",
+                "funcName",
+                "created",
+                "msecs",
+                "relativeCreated",
+                "thread",
+                "threadName",
+                "processName",
+                "process",
+                "getMessage",
+                "message",
+                "asctime",
             }:
                 extra_data[key] = value
 
@@ -77,8 +95,9 @@ class JSONFormatter(logging.Formatter):
 def get_console_formatter() -> ContextualFormatter:
     """Get the standard console formatter with context support."""
     return ContextualFormatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        + " | request_id=%(request_id)s" if get_context().get("request_id") else ""
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s" + " | request_id=%(request_id)s"
+        if get_context().get("request_id")
+        else ""
     )
 
 

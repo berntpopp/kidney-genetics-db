@@ -17,9 +17,14 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
+from app.core.datasource_config import get_source_parameter
 from app.core.logging import get_logger
 from app.models.gene import Gene, GeneEvidence
 from app.pipeline.sources.unified.base import UnifiedDataSource
+from app.pipeline.sources.unified.filtering_utils import (
+    apply_memory_filter,
+    validate_threshold_config,
+)
 
 if TYPE_CHECKING:
     from app.core.progress_tracker import ProgressTracker
@@ -58,7 +63,21 @@ class LiteratureSource(UnifiedDataSource):
     ):
         """Initialize literature source."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
-        logger.sync_info("LiteratureSource initialized")
+
+        # Load filtering configuration
+        raw_threshold = get_source_parameter("Literature", "min_publications", 1)
+        self.min_publications = validate_threshold_config(
+            raw_threshold, "publications", self.source_name
+        )
+        self.filtering_enabled = get_source_parameter(
+            "Literature", "min_publications_enabled", False
+        )
+
+        logger.sync_info(
+            f"{self.source_name} initialized with filtering",
+            min_publications=self.min_publications,
+            filtering_enabled=self.filtering_enabled
+        )
 
     def _get_default_ttl(self) -> int:
         """Get default TTL - manual uploads don't expire."""
@@ -83,7 +102,9 @@ class LiteratureSource(UnifiedDataSource):
         Returns:
             DataFrame with gene publication data
         """
-        logger.sync_info("Processing literature file", file_type=file_type, publication_id=publication_id)
+        logger.sync_info(
+            "Processing literature file", file_type=file_type, publication_id=publication_id
+        )
 
         try:
             if file_type == "json":
@@ -98,11 +119,15 @@ class LiteratureSource(UnifiedDataSource):
             # Add publication identifier to each row
             df["publication_id"] = publication_id
 
-            logger.sync_info("Parsed gene entries", entry_count=len(df), publication_id=publication_id)
+            logger.sync_info(
+                "Parsed gene entries", entry_count=len(df), publication_id=publication_id
+            )
             return df
 
         except Exception as e:
-            logger.sync_error("Failed to parse literature file", publication_id=publication_id, error=str(e))
+            logger.sync_error(
+                "Failed to parse literature file", publication_id=publication_id, error=str(e)
+            )
             raise
 
     def _parse_json(self, content: bytes) -> pd.DataFrame:
@@ -114,10 +139,7 @@ class LiteratureSource(UnifiedDataSource):
             if "genes" in data:
                 # Create records with both gene and publication data
                 records = []
-                pub_metadata = {
-                    k: v for k, v in data.items()
-                    if k not in ["genes"]
-                }
+                pub_metadata = {k: v for k, v in data.items() if k not in ["genes"]}
 
                 for gene in data["genes"]:
                     record = {**gene, **pub_metadata}
@@ -151,11 +173,9 @@ class LiteratureSource(UnifiedDataSource):
         Returns:
             Dictionary mapping gene symbols to aggregated evidence
         """
-        gene_data = defaultdict(lambda: {
-            "publications": set(),
-            "publication_details": {},
-            "hgnc_ids": set()
-        })
+        gene_data = defaultdict(
+            lambda: {"publications": set(), "publication_details": {}, "hgnc_ids": set()}
+        )
 
         for idx, row in df.iterrows():
             try:
@@ -251,12 +271,12 @@ class LiteratureSource(UnifiedDataSource):
     async def store_evidence(
         self, db: Session, gene_data: dict[str, Any], source_detail: str | None = None
     ) -> dict[str, Any]:
-        """Store evidence with MERGE semantics for literature sources."""
+        """Store evidence with MERGE semantics and filtering for literature sources."""
 
         if not gene_data:
-            return {"merged": 0, "created": 0, "failed": 0}
+            return {"merged": 0, "created": 0, "failed": 0, "filtered": 0}
 
-        stats = {"merged": 0, "created": 0, "failed": 0}
+        stats = {"merged": 0, "created": 0, "failed": 0, "filtered": 0}
 
         # Get gene IDs for all symbols
         gene_symbols = list(gene_data.keys())
@@ -275,10 +295,9 @@ class LiteratureSource(UnifiedDataSource):
         existing_evidence = db.execute(stmt).scalars().all()
         existing_map = {e.gene_id: e for e in existing_evidence}
 
-        # Current publication from source_detail
-        current_publication = source_detail or "unknown"
+        # First pass: merge data in memory
+        merged_gene_data = {}
 
-        # Process each gene
         for symbol, data in gene_data.items():
             gene_id = gene_map.get(symbol)
             if not gene_id:
@@ -287,14 +306,14 @@ class LiteratureSource(UnifiedDataSource):
                 continue
 
             if gene_id in existing_map:
-                # MERGE: Update existing evidence
+                # MERGE: Prepare merged data
                 record = existing_map[gene_id]
                 current_data = record.evidence_data or {}
 
-                # Merge publications
+                # Merge publications (they already come from process_data)
                 existing_pubs = set(current_data.get("publications", []))
-                new_pubs = {current_publication}
-                merged_pubs = list(existing_pubs | new_pubs)
+                new_pubs = set(data.get("publications", []))
+                merged_pubs = sorted(existing_pubs | new_pubs)
 
                 # Merge publication details
                 existing_details = current_data.get("publication_details", {})
@@ -304,39 +323,91 @@ class LiteratureSource(UnifiedDataSource):
                 # Merge HGNC IDs
                 existing_hgnc = set(current_data.get("hgnc_ids", []))
                 new_hgnc = set(data.get("hgnc_ids", []))
-                merged_hgnc = list(existing_hgnc | new_hgnc)
+                merged_hgnc = sorted(existing_hgnc | new_hgnc)
 
-                # Update evidence with merged data
-                record.evidence_data = {
+                merged_data = {
                     "publications": merged_pubs,
                     "publication_count": len(merged_pubs),
                     "publication_details": merged_details,
                     "hgnc_ids": merged_hgnc,
-                    "evidence_score": len(merged_pubs) * 5.0,  # 5 points per publication
                 }
-                record.source_detail = self._get_source_detail(record.evidence_data)
-                record.evidence_date = datetime.now(timezone.utc).date()
 
-                logger.sync_debug(
-                    "Merged literature evidence",
-                    symbol=symbol,
-                    publication_count=len(merged_pubs)
-                )
-                stats["merged"] += 1
-
+                merged_gene_data[symbol] = {
+                    "gene_id": gene_id,
+                    "data": merged_data,
+                    "record": record,
+                    "is_new": False
+                }
             else:
+                # NEW: Prepare new data (publications already come from process_data)
+                new_data = {
+                    "publications": data.get("publications", []),
+                    "publication_count": len(data.get("publications", [])),
+                    "publication_details": data.get("publication_details", {}),
+                    "hgnc_ids": data.get("hgnc_ids", []),
+                }
+
+                merged_gene_data[symbol] = {
+                    "gene_id": gene_id,
+                    "data": new_data,
+                    "record": None,
+                    "is_new": True
+                }
+
+        # Apply filtering if enabled
+        if self.filtering_enabled and self.min_publications > 1:
+            # Extract data for filtering
+            data_to_filter = {
+                symbol: info["data"]
+                for symbol, info in merged_gene_data.items()
+            }
+
+            filtered_data, filter_stats = apply_memory_filter(
+                data_dict=data_to_filter,
+                count_field="publication_count",
+                min_threshold=self.min_publications,
+                entity_name="publications",
+                source_name=self.source_name,
+                enabled=self.filtering_enabled
+            )
+
+            # Handle filtered genes
+            genes_to_remove = []
+            for symbol, info in merged_gene_data.items():
+                if symbol not in filtered_data:
+                    if not info["is_new"] and info["record"]:
+                        # Delete existing record that now fails filter
+                        db.delete(info["record"])
+                        logger.sync_info(
+                            "Removing gene below threshold",
+                            symbol=symbol,
+                            publication_count=info["data"]["publication_count"],
+                            threshold=self.min_publications
+                        )
+                    genes_to_remove.append(symbol)
+                    stats["filtered"] += 1
+
+            # Remove filtered genes from processing
+            for symbol in genes_to_remove:
+                del merged_gene_data[symbol]
+
+            # Log filter statistics (metadata storage removed - method doesn't exist)
+            logger.sync_info(
+                "Filter statistics",
+                source=self.source_name,
+                filtered_count=filter_stats.filtered_count,
+                filter_rate=f"{filter_stats.filter_rate:.1f}%"
+            )
+
+        # Process remaining genes (after filtering)
+        for symbol, info in merged_gene_data.items():
+            if info["is_new"]:
                 # CREATE: New evidence record
                 record = GeneEvidence(
-                    gene_id=gene_id,
+                    gene_id=info["gene_id"],
                     source_name=self.source_name,
-                    source_detail=self._get_source_detail(data),
-                    evidence_data={
-                        "publications": [current_publication],
-                        "publication_count": 1,
-                        "publication_details": data.get("publication_details", {}),
-                        "hgnc_ids": data.get("hgnc_ids", []),
-                        "evidence_score": 5.0,  # 5 points per publication
-                    },
+                    source_detail=self._get_source_detail(info["data"]),
+                    evidence_data=info["data"],
                     evidence_date=datetime.now(timezone.utc).date(),
                 )
                 db.add(record)
@@ -344,9 +415,22 @@ class LiteratureSource(UnifiedDataSource):
                 logger.sync_debug(
                     "Created literature evidence",
                     symbol=symbol,
-                    publication=current_publication
+                    publication_count=info["data"]["publication_count"]
                 )
                 stats["created"] += 1
+            else:
+                # UPDATE: Existing record
+                record = info["record"]
+                record.evidence_data = info["data"]
+                record.source_detail = self._get_source_detail(info["data"])
+                record.evidence_date = datetime.now(timezone.utc).date()
+
+                logger.sync_debug(
+                    "Merged literature evidence",
+                    symbol=symbol,
+                    publication_count=info["data"]["publication_count"]
+                )
+                stats["merged"] += 1
 
         return stats
 
@@ -366,7 +450,7 @@ class LiteratureSource(UnifiedDataSource):
                 "journal": "journal",
                 "publication_date": "publication_date",
                 "url": "url",
-                "doi": "doi"
+                "doi": "doi",
             }
 
             for field_key, field_name in pub_fields.items():
@@ -382,7 +466,6 @@ class LiteratureSource(UnifiedDataSource):
                 metadata[pub_id] = pub_data
 
         return metadata
-
 
     def is_kidney_related(self, record: dict[str, Any]) -> bool:
         """All manually uploaded literature data is considered kidney-related."""

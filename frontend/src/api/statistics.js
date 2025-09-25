@@ -15,7 +15,6 @@ export const statisticsApi = {
 
     // Add sources as query parameters if provided
     if (sources && sources.length > 0) {
-      // eslint-disable-next-line no-undef
       const params = new URLSearchParams()
       sources.forEach(source => params.append('sources', source))
       url += `?${params.toString()}`

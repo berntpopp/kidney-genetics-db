@@ -25,181 +25,70 @@
         <div class="d-flex align-start justify-space-between mb-6">
           <div class="flex-grow-1">
             <div class="d-flex align-center mb-2">
-              <v-btn
-                icon="mdi-arrow-left"
-                variant="text"
-                to="/genes"
-                class="mr-3"
-                title="Back to gene browser"
-              />
+              <v-btn icon="mdi-arrow-left" variant="text" size="small" to="/genes" class="mr-3" />
               <div>
-                <h1 class="text-h3 font-weight-bold mb-1">
-                  {{ gene.approved_symbol }}
-                </h1>
-                <p class="text-h6 text-medium-emphasis">
-                  {{ gene.approved_name || 'Gene information' }}
-                </p>
+                <h1 class="text-h3 font-weight-bold">{{ gene.approved_symbol }}</h1>
+                <p class="text-body-1 text-medium-emphasis">Gene information</p>
               </div>
             </div>
           </div>
 
           <!-- Action Buttons -->
-          <div class="d-flex ga-2 flex-wrap">
-            <v-btn prepend-icon="mdi-bookmark-outline" variant="outlined" @click="addToFavorites">
-              Save
+          <div class="d-flex ga-2">
+            <!-- Curator/Admin Edit Button -->
+            <v-btn
+              v-if="authStore.isCurator"
+              variant="tonal"
+              size="small"
+              color="warning"
+              prepend-icon="mdi-pencil"
+              @click="editGene"
+            >
+              Edit
             </v-btn>
-            <v-btn prepend-icon="mdi-share-variant" variant="outlined" @click="shareGene">
-              Share
-            </v-btn>
-            <v-btn prepend-icon="mdi-download" variant="outlined" @click="exportGene">
-              Export
-            </v-btn>
+
+            <v-btn variant="outlined" size="small" prepend-icon="mdi-download">Save</v-btn>
+            <v-btn variant="outlined" size="small" prepend-icon="mdi-share-variant">Share</v-btn>
+            <v-btn variant="outlined" size="small" prepend-icon="mdi-export">Export</v-btn>
             <v-menu>
               <template #activator="{ props }">
-                <v-btn icon="mdi-dots-vertical" variant="outlined" v-bind="props" />
+                <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" />
               </template>
               <v-list density="compact">
-                <v-list-item
-                  v-for="link in externalLinks"
-                  :key="link.name"
-                  :prepend-icon="link.icon"
-                  :title="link.name"
-                  :href="link.url"
-                  target="_blank"
-                />
+                <v-list-item @click="copyGeneId">
+                  <v-list-item-title>Copy Gene ID</v-list-item-title>
+                </v-list-item>
+                <v-list-item @click="viewInHGNC">
+                  <v-list-item-title>View in HGNC</v-list-item-title>
+                </v-list-item>
+                <v-list-item v-if="authStore.isAdmin" class="text-error" @click="deleteGene">
+                  <v-list-item-title>Delete Gene</v-list-item-title>
+                </v-list-item>
               </v-list>
             </v-menu>
           </div>
         </div>
 
         <!-- Overview Cards -->
-        <v-row class="mb-6">
+        <v-row class="mb-6 align-stretch">
           <!-- Gene Information Card -->
-          <v-col cols="12" md="6" lg="4">
-            <v-card height="100%" class="info-card">
-              <v-card-item>
-                <template #prepend>
-                  <v-avatar color="primary" size="40">
-                    <v-icon icon="mdi-dna" color="white" />
-                  </v-avatar>
-                </template>
-                <v-card-title>Gene Information</v-card-title>
-              </v-card-item>
-              <v-card-text>
-                <v-list density="compact" class="transparent">
-                  <v-list-item>
-                    <template #prepend>
-                      <v-icon icon="mdi-tag" size="small" class="text-medium-emphasis" />
-                    </template>
-                    <v-list-item-title class="text-body-2 font-weight-medium"
-                      >Symbol</v-list-item-title
-                    >
-                    <v-list-item-subtitle class="font-mono">{{
-                      gene.approved_symbol
-                    }}</v-list-item-subtitle>
-                  </v-list-item>
-
-                  <v-list-item>
-                    <template #prepend>
-                      <v-icon icon="mdi-identifier" size="small" class="text-medium-emphasis" />
-                    </template>
-                    <v-list-item-title class="text-body-2 font-weight-medium"
-                      >HGNC ID</v-list-item-title
-                    >
-                    <v-list-item-subtitle class="font-mono">{{
-                      gene.hgnc_id
-                    }}</v-list-item-subtitle>
-                  </v-list-item>
-
-                  <v-list-item v-if="gene.alias_symbol?.length">
-                    <template #prepend>
-                      <v-icon icon="mdi-tag-multiple" size="small" class="text-medium-emphasis" />
-                    </template>
-                    <v-list-item-title class="text-body-2 font-weight-medium"
-                      >Aliases</v-list-item-title
-                    >
-                    <v-list-item-subtitle>
-                      <div class="d-flex flex-wrap ga-1 mt-1">
-                        <v-chip
-                          v-for="alias in gene.alias_symbol.slice(0, 3)"
-                          :key="alias"
-                          size="x-small"
-                          variant="outlined"
-                        >
-                          {{ alias }}
-                        </v-chip>
-                        <v-tooltip v-if="gene.alias_symbol.length > 3" location="bottom">
-                          <template #activator="{ props }">
-                            <v-chip size="x-small" variant="outlined" v-bind="props">
-                              +{{ gene.alias_symbol.length - 3 }}
-                            </v-chip>
-                          </template>
-                          <div class="pa-2">
-                            {{ gene.alias_symbol.slice(3).join(', ') }}
-                          </div>
-                        </v-tooltip>
-                      </div>
-                    </v-list-item-subtitle>
-                  </v-list-item>
-
-                  <v-list-item v-if="gene.chromosome">
-                    <template #prepend>
-                      <v-icon icon="mdi-map-marker" size="small" class="text-medium-emphasis" />
-                    </template>
-                    <v-list-item-title class="text-body-2 font-weight-medium"
-                      >Location</v-list-item-title
-                    >
-                    <v-list-item-subtitle>{{ gene.chromosome }}</v-list-item-subtitle>
-                  </v-list-item>
-                </v-list>
-              </v-card-text>
-            </v-card>
+          <v-col cols="12" md="8" lg="8" class="d-flex">
+            <GeneInformationCard
+              :gene="gene"
+              :annotations="annotations"
+              :loading-annotations="loadingAnnotations"
+              class="flex-grow-1"
+            />
           </v-col>
 
           <!-- Evidence Score Visualization with Breakdown -->
-          <v-col cols="12" md="6" lg="4">
+          <v-col cols="12" md="4" lg="4" class="d-flex">
             <ScoreBreakdown
               :score="gene.evidence_score"
               :breakdown="gene.score_breakdown"
               variant="card"
+              class="flex-grow-1"
             />
-          </v-col>
-
-          <!-- Data Sources -->
-          <v-col cols="12" lg="4">
-            <v-card height="100%" class="sources-card">
-              <v-card-item>
-                <template #prepend>
-                  <v-avatar color="info" size="40">
-                    <v-icon icon="mdi-database" color="white" />
-                  </v-avatar>
-                </template>
-                <v-card-title>Data Sources</v-card-title>
-                <template #append>
-                  <v-chip size="small" variant="tonal">
-                    {{ gene.sources?.length || 0 }}
-                  </v-chip>
-                </template>
-              </v-card-item>
-              <v-card-text>
-                <div v-if="gene.sources?.length" class="d-flex flex-wrap ga-2">
-                  <v-chip
-                    v-for="source in gene.sources"
-                    :key="source"
-                    :color="getSourceColor(source)"
-                    variant="tonal"
-                    size="small"
-                  >
-                    <v-icon :icon="getSourceIcon(source)" size="x-small" start />
-                    {{ source }}
-                  </v-chip>
-                </div>
-                <div v-else class="text-center py-4">
-                  <v-icon icon="mdi-database-off" size="large" class="text-medium-emphasis mb-2" />
-                  <p class="text-body-2 text-medium-emphasis">No source information available</p>
-                </div>
-              </v-card-text>
-            </v-card>
           </v-col>
         </v-row>
 
@@ -218,19 +107,19 @@
                 Refresh
               </v-btn>
               <v-btn
-                prepend-icon="mdi-filter-variant"
+                prepend-icon="mdi-filter"
                 variant="outlined"
                 size="small"
-                @click="showEvidenceFilters = !showEvidenceFilters"
+                @click="showFilterPanel = !showFilterPanel"
               >
                 Filter
               </v-btn>
             </div>
           </div>
 
-          <!-- Evidence Filters -->
+          <!-- Filter Panel -->
           <v-expand-transition>
-            <v-card v-if="showEvidenceFilters" class="mb-4" rounded="lg">
+            <v-card v-show="showFilterPanel" class="mb-4">
               <v-card-text>
                 <v-row>
                   <v-col cols="12" md="4">
@@ -261,78 +150,22 @@
             </v-card>
           </v-expand-transition>
 
-          <!-- Evidence Loading State -->
-          <v-card v-if="loadingEvidence" class="text-center py-12" rounded="lg">
-            <v-progress-circular indeterminate color="primary" size="48" />
-            <p class="text-body-1 mt-4 text-medium-emphasis">Loading evidence data...</p>
-          </v-card>
-
-          <!-- Evidence Content -->
-          <div v-else-if="filteredEvidence?.length" class="evidence-section">
-            <v-expansion-panels variant="accordion" class="mb-4">
-              <EvidenceCard
-                v-for="(item, index) in filteredEvidence"
-                :key="`${item.source_name}-${index}`"
-                :evidence="item"
-              />
-            </v-expansion-panels>
+          <!-- Evidence Cards -->
+          <v-expansion-panels v-if="evidence.length > 0" variant="accordion">
+            <EvidenceCard
+              v-for="item in sortedEvidence"
+              :key="`${item.source}_${item.source_id}`"
+              :evidence="item"
+            />
+          </v-expansion-panels>
+          <div v-else-if="loadingEvidence" class="text-center py-8">
+            <v-progress-circular indeterminate color="primary" />
+            <p class="text-body-2 mt-2 text-medium-emphasis">Loading evidence...</p>
           </div>
-
-          <!-- No Evidence State -->
-          <v-card v-else class="text-center py-12" rounded="lg">
-            <v-icon icon="mdi-file-document-search" size="64" class="mb-4 text-medium-emphasis" />
-            <h3 class="text-h6 mb-2">No Evidence Data</h3>
-            <p class="text-body-2 text-medium-emphasis mb-4">
-              {{
-                selectedEvidenceSources.length > 0
-                  ? 'No evidence matches your current filters'
-                  : 'No evidence data available for this gene'
-              }}
-            </p>
-            <v-btn
-              v-if="selectedEvidenceSources.length > 0"
-              color="primary"
-              variant="outlined"
-              @click="clearEvidenceFilters"
-            >
-              Clear Filters
-            </v-btn>
-          </v-card>
-        </div>
-
-        <!-- Related Genes Section -->
-        <div v-if="relatedGenes?.length" class="mb-6">
-          <h2 class="text-h4 font-weight-medium mb-4">Related Genes</h2>
-          <v-row>
-            <v-col
-              v-for="relatedGene in relatedGenes.slice(0, 6)"
-              :key="relatedGene.approved_symbol"
-              cols="12"
-              sm="6"
-              md="4"
-            >
-              <v-card :to="`/genes/${relatedGene.approved_symbol}`" class="related-gene-card" hover>
-                <v-card-text>
-                  <div class="d-flex align-center justify-space-between">
-                    <div>
-                      <div class="text-h6 font-weight-medium">
-                        {{ relatedGene.approved_symbol }}
-                      </div>
-                      <div class="text-body-2 text-medium-emphasis">{{ relatedGene.hgnc_id }}</div>
-                    </div>
-                    <v-chip
-                      v-if="relatedGene.evidence_score"
-                      :color="getScoreColor(relatedGene.evidence_score)"
-                      size="small"
-                      variant="tonal"
-                    >
-                      {{ relatedGene.evidence_score.toFixed(1) }}
-                    </v-chip>
-                  </div>
-                </v-card-text>
-              </v-card>
-            </v-col>
-          </v-row>
+          <div v-else class="text-center py-8">
+            <v-icon icon="mdi-information-outline" size="48" color="grey-lighten-1" />
+            <p class="text-body-1 mt-2 text-medium-emphasis">No evidence records available</p>
+          </div>
         </div>
       </v-container>
     </div>
@@ -355,273 +188,166 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { geneApi } from '../api/genes'
+import { useAuthStore } from '../stores/auth'
 import ScoreBreakdown from '../components/ScoreBreakdown.vue'
 import EvidenceCard from '../components/evidence/EvidenceCard.vue'
+import GeneInformationCard from '../components/gene/GeneInformationCard.vue'
 
 const route = useRoute()
+// const router = useRouter() // Currently unused but may be needed for navigation
+const authStore = useAuthStore()
 
 // Data
 const gene = ref(null)
-const evidence = ref(null)
-const relatedGenes = ref([])
+const evidence = ref([])
+const annotations = ref(null)
 const loading = ref(true)
-const loadingEvidence = ref(true)
-const showEvidenceFilters = ref(false)
+const loadingEvidence = ref(false)
+const loadingAnnotations = ref(false)
+const showFilterPanel = ref(false)
 const selectedEvidenceSources = ref([])
-const evidenceSortOrder = ref('newest')
+const evidenceSortOrder = ref('score_desc')
 
-// Filter options
-const availableEvidenceSources = [
-  { title: 'PanelApp', value: 'PanelApp' },
-  { title: 'HPO', value: 'HPO' },
-  { title: 'PubTator', value: 'PubTator' },
-  { title: 'Literature', value: 'Literature' }
-]
-
-const evidenceSortOptions = [
-  { title: 'Newest First', value: 'newest' },
-  { title: 'Oldest First', value: 'oldest' },
-  { title: 'Source Name', value: 'source' },
-  { title: 'Most Panels', value: 'panels' }
-]
-
-// Computed properties
+// Computed
 const breadcrumbs = computed(() => [
   { title: 'Home', to: '/' },
   { title: 'Gene Browser', to: '/genes' },
-  { title: gene.value?.approved_symbol || 'Gene', disabled: true }
+  { title: gene.value?.approved_symbol || 'Loading...', disabled: true }
 ])
 
-const externalLinks = computed(() => {
-  if (!gene.value) return []
-
-  return [
-    {
-      name: 'HGNC',
-      icon: 'mdi-open-in-new',
-      url: `https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/${gene.value.hgnc_id.replace('HGNC:', '')}`
-    },
-    {
-      name: 'NCBI Gene',
-      icon: 'mdi-open-in-new',
-      url: `https://www.ncbi.nlm.nih.gov/gene/?term=${gene.value.approved_symbol}[sym]`
-    },
-    {
-      name: 'UniProt',
-      icon: 'mdi-open-in-new',
-      url: `https://www.uniprot.org/uniprot/?query=gene:${gene.value.approved_symbol}`
-    },
-    {
-      name: 'OMIM',
-      icon: 'mdi-open-in-new',
-      url: `https://www.omim.org/search/?index=entry&start=1&search=${gene.value.approved_symbol}`
-    }
-  ]
+const availableEvidenceSources = computed(() => {
+  const sources = [...new Set(evidence.value.map(e => e.source))]
+  return sources.sort()
 })
 
+const evidenceSortOptions = [
+  { title: 'Score (High to Low)', value: 'score_desc' },
+  { title: 'Score (Low to High)', value: 'score_asc' },
+  { title: 'Source (A-Z)', value: 'source_asc' },
+  { title: 'Source (Z-A)', value: 'source_desc' }
+]
+
 const filteredEvidence = computed(() => {
-  if (!evidence.value?.evidence) return []
-
-  let filtered = evidence.value.evidence
-
-  if (selectedEvidenceSources.value.length > 0) {
-    filtered = filtered.filter(item => selectedEvidenceSources.value.includes(item.source_name))
+  if (selectedEvidenceSources.value.length === 0) {
+    return evidence.value
   }
+  return evidence.value.filter(e => selectedEvidenceSources.value.includes(e.source))
+})
 
-  // Sort evidence
+const sortedEvidence = computed(() => {
+  const sorted = [...filteredEvidence.value]
   switch (evidenceSortOrder.value) {
-    case 'oldest':
-      filtered = filtered.sort(
-        (a, b) =>
-          new Date(a.evidence_data?.last_updated || 0) -
-          new Date(b.evidence_data?.last_updated || 0)
-      )
-      break
-    case 'source':
-      filtered = filtered.sort((a, b) => a.source_name.localeCompare(b.source_name))
-      break
-    case 'panels':
-      filtered = filtered.sort(
-        (a, b) => (b.evidence_data?.panels?.length || 0) - (a.evidence_data?.panels?.length || 0)
-      )
-      break
-    default: // newest
-      filtered = filtered.sort(
-        (a, b) =>
-          new Date(b.evidence_data?.last_updated || 0) -
-          new Date(a.evidence_data?.last_updated || 0)
-      )
+    case 'score_asc':
+      return sorted.sort((a, b) => (a.score || 0) - (b.score || 0))
+    case 'score_desc':
+      return sorted.sort((a, b) => (b.score || 0) - (a.score || 0))
+    case 'source_asc':
+      return sorted.sort((a, b) => a.source.localeCompare(b.source))
+    case 'source_desc':
+      return sorted.sort((a, b) => b.source.localeCompare(a.source))
+    default:
+      return sorted
   }
-
-  return filtered
 })
 
 // Methods
-const getSourceColor = source => {
-  const colors = {
-    PanelApp: 'primary',
-    HPO: 'secondary',
-    PubTator: 'info',
-    Literature: 'success',
-    Diagnostic: 'warning'
-  }
-  return colors[source] || 'grey'
-}
-
-const getSourceIcon = source => {
-  const icons = {
-    PanelApp: 'mdi-view-dashboard',
-    HPO: 'mdi-human',
-    PubTator: 'mdi-file-document',
-    Literature: 'mdi-book-open',
-    Diagnostic: 'mdi-test-tube'
-  }
-  return icons[source] || 'mdi-database'
-}
-
-const getScoreColor = score => {
-  if (score >= 95) return 'success'
-  if (score >= 80) return 'success'
-  if (score >= 70) return 'info'
-  if (score >= 50) return 'warning'
-  if (score >= 30) return 'orange'
-  return 'error'
-}
-
-// Removed unused score and format functions - handled by ScoreBreakdown component
-
-const clearEvidenceFilters = () => {
-  selectedEvidenceSources.value = []
-  evidenceSortOrder.value = 'newest'
-}
-
-const refreshEvidence = async () => {
-  loadingEvidence.value = true
+const fetchGeneDetails = async () => {
+  loading.value = true
   try {
-    evidence.value = await geneApi.getGeneEvidence(route.params.symbol)
+    const response = await geneApi.getGene(route.params.symbol)
+    gene.value = response
+    await Promise.all([fetchEvidence(), fetchAnnotations()])
   } catch (error) {
-    console.error('Error refreshing evidence:', error)
-  } finally {
-    loadingEvidence.value = false
-  }
-}
-
-const addToFavorites = () => {
-  console.log('Add to favorites:', gene.value.approved_symbol)
-}
-
-const shareGene = () => {
-  if (navigator.share) {
-    navigator.share({
-      title: `${gene.value.approved_symbol} - Kidney Genetics Database`,
-      url: window.location.href
-    })
-  } else {
-    navigator.clipboard.writeText(window.location.href)
-  }
-}
-
-const exportGene = () => {
-  console.log('Export gene:', gene.value.approved_symbol)
-}
-
-// Removed unused functions - will implement when needed
-
-// Lifecycle
-onMounted(async () => {
-  const symbol = route.params.symbol
-
-  try {
-    gene.value = await geneApi.getGene(symbol)
-  } catch (error) {
-    console.error('Error loading gene:', error)
+    window.logService.error('Failed to fetch gene details:', error)
+    gene.value = null
   } finally {
     loading.value = false
   }
+}
 
+const fetchEvidence = async () => {
+  if (!gene.value) return
+
+  loadingEvidence.value = true
   try {
-    evidence.value = await geneApi.getGeneEvidence(symbol)
+    const response = await geneApi.getGeneEvidence(gene.value.approved_symbol)
+    evidence.value = response.evidence || []
   } catch (error) {
-    console.error('Error loading evidence:', error)
+    window.logService.error('Failed to fetch evidence:', error)
+    evidence.value = []
   } finally {
     loadingEvidence.value = false
   }
+}
 
-  // Load related genes (mock for now)
+const fetchAnnotations = async () => {
+  if (!gene.value) return
+
+  loadingAnnotations.value = true
   try {
-    // This would be a real API call
-    relatedGenes.value = []
+    const response = await geneApi.getGeneAnnotations(gene.value.id)
+    annotations.value = response
   } catch (error) {
-    console.error('Error loading related genes:', error)
+    window.logService.error('Failed to fetch annotations:', error)
+    annotations.value = null
+  } finally {
+    loadingAnnotations.value = false
   }
+}
+
+const refreshEvidence = () => {
+  fetchEvidence()
+}
+
+const clearEvidenceFilters = () => {
+  selectedEvidenceSources.value = []
+  evidenceSortOrder.value = 'score_desc'
+}
+
+const copyGeneId = () => {
+  if (gene.value?.hgnc_id) {
+    navigator.clipboard.writeText(gene.value.hgnc_id)
+  }
+}
+
+const viewInHGNC = () => {
+  if (gene.value?.hgnc_id) {
+    const hgncId = gene.value.hgnc_id.replace('HGNC:', '')
+    window.open(
+      `https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:${hgncId}`,
+      '_blank'
+    )
+  }
+}
+
+const editGene = () => {
+  // TODO: Implement gene editing functionality
+  window.logService.info('Edit gene:', gene.value?.approved_symbol)
+  // Could navigate to an edit page or open a modal
+}
+
+const deleteGene = async () => {
+  if (!gene.value) return
+
+  if (
+    confirm(
+      `Are you sure you want to delete ${gene.value.approved_symbol}? This action cannot be undone.`
+    )
+  ) {
+    try {
+      // TODO: Implement API call to delete gene
+      window.logService.info('Delete gene:', gene.value?.approved_symbol)
+      // await geneApi.deleteGene(gene.value.id)
+      // router.push('/genes')
+    } catch (error) {
+      window.logService.error('Failed to delete gene:', error)
+      alert('Failed to delete gene. Please try again.') // eslint-disable-line no-undef
+    }
+  }
+}
+
+// Lifecycle
+onMounted(() => {
+  fetchGeneDetails()
 })
 </script>
-
-<style scoped>
-.info-card,
-.score-card,
-.sources-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.info-card:hover,
-.score-card:hover,
-.sources-card:hover {
-  transform: translateY(-2px);
-}
-
-.score-circle {
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
-}
-
-.evidence-panel {
-  border: 1px solid rgb(var(--v-theme-surface-variant));
-  margin-bottom: 8px;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.evidence-panel:hover {
-  border-color: rgb(var(--v-theme-primary));
-}
-
-.phenotypes-grid {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.related-gene-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.related-gene-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-}
-
-.font-mono {
-  font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
-  font-size: 0.9em;
-}
-
-.transparent {
-  background: transparent !important;
-}
-
-:deep(.v-expansion-panel-title) {
-  padding: 16px 24px;
-}
-
-:deep(.v-expansion-panel-text__wrapper) {
-  padding: 0 24px 16px;
-}
-
-/* Dark mode adjustments */
-.v-theme--dark .evidence-panel {
-  background: rgb(var(--v-theme-surface-bright));
-}
-
-.v-theme--dark .score-circle {
-  filter: drop-shadow(0 4px 8px rgba(255, 255, 255, 0.1));
-}
-</style>

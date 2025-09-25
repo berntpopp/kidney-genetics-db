@@ -17,15 +17,26 @@ export default [
         localStorage: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
         window: 'readonly',
-        navigator: 'readonly'
+        navigator: 'readonly',
+        document: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        Blob: 'readonly',
+        WebSocket: 'readonly',
+        fetch: 'readonly',
+        confirm: 'readonly',
+        CustomEvent: 'readonly'
       }
     },
     rules: {
       'vue/multi-word-component-names': 'off',
       'vue/no-v-html': 'off',
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-      'vue/require-default-prop': 'off'
+      'vue/require-default-prop': 'off',
+      'vue/valid-v-slot': 'off' // Disabled due to false positives with dot notation in slot names
     }
   },
   {

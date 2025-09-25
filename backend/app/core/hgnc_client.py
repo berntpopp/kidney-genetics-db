@@ -133,7 +133,9 @@ class HGNCClientCached:
                     return docs[0].get("hgnc_id")
                 return None
             except Exception as e:
-                logger.sync_warning("Failed to fetch HGNC ID for symbol", symbol=symbol, error=str(e))
+                logger.sync_warning(
+                    "Failed to fetch HGNC ID for symbol", symbol=symbol, error=str(e)
+                )
                 return None
 
         return await cached(
@@ -160,7 +162,9 @@ class HGNCClientCached:
                     return docs[0]
                 return None
             except Exception as e:
-                logger.sync_warning("Failed to fetch gene info for symbol", symbol=symbol, error=str(e))
+                logger.sync_warning(
+                    "Failed to fetch gene info for symbol", symbol=symbol, error=str(e)
+                )
                 return None
 
         return await cached(

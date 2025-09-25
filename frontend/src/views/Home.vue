@@ -169,7 +169,7 @@ onMounted(async () => {
       stats.value[2].value = mostRecent ? formatDate(mostRecent) : 'Never'
     }
   } catch (error) {
-    console.error('Error fetching stats:', error)
+    window.logService.error('Error fetching stats:', error)
     stats.value[2].value = 'Error'
   }
 })

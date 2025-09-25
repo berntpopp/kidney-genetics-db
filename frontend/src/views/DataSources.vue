@@ -404,14 +404,14 @@ const formatDate = dateStr => {
 
 onMounted(async () => {
   try {
-    console.log('Loading data sources...')
+    window.logService.info('Loading data sources...')
     const response = await datasourceApi.getDataSources()
-    console.log('Datasource API response:', response)
+    window.logService.info('Datasource API response:', response)
 
     apiResponse.value = response
     dataSources.value = response.sources || []
   } catch (error) {
-    console.error('Failed to load data sources:', error)
+    window.logService.error('Failed to load data sources:', error)
     // Fallback empty state
     dataSources.value = []
     apiResponse.value = {

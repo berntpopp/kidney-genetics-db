@@ -93,5 +93,15 @@ export const geneApi = {
       })),
       meta: response.data.meta
     }
+  },
+
+  /**
+   * Get annotations for a gene (including gnomAD data)
+   * @param {Number} geneId Gene ID
+   * @returns {Promise} Annotations data
+   */
+  async getGeneAnnotations(geneId) {
+    const response = await apiClient.get(`/api/annotations/genes/${geneId}/annotations`)
+    return response.data
   }
 }

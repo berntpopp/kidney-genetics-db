@@ -15,7 +15,9 @@ logger = get_logger(__name__)
 class CRUDStatistics:
     """CRUD operations for statistics and data analysis"""
 
-    def get_source_overlaps(self, db: Session, selected_sources: list[str] | None = None) -> dict[str, Any]:
+    def get_source_overlaps(
+        self, db: Session, selected_sources: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         Calculate gene intersections between data sources for UpSet plot visualization
 
@@ -110,10 +112,18 @@ class CRUDStatistics:
                     FROM gene_evidence
                     WHERE source_name = ANY(:selected_sources)
                 """
-                total_unique_genes = db.execute(text(total_genes_query), {"selected_sources": selected_sources}).scalar() or 0
+                total_unique_genes = (
+                    db.execute(
+                        text(total_genes_query), {"selected_sources": selected_sources}
+                    ).scalar()
+                    or 0
+                )
             else:
                 # If no source filter, get all genes with evidence
-                total_unique_genes = db.execute(text("SELECT COUNT(DISTINCT gene_id) FROM gene_evidence")).scalar() or 0
+                total_unique_genes = (
+                    db.execute(text("SELECT COUNT(DISTINCT gene_id) FROM gene_evidence")).scalar()
+                    or 0
+                )
 
             # Find genes that appear in all sources
             all_sources_genes = set(source_gene_map[source_names[0]])
@@ -138,7 +148,9 @@ class CRUDStatistics:
             }
 
         except Exception as e:
-            logger.sync_error("Error calculating source overlaps", error=e, selected_sources=selected_sources)
+            logger.sync_error(
+                "Error calculating source overlaps", error=e, selected_sources=selected_sources
+            )
             raise
 
     def get_source_distributions(self, db: Session) -> dict[str, Any]:
@@ -446,7 +458,9 @@ class CRUDStatistics:
             }
 
         except Exception as e:
-            logger.sync_error("Error analyzing evidence composition", error=e, source_name=source_name)
+            logger.sync_error(
+                "Error analyzing evidence composition", error=e, source_name=source_name
+            )
             raise
 
 

@@ -57,33 +57,37 @@ class GenCCUnifiedSource(UnifiedDataSource):
         # GenCC configuration
         self.download_url = "https://search.thegencc.org/download/action/submissions-export-xlsx"
 
-        # Kidney-related keywords for filtering
-        self.kidney_keywords = [
-            "kidney",
-            "renal",
-            "nephro",
-            "glomerul",
-            "tubul",
-            "polycystic",
-            "alport",
-            "nephritis",
-            "cystic",
-            "ciliopathy",
-            "complement",
-            "cakut",
-        ]
+        # Kidney-related keywords for filtering from config
+        self.kidney_keywords = get_source_parameter(
+            "GenCC",
+            "kidney_keywords",
+            [
+                "kidney",
+                "renal",
+                "nephro",
+                "glomerul",
+                "polycystic",
+                "alport",
+                "nephritis",
+                "cakut",
+            ],
+        )
 
-        # GenCC classification weights for evidence scoring
-        self.classification_weights = {
-            "Definitive": 1.0,
-            "Strong": 0.8,
-            "Moderate": 0.6,
-            "Supportive": 0.5,
-            "Limited": 0.3,
-            "Disputed Evidence": 0.1,
-            "No Known Disease Relationship": 0.0,
-            "Refuted Evidence": 0.0,
-        }
+        # GenCC classification weights for evidence scoring from config
+        self.classification_weights = get_source_parameter(
+            "GenCC",
+            "classification_weights",
+            {
+                "Definitive": 1.0,
+                "Strong": 0.8,
+                "Moderate": 0.6,
+                "Supportive": 0.5,
+                "Limited": 0.3,
+                "Disputed Evidence": 0.1,
+                "No Known Disease Relationship": 0.0,
+                "Refuted Evidence": 0.0,
+            },
+        )
 
         logger.sync_info("GenCCUnifiedSource initialized", cache_ttl=self.cache_ttl)
 
@@ -104,7 +108,9 @@ class GenCCUnifiedSource(UnifiedDataSource):
         async def _fetch_gencc_data():
             """Internal function to fetch GenCC data."""
             logger.sync_info("Downloading GenCC submissions", download_url=self.download_url)
-            logger.sync_info("Starting download", estimated_time="30-60 seconds", file_size="~3.6MB")
+            logger.sync_info(
+                "Starting download", estimated_time="30-60 seconds", file_size="~3.6MB"
+            )
 
             # Use cached HTTP client for download
             response = await self.http_client.get(
@@ -198,7 +204,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
         logger.sync_info(
             "GenCC processing complete",
             kidney_related_submissions=kidney_related_count,
-            unique_genes=len(gene_data_map)
+            unique_genes=len(gene_data_map),
         )
 
         return gene_data_map

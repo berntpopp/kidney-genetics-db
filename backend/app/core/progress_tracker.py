@@ -53,11 +53,47 @@ class ProgressTracker:
         progress = self.db.query(DataSourceProgress).filter_by(source_name=self.source_name).first()
 
         if not progress:
+            logger.sync_info(
+                "Creating new progress record",
+                source_name=self.source_name,
+            )
             progress = DataSourceProgress(
                 source_name=self.source_name, status=SourceStatus.idle, progress_metadata={}
             )
             self.db.add(progress)
             self.db.commit()
+            logger.sync_info(
+                "Progress record created",
+                source_name=self.source_name,
+                progress_id=progress.id,
+            )
+        else:
+            logger.sync_info(
+                "Found existing progress record",
+                source_name=self.source_name,
+                progress_id=progress.id,
+                current_status=str(progress.status),
+                last_updated=str(progress.updated_at),
+            )
+            # Ensure the progress record is attached to current session
+            if progress not in self.db:
+                logger.sync_warning(
+                    "Progress record not in current session, merging",
+                    source_name=self.source_name,
+                    current_status=str(progress.status)
+                )
+                # Store the current status before merge
+                current_status = progress.status
+                progress = self.db.merge(progress)
+                # Restore status if it was changed by merge
+                if progress.status != current_status:
+                    logger.sync_warning(
+                        "Status changed during merge, restoring",
+                        source_name=self.source_name,
+                        old_status=str(current_status),
+                        new_status=str(progress.status)
+                    )
+                    progress.status = current_status
 
         return progress
 
@@ -76,6 +112,12 @@ class ProgressTracker:
 
     def start(self, operation: str = "Starting update"):
         """Mark source as running"""
+        logger.sync_debug(
+            "ProgressTracker.start() called",
+            source_name=self.source_name,
+            operation=operation,
+            old_status=str(self.progress_record.status)
+        )
         self._start_time = datetime.now(timezone.utc)
         self.progress_record.status = SourceStatus.running
         self.progress_record.current_operation = operation
@@ -87,7 +129,14 @@ class ProgressTracker:
         self.progress_record.items_updated = 0
         self.progress_record.items_failed = 0
         self.progress_record.progress_percentage = 0.0
+        self.progress_record.current_item = 0
+        self.progress_record.total_items = None
         self._commit_and_broadcast()
+        logger.sync_debug(
+            "ProgressTracker.start() completed",
+            source_name=self.source_name,
+            new_status=str(self.progress_record.status)
+        )
 
     def update(
         self,
@@ -115,6 +164,25 @@ class ProgressTracker:
             items_failed: Number of items failed (incremental)
             force: Force immediate database update
         """
+        # Log update call
+        logger.sync_debug(
+            "ProgressTracker.update() called",
+            source_name=self.source_name,
+            current_page=current_page,
+            current_item=current_item,
+            operation=operation,
+            force=force,
+            current_status=str(self.progress_record.status)
+        )
+
+        # Preserve running status if already set
+        if self.progress_record.status != SourceStatus.running:
+            logger.sync_warning(
+                "Update called but status is not running!",
+                source_name=self.source_name,
+                current_status=str(self.progress_record.status)
+            )
+
         # Update counters
         if current_item is not None:
             self.progress_record.current_item = current_item
@@ -139,13 +207,14 @@ class ProgressTracker:
             self.progress_record.items_processed += items_failed
 
         # Calculate progress percentage
-        if self.progress_record.total_items and self.progress_record.total_items > 0:
-            self.progress_record.progress_percentage = (
-                self.progress_record.current_item / self.progress_record.total_items * 100
-            )
-        elif self.progress_record.total_pages and self.progress_record.total_pages > 0:
+        # Prefer pages over items for better accuracy when both are available
+        if self.progress_record.total_pages and self.progress_record.total_pages > 0:
             self.progress_record.progress_percentage = (
                 self.progress_record.current_page / self.progress_record.total_pages * 100
+            )
+        elif self.progress_record.total_items and self.progress_record.total_items > 0:
+            self.progress_record.progress_percentage = (
+                self.progress_record.current_item / self.progress_record.total_items * 100
             )
 
         # Estimate completion time
@@ -160,7 +229,19 @@ class ProgressTracker:
 
         # Only commit if enough time has passed or forced
         now = datetime.now(timezone.utc)
-        if force or (now - self._last_update_time).total_seconds() >= self._update_interval:
+        time_since_last = (now - self._last_update_time).total_seconds()
+        should_update = force or time_since_last >= self._update_interval
+
+        logger.sync_debug(
+            "ProgressTracker.update() commit decision",
+            source_name=self.source_name,
+            force=force,
+            time_since_last=time_since_last,
+            update_interval=self._update_interval,
+            should_update=should_update,
+        )
+
+        if should_update:
             self._commit_and_broadcast()
             self._last_update_time = now
 
@@ -190,10 +271,26 @@ class ProgressTracker:
 
     def resume(self):
         """Resume from paused state"""
+        logger.sync_debug(
+            "ProgressTracker.resume() called",
+            source_name=self.source_name,
+            old_status=str(self.progress_record.status),
+            progress_id=self.progress_record.id if hasattr(self.progress_record, 'id') else None
+        )
         self.progress_record.status = SourceStatus.running
         self.progress_record.current_operation = "Resumed"
         self._start_time = datetime.now(timezone.utc)  # Reset start time for accurate estimates
+        # Force immediate database commit to persist status change
         self._commit_and_broadcast()
+        logger.sync_debug(
+            "ProgressTracker.resume() completed",
+            source_name=self.source_name,
+            new_status=str(self.progress_record.status)
+        )
+
+    def is_paused(self) -> bool:
+        """Check if the source is currently paused"""
+        return self.progress_record.status == SourceStatus.paused
 
     def set_metadata(self, metadata: dict[str, Any]):
         """Update metadata"""
@@ -202,11 +299,69 @@ class ProgressTracker:
 
     def _commit_and_broadcast(self):
         """Commit to database and publish update to event bus - NO MORE DIRECT CALLBACKS!"""
+        # Always recalculate progress percentage before committing
+        # Prefer pages over items for better accuracy when both are available
+        if self.progress_record.total_pages and self.progress_record.total_pages > 0:
+            self.progress_record.progress_percentage = (
+                self.progress_record.current_page / self.progress_record.total_pages * 100
+            )
+        elif self.progress_record.total_items and self.progress_record.total_items > 0:
+            self.progress_record.progress_percentage = (
+                self.progress_record.current_item / self.progress_record.total_items * 100
+            )
+
+        logger.sync_debug(
+            "_commit_and_broadcast() called",
+            source_name=self.source_name,
+            status=str(self.progress_record.status),
+            current_page=self.progress_record.current_page,
+            current_operation=self.progress_record.current_operation,
+            progress_percentage=self.progress_record.progress_percentage,
+        )
+
         try:
             # Don't commit manual upload sources to database
             manual_upload_sources = ["DiagnosticPanels"]
             if self.source_name not in manual_upload_sources:
+                logger.sync_debug(
+                    "Committing to database",
+                    source_name=self.source_name,
+                    progress_id=self.progress_record.id if hasattr(self.progress_record, 'id') else None,
+                )
+                # Ensure the progress record is marked as modified
+                if self.progress_record in self.db:
+                    # Mark object as dirty to ensure SQLAlchemy tracks changes
+                    # Explicitly set the status to ensure it's not overwritten
+                    current_status = self.progress_record.status
+                    self.db.add(self.progress_record)
+                    # Double-check status didn't change after adding to session
+                    if self.progress_record.status != current_status:
+                        logger.sync_warning(
+                            "Status changed after adding to session!",
+                            source_name=self.source_name,
+                            expected_status=str(current_status),
+                            actual_status=str(self.progress_record.status),
+                        )
+                        # Force the correct status
+                        self.progress_record.status = current_status
+                else:
+                    logger.sync_warning(
+                        "Progress record not in session, merging it",
+                        source_name=self.source_name,
+                    )
+                    # Use merge instead of add to avoid conflicts
+                    self.progress_record = self.db.merge(self.progress_record)
+
                 self.db.commit()
+                logger.sync_debug(
+                    "Database commit successful",
+                    source_name=self.source_name,
+                )
+            else:
+                logger.sync_debug(
+                    "Skipping database commit for manual upload source",
+                    source_name=self.source_name,
+                )
 
             # Publish to event bus instead of direct callback
             # This eliminates the need for complex async/sync handling
@@ -226,20 +381,29 @@ class ProgressTracker:
             try:
                 asyncio.get_running_loop()
                 asyncio.create_task(event_bus.publish(event_type, progress_data))
+                logger.sync_debug(
+                    "Event published to event bus",
+                    source_name=self.source_name,
+                    event_type=event_type,
+                )
             except RuntimeError:
                 # Not in async context, log instead
                 logger.sync_debug(
-                    "Progress update (sync context)",
+                    "Progress update (sync context - no event bus)",
                     source_name=self.source_name,
-                    status=self.progress_record.status.value if hasattr(self.progress_record.status, 'value') else str(self.progress_record.status)
+                    status=self.progress_record.status.value
+                    if hasattr(self.progress_record.status, "value")
+                    else str(self.progress_record.status),
                 )
         except Exception as e:
             logger.sync_error(
-                "Failed to update progress",
+                "Failed to update progress - rolling back",
                 source_name=self.source_name,
-                error=str(e)
+                error=str(e),
+                traceback=str(e.__traceback__),
             )
             self.db.rollback()
+            raise  # Re-raise to see what's failing
 
     async def _broadcast_update(self):
         """Broadcast update via callback"""
@@ -255,6 +419,10 @@ class ProgressTracker:
         except Exception as e:
             logger.sync_error("Failed to broadcast progress update", error=str(e))
 
+    def get_current_operation(self) -> str | None:
+        """Get the current operation being performed"""
+        return self.progress_record.current_operation if self.progress_record else None
+
     def get_status(self) -> dict[str, Any]:
         """Get current status as dictionary"""
         return self.progress_record.to_dict()
@@ -266,12 +434,12 @@ class ProgressTracker:
         # Use structured logging with appropriate level
         log_data = {
             "source_name": self.source_name,
-            "progress_percentage": round(status['progress_percentage'], 1),
-            "items_processed": status['items_processed'],
-            "items_added": status['items_added'],
-            "items_updated": status['items_updated'],
-            "items_failed": status['items_failed'],
-            "current_operation": status['current_operation']
+            "progress_percentage": round(status["progress_percentage"], 1),
+            "items_processed": status["items_processed"],
+            "items_added": status["items_added"],
+            "items_updated": status["items_updated"],
+            "items_failed": status["items_failed"],
+            "current_operation": status["current_operation"],
         }
 
         if level.upper() == "DEBUG":

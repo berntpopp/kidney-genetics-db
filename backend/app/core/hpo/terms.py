@@ -83,17 +83,23 @@ class HPOTerms(HPOAPIBase):
                     if desc_id:
                         descendants.add(desc_id)
 
-                logger.sync_info("Got descendants from API", hpo_id=hpo_id, descendant_count=len(descendants))
+                logger.sync_info(
+                    "Got descendants from API", hpo_id=hpo_id, descendant_count=len(descendants)
+                )
                 return descendants
 
         except Exception as e:
-            logger.sync_debug("Descendants endpoint not available for HPO term", hpo_id=hpo_id, error=str(e))
+            logger.sync_debug(
+                "Descendants endpoint not available for HPO term", hpo_id=hpo_id, error=str(e)
+            )
 
         # Fallback to recursive approach
         logger.sync_info("Using recursive approach for HPO term", hpo_id=hpo_id)
         descendants.update(await self._get_descendants_recursive(hpo_id, max_depth))
 
-        logger.sync_info("Total descendants for HPO term", hpo_id=hpo_id, total_count=len(descendants))
+        logger.sync_info(
+            "Total descendants for HPO term", hpo_id=hpo_id, total_count=len(descendants)
+        )
         return descendants
 
     async def _get_descendants_recursive(self, hpo_id: str, max_depth: int) -> set[str]:
@@ -134,7 +140,9 @@ class HPOTerms(HPOAPIBase):
                             await collect_children(child_id, depth + 1)
 
             except Exception as e:
-                logger.sync_warning("Failed to get children for HPO term", term_id=term_id, error=str(e))
+                logger.sync_warning(
+                    "Failed to get children for HPO term", term_id=term_id, error=str(e)
+                )
 
         # Start recursive collection
         await collect_children(hpo_id, 0)
@@ -233,3 +241,21 @@ class HPOTerms(HPOAPIBase):
         except Exception as e:
             logger.sync_error("Failed to search HPO terms", query=query, error=str(e))
             return []
+
+
+# Module-level convenience function
+async def get_hpo_term_descendants(hpo_id: str, include_self: bool = True) -> set[str]:
+    """
+    Get all descendant terms for an HPO ID.
+
+    Convenience function that creates an HPOTerms instance and gets descendants.
+
+    Args:
+        hpo_id: HPO term ID (e.g., "HP:0000707")
+        include_self: Whether to include the original term
+
+    Returns:
+        Set of descendant HPO IDs
+    """
+    terms_client = HPOTerms()
+    return await terms_client.get_descendants(hpo_id, include_self=include_self)
