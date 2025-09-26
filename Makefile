@@ -140,6 +140,10 @@ db-reset: services-up
 	@docker exec kidney_genetics_postgres psql -U kidney_user -d postgres -c "CREATE DATABASE kidney_genetics;"
 	@echo "📦 Running migrations..."
 	@cd backend && uv run alembic upgrade head
+	@echo "👤 Creating default admin user..."
+	@cd backend && uv run python -m app.scripts.create_default_users || echo "⚠️  User creation failed (may already exist)"
+	@echo "🔧 Initializing annotation sources..."
+	@cd backend && uv run python -m app.scripts.init_annotation_sources || echo "⚠️  Annotation sources initialization failed"
 	@echo "🎯 Running full database initialization..."
 	@cd backend && uv run python scripts/initialize_database.py
 	@echo "✅ Database reset complete!"
