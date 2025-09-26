@@ -1,16 +1,19 @@
-"""Modern complete schema with zero differences
+"""Modern complete schema - BIGINT everywhere for consistency
 
 Revision ID: 001_modern_complete
 Revises: None
 Create Date: 2025-09-25 10:30:00
 
 Complete modern database schema following best practices:
-- BIGSERIAL for all primary keys (not UUID)
+- BIGINT (8 bytes) for ALL primary keys (consistency + future-proof)
 - TIMESTAMP WITH TIME ZONE for all timestamps
 - JSONB for all JSON data
 - TEXT for variable strings
 - Consistent naming conventions
 - All defaults at database level
+
+Decision: Use BIGINT everywhere for simplicity and future-proofing.
+No data preservation needed - clean rebuild strategy.
 """
 
 from alembic import op
