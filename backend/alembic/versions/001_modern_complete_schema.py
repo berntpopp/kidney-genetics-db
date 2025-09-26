@@ -103,7 +103,7 @@ def upgrade():
         sa.Column('update_frequency', sa.Text(), nullable=True),
         sa.Column('last_update', sa.DateTime(timezone=True), nullable=True),
         sa.Column('next_update', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('config', sa.JSON(), nullable=True, server_default=sa.text("'{}'::json")),
+        sa.Column('config', sa.dialects.postgresql.JSONB(), nullable=True, server_default=sa.text("'{}'::jsonb")),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.PrimaryKeyConstraint('id'),
