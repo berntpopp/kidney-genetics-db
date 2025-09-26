@@ -85,7 +85,7 @@ def cleanup_data_sources():
                         "description": config["description"],
                         "auto_update": config.get("auto_update", False),
                         "hybrid_source": config.get("hybrid_source", False),
-                    }
+                    },
                 )
                 db.add(new_entry)
 
@@ -100,7 +100,7 @@ def cleanup_data_sources():
             "Cleanup complete",
             removed=list(obsolete_names),
             added=list(missing_names),
-            final_entries=list(final_names)
+            final_entries=list(final_names),
         )
 
         print("\n=== Data Source Cleanup Complete ===")

@@ -18,9 +18,7 @@ class CacheEntry(Base):
     __tablename__ = "cache_entries"
 
     # Fix: Database has INTEGER id, not UUID
-    id: Mapped[int] = mapped_column(
-        BigInteger, primary_key=True, index=True
-    )
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, index=True)
     # Fix: Database has VARCHAR(255), but we can safely use Text in model
     cache_key: Mapped[str] = mapped_column(Text, nullable=False)
     namespace: Mapped[str] = mapped_column(Text, nullable=False)

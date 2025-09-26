@@ -19,12 +19,14 @@ async def test_syndromic_classification_alport():
     hpo_source = HPOAnnotationSource(session)
 
     # Mock the descendant lookup to return test data
-    hpo_source.get_classification_term_descendants = AsyncMock(return_value={
-        "neurologic": {"HP:0000407", "HP:0001250", "HP:0001249"},  # Include hearing
-        "head_neck": {"HP:0000545", "HP:0007663", "HP:0000365"},  # Include eye/ear
-        "growth": {"HP:0001508", "HP:0004322"},
-        "skeletal": {"HP:0002652", "HP:0000944"}
-    })
+    hpo_source.get_classification_term_descendants = AsyncMock(
+        return_value={
+            "neurologic": {"HP:0000407", "HP:0001250", "HP:0001249"},  # Include hearing
+            "head_neck": {"HP:0000545", "HP:0007663", "HP:0000365"},  # Include eye/ear
+            "growth": {"HP:0001508", "HP:0004322"},
+            "skeletal": {"HP:0002652", "HP:0000944"},
+        }
+    )
 
     # Alport syndrome phenotypes
     phenotypes = {
@@ -45,7 +47,7 @@ async def test_syndromic_classification_alport():
 
     # Check sub-category scores
     assert result["category_scores"]["neurologic"] == 0.2  # 1/5 phenotypes
-    assert result["category_scores"]["head_neck"] == 0.4   # 2/5 phenotypes
+    assert result["category_scores"]["head_neck"] == 0.4  # 2/5 phenotypes
     assert result["syndromic_score"] == 0.6  # Total: 3/5 syndromic
 
 
@@ -58,12 +60,14 @@ async def test_syndromic_classification_pkd():
     hpo_source = HPOAnnotationSource(session)
 
     # Mock empty syndromic matches
-    hpo_source.get_classification_term_descendants = AsyncMock(return_value={
-        "neurologic": {"HP:0000407", "HP:0001250"},
-        "head_neck": {"HP:0000545", "HP:0000365"},
-        "growth": {"HP:0001508"},
-        "skeletal": {"HP:0002652"}
-    })
+    hpo_source.get_classification_term_descendants = AsyncMock(
+        return_value={
+            "neurologic": {"HP:0000407", "HP:0001250"},
+            "head_neck": {"HP:0000545", "HP:0000365"},
+            "growth": {"HP:0001508"},
+            "skeletal": {"HP:0002652"},
+        }
+    )
 
     # PKD phenotypes (all kidney-related)
     phenotypes = {
@@ -90,12 +94,14 @@ async def test_syndromic_classification_mixed():
     session = MagicMock()
     hpo_source = HPOAnnotationSource(session)
 
-    hpo_source.get_classification_term_descendants = AsyncMock(return_value={
-        "growth": {"HP:0001508", "HP:0004322"},
-        "skeletal": {"HP:0000924"},
-        "neurologic": {"HP:0001250"},
-        "head_neck": {"HP:0000545"}
-    })
+    hpo_source.get_classification_term_descendants = AsyncMock(
+        return_value={
+            "growth": {"HP:0001508", "HP:0004322"},
+            "skeletal": {"HP:0000924"},
+            "neurologic": {"HP:0001250"},
+            "head_neck": {"HP:0000545"},
+        }
+    )
 
     # Mixed phenotypes
     phenotypes = {
@@ -113,10 +119,10 @@ async def test_syndromic_classification_mixed():
     assert result["syndromic_score"] == 0.6, "Score should be 0.6"
 
     # Check individual category scores
-    assert result["category_scores"]["growth"] == 0.2     # 1/5
-    assert result["category_scores"]["skeletal"] == 0.2   # 1/5
+    assert result["category_scores"]["growth"] == 0.2  # 1/5
+    assert result["category_scores"]["skeletal"] == 0.2  # 1/5
     assert result["category_scores"]["neurologic"] == 0.2  # 1/5
-    assert "head_neck" not in result["category_scores"]   # No matches
+    assert "head_neck" not in result["category_scores"]  # No matches
 
     # Check counts
     assert result["extra_renal_term_counts"]["growth"] == 1

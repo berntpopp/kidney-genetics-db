@@ -55,7 +55,7 @@ class FilteringStats:
             filter_rate=f"{self.filter_rate:.1f}%",
             threshold=f"min_{self.entity_name}={self.threshold}",
             duration_seconds=f"{self.duration_seconds:.2f}",
-            sample_filtered=self.filtered_genes[:5] if self.filtered_genes else []
+            sample_filtered=self.filtered_genes[:5] if self.filtered_genes else [],
         )
 
         # Warn if aggressive
@@ -64,7 +64,7 @@ class FilteringStats:
                 f"{self.source_name} filtered >50% of genes - review threshold",
                 filter_rate=f"{self.filter_rate:.1f}%",
                 threshold=self.threshold,
-                entity=self.entity_name
+                entity=self.entity_name,
             )
 
     def to_dict(self) -> dict:
@@ -79,7 +79,7 @@ class FilteringStats:
             "filter_rate": f"{self.filter_rate:.1f}%",
             "duration_seconds": self.duration_seconds,
             "timestamp": self.end_time.isoformat() if self.end_time else None,
-            "filtered_sample": self.filtered_genes[:10]
+            "filtered_sample": self.filtered_genes[:10],
         }
 
 
@@ -89,7 +89,7 @@ def apply_database_filter(
     count_field: str,
     min_threshold: int,
     entity_name: str,
-    enabled: bool = True
+    enabled: bool = True,
 ) -> FilteringStats:
     """
     Apply filtering directly in database for complete datasets.
@@ -101,16 +101,16 @@ def apply_database_filter(
 
     if not enabled or min_threshold <= 1:
         logger.sync_info(
-            f"{source_name} filtering disabled",
-            min_threshold=min_threshold,
-            enabled=enabled
+            f"{source_name} filtering disabled", min_threshold=min_threshold, enabled=enabled
         )
         return stats
 
     try:
         # Count before filtering
-        count_stmt = select(func.count()).select_from(GeneEvidence).where(
-            GeneEvidence.source_name == source_name
+        count_stmt = (
+            select(func.count())
+            .select_from(GeneEvidence)
+            .where(GeneEvidence.source_name == source_name)
         )
         stats.total_before = db.execute(count_stmt).scalar() or 0
 
@@ -125,25 +125,23 @@ def apply_database_filter(
             .join(Gene, GeneEvidence.gene_id == Gene.id)
             .where(
                 GeneEvidence.source_name == source_name,
-                cast(GeneEvidence.evidence_data[count_field], Integer) < min_threshold
+                cast(GeneEvidence.evidence_data[count_field], Integer) < min_threshold,
             )
             .limit(10)
         )
         samples = db.execute(sample_stmt).all()
 
         for symbol, count in samples:
-            stats.filtered_genes.append({
-                "symbol": symbol,
-                count_field: count,
-                "threshold": min_threshold
-            })
+            stats.filtered_genes.append(
+                {"symbol": symbol, count_field: count, "threshold": min_threshold}
+            )
 
         # More efficient: Delete directly with returning clause
         delete_stmt = (
             delete(GeneEvidence)
             .where(
                 GeneEvidence.source_name == source_name,
-                cast(GeneEvidence.evidence_data[count_field], Integer) < min_threshold
+                cast(GeneEvidence.evidence_data[count_field], Integer) < min_threshold,
             )
             .returning(GeneEvidence.id)
         )
@@ -158,7 +156,7 @@ def apply_database_filter(
                 f"Deleted {stats.filtered_count} genes below threshold",
                 source_name=source_name,
                 threshold=min_threshold,
-                sample=stats.filtered_genes[:3]
+                sample=stats.filtered_genes[:3],
             )
 
         # Count after filtering
@@ -166,9 +164,7 @@ def apply_database_filter(
 
     except Exception as e:
         logger.sync_error(
-            f"Database filtering failed for {source_name}",
-            error=str(e),
-            threshold=min_threshold
+            f"Database filtering failed for {source_name}", error=str(e), threshold=min_threshold
         )
         raise
 
@@ -184,7 +180,7 @@ def apply_memory_filter(
     min_threshold: int,
     entity_name: str,
     source_name: str,
-    enabled: bool = True
+    enabled: bool = True,
 ) -> tuple[dict[str, Any], FilteringStats]:
     """
     Apply filtering in memory for merged data.
@@ -198,7 +194,7 @@ def apply_memory_filter(
             f"{source_name} filtering disabled",
             gene_count=len(data_dict),
             min_threshold=min_threshold,
-            enabled=enabled
+            enabled=enabled,
         )
         stats.total_after = stats.total_before
         stats.complete()
@@ -211,11 +207,9 @@ def apply_memory_filter(
 
         if count < min_threshold:
             stats.filtered_count += 1
-            stats.filtered_genes.append({
-                "symbol": gene_symbol,
-                count_field: count,
-                "threshold": min_threshold
-            })
+            stats.filtered_genes.append(
+                {"symbol": gene_symbol, count_field: count, "threshold": min_threshold}
+            )
             continue
 
         filtered_data[gene_symbol] = gene_data
@@ -227,11 +221,7 @@ def apply_memory_filter(
     return filtered_data, stats
 
 
-def validate_threshold_config(
-    threshold: Any,
-    entity_name: str,
-    source_name: str
-) -> int:
+def validate_threshold_config(threshold: Any, entity_name: str, source_name: str) -> int:
     """
     Validate threshold configuration with consistent error handling.
     """
@@ -242,7 +232,7 @@ def validate_threshold_config(
                 f"Invalid threshold for {source_name}, using minimum",
                 configured=value,
                 entity=entity_name,
-                using=1
+                using=1,
             )
             return 1
         return value
@@ -251,7 +241,6 @@ def validate_threshold_config(
             f"Invalid threshold type for {source_name}, disabling filter",
             configured=threshold,
             entity=entity_name,
-            using=1
+            using=1,
         )
         return 1
-

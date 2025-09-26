@@ -9,14 +9,21 @@ from app.core.config import settings
 def clean_database():
     engine = create_engine(settings.DATABASE_URL)
     with engine.connect() as conn:
-        tables = ['gene_annotations', 'gene_evidence', 'gene_curations', 'data_source_progress', 'genes']
+        tables = [
+            "gene_annotations",
+            "gene_evidence",
+            "gene_curations",
+            "data_source_progress",
+            "genes",
+        ]
         for table in tables:
             try:
-                conn.execute(text(f'TRUNCATE TABLE {table} CASCADE'))
+                conn.execute(text(f"TRUNCATE TABLE {table} CASCADE"))
                 conn.commit()
-                print(f'  ✓ Truncated {table}')
+                print(f"  ✓ Truncated {table}")
             except Exception as e:
-                print(f'  Warning: {table}: {e}')
+                print(f"  Warning: {table}: {e}")
+
 
 if __name__ == "__main__":
     clean_database()

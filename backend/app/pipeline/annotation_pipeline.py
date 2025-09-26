@@ -230,8 +230,7 @@ class AnnotationPipeline:
                 except Exception as e:
                     # Log but don't fail the pipeline
                     await logger.error(
-                        f"Failed to update STRING PPI percentiles: {e}",
-                        exc_info=True
+                        f"Failed to update STRING PPI percentiles: {e}", exc_info=True
                     )
 
             # Calculate summary statistics
@@ -375,14 +374,16 @@ class AnnotationPipeline:
         elif strategy == UpdateStrategy.SELECTIVE:
             # SELECTIVE: Get all genes for selective source update
             # Similar to FULL but the source filtering happens in run_update
-            logger.sync_info("Using SELECTIVE strategy - all genes will be processed for specific sources")
+            logger.sync_info(
+                "Using SELECTIVE strategy - all genes will be processed for specific sources"
+            )
 
             # Use ORM to get genes with scores, avoiding SQL errors
             from app.models.gene import GeneCuration
 
             # Query genes with their scores using ORM
             genes_with_scores = (
-                self.db.query(Gene, func.coalesce(GeneCuration.evidence_score, 0).label('score'))
+                self.db.query(Gene, func.coalesce(GeneCuration.evidence_score, 0).label("score"))
                 .outerjoin(GeneCuration, Gene.id == GeneCuration.gene_id)
                 .order_by(func.coalesce(GeneCuration.evidence_score, 0).desc(), Gene.id)
                 .all()
@@ -397,7 +398,7 @@ class AnnotationPipeline:
 
             # Query all genes with their scores using ORM
             genes_with_scores = (
-                self.db.query(Gene, func.coalesce(GeneCuration.evidence_score, 0).label('score'))
+                self.db.query(Gene, func.coalesce(GeneCuration.evidence_score, 0).label("score"))
                 .outerjoin(GeneCuration, Gene.id == GeneCuration.gene_id)
                 .order_by(func.coalesce(GeneCuration.evidence_score, 0).desc(), Gene.id)
                 .all()
@@ -531,6 +532,7 @@ class AnnotationPipeline:
 
         # Get source-specific concurrency from config
         from app.core.datasource_config import get_annotation_config
+
         config = get_annotation_config(source_name) or {}
         max_concurrent = config.get("max_concurrent_genes", 5)
 

@@ -134,7 +134,7 @@ class DatabaseLogger:
             error_traceback = None
             if error:
                 # Check if error is an exception object (has __traceback__) or just a string
-                if hasattr(error, '__traceback__'):
+                if hasattr(error, "__traceback__"):
                     error_type = type(error).__name__
                     error_traceback = traceback.format_exception(
                         type(error), error, error.__traceback__

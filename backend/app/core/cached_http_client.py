@@ -150,6 +150,7 @@ class CachedHttpClient:
         # This ensures each unique request gets its own cache entry
         if "params" in kwargs and kwargs["params"]:
             from urllib.parse import urlencode
+
             params_str = urlencode(sorted(kwargs["params"].items()))
             full_url_for_cache = f"{url}?{params_str}"
         else:
@@ -197,7 +198,9 @@ class CachedHttpClient:
                     # All retries failed, record failure and try cache fallback
                     self._record_failure(domain)
                     logger.sync_error("All retry attempts failed, trying cache fallback", url=url)
-                    return await self._get_from_fallback_cache(full_url_for_cache, namespace, cache_key)
+                    return await self._get_from_fallback_cache(
+                        full_url_for_cache, namespace, cache_key
+                    )
 
             except Exception as e:
                 # Non-recoverable error

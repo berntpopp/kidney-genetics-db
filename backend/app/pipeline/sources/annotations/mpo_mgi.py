@@ -430,8 +430,11 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
                 # Get cache file path from config
                 from app.core.datasource_config import get_annotation_source_config
+
                 config = get_annotation_source_config("mpo_mgi") or {}
-                cache_file_relative = config.get("mpo_kidney_terms_file", "data/mpo_kidney_terms.json")
+                cache_file_relative = config.get(
+                    "mpo_kidney_terms_file", "data/mpo_kidney_terms.json"
+                )
 
                 # Build absolute path relative to backend directory
                 backend_dir = Path(__file__).parent.parent.parent.parent

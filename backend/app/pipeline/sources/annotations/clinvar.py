@@ -278,14 +278,14 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             "traits_summary": defaultdict(int),
             "molecular_consequences": defaultdict(int),
             "consequence_categories": {
-                "truncating": 0,        # nonsense + frameshift + essential splice
-                "missense": 0,          # missense variants
-                "inframe": 0,           # inframe insertions/deletions
-                "splice_region": 0,     # non-essential splice variants
-                "regulatory": 0,        # UTR variants
-                "intronic": 0,          # intronic variants
-                "synonymous": 0,        # synonymous variants
-                "other": 0,             # everything else
+                "truncating": 0,  # nonsense + frameshift + essential splice
+                "missense": 0,  # missense variants
+                "inframe": 0,  # inframe insertions/deletions
+                "splice_region": 0,  # non-essential splice variants
+                "regulatory": 0,  # UTR variants
+                "intronic": 0,  # intronic variants
+                "synonymous": 0,  # synonymous variants
+                "other": 0,  # everything else
             },
         }
 
@@ -334,8 +334,10 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
 
         # Define truncating consequences
         TRUNCATING_CONSEQUENCES = {
-            "nonsense", "frameshift variant",
-            "splice donor variant", "splice acceptor variant"
+            "nonsense",
+            "frameshift variant",
+            "splice donor variant",
+            "splice acceptor variant",
         }
 
         # Process molecular consequences
@@ -363,9 +365,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
 
         # Get top 10 molecular consequences
         top_consequences = sorted(
-            stats["molecular_consequences"].items(),
-            key=lambda x: x[1],
-            reverse=True
+            stats["molecular_consequences"].items(), key=lambda x: x[1], reverse=True
         )[:10]
         stats["top_molecular_consequences"] = [
             {"consequence": c[0], "count": c[1]} for c in top_consequences
@@ -377,7 +377,6 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                 stats[f"{category}_percentage"] = round(
                     (stats["consequence_categories"][category] / stats["total_count"]) * 100, 1
                 )
-
 
         # Get top 5 traits
         top_traits = sorted(stats["traits_summary"].items(), key=lambda x: x[1], reverse=True)[:5]
@@ -443,7 +442,9 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
 
             # Step 2: Fetch variant details in batches with limited concurrency
             all_variants = []
-            total_batches = (len(variant_ids) + self.variant_batch_size - 1) // self.variant_batch_size
+            total_batches = (
+                len(variant_ids) + self.variant_batch_size - 1
+            ) // self.variant_batch_size
 
             # Use semaphore to limit concurrent requests to NCBI API
             semaphore = asyncio.Semaphore(self.max_concurrent_variant_fetches)

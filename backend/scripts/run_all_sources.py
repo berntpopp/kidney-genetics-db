@@ -15,23 +15,24 @@ async def run_all_sources():
     db = SessionLocal()
     try:
         sources = [
-            ('PanelApp', PanelAppUnifiedSource),
-            ('HPO', HPOUnifiedSource),
-            ('ClinGen', ClinGenUnifiedSource),
-            ('GenCC', GenCCUnifiedSource),
-            ('PubTator', PubTatorUnifiedSource)
+            ("PanelApp", PanelAppUnifiedSource),
+            ("HPO", HPOUnifiedSource),
+            ("ClinGen", ClinGenUnifiedSource),
+            ("GenCC", GenCCUnifiedSource),
+            ("PubTator", PubTatorUnifiedSource),
         ]
 
         for name, SourceClass in sources:
-            print(f'\n📦 Starting {name}...')
+            print(f"\n📦 Starting {name}...")
             try:
                 source = SourceClass(db)
                 await source.update(force=True)
-                print(f'✅ Completed {name}')
+                print(f"✅ Completed {name}")
             except Exception as e:
-                print(f'❌ Error in {name}: {e}')
+                print(f"❌ Error in {name}: {e}")
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     asyncio.run(run_all_sources())

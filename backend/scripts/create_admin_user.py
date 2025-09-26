@@ -29,17 +29,22 @@ def create_admin_user():
 
     try:
         # Check if admin user already exists (check both username and email)
-        existing_admin = db.query(User).filter(
-            (User.username == settings.ADMIN_USERNAME) |
-            (User.email == settings.ADMIN_EMAIL)
-        ).first()
+        existing_admin = (
+            db.query(User)
+            .filter(
+                (User.username == settings.ADMIN_USERNAME) | (User.email == settings.ADMIN_EMAIL)
+            )
+            .first()
+        )
 
         if existing_admin:
             print("✓ Admin user already exists!")
             # Update to ensure correct settings from config, including password
             existing_admin.username = settings.ADMIN_USERNAME
             existing_admin.email = settings.ADMIN_EMAIL
-            existing_admin.hashed_password = get_password_hash(settings.ADMIN_PASSWORD)  # Update password too!
+            existing_admin.hashed_password = get_password_hash(
+                settings.ADMIN_PASSWORD
+            )  # Update password too!
             existing_admin.role = "admin"
             existing_admin.is_active = True
             existing_admin.is_verified = True
@@ -57,7 +62,7 @@ def create_admin_user():
             role="admin",
             is_active=True,
             is_verified=True,
-            is_admin=True
+            is_admin=True,
         )
 
         db.add(admin_user)
@@ -76,6 +81,7 @@ def create_admin_user():
         sys.exit(1)
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     create_admin_user()

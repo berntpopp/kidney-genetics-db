@@ -103,9 +103,9 @@ class DataSourceClient(ABC):
         Returns:
             Number of deleted entries
         """
-        deleted = db.query(GeneEvidence)\
-            .filter(GeneEvidence.source_name == self.source_name)\
-            .delete()
+        deleted = (
+            db.query(GeneEvidence).filter(GeneEvidence.source_name == self.source_name).delete()
+        )
         db.commit()
         logger.sync_info(f"Cleared {deleted} existing {self.source_name} entries")
         return deleted
@@ -151,8 +151,9 @@ class DataSourceClient(ABC):
 
             # Check if fetch_raw_data accepts mode parameter
             import inspect
+
             sig = inspect.signature(self.fetch_raw_data)
-            if 'mode' in sig.parameters:
+            if "mode" in sig.parameters:
                 raw_data = await self.fetch_raw_data(tracker=tracker, mode=mode)
             else:
                 raw_data = await self.fetch_raw_data(tracker=tracker)

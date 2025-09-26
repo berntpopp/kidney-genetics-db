@@ -66,7 +66,9 @@ class DataSourceProgress(Base):
         return {
             "source_name": self.source_name,
             "status": self.status.value if isinstance(self.status, SourceStatus) else self.status,
-            "progress_percentage": round(self.progress_percentage, 2) if self.progress_percentage is not None else 0.0,
+            "progress_percentage": round(self.progress_percentage, 2)
+            if self.progress_percentage is not None
+            else 0.0,
             "items_processed": self.items_processed,
             "items_added": self.items_added,
             "items_updated": self.items_updated,

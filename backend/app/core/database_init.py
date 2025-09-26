@@ -40,7 +40,7 @@ async def initialize_database(db: Session) -> dict:
         "admin_created": False,
         "cache_cleared": False,
         "aggregation_completed": False,
-        "errors": []
+        "errors": [],
     }
 
     try:
@@ -75,7 +75,9 @@ async def initialize_database(db: Session) -> dict:
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, update_all_curations, db)
             status["aggregation_completed"] = True
-            await logger.info(f"Evidence aggregation completed: {result.get('curations_created', 0)} curations created")
+            await logger.info(
+                f"Evidence aggregation completed: {result.get('curations_created', 0)} curations created"
+            )
         else:
             await logger.info("Evidence aggregation not needed")
 
@@ -97,10 +99,12 @@ async def create_database_views(db: Session) -> None:
         from app.db.views import ALL_VIEWS
 
         # Check which views already exist
-        result = db.execute(text("""
+        result = db.execute(
+            text("""
             SELECT table_name FROM information_schema.views
             WHERE table_schema = 'public'
-        """))
+        """)
+        )
         existing_views = {row[0] for row in result.fetchall()}
 
         # Create missing views in dependency order
@@ -123,16 +127,19 @@ async def create_database_views(db: Session) -> None:
 
         # Check for and create gene_annotations_summary materialized view separately
         # This is a materialized view, not a regular view
-        result = db.execute(text("""
+        result = db.execute(
+            text("""
             SELECT EXISTS (
                 SELECT 1 FROM pg_matviews
                 WHERE matviewname = 'gene_annotations_summary'
             )
-        """))
+        """)
+        )
         has_summary = result.scalar()
 
         if not has_summary:
-            db.execute(text("""
+            db.execute(
+                text("""
                 CREATE MATERIALIZED VIEW IF NOT EXISTS gene_annotations_summary AS
                 SELECT
                     g.id as gene_id,
@@ -153,7 +160,8 @@ async def create_database_views(db: Session) -> None:
                 FROM genes g
                 LEFT JOIN gene_annotations ga_hgnc ON g.id = ga_hgnc.gene_id AND ga_hgnc.source = 'hgnc'
                 LEFT JOIN gene_annotations ga_gnomad ON g.id = ga_gnomad.gene_id AND ga_gnomad.source = 'gnomad'
-            """))
+            """)
+            )
             db.commit()
             await logger.info("Created gene_annotations_summary materialized view")
 
@@ -188,13 +196,15 @@ async def create_default_admin(db: Session) -> bool:
                 role="admin",
                 is_active=True,
                 is_verified=True,
-                is_admin=True
+                is_admin=True,
             )
 
             db.add(admin_user)
             db.commit()
 
-            await logger.info(f"Created default admin user (username: {settings.ADMIN_USERNAME}, password: from config)")
+            await logger.info(
+                f"Created default admin user (username: {settings.ADMIN_USERNAME}, password: from config)"
+            )
             return True
         else:
             # Ensure admin has correct role and is active
@@ -279,7 +289,7 @@ async def verify_database_ready(db: Session) -> dict:
         "genes_count": 0,
         "curations_count": 0,
         "admin_exists": False,
-        "views_exist": False
+        "views_exist": False,
     }
 
     try:
@@ -287,24 +297,25 @@ async def verify_database_ready(db: Session) -> dict:
         status["genes_count"] = db.execute(text("SELECT COUNT(*) FROM genes")).scalar() or 0
 
         # Check curations
-        status["curations_count"] = db.execute(text("SELECT COUNT(*) FROM gene_curations")).scalar() or 0
+        status["curations_count"] = (
+            db.execute(text("SELECT COUNT(*) FROM gene_curations")).scalar() or 0
+        )
 
         # Check admin
         admin = db.query(User).filter(User.username == "admin").first()
         status["admin_exists"] = admin is not None
 
         # Check views
-        result = db.execute(text("""
+        result = db.execute(
+            text("""
             SELECT COUNT(*) FROM information_schema.views
             WHERE table_name IN ('gene_scores')
-        """))
+        """)
+        )
         status["views_exist"] = result.scalar() > 0
 
         # Determine if ready
-        status["ready"] = (
-            status["views_exist"] and
-            status["admin_exists"]
-        )
+        status["ready"] = status["views_exist"] and status["admin_exists"]
 
         if not status["ready"]:
             reasons = []

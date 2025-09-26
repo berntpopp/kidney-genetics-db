@@ -46,13 +46,11 @@ async def test_pubtator_uses_rate_limiter():
 
     # Create PubTator source
     source = PubTatorUnifiedSource(
-        cache_service=mock_cache,
-        http_client=mock_http,
-        db_session=mock_db
+        cache_service=mock_cache, http_client=mock_http, db_session=mock_db
     )
 
     # Verify rate limiter was initialized
-    assert hasattr(source, 'rate_limiter')
+    assert hasattr(source, "rate_limiter")
     assert source.rate_limiter.min_interval == 1.0 / 3.0  # 3 req/s
 
     # Mock the HTTP response
@@ -62,7 +60,7 @@ async def test_pubtator_uses_rate_limiter():
     mock_http.get.return_value = mock_response
 
     # Test that _fetch_page uses rate limiter
-    with patch.object(source.rate_limiter, 'wait', new=AsyncMock()) as mock_wait:
+    with patch.object(source.rate_limiter, "wait", new=AsyncMock()) as mock_wait:
         await source._fetch_page(1, "test query")
 
         # Verify rate limiter was called before HTTP request
@@ -79,9 +77,7 @@ async def test_database_based_pmid_checking():
     mock_http = AsyncMock(spec=CachedHttpClient)
 
     source = PubTatorUnifiedSource(
-        cache_service=mock_cache,
-        http_client=mock_http,
-        db_session=mock_db
+        cache_service=mock_cache, http_client=mock_http, db_session=mock_db
     )
 
     # Test PMIDs
@@ -114,9 +110,7 @@ def test_chunk_size_configuration():
     mock_http = MagicMock(spec=CachedHttpClient)
 
     source = PubTatorUnifiedSource(
-        cache_service=mock_cache,
-        http_client=mock_http,
-        db_session=mock_db
+        cache_service=mock_cache, http_client=mock_http, db_session=mock_db
     )
 
     # Verify chunk sizes are reduced as per configuration
@@ -132,18 +126,17 @@ async def test_smart_mode_does_not_load_all_pmids():
     mock_http = AsyncMock(spec=CachedHttpClient)
 
     source = PubTatorUnifiedSource(
-        cache_service=mock_cache,
-        http_client=mock_http,
-        db_session=mock_db
+        cache_service=mock_cache, http_client=mock_http, db_session=mock_db
     )
 
     # The old _get_existing_pmids_from_db method should not exist
     # or should not be called in the new implementation
-    assert not hasattr(source, '_get_existing_pmids_from_db') or \
-           '_get_existing_pmids_from_db' not in [m for m in dir(source) if not m.startswith('_check')]
+    assert not hasattr(
+        source, "_get_existing_pmids_from_db"
+    ) or "_get_existing_pmids_from_db" not in [m for m in dir(source) if not m.startswith("_check")]
 
     # The new method should exist
-    assert hasattr(source, '_check_pmids_exist_batch')
+    assert hasattr(source, "_check_pmids_exist_batch")
 
 
 if __name__ == "__main__":

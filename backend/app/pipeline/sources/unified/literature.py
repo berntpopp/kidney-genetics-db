@@ -76,7 +76,7 @@ class LiteratureSource(UnifiedDataSource):
         logger.sync_info(
             f"{self.source_name} initialized with filtering",
             min_publications=self.min_publications,
-            filtering_enabled=self.filtering_enabled
+            filtering_enabled=self.filtering_enabled,
         )
 
     def _get_default_ttl(self) -> int:
@@ -336,7 +336,7 @@ class LiteratureSource(UnifiedDataSource):
                     "gene_id": gene_id,
                     "data": merged_data,
                     "record": record,
-                    "is_new": False
+                    "is_new": False,
                 }
             else:
                 # NEW: Prepare new data (publications already come from process_data)
@@ -351,16 +351,13 @@ class LiteratureSource(UnifiedDataSource):
                     "gene_id": gene_id,
                     "data": new_data,
                     "record": None,
-                    "is_new": True
+                    "is_new": True,
                 }
 
         # Apply filtering if enabled
         if self.filtering_enabled and self.min_publications > 1:
             # Extract data for filtering
-            data_to_filter = {
-                symbol: info["data"]
-                for symbol, info in merged_gene_data.items()
-            }
+            data_to_filter = {symbol: info["data"] for symbol, info in merged_gene_data.items()}
 
             filtered_data, filter_stats = apply_memory_filter(
                 data_dict=data_to_filter,
@@ -368,7 +365,7 @@ class LiteratureSource(UnifiedDataSource):
                 min_threshold=self.min_publications,
                 entity_name="publications",
                 source_name=self.source_name,
-                enabled=self.filtering_enabled
+                enabled=self.filtering_enabled,
             )
 
             # Handle filtered genes
@@ -382,7 +379,7 @@ class LiteratureSource(UnifiedDataSource):
                             "Removing gene below threshold",
                             symbol=symbol,
                             publication_count=info["data"]["publication_count"],
-                            threshold=self.min_publications
+                            threshold=self.min_publications,
                         )
                     genes_to_remove.append(symbol)
                     stats["filtered"] += 1
@@ -396,7 +393,7 @@ class LiteratureSource(UnifiedDataSource):
                 "Filter statistics",
                 source=self.source_name,
                 filtered_count=filter_stats.filtered_count,
-                filter_rate=f"{filter_stats.filter_rate:.1f}%"
+                filter_rate=f"{filter_stats.filter_rate:.1f}%",
             )
 
         # Process remaining genes (after filtering)
@@ -415,7 +412,7 @@ class LiteratureSource(UnifiedDataSource):
                 logger.sync_debug(
                     "Created literature evidence",
                     symbol=symbol,
-                    publication_count=info["data"]["publication_count"]
+                    publication_count=info["data"]["publication_count"],
                 )
                 stats["created"] += 1
             else:
@@ -428,7 +425,7 @@ class LiteratureSource(UnifiedDataSource):
                 logger.sync_debug(
                     "Merged literature evidence",
                     symbol=symbol,
-                    publication_count=info["data"]["publication_count"]
+                    publication_count=info["data"]["publication_count"],
                 )
                 stats["merged"] += 1
 

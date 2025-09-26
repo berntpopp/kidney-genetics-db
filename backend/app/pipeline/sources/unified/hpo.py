@@ -386,9 +386,7 @@ class HPOUnifiedSource(UnifiedDataSource):
         syndromic_descendants = {}
         for category, root_term in syndromic_indicators.items():
             descendants = await pipeline.terms.get_descendants(
-                root_term,
-                max_depth=pipeline.max_depth,
-                include_self=True
+                root_term, max_depth=pipeline.max_depth, include_self=True
             )
             syndromic_descendants[category] = descendants or set()
 
@@ -405,9 +403,7 @@ class HPOUnifiedSource(UnifiedDataSource):
 
         # Calculate overall syndromic score (average of category scores)
         syndromic_score = (
-            sum(category_scores.values()) / len(category_scores)
-            if category_scores
-            else 0
+            sum(category_scores.values()) / len(category_scores) if category_scores else 0
         )
 
         # Determine if syndromic (using 30% threshold as in R implementation)

@@ -106,7 +106,7 @@ class AnnotationSource(Base, TimestampMixin):
     update_frequency = Column(Text, nullable=True)  # e.g., "daily", "weekly", "quarterly"
     last_update = Column(DateTime(timezone=True), nullable=True)
     next_update = Column(DateTime(timezone=True), nullable=True)
-    config = Column(JSONB, nullable=True, server_default=func.cast('{}', JSONB))
+    config = Column(JSONB, nullable=True, server_default=func.cast("{}", JSONB))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -115,6 +115,7 @@ class AnnotationSource(Base, TimestampMixin):
         if not self.next_update:
             return True
         return datetime.now(timezone.utc) >= self.next_update
+
 
 class AnnotationHistory(Base):
     """

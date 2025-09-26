@@ -35,11 +35,17 @@ class StaticSource(Base):
     is_active = Column(Boolean, default=True, nullable=True, index=True)  # nullable=True in DB
     created_by = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)  # No timezone in DB
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)  # No timezone in DB
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )  # No timezone in DB
 
     # Relationships
-    audit_logs = relationship("StaticSourceAudit", back_populates="source", cascade="all, delete-orphan")
-    uploads = relationship("StaticEvidenceUpload", back_populates="source", cascade="all, delete-orphan")
+    audit_logs = relationship(
+        "StaticSourceAudit", back_populates="source", cascade="all, delete-orphan"
+    )
+    uploads = relationship(
+        "StaticEvidenceUpload", back_populates="source", cascade="all, delete-orphan"
+    )
 
 
 class StaticSourceAudit(Base):
@@ -80,7 +86,9 @@ class StaticEvidenceUpload(Base):
     processed_at = Column(DateTime, nullable=True)  # No timezone in DB
     uploaded_by = Column(String(255), nullable=True)  # nullable=True in DB
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)  # No timezone in DB
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)  # No timezone in DB
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )  # No timezone in DB
 
     # Relationships
     source = relationship("StaticSource", back_populates="uploads")

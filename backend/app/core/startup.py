@@ -48,8 +48,7 @@ def register_data_sources() -> None:
                 # Preserve checkpoint fields if they exist
                 checkpoint_fields = {"last_page", "mode", "query_hash", "updated_at"}
                 preserved_checkpoint = {
-                    k: v for k, v in current_metadata.items()
-                    if k in checkpoint_fields
+                    k: v for k, v in current_metadata.items() if k in checkpoint_fields
                 }
 
                 # New configuration metadata
@@ -66,10 +65,7 @@ def register_data_sources() -> None:
                 merged_metadata = {**new_metadata, **preserved_checkpoint}
 
                 # Only update if config portion changed
-                config_changed = any(
-                    current_metadata.get(k) != v
-                    for k, v in new_metadata.items()
-                )
+                config_changed = any(current_metadata.get(k) != v for k, v in new_metadata.items())
 
                 if config_changed:
                     existing.progress_metadata = merged_metadata
@@ -272,6 +268,7 @@ def run_startup_tasks() -> None:
     except Exception as e:
         logger.sync_error("Startup tasks failed", error=str(e), traceback=True)
         import traceback
+
         traceback.print_exc()  # Print full traceback for debugging
         # Don't re-raise - allow app to start even if startup tasks fail
         # This prevents the app from failing to start due to database issues

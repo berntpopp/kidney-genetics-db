@@ -27,7 +27,7 @@ def main():
             print(f"   Aggregation: {result.get('aggregation_completed')}")
 
             # Check for errors
-            if result.get('errors'):
+            if result.get("errors"):
                 print(f"⚠️  Errors encountered: {result.get('errors')}")
                 sys.exit(1)
 

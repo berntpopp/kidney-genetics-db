@@ -54,7 +54,6 @@ class TestCacheDecorator:
         mock_cache_service.get.return_value = "cached_result"
 
         with patch("app.core.cache_decorator.get_cache_service", return_value=mock_cache_service):
-
             function_called = False
 
             @cache(namespace="test", ttl=3600)
@@ -96,6 +95,7 @@ class TestCacheDecorator:
     @pytest.mark.asyncio
     async def test_custom_key_builder(self, mock_cache_service, mock_db_session):
         """Test using a custom key builder."""
+
         def custom_key_builder(func, *args, **kwargs):
             return f"custom_{func.__name__}_{args[0]}"
 
@@ -163,6 +163,7 @@ class TestCacheDecorator:
     @pytest.mark.asyncio
     async def test_preserves_function_metadata(self):
         """Test that decorator preserves function metadata."""
+
         @cache(namespace="test")
         async def test_func():
             """Test function docstring."""
@@ -192,6 +193,7 @@ class TestCacheKeyBuilder:
 
     def test_basic_key_building(self):
         """Test basic key building with function and args."""
+
         def test_func():
             pass
 
@@ -202,6 +204,7 @@ class TestCacheKeyBuilder:
 
     def test_with_namespace(self):
         """Test key building with namespace."""
+
         def test_func():
             pass
 
@@ -231,13 +234,12 @@ class TestCacheKeyBuilder:
 
     def test_complex_value_serialization(self):
         """Test key building with complex data types."""
+
         def test_func():
             pass
 
         key = cache_key_builder(
-            test_func,
-            arg1={"nested": {"data": [1, 2, 3]}},
-            arg2=["list", "of", "values"]
+            test_func, arg1={"nested": {"data": [1, 2, 3]}}, arg2=["list", "of", "values"]
         )
 
         # Should handle complex types
@@ -245,6 +247,7 @@ class TestCacheKeyBuilder:
 
     def test_consistent_key_generation(self):
         """Test that same inputs produce same key."""
+
         def test_func():
             pass
 
@@ -255,6 +258,7 @@ class TestCacheKeyBuilder:
 
     def test_different_args_produce_different_keys(self):
         """Test that different arguments produce different keys."""
+
         def test_func():
             pass
 
@@ -265,6 +269,7 @@ class TestCacheKeyBuilder:
 
     def test_excludes_special_parameters(self):
         """Test that special parameters are excluded from key."""
+
         def test_func():
             pass
 
@@ -324,10 +329,7 @@ class TestDecoratorWithRealCache:
             return f"result_{value}"
 
         # Launch concurrent calls
-        tasks = [
-            slow_operation("same", db=db_session)
-            for _ in range(5)
-        ]
+        tasks = [slow_operation("same", db=db_session) for _ in range(5)]
         results = await asyncio.gather(*tasks)
 
         # All should get the same result
@@ -380,7 +382,9 @@ class TestDecoratorEdgeCases:
     @pytest.mark.asyncio
     async def test_cache_service_unavailable(self, mock_db_session):
         """Test behavior when cache service is unavailable."""
-        with patch("app.core.cache_decorator.get_cache_service", side_effect=Exception("Cache unavailable")):
+        with patch(
+            "app.core.cache_decorator.get_cache_service", side_effect=Exception("Cache unavailable")
+        ):
 
             @cache(namespace="test")
             async def test_func(db=None):
@@ -399,6 +403,7 @@ class TestDecoratorEdgeCases:
                 async def wrapper(*args, **kwargs):
                     result = await func(*args, **kwargs)
                     return f"wrapped_{result}"
+
                 return wrapper
 
             @other_decorator

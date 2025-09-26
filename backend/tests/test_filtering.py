@@ -90,7 +90,7 @@ class TestMemoryFilter:
             min_threshold=2,
             entity_name="panels",
             source_name="Test",
-            enabled=True
+            enabled=True,
         )
 
         assert len(filtered) == 2
@@ -113,7 +113,7 @@ class TestMemoryFilter:
             min_threshold=2,
             entity_name="panels",
             source_name="Test",
-            enabled=False  # Disabled
+            enabled=False,  # Disabled
         )
 
         assert len(filtered) == 2
@@ -134,7 +134,7 @@ class TestMemoryFilter:
             min_threshold=1,
             entity_name="items",
             source_name="Test",
-            enabled=True
+            enabled=True,
         )
 
         assert len(filtered) == 2
@@ -153,7 +153,7 @@ class TestMemoryFilter:
             min_threshold=2,
             entity_name="panels",
             source_name="Test",
-            enabled=True
+            enabled=True,
         )
 
         # GENE1 should be filtered out (count = 0)
@@ -169,7 +169,7 @@ class TestMemoryFilter:
             min_threshold=5,
             entity_name="items",
             source_name="Test",
-            enabled=True
+            enabled=True,
         )
 
         assert len(filtered) == 0
@@ -218,7 +218,7 @@ class TestValidateThreshold:
 class TestDatabaseFilter:
     """Test apply_database_filter function."""
 
-    @patch('app.pipeline.sources.unified.filtering_utils.logger')
+    @patch("app.pipeline.sources.unified.filtering_utils.logger")
     def test_filter_disabled(self, mock_logger):
         """Test database filtering when disabled."""
         mock_db = Mock(spec=Session)
@@ -229,7 +229,7 @@ class TestDatabaseFilter:
             count_field="count",
             min_threshold=5,
             entity_name="items",
-            enabled=False
+            enabled=False,
         )
 
         assert stats.total_before == 0
@@ -237,7 +237,7 @@ class TestDatabaseFilter:
         assert stats.filtered_count == 0
         mock_db.execute.assert_not_called()
 
-    @patch('app.pipeline.sources.unified.filtering_utils.logger')
+    @patch("app.pipeline.sources.unified.filtering_utils.logger")
     def test_threshold_one_no_filtering(self, mock_logger):
         """Test that threshold <= 1 means no filtering."""
         mock_db = Mock(spec=Session)
@@ -248,7 +248,7 @@ class TestDatabaseFilter:
             count_field="count",
             min_threshold=1,
             entity_name="items",
-            enabled=True
+            enabled=True,
         )
 
         assert stats.total_before == 0
@@ -256,7 +256,7 @@ class TestDatabaseFilter:
         assert stats.filtered_count == 0
         mock_db.execute.assert_not_called()
 
-    @patch('app.pipeline.sources.unified.filtering_utils.logger')
+    @patch("app.pipeline.sources.unified.filtering_utils.logger")
     def test_no_records_to_filter(self, mock_logger):
         """Test filtering when no records exist."""
         mock_db = Mock(spec=Session)
@@ -270,7 +270,7 @@ class TestDatabaseFilter:
             count_field="count",
             min_threshold=5,
             entity_name="items",
-            enabled=True
+            enabled=True,
         )
 
         assert stats.total_before == 0
@@ -279,7 +279,7 @@ class TestDatabaseFilter:
         # Should have called execute once for the count
         assert mock_db.execute.call_count == 1
 
-    @patch('app.pipeline.sources.unified.filtering_utils.logger')
+    @patch("app.pipeline.sources.unified.filtering_utils.logger")
     def test_exception_handling(self, mock_logger):
         """Test exception handling in database filtering."""
         mock_db = Mock(spec=Session)
@@ -292,7 +292,7 @@ class TestDatabaseFilter:
                 count_field="count",
                 min_threshold=5,
                 entity_name="items",
-                enabled=True
+                enabled=True,
             )
 
         assert str(exc_info.value) == "Database error"
@@ -307,14 +307,14 @@ class TestIntegration:
         data = {f"GENE{i}": {"count": 1} for i in range(100)}
         data["GENE_KEEPER"] = {"count": 10}
 
-        with patch('app.pipeline.sources.unified.filtering_utils.logger') as mock_logger:
+        with patch("app.pipeline.sources.unified.filtering_utils.logger") as mock_logger:
             filtered, stats = apply_memory_filter(
                 data_dict=data,
                 count_field="count",
                 min_threshold=5,
                 entity_name="items",
                 source_name="Test",
-                enabled=True
+                enabled=True,
             )
 
             assert len(filtered) == 1  # Only GENE_KEEPER
@@ -322,7 +322,8 @@ class TestIntegration:
 
             # Check that warning was logged
             warning_calls = [
-                call for call in mock_logger.sync_warning.call_args_list
+                call
+                for call in mock_logger.sync_warning.call_args_list
                 if "filtered >50% of genes" in str(call)
             ]
             assert len(warning_calls) > 0
@@ -341,7 +342,7 @@ class TestIntegration:
             min_threshold=3,
             entity_name="publications",
             source_name="PubTator",
-            enabled=True
+            enabled=True,
         )
 
         assert len(stats.filtered_genes) == 2
@@ -350,4 +351,3 @@ class TestIntegration:
         assert stats.filtered_genes[0]["threshold"] == 3
         assert stats.filtered_genes[1]["symbol"] == "GENE2"
         assert stats.filtered_genes[1]["publication_count"] == 2
-

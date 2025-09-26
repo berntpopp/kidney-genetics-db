@@ -51,7 +51,9 @@ def main():
     print("✅ Token obtained\n")
 
     # Upload diagnostic panels
-    panels_dir = Path("/home/bernt-popp/development/kidney-genetics-db/scrapers/diagnostics/output/2025-08-24")
+    panels_dir = Path(
+        "/home/bernt-popp/development/kidney-genetics-db/scrapers/diagnostics/output/2025-08-24"
+    )
     if panels_dir.exists():
         print("📦 Uploading Diagnostic Panels...")
         for file_path in sorted(panels_dir.glob("*.json")):
@@ -59,7 +61,9 @@ def main():
         print()
 
     # Upload literature
-    lit_dir = Path("/home/bernt-popp/development/kidney-genetics-db/scrapers/literature/output/2025-08-24")
+    lit_dir = Path(
+        "/home/bernt-popp/development/kidney-genetics-db/scrapers/literature/output/2025-08-24"
+    )
     if lit_dir.exists():
         print("📚 Uploading Literature...")
         for file_path in sorted(lit_dir.glob("literature_pmid_*.json")):

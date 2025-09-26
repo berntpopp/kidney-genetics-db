@@ -204,7 +204,7 @@ class TestL1L2CacheLayers:
         # Verify it's in the database
         result = db_session.execute(
             text("SELECT value FROM cache_entries WHERE cache_key = :key"),
-            {"key": "test_namespace:test_key"}
+            {"key": "test_namespace:test_key"},
         ).fetchone()
 
         assert result is not None
@@ -260,9 +260,7 @@ class TestAnnotationCompatibility:
     async def test_set_annotation(self, cache_service):
         """Test set_annotation compatibility method."""
         # Set using compatibility method
-        success = await cache_service.set_annotation(
-            1, {"gene": "data"}, "hgnc", ttl=3600
-        )
+        success = await cache_service.set_annotation(1, {"gene": "data"}, "hgnc", ttl=3600)
         assert success is True
 
         # Verify it's cached
@@ -303,6 +301,7 @@ class TestConcurrency:
     @pytest.mark.asyncio
     async def test_concurrent_writes(self, cache_service):
         """Test concurrent write operations."""
+
         async def write_task(i):
             await cache_service.set(f"key{i}", f"value{i}", "test_namespace")
             return i
@@ -344,6 +343,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_invalid_json_handling(self, cache_service):
         """Test handling of non-JSON-serializable data."""
+
         # Try to cache a non-serializable object
         class NonSerializable:
             pass
@@ -358,7 +358,7 @@ class TestErrorHandling:
     async def test_database_error_handling(self, cache_service):
         """Test handling of database errors."""
         # Mock database error
-        with patch.object(cache_service._db, 'execute', side_effect=Exception("DB Error")):
+        with patch.object(cache_service._db, "execute", side_effect=Exception("DB Error")):
             # Should handle error gracefully and return None
             result = await cache_service.get("key", "namespace")
             assert result is None
@@ -411,7 +411,7 @@ class TestPerformance:
 
         # Performance assertions
         assert write_time < 5.0  # Should complete within 5 seconds
-        assert read_time < 1.0   # Reads should be faster
+        assert read_time < 1.0  # Reads should be faster
 
     async def test_memory_cache_performance(self, cache_service):
         """Test L1 cache performance advantage."""
