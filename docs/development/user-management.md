@@ -62,8 +62,8 @@ All scripts and functions use the same configuration values from `app/core/confi
 ### Previous Issues (Fixed)
 
 We previously had multiple inconsistent password definitions:
-- ~~`database_init.py` - hardcoded "admin123"~~ ✅ Fixed
-- ~~`create_admin_user.py` - hardcoded "admin123"~~ ✅ Fixed
+- ~~`database_init.py` - hardcoded "ChangeMe!Admin2024"~~ ✅ Fixed
+- ~~`create_admin_user.py` - hardcoded "ChangeMe!Admin2024"~~ ✅ Fixed
 - ~~`create_default_users.py` - used different password~~ ✅ Removed
 - **Now: All use `settings.ADMIN_PASSWORD = "ChangeMe!Admin2024"`**
 

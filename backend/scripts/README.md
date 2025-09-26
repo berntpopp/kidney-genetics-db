@@ -16,7 +16,7 @@ Essential utility scripts for database and data pipeline management.
 ### `create_admin_user.py`
 **Purpose:** Create admin user account
 **Usage:** `uv run python scripts/create_admin_user.py`
-- Creates admin@kidneygenetics.org with password admin123
+- Creates admin@kidneygenetics.org with password ChangeMe!Admin2024
 - Used for initial setup or recovery
 
 ### `run_all_sources.py`

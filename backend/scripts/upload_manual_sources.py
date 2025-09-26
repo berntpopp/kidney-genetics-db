@@ -7,7 +7,7 @@ import httpx
 
 BASE_URL = "http://localhost:8000"
 USERNAME = "admin"
-PASSWORD = "admin123"
+PASSWORD = "ChangeMe!Admin2024"
 
 
 def get_token():

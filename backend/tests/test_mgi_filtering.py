@@ -1,7 +1,9 @@
 """Unit tests for MGI/MPO annotation filtering logic"""
 
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+
 from app.pipeline.sources.annotations.mpo_mgi import MPOMGIAnnotationSource
 
 
@@ -12,7 +14,7 @@ class TestMGIFiltering:
         """Test that kidney-related phenotypes are correctly filtered"""
         # Setup
         mock_session = Mock()
-        source = MPOMGIAnnotationSource(mock_session)
+        MPOMGIAnnotationSource(mock_session)
 
         # Kidney-related MPO terms
         kidney_mpo_terms = {"MP:0000519", "MP:0000520", "MP:0002135"}
@@ -63,7 +65,7 @@ class TestMGIFiltering:
         """Test that empty MPO terms results in no kidney phenotypes"""
         # Setup
         mock_session = Mock()
-        source = MPOMGIAnnotationSource(mock_session)
+        MPOMGIAnnotationSource(mock_session)
 
         # Empty MPO terms (simulates the bug)
         empty_mpo_terms = set()

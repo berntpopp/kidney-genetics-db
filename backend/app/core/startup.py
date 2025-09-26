@@ -170,7 +170,7 @@ def validate_dependencies() -> None:
     logger.sync_info("Validating application dependencies...")
 
     try:
-        from app.core.datasource_config import get_source_parameter, ANNOTATION_SOURCE_CONFIG
+        from app.core.datasource_config import ANNOTATION_SOURCE_CONFIG, get_source_parameter
 
         # Validate required API URLs from datasource config
         required_urls = {
