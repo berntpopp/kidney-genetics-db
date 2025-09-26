@@ -8,7 +8,7 @@ from app.models.gene import Gene, GeneCuration, GeneEvidence, PipelineRun
 from app.models.gene_annotation import AnnotationHistory, AnnotationSource, GeneAnnotation
 from app.models.gene_staging import GeneNormalizationLog, GeneNormalizationStaging
 from app.models.progress import DataSourceProgress, SourceStatus
-from app.models.static_sources import StaticSource, StaticSourceAudit, StaticEvidenceUpload
+from app.models.static_sources import StaticEvidenceUpload, StaticSource, StaticSourceAudit
 from app.models.system_logs import SystemLog
 from app.models.user import User
 

@@ -26,21 +26,25 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     sources = []
 
-    # Get statistics for each source from the database
-    result = db.execute(
-        text(
+    try:
+        # Get statistics for each source from the database
+        result = db.execute(
+            text(
+                """
+                SELECT
+                    source_name,
+                    COUNT(DISTINCT gene_id) as gene_count,
+                    COUNT(*) as evidence_count,
+                    MAX(updated_at) as last_updated
+                FROM gene_evidence
+                GROUP BY source_name
+                ORDER BY source_name
             """
-            SELECT
-                source_name,
-                COUNT(DISTINCT gene_id) as gene_count,
-                COUNT(*) as evidence_count,
-                MAX(updated_at) as last_updated
-            FROM gene_evidence
-            GROUP BY source_name
-            ORDER BY source_name
-        """
-        )
-    ).fetchall()
+            )
+        ).fetchall()
+    except Exception:
+        # If query fails, return empty result
+        result = []
 
     # Create a mapping of source stats
     source_stats = {}
@@ -54,25 +58,28 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     # Get meaningful metadata for each source
 
     # ClinGen: expert panels and classification levels
-    clingen_metadata = db.execute(
-        text(
+    try:
+        clingen_metadata = db.execute(
+            text(
+                """
+                WITH panels AS (
+                    SELECT jsonb_array_elements_text(evidence_data->'expert_panels') as panel
+                    FROM gene_evidence
+                    WHERE source_name = 'ClinGen'
+                ),
+                validities AS (
+                    SELECT jsonb_array_elements(evidence_data->'validities') as validity
+                    FROM gene_evidence
+                    WHERE source_name = 'ClinGen'
+                )
+                SELECT
+                    (SELECT COUNT(DISTINCT panel) FROM panels) as panel_count,
+                    (SELECT COUNT(DISTINCT validity->>'classification') FROM validities) as classification_count
             """
-            WITH panels AS (
-                SELECT jsonb_array_elements_text(evidence_data->'expert_panels') as panel
-                FROM gene_evidence
-                WHERE source_name = 'ClinGen'
-            ),
-            validities AS (
-                SELECT jsonb_array_elements(evidence_data->'validities') as validity
-                FROM gene_evidence
-                WHERE source_name = 'ClinGen'
             )
-            SELECT
-                (SELECT COUNT(DISTINCT panel) FROM panels) as panel_count,
-                (SELECT COUNT(DISTINCT validity->>'classification') FROM validities) as classification_count
-        """
-        )
-    ).fetchone()
+        ).fetchone()
+    except Exception:
+        clingen_metadata = None
 
     # GenCC: submissions and submitters
     gencc_metadata = db.execute(

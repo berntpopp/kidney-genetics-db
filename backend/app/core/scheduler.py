@@ -9,7 +9,6 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.core.database import SessionLocal
 from app.core.logging import get_logger
-from app.models.gene_annotation import AnnotationSource
 from app.pipeline.annotation_pipeline import AnnotationPipeline, UpdateStrategy
 
 logger = get_logger(__name__)
@@ -64,58 +63,9 @@ class AnnotationScheduler:
 
     def _schedule_source_updates(self):
         """Schedule updates for each source based on their configuration."""
-        db = SessionLocal()
-        try:
-            sources = db.query(AnnotationSource).filter(AnnotationSource.is_active.is_(True)).all()
-
-            for source in sources:
-                if source.update_frequency == "daily":
-                    # Schedule daily at 1 AM
-                    self.scheduler.add_job(
-                        self._run_source_update,
-                        CronTrigger(hour=1, minute=0),
-                        args=[source.source_name],
-                        id=f"source_{source.source_name}",
-                        name=f"Update {source.display_name}",
-                        replace_existing=True,
-                    )
-                elif source.update_frequency == "weekly":
-                    # Schedule weekly on Mondays at 1 AM
-                    self.scheduler.add_job(
-                        self._run_source_update,
-                        CronTrigger(day_of_week=0, hour=1, minute=0),
-                        args=[source.source_name],
-                        id=f"source_{source.source_name}",
-                        name=f"Update {source.display_name}",
-                        replace_existing=True,
-                    )
-                elif source.update_frequency == "monthly":
-                    # Schedule monthly on the 1st at 1 AM
-                    self.scheduler.add_job(
-                        self._run_source_update,
-                        CronTrigger(day=1, hour=1, minute=0),
-                        args=[source.source_name],
-                        id=f"source_{source.source_name}",
-                        name=f"Update {source.display_name}",
-                        replace_existing=True,
-                    )
-                elif source.update_frequency == "quarterly":
-                    # Schedule quarterly on the 1st of Jan, Apr, Jul, Oct at 1 AM
-                    self.scheduler.add_job(
-                        self._run_source_update,
-                        CronTrigger(month="1,4,7,10", day=1, hour=1, minute=0),
-                        args=[source.source_name],
-                        id=f"source_{source.source_name}",
-                        name=f"Update {source.display_name}",
-                        replace_existing=True,
-                    )
-
-                if source.update_frequency in ["daily", "weekly", "monthly", "quarterly"]:
-                    logger.sync_info(
-                        f"Scheduled {source.update_frequency} update for {source.display_name}"
-                    )
-        finally:
-            db.close()
+        # Skip source-specific scheduling for now since the model doesn't have these fields
+        # This will be handled by the daily/weekly general updates
+        pass
 
     async def _run_incremental_update(self):
         """Run incremental update for all sources."""

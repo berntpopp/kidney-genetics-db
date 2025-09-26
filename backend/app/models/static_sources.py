@@ -4,7 +4,16 @@ Database models for static source management
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text, ForeignKey
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
@@ -16,7 +25,7 @@ class StaticSource(Base):
 
     __tablename__ = "static_sources"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, index=True)
     source_type = Column(String(50), nullable=False, index=True)
     source_name = Column(String(255), unique=True, nullable=False)  # This is unique in DB
     display_name = Column(String(255), nullable=False)
@@ -38,7 +47,7 @@ class StaticSourceAudit(Base):
 
     __tablename__ = "static_source_audit"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, index=True)
     source_id = Column(Integer, ForeignKey("static_sources.id"), nullable=False, index=True)
     upload_id = Column(Integer, nullable=True)
     action = Column(String(50), nullable=False)  # Matches 'action' column in DB
@@ -55,7 +64,7 @@ class StaticEvidenceUpload(Base):
 
     __tablename__ = "static_evidence_uploads"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, index=True)
     source_id = Column(Integer, ForeignKey("static_sources.id"), nullable=False, index=True)
     evidence_name = Column(String(255), nullable=False)
     file_hash = Column(String(64), nullable=False, index=True)  # SHA256 hash

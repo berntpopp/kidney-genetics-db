@@ -4,7 +4,7 @@ Database models for gene normalization staging
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app.models.base import Base
@@ -18,7 +18,7 @@ class GeneNormalizationStaging(Base):
 
     __tablename__ = "gene_normalization_staging"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, index=True)
 
     # Original gene information
     original_text = Column(String, nullable=False, index=True)
@@ -43,7 +43,7 @@ class GeneNormalizationStaging(Base):
     manual_aliases = Column(JSONB, nullable=True)  # List of alias symbols
 
     # Resolution tracking
-    resolved_gene_id = Column(Integer, nullable=True)  # FK to genes table when resolved
+    resolved_gene_id = Column(BigInteger, nullable=True)  # FK to genes table when resolved
     resolution_method = Column(String, nullable=True)
     # Values: automatic_retry, manual_correction, merged_with_existing, rejected_invalid
 
@@ -69,7 +69,7 @@ class GeneNormalizationLog(Base):
 
     __tablename__ = "gene_normalization_log"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, index=True)
 
     # Gene information
     original_text = Column(String, nullable=False, index=True)
@@ -84,8 +84,8 @@ class GeneNormalizationLog(Base):
     normalization_log = Column(JSONB, nullable=False)
 
     # Outcome tracking
-    final_gene_id = Column(Integer, nullable=True)  # FK to genes table if successful
-    staging_id = Column(Integer, nullable=True)  # FK to staging table if manual review needed
+    final_gene_id = Column(BigInteger, nullable=True)  # FK to genes table if successful
+    staging_id = Column(BigInteger, nullable=True)  # FK to staging table if manual review needed
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)

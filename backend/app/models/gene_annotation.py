@@ -9,17 +9,17 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
-    Boolean,
+    BigInteger,
     Column,
     DateTime,
     ForeignKey,
-    Integer,
     String,
     Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
 from app.models.base import Base, TimestampMixin
 
@@ -40,9 +40,9 @@ class GeneAnnotation(Base, TimestampMixin):
         UniqueConstraint("gene_id", "source", "version", name="unique_gene_source_version"),
     )
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, index=True)
     gene_id = Column(
-        Integer, ForeignKey("genes.id", ondelete="CASCADE"), nullable=False, index=True
+        BigInteger, ForeignKey("genes.id", ondelete="CASCADE"), nullable=False, index=True
     )
     source = Column(String(50), nullable=False, index=True)
     version = Column(String(20))
@@ -86,34 +86,19 @@ class GeneAnnotation(Base, TimestampMixin):
 
 class AnnotationSource(Base, TimestampMixin):
     """
-    Registry of annotation sources and their configuration.
-
-    Tracks available annotation sources, update schedules, and metadata.
+    Tracks available annotation sources.
+    Matches migration schema exactly.
     """
 
     __tablename__ = "annotation_sources"
 
-    id = Column(Integer, primary_key=True, index=True)
-    source_name = Column(String(50), unique=True, nullable=False)
-    display_name = Column(String(100))
-    description = Column(Text)
-    base_url = Column(String(255))
-    update_frequency = Column(String(50))  # 'daily', 'weekly', 'monthly'
-    last_update = Column(DateTime)
-    next_update = Column(DateTime)
-    is_active = Column(Boolean, default=True)
-    priority = Column(Integer, default=0)  # Higher = more important
-    config = Column(JSONB)  # Source-specific configuration
-
-    def __repr__(self) -> str:
-        return f"<AnnotationSource(name='{self.source_name}', active={self.is_active})>"
-
-    def is_update_due(self) -> bool:
-        """Check if this source needs updating."""
-        if not self.next_update:
-            return True
-        return datetime.utcnow() >= self.next_update
-
+    id = Column(BigInteger, primary_key=True, index=True)
+    source_name = Column(Text, unique=True, nullable=False)
+    version = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    url = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 class AnnotationHistory(Base):
     """
@@ -125,8 +110,8 @@ class AnnotationHistory(Base):
 
     __tablename__ = "annotation_history"
 
-    id = Column(Integer, primary_key=True, index=True)
-    gene_id = Column(Integer, ForeignKey("genes.id"), index=True)
+    id = Column(BigInteger, primary_key=True, index=True)
+    gene_id = Column(BigInteger, ForeignKey("genes.id"), index=True)
     source = Column(String(50), index=True)
     operation = Column(String(20))  # 'insert', 'update', 'delete'
     old_data = Column(JSONB)

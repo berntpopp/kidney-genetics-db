@@ -1,44 +1,43 @@
-"""
-Database model for system logs table
-"""
+"""System logging models for database persistence."""
 
-from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Integer, String, Text, Index
-from sqlalchemy.dialects.postgresql import JSON
+from sqlalchemy import BigInteger, Column, DateTime, Float, ForeignKey, Integer, Text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
 from app.models.base import Base
 
 
 class SystemLog(Base):
-    """System logs table for structured logging"""
+    """System log entry for audit and debugging."""
 
     __tablename__ = "system_logs"
 
-    id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)  # No timezone in DB
-    level = Column(String(20), nullable=False)  # VARCHAR(20) in DB
+    id = Column(BigInteger, primary_key=True, index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    level = Column(Text, nullable=False)
+    logger = Column(Text, nullable=False)  # Changed from logger_name
     message = Column(Text, nullable=False)
-    source = Column(String(100), nullable=True)  # Nullable in DB
-    request_id = Column(String(100), nullable=True)  # VARCHAR(100) in DB
-    endpoint = Column(String(200), nullable=True)
-    method = Column(String(10), nullable=True)
-    status_code = Column(Integer, nullable=True)
-    processing_time_ms = Column(Integer, nullable=True)
-    user_id = Column(Integer, nullable=True)
-    username = Column(String(50), nullable=True)
-    ip_address = Column(String(45), nullable=True)
-    user_agent = Column(Text, nullable=True)
-    extra_data = Column(JSON, nullable=True)  # JSON not JSONB in DB
-    error_type = Column(String(100), nullable=True)
-    error_traceback = Column(Text, nullable=True)
+    context = Column(JSONB, server_default='{}', nullable=False)  # Changed from extra_data
 
-    # Indexes for efficient querying
-    __table_args__ = (
-        Index('idx_system_logs_timestamp_desc', timestamp.desc()),
-        Index('idx_system_logs_timestamp_level', timestamp.desc(), level),
-        Index('idx_system_logs_level', level),
-        Index('idx_system_logs_source', source),
-        Index('idx_system_logs_request_id', request_id),
-        Index('idx_system_logs_error_type', error_type),
-    )
+    # Request context
+    request_id = Column(Text, nullable=True)
+    user_id = Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    ip_address = Column(Text, nullable=True)
+    user_agent = Column(Text, nullable=True)
+    path = Column(Text, nullable=True)  # Changed from endpoint
+    method = Column(Text, nullable=True)
+    status_code = Column(Integer, nullable=True)
+    duration_ms = Column(Float, nullable=True)  # Changed from processing_time_ms
+
+    # Error information
+    error_type = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)  # Changed from error_traceback
+    stack_trace = Column(Text, nullable=True)  # New field
+
+    # Relationships
+    user = relationship("User", back_populates="logs")
+
+    def __repr__(self):
+        return f"<SystemLog {self.id}: {self.level} - {self.message[:50]}>"

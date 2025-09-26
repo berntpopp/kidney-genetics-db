@@ -2,7 +2,8 @@
 User model for authentication
 """
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import JSON, BigInteger, Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy.orm import relationship
 
 from app.models.base import Base, TimestampMixin
 
@@ -13,7 +14,7 @@ class User(Base, TimestampMixin):
     __tablename__ = "users"
 
     # Primary fields
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     username = Column(String(50), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
@@ -40,6 +41,9 @@ class User(Base, TimestampMixin):
     password_reset_token = Column(String(255), nullable=True)
     password_reset_expires = Column(DateTime, nullable=True)
     email_verification_token = Column(String(255), nullable=True)
+
+    # Relationships
+    logs = relationship("SystemLog", back_populates="user")
 
     def __repr__(self) -> str:
         return f"<User(username='{self.username}', email='{self.email}', role='{self.role}')>"

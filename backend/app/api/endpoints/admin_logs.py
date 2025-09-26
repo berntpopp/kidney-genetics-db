@@ -72,11 +72,11 @@ async def query_logs(
                     "id": row.id,
                     "timestamp": row.timestamp.isoformat(),
                     "level": row.level,
-                    "source": row.source,
+                    "source": row.logger,
                     "message": row.message,
                     "request_id": row.request_id,
                     "user_id": row.user_id,
-                    "extra_data": row.extra_data,
+                    "extra_data": row.context,
                 }
             )
 
@@ -149,10 +149,10 @@ async def get_log_statistics(
         # Get top sources
         source_stats = db.execute(
             text("""
-                SELECT source, COUNT(*) as count
+                SELECT logger as source, COUNT(*) as count
                 FROM system_logs
                 WHERE timestamp >= :cutoff
-                GROUP BY source
+                GROUP BY logger
                 ORDER BY count DESC
                 LIMIT 10
             """),

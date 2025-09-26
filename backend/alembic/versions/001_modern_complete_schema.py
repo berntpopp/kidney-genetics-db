@@ -16,9 +16,10 @@ Decision: Use BIGINT everywhere for simplicity and future-proofing.
 No data preservation needed - clean rebuild strategy.
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 from app.db.alembic_ops import create_all_views, drop_all_views
 from app.db.views import ALL_VIEWS
 
@@ -32,24 +33,19 @@ def upgrade():
     """Create complete modern schema with all tables."""
 
     # Create custom types
-    op.execute("CREATE TYPE source_status AS ENUM ('idle', 'running', 'completed', 'failed', 'paused')")
+    # Note: source_status enum will be created automatically by SQLAlchemy when used in table definition
+    # op.execute("CREATE TYPE source_status AS ENUM ('idle', 'running', 'completed', 'failed', 'paused')")
 
     # ========================================
     # CORE TABLES
     # ========================================
 
-    # genes table - Core gene information
+    # genes table - Core gene information (matches Gene model exactly)
     op.create_table('genes',
         sa.Column('id', sa.BigInteger(), nullable=False),
-        sa.Column('hgnc_id', sa.Text(), nullable=False),
-        sa.Column('approved_symbol', sa.Text(), nullable=False),
-        sa.Column('approved_name', sa.Text(), nullable=False),
-        sa.Column('previous_symbols', sa.Text(), nullable=True),
+        sa.Column('hgnc_id', sa.String(50), nullable=True),
+        sa.Column('approved_symbol', sa.String(100), nullable=False),
         sa.Column('aliases', postgresql.ARRAY(sa.Text()), server_default='{}', nullable=False),
-        sa.Column('omim_id', sa.Text(), nullable=True),
-        sa.Column('ncbi_gene_id', sa.Text(), nullable=True),
-        sa.Column('ensembl_gene_id', sa.Text(), nullable=True),
-        sa.Column('orphanet_id', sa.Text(), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.PrimaryKeyConstraint('id'),
@@ -58,20 +54,36 @@ def upgrade():
     op.create_index('idx_genes_approved_symbol', 'genes', ['approved_symbol'])
     op.create_index('idx_genes_hgnc_id', 'genes', ['hgnc_id'])
 
-    # users table - User management
+    # users table - User management (matches User model)
     op.create_table('users',
         sa.Column('id', sa.BigInteger(), nullable=False),
-        sa.Column('email', sa.Text(), nullable=False),
-        sa.Column('hashed_password', sa.Text(), nullable=False),
-        sa.Column('full_name', sa.Text(), nullable=True),
+        sa.Column('email', sa.String(255), nullable=False),
+        sa.Column('username', sa.String(50), nullable=False),
+        sa.Column('hashed_password', sa.String(255), nullable=False),
+        sa.Column('full_name', sa.String(255), nullable=True),
+        sa.Column('role', sa.String(20), server_default='viewer', nullable=False),
+        sa.Column('permissions', postgresql.JSON(), nullable=True),
         sa.Column('is_active', sa.Boolean(), server_default='true', nullable=False),
+        sa.Column('is_verified', sa.Boolean(), server_default='false', nullable=False),
         sa.Column('is_admin', sa.Boolean(), server_default='false', nullable=False),
+        sa.Column('last_login', sa.DateTime(), nullable=True),
+        sa.Column('failed_login_attempts', sa.Integer(), server_default='0', nullable=False),
+        sa.Column('locked_until', sa.DateTime(), nullable=True),
+        sa.Column('refresh_token', sa.Text(), nullable=True),
+        sa.Column('password_reset_token', sa.String(255), nullable=True),
+        sa.Column('password_reset_expires', sa.DateTime(), nullable=True),
+        sa.Column('email_verification_token', sa.String(255), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('email')
+        sa.UniqueConstraint('email'),
+        sa.UniqueConstraint('username')
     )
     op.create_index('idx_users_email', 'users', ['email'])
+    op.create_index('idx_users_username', 'users', ['username'])
+    op.create_index('idx_users_role', 'users', ['role'])
+    op.create_index('idx_users_is_active', 'users', ['is_active'])
+
 
     # ========================================
     # ANNOTATION TABLES
@@ -90,13 +102,14 @@ def upgrade():
         sa.UniqueConstraint('source_name')
     )
 
-    # gene_annotations table
+    # gene_annotations table (matches GeneAnnotation model)
     op.create_table('gene_annotations',
         sa.Column('id', sa.BigInteger(), nullable=False),
         sa.Column('gene_id', sa.BigInteger(), nullable=False),
-        sa.Column('source', sa.Text(), nullable=False),
-        sa.Column('version', sa.Text(), nullable=False),
-        sa.Column('annotations', postgresql.JSONB(), server_default='{}', nullable=False),
+        sa.Column('source', sa.String(50), nullable=False),
+        sa.Column('version', sa.String(20), nullable=True),
+        sa.Column('annotations', postgresql.JSONB(), nullable=False),
+        sa.Column('source_metadata', postgresql.JSONB(), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(['gene_id'], ['genes.id'], ondelete='CASCADE'),
@@ -107,36 +120,44 @@ def upgrade():
     op.create_index('idx_gene_annotations_source', 'gene_annotations', ['source'])
     op.create_index('idx_annotations_gin', 'gene_annotations', ['annotations'], postgresql_using='gin')
 
-    # annotation_history table
+    # annotation_history table (matches AnnotationHistory model)
     op.create_table('annotation_history',
         sa.Column('id', sa.BigInteger(), nullable=False),
-        sa.Column('gene_annotation_id', sa.BigInteger(), nullable=False),
-        sa.Column('version', sa.Text(), nullable=False),
-        sa.Column('annotations', postgresql.JSONB(), nullable=False),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.ForeignKeyConstraint(['gene_annotation_id'], ['gene_annotations.id'], ondelete='CASCADE'),
+        sa.Column('gene_id', sa.BigInteger(), nullable=True),
+        sa.Column('source', sa.String(50), nullable=True),
+        sa.Column('operation', sa.String(20), nullable=True),
+        sa.Column('old_data', postgresql.JSONB(), nullable=True),
+        sa.Column('new_data', postgresql.JSONB(), nullable=True),
+        sa.Column('changed_by', sa.String(100), nullable=True),
+        sa.Column('changed_at', sa.DateTime(), server_default=sa.func.now(), nullable=False),
+        sa.Column('change_reason', sa.Text(), nullable=True),
+        sa.ForeignKeyConstraint(['gene_id'], ['genes.id']),
         sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('idx_annotation_history_gene_annotation_id', 'annotation_history', ['gene_annotation_id'])
+    op.create_index('idx_annotation_history_gene_id', 'annotation_history', ['gene_id'])
+    op.create_index('idx_annotation_history_source', 'annotation_history', ['source'])
 
     # ========================================
     # CURATION TABLES
     # ========================================
 
-    # gene_curations table
+    # gene_curations table (matches GeneCuration model)
     op.create_table('gene_curations',
         sa.Column('id', sa.BigInteger(), nullable=False),
         sa.Column('gene_id', sa.BigInteger(), nullable=False),
-        sa.Column('classification', sa.Text(), nullable=True),
-        sa.Column('evidence_summary', sa.Text(), nullable=True),
-        sa.Column('diagnostic_panels', postgresql.ARRAY(sa.Text()), server_default='{}', nullable=False),
-        sa.Column('panelapp_panels', postgresql.ARRAY(sa.Text()), server_default='{}', nullable=False),
-        sa.Column('hpo_terms', postgresql.ARRAY(sa.Text()), server_default='{}', nullable=False),
-        sa.Column('literature_refs', postgresql.ARRAY(sa.Text()), server_default='{}', nullable=False),
-        sa.Column('pubtator_pmids', postgresql.ARRAY(sa.Text()), server_default='{}', nullable=False),
         sa.Column('evidence_count', sa.Integer(), server_default='0', nullable=False),
         sa.Column('source_count', sa.Integer(), server_default='0', nullable=False),
-        sa.Column('curation_status', sa.Text(), nullable=True),
+        sa.Column('panelapp_panels', postgresql.ARRAY(sa.Text()), server_default='{}', nullable=False),
+        sa.Column('literature_refs', postgresql.ARRAY(sa.Text()), server_default='{}', nullable=False),
+        sa.Column('diagnostic_panels', postgresql.ARRAY(sa.Text()), server_default='{}', nullable=False),
+        sa.Column('hpo_terms', postgresql.ARRAY(sa.Text()), server_default='{}', nullable=False),
+        sa.Column('pubtator_pmids', postgresql.ARRAY(sa.Text()), server_default='{}', nullable=False),
+        sa.Column('omim_data', postgresql.JSONB(), nullable=True),
+        sa.Column('clinvar_data', postgresql.JSONB(), nullable=True),
+        sa.Column('constraint_scores', postgresql.JSONB(), nullable=True),
+        sa.Column('expression_data', postgresql.JSONB(), nullable=True),
+        sa.Column('evidence_score', sa.Float(), nullable=True),
+        sa.Column('classification', sa.String(50), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(['gene_id'], ['genes.id'], ondelete='CASCADE'),
@@ -144,18 +165,16 @@ def upgrade():
         sa.UniqueConstraint('gene_id')
     )
     op.create_index('idx_gene_curations_gene_id', 'gene_curations', ['gene_id'])
+    op.create_index('idx_gene_curations_evidence_score', 'gene_curations', ['evidence_score'])
 
-    # gene_evidence table
+    # gene_evidence table (matches GeneEvidence model)
     op.create_table('gene_evidence',
         sa.Column('id', sa.BigInteger(), nullable=False),
         sa.Column('gene_id', sa.BigInteger(), nullable=False),
-        sa.Column('source_name', sa.Text(), nullable=False),
-        sa.Column('source_detail', sa.Text(), nullable=True),
-        sa.Column('classification', sa.Text(), nullable=True),
-        sa.Column('evidence_type', sa.Text(), nullable=True),
-        sa.Column('evidence_score', sa.Float(), nullable=True),
-        sa.Column('evidence_data', postgresql.JSONB(), server_default='{}', nullable=False),
-        sa.Column('pubtator_pmids', postgresql.ARRAY(sa.Text()), nullable=True),
+        sa.Column('source_name', sa.String(100), nullable=False),
+        sa.Column('source_detail', sa.String(255), nullable=True),
+        sa.Column('evidence_data', postgresql.JSONB(), nullable=False),
+        sa.Column('evidence_date', sa.Date(), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(['gene_id'], ['genes.id'], ondelete='CASCADE'),
@@ -172,47 +191,55 @@ def upgrade():
     # gene_normalization_staging table
     op.create_table('gene_normalization_staging',
         sa.Column('id', sa.BigInteger(), nullable=False),
-        sa.Column('original_text', sa.Text(), nullable=False),
-        sa.Column('source', sa.Text(), nullable=False),
-        sa.Column('source_detail', sa.Text(), nullable=True),
-        sa.Column('context', sa.Text(), nullable=True),
-        sa.Column('metadata', postgresql.JSONB(), server_default='{}', nullable=False),
-        sa.Column('status', sa.Text(), server_default='pending_review', nullable=False),
-        sa.Column('resolved_gene_id', sa.BigInteger(), nullable=True),
-        sa.Column('confidence_score', sa.Float(), nullable=True),
+        sa.Column('original_text', sa.String(), nullable=False),
+        sa.Column('source_name', sa.String(), nullable=False),
+        sa.Column('original_data', postgresql.JSONB(), nullable=True),
+        sa.Column('normalization_log', postgresql.JSONB(), nullable=False),
+        sa.Column('status', sa.String(), server_default='pending_review', nullable=False),
+        sa.Column('reviewed_by', sa.String(), nullable=True),
+        sa.Column('reviewed_at', sa.DateTime(), nullable=True),
         sa.Column('review_notes', sa.Text(), nullable=True),
-        sa.Column('is_duplicate_submission', sa.Boolean(), server_default='false', nullable=False),
-        sa.Column('requires_expert_review', sa.Boolean(), server_default='false', nullable=False),
+        sa.Column('manual_approved_symbol', sa.String(), nullable=True),
+        sa.Column('manual_hgnc_id', sa.String(), nullable=True),
+        sa.Column('manual_aliases', postgresql.JSONB(), nullable=True),
+        sa.Column('resolved_gene_id', sa.BigInteger(), nullable=True),
+        sa.Column('resolution_method', sa.String(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.func.now(), nullable=False),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.func.now(), nullable=False),
         sa.Column('priority_score', sa.Integer(), server_default='0', nullable=False),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column('requires_expert_review', sa.Boolean(), server_default='false', nullable=False),
+        sa.Column('is_duplicate_submission', sa.Boolean(), server_default='false', nullable=False),
         sa.ForeignKeyConstraint(['resolved_gene_id'], ['genes.id'], ondelete='SET NULL'),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index('idx_gene_normalization_staging_original_text', 'gene_normalization_staging', ['original_text'])
-    op.create_index('idx_gene_normalization_staging_created_at', 'gene_normalization_staging', ['created_at'])
+    op.create_index('idx_gene_normalization_staging_source_name', 'gene_normalization_staging', ['source_name'])
     op.create_index('idx_gene_normalization_staging_status', 'gene_normalization_staging', ['status'])
+    op.create_index('idx_gene_normalization_staging_created_at', 'gene_normalization_staging', ['created_at'])
+    op.create_index('idx_gene_normalization_staging_priority_score', 'gene_normalization_staging', ['priority_score'])
 
     # gene_normalization_log table
     op.create_table('gene_normalization_log',
         sa.Column('id', sa.BigInteger(), nullable=False),
-        sa.Column('original_text', sa.Text(), nullable=False),
-        sa.Column('hgnc_id', sa.Text(), nullable=True),
+        sa.Column('original_text', sa.String(), nullable=False),
+        sa.Column('source_name', sa.String(), nullable=False),  # ADDED - was missing
         sa.Column('success', sa.Boolean(), nullable=False),
-        sa.Column('approved_symbol', sa.Text(), nullable=True),
-        sa.Column('normalization_log', postgresql.JSONB(), server_default='{}', nullable=False),
+        sa.Column('approved_symbol', sa.String(), nullable=True),
+        sa.Column('hgnc_id', sa.String(), nullable=True),
+        sa.Column('normalization_log', postgresql.JSONB(), nullable=False),
         sa.Column('final_gene_id', sa.BigInteger(), nullable=True),
         sa.Column('staging_id', sa.BigInteger(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.func.now(), nullable=False),
         sa.Column('api_calls_made', sa.Integer(), server_default='0', nullable=False),
         sa.Column('processing_time_ms', sa.Integer(), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(['final_gene_id'], ['genes.id'], ondelete='SET NULL'),
         sa.ForeignKeyConstraint(['staging_id'], ['gene_normalization_staging.id'], ondelete='SET NULL'),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index('idx_gene_normalization_log_original_text', 'gene_normalization_log', ['original_text'])
-    op.create_index('idx_gene_normalization_log_hgnc_id', 'gene_normalization_log', ['hgnc_id'])
+    op.create_index('idx_gene_normalization_log_source_name', 'gene_normalization_log', ['source_name'])  # ADDED
     op.create_index('idx_gene_normalization_log_success', 'gene_normalization_log', ['success'])
+    op.create_index('idx_gene_normalization_log_hgnc_id', 'gene_normalization_log', ['hgnc_id'])
     op.create_index('idx_gene_normalization_log_approved_symbol', 'gene_normalization_log', ['approved_symbol'])
     op.create_index('idx_gene_normalization_log_created_at', 'gene_normalization_log', ['created_at'])
 
@@ -223,12 +250,11 @@ def upgrade():
     # pipeline_runs table
     op.create_table('pipeline_runs',
         sa.Column('id', sa.BigInteger(), nullable=False),
-        sa.Column('pipeline_name', sa.Text(), nullable=False),
-        sa.Column('status', sa.Text(), nullable=False),
-        sa.Column('started_at', sa.DateTime(timezone=True), nullable=False),
+        sa.Column('status', sa.String(50), server_default='running', nullable=True),
+        sa.Column('started_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('error_message', sa.Text(), nullable=True),
-        sa.Column('metadata', postgresql.JSONB(), server_default='{}', nullable=False),
+        sa.Column('stats', postgresql.JSONB(), nullable=True),
+        sa.Column('error_log', sa.Text(), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.PrimaryKeyConstraint('id')
@@ -409,4 +435,5 @@ def downgrade():
     op.drop_table('genes')
 
     # Drop custom types
-    op.execute("DROP TYPE IF EXISTS source_status")
+    # Note: source_status enum will be dropped automatically by SQLAlchemy
+    # op.execute("DROP TYPE IF EXISTS source_status")
