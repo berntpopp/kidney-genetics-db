@@ -429,9 +429,9 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                 from pathlib import Path
 
                 # Get cache file path from config
-                from app.core.datasource_config import get_annotation_source_config
+                from app.core.datasource_config import ANNOTATION_SOURCE_CONFIG
 
-                config = get_annotation_source_config("mpo_mgi") or {}
+                config = ANNOTATION_SOURCE_CONFIG.get("mpo_mgi", {})
                 cache_file_relative = config.get(
                     "mpo_kidney_terms_file", "data/mpo_kidney_terms.json"
                 )
