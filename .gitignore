@@ -81,3 +81,9 @@ backend/.cache/
 
 # database backup folder
 backups/
+
+# Duplicate backend folder (accidental)
+backend/backend/
+
+# Backup files
+*.backup
