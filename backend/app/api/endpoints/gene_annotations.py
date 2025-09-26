@@ -444,25 +444,37 @@ async def get_annotation_sources(
     Get list of available annotation sources.
 
     Args:
-        active_only: Filter for active sources only (currently ignored as model doesn't have is_active field)
+        active_only: Filter for active sources only
         db: Database session
 
     Returns:
         List of annotation sources with metadata
     """
-    # Note: active_only parameter is kept for API compatibility but ignored
-    # as the model doesn't have an is_active field
     query = db.query(AnnotationSource)
 
-    # Order by source_name as we don't have priority field
-    sources = query.order_by(AnnotationSource.source_name).all()
+    # Filter by active status if requested
+    if active_only:
+        query = query.filter(AnnotationSource.is_active == True)
+
+    # Order by priority (descending) then by source_name
+    sources = query.order_by(
+        AnnotationSource.priority.desc(),
+        AnnotationSource.source_name
+    ).all()
 
     return [
         {
             "source_name": source.source_name,
+            "display_name": source.display_name,
             "version": source.version,
             "description": source.description,
             "url": source.url,
+            "base_url": source.base_url,
+            "is_active": source.is_active,
+            "priority": source.priority,
+            "update_frequency": source.update_frequency,
+            "last_update": source.last_update.isoformat() if source.last_update else None,
+            "next_update": source.next_update.isoformat() if source.next_update else None,
             "created_at": source.created_at.isoformat() if source.created_at else None,
             "updated_at": source.updated_at.isoformat() if source.updated_at else None,
         }
