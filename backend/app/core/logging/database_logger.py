@@ -133,11 +133,17 @@ class DatabaseLogger:
             error_type = None
             error_traceback = None
             if error:
-                error_type = type(error).__name__
-                error_traceback = traceback.format_exception(
-                    type(error), error, error.__traceback__
-                )
-                error_traceback = "".join(error_traceback)
+                # Check if error is an exception object (has __traceback__) or just a string
+                if hasattr(error, '__traceback__'):
+                    error_type = type(error).__name__
+                    error_traceback = traceback.format_exception(
+                        type(error), error, error.__traceback__
+                    )
+                    error_traceback = "".join(error_traceback)
+                else:
+                    # If error is a string, use it as error_type
+                    error_type = "Error"
+                    error_traceback = str(error)
 
             # Prepare extra data as JSONB - serialize to JSON string for PostgreSQL
             jsonb_data = json.dumps(extra_data or {})

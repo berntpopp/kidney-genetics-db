@@ -123,7 +123,7 @@ class ProgressTracker:
         self.progress_record.current_operation = operation
         self.progress_record.started_at = self._start_time
         self.progress_record.completed_at = None
-        self.progress_record.last_error = None
+        self.progress_record.error_message = None
         self.progress_record.items_processed = 0
         self.progress_record.items_added = 0
         self.progress_record.items_updated = 0
@@ -257,7 +257,7 @@ class ProgressTracker:
     def error(self, error_message: str):
         """Mark source as failed with error"""
         self.progress_record.status = SourceStatus.failed
-        self.progress_record.last_error = error_message
+        self.progress_record.error_message = error_message
         self.progress_record.current_operation = f"Failed: {error_message[:100]}"
         self.progress_record.estimated_completion = None
         self._commit_and_broadcast()
@@ -400,7 +400,6 @@ class ProgressTracker:
                 "Failed to update progress - rolling back",
                 source_name=self.source_name,
                 error=str(e),
-                traceback=str(e.__traceback__),
             )
             self.db.rollback()
             raise  # Re-raise to see what's failing

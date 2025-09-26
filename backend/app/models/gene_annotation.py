@@ -5,14 +5,16 @@ This module defines models for storing gene annotations from various sources
 like HGNC, gnomAD, ClinVar, etc. Uses a flexible JSONB schema for extensibility.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -87,18 +89,32 @@ class GeneAnnotation(Base, TimestampMixin):
 class AnnotationSource(Base, TimestampMixin):
     """
     Tracks available annotation sources.
-    Matches migration schema exactly.
+    Extended with fields needed by the annotation pipeline.
     """
 
     __tablename__ = "annotation_sources"
 
     id = Column(BigInteger, primary_key=True, index=True)
     source_name = Column(Text, unique=True, nullable=False)
-    version = Column(Text, nullable=False)
+    display_name = Column(Text, nullable=False)
+    version = Column(Text, nullable=False, default="1.0")
     description = Column(Text, nullable=True)
     url = Column(Text, nullable=True)
+    base_url = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    priority = Column(Integer, default=0, nullable=False)
+    update_frequency = Column(Text, nullable=True)  # e.g., "daily", "weekly", "quarterly"
+    last_update = Column(DateTime(timezone=True), nullable=True)
+    next_update = Column(DateTime(timezone=True), nullable=True)
+    config = Column(JSONB, default={})
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    def is_update_due(self) -> bool:
+        """Check if this source needs updating based on next_update time."""
+        if not self.next_update:
+            return True
+        return datetime.now(timezone.utc) >= self.next_update
 
 class AnnotationHistory(Base):
     """
