@@ -172,16 +172,18 @@ async def create_default_admin(db: Session) -> bool:
     Returns:
         bool: True if admin was created, False if already existed
     """
+    from app.core.config import settings
+
     try:
         # Check if admin exists
-        admin = db.query(User).filter(User.username == "admin").first()
+        admin = db.query(User).filter(User.username == settings.ADMIN_USERNAME).first()
 
         if not admin:
-            # Create admin user
+            # Create admin user using config values
             admin_user = User(
-                email="admin@example.com",
-                username="admin",
-                hashed_password=get_password_hash("admin123"),
+                email=settings.ADMIN_EMAIL,
+                username=settings.ADMIN_USERNAME,
+                hashed_password=get_password_hash(settings.ADMIN_PASSWORD),
                 full_name="Administrator",
                 role="admin",
                 is_active=True,
@@ -192,7 +194,7 @@ async def create_default_admin(db: Session) -> bool:
             db.add(admin_user)
             db.commit()
 
-            await logger.info("Created default admin user (username: admin, password: admin123)")
+            await logger.info(f"Created default admin user (username: {settings.ADMIN_USERNAME}, password: from config)")
             return True
         else:
             # Ensure admin has correct role and is active

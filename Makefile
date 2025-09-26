@@ -28,6 +28,7 @@ help:
 	@echo "  make frontend        - Run frontend locally"
 	@echo ""
 	@echo "🗄️  DATABASE MANAGEMENT:"
+	@echo "  make db-drop         - Drop and recreate database (disconnects users)"
 	@echo "  make db-reset        - Complete database reset (structure + data)"
 	@echo "  make db-clean        - Remove all data (keep structure)"
 	@echo "  make db-verify-complete - Verify complete schema (tables + views)"
@@ -133,18 +134,22 @@ frontend:
 # DATABASE MANAGEMENT
 # ════════════════════════════════════════════════════════════════════
 
-# Complete database reset (drop and recreate)
-db-reset: services-up
-	@echo "🔄 Resetting database completely..."
-	@docker exec kidney_genetics_postgres psql -U kidney_user -d postgres -c "DROP DATABASE IF EXISTS kidney_genetics;" 2>/dev/null || true
+# Drop database (disconnects all users first)
+db-drop: services-up
+	@echo "🗑️  Dropping database (will disconnect all users)..."
+	@docker exec kidney_genetics_postgres psql -U kidney_user -d postgres -c \
+		"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='kidney_genetics' AND pid <> pg_backend_pid();" >/dev/null 2>&1 || true
+	@docker exec kidney_genetics_postgres psql -U kidney_user -d postgres -c "DROP DATABASE IF EXISTS kidney_genetics;" >/dev/null 2>&1 || true
 	@docker exec kidney_genetics_postgres psql -U kidney_user -d postgres -c "CREATE DATABASE kidney_genetics;"
+	@echo "✅ Database dropped and recreated"
+
+# Complete database reset (drop and recreate)
+db-reset: db-drop
 	@echo "📦 Running migrations..."
 	@cd backend && uv run alembic upgrade head
-	@echo "👤 Creating default admin user..."
-	@cd backend && uv run python -m app.scripts.create_default_users || echo "⚠️  User creation failed (may already exist)"
 	@echo "🔧 Initializing annotation sources..."
 	@cd backend && uv run python -m app.scripts.init_annotation_sources || echo "⚠️  Annotation sources initialization failed"
-	@echo "🎯 Running full database initialization..."
+	@echo "🎯 Running full database initialization (includes admin user)..."
 	@cd backend && uv run python scripts/initialize_database.py
 	@echo "✅ Database reset complete!"
 
