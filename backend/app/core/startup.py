@@ -170,7 +170,7 @@ def validate_dependencies() -> None:
     logger.sync_info("Validating application dependencies...")
 
     try:
-        from app.core.datasource_config import get_source_parameter
+        from app.core.datasource_config import get_source_parameter, ANNOTATION_SOURCE_CONFIG
 
         # Validate required API URLs from datasource config
         required_urls = {
@@ -178,8 +178,13 @@ def validate_dependencies() -> None:
             "PanelApp UK API": get_source_parameter("PanelApp", "uk_api_url"),
             "PanelApp AU API": get_source_parameter("PanelApp", "au_api_url"),
             "HPO API": get_source_parameter("HPO", "api_url"),
-            "HGNC API": get_source_parameter("HGNC", "api_url"),
         }
+
+        # HGNC is an annotation source, not a data source
+        hgnc_config = ANNOTATION_SOURCE_CONFIG.get("hgnc", {})
+        if hgnc_config:
+            hgnc_url = hgnc_config.get("base_url")
+            required_urls["HGNC API"] = hgnc_url
 
         for source_name, url in required_urls.items():
             if not url or not url.startswith("http"):
