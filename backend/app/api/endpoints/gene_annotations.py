@@ -454,7 +454,7 @@ async def get_annotation_sources(
 
     # Filter by active status if requested
     if active_only:
-        query = query.filter(AnnotationSource.is_active == True)
+        query = query.filter(AnnotationSource.is_active.is_(True))
 
     # Order by priority (descending) then by source_name
     sources = query.order_by(
