@@ -277,6 +277,7 @@ def upgrade():
         sa.Column('items_failed', sa.Integer(), server_default='0', nullable=False),
         sa.Column('progress_percentage', sa.Float(), server_default='0', nullable=False),
         sa.Column('metadata', postgresql.JSONB(), server_default='{}', nullable=False),
+        sa.Column('current_operation', sa.Text(), nullable=True),
         sa.Column('error_message', sa.Text(), nullable=True),
         sa.Column('last_error_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('started_at', sa.DateTime(timezone=True), nullable=True),

@@ -45,6 +45,7 @@ class DataSourceProgress(Base):
     progress_percentage = Column(Float, default=0.0)
 
     # Status information
+    current_operation = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     last_error_at = Column(DateTime(timezone=True), nullable=True)
     last_successful_item = Column(Text, nullable=True)
@@ -74,6 +75,7 @@ class DataSourceProgress(Base):
             "total_pages": self.total_pages,
             "current_item": self.current_item,
             "total_items": self.total_items,
+            "current_operation": self.current_operation,
             "last_error": self.error_message,
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
