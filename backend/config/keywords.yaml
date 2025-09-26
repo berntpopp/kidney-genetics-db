@@ -1,0 +1,26 @@
+# Domain-specific keywords configuration
+# Extracted and deduplicated from datasource_config.py lines 29-49 and 123-138
+
+keywords:
+  kidney:
+    # All kidney-related keywords (deduplicated from PanelApp and GenCC configs)
+    # These keywords are used to filter panels and diseases for kidney relevance
+    - kidney
+    - renal
+    - nephro
+    - glomerul
+    # Note: "tubul" was REMOVED as it's too broad and matches tubulinopathies (brain disorders)
+    - tubulopathy  # More specific for kidney tubule disorders
+    - tubulointerstitial  # Specific for kidney tubule disorders
+    - polycystic
+    - alport
+    - nephritis
+    - cystic kidney  # More specific than just "cystic"
+    - ciliopathy  # Note: ciliopathies are multi-system, may need review
+    - complement
+    - cakut
+    - focal segmental
+    - steroid resistant
+    - nephrotic
+    - proteinuria
+    - hematuria
