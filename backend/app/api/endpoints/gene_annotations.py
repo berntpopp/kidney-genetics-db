@@ -794,7 +794,7 @@ async def update_new_genes(
     # Using left outer join to find genes with no annotations
     from sqlalchemy import func
 
-    from app.models.gene_curation import GeneCuration
+    from app.models.gene import GeneCuration
 
     new_genes = (
         db.query(Gene)
@@ -953,7 +953,7 @@ async def _run_missing_source_update(source_name: str, task_id: str):
         # Order by evidence_score DESC to prioritize clinically important genes
         from sqlalchemy import func
 
-        from app.models.gene_curation import GeneCuration
+        from app.models.gene import GeneCuration
 
         missing_genes = (
             db.query(Gene)

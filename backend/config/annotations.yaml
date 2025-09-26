@@ -86,8 +86,14 @@ annotations:
     cache_ttl_days: 90
     use_http_cache: true
     circuit_breaker_threshold: 3
+    # MPO kidney phenotype root term configuration
+    kidney_root_term: MP:0005367  # renal/urinary system phenotype
+    kidney_root_node: 117579  # JAX tree node ID for root term
     # MPO kidney terms cache file - relative to backend directory
     mpo_kidney_terms_file: data/mpo_kidney_terms.json
+    # JAX and MouseMine API endpoints
+    jax_base_url: https://www.informatics.jax.org
+    mousemine_url: https://www.mousemine.org/mousemine/service
 
   hgnc:
     display_name: HGNC

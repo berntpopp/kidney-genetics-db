@@ -35,17 +35,22 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
     # Cache configuration
     cache_ttl_days = 90
 
-    # API endpoints
-    jax_base_url = "https://www.informatics.jax.org"
-    mousemine_url = "https://www.mousemine.org/mousemine/service"
-
-    # Root kidney/urinary phenotype term
-    kidney_root_term = "MP:0005367"  # renal/urinary system phenotype
-    kidney_root_node = 117579
-
     def __init__(self, session):
         """Initialize the MPO/MGI annotation source."""
         super().__init__(session)
+
+        # Load configuration from YAML
+        from app.core.datasource_config import ANNOTATION_SOURCE_CONFIG
+
+        config = ANNOTATION_SOURCE_CONFIG.get("mpo_mgi", {})
+
+        # API endpoints from config
+        self.jax_base_url = config.get("jax_base_url", "https://www.informatics.jax.org")
+        self.mousemine_url = config.get("mousemine_url", "https://www.mousemine.org/mousemine/service")
+
+        # Root kidney/urinary phenotype term from config
+        self.kidney_root_term = config.get("kidney_root_term", "MP:0005367")
+        self.kidney_root_node = config.get("kidney_root_node", 117579)
 
         # Cache for MPO terms (24-hour TTL)
         self._mpo_terms_cache = None
@@ -447,9 +452,17 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                         f"Loaded {len(self._mpo_terms_cache)} MPO terms from cache file"
                     )
                 else:
-                    # If no file, just use empty set to avoid timeout
-                    logger.sync_warning("MPO terms file not found, using empty set")
-                    self._mpo_terms_cache = set()
+                    # Fetch terms from API and create cache file
+                    logger.sync_info("MPO terms cache not found, fetching from API...")
+                    self._mpo_terms_cache = await self.fetch_kidney_mpo_terms()
+
+                    # Save to cache file for next time
+                    cache_file.parent.mkdir(exist_ok=True, parents=True)
+                    with open(cache_file, "w") as f:
+                        json.dump(sorted(self._mpo_terms_cache), f, indent=2)
+                    logger.sync_info(
+                        f"Fetched {len(self._mpo_terms_cache)} MPO terms and saved to cache"
+                    )
                 self._mpo_cache_timestamp = datetime.now(timezone.utc)
 
             mpo_terms = self._mpo_terms_cache
