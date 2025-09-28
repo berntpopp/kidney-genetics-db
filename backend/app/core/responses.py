@@ -148,7 +148,9 @@ class ResponseBuilder:
 
         if request:
             error_body["error"]["meta"]["path"] = str(request.url.path)
-            error_body["error"]["meta"]["method"] = request.method
+            # WebSocket connections don't have a method attribute
+            if hasattr(request, 'method'):
+                error_body["error"]["meta"]["method"] = request.method
 
         # Add debug context in development (when context is provided)
         if context:

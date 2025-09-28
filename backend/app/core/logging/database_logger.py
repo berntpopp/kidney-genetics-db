@@ -114,7 +114,9 @@ class DatabaseLogger:
 
             if request:
                 endpoint = request.url.path
-                method = request.method
+                # WebSocket connections don't have a method attribute
+                if hasattr(request, 'method'):
+                    method = request.method
 
                 # Extract IP address
                 forwarded_for = request.headers.get("X-Forwarded-For")

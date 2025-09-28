@@ -105,7 +105,9 @@ def extract_context_from_request(request: Request) -> dict[str, Any]:
 
     context["request_id"] = request_id
     context["endpoint"] = request.url.path
-    context["method"] = request.method
+    # WebSocket connections don't have a method attribute
+    if hasattr(request, 'method'):
+        context["method"] = request.method
 
     # Extract IP address
     forwarded_for = request.headers.get("X-Forwarded-For")
