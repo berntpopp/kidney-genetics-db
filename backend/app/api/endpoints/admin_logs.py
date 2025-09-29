@@ -67,18 +67,33 @@ async def query_logs(
         logs = []
 
         for row in result:
-            logs.append(
-                {
-                    "id": row.id,
-                    "timestamp": row.timestamp.isoformat(),
-                    "level": row.level,
-                    "source": row.logger,
-                    "message": row.message,
-                    "request_id": row.request_id,
-                    "user_id": row.user_id,
-                    "extra_data": row.context,
-                }
-            )
+            # Extract request details from context
+            context = row.context or {}
+            log_entry = {
+                "id": row.id,
+                "timestamp": row.timestamp.isoformat(),
+                "level": row.level,
+                "source": row.logger,
+                "message": row.message,
+                "request_id": row.request_id,
+                "user_id": row.user_id,
+                "ip_address": row.ip_address,
+                "user_agent": row.user_agent,
+                "path": row.path,
+                "method": row.method,
+                "status_code": row.status_code,
+                "duration_ms": row.duration_ms,
+                "error_type": row.error_type,
+                "error_message": row.error_message,
+                "stack_trace": row.stack_trace,
+                "context": context,
+                # Extract request details from context
+                "request_body": context.get("request_body"),
+                "query_params": context.get("query_params"),
+                "headers": context.get("headers"),
+                "client_info": context.get("client_info"),
+            }
+            logs.append(log_entry)
 
         # Get total count
         count_query = "SELECT COUNT(*) FROM system_logs WHERE 1=1"

@@ -46,7 +46,9 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
         # API endpoints from config
         self.jax_base_url = config.get("jax_base_url", "https://www.informatics.jax.org")
-        self.mousemine_url = config.get("mousemine_url", "https://www.mousemine.org/mousemine/service")
+        self.mousemine_url = config.get(
+            "mousemine_url", "https://www.mousemine.org/mousemine/service"
+        )
 
         # Root kidney/urinary phenotype term from config
         self.kidney_root_term = config.get("kidney_root_term", "MP:0005367")

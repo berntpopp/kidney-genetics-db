@@ -43,7 +43,7 @@
     </v-row>
 
     <!-- Filters -->
-    <v-card class="mb-4">
+    <v-card class="mb-3" rounded="lg">
       <v-card-text>
         <v-row>
           <v-col cols="12" md="3">
@@ -137,16 +137,53 @@
     </v-card>
 
     <!-- Logs Table -->
-    <v-card>
-      <v-data-table
+    <v-card rounded="lg">
+      <!-- Top Pagination Controls -->
+      <v-card-text class="pa-2 border-b">
+        <div class="d-flex justify-space-between align-center">
+          <div class="d-flex align-center ga-4">
+            <div class="text-body-2">
+              <span class="font-weight-bold">{{ totalLogs }}</span>
+              <span class="text-medium-emphasis"> Log Entries</span>
+            </div>
+            <v-divider vertical />
+            <div class="text-body-2 text-medium-emphasis">
+              {{ pageRangeText }}
+            </div>
+          </div>
+          <div class="d-flex align-center ga-2">
+            <span class="text-caption text-medium-emphasis mr-2">Per page:</span>
+            <v-select
+              v-model="itemsPerPage"
+              :items="itemsPerPageOptions"
+              density="compact"
+              variant="outlined"
+              hide-details
+              style="width: 100px"
+              @update:model-value="updateItemsPerPage"
+            />
+            <v-pagination
+              v-model="currentPage"
+              :length="pageCount"
+              :total-visible="5"
+              density="compact"
+              @update:model-value="updatePage"
+            />
+          </div>
+        </div>
+      </v-card-text>
+
+      <v-data-table-server
         :headers="headers"
         :items="logs"
         :loading="loading"
         :items-per-page="itemsPerPage"
-        :server-items-length="totalLogs"
+        :page="currentPage"
+        :items-length="totalLogs"
         density="compact"
         hover
-        @update:options="onOptionsUpdate"
+        :items-per-page-options="[]"
+        @update:options="handleTableUpdate"
       >
         <!-- Timestamp column -->
         <template #item.timestamp="{ item }">
@@ -162,9 +199,37 @@
           </v-chip>
         </template>
 
-        <!-- Source column -->
-        <template #item.source="{ item }">
-          <code class="text-caption">{{ item.source }}</code>
+        <!-- Method column -->
+        <template #item.method="{ item }">
+          <v-chip v-if="item.method" :color="getMethodColor(item.method)" size="x-small" label>
+            {{ item.method }}
+          </v-chip>
+        </template>
+
+        <!-- Path column -->
+        <template #item.path="{ item }">
+          <code class="text-caption text-truncate" style="max-width: 200px" :title="item.path">
+            {{ item.path || '-' }}
+          </code>
+        </template>
+
+        <!-- Status column -->
+        <template #item.status_code="{ item }">
+          <v-chip
+            v-if="item.status_code"
+            :color="getStatusColor(item.status_code)"
+            size="x-small"
+            label
+          >
+            {{ item.status_code }}
+          </v-chip>
+        </template>
+
+        <!-- Duration column -->
+        <template #item.duration_ms="{ item }">
+          <span v-if="item.duration_ms" class="text-caption">
+            {{ formatDuration(item.duration_ms) }}
+          </span>
         </template>
 
         <!-- Message column -->
@@ -192,82 +257,284 @@
             @click="filterByRequestId(item.request_id)"
           />
         </template>
-      </v-data-table>
+        <!-- Hide bottom pagination slot -->
+        <template #bottom />
+      </v-data-table-server>
     </v-card>
 
-    <!-- Log Details Dialog -->
-    <v-dialog v-model="showDetailsDialog" max-width="800">
+    <!-- Log Details Dialog - Enhanced -->
+    <v-dialog v-model="showDetailsDialog" max-width="1200" scrollable>
       <v-card v-if="selectedLog">
-        <v-card-title>
-          Log Entry Details
+        <v-card-title class="d-flex align-center">
+          <v-icon icon="mdi-eye" class="mr-2" />
+          Request Details
+          <v-chip :color="getLevelColor(selectedLog.level)" size="small" label class="ml-2">
+            {{ selectedLog.level }}
+          </v-chip>
           <v-spacer />
-          <v-btn icon="mdi-close" variant="text" @click="showDetailsDialog = false" />
+          <v-btn
+            icon="mdi-content-copy"
+            size="small"
+            variant="text"
+            title="Copy Request ID"
+            @click="copyToClipboard(selectedLog.request_id)"
+          />
+          <v-btn icon="mdi-close" size="small" variant="text" @click="showDetailsDialog = false" />
         </v-card-title>
 
+        <v-tabs v-model="detailsTab" density="compact">
+          <v-tab value="overview">
+            <v-icon icon="mdi-information" class="mr-2" />
+            Overview
+          </v-tab>
+          <v-tab value="request">
+            <v-icon icon="mdi-arrow-right-bold-box" class="mr-2" />
+            Request
+          </v-tab>
+          <v-tab value="response">
+            <v-icon icon="mdi-arrow-left-bold-box" class="mr-2" />
+            Response
+          </v-tab>
+          <v-tab v-if="selectedLog.error_type" value="error">
+            <v-icon icon="mdi-alert-circle" class="mr-2" />
+            Error
+          </v-tab>
+          <v-tab value="context">
+            <v-icon icon="mdi-code-json" class="mr-2" />
+            Context
+          </v-tab>
+        </v-tabs>
+
         <v-card-text>
-          <v-list density="compact">
-            <v-list-item>
-              <v-list-item-title>Timestamp</v-list-item-title>
-              <v-list-item-subtitle>
-                {{ formatTimestamp(selectedLog.timestamp, true) }}
-              </v-list-item-subtitle>
-            </v-list-item>
+          <v-tabs-window v-model="detailsTab">
+            <!-- Overview Tab -->
+            <v-tabs-window-item value="overview">
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-list density="compact">
+                    <v-list-item>
+                      <v-list-item-title class="text-caption text-grey"
+                        >Timestamp</v-list-item-title
+                      >
+                      <v-list-item-subtitle>{{
+                        formatTimestamp(selectedLog.timestamp, true)
+                      }}</v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-list-item-title class="text-caption text-grey"
+                        >Request ID</v-list-item-title
+                      >
+                      <v-list-item-subtitle>
+                        <code>{{ selectedLog.request_id || 'N/A' }}</code>
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-list-item-title class="text-caption text-grey">Duration</v-list-item-title>
+                      <v-list-item-subtitle>
+                        {{
+                          selectedLog.duration_ms ? formatDuration(selectedLog.duration_ms) : 'N/A'
+                        }}
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-list-item-title class="text-caption text-grey"
+                        >Status Code</v-list-item-title
+                      >
+                      <v-list-item-subtitle>
+                        <v-chip
+                          v-if="selectedLog.status_code"
+                          :color="getStatusColor(selectedLog.status_code)"
+                          size="small"
+                          label
+                        >
+                          {{ selectedLog.status_code }}
+                        </v-chip>
+                        <span v-else>N/A</span>
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                  </v-list>
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-list density="compact">
+                    <v-list-item>
+                      <v-list-item-title class="text-caption text-grey"
+                        >Source Module</v-list-item-title
+                      >
+                      <v-list-item-subtitle>
+                        <code>{{ selectedLog.source }}</code>
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-list-item-title class="text-caption text-grey">User</v-list-item-title>
+                      <v-list-item-subtitle>
+                        {{ selectedLog.user_id ? `User ID: ${selectedLog.user_id}` : 'Anonymous' }}
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-list-item-title class="text-caption text-grey"
+                        >IP Address</v-list-item-title
+                      >
+                      <v-list-item-subtitle>
+                        {{ selectedLog.ip_address || selectedLog.client_info?.ip_address || 'N/A' }}
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item>
+                      <v-list-item-title class="text-caption text-grey">Message</v-list-item-title>
+                      <v-list-item-subtitle class="text-wrap">
+                        {{ selectedLog.message }}
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                  </v-list>
+                </v-col>
+              </v-row>
+            </v-tabs-window-item>
 
-            <v-list-item>
-              <v-list-item-title>Level</v-list-item-title>
-              <v-list-item-subtitle>
-                <v-chip :color="getLevelColor(selectedLog.level)" size="small" label>
-                  {{ selectedLog.level }}
-                </v-chip>
-              </v-list-item-subtitle>
-            </v-list-item>
+            <!-- Request Tab -->
+            <v-tabs-window-item value="request">
+              <v-list density="compact">
+                <v-list-item>
+                  <v-list-item-title class="text-caption text-grey"
+                    >Method & Path</v-list-item-title
+                  >
+                  <v-list-item-subtitle>
+                    <v-chip
+                      v-if="selectedLog.method"
+                      :color="getMethodColor(selectedLog.method)"
+                      size="small"
+                      label
+                      class="mr-2"
+                    >
+                      {{ selectedLog.method }}
+                    </v-chip>
+                    <code>{{ selectedLog.path || 'N/A' }}</code>
+                  </v-list-item-subtitle>
+                </v-list-item>
 
-            <v-list-item>
-              <v-list-item-title>Source</v-list-item-title>
-              <v-list-item-subtitle>
-                <code>{{ selectedLog.source }}</code>
-              </v-list-item-subtitle>
-            </v-list-item>
+                <v-list-item v-if="selectedLog.query_params">
+                  <v-list-item-title class="text-caption text-grey"
+                    >Query Parameters</v-list-item-title
+                  >
+                  <v-list-item-subtitle>
+                    <v-card variant="outlined" class="mt-2">
+                      <v-card-text>
+                        <pre class="json-display">{{ formatJson(selectedLog.query_params) }}</pre>
+                      </v-card-text>
+                    </v-card>
+                  </v-list-item-subtitle>
+                </v-list-item>
 
-            <v-list-item>
-              <v-list-item-title>Message</v-list-item-title>
-              <v-list-item-subtitle class="text-wrap">
-                {{ selectedLog.message }}
-              </v-list-item-subtitle>
-            </v-list-item>
+                <v-list-item v-if="selectedLog.request_body">
+                  <v-list-item-title class="text-caption text-grey">Request Body</v-list-item-title>
+                  <v-list-item-subtitle>
+                    <v-card variant="outlined" class="mt-2">
+                      <v-card-text>
+                        <pre class="json-display">{{
+                          formatRequestBody(selectedLog.request_body)
+                        }}</pre>
+                      </v-card-text>
+                    </v-card>
+                  </v-list-item-subtitle>
+                </v-list-item>
 
-            <v-list-item v-if="selectedLog.request_id">
-              <v-list-item-title>Request ID</v-list-item-title>
-              <v-list-item-subtitle>
-                <code>{{ selectedLog.request_id }}</code>
-                <v-btn
-                  icon="mdi-content-copy"
-                  size="x-small"
-                  variant="text"
-                  @click="copyToClipboard(selectedLog.request_id)"
-                />
-              </v-list-item-subtitle>
-            </v-list-item>
+                <v-list-item v-if="selectedLog.headers">
+                  <v-list-item-title class="text-caption text-grey">Headers</v-list-item-title>
+                  <v-list-item-subtitle>
+                    <v-card variant="outlined" class="mt-2">
+                      <v-card-text>
+                        <pre class="json-display">{{ formatJson(selectedLog.headers) }}</pre>
+                      </v-card-text>
+                    </v-card>
+                  </v-list-item-subtitle>
+                </v-list-item>
 
-            <v-list-item v-if="selectedLog.user_id">
-              <v-list-item-title>User ID</v-list-item-title>
-              <v-list-item-subtitle>
-                {{ selectedLog.user_id }}
-              </v-list-item-subtitle>
-            </v-list-item>
+                <v-list-item v-if="selectedLog.user_agent">
+                  <v-list-item-title class="text-caption text-grey">User Agent</v-list-item-title>
+                  <v-list-item-subtitle class="text-wrap">
+                    <code>{{ selectedLog.user_agent }}</code>
+                  </v-list-item-subtitle>
+                </v-list-item>
+              </v-list>
+            </v-tabs-window-item>
 
-            <v-list-item v-if="selectedLog.extra_data">
-              <v-list-item-title>Extra Data</v-list-item-title>
-              <v-list-item-subtitle>
-                <pre class="text-caption">{{
-                  JSON.stringify(selectedLog.extra_data, null, 2)
-                }}</pre>
-              </v-list-item-subtitle>
-            </v-list-item>
-          </v-list>
+            <!-- Response Tab -->
+            <v-tabs-window-item value="response">
+              <v-list density="compact">
+                <v-list-item>
+                  <v-list-item-title class="text-caption text-grey">Status</v-list-item-title>
+                  <v-list-item-subtitle>
+                    <v-chip
+                      v-if="selectedLog.status_code"
+                      :color="getStatusColor(selectedLog.status_code)"
+                      size="small"
+                      label
+                    >
+                      {{ selectedLog.status_code }}
+                    </v-chip>
+                    <span v-else>N/A</span>
+                  </v-list-item-subtitle>
+                </v-list-item>
+                <v-list-item>
+                  <v-list-item-title class="text-caption text-grey"
+                    >Processing Time</v-list-item-title
+                  >
+                  <v-list-item-subtitle>
+                    {{ selectedLog.duration_ms ? formatDuration(selectedLog.duration_ms) : 'N/A' }}
+                  </v-list-item-subtitle>
+                </v-list-item>
+              </v-list>
+            </v-tabs-window-item>
+
+            <!-- Error Tab -->
+            <v-tabs-window-item v-if="selectedLog.error_type" value="error">
+              <v-list density="compact">
+                <v-list-item>
+                  <v-list-item-title class="text-caption text-grey">Error Type</v-list-item-title>
+                  <v-list-item-subtitle>
+                    <v-chip color="error" size="small" label>{{ selectedLog.error_type }}</v-chip>
+                  </v-list-item-subtitle>
+                </v-list-item>
+                <v-list-item v-if="selectedLog.error_message">
+                  <v-list-item-title class="text-caption text-grey"
+                    >Error Message</v-list-item-title
+                  >
+                  <v-list-item-subtitle class="text-wrap">
+                    {{ selectedLog.error_message }}
+                  </v-list-item-subtitle>
+                </v-list-item>
+                <v-list-item v-if="selectedLog.stack_trace">
+                  <v-list-item-title class="text-caption text-grey">Stack Trace</v-list-item-title>
+                  <v-list-item-subtitle>
+                    <v-card variant="outlined" class="mt-2">
+                      <v-card-text>
+                        <pre class="stack-trace">{{ selectedLog.stack_trace }}</pre>
+                      </v-card-text>
+                    </v-card>
+                  </v-list-item-subtitle>
+                </v-list-item>
+              </v-list>
+            </v-tabs-window-item>
+
+            <!-- Context Tab -->
+            <v-tabs-window-item value="context">
+              <v-card variant="outlined">
+                <v-card-text>
+                  <pre class="json-display">{{ formatJson(selectedLog.context || {}) }}</pre>
+                </v-card-text>
+              </v-card>
+            </v-tabs-window-item>
+          </v-tabs-window>
         </v-card-text>
 
         <v-card-actions>
+          <v-btn
+            v-if="selectedLog.request_id"
+            color="primary"
+            variant="text"
+            prepend-icon="mdi-filter-variant"
+            @click="filterByRequestId(selectedLog.request_id)"
+          >
+            Filter by Request ID
+          </v-btn>
           <v-spacer />
           <v-btn variant="text" @click="showDetailsDialog = false">Close</v-btn>
         </v-card-actions>
@@ -345,11 +612,18 @@ const showDetailsDialog = ref(false)
 const showCleanupDialog = ref(false)
 const selectedLog = ref(null)
 const cleanupDays = ref(30)
+const detailsTab = ref('overview')
 
 // Pagination
 const itemsPerPage = ref(25)
 const currentPage = ref(1)
 const totalLogs = ref(0)
+const itemsPerPageOptions = [
+  { title: '10', value: 10 },
+  { title: '25', value: 25 },
+  { title: '50', value: 50 },
+  { title: '100', value: 100 }
+]
 
 // Filters
 const filters = ref({
@@ -375,11 +649,14 @@ const snackbarColor = ref('success')
 
 // Table configuration
 const headers = [
-  { title: 'Timestamp', key: 'timestamp', width: '180px' },
-  { title: 'Level', key: 'level', width: '100px' },
-  { title: 'Source', key: 'source', width: '200px' },
+  { title: 'Timestamp', key: 'timestamp', width: '150px' },
+  { title: 'Level', key: 'level', width: '80px' },
+  { title: 'Method', key: 'method', width: '80px' },
+  { title: 'Path', key: 'path', width: '200px' },
+  { title: 'Status', key: 'status_code', width: '80px' },
+  { title: 'Duration', key: 'duration_ms', width: '100px' },
   { title: 'Message', key: 'message' },
-  { title: 'Actions', key: 'actions', sortable: false, width: '100px', align: 'center' }
+  { title: 'Actions', key: 'actions', sortable: false, width: '120px', align: 'center' }
 ]
 
 const logLevels = ['INFO', 'WARNING', 'ERROR', 'DEBUG']
@@ -393,6 +670,15 @@ const timeRanges = [
 ]
 
 // Computed
+const pageCount = computed(() => Math.ceil(totalLogs.value / itemsPerPage.value))
+
+const pageRangeText = computed(() => {
+  if (totalLogs.value === 0) return 'No logs found'
+  const start = (currentPage.value - 1) * itemsPerPage.value + 1
+  const end = Math.min(currentPage.value * itemsPerPage.value, totalLogs.value)
+  return `Showing ${start}-${end} of ${totalLogs.value}`
+})
+
 const queryParams = computed(() => {
   const params = {
     limit: itemsPerPage.value,
@@ -409,6 +695,10 @@ const queryParams = computed(() => {
 
   if (filters.value.requestId) {
     params.request_id = filters.value.requestId
+  }
+
+  if (searchQuery.value) {
+    params.search = searchQuery.value
   }
 
   // Calculate time range
@@ -591,6 +881,64 @@ const getLevelColor = level => {
   }
 }
 
+const getMethodColor = method => {
+  switch (method) {
+    case 'GET':
+      return 'success'
+    case 'POST':
+      return 'primary'
+    case 'PUT':
+      return 'warning'
+    case 'PATCH':
+      return 'orange'
+    case 'DELETE':
+      return 'error'
+    default:
+      return 'grey'
+  }
+}
+
+const getStatusColor = status => {
+  if (status >= 200 && status < 300) return 'success'
+  if (status >= 300 && status < 400) return 'info'
+  if (status >= 400 && status < 500) return 'warning'
+  if (status >= 500) return 'error'
+  return 'grey'
+}
+
+const formatDuration = ms => {
+  if (ms < 1000) return `${ms}ms`
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
+  return `${(ms / 60000).toFixed(1)}m`
+}
+
+const formatJson = obj => {
+  if (!obj) return 'N/A'
+  if (typeof obj === 'string') {
+    try {
+      obj = JSON.parse(obj)
+    } catch {
+      return obj
+    }
+  }
+  return JSON.stringify(obj, null, 2)
+}
+
+const formatRequestBody = body => {
+  if (!body) return 'No request body'
+  if (typeof body === 'string') {
+    // Try to parse as JSON for better formatting
+    try {
+      const parsed = JSON.parse(body)
+      return JSON.stringify(parsed, null, 2)
+    } catch {
+      // Not JSON, return as is
+      return body
+    }
+  }
+  return JSON.stringify(body, null, 2)
+}
+
 const copyToClipboard = async text => {
   try {
     await navigator.clipboard.writeText(text)
@@ -601,9 +949,19 @@ const copyToClipboard = async text => {
   }
 }
 
-const onOptionsUpdate = options => {
-  currentPage.value = options.page
-  itemsPerPage.value = options.itemsPerPage
+const handleTableUpdate = () => {
+  // This handles the v-data-table-server internal updates
+  // We handle pagination through our custom controls
+}
+
+const updatePage = newPage => {
+  currentPage.value = newPage
+  loadLogs()
+}
+
+const updateItemsPerPage = newValue => {
+  itemsPerPage.value = newValue
+  currentPage.value = 1 // Reset to first page when changing items per page
   loadLogs()
 }
 
@@ -640,5 +998,55 @@ code {
   background-color: rgba(0, 0, 0, 0.05);
   padding: 2px 4px;
   border-radius: 3px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+}
+
+.json-display {
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  padding: 12px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+.v-theme--dark .json-display {
+  background-color: #1e1e1e;
+}
+
+.stack-trace {
+  background-color: #fee;
+  border-radius: 4px;
+  padding: 12px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-x: auto;
+  color: #d00;
+}
+
+.v-theme--dark .stack-trace {
+  background-color: #3e1e1e;
+  color: #ff6b6b;
+}
+
+.text-caption.text-grey {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.v-list-item {
+  border-bottom: thin solid rgba(0, 0, 0, 0.05);
+}
+
+.v-list-item:last-child {
+  border-bottom: none;
+}
+
+.v-theme--dark .v-list-item {
+  border-bottom-color: rgba(255, 255, 255, 0.05);
 }
 </style>

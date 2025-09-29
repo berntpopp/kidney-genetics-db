@@ -115,7 +115,7 @@ class DatabaseLogger:
             if request:
                 endpoint = request.url.path
                 # WebSocket connections don't have a method attribute
-                if hasattr(request, 'method'):
+                if hasattr(request, "method"):
                     method = request.method
 
                 # Extract IP address
