@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import require_admin
+from app.core.validators import SQLSafeValidator
 from app.models.user import User
 
 router = APIRouter()
@@ -62,20 +63,38 @@ async def query_logs(
             query += " AND timestamp <= :end_time"
             params["end_time"] = end_time
 
-        # Validate and apply sorting
-        allowed_sort_fields = {
-            "timestamp", "level", "source", "logger", "message",
-            "request_id", "user_id", "ip_address", "path", "method",
-            "status_code", "duration_ms", "error_type"
+        # Validate and apply sorting using centralized validator
+        # Map common column names to actual database columns
+        column_mapping = {
+            "timestamp": "timestamp",
+            "level": "level",
+            "source": "logger",
+            "logger": "logger",
+            "message": "message",
+            "request_id": "request_id",
+            "user_id": "user_id",
+            "ip_address": "ip_address",
+            "path": "path",
+            "method": "method",
+            "status_code": "status_code",
+            "duration_ms": "duration_ms",
+            "error_type": "error_type",
+            "created_at": "timestamp",  # Allow both names
         }
 
-        if sort_by not in allowed_sort_fields:
-            sort_by = "timestamp"
+        # Map the sort_by field to actual column name
+        actual_column = column_mapping.get(sort_by, "timestamp")
 
-        if sort_order.lower() not in ("asc", "desc"):
-            sort_order = "desc"
+        # Validate column and sort order using centralized validator
+        try:
+            validated_column = SQLSafeValidator.validate_column(actual_column, "system_logs")
+            validated_order = SQLSafeValidator.validate_sort_order(sort_order)
+        except HTTPException:
+            # Fall back to defaults if validation fails
+            validated_column = "timestamp"
+            validated_order = "DESC"
 
-        query += f" ORDER BY {sort_by} {sort_order.upper()} LIMIT :limit OFFSET :offset"
+        query += f" ORDER BY {validated_column} {validated_order} LIMIT :limit OFFSET :offset"
 
         # Execute query
         result = db.execute(text(query), params)

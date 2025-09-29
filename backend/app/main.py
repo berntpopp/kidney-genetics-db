@@ -19,6 +19,7 @@ from app.api.endpoints import (
     genes,
     ingestion,
     progress,
+    shadow_tests,
     statistics,
 )
 from app.core.background_tasks import task_manager
@@ -149,6 +150,9 @@ app.include_router(statistics.router, prefix="/api/statistics", tags=["Analytics
 app.include_router(admin_logs.router, prefix="/api/admin/logs", tags=["Administration - Logging"])
 app.include_router(
     cache.router, prefix="/api/admin/cache", tags=["Administration - Cache Management"]
+)
+app.include_router(
+    shadow_tests.router, prefix="/api/admin/shadow-tests", tags=["Administration - Shadow Testing"]
 )
 
 
