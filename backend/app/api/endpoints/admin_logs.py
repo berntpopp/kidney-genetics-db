@@ -29,6 +29,8 @@ async def query_logs(
     end_time: datetime | None = Query(None, description="End time filter"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum results"),
     offset: int = Query(0, ge=0, description="Result offset"),
+    sort_by: str = Query("timestamp", description="Field to sort by"),
+    sort_order: str = Query("desc", description="Sort order (asc/desc)"),
 ) -> dict[str, Any]:
     """
     Query system logs with filtering and pagination.
@@ -60,7 +62,20 @@ async def query_logs(
             query += " AND timestamp <= :end_time"
             params["end_time"] = end_time
 
-        query += " ORDER BY timestamp DESC LIMIT :limit OFFSET :offset"
+        # Validate and apply sorting
+        allowed_sort_fields = {
+            "timestamp", "level", "source", "logger", "message",
+            "request_id", "user_id", "ip_address", "path", "method",
+            "status_code", "duration_ms", "error_type"
+        }
+
+        if sort_by not in allowed_sort_fields:
+            sort_by = "timestamp"
+
+        if sort_order.lower() not in ("asc", "desc"):
+            sort_order = "desc"
+
+        query += f" ORDER BY {sort_by} {sort_order.upper()} LIMIT :limit OFFSET :offset"
 
         # Execute query
         result = db.execute(text(query), params)

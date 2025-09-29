@@ -89,6 +89,17 @@
           </v-col>
         </v-row>
         <v-row class="mt-3">
+          <v-col cols="12" md="3">
+            <v-select
+              v-model="sortOption"
+              :items="sortOptions"
+              label="Sort by"
+              density="compact"
+              variant="outlined"
+              hide-details
+              @update:model-value="applySorting"
+            />
+          </v-col>
           <v-col cols="12" md="6">
             <v-text-field
               v-model="searchQuery"
@@ -174,6 +185,7 @@
       </v-card-text>
 
       <v-data-table-server
+        v-model:sort-by="sortBy"
         :headers="headers"
         :items="logs"
         :loading="loading"
@@ -183,6 +195,7 @@
         density="compact"
         hover
         :items-per-page-options="[]"
+        must-sort
         @update:options="handleTableUpdate"
       >
         <!-- Timestamp column -->
@@ -625,6 +638,22 @@ const itemsPerPageOptions = [
   { title: '100', value: 100 }
 ]
 
+// Sorting
+const sortBy = ref([{ key: 'timestamp', order: 'desc' }])
+const sortOption = ref('timestamp_desc')
+const sortOptions = [
+  { title: 'Newest First', value: 'timestamp_desc' },
+  { title: 'Oldest First', value: 'timestamp_asc' },
+  { title: 'Level (Critical First)', value: 'level_desc' },
+  { title: 'Level (Info First)', value: 'level_asc' },
+  { title: 'Longest Duration', value: 'duration_desc' },
+  { title: 'Shortest Duration', value: 'duration_asc' },
+  { title: 'Path (A-Z)', value: 'path_asc' },
+  { title: 'Path (Z-A)', value: 'path_desc' },
+  { title: 'Source (A-Z)', value: 'source_asc' },
+  { title: 'Source (Z-A)', value: 'source_desc' }
+]
+
 // Filters
 const filters = ref({
   level: null,
@@ -649,13 +678,13 @@ const snackbarColor = ref('success')
 
 // Table configuration
 const headers = [
-  { title: 'Timestamp', key: 'timestamp', width: '150px' },
-  { title: 'Level', key: 'level', width: '80px' },
-  { title: 'Method', key: 'method', width: '80px' },
-  { title: 'Path', key: 'path', width: '200px' },
-  { title: 'Status', key: 'status_code', width: '80px' },
-  { title: 'Duration', key: 'duration_ms', width: '100px' },
-  { title: 'Message', key: 'message' },
+  { title: 'Timestamp', key: 'timestamp', width: '150px', sortable: true },
+  { title: 'Level', key: 'level', width: '80px', sortable: true },
+  { title: 'Method', key: 'method', width: '80px', sortable: true },
+  { title: 'Path', key: 'path', width: '200px', sortable: true },
+  { title: 'Status', key: 'status_code', width: '80px', sortable: true },
+  { title: 'Duration', key: 'duration_ms', width: '100px', sortable: true },
+  { title: 'Message', key: 'message', sortable: true },
   { title: 'Actions', key: 'actions', sortable: false, width: '120px', align: 'center' }
 ]
 
@@ -725,6 +754,23 @@ const queryParams = computed(() => {
     params.end_time = now.toISOString()
   }
 
+  // Add sorting parameters
+  if (sortBy.value.length > 0) {
+    // Map frontend keys to backend field names
+    const fieldMap = {
+      timestamp: 'timestamp',
+      level: 'level',
+      method: 'method',
+      path: 'path',
+      status_code: 'status_code',
+      duration_ms: 'duration_ms',
+      message: 'message',
+      source: 'logger' // Backend uses 'logger' field for source
+    }
+    params.sort_by = fieldMap[sortBy.value[0].key] || sortBy.value[0].key
+    params.sort_order = sortBy.value[0].order
+  }
+
   return params
 })
 
@@ -773,6 +819,21 @@ const clearFilters = () => {
   }
   searchQuery.value = ''
   currentPage.value = 1
+  sortBy.value = [{ key: 'timestamp', order: 'desc' }]
+  sortOption.value = 'timestamp_desc'
+  loadLogs()
+}
+
+const applySorting = () => {
+  const [field, order] = sortOption.value.split('_')
+  const fieldMap = {
+    timestamp: 'timestamp',
+    level: 'level',
+    duration: 'duration_ms',
+    path: 'path',
+    source: 'source'
+  }
+  sortBy.value = [{ key: fieldMap[field] || field, order }]
   loadLogs()
 }
 
@@ -950,8 +1011,8 @@ const copyToClipboard = async text => {
 }
 
 const handleTableUpdate = () => {
-  // This handles the v-data-table-server internal updates
-  // We handle pagination through our custom controls
+  // The v-data-table-server will update sortBy automatically via v-model
+  // Our watcher will handle the actual loading
 }
 
 const updatePage = newPage => {
@@ -978,6 +1039,31 @@ watch(
     currentPage.value = 1
     loadLogs()
   }
+)
+
+// Watch for sorting changes from table headers
+watch(
+  sortBy,
+  newSortBy => {
+    if (newSortBy.length > 0) {
+      const key = newSortBy[0].key
+      const order = newSortBy[0].order
+      const reverseFieldMap = {
+        timestamp: 'timestamp',
+        level: 'level',
+        duration_ms: 'duration',
+        path: 'path',
+        method: 'method',
+        status_code: 'status',
+        message: 'message',
+        logger: 'source'
+      }
+      const field = reverseFieldMap[key] || key
+      sortOption.value = `${field}_${order}`
+      loadLogs()
+    }
+  },
+  { deep: true }
 )
 
 // Lifecycle
