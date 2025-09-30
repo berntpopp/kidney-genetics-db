@@ -2,6 +2,9 @@
 Gene API endpoints - JSON:API compliant using reusable components
 """
 
+import time
+from datetime import datetime, timedelta
+from functools import lru_cache
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
@@ -19,13 +22,170 @@ from app.core.jsonapi import (
     get_sort_param,
     jsonapi_endpoint,
 )
+from app.core.logging import get_logger
 from app.models.gene import Gene, GeneEvidence
 from app.schemas.gene import GeneCreate
 
 router = APIRouter()
+logger = get_logger(__name__)
+
+# Module-level cache for filter metadata (FastAPI recommended pattern)
+_metadata_cache: dict[str, Any] = {"data": None, "timestamp": None}
+_CACHE_TTL = timedelta(minutes=5)  # Semi-static data standard
 
 # Note: Gene annotations endpoint has been moved to the gene_annotations module
 # to maintain better separation of concerns and avoid duplicate endpoints
+
+
+def get_filter_metadata(db: Session) -> dict[str, Any]:
+    """
+    Get filter metadata with TTL-based caching.
+
+    Caches for 5 minutes (metadata only changes when pipeline runs).
+    Follows FastAPI best practice for semi-static data.
+
+    Returns:
+        dict: Filter metadata including max_count, sources, and tier distribution
+    """
+    now = datetime.utcnow()
+
+    # Check cache validity
+    if _metadata_cache["data"] and _metadata_cache["timestamp"]:
+        age = now - _metadata_cache["timestamp"]
+        if age < _CACHE_TTL:
+            logger.sync_debug(
+                "Metadata cache HIT",
+                age_seconds=round(age.total_seconds(), 2)
+            )
+            return _metadata_cache["data"]
+
+    logger.sync_debug("Metadata cache MISS - fetching fresh data")
+
+    # Cache miss or expired - fetch fresh data
+    try:
+        # Max evidence count
+        max_count_result = db.execute(
+            text("SELECT MAX(evidence_count) FROM gene_scores")
+        ).scalar()
+
+        # Available sources
+        sources_result = db.execute(
+            text("SELECT DISTINCT source_name FROM gene_evidence ORDER BY source_name")
+        ).fetchall()
+
+        # Tier distribution
+        tier_distribution_query = text("""
+            SELECT
+                evidence_group,
+                evidence_tier,
+                COUNT(*) as gene_count
+            FROM gene_scores
+            WHERE percentage_score > 0
+            GROUP BY evidence_group, evidence_tier
+            ORDER BY
+                CASE evidence_group
+                    WHEN 'well_supported' THEN 1
+                    WHEN 'emerging_evidence' THEN 2
+                    ELSE 3
+                END,
+                MIN(percentage_score) DESC
+        """)
+        tier_results = db.execute(tier_distribution_query).fetchall()
+
+        # Build tier metadata structure
+        tier_meta = {
+            "well_supported": {},
+            "emerging_evidence": {}
+        }
+
+        for row in tier_results:
+            group = row.evidence_group
+            tier = row.evidence_tier
+            count = row.gene_count
+            if group in tier_meta:
+                tier_meta[group][tier] = count
+
+        # Calculate group totals
+        tier_meta["well_supported"]["total"] = sum(tier_meta["well_supported"].values())
+        tier_meta["emerging_evidence"]["total"] = sum(tier_meta["emerging_evidence"].values())
+
+        metadata = {
+            "max_count": max_count_result or 0,
+            "sources": [row[0] for row in sources_result],
+            "tier_distribution": tier_meta
+        }
+
+        # Update cache
+        _metadata_cache["data"] = metadata
+        _metadata_cache["timestamp"] = now
+
+        return metadata
+
+    except Exception as e:
+        # On error, return cached data if available, otherwise raise
+        logger.sync_error(f"Error fetching filter metadata: {e}")
+        if _metadata_cache["data"]:
+            logger.sync_warning("Returning stale cached metadata due to error")
+            return _metadata_cache["data"]
+        raise
+
+
+def invalidate_metadata_cache() -> None:
+    """
+    Invalidate metadata cache.
+    Call this after pipeline updates to force fresh data on next request.
+    """
+    _metadata_cache["data"] = None
+    _metadata_cache["timestamp"] = None
+    logger.sync_info("Metadata cache invalidated")
+
+
+@lru_cache(maxsize=1)
+def get_total_gene_count(db_session_id: int) -> int:
+    """
+    Get total gene count with caching.
+
+    Count changes rarely (only when genes added). Uses session ID to
+    invalidate cache on new sessions. FastAPI recommended pattern.
+
+    Args:
+        db_session_id: Database session ID (use id(db) to get unique ID)
+
+    Returns:
+        int: Total number of genes in database
+    """
+    from app.core.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        result = db.execute(text("SELECT COUNT(*) FROM genes")).scalar()
+        return result or 0
+    finally:
+        db.close()
+
+
+def log_slow_query(
+    query_name: str,
+    execution_time_ms: float,
+    threshold_ms: float = 100,
+    query_preview: str | None = None
+) -> None:
+    """
+    Log queries that exceed performance threshold.
+
+    Args:
+        query_name: Descriptive name of the query
+        execution_time_ms: Query execution time in milliseconds
+        threshold_ms: Threshold above which to log (default: 100ms)
+        query_preview: Optional query preview (first 200 chars)
+    """
+    if execution_time_ms > threshold_ms:
+        logger.sync_warning(
+            f"Slow query detected: {query_name}",
+            execution_time_ms=round(execution_time_ms, 2),
+            threshold_ms=threshold_ms,
+            query_preview=query_preview[:200] if query_preview else None
+        )
 
 
 def transform_gene_to_jsonapi(results) -> list[dict]:
@@ -176,14 +336,17 @@ async def get_genes(
     where_clause = " AND ".join(where_clauses)
 
     # Simple count query without complex aggregations
+    # Note: gene_evidence not joined here as source filtering uses EXISTS subquery
     count_query = f"""
         SELECT COUNT(DISTINCT g.id)
         FROM genes g
         LEFT JOIN gene_scores gs ON gs.gene_id = g.id
-        LEFT JOIN gene_evidence ge ON g.id = ge.gene_id
         WHERE {where_clause}
     """
+    start_time = time.time()
     total = db.execute(text(count_query), query_params).scalar() or 0
+    count_time_ms = (time.time() - start_time) * 1000
+    log_slow_query("count_query", count_time_ms, query_preview=count_query)
 
     # Build sort clause
     sort_clause = ""
@@ -222,8 +385,8 @@ async def get_genes(
     else:
         sort_clause = " ORDER BY gs.percentage_score DESC NULLS LAST, g.approved_symbol ASC"
 
-    # Data query with aggregations and sorting
-    # Note: Sort order columns are placed AFTER sources to avoid breaking existing row indices
+    # Data query - optimized to extract sources from existing JSONB
+    # Note: No longer uses array_agg or GROUP BY - extracts from gene_scores.source_scores
     data_query = f"""
         SELECT
             g.id,
@@ -250,18 +413,12 @@ async def get_genes(
                 ELSE 999
             END as group_sort_order,
             COALESCE(
-                array_agg(DISTINCT ge.source_name ORDER BY ge.source_name)
-                FILTER (WHERE ge.source_name IS NOT NULL),
+                array(SELECT jsonb_object_keys(gs.source_scores) ORDER BY 1),
                 ARRAY[]::text[]
             ) as sources
         FROM genes g
         LEFT JOIN gene_scores gs ON gs.gene_id = g.id
-        LEFT JOIN gene_evidence ge ON g.id = ge.gene_id
         WHERE {where_clause}
-        GROUP BY
-            g.id, g.hgnc_id, g.approved_symbol, g.aliases,
-            g.created_at, g.updated_at, gs.evidence_count, gs.percentage_score,
-            gs.evidence_tier, gs.evidence_group
         {sort_clause}
     """
 
@@ -276,25 +433,21 @@ async def get_genes(
     query_params["offset"] = offset
 
     # Execute query
+    start_time = time.time()
     results = db.execute(text(final_query), query_params).fetchall()
+    data_query_time_ms = (time.time() - start_time) * 1000
+    log_slow_query("data_query", data_query_time_ms, query_preview=final_query)
 
     # Transform to JSON:API format
     data = transform_gene_to_jsonapi(results)
 
-    # Get metadata for filters dynamically
-    # Get max evidence count
-    max_count_result = db.execute(text("SELECT MAX(evidence_count) FROM gene_scores")).scalar() or 0
-
-    # Get all available sources
-    sources_result = db.execute(
-        text("SELECT DISTINCT source_name FROM gene_evidence ORDER BY source_name")
-    ).fetchall()
-    available_sources = [row[0] for row in sources_result]
+    # Get cached filter metadata (replaces 3 queries with single cached call)
+    cached_metadata = get_filter_metadata(db)
 
     filter_meta = {
         "evidence_score": {"min": 0, "max": 100},
-        "evidence_count": {"min": 0, "max": max_count_result},
-        "available_sources": available_sources,
+        "evidence_count": {"min": 0, "max": cached_metadata["max_count"]},
+        "available_sources": cached_metadata["sources"],
     }
 
     # Build response using reusable helper
@@ -308,44 +461,7 @@ async def get_genes(
 
     # Add filter metadata to response
     response["meta"]["filters"] = filter_meta
-
-    # Add tier distribution metadata
-    tier_distribution_query = text("""
-        SELECT
-            evidence_group,
-            evidence_tier,
-            COUNT(*) as gene_count
-        FROM gene_scores
-        WHERE percentage_score > 0
-        GROUP BY evidence_group, evidence_tier
-        ORDER BY
-            CASE evidence_group
-                WHEN 'well_supported' THEN 1
-                WHEN 'emerging_evidence' THEN 2
-                ELSE 3
-            END,
-            MIN(percentage_score) DESC
-    """)
-
-    tier_results = db.execute(tier_distribution_query).fetchall()
-
-    tier_meta = {
-        "well_supported": {},
-        "emerging_evidence": {}
-    }
-
-    for row in tier_results:
-        group = row.evidence_group
-        tier = row.evidence_tier
-        count = row.gene_count
-        if group in tier_meta:
-            tier_meta[group][tier] = count
-
-    # Calculate group totals
-    tier_meta["well_supported"]["total"] = sum(tier_meta["well_supported"].values())
-    tier_meta["emerging_evidence"]["total"] = sum(tier_meta["emerging_evidence"].values())
-
-    response["meta"]["evidence_tiers"] = tier_meta
+    response["meta"]["evidence_tiers"] = cached_metadata["tier_distribution"]
     response["meta"]["valid_tiers"] = [
         "comprehensive_support",
         "multi_source_support",
@@ -357,13 +473,8 @@ async def get_genes(
 
     # Add zero-score filtering metadata
     if hide_zero_scores:
-        # Get total count without zero-score filter
-        total_query_no_filter = """
-            SELECT COUNT(DISTINCT g.id)
-            FROM genes g
-            LEFT JOIN gene_scores gs ON gs.gene_id = g.id
-        """
-        total_all_genes = db.execute(text(total_query_no_filter)).scalar() or 0
+        # Use cached total gene count (session ID invalidates cache on new sessions)
+        total_all_genes = get_total_gene_count(id(db))
         response["meta"]["total_genes"] = total_all_genes
         response["meta"]["hidden_zero_scores"] = total_all_genes - total
     else:
