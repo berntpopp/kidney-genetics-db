@@ -102,12 +102,20 @@ class TestMGIFiltering:
         # Test data with different zygosity combinations
         test_cases = [
             ([], [], "hm (false); ht (false)"),  # No phenotypes
-            ([{"term": "MP:0000519", "name": "hydroureter"}], [], "hm (true); ht (false)"),  # Only homozygous
-            ([], [{"term": "MP:0000520", "name": "kidney hemorrhage"}], "hm (false); ht (true)"),  # Only heterozygous
+            (
+                [{"term": "MP:0000519", "name": "hydroureter"}],
+                [],
+                "hm (true); ht (false)",
+            ),  # Only homozygous
+            (
+                [],
+                [{"term": "MP:0000520", "name": "kidney hemorrhage"}],
+                "hm (false); ht (true)",
+            ),  # Only heterozygous
             (
                 [{"term": "MP:0000519", "name": "hydroureter"}],
                 [{"term": "MP:0000520", "name": "kidney hemorrhage"}],
-                "hm (true); ht (true)"
+                "hm (true); ht (true)",
             ),  # Both
         ]
 
@@ -126,8 +134,8 @@ class TestMGIFiltering:
         source = MPOMGIAnnotationSource(mock_session)
 
         # Mock the cache file existence and content
-        with patch('pathlib.Path.exists', return_value=True):
-            with patch('builtins.open', create=True) as mock_open:
+        with patch("pathlib.Path.exists", return_value=True):
+            with patch("builtins.open", create=True) as mock_open:
                 mock_file = MagicMock()
                 mock_file.__enter__.return_value.read.return_value = '["MP:0000519", "MP:0000520"]'
                 mock_open.return_value = mock_file

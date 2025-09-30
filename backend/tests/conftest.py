@@ -143,3 +143,5 @@ def mock_cache_entries(db_session):
 
 
 # Note: Cache service instances are isolated per test through database transactions
+
+# Import fixtures from fixture modules to make them available globally

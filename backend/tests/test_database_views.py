@@ -5,26 +5,26 @@ Tests all components: validators, views, shadow testing, and monitoring.
 
 import asyncio
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import text
 
-from app.core.cache_invalidation import CacheInvalidationManager, ViewDependency
+from app.core.cache_invalidation import CacheInvalidationManager
 from app.core.database import get_thread_pool_executor
 from app.core.feature_flags import FeatureFlags, RolloutStrategy
 from app.core.shadow_testing import (
+    BatchShadowTester,
     ComparisonResult,
     ShadowTester,
-    BatchShadowTester,
 )
-from app.core.validators import SQLSafeValidator, QueryParameterValidator
+from app.core.validators import SQLSafeValidator
 from app.core.view_monitoring import ViewMetricsManager
 from app.db.materialized_views import (
+    MaterializedViewConfig,
     MaterializedViewManager,
     RefreshStrategy,
-    MaterializedViewConfig,
 )
 
 
@@ -96,9 +96,7 @@ class TestSQLValidator:
             "is_active": True,
         }
 
-        where_clause, params = SQLSafeValidator.build_safe_where_clause(
-            conditions, "genes"
-        )
+        where_clause, params = SQLSafeValidator.build_safe_where_clause(conditions, "genes")
 
         assert "approved_symbol = :param_approved_symbol" in where_clause
         assert "is_active = :param_is_active" in where_clause
@@ -150,10 +148,7 @@ class TestFeatureFlags:
         }
 
         # Some users get feature, some don't (probabilistic)
-        enabled_count = sum(
-            1 for i in range(1000)
-            if flags.is_enabled("test_feature", user_id=i)
-        )
+        enabled_count = sum(1 for i in range(1000) if flags.is_enabled("test_feature", user_id=i))
 
         # Should be roughly 10% (with some variance)
         assert 50 < enabled_count < 150  # Allow for variance
@@ -424,6 +419,7 @@ class TestDatabaseViewQueries:
         """Create test database session."""
         # This would be replaced with test database in real tests
         from app.core.database import SessionLocal
+
         db = SessionLocal()
         yield db
         db.close()
@@ -431,12 +427,14 @@ class TestDatabaseViewQueries:
     def test_gene_list_view_structure(self, db_session):
         """Test gene_list_detailed view has expected columns."""
         # Check view exists and has expected structure
-        result = db_session.execute(text("""
+        result = db_session.execute(
+            text("""
             SELECT column_name, data_type
             FROM information_schema.columns
             WHERE table_name = 'gene_list_detailed'
             ORDER BY ordinal_position
-        """))
+        """)
+        )
 
         columns = {row[0]: row[1] for row in result}
 

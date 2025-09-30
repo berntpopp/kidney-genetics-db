@@ -88,7 +88,12 @@ test = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.1.0",
+    "pytest-postgresql>=7.0.2",
     "httpx>=0.25.0",
+    "factory-boy>=3.3.0",
+    "faker>=20.0.0",
+    "hypothesis>=6.90.0",
+    "jsonschema>=4.20.0",
 ]
 
 [project.urls]
@@ -151,10 +156,30 @@ exclude = [
 ]
 
 [tool.pytest.ini_options]
+minversion = "7.0"
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
-addopts = "-ra -q --strict-markers"
-asyncio_mode = "auto"
+python_functions = ["test_*"]
+python_classes = ["Test*"]
+asyncio_mode = "auto"  # Handle async tests automatically
+
+# Sane defaults for better output
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+    "--disable-warnings",
+    "-vv",
+    "--color=yes",
+]
+
+# Test markers for organization
+markers = [
+    "unit: Pure unit tests without external dependencies",
+    "integration: Integration tests requiring database",
+    "e2e: End-to-end workflow tests",
+    "slow: Tests taking >1s",
+    "critical: Must-pass tests for deployment",
+]
 
 [tool.coverage.run]
 source = ["app"]

@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 import pytest
 from sqlalchemy.orm import Session
 
-from app.pipeline.sources.pubtator import PubTatorClient
+from app.pipeline.sources.unified.pubtator import PubTatorUnifiedSource
 
 
 class TestPubTatorNormalization:
@@ -16,7 +16,7 @@ class TestPubTatorNormalization:
     @pytest.fixture
     def client(self):
         """Create PubTator client for testing."""
-        return PubTatorClient()
+        return PubTatorUnifiedSource()
 
     @pytest.fixture
     def mock_db(self):
