@@ -601,6 +601,7 @@ await loop.run_in_executor(
 
 ### 📚 Documentation References
 - Logging system: `docs/reference/logging-system.md`
+- Design system (UI/UX): `docs/reference/design-system.md`
 - Performance fixes: `docs/implementation-notes/completed/pipeline-performance-fixes.md`
 - Cache refactor: `docs/implementation-notes/completed/cache-refactor.md`
 - Project status: `docs/project-management/status.md`

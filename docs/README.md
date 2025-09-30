@@ -64,7 +64,7 @@ make frontend  # http://localhost:5173
 - [Configuration](reference/configuration.md) - System configuration
 - [Logging System](reference/logging-system.md) - Unified logging
 - [Environment Variables](reference/environment-variables.md) - Configuration options
-- [Code Style Guide](reference/code-style-guide.md) - Coding standards
+- [Design System](reference/design-system.md) - UI/UX design system
 
 ### 🔧 Implementation Notes
 **Development history and plans** - [Implementation Notes](implementation-notes/)
@@ -225,7 +225,7 @@ async def api_call():
 ### For Contributing
 1. [Developer Setup](guides/developer/setup-environment.md) - Environment
 2. [Contributing Guide](guides/developer/contributing.md) - Contribution process
-3. [Code Style Guide](reference/code-style-guide.md) - Coding standards
+3. [Design System](reference/design-system.md) - UI/UX standards
 4. [Testing Guide](guides/developer/testing.md) - Testing practices
 
 ## 🔗 External Resources

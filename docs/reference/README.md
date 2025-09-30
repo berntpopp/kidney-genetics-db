@@ -9,7 +9,7 @@
 - **[Caching Internals](caching-internals.md)** - Cache system implementation
 - **[Database Schema](database-schema.md)** - Complete schema reference
 - **[Environment Variables](environment-variables.md)** - Environment configuration
-- **[Code Style Guide](code-style-guide.md)** - Coding standards and conventions
+- **[Design System](design-system.md)** - UI/UX design system (Vuetify, colors, typography)
 
 ## Quick Reference
 
