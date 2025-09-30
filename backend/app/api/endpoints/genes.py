@@ -44,7 +44,10 @@ def transform_gene_to_jsonapi(results) -> list[dict]:
                     "updated_at": row[5].isoformat() if row[5] else None,
                     "evidence_count": row[6],
                     "evidence_score": float(row[7]) if row[7] is not None else None,
-                    "sources": list(row[8]) if row[8] else [],
+                    "evidence_tier": row[8],
+                    "evidence_group": row[9],
+                    # Skip row[10] (tier_sort_order) and row[11] (group_sort_order) - internal use only
+                    "sources": list(row[12]) if row[12] else [],
                 },
             }
         )
@@ -71,6 +74,16 @@ async def get_genes(
         alias="filter[hide_zero_scores]",
         description="Hide genes with evidence_score=0 (default: true)",
     ),
+    filter_tier: str | None = Query(
+        None,
+        alias="filter[tier]",
+        description="Filter by evidence tier (comprehensive_support, multi_source_support, established_support, preliminary_evidence, minimal_evidence)",
+    ),
+    filter_group: str | None = Query(
+        None,
+        alias="filter[group]",
+        description="Filter by evidence group (well_supported, emerging_evidence)",
+    ),
     # JSON:API sorting
     sort: str | None = Depends(get_sort_param("-evidence_score,approved_symbol")),
 ) -> dict[str, Any]:
@@ -88,7 +101,10 @@ async def get_genes(
 
     # Apply filters
     if search:
-        where_clauses.append("(g.approved_symbol ILIKE :search OR g.hgnc_id ILIKE :search)")
+        where_clauses.append(
+            "(g.approved_symbol ILIKE :search OR g.hgnc_id ILIKE :search OR "
+            "gs.evidence_tier ILIKE :search OR gs.evidence_group ILIKE :search)"
+        )
         query_params["search"] = f"%{search}%"
 
     min_score, max_score = score_range
@@ -119,6 +135,44 @@ async def get_genes(
     if hide_zero_scores:
         where_clauses.append("gs.percentage_score > 0")
 
+    # Filter by evidence tier (supports multiple tiers with OR logic)
+    if filter_tier:
+        valid_tiers = [
+            'comprehensive_support',
+            'multi_source_support',
+            'established_support',
+            'preliminary_evidence',
+            'minimal_evidence'
+        ]
+        # Parse comma-separated tiers
+        requested_tiers = [t.strip() for t in filter_tier.split(',') if t.strip()]
+
+        # Validate all requested tiers
+        invalid_tiers = [t for t in requested_tiers if t not in valid_tiers]
+        if invalid_tiers:
+            raise ValidationError(
+                field="filter[tier]",
+                reason=f"Invalid tier(s): {', '.join(invalid_tiers)}. Must be one of: {', '.join(valid_tiers)}"
+            )
+
+        if requested_tiers:
+            # Use IN clause for OR logic
+            placeholders = ','.join([f':tier_{i}' for i in range(len(requested_tiers))])
+            where_clauses.append(f"gs.evidence_tier IN ({placeholders})")
+            for i, tier in enumerate(requested_tiers):
+                query_params[f"tier_{i}"] = tier
+
+    # Filter by evidence group
+    if filter_group:
+        valid_groups = ['well_supported', 'emerging_evidence']
+        if filter_group not in valid_groups:
+            raise ValidationError(
+                field="filter[group]",
+                reason=f"Invalid group. Must be one of: {', '.join(valid_groups)}"
+            )
+        where_clauses.append("gs.evidence_group = :group")
+        query_params["group"] = filter_group
+
     where_clause = " AND ".join(where_clauses)
 
     # Simple count query without complex aggregations
@@ -146,6 +200,8 @@ async def get_genes(
             "evidence_count": "evidence_count",
             "created_at": "g.created_at",
             "updated_at": "g.updated_at",
+            "evidence_tier": "tier_sort_order",
+            "evidence_group": "group_sort_order",
         }
 
         for field in sort.split(","):
@@ -167,8 +223,9 @@ async def get_genes(
         sort_clause = " ORDER BY gs.percentage_score DESC NULLS LAST, g.approved_symbol ASC"
 
     # Data query with aggregations and sorting
+    # Note: Sort order columns are placed AFTER sources to avoid breaking existing row indices
     data_query = f"""
-        SELECT DISTINCT
+        SELECT
             g.id,
             g.hgnc_id,
             g.approved_symbol,
@@ -177,6 +234,21 @@ async def get_genes(
             g.updated_at,
             COALESCE(gs.evidence_count, 0) as evidence_count,
             gs.percentage_score as evidence_score,
+            gs.evidence_tier,
+            gs.evidence_group,
+            CASE gs.evidence_tier
+                WHEN 'comprehensive_support' THEN 1
+                WHEN 'multi_source_support' THEN 2
+                WHEN 'established_support' THEN 3
+                WHEN 'preliminary_evidence' THEN 4
+                WHEN 'minimal_evidence' THEN 5
+                ELSE 999
+            END as tier_sort_order,
+            CASE gs.evidence_group
+                WHEN 'well_supported' THEN 1
+                WHEN 'emerging_evidence' THEN 2
+                ELSE 999
+            END as group_sort_order,
             COALESCE(
                 array_agg(DISTINCT ge.source_name ORDER BY ge.source_name)
                 FILTER (WHERE ge.source_name IS NOT NULL),
@@ -188,7 +260,8 @@ async def get_genes(
         WHERE {where_clause}
         GROUP BY
             g.id, g.hgnc_id, g.approved_symbol, g.aliases,
-            g.created_at, g.updated_at, gs.evidence_count, gs.percentage_score
+            g.created_at, g.updated_at, gs.evidence_count, gs.percentage_score,
+            gs.evidence_tier, gs.evidence_group
         {sort_clause}
     """
 
@@ -236,6 +309,52 @@ async def get_genes(
     # Add filter metadata to response
     response["meta"]["filters"] = filter_meta
 
+    # Add tier distribution metadata
+    tier_distribution_query = text("""
+        SELECT
+            evidence_group,
+            evidence_tier,
+            COUNT(*) as gene_count
+        FROM gene_scores
+        WHERE percentage_score > 0
+        GROUP BY evidence_group, evidence_tier
+        ORDER BY
+            CASE evidence_group
+                WHEN 'well_supported' THEN 1
+                WHEN 'emerging_evidence' THEN 2
+                ELSE 3
+            END,
+            MIN(percentage_score) DESC
+    """)
+
+    tier_results = db.execute(tier_distribution_query).fetchall()
+
+    tier_meta = {
+        "well_supported": {},
+        "emerging_evidence": {}
+    }
+
+    for row in tier_results:
+        group = row.evidence_group
+        tier = row.evidence_tier
+        count = row.gene_count
+        if group in tier_meta:
+            tier_meta[group][tier] = count
+
+    # Calculate group totals
+    tier_meta["well_supported"]["total"] = sum(tier_meta["well_supported"].values())
+    tier_meta["emerging_evidence"]["total"] = sum(tier_meta["emerging_evidence"].values())
+
+    response["meta"]["evidence_tiers"] = tier_meta
+    response["meta"]["valid_tiers"] = [
+        "comprehensive_support",
+        "multi_source_support",
+        "established_support",
+        "preliminary_evidence",
+        "minimal_evidence"
+    ]
+    response["meta"]["valid_groups"] = ["well_supported", "emerging_evidence"]
+
     # Add zero-score filtering metadata
     if hide_zero_scores:
         # Get total count without zero-score filter
@@ -275,7 +394,9 @@ async def get_gene(
             SELECT
                 evidence_count,
                 percentage_score,
-                source_scores
+                source_scores,
+                evidence_tier,
+                evidence_group
             FROM gene_scores
             WHERE gene_id = :gene_id
         """),
@@ -325,6 +446,8 @@ async def get_gene(
                 "evidence_score": float(score_result[1])
                 if score_result and score_result[1]
                 else None,
+                "evidence_tier": score_result[3] if score_result else None,
+                "evidence_group": score_result[4] if score_result else None,
                 "sources": sources,
                 "score_breakdown": score_breakdown,
                 "source_scores": score_result[2] if score_result else {},

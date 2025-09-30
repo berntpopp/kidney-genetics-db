@@ -20,6 +20,7 @@ export const geneApi = {
       minCount = null,
       maxCount = null,
       source = null,
+      tiers = null,
       sortBy = null,
       sortDesc = false,
       hideZeroScores = true
@@ -38,6 +39,10 @@ export const geneApi = {
     if (minCount !== null) queryParams['filter[min_count]'] = minCount
     if (maxCount !== null) queryParams['filter[max_count]'] = maxCount
     if (source) queryParams['filter[source]'] = source
+    if (tiers && tiers.length > 0) {
+      // Join multiple tiers with commas for OR logic
+      queryParams['filter[tier]'] = tiers.join(',')
+    }
 
     // Hide zero scores filter (explicitly set to control default behavior)
     queryParams['filter[hide_zero_scores]'] = hideZeroScores

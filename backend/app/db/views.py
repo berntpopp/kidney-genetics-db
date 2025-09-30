@@ -245,7 +245,29 @@ gene_scores = ReplaceableObject(
            -- Source breakdown
            jsonb_object_agg(source_name, ROUND(source_score::numeric, 4)) AS source_scores,
            -- Total active sources for reference
-           (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) AS total_active_sources
+           (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) AS total_active_sources,
+           -- Evidence tier classification
+           CASE
+               WHEN COUNT(DISTINCT source_name) >= 4 AND SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 >= 50
+                   THEN 'comprehensive_support'
+               WHEN COUNT(DISTINCT source_name) >= 3 AND SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 >= 35
+                   THEN 'multi_source_support'
+               WHEN COUNT(DISTINCT source_name) >= 2 AND SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 >= 20
+                   THEN 'established_support'
+               WHEN SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 >= 10
+                   THEN 'preliminary_evidence'
+               WHEN SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 > 0
+                   THEN 'minimal_evidence'
+               ELSE 'no_evidence'
+           END AS evidence_tier,
+           -- Evidence group classification
+           CASE
+               WHEN COUNT(DISTINCT source_name) >= 2 AND SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 >= 20
+                   THEN 'well_supported'
+               WHEN SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 > 0
+                   THEN 'emerging_evidence'
+               ELSE 'insufficient'
+           END AS evidence_group
     FROM source_scores_per_gene
     GROUP BY gene_id, approved_symbol, hgnc_id
     """,

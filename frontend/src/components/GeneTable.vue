@@ -80,7 +80,7 @@
           </v-col>
 
           <!-- Data Sources -->
-          <v-col cols="12" lg="4">
+          <v-col cols="12" lg="3">
             <v-select
               v-model="selectedSources"
               :items="availableSources"
@@ -95,8 +95,30 @@
             />
           </v-col>
 
+          <!-- Evidence Tiers -->
+          <v-col cols="12" lg="3">
+            <v-select
+              v-model="selectedTiers"
+              :items="availableTiers"
+              label="Evidence Tiers"
+              multiple
+              chips
+              closable-chips
+              hide-details
+              variant="outlined"
+              density="compact"
+              @update:model-value="debouncedSearch"
+            >
+              <template #chip="{ item, props }">
+                <v-chip v-bind="props" :color="getTierColor(item.value)" size="small" closable>
+                  {{ item.title }}
+                </v-chip>
+              </template>
+            </v-select>
+          </v-col>
+
           <!-- Sort -->
-          <v-col cols="12" lg="4">
+          <v-col cols="12" lg="3">
             <v-select
               v-model="sortOption"
               :items="sortOptions"
@@ -293,6 +315,11 @@
           <v-chip v-else color="grey" variant="tonal" size="x-small">N/A</v-chip>
         </template>
 
+        <!-- Evidence Tier -->
+        <template #[`item.evidence_tier`]="{ item }">
+          <EvidenceTierBadge :tier="item.evidence_tier" size="x-small" />
+        </template>
+
         <!-- Evidence Count with Visual Indicator -->
         <template #[`item.evidence_count`]="{ item }">
           <div class="d-flex align-center">
@@ -320,7 +347,7 @@
             <ScoreBreakdown
               v-if="item.evidence_score !== null && item.evidence_score !== undefined"
               :score="item.evidence_score"
-              :breakdown="item.score_breakdown"
+              :breakdown="getSourcesAsBreakdown(item.sources)"
               variant="inline"
               size="small"
             />
@@ -382,6 +409,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { geneApi } from '../api/genes'
 import ScoreBreakdown from './ScoreBreakdown.vue'
+import EvidenceTierBadge from './EvidenceTierBadge.vue'
+import { TIER_CONFIG } from '@/utils/evidenceTiers'
 
 const route = useRoute()
 const router = useRouter()
@@ -395,6 +424,7 @@ const itemsPerPage = ref(10)
 const search = ref('')
 const evidenceScoreRange = ref([0, 100])
 const selectedSources = ref([])
+const selectedTiers = ref([])
 const evidenceCountRange = ref([0, 7]) // Initialize with a sensible default
 const sortOption = ref('score_desc')
 const filterMeta = ref(null)
@@ -417,9 +447,19 @@ const itemsPerPageOptions = [
 // Dynamic sources list - will be populated from API
 const availableSources = ref([])
 
+// Available evidence tiers from config
+const availableTiers = computed(() => {
+  return Object.entries(TIER_CONFIG).map(([key, config]) => ({
+    title: config.label,
+    value: key
+  }))
+})
+
 const sortOptions = [
   { title: 'Evidence Score (High to Low)', value: 'score_desc' },
   { title: 'Evidence Score (Low to High)', value: 'score_asc' },
+  { title: 'Evidence Tier (Best to Weakest)', value: 'tier_asc' },
+  { title: 'Evidence Tier (Weakest to Best)', value: 'tier_desc' },
   { title: 'Gene Symbol (A-Z)', value: 'symbol_asc' },
   { title: 'Gene Symbol (Z-A)', value: 'symbol_desc' },
   { title: 'Evidence Count (High to Low)', value: 'count_desc' },
@@ -429,6 +469,7 @@ const sortOptions = [
 const headers = [
   { title: 'Gene Symbol', key: 'approved_symbol', sortable: true },
   { title: 'HGNC ID', key: 'hgnc_id', sortable: true },
+  { title: 'Evidence Tier', key: 'evidence_tier', sortable: true },
   { title: 'Evidence Count', key: 'evidence_count', sortable: true },
   { title: 'Evidence Score', key: 'evidence_score', sortable: true },
   { title: 'Data Sources', key: 'sources', sortable: false }
@@ -457,6 +498,7 @@ const hasActiveFilters = computed(() => {
     evidenceCountRange.value[0] > 0 ||
     evidenceCountRange.value[1] < (filterMeta.value?.evidence_count?.max || 6) ||
     selectedSources.value.length > 0 ||
+    selectedTiers.value.length > 0 ||
     showZeroScoreGenes.value // Include zero score filter
   )
 })
@@ -496,6 +538,8 @@ const parseUrlParams = () => {
     const sortMap = {
       evidence_score_desc: 'score_desc',
       evidence_score_asc: 'score_asc',
+      evidence_tier_asc: 'tier_asc',
+      evidence_tier_desc: 'tier_desc',
       approved_symbol_asc: 'symbol_asc',
       approved_symbol_desc: 'symbol_desc',
       evidence_count_desc: 'count_desc',
@@ -520,6 +564,14 @@ const parseUrlParams = () => {
 
   if (query.source) {
     selectedSources.value = [query.source]
+  }
+
+  if (query.tier) {
+    // Parse comma-separated tiers
+    selectedTiers.value = query.tier
+      .split(',')
+      .map(t => t.trim())
+      .filter(t => t)
   }
 
   if (query.show_zero_scores !== undefined) {
@@ -547,6 +599,7 @@ const updateUrl = () => {
   if (evidenceCountRange.value[0] > 0) query.min_count = evidenceCountRange.value[0]
   if (evidenceCountRange.value[1] < 7) query.max_count = evidenceCountRange.value[1]
   if (selectedSources.value.length > 0) query.source = selectedSources.value[0]
+  if (selectedTiers.value.length > 0) query.tier = selectedTiers.value.join(',')
   if (showZeroScoreGenes.value) query.show_zero_scores = 'true' // Only add if true
 
   router.replace({ query })
@@ -611,6 +664,7 @@ const loadGenes = async () => {
           ? evidenceCountRange.value[1]
           : null,
       source: selectedSources.value.length > 0 ? selectedSources.value[0] : null,
+      tiers: selectedTiers.value.length > 0 ? selectedTiers.value : null,
       sortBy: sortByField,
       sortDesc: sortDesc,
       hideZeroScores: !showZeroScoreGenes.value // Inverse of showZeroScoreGenes
@@ -665,7 +719,8 @@ const applySorting = () => {
   const fieldMap = {
     score: 'evidence_score',
     symbol: 'approved_symbol',
-    count: 'evidence_count'
+    count: 'evidence_count',
+    tier: 'evidence_tier'
   }
   sortBy.value = [{ key: fieldMap[field], order }]
   updateUrl()
@@ -687,6 +742,7 @@ const clearAllFilters = () => {
   evidenceScoreRange.value = [0, 100]
   evidenceCountRange.value = [0, filterMeta.value?.evidence_count?.max || 7]
   selectedSources.value = []
+  selectedTiers.value = []
   sortOption.value = 'score_desc'
   sortBy.value = [{ key: 'evidence_score', order: 'desc' }]
   showZeroScoreGenes.value = false // Reset to default: hide genes with score=0
@@ -716,6 +772,21 @@ const getSourceColor = source => {
     Literature: 'purple'
   }
   return colors[source] || 'grey'
+}
+
+const getTierColor = tierKey => {
+  return TIER_CONFIG[tierKey]?.color || 'grey'
+}
+
+const getSourcesAsBreakdown = sources => {
+  if (!sources || sources.length === 0) return {}
+
+  // Create a simple object with source names for display
+  const breakdown = {}
+  sources.forEach(source => {
+    breakdown[source] = true // Just for presence, not scoring
+  })
+  return breakdown
 }
 
 const getEvidenceCountColor = count => {

@@ -2,7 +2,7 @@
   <div class="score-breakdown">
     <!-- Compact inline display for tables -->
     <div v-if="variant === 'inline'" class="d-inline-flex align-center">
-      <v-tooltip location="bottom" max-width="320">
+      <v-tooltip location="bottom" max-width="400">
         <template #activator="{ props: tooltipProps }">
           <v-chip
             :color="scoreColor"
@@ -15,38 +15,9 @@
             {{ formattedScore }}
           </v-chip>
         </template>
-        <div class="pa-3">
-          <div class="text-subtitle-2 font-weight-bold mb-2">Evidence Score Breakdown</div>
-          <div class="score-details">
-            <div v-for="(sourceScore, source) in sortedBreakdown" :key="source" class="score-item">
-              <div class="d-flex align-center justify-space-between mb-1">
-                <span class="text-caption">
-                  <v-icon :icon="getSourceIcon(source)" size="x-small" class="mr-1" />
-                  {{ source }}
-                </span>
-                <v-chip
-                  :color="getSubScoreColor(sourceScore)"
-                  size="x-small"
-                  variant="tonal"
-                  class="font-weight-medium ml-2"
-                >
-                  {{ (sourceScore * 100).toFixed(1) }}
-                </v-chip>
-              </div>
-              <v-progress-linear
-                :model-value="sourceScore * 100"
-                :color="getSubScoreColor(sourceScore)"
-                height="2"
-                rounded
-                class="mb-2"
-              />
-            </div>
-          </div>
-          <v-divider class="my-2" />
-          <div class="text-caption text-medium-emphasis">
-            <strong>Classification:</strong> {{ classification }}<br />
-            Evidence strength based on {{ Object.keys(breakdown || {}).length }} curated data
-            sources
+        <div class="pa-2">
+          <div class="text-caption">
+            {{ getScoreExplanation(score, Object.keys(breakdown || {}).length) }}
           </div>
         </div>
       </v-tooltip>
@@ -154,6 +125,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { getScoreExplanation } from '@/utils/evidenceTiers'
 
 // Props
 const props = defineProps({
@@ -247,18 +219,6 @@ const getSubScoreColor = score => {
   if (percentage >= 50) return 'warning'
   if (percentage >= 30) return 'orange'
   return 'error'
-}
-
-const getSourceIcon = source => {
-  const icons = {
-    PanelApp: 'mdi-view-dashboard',
-    HPO: 'mdi-human',
-    PubTator: 'mdi-file-document',
-    Literature: 'mdi-book-open',
-    ClinGen: 'mdi-microscope',
-    GenCC: 'mdi-dna'
-  }
-  return icons[source] || 'mdi-database'
 }
 
 const sourceAbbreviation = source => {
