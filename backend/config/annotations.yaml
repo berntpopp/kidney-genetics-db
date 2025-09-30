@@ -1,0 +1,148 @@
+# Annotation source configurations with retry and rate limiting settings
+# Extracted from datasource_config.py lines 396-495
+
+annotations:
+  # Common configuration values for annotation sources
+  common:
+    default_timeout: 30.0  # Default HTTP request timeout in seconds
+    long_timeout: 60.0  # Timeout for long-running requests
+    short_timeout: 10.0  # Timeout for quick health checks
+    user_agent: KidneyGeneticsDB/1.0  # User agent for API requests
+    cache_time_day: 86400  # Seconds in a day
+    cache_time_week: 604800  # Seconds in a week
+    cache_time_month: 2592000  # Seconds in 30 days
+
+  gnomad:
+    display_name: gnomAD
+    description: Genome Aggregation Database - Population allele frequencies and constraint scores
+    base_url: https://gnomad.broadinstitute.org
+    update_frequency: quarterly
+    is_active: true
+    priority: 9
+    requests_per_second: 3.0
+    max_retries: 5
+    cache_ttl_days: 90
+    use_http_cache: true
+    circuit_breaker_threshold: 5
+    batch_size: 50
+
+  clinvar:
+    display_name: ClinVar
+    description: Clinical Variants - Pathogenicity and clinical significance
+    base_url: https://www.ncbi.nlm.nih.gov/clinvar/
+    update_frequency: quarterly
+    is_active: true
+    priority: 7
+    # NCBI eUtils allows 3 req/s without API key (not 10 as sometimes documented)
+    # Using 2.8 to stay just below limit while maximizing throughput
+    requests_per_second: 2.8
+    max_retries: 5
+    cache_ttl_days: 90
+    use_http_cache: true
+    circuit_breaker_threshold: 5
+
+    # Gene processing configuration
+    gene_batch_size: 20  # How many genes to process per batch (sequentially with concurrency=1)
+    max_concurrent_genes: 1  # Keep at 1 to respect NCBI rate limits
+
+    # Variant fetching configuration
+    variant_batch_size: 200  # How many variants to fetch per esummary call
+    search_batch_size: 10000  # Maximum for esearch
+    max_concurrent_variant_fetches: 2  # Max concurrent variant batch fetches
+
+    # Review status confidence levels
+    review_confidence:
+      practice guideline: 4
+      reviewed by expert panel: 4
+      criteria provided, multiple submitters, no conflicts: 3
+      criteria provided, conflicting classifications: 2
+      criteria provided, single submitter: 2
+      no assertion for the individual variant: 1
+      no assertion criteria provided: 1
+      no classification provided: 0
+
+  hpo:
+    display_name: HPO
+    description: Human Phenotype Ontology - Phenotype associations
+    base_url: https://hpo.jax.org
+    update_frequency: quarterly
+    is_active: true
+    priority: 6
+    requests_per_second: 10.0
+    max_retries: 3
+    cache_ttl_days: 90
+    use_http_cache: true
+    circuit_breaker_threshold: 5
+
+  mpo_mgi:
+    display_name: MPO/MGI
+    description: Mouse Phenotype Ontology / Mouse Genome Informatics - Mouse orthologs and phenotypes
+    base_url: http://www.informatics.jax.org
+    update_frequency: quarterly
+    is_active: true
+    priority: 5
+    requests_per_second: 2.0  # MGI servers are slower
+    max_retries: 3
+    cache_ttl_days: 90
+    use_http_cache: true
+    circuit_breaker_threshold: 3
+    # MPO kidney phenotype root term configuration
+    kidney_root_term: MP:0005367  # renal/urinary system phenotype
+    kidney_root_node: 117579  # JAX tree node ID for root term
+    # MPO kidney terms cache file - relative to backend directory
+    mpo_kidney_terms_file: data/mpo_kidney_terms.json
+    # JAX and MouseMine API endpoints
+    jax_base_url: https://www.informatics.jax.org
+    mousemine_url: https://www.mousemine.org/mousemine/service
+
+  hgnc:
+    display_name: HGNC
+    description: HUGO Gene Nomenclature Committee - Gene symbols and identifiers
+    base_url: https://www.genenames.org
+    update_frequency: quarterly
+    is_active: true
+    priority: 10  # Highest priority - provides base identifiers
+    requests_per_second: 5.0
+    max_retries: 3
+    cache_ttl_days: 90
+    use_http_cache: true
+    circuit_breaker_threshold: 3
+
+  string_ppi:
+    display_name: STRING PPI
+    description: STRING Protein-Protein Interactions - Protein interaction networks
+    base_url: https://string-db.org
+    update_frequency: quarterly
+    is_active: true
+    priority: 4
+    requests_per_second: 5.0
+    max_retries: 3
+    cache_ttl_days: 90
+    use_http_cache: true
+    circuit_breaker_threshold: 3
+
+  gtex:
+    display_name: GTEx
+    description: Genotype-Tissue Expression - Gene expression across tissues
+    base_url: https://gtexportal.org
+    update_frequency: quarterly
+    is_active: true
+    priority: 8
+    requests_per_second: 3.0
+    max_retries: 3
+    cache_ttl_days: 90
+    use_http_cache: true
+    circuit_breaker_threshold: 3
+
+  descartes:
+    display_name: Descartes
+    description: Descartes Human Cell Atlas - Single-cell expression data
+    base_url: https://descartes.brotmanbaty.org
+    update_frequency: quarterly
+    is_active: true
+    priority: 3
+    requests_per_second: 5.0
+    max_retries: 3
+    cache_ttl_days: 90
+    use_http_cache: true
+    circuit_breaker_threshold: 3

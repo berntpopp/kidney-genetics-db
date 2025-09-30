@@ -20,7 +20,7 @@ def test_annotation_source_creation(db_session: Session):
         update_frequency="daily",
         is_active=True,
         priority=5,
-        config={"api_url": "https://example.com", "ttl_days": 7}
+        config={"api_url": "https://example.com", "ttl_days": 7},
     )
 
     db_session.add(source)
@@ -35,11 +35,7 @@ def test_annotation_source_creation(db_session: Session):
 def test_gene_annotation_creation(db_session: Session):
     """Test creating a gene annotation."""
     # First create a gene
-    gene = Gene(
-        approved_symbol="TEST1",
-        hgnc_id="HGNC:12345",
-        ensembl_gene_id="ENSG00000000001"
-    )
+    gene = Gene(approved_symbol="TEST1", hgnc_id="HGNC:12345", ensembl_gene_id="ENSG00000000001")
     db_session.add(gene)
     db_session.commit()
 
@@ -52,15 +48,12 @@ def test_gene_annotation_creation(db_session: Session):
             "ncbi_gene_id": "12345",
             "mane_select": {
                 "ensembl_transcript_id": "ENST00000000001",
-                "refseq_transcript_id": "NM_000001.1"
+                "refseq_transcript_id": "NM_000001.1",
             },
             "omim_ids": ["123456"],
-            "pubmed_ids": ["12345678", "87654321"]
+            "pubmed_ids": ["12345678", "87654321"],
         },
-        source_metadata={
-            "retrieved_at": "2024-01-15T10:00:00Z",
-            "api_version": "v1"
-        }
+        source_metadata={"retrieved_at": "2024-01-15T10:00:00Z", "api_version": "v1"},
     )
 
     db_session.add(annotation)
@@ -80,11 +73,7 @@ def test_gene_annotation_creation(db_session: Session):
 def test_gnomad_annotation(db_session: Session):
     """Test gnomAD constraint annotation."""
     # Create a gene
-    gene = Gene(
-        approved_symbol="TEST2",
-        hgnc_id="HGNC:54321",
-        ensembl_gene_id="ENSG00000000002"
-    )
+    gene = Gene(approved_symbol="TEST2", hgnc_id="HGNC:54321", ensembl_gene_id="ENSG00000000002")
     db_session.add(gene)
     db_session.commit()
 
@@ -106,8 +95,8 @@ def test_gnomad_annotation(db_session: Session):
             "oe_mis_upper": 0.80,
             "oe_mis_lower": 0.70,
             "oe_syn_upper": 1.10,
-            "oe_syn_lower": 1.00
-        }
+            "oe_syn_lower": 1.00,
+        },
     )
 
     db_session.add(annotation)
@@ -120,10 +109,7 @@ def test_gnomad_annotation(db_session: Session):
 
 def test_annotation_history(db_session: Session):
     """Test annotation history tracking."""
-    gene = Gene(
-        approved_symbol="TEST3",
-        hgnc_id="HGNC:11111"
-    )
+    gene = Gene(approved_symbol="TEST3", hgnc_id="HGNC:11111")
     db_session.add(gene)
     db_session.commit()
 
@@ -133,7 +119,7 @@ def test_annotation_history(db_session: Session):
         operation="insert",
         new_data={"ncbi_gene_id": "99999"},
         changed_by="test_user",
-        change_reason="Initial annotation"
+        change_reason="Initial annotation",
     )
 
     db_session.add(history)
@@ -147,33 +133,25 @@ def test_annotation_history(db_session: Session):
 
 def test_unique_constraint(db_session: Session):
     """Test unique constraint on gene_id, source, version."""
-    gene = Gene(
-        approved_symbol="TEST4",
-        hgnc_id="HGNC:22222"
-    )
+    gene = Gene(approved_symbol="TEST4", hgnc_id="HGNC:22222")
     db_session.add(gene)
     db_session.commit()
 
     # First annotation
     ann1 = GeneAnnotation(
-        gene_id=gene.id,
-        source="hgnc",
-        version="v1",
-        annotations={"test": "data1"}
+        gene_id=gene.id, source="hgnc", version="v1", annotations={"test": "data1"}
     )
     db_session.add(ann1)
     db_session.commit()
 
     # Duplicate should fail
     ann2 = GeneAnnotation(
-        gene_id=gene.id,
-        source="hgnc",
-        version="v1",
-        annotations={"test": "data2"}
+        gene_id=gene.id, source="hgnc", version="v1", annotations={"test": "data2"}
     )
     db_session.add(ann2)
 
     from sqlalchemy.exc import IntegrityError
+
     with pytest.raises(IntegrityError):
         db_session.commit()
 
@@ -181,10 +159,7 @@ def test_unique_constraint(db_session: Session):
 
     # Different version should work
     ann3 = GeneAnnotation(
-        gene_id=gene.id,
-        source="hgnc",
-        version="v2",
-        annotations={"test": "data3"}
+        gene_id=gene.id, source="hgnc", version="v2", annotations={"test": "data3"}
     )
     db_session.add(ann3)
     db_session.commit()
@@ -200,7 +175,7 @@ def test_annotation_source_update_check(db_session: Session):
         source_name="update_test",
         display_name="Update Test",
         last_update=datetime.utcnow() - timedelta(days=2),
-        next_update=datetime.utcnow() - timedelta(days=1)
+        next_update=datetime.utcnow() - timedelta(days=1),
     )
 
     db_session.add(source)

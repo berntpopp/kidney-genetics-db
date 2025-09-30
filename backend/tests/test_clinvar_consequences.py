@@ -15,7 +15,7 @@ class TestClinVarConsequences:
         variant_data = {
             "uid": "12345",
             "obj_type": "single nucleotide variant",
-            "molecular_consequence_list": ["frameshift variant", "nonsense"]
+            "molecular_consequence_list": ["frameshift variant", "nonsense"],
         }
 
         result = clinvar._parse_variant(variant_data)
@@ -27,10 +27,7 @@ class TestClinVarConsequences:
         """Test graceful handling when molecular_consequence_list is missing."""
         clinvar = ClinVarAnnotationSource(Mock())
 
-        variant_data = {
-            "uid": "12345",
-            "obj_type": "single nucleotide variant"
-        }
+        variant_data = {"uid": "12345", "obj_type": "single nucleotide variant"}
 
         result = clinvar._parse_variant(variant_data)
 
@@ -41,23 +38,55 @@ class TestClinVarConsequences:
         clinvar = ClinVarAnnotationSource(Mock())
 
         variants = [
-            {"molecular_consequences": ["frameshift variant"], "classification": "pathogenic", "review_status": "No data", "variant_type": "Deletion", "traits": []},
-            {"molecular_consequences": ["nonsense"], "classification": "pathogenic", "review_status": "No data", "variant_type": "SNV", "traits": []},
-            {"molecular_consequences": ["missense variant"], "classification": "pathogenic", "review_status": "No data", "variant_type": "SNV", "traits": []},
-            {"molecular_consequences": ["synonymous variant"], "classification": "benign", "review_status": "No data", "variant_type": "SNV", "traits": []},
-            {"molecular_consequences": ["splice donor variant"], "classification": "pathogenic", "review_status": "No data", "variant_type": "SNV", "traits": []},
+            {
+                "molecular_consequences": ["frameshift variant"],
+                "classification": "pathogenic",
+                "review_status": "No data",
+                "variant_type": "Deletion",
+                "traits": [],
+            },
+            {
+                "molecular_consequences": ["nonsense"],
+                "classification": "pathogenic",
+                "review_status": "No data",
+                "variant_type": "SNV",
+                "traits": [],
+            },
+            {
+                "molecular_consequences": ["missense variant"],
+                "classification": "pathogenic",
+                "review_status": "No data",
+                "variant_type": "SNV",
+                "traits": [],
+            },
+            {
+                "molecular_consequences": ["synonymous variant"],
+                "classification": "benign",
+                "review_status": "No data",
+                "variant_type": "SNV",
+                "traits": [],
+            },
+            {
+                "molecular_consequences": ["splice donor variant"],
+                "classification": "pathogenic",
+                "review_status": "No data",
+                "variant_type": "SNV",
+                "traits": [],
+            },
         ]
 
         stats = clinvar._aggregate_variants(variants)
 
         # Check counts
-        assert stats["consequence_categories"]["truncating"] == 3  # frameshift, nonsense, splice donor
+        assert (
+            stats["consequence_categories"]["truncating"] == 3
+        )  # frameshift, nonsense, splice donor
         assert stats["consequence_categories"]["missense"] == 1
         assert stats["consequence_categories"]["synonymous"] == 1
 
         # Check percentages
         assert stats["truncating_percentage"] == 60.0  # 3/5
-        assert stats["missense_percentage"] == 20.0    # 1/5
+        assert stats["missense_percentage"] == 20.0  # 1/5
         assert stats["synonymous_percentage"] == 20.0  # 1/5
 
         # Check top consequences
@@ -68,8 +97,19 @@ class TestClinVarConsequences:
         clinvar = ClinVarAnnotationSource(Mock())
 
         variants = [
-            {"molecular_consequences": [], "classification": "pathogenic", "review_status": "No data", "variant_type": "SNV", "traits": []},
-            {"classification": "benign", "review_status": "No data", "variant_type": "SNV", "traits": []},  # Missing field entirely
+            {
+                "molecular_consequences": [],
+                "classification": "pathogenic",
+                "review_status": "No data",
+                "variant_type": "SNV",
+                "traits": [],
+            },
+            {
+                "classification": "benign",
+                "review_status": "No data",
+                "variant_type": "SNV",
+                "traits": [],
+            },  # Missing field entirely
         ]
 
         stats = clinvar._aggregate_variants(variants)
@@ -88,15 +128,15 @@ class TestClinVarConsequences:
                 "classification": "pathogenic",
                 "review_status": "No data",
                 "variant_type": "Deletion",
-                "traits": []
+                "traits": [],
             },
             {
                 "molecular_consequences": ["missense variant", "splice region variant"],
                 "classification": "pathogenic",
                 "review_status": "No data",
                 "variant_type": "SNV",
-                "traits": []
-            }
+                "traits": [],
+            },
         ]
 
         stats = clinvar._aggregate_variants(variants)
@@ -117,16 +157,76 @@ class TestClinVarConsequences:
 
         # Create a dataset with known distribution
         variants = [
-            {"molecular_consequences": ["frameshift variant"], "classification": "pathogenic", "review_status": "No data", "variant_type": "Deletion", "traits": []},
-            {"molecular_consequences": ["frameshift variant"], "classification": "pathogenic", "review_status": "No data", "variant_type": "Deletion", "traits": []},
-            {"molecular_consequences": ["missense variant"], "classification": "pathogenic", "review_status": "No data", "variant_type": "SNV", "traits": []},
-            {"molecular_consequences": ["missense variant"], "classification": "pathogenic", "review_status": "No data", "variant_type": "SNV", "traits": []},
-            {"molecular_consequences": ["missense variant"], "classification": "pathogenic", "review_status": "No data", "variant_type": "SNV", "traits": []},
-            {"molecular_consequences": ["synonymous variant"], "classification": "benign", "review_status": "No data", "variant_type": "SNV", "traits": []},
-            {"molecular_consequences": ["intron variant"], "classification": "benign", "review_status": "No data", "variant_type": "SNV", "traits": []},
-            {"molecular_consequences": ["splice acceptor variant"], "classification": "pathogenic", "review_status": "No data", "variant_type": "SNV", "traits": []},
-            {"molecular_consequences": ["inframe_deletion"], "classification": "pathogenic", "review_status": "No data", "variant_type": "Deletion", "traits": []},
-            {"molecular_consequences": [], "classification": "benign", "review_status": "No data", "variant_type": "SNV", "traits": []},  # Empty consequences
+            {
+                "molecular_consequences": ["frameshift variant"],
+                "classification": "pathogenic",
+                "review_status": "No data",
+                "variant_type": "Deletion",
+                "traits": [],
+            },
+            {
+                "molecular_consequences": ["frameshift variant"],
+                "classification": "pathogenic",
+                "review_status": "No data",
+                "variant_type": "Deletion",
+                "traits": [],
+            },
+            {
+                "molecular_consequences": ["missense variant"],
+                "classification": "pathogenic",
+                "review_status": "No data",
+                "variant_type": "SNV",
+                "traits": [],
+            },
+            {
+                "molecular_consequences": ["missense variant"],
+                "classification": "pathogenic",
+                "review_status": "No data",
+                "variant_type": "SNV",
+                "traits": [],
+            },
+            {
+                "molecular_consequences": ["missense variant"],
+                "classification": "pathogenic",
+                "review_status": "No data",
+                "variant_type": "SNV",
+                "traits": [],
+            },
+            {
+                "molecular_consequences": ["synonymous variant"],
+                "classification": "benign",
+                "review_status": "No data",
+                "variant_type": "SNV",
+                "traits": [],
+            },
+            {
+                "molecular_consequences": ["intron variant"],
+                "classification": "benign",
+                "review_status": "No data",
+                "variant_type": "SNV",
+                "traits": [],
+            },
+            {
+                "molecular_consequences": ["splice acceptor variant"],
+                "classification": "pathogenic",
+                "review_status": "No data",
+                "variant_type": "SNV",
+                "traits": [],
+            },
+            {
+                "molecular_consequences": ["inframe_deletion"],
+                "classification": "pathogenic",
+                "review_status": "No data",
+                "variant_type": "Deletion",
+                "traits": [],
+            },
+            {
+                "molecular_consequences": [],
+                "classification": "benign",
+                "review_status": "No data",
+                "variant_type": "SNV",
+                "traits": [],
+            },  # Empty consequences
         ]
 
         stats = clinvar._aggregate_variants(variants)
@@ -135,7 +235,9 @@ class TestClinVarConsequences:
         assert stats["total_count"] == 10
 
         # Check category counts
-        assert stats["consequence_categories"]["truncating"] == 3  # 2 frameshift + 1 splice acceptor
+        assert (
+            stats["consequence_categories"]["truncating"] == 3
+        )  # 2 frameshift + 1 splice acceptor
         assert stats["consequence_categories"]["missense"] == 3
         assert stats["consequence_categories"]["synonymous"] == 1
         assert stats["consequence_categories"]["intronic"] == 1
@@ -143,7 +245,7 @@ class TestClinVarConsequences:
 
         # Check percentages
         assert stats["truncating_percentage"] == 30.0  # 3/10
-        assert stats["missense_percentage"] == 30.0    # 3/10
+        assert stats["missense_percentage"] == 30.0  # 3/10
         assert stats["synonymous_percentage"] == 10.0  # 1/10
 
     def test_top_molecular_consequences_sorting(self):
@@ -153,12 +255,44 @@ class TestClinVarConsequences:
         # Create variants with varying consequence frequencies
         variants = []
         for _ in range(5):
-            variants.append({"molecular_consequences": ["missense variant"], "classification": "pathogenic", "review_status": "No data", "variant_type": "SNV", "traits": []})
+            variants.append(
+                {
+                    "molecular_consequences": ["missense variant"],
+                    "classification": "pathogenic",
+                    "review_status": "No data",
+                    "variant_type": "SNV",
+                    "traits": [],
+                }
+            )
         for _ in range(3):
-            variants.append({"molecular_consequences": ["frameshift variant"], "classification": "pathogenic", "review_status": "No data", "variant_type": "Deletion", "traits": []})
+            variants.append(
+                {
+                    "molecular_consequences": ["frameshift variant"],
+                    "classification": "pathogenic",
+                    "review_status": "No data",
+                    "variant_type": "Deletion",
+                    "traits": [],
+                }
+            )
         for _ in range(2):
-            variants.append({"molecular_consequences": ["nonsense"], "classification": "pathogenic", "review_status": "No data", "variant_type": "SNV", "traits": []})
-        variants.append({"molecular_consequences": ["synonymous variant"], "classification": "benign", "review_status": "No data", "variant_type": "SNV", "traits": []})
+            variants.append(
+                {
+                    "molecular_consequences": ["nonsense"],
+                    "classification": "pathogenic",
+                    "review_status": "No data",
+                    "variant_type": "SNV",
+                    "traits": [],
+                }
+            )
+        variants.append(
+            {
+                "molecular_consequences": ["synonymous variant"],
+                "classification": "benign",
+                "review_status": "No data",
+                "variant_type": "SNV",
+                "traits": [],
+            }
+        )
 
         stats = clinvar._aggregate_variants(variants)
 

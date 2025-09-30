@@ -4,6 +4,7 @@ Gene and related models
 
 from sqlalchemy import (
     ARRAY,
+    BigInteger,
     Column,
     Date,
     DateTime,
@@ -25,7 +26,7 @@ class Gene(Base, TimestampMixin):
 
     __tablename__ = "genes"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, index=True)
     hgnc_id = Column(String(50), unique=True, index=True)
     approved_symbol = Column(String(100), nullable=False, index=True)
     aliases: Column[list[str] | None] = Column(ARRAY(Text), default=list)
@@ -51,8 +52,8 @@ class GeneEvidence(Base, TimestampMixin):
         ),
     )
 
-    id = Column(Integer, primary_key=True, index=True)
-    gene_id = Column(Integer, ForeignKey("genes.id", ondelete="CASCADE"), nullable=False)
+    id = Column(BigInteger, primary_key=True, index=True)
+    gene_id = Column(BigInteger, ForeignKey("genes.id", ondelete="CASCADE"), nullable=False)
     source_name = Column(String(100), nullable=False, index=True)
     source_detail = Column(String(255))
     evidence_data = Column(JSONB, nullable=False)
@@ -70,8 +71,8 @@ class GeneCuration(Base, TimestampMixin):
 
     __tablename__ = "gene_curations"
 
-    id = Column(Integer, primary_key=True, index=True)
-    gene_id = Column(Integer, ForeignKey("genes.id"), unique=True, nullable=False)
+    id = Column(BigInteger, primary_key=True, index=True)
+    gene_id = Column(BigInteger, ForeignKey("genes.id"), unique=True, nullable=False)
 
     # Evidence counts
     evidence_count = Column(Integer, default=0)
@@ -106,7 +107,7 @@ class PipelineRun(Base, TimestampMixin):
 
     __tablename__ = "pipeline_runs"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, index=True)
     status = Column(String(50), default="running")
     started_at = Column(DateTime)
     completed_at = Column(DateTime)

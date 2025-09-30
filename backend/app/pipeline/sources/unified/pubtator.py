@@ -84,12 +84,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         self.min_publications = validate_threshold_config(
             raw_threshold, "publications", self.source_name
         )
-        self.filtering_enabled = get_source_parameter(
-            "PubTator", "min_publications_enabled", True
-        )
-        self.filter_after_complete = get_source_parameter(
-            "PubTator", "filter_after_complete", True
-        )
+        self.filtering_enabled = get_source_parameter("PubTator", "min_publications_enabled", True)
+        self.filter_after_complete = get_source_parameter("PubTator", "filter_after_complete", True)
 
         # Rate limiting - CRITICAL for API compliance
         self.rate_limiter = SimpleRateLimiter(
@@ -99,7 +95,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         self.sort_order = "score desc"
         # Load optimized chunk configuration
         self.chunk_size = get_source_parameter("PubTator", "chunk_size", 300)  # Reduced from 1000
-        self.transaction_size = get_source_parameter("PubTator", "transaction_size", 1000)  # Reduced from 5000
+        self.transaction_size = get_source_parameter(
+            "PubTator", "transaction_size", 1000
+        )  # Reduced from 5000
 
         logger.sync_info(
             f"{self.source_name} initialized with rate limiting and filtering",
@@ -216,22 +214,24 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             stats["completed_at"] = datetime.now(timezone.utc).isoformat()
             raise
 
-    @retry_with_backoff(config=RetryConfig(
-        max_retries=5,
-        initial_delay=1.0,
-        max_delay=60.0,
-        retry_on_status_codes=(429, 500, 502, 503, 504),
-        # Add retry for connection errors
-        retry_on_exceptions=(
-            httpx.HTTPStatusError,
-            httpx.RequestError,
-            httpx.TimeoutException,
-            httpx.RemoteProtocolError,  # This catches "Server disconnected" errors
-            asyncio.TimeoutError,
-            ConnectionError,
-            TimeoutError
+    @retry_with_backoff(
+        config=RetryConfig(
+            max_retries=5,
+            initial_delay=1.0,
+            max_delay=60.0,
+            retry_on_status_codes=(429, 500, 502, 503, 504),
+            # Add retry for connection errors
+            retry_on_exceptions=(
+                httpx.HTTPStatusError,
+                httpx.RequestError,
+                httpx.TimeoutException,
+                httpx.RemoteProtocolError,  # This catches "Server disconnected" errors
+                asyncio.TimeoutError,
+                ConnectionError,
+                TimeoutError,
+            ),
         )
-    ))
+    )
     async def _fetch_page(self, page: int, query: str) -> dict | None:
         """
         Fetch a single page using CachedHttpClient with rate limiting.
@@ -247,19 +247,14 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         # Rate limit BEFORE making request - CRITICAL for API compliance
         await self.rate_limiter.wait()
 
-        params = {
-            "text": query,
-            "page": page,
-            "sort": self.sort_order,
-            "filters": "{}"
-        }
+        params = {"text": query, "page": page, "sort": self.sort_order, "filters": "{}"}
 
         # Don't catch exceptions here - let retry_with_backoff handle them!
         # CachedHttpClient handles all caching automatically!
         response = await self.http_client.get(
             f"{self.base_url}/search/",
             params=params,
-            timeout=30  # CachedHttpClient respects this
+            timeout=30,  # CachedHttpClient respects this
         )
 
         if response.status_code != 200:
@@ -293,7 +288,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             checkpoint_exists=bool(checkpoint),
             last_page=checkpoint.get("last_page"),
             mode=checkpoint.get("mode"),
-            requested_mode=mode
+            requested_mode=mode,
         )
 
         start_page = checkpoint.get("last_page", 0) + 1 if checkpoint else 1
@@ -302,29 +297,26 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         logger.sync_info(
             "Tracker status check",
             current_status=str(tracker.progress_record.status),
-            status_value=str(tracker.progress_record.status.value) if hasattr(tracker.progress_record.status, 'value') else "No value",
+            status_value=str(tracker.progress_record.status.value)
+            if hasattr(tracker.progress_record.status, "value")
+            else "No value",
             status_type=type(tracker.progress_record.status).__name__,
-            has_checkpoint=bool(checkpoint)
+            has_checkpoint=bool(checkpoint),
         )
 
         # Ensure tracker is in running state when resuming
         from app.models.progress import SourceStatus
+
         if checkpoint and tracker.progress_record.status != SourceStatus.running:
             logger.sync_info(
                 "Resuming from checkpoint - setting status to running",
-                old_status=str(tracker.progress_record.status)
+                old_status=str(tracker.progress_record.status),
             )
             tracker.resume()  # This sets status to running
             # Force immediate update to ensure status is persisted
-            tracker.update(
-                operation=f"Resumed from page {start_page-1}",
-                force=True
-            )
+            tracker.update(operation=f"Resumed from page {start_page - 1}", force=True)
             # Log status after resume
-            logger.sync_info(
-                "Status after resume",
-                new_status=str(tracker.progress_record.status)
-            )
+            logger.sync_info("Status after resume", new_status=str(tracker.progress_record.status))
         query_hash = hashlib.md5(query.encode()).hexdigest()[:8]
 
         # Verify same query on resume
@@ -338,7 +330,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 "Mode change detected",
                 old_mode=checkpoint.get("mode"),
                 new_mode=mode,
-                action="resetting" if mode == "full" else "continuing"
+                action="resetting" if mode == "full" else "continuing",
             )
             if mode == "full":
                 # Full mode: clear existing entries and start from beginning
@@ -348,8 +340,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             else:
                 # Smart mode: continue from checkpoint
                 logger.sync_info(
-                    "Smart mode requested - continuing from checkpoint",
-                    resume_page=start_page
+                    "Smart mode requested - continuing from checkpoint", resume_page=start_page
                 )
         elif not checkpoint:
             logger.sync_info("No checkpoint found - starting from page 1")
@@ -412,8 +403,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                     stats["total_pages"] = response.get("total_pages", 0)
                     if tracker:
                         tracker.update(
-                            total_pages=stats["total_pages"],
-                            total_items=response.get("count", 0)
+                            total_pages=stats["total_pages"], total_items=response.get("count", 0)
                         )
 
                 # Process articles in this page
@@ -434,7 +424,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
                     # Filter out existing articles
                     new_articles_list = [
-                        a for a in page_articles
+                        a
+                        for a in page_articles
                         if str(a.get("pmid", "")) not in existing_pmids_in_page
                     ]
 
@@ -479,7 +470,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                     # Commit transaction periodically
                     if stats["processed_articles"] % self.transaction_size == 0:
                         self.db_session.commit()
-                        logger.sync_info(f"Transaction committed at {stats['processed_articles']} articles")
+                        logger.sync_info(
+                            f"Transaction committed at {stats['processed_articles']} articles"
+                        )
 
                 # Update progress
                 stats["current_page"] = page
@@ -487,7 +480,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                     tracker.update(
                         current_page=page,
                         current_item=stats["processed_articles"],
-                        operation=f"Processing page {page}/{stats['total_pages'] or '?'}"
+                        operation=f"Processing page {page}/{stats['total_pages'] or '?'}",
                     )
 
                 # Check stopping conditions
@@ -515,7 +508,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         if self.filtering_enabled and self.filter_after_complete:
             logger.sync_info(
                 "Applying final filter to complete PubTator dataset",
-                min_publications=self.min_publications
+                min_publications=self.min_publications,
             )
 
             try:
@@ -526,7 +519,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                     count_field="publication_count",
                     min_threshold=self.min_publications,
                     entity_name="publications",
-                    enabled=self.filtering_enabled
+                    enabled=self.filtering_enabled,
                 )
 
                 # Commit the deletions
@@ -542,15 +535,13 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                     "PubTator filter statistics",
                     filtered_count=filter_stats.filtered_count,
                     filter_rate=f"{filter_stats.filter_rate:.1f}%",
-                    min_publications=self.min_publications
+                    min_publications=self.min_publications,
                 )
 
             except Exception as e:
                 self.db_session.rollback()
                 logger.sync_error(
-                    "Failed to apply final filter",
-                    source=self.source_name,
-                    error=str(e)
+                    "Failed to apply final filter", source=self.source_name, error=str(e)
                 )
                 raise
         else:
@@ -567,7 +558,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             genes_filtered=stats.get("genes_filtered", 0),
             filter_rate=f"{stats.get('filter_rate', 0):.1f}%",
             min_publications=self.min_publications if self.filtering_enabled else "disabled",
-            last_page=stats["current_page"]
+            last_page=stats["current_page"],
         )
 
         return stats
@@ -595,14 +586,16 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             pmid = str(article.get("pmid", ""))
             gene_buffer[gene_symbol]["pmids"].add(pmid)
             gene_buffer[gene_symbol]["identifiers"].add(gene.get("identifier", ""))
-            gene_buffer[gene_symbol]["mentions"].append({
-                "pmid": pmid,
-                "title": article.get("title", ""),
-                "journal": article.get("journal", ""),
-                "date": article.get("date", ""),
-                "score": article.get("score", 0),
-                "text": gene.get("text", ""),
-            })
+            gene_buffer[gene_symbol]["mentions"].append(
+                {
+                    "pmid": pmid,
+                    "title": article.get("title", ""),
+                    "journal": article.get("journal", ""),
+                    "date": article.get("date", ""),
+                    "score": article.get("score", 0),
+                    "text": gene.get("text", ""),
+                }
+            )
             gene_buffer[gene_symbol]["evidence_score"] += article.get("score", 0)
 
     async def _flush_buffers(
@@ -610,7 +603,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         article_buffer: list,
         gene_buffer: dict,
         stats: dict,
-        tracker: "ProgressTracker" = None
+        tracker: "ProgressTracker" = None,
     ):
         """
         Flush buffers to database with MERGE logic to prevent data loss.
@@ -638,13 +631,13 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
             # Calculate average score
             if processed_data["publication_count"] > 0:
-                processed_data["evidence_score"] = processed_data.get("evidence_score", 0) / processed_data["publication_count"]
+                processed_data["evidence_score"] = (
+                    processed_data.get("evidence_score", 0) / processed_data["publication_count"]
+                )
 
             # Keep only top mentions
             processed_data["mentions"] = sorted(
-                processed_data["mentions"],
-                key=lambda x: x.get("score", 0),
-                reverse=True
+                processed_data["mentions"], key=lambda x: x.get("score", 0), reverse=True
             )[:20]
 
             processed_genes[gene_symbol] = processed_data
@@ -655,7 +648,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             self.db_session,
             processed_genes,
             stats,
-            tracker  # Pass the tracker
+            tracker,  # Pass the tracker
         )
 
         # Update stats
@@ -689,10 +682,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             if existing:
                 # MERGE with existing data - this is the critical part!
                 if existing.evidence_data:
-                    merged_data = self._merge_evidence_data(
-                        existing.evidence_data,
-                        evidence_data
-                    )
+                    merged_data = self._merge_evidence_data(existing.evidence_data, evidence_data)
                 else:
                     merged_data = evidence_data
 
@@ -764,9 +754,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         # Sort mentions by score and keep top 20 for display
         all_mentions = sorted(
-            mentions_by_pmid.values(),
-            key=lambda x: x.get("score", 0),
-            reverse=True
+            mentions_by_pmid.values(), key=lambda x: x.get("score", 0), reverse=True
         )
         merged["mentions"] = all_mentions[:20]  # Keep top 20 for UI
         merged["top_mentions"] = all_mentions[:5]  # Keep top 5 for quick display
@@ -794,14 +782,14 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         """Load checkpoint from DataSourceProgress table."""
         logger.sync_debug("Starting checkpoint load for PubTator")
 
-        progress = self.db_session.query(DataSourceProgress).filter_by(
-            source_name="PubTator"
-        ).first()
+        progress = (
+            self.db_session.query(DataSourceProgress).filter_by(source_name="PubTator").first()
+        )
 
         logger.sync_debug(
             "Database query complete",
             progress_found=progress is not None,
-            has_metadata=progress.progress_metadata is not None if progress else False
+            has_metadata=progress.progress_metadata is not None if progress else False,
         )
 
         if progress:
@@ -811,7 +799,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 current_page=progress.current_page,
                 status=progress.status.value if progress.status else None,
                 metadata_type=type(progress.progress_metadata).__name__,
-                metadata_content=progress.progress_metadata
+                metadata_content=progress.progress_metadata,
             )
 
             if progress.progress_metadata:
@@ -820,7 +808,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                     "Checkpoint loaded successfully",
                     last_page=checkpoint.get("last_page"),
                     mode=checkpoint.get("mode"),
-                    query_hash=checkpoint.get("query_hash")
+                    query_hash=checkpoint.get("query_hash"),
                 )
                 return checkpoint
             else:
@@ -832,9 +820,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
     async def _save_checkpoint(self, page: int, mode: str, query_hash: str):
         """Save checkpoint to DataSourceProgress table."""
-        progress = self.db_session.query(DataSourceProgress).filter_by(
-            source_name="PubTator"
-        ).first()
+        progress = (
+            self.db_session.query(DataSourceProgress).filter_by(source_name="PubTator").first()
+        )
 
         if not progress:
             progress = DataSourceProgress(source_name="PubTator")
@@ -845,7 +833,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             "last_page": page,
             "mode": mode,
             "query_hash": query_hash,
-            "updated_at": datetime.now(timezone.utc).isoformat()
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
         progress.current_page = page
 
@@ -890,7 +878,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 WHERE source_name = 'PubTator'
                 AND pmid = ANY(:pmid_list)
             """),
-            {"pmid_list": pmids}
+            {"pmid_list": pmids},
         ).fetchall()
 
         return {row[0] for row in result}
@@ -915,12 +903,14 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             key = f"{symbol}:{gene_id}"
             if key not in seen:
                 seen.add(key)
-                genes.append({
-                    "text": display,
-                    "identifier": gene_id,
-                    "type": "Gene",
-                    "symbol": symbol,
-                })
+                genes.append(
+                    {
+                        "text": display,
+                        "identifier": gene_id,
+                        "type": "Gene",
+                        "symbol": symbol,
+                    }
+                )
 
         return genes
 
@@ -928,6 +918,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         """Check if system resources are adequate."""
         try:
             import psutil
+
             memory_percent = psutil.virtual_memory().percent
             if memory_percent > 85:
                 logger.sync_warning(f"High memory usage: {memory_percent}%")

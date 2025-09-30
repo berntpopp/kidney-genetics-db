@@ -76,7 +76,7 @@ async def test_percentile_service_frequency_limiting():
     service.cache_service = mock_cache
 
     # First call should work
-    with patch.object(service, '_calculate_sync', return_value={1: 0.5}):
+    with patch.object(service, "_calculate_sync", return_value={1: 0.5}):
         result1 = await service.calculate_global_percentiles("test", "score", force=False)
         assert result1 == {}  # No cached value
 
@@ -99,10 +99,11 @@ async def test_percentile_service_timeout():
     # Mock a slow calculation
     async def slow_calc(*args):
         import asyncio
+
         await asyncio.sleep(10)  # Longer than timeout
         return {}
 
-    with patch.object(service, '_calculate_with_fallback', side_effect=slow_calc):
+    with patch.object(service, "_calculate_with_fallback", side_effect=slow_calc):
         # Should timeout and return empty
         result = await service.calculate_global_percentiles("test", "score")
         # Due to timeout, should fall back to cache or empty
@@ -117,8 +118,17 @@ async def test_percentile_validation():
 
     # Test with good distribution
     good_percentiles = {
-        1: 0.0, 2: 0.1, 3: 0.2, 4: 0.3, 5: 0.4,
-        6: 0.5, 7: 0.6, 8: 0.7, 9: 0.8, 10: 0.9, 11: 1.0
+        1: 0.0,
+        2: 0.1,
+        3: 0.2,
+        4: 0.3,
+        5: 0.4,
+        6: 0.5,
+        7: 0.6,
+        8: 0.7,
+        9: 0.8,
+        10: 0.9,
+        11: 1.0,
     }
     service.get_cached_percentiles_only = AsyncMock(return_value=good_percentiles)
     result = await service.validate_percentiles("test")

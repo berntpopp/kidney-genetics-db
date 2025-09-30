@@ -206,7 +206,8 @@ class HPOAnnotationSource(BaseAnnotationSource):
         if (
             self._kidney_terms_cache is not None
             and self._kidney_terms_cache_time is not None
-            and time.time() - self._kidney_terms_cache_time < ANNOTATION_COMMON_CONFIG["cache_time_day"]
+            and time.time() - self._kidney_terms_cache_time
+            < ANNOTATION_COMMON_CONFIG["cache_time_day"]
         ):
             return self._kidney_terms_cache
 
@@ -275,7 +276,8 @@ class HPOAnnotationSource(BaseAnnotationSource):
         if (
             not force_refresh
             and self._classification_cache_time is not None
-            and time.time() - self._classification_cache_time < ANNOTATION_COMMON_CONFIG["cache_time_day"]
+            and time.time() - self._classification_cache_time
+            < ANNOTATION_COMMON_CONFIG["cache_time_day"]
         ):
             # Return appropriate cache
             if classification_type == "onset_groups" and self._onset_descendants_cache:
@@ -283,7 +285,9 @@ class HPOAnnotationSource(BaseAnnotationSource):
                     f"Using cached onset descendants: {len(self._onset_descendants_cache)} groups"
                 )
                 return self._onset_descendants_cache
-            elif classification_type == "syndromic_indicators" and self._syndromic_descendants_cache:
+            elif (
+                classification_type == "syndromic_indicators" and self._syndromic_descendants_cache
+            ):
                 logger.sync_info(
                     f"Using cached syndromic descendants: {len(self._syndromic_descendants_cache)} groups"
                 )
@@ -307,7 +311,9 @@ class HPOAnnotationSource(BaseAnnotationSource):
             pipeline = HPOPipeline()
 
         classification_config = get_source_parameter("HPO", classification_type, {})
-        logger.sync_info(f"Classification config for {classification_type}: {classification_config}")
+        logger.sync_info(
+            f"Classification config for {classification_type}: {classification_config}"
+        )
 
         descendants_map = {}
         for group_key, group_config in classification_config.items():
@@ -340,7 +346,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
                     logger.sync_error(
                         f"Failed to get descendants for {term} in {group_key}",
                         error=str(e),
-                        classification_type=classification_type
+                        classification_type=classification_type,
                     )
                     # Continue with other terms
 
@@ -352,7 +358,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
         logger.sync_info(
             f"Classification {classification_type} complete",
             groups=len(descendants_map),
-            total_descendants=total_descendants
+            total_descendants=total_descendants,
         )
 
         # Update cache
@@ -456,9 +462,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
         Assess syndromic features with sub-category scoring.
         Matches R implementation: checks ALL phenotypes and calculates per-category scores.
         """
-        logger.sync_debug(
-            f"Assessing syndromic features for {len(phenotype_ids)} phenotypes"
-        )
+        logger.sync_debug(f"Assessing syndromic features for {len(phenotype_ids)} phenotypes")
 
         # Get descendants for syndromic indicator terms (cached)
         syndromic_descendants = await self.get_classification_term_descendants(
@@ -469,7 +473,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
         logger.sync_debug(
             "Syndromic descendants loaded",
             categories=list(syndromic_descendants.keys()),
-            sizes={k: len(v) for k, v in syndromic_descendants.items()}
+            sizes={k: len(v) for k, v in syndromic_descendants.items()},
         )
 
         # Calculate matches and scores for each category
@@ -520,7 +524,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
             "Syndromic assessment complete",
             is_syndromic=is_syndromic,
             score=syndromic_score,
-            categories_matched=len(category_matches)
+            categories_matched=len(category_matches),
         )
 
         return result

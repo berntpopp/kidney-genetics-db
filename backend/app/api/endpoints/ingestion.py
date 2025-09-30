@@ -102,46 +102,34 @@ async def upload_evidence_file(
 
     try:
         # Get source processor
-        await logger.info(
-            "Getting source processor",
-            source_name=source_name
-        )
+        await logger.info("Getting source processor", source_name=source_name)
         source = get_unified_source(source_name, db_session=db)
 
-        await logger.info(
-            "Source processor obtained",
-            source_class=source.__class__.__name__
-        )
+        await logger.info("Source processor obtained", source_class=source.__class__.__name__)
 
         # Process through source pipeline
         await logger.info(
             "Fetching raw data from file",
             file_extension=file_extension,
-            provider_name=provider_name
+            provider_name=provider_name,
         )
         raw_data = await source.fetch_raw_data(file_content, file_extension, provider_name)
 
         await logger.info(
             "Raw data fetched",
-            row_count=len(raw_data) if hasattr(raw_data, '__len__') else 'unknown'
+            row_count=len(raw_data) if hasattr(raw_data, "__len__") else "unknown",
         )
 
         # Process data
         await logger.info("Processing raw data")
         processed_data = await source.process_data(raw_data)
 
-        await logger.info(
-            "Data processed",
-            gene_count=len(processed_data) if processed_data else 0
-        )
+        await logger.info("Data processed", gene_count=len(processed_data) if processed_data else 0)
 
         # Set provider context for evidence creation
         source._current_provider = provider_name
 
-        await logger.info(
-            "Starting hybrid gene creation/evidence merging",
-            provider=provider_name
-        )
+        await logger.info("Starting hybrid gene creation/evidence merging", provider=provider_name)
 
         # Use hybrid source approach with gene creation + evidence merging
         from app.core.gene_normalizer import normalize_genes_batch_async
@@ -158,7 +146,7 @@ async def upload_evidence_file(
             "Starting gene normalization",
             total_symbols=len(gene_symbols),
             batch_size=batch_size,
-            total_batches=total_batches
+            total_batches=total_batches,
         )
 
         genes_created = 0
@@ -172,9 +160,7 @@ async def upload_evidence_file(
             tracker.update(operation=f"Creating genes batch {batch_num + 1}/{total_batches}")
 
             await logger.debug(
-                "Processing batch",
-                batch_num=batch_num + 1,
-                batch_size=len(batch_symbols)
+                "Processing batch", batch_num=batch_num + 1, batch_size=len(batch_symbols)
             )
 
             # Normalize gene symbols and create missing genes
@@ -185,7 +171,7 @@ async def upload_evidence_file(
             await logger.debug(
                 "Batch normalized",
                 batch_num=batch_num + 1,
-                normalized_count=len(normalization_results)
+                normalized_count=len(normalization_results),
             )
 
             # Create missing genes
@@ -204,31 +190,31 @@ async def upload_evidence_file(
             await logger.debug(
                 "Batch committed",
                 batch_num=batch_num + 1,
-                batch_created=sum(1 for s in batch_symbols if normalization_results.get(s, {}).get("created")),
-                batch_updated=sum(1 for s in batch_symbols if normalization_results.get(s, {}).get("status") == "normalized" and not normalization_results.get(s, {}).get("created"))
+                batch_created=sum(
+                    1 for s in batch_symbols if normalization_results.get(s, {}).get("created")
+                ),
+                batch_updated=sum(
+                    1
+                    for s in batch_symbols
+                    if normalization_results.get(s, {}).get("status") == "normalized"
+                    and not normalization_results.get(s, {}).get("created")
+                ),
             )
 
         await logger.info(
-            "Gene normalization complete",
-            genes_created=genes_created,
-            genes_updated=genes_updated
+            "Gene normalization complete", genes_created=genes_created, genes_updated=genes_updated
         )
 
         # Step 2: Store evidence using custom merge logic
         tracker.update(operation="Storing evidence with aggregation")
 
         await logger.info(
-            "Starting evidence storage",
-            gene_count=len(processed_data),
-            provider=provider_name
+            "Starting evidence storage", gene_count=len(processed_data), provider=provider_name
         )
 
         evidence_stats = await source.store_evidence(db, processed_data, provider_name)
 
-        await logger.info(
-            "Evidence storage complete",
-            stats=evidence_stats
-        )
+        await logger.info("Evidence storage complete", stats=evidence_stats)
 
         db.commit()
 
@@ -242,10 +228,7 @@ async def upload_evidence_file(
             "filtered": evidence_stats.get("filtered", 0),
         }
 
-        await logger.info(
-            "Upload processing complete",
-            final_stats=stats
-        )
+        await logger.info("Upload processing complete", final_stats=stats)
 
         # Return comprehensive response
         upload_result = {

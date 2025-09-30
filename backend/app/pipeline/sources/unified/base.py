@@ -145,7 +145,9 @@ class UnifiedDataSource(DataSourceClient, ABC):
             # Cache the data
             if self.cache_service and data is not None:
                 try:
-                    await self.cache_service.set(full_key, data, effective_ttl)
+                    await self.cache_service.set(
+                        full_key, data, namespace="default", ttl=effective_ttl
+                    )
                     logger.sync_debug("Cached data", cache_key=full_key, ttl_seconds=effective_ttl)
                 except Exception as e:
                     logger.sync_warning("Failed to cache data", cache_key=full_key, error=e)
@@ -235,7 +237,9 @@ class UnifiedDataSource(DataSourceClient, ABC):
                             if self.cache_service:
                                 cache_key = f"{self.namespace}:{cache_key_func(item)}"
                                 try:
-                                    await self.cache_service.set(cache_key, data, effective_ttl)
+                                    await self.cache_service.set(
+                                        cache_key, data, namespace="default", ttl=effective_ttl
+                                    )
                                 except Exception as e:
                                     logger.sync_warning(
                                         "Failed to cache item", cache_key=cache_key, error=e

@@ -24,7 +24,7 @@ def sample_gene():
         approved_symbol="TEST1",
         hgnc_id="HGNC:12345",
         entrez_gene_id="67890",
-        omim_gene_id="123456"
+        omim_gene_id="123456",
     )
     return gene
 
@@ -38,29 +38,20 @@ def sample_annotation_data():
             "name": "Test Gene 1",
             "alias_symbols": ["TST1", "TG1"],
             "prev_symbols": ["OLD1"],
-            "location": "1q23.4"
+            "location": "1q23.4",
         },
-        "gnomad": {
-            "pLI": 0.95,
-            "oe_lof": 0.12,
-            "oe_mis": 0.85,
-            "constraint_flag": True
-        },
+        "gnomad": {"pLI": 0.95, "oe_lof": 0.12, "oe_mis": 0.85, "constraint_flag": True},
         "gtex": {
-            "expression": {
-                "kidney": 45.2,
-                "heart": 12.3,
-                "brain": 78.9
-            },
-            "tissue_specific": True
+            "expression": {"kidney": 45.2, "heart": 12.3, "brain": 78.9},
+            "tissue_specific": True,
         },
         "hpo": {
             "phenotypes": [
                 {"id": "HP:0000001", "name": "Phenotype 1"},
-                {"id": "HP:0000002", "name": "Phenotype 2"}
+                {"id": "HP:0000002", "name": "Phenotype 2"},
             ],
-            "inheritance": ["Autosomal dominant"]
-        }
+            "inheritance": ["Autosomal dominant"],
+        },
     }
 
 
@@ -74,19 +65,13 @@ class TestAnnotationCacheIntegration:
 
         # Set annotation data
         success = await cache_service.set_annotation(
-            gene_id=1,
-            data=sample_annotation_data,
-            source="all",
-            ttl=3600,
-            db_session=db_session
+            gene_id=1, data=sample_annotation_data, source="all", ttl=3600, db_session=db_session
         )
         assert success is True
 
         # Retrieve annotation data
         cached_data = await cache_service.get_annotation(
-            gene_id=1,
-            source="all",
-            db_session=db_session
+            gene_id=1, source="all", db_session=db_session
         )
         assert cached_data == sample_annotation_data
 
@@ -100,7 +85,7 @@ class TestAnnotationCacheIntegration:
         # Check L2 (database)
         result = db_session.execute(
             text("SELECT value FROM cache_entries WHERE cache_key = :key"),
-            {"key": f"annotations:{cache_key}"}
+            {"key": f"annotations:{cache_key}"},
         ).fetchone()
         assert result is not None
 
@@ -112,11 +97,7 @@ class TestAnnotationCacheIntegration:
         # Cache individual sources
         for source, data in sample_annotation_data.items():
             await cache_service.set_annotation(
-                gene_id=1,
-                data={source: data},
-                source=source,
-                ttl=3600,
-                db_session=db_session
+                gene_id=1, data={source: data}, source=source, ttl=3600, db_session=db_session
             )
 
         # Retrieve specific sources
@@ -138,18 +119,12 @@ class TestAnnotationCacheIntegration:
             "sources": ["hgnc", "gnomad", "gtex"],
             "last_updated": datetime.utcnow().isoformat(),
             "completeness": 0.85,
-            "key_findings": [
-                "High pLI score",
-                "Kidney-specific expression"
-            ]
+            "key_findings": ["High pLI score", "Kidney-specific expression"],
         }
 
         # Set summary
         success = await cache_service.set_summary(
-            gene_id=1,
-            data=summary_data,
-            ttl=7200,
-            db_session=db_session
+            gene_id=1, data=summary_data, ttl=7200, db_session=db_session
         )
         assert success is True
 
@@ -164,7 +139,9 @@ class TestAnnotationCacheIntegration:
 
         # Set multiple cache entries for a gene
         await cache_service.set_annotation(1, sample_annotation_data, "all", 3600, db_session)
-        await cache_service.set_annotation(1, {"hgnc": sample_annotation_data["hgnc"]}, "hgnc", 3600, db_session)
+        await cache_service.set_annotation(
+            1, {"hgnc": sample_annotation_data["hgnc"]}, "hgnc", 3600, db_session
+        )
         await cache_service.set_summary(1, {"summary": "data"}, 7200, db_session)
 
         # Verify they're cached
@@ -223,10 +200,7 @@ class TestCacheWithAnnotationEndpoints:
         assert cached is None
 
         # Step 2: Fetch data (simulated)
-        fetched_data = {
-            "source": source,
-            "data": {"symbol": "TEST1", "name": "Test Gene 1"}
-        }
+        fetched_data = {"source": source, "data": {"symbol": "TEST1", "name": "Test Gene 1"}}
 
         # Step 3: Cache the result
         await cache_service.set(cache_key, fetched_data, "annotations", ttl=3600)
@@ -280,11 +254,7 @@ class TestCacheWithAnnotationEndpoints:
         genes = [1, 2, 3, 4, 5]
         for gene_id in genes:
             await cache_service.set_annotation(
-                gene_id,
-                {"data": f"gene_{gene_id}"},
-                "all",
-                ttl=3600,
-                db_session=db_session
+                gene_id, {"data": f"gene_{gene_id}"}, "all", ttl=3600, db_session=db_session
             )
 
         # Verify all are cached
@@ -315,7 +285,7 @@ class TestCachePerformanceIntegration:
                 {"preloaded": True, "gene_id": gene_id},
                 "all",
                 ttl=7200,  # Longer TTL for hot data
-                db_session=db_session
+                db_session=db_session,
             )
 
         # Verify all hot genes are in L1 cache
@@ -439,7 +409,7 @@ class TestCacheErrorRecovery:
         await cache_service.set("test_key", "test_value", "test", ttl=60)
 
         # Simulate L2 failure
-        with patch.object(cache_service._db, 'execute', side_effect=Exception("DB Error")):
+        with patch.object(cache_service._db, "execute", side_effect=Exception("DB Error")):
             # Should still work from L1
             result = await cache_service.get("test_key", "test")
             # L1 should still have it
@@ -461,8 +431,8 @@ class TestCacheErrorRecovery:
                 "key": "test:corrupted",
                 "namespace": "test",
                 "value": '{"invalid json',  # Corrupted JSON
-                "created_at": datetime.utcnow()
-            }
+                "created_at": datetime.utcnow(),
+            },
         )
         db_session.commit()
 

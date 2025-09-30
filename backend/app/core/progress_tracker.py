@@ -80,7 +80,7 @@ class ProgressTracker:
                 logger.sync_warning(
                     "Progress record not in current session, merging",
                     source_name=self.source_name,
-                    current_status=str(progress.status)
+                    current_status=str(progress.status),
                 )
                 # Store the current status before merge
                 current_status = progress.status
@@ -91,7 +91,7 @@ class ProgressTracker:
                         "Status changed during merge, restoring",
                         source_name=self.source_name,
                         old_status=str(current_status),
-                        new_status=str(progress.status)
+                        new_status=str(progress.status),
                     )
                     progress.status = current_status
 
@@ -116,14 +116,14 @@ class ProgressTracker:
             "ProgressTracker.start() called",
             source_name=self.source_name,
             operation=operation,
-            old_status=str(self.progress_record.status)
+            old_status=str(self.progress_record.status),
         )
         self._start_time = datetime.now(timezone.utc)
         self.progress_record.status = SourceStatus.running
         self.progress_record.current_operation = operation
         self.progress_record.started_at = self._start_time
         self.progress_record.completed_at = None
-        self.progress_record.last_error = None
+        self.progress_record.error_message = None
         self.progress_record.items_processed = 0
         self.progress_record.items_added = 0
         self.progress_record.items_updated = 0
@@ -135,7 +135,7 @@ class ProgressTracker:
         logger.sync_debug(
             "ProgressTracker.start() completed",
             source_name=self.source_name,
-            new_status=str(self.progress_record.status)
+            new_status=str(self.progress_record.status),
         )
 
     def update(
@@ -172,7 +172,7 @@ class ProgressTracker:
             current_item=current_item,
             operation=operation,
             force=force,
-            current_status=str(self.progress_record.status)
+            current_status=str(self.progress_record.status),
         )
 
         # Preserve running status if already set
@@ -180,7 +180,7 @@ class ProgressTracker:
             logger.sync_warning(
                 "Update called but status is not running!",
                 source_name=self.source_name,
-                current_status=str(self.progress_record.status)
+                current_status=str(self.progress_record.status),
             )
 
         # Update counters
@@ -257,7 +257,7 @@ class ProgressTracker:
     def error(self, error_message: str):
         """Mark source as failed with error"""
         self.progress_record.status = SourceStatus.failed
-        self.progress_record.last_error = error_message
+        self.progress_record.error_message = error_message
         self.progress_record.current_operation = f"Failed: {error_message[:100]}"
         self.progress_record.estimated_completion = None
         self._commit_and_broadcast()
@@ -275,7 +275,7 @@ class ProgressTracker:
             "ProgressTracker.resume() called",
             source_name=self.source_name,
             old_status=str(self.progress_record.status),
-            progress_id=self.progress_record.id if hasattr(self.progress_record, 'id') else None
+            progress_id=self.progress_record.id if hasattr(self.progress_record, "id") else None,
         )
         self.progress_record.status = SourceStatus.running
         self.progress_record.current_operation = "Resumed"
@@ -285,7 +285,7 @@ class ProgressTracker:
         logger.sync_debug(
             "ProgressTracker.resume() completed",
             source_name=self.source_name,
-            new_status=str(self.progress_record.status)
+            new_status=str(self.progress_record.status),
         )
 
     def is_paused(self) -> bool:
@@ -326,7 +326,9 @@ class ProgressTracker:
                 logger.sync_debug(
                     "Committing to database",
                     source_name=self.source_name,
-                    progress_id=self.progress_record.id if hasattr(self.progress_record, 'id') else None,
+                    progress_id=self.progress_record.id
+                    if hasattr(self.progress_record, "id")
+                    else None,
                 )
                 # Ensure the progress record is marked as modified
                 if self.progress_record in self.db:
@@ -400,7 +402,6 @@ class ProgressTracker:
                 "Failed to update progress - rolling back",
                 source_name=self.source_name,
                 error=str(e),
-                traceback=str(e.__traceback__),
             )
             self.db.rollback()
             raise  # Re-raise to see what's failing

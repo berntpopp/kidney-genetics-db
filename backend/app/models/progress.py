@@ -4,7 +4,7 @@ SQLAlchemy models for data source progress tracking
 
 from enum import Enum as PyEnum
 
-from sqlalchemy import JSON, Column, DateTime, Enum, Float, Integer, String, Text
+from sqlalchemy import JSON, BigInteger, Column, DateTime, Enum, Float, Integer, String, Text
 from sqlalchemy.sql import func
 
 from app.models.base import Base
@@ -25,7 +25,7 @@ class DataSourceProgress(Base):
 
     __tablename__ = "data_source_progress"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, index=True)
     source_name = Column(String, unique=True, nullable=False, index=True)
     status = Column(
         Enum(SourceStatus, native_enum=True, name="source_status"),
@@ -45,8 +45,12 @@ class DataSourceProgress(Base):
     progress_percentage = Column(Float, default=0.0)
 
     # Status information
-    current_operation = Column(String, nullable=True)
-    last_error = Column(Text, nullable=True)
+    current_operation = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+    last_error_at = Column(DateTime(timezone=True), nullable=True)
+    last_successful_item = Column(Text, nullable=True)
+    rate_limit_remaining = Column(Integer, nullable=True)
+    rate_limit_reset = Column(DateTime(timezone=True), nullable=True)
     progress_metadata = Column("metadata", JSON, default={})
 
     # Timestamps
@@ -62,8 +66,9 @@ class DataSourceProgress(Base):
         return {
             "source_name": self.source_name,
             "status": self.status.value if isinstance(self.status, SourceStatus) else self.status,
-            "progress_percentage": round(self.progress_percentage, 2) if self.progress_percentage is not None else 0.0,
-            "current_operation": self.current_operation,
+            "progress_percentage": round(self.progress_percentage, 2)
+            if self.progress_percentage is not None
+            else 0.0,
             "items_processed": self.items_processed,
             "items_added": self.items_added,
             "items_updated": self.items_updated,
@@ -72,7 +77,8 @@ class DataSourceProgress(Base):
             "total_pages": self.total_pages,
             "current_item": self.current_item,
             "total_items": self.total_items,
-            "last_error": self.last_error,
+            "current_operation": self.current_operation,
+            "last_error": self.error_message,
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
             "last_update_at": self.last_update_at.isoformat() if self.last_update_at else None,

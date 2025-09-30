@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """
-Initialize all annotation sources in the database.
+Initialize all annotation sources in the database from YAML configuration.
 This script ensures all annotation sources are properly registered and configured.
 """
 
 import asyncio
 from datetime import datetime, timezone
+from pathlib import Path
+
+import yaml
 
 from app.core.database import get_db
 from app.core.logging import get_logger
@@ -13,140 +16,105 @@ from app.models.gene_annotation import AnnotationSource
 
 logger = get_logger(__name__)
 
-# Define all annotation sources with their configurations
-ANNOTATION_SOURCES = [
-    {
-        "source_name": "hgnc",
-        "display_name": "HGNC",
-        "description": "HUGO Gene Nomenclature Committee - Gene symbols and identifiers",
-        "base_url": "https://www.genenames.org",
-        "update_frequency": "quarterly",
-        "is_active": True,
-        "priority": 10,  # Highest priority - provides base identifiers
-        "config": {
-            "cache_ttl_days": 90,
-            "batch_size": 100,
-            "requests_per_second": 10.0
+
+def load_annotation_config():
+    """Load annotation source configuration from YAML file."""
+    config_path = Path(__file__).parent.parent.parent / "config" / "annotations.yaml"
+
+    if not config_path.exists():
+        raise FileNotFoundError(f"Configuration file not found: {config_path}")
+
+    with open(config_path, encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+
+    return config.get("annotations", {})
+
+
+def prepare_annotation_sources(config):
+    """
+    Prepare annotation source configurations from YAML data.
+
+    Args:
+        config: Dictionary of annotation configurations from YAML
+
+    Returns:
+        List of annotation source configurations ready for database insertion
+    """
+    sources = []
+
+    for source_name, source_config in config.items():
+        # Skip the 'common' section
+        if source_name == "common":
+            continue
+
+        # Extract database fields
+        db_config = {
+            "source_name": source_name,
+            "display_name": source_config.get("display_name", source_name),
+            "description": source_config.get("description", ""),
+            "base_url": source_config.get("base_url", ""),
+            "update_frequency": source_config.get("update_frequency", "quarterly"),
+            "is_active": source_config.get("is_active", True),
+            "priority": source_config.get("priority", 0),
         }
-    },
-    {
-        "source_name": "gnomad",
-        "display_name": "gnomAD",
-        "description": "Genome Aggregation Database - Population allele frequencies and constraint scores",
-        "base_url": "https://gnomad.broadinstitute.org",
-        "update_frequency": "quarterly",
-        "is_active": True,
-        "priority": 9,
-        "config": {
-            "cache_ttl_days": 90,
-            "batch_size": 50,
-            "requests_per_second": 5.0
+
+        # Extract config parameters (everything else goes into the JSON config field)
+        config_params = {}
+        skip_fields = {
+            "display_name",
+            "description",
+            "base_url",
+            "update_frequency",
+            "is_active",
+            "priority",
         }
-    },
-    {
-        "source_name": "gtex",
-        "display_name": "GTEx",
-        "description": "Genotype-Tissue Expression - Gene expression across tissues",
-        "base_url": "https://gtexportal.org",
-        "update_frequency": "quarterly",
-        "is_active": True,
-        "priority": 8,
-        "config": {
-            "cache_ttl_days": 90,
-            "batch_size": 100,
-            "requests_per_second": 10.0
-        }
-    },
-    {
-        "source_name": "clinvar",
-        "display_name": "ClinVar",
-        "description": "Clinical Variants - Pathogenicity and clinical significance",
-        "base_url": "https://www.ncbi.nlm.nih.gov/clinvar/",
-        "update_frequency": "quarterly",
-        "is_active": True,
-        "priority": 7,
-        "config": {
-            "cache_ttl_days": 90,
-            "batch_size": 20,
-            "requests_per_second": 3.0
-        }
-    },
-    {
-        "source_name": "hpo",
-        "display_name": "HPO",
-        "description": "Human Phenotype Ontology - Phenotype associations",
-        "base_url": "https://hpo.jax.org",
-        "update_frequency": "quarterly",
-        "is_active": True,
-        "priority": 6,
-        "config": {
-            "cache_ttl_days": 90,
-            "batch_size": 50,
-            "requests_per_second": 5.0
-        }
-    },
-    {
-        "source_name": "mpo_mgi",
-        "display_name": "MPO/MGI",
-        "description": "Mouse Phenotype Ontology / Mouse Genome Informatics - Mouse orthologs and phenotypes",
-        "base_url": "http://www.informatics.jax.org",
-        "update_frequency": "quarterly",
-        "is_active": True,
-        "priority": 5,
-        "config": {
-            "cache_ttl_days": 90,
-            "batch_size": 50,
-            "requests_per_second": 5.0
-        }
-    },
-    {
-        "source_name": "string_ppi",
-        "display_name": "STRING PPI",
-        "description": "STRING Protein-Protein Interactions - Protein interaction networks",
-        "base_url": "https://string-db.org",
-        "update_frequency": "quarterly",
-        "is_active": True,
-        "priority": 4,
-        "config": {
-            "cache_ttl_days": 90,
-            "batch_size": 100,
-            "requests_per_second": 10.0
-        }
-    },
-    {
-        "source_name": "descartes",
-        "display_name": "Descartes",
-        "description": "Descartes Human Cell Atlas - Single-cell expression data",
-        "base_url": "https://descartes.brotmanbaty.org",
-        "update_frequency": "quarterly",
-        "is_active": True,
-        "priority": 3,
-        "config": {
-            "cache_ttl_days": 90,
-            "batch_size": 100,
-            "requests_per_second": 5.0
-        }
-    }
-]
+
+        for key, value in source_config.items():
+            if key not in skip_fields:
+                config_params[key] = value
+
+        # Ensure cache_ttl_days and batch_size are present
+        if "cache_ttl_days" not in config_params:
+            config_params["cache_ttl_days"] = 90
+        if "batch_size" not in config_params:
+            config_params["batch_size"] = 100
+        if "requests_per_second" not in config_params:
+            config_params["requests_per_second"] = 5.0
+
+        db_config["config"] = config_params
+        sources.append(db_config)
+
+    # Sort by priority (highest first)
+    sources.sort(key=lambda x: x["priority"], reverse=True)
+
+    return sources
 
 
 async def init_annotation_sources():
-    """Initialize all annotation sources in the database."""
+    """Initialize all annotation sources in the database from YAML configuration."""
 
     # Get database session
     db = next(get_db())
 
     try:
-        await logger.info("Starting annotation source initialization")
+        await logger.info("Loading annotation source configuration from YAML")
+
+        # Load configuration from YAML
+        config = load_annotation_config()
+        annotation_sources = prepare_annotation_sources(config)
+
+        await logger.info(f"Found {len(annotation_sources)} annotation sources in configuration")
 
         created_count = 0
         updated_count = 0
 
-        for source_config in ANNOTATION_SOURCES:
+        for source_config in annotation_sources:
             # Check if source already exists
-            existing = db.query(AnnotationSource).filter_by(
-                source_name=source_config["source_name"]
-            ).first()
+            existing = (
+                db.query(AnnotationSource)
+                .filter_by(source_name=source_config["source_name"])
+                .first()
+            )
 
             if existing:
                 # Update existing source
@@ -172,7 +140,7 @@ async def init_annotation_sources():
             "Annotation source initialization complete",
             created=created_count,
             updated=updated_count,
-            total=len(ANNOTATION_SOURCES)
+            total=len(annotation_sources),
         )
 
         # Display current status
@@ -180,15 +148,15 @@ async def init_annotation_sources():
         await logger.info("Current annotation sources status:")
         for source in all_sources:
             await logger.info(
-                f"  - {source.source_name}: active={source.is_active}, priority={source.priority}, "
-                f"last_update={source.last_update}"
+                f"  - {source.source_name}: active={source.is_active}, "
+                f"priority={source.priority}, last_update={source.last_update}"
             )
 
         return {
             "success": True,
             "created": created_count,
             "updated": updated_count,
-            "total": len(all_sources)
+            "total": len(all_sources),
         }
 
     except Exception as e:
@@ -231,11 +199,11 @@ async def main():
     # Clear cache first to prevent issues
     await clear_corrupted_cache()
 
-    # Initialize annotation sources
+    # Initialize annotation sources from YAML
     result = await init_annotation_sources()
 
     if result["success"]:
-        print(f"\n✅ Successfully initialized {result['total']} annotation sources")
+        print(f"\n✅ Successfully initialized {result['total']} annotation sources from YAML")
         print(f"   Created: {result['created']}")
         print(f"   Updated: {result['updated']}")
         print("\n🚀 You can now run the annotation pipeline to fetch data from all sources")

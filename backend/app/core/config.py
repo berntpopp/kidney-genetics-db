@@ -77,17 +77,9 @@ class Settings(BaseSettings):
     HGNC_RETRY_ATTEMPTS: int = 3  # Retry attempts for failed requests
     HGNC_CACHE_ENABLED: bool = True  # Enable HGNC response caching
 
-    # Pipeline Configuration
-    KIDNEY_FILTER_TERMS: list[str] = [
-        "kidney",
-        "renal",
-        "nephro",
-        "glomerul",
-        "proteinuria",
-        "hematuria",
-        "nephrotic",
-        "nephritic",
-    ]
+    # Configuration System
+    CONFIG_DIR: str = "./config"  # Directory for YAML configuration files
+    ENVIRONMENT: str = "dev"  # Environment: dev, staging, prod
 
     # API Keys (optional)
     OPENAI_API_KEY: str | None = None

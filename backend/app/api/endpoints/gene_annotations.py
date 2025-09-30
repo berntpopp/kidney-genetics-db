@@ -452,21 +452,28 @@ async def get_annotation_sources(
     """
     query = db.query(AnnotationSource)
 
+    # Filter by active status if requested
     if active_only:
         query = query.filter(AnnotationSource.is_active.is_(True))
 
-    sources = query.order_by(AnnotationSource.priority.desc()).all()
+    # Order by priority (descending) then by source_name
+    sources = query.order_by(AnnotationSource.priority.desc(), AnnotationSource.source_name).all()
 
     return [
         {
             "source_name": source.source_name,
             "display_name": source.display_name,
+            "version": source.version,
             "description": source.description,
+            "url": source.url,
+            "base_url": source.base_url,
             "is_active": source.is_active,
+            "priority": source.priority,
+            "update_frequency": source.update_frequency,
             "last_update": source.last_update.isoformat() if source.last_update else None,
             "next_update": source.next_update.isoformat() if source.next_update else None,
-            "update_frequency": source.update_frequency,
-            "config": source.config,
+            "created_at": source.created_at.isoformat() if source.created_at else None,
+            "updated_at": source.updated_at.isoformat() if source.updated_at else None,
         }
         for source in sources
     ]
@@ -523,30 +530,22 @@ async def refresh_global_percentiles(
     Returns:
         Status response
     """
-    await logger.info(
-        f"Percentile refresh requested for {source}",
-        user_id=current_user.id
-    )
+    await logger.info(f"Percentile refresh requested for {source}", user_id=current_user.id)
 
     # Validate source
     valid_sources = ["string_ppi", "gnomad", "gtex"]
     if source not in valid_sources:
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid source. Must be one of: {valid_sources}"
+            status_code=400, detail=f"Invalid source. Must be one of: {valid_sources}"
         )
 
     # Schedule background task
-    background_tasks.add_task(
-        update_percentiles_for_source,
-        db,
-        source
-    )
+    background_tasks.add_task(update_percentiles_for_source, db, source)
 
     return {
         "status": "scheduled",
         "source": source,
-        "message": f"Global percentile recalculation scheduled for {source}"
+        "message": f"Global percentile recalculation scheduled for {source}",
     }
 
 
@@ -726,13 +725,13 @@ async def update_failed_annotations(
     from app.models.gene_annotation import GeneAnnotation
 
     # Find genes with evidence score but missing/incomplete annotations
-    failed_query = db.query(Gene).join(
-        GeneCuration,
-        GeneCuration.gene_id == Gene.id
-    ).filter(
-        and_(
-            GeneCuration.evidence_score > 0,
-            ~exists().where(GeneAnnotation.gene_id == Gene.id)
+    failed_query = (
+        db.query(Gene)
+        .join(GeneCuration, GeneCuration.gene_id == Gene.id)
+        .filter(
+            and_(
+                GeneCuration.evidence_score > 0, ~exists().where(GeneAnnotation.gene_id == Gene.id)
+            )
         )
     )
 
@@ -744,6 +743,7 @@ async def update_failed_annotations(
 
     # Generate task ID
     import uuid
+
     task_id = str(uuid.uuid4())
 
     # Schedule background update
@@ -753,13 +753,11 @@ async def update_failed_annotations(
         sources,
         [g.id for g in failed_genes],
         False,  # force
-        task_id
+        task_id,
     )
 
     await logger.info(
-        "Failed annotations update scheduled",
-        gene_count=len(failed_genes),
-        task_id=task_id
+        "Failed annotations update scheduled", gene_count=len(failed_genes), task_id=task_id
     )
 
     return {
@@ -796,17 +794,14 @@ async def update_new_genes(
     # Using left outer join to find genes with no annotations
     from sqlalchemy import func
 
-    from app.models.gene_curation import GeneCuration
+    from app.models.gene import GeneCuration
 
     new_genes = (
         db.query(Gene)
         .outerjoin(GeneAnnotation, Gene.id == GeneAnnotation.gene_id)
         .outerjoin(GeneCuration, Gene.id == GeneCuration.gene_id)
         .filter(GeneAnnotation.id.is_(None))
-        .order_by(
-            func.coalesce(GeneCuration.evidence_score, 0).desc(),
-            Gene.id
-        )
+        .order_by(func.coalesce(GeneCuration.evidence_score, 0).desc(), Gene.id)
         .all()
     )
 
@@ -817,6 +812,7 @@ async def update_new_genes(
 
     # Generate task ID
     import uuid
+
     task_id = str(uuid.uuid4())
 
     # Schedule background update
@@ -826,14 +822,10 @@ async def update_new_genes(
         None,  # sources
         [g.id for g in new_genes],
         False,  # force
-        task_id
+        task_id,
     )
 
-    await logger.info(
-        "New genes update scheduled",
-        gene_count=len(new_genes),
-        task_id=task_id
-    )
+    await logger.info("New genes update scheduled", gene_count=len(new_genes), task_id=task_id)
 
     return {
         "task_id": task_id,
@@ -864,39 +856,27 @@ async def update_missing_source(
     await logger.info("Missing source update requested", source=source_name)
 
     # Validate source exists
-    source = db.query(AnnotationSource).filter_by(
-        source_name=source_name,
-        is_active=True
-    ).first()
+    source = db.query(AnnotationSource).filter_by(source_name=source_name, is_active=True).first()
 
     if not source:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Source {source_name} not found or inactive"
-        )
+        raise HTTPException(status_code=404, detail=f"Source {source_name} not found or inactive")
 
     # Generate task ID
     import uuid
+
     task_id = str(uuid.uuid4())
 
     # Schedule background update - the heavy query will be done in the background
-    background_tasks.add_task(
-        _run_missing_source_update,
-        source_name,
-        task_id
-    )
+    background_tasks.add_task(_run_missing_source_update, source_name, task_id)
 
-    await logger.info(
-        f"{source_name} missing update scheduled",
-        task_id=task_id
-    )
+    await logger.info(f"{source_name} missing update scheduled", task_id=task_id)
 
     return {
         "task_id": task_id,
         "status": "scheduled",
         "message": f"Scheduled update for genes missing {source_name} annotations",
         "source": source_name,
-        "description": "Finding and updating genes without this source's annotations"
+        "description": "Finding and updating genes without this source's annotations",
     }
 
 
@@ -907,10 +887,10 @@ async def _run_pipeline_update(
     await logger.info(
         "Background pipeline update started",
         task_id=task_id,
-        strategy=strategy.value if hasattr(strategy, 'value') else strategy,
+        strategy=strategy.value if hasattr(strategy, "value") else strategy,
         sources=sources,
         gene_ids=gene_ids[:5] if gene_ids else None,
-        force=force
+        force=force,
     )
 
     from app.core.database import SessionLocal
@@ -933,7 +913,7 @@ async def _run_pipeline_update(
             task_id=task_id,
             results=results,
             sources_updated=results.get("sources_updated", []),
-            genes_updated=results.get("genes_updated", 0)
+            genes_updated=results.get("genes_updated", 0),
         )
     except Exception as e:
         import traceback
@@ -942,7 +922,7 @@ async def _run_pipeline_update(
             f"Pipeline update failed: {str(e)}",
             task_id=task_id,
             error_type=type(e).__name__,
-            traceback=traceback.format_exc()
+            traceback=traceback.format_exc(),
         )
     finally:
         db.close()
@@ -952,9 +932,7 @@ async def _run_pipeline_update(
 async def _run_missing_source_update(source_name: str, task_id: str):
     """Background task to update genes missing a specific source."""
     await logger.info(
-        "Background missing source update started",
-        task_id=task_id,
-        source=source_name
+        "Background missing source update started", task_id=task_id, source=source_name
     )
 
     from sqlalchemy import exists
@@ -969,36 +947,28 @@ async def _run_missing_source_update(source_name: str, task_id: str):
         # Find genes without this source's annotations
         # This heavy query now runs in background
         genes_with_source_subq = exists().where(
-            GeneAnnotation.gene_id == Gene.id,
-            GeneAnnotation.source == source_name
+            GeneAnnotation.gene_id == Gene.id, GeneAnnotation.source == source_name
         )
 
         # Order by evidence_score DESC to prioritize clinically important genes
         from sqlalchemy import func
 
-        from app.models.gene_curation import GeneCuration
+        from app.models.gene import GeneCuration
 
         missing_genes = (
             db.query(Gene)
             .outerjoin(GeneCuration, Gene.id == GeneCuration.gene_id)
             .filter(~genes_with_source_subq)
-            .order_by(
-                func.coalesce(GeneCuration.evidence_score, 0).desc(),
-                Gene.id
-            )
+            .order_by(func.coalesce(GeneCuration.evidence_score, 0).desc(), Gene.id)
             .all()
         )
 
         if not missing_genes:
-            await logger.info(
-                f"All genes have {source_name} annotations",
-                task_id=task_id
-            )
+            await logger.info(f"All genes have {source_name} annotations", task_id=task_id)
             return
 
         await logger.info(
-            f"Found {len(missing_genes)} genes missing {source_name}",
-            task_id=task_id
+            f"Found {len(missing_genes)} genes missing {source_name}", task_id=task_id
         )
 
         # Create pipeline instance and run update
@@ -1008,22 +978,23 @@ async def _run_missing_source_update(source_name: str, task_id: str):
             sources=[source_name],
             gene_ids=[g.id for g in missing_genes],
             force=False,
-            task_id=task_id
+            task_id=task_id,
         )
 
         await logger.info(
             f"Missing source update completed for {source_name}",
             task_id=task_id,
             gene_count=len(missing_genes),
-            results=results
+            results=results,
         )
     except Exception as e:
         import traceback
+
         await logger.error(
             f"Missing source update failed for {source_name}: {str(e)}",
             task_id=task_id,
             error_type=type(e).__name__,
-            traceback=traceback.format_exc()
+            traceback=traceback.format_exc(),
         )
     finally:
         db.close()
@@ -1219,7 +1190,7 @@ async def reset_gene_annotations(
         task_id=task_id,
         user_id=current_user.id if current_user else None,
         source=source,
-        gene_ids_count=len(gene_ids) if gene_ids else None
+        gene_ids_count=len(gene_ids) if gene_ids else None,
     )
 
     # Run the actual reset in the background
@@ -1228,7 +1199,7 @@ async def reset_gene_annotations(
         source=source,
         gene_ids=gene_ids,
         task_id=task_id,
-        user_id=current_user.id if current_user else None
+        user_id=current_user.id if current_user else None,
     )
 
     return {
@@ -1240,10 +1211,7 @@ async def reset_gene_annotations(
 
 
 async def _run_annotation_reset(
-    source: str | None,
-    gene_ids: list[int] | None,
-    task_id: str,
-    user_id: int | None
+    source: str | None, gene_ids: list[int] | None, task_id: str, user_id: int | None
 ):
     """Background task to reset gene annotations."""
     from app.core.database import SessionLocal
@@ -1255,7 +1223,7 @@ async def _run_annotation_reset(
             "Starting annotation reset",
             task_id=task_id,
             source=source,
-            gene_ids_count=len(gene_ids) if gene_ids else None
+            gene_ids_count=len(gene_ids) if gene_ids else None,
         )
 
         # Build the query
@@ -1276,6 +1244,7 @@ async def _run_annotation_reset(
 
         # Clear cache for affected data
         from app.core.cache_service import get_cache_service
+
         cache = get_cache_service(db)
 
         # Clear relevant cache namespaces
@@ -1296,19 +1265,22 @@ async def _run_annotation_reset(
             user_id=user_id,
             source=source,
             deleted_count=count_before,
-            gene_ids_count=len(gene_ids) if gene_ids else None
+            gene_ids_count=len(gene_ids) if gene_ids else None,
         )
 
     except Exception as e:
         import traceback
+
         await logger.error(
             f"Annotation reset failed: {str(e)}",
             task_id=task_id,
             user_id=user_id,
             error_type=type(e).__name__,
-            traceback=traceback.format_exc()
+            traceback=traceback.format_exc(),
         )
         raise
     finally:
         db.close()
+
+
 # Trigger reload

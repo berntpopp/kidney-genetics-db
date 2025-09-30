@@ -66,6 +66,7 @@ logs/
 # Testing
 coverage/
 .nyc_output/
+.hypothesis/
 
 # Temporary files
 tmp/
@@ -81,3 +82,9 @@ backend/.cache/
 
 # database backup folder
 backups/
+
+# Duplicate backend folder (accidental)
+backend/backend/
+
+# Backup files
+*.backup

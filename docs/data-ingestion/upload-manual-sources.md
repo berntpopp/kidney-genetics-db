@@ -4,7 +4,7 @@ This guide explains how to upload diagnostic panel and literature data to the Ki
 
 ## Prerequisites
 
-1. Admin credentials (default: `admin` / `admin123`)
+1. Admin credentials (default: `admin` / `ChangeMe!Admin2024`)
 2. Data files in JSON format:
    - Diagnostic panels: `scrapers/diagnostics/output/YYYY-MM-DD/`
    - Literature: `scrapers/literature/output/YYYY-MM-DD/`
@@ -16,7 +16,7 @@ First, obtain an authentication token:
 ```bash
 TOKEN_RESPONSE=$(curl -s -X POST "http://localhost:8000/api/auth/login" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin&password=admin123")
+  -d "username=admin&password=ChangeMe!Admin2024")
 
 TOKEN=$(echo $TOKEN_RESPONSE | jq -r '.access_token')
 ```

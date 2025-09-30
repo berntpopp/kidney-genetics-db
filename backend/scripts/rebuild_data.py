@@ -12,11 +12,11 @@ async def rebuild_all():
 
     # Run the pipeline update
     await run_update_pipeline(
-        sources=["panelapp", "hpo", "clingen", "gencc", "pubtator"],
-        force=True
+        sources=["panelapp", "hpo", "clingen", "gencc", "pubtator"], force=True
     )
 
     print("✅ Data rebuild complete!")
+
 
 if __name__ == "__main__":
     asyncio.run(rebuild_all())

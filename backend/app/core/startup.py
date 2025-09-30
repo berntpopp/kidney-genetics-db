@@ -48,8 +48,7 @@ def register_data_sources() -> None:
                 # Preserve checkpoint fields if they exist
                 checkpoint_fields = {"last_page", "mode", "query_hash", "updated_at"}
                 preserved_checkpoint = {
-                    k: v for k, v in current_metadata.items()
-                    if k in checkpoint_fields
+                    k: v for k, v in current_metadata.items() if k in checkpoint_fields
                 }
 
                 # New configuration metadata
@@ -66,10 +65,7 @@ def register_data_sources() -> None:
                 merged_metadata = {**new_metadata, **preserved_checkpoint}
 
                 # Only update if config portion changed
-                config_changed = any(
-                    current_metadata.get(k) != v
-                    for k, v in new_metadata.items()
-                )
+                config_changed = any(current_metadata.get(k) != v for k, v in new_metadata.items())
 
                 if config_changed:
                     existing.progress_metadata = merged_metadata
@@ -174,7 +170,7 @@ def validate_dependencies() -> None:
     logger.sync_info("Validating application dependencies...")
 
     try:
-        from app.core.datasource_config import get_source_parameter
+        from app.core.datasource_config import ANNOTATION_SOURCE_CONFIG, get_source_parameter
 
         # Validate required API URLs from datasource config
         required_urls = {
@@ -182,8 +178,13 @@ def validate_dependencies() -> None:
             "PanelApp UK API": get_source_parameter("PanelApp", "uk_api_url"),
             "PanelApp AU API": get_source_parameter("PanelApp", "au_api_url"),
             "HPO API": get_source_parameter("HPO", "api_url"),
-            "HGNC API": get_source_parameter("HGNC", "api_url"),
         }
+
+        # HGNC is an annotation source, not a data source
+        hgnc_config = ANNOTATION_SOURCE_CONFIG.get("hgnc", {})
+        if hgnc_config:
+            hgnc_url = hgnc_config.get("base_url")
+            required_urls["HGNC API"] = hgnc_url
 
         for source_name, url in required_urls.items():
             if not url or not url.startswith("http"):
@@ -272,6 +273,7 @@ def run_startup_tasks() -> None:
     except Exception as e:
         logger.sync_error("Startup tasks failed", error=str(e), traceback=True)
         import traceback
+
         traceback.print_exc()  # Print full traceback for debugging
         # Don't re-raise - allow app to start even if startup tasks fail
         # This prevents the app from failing to start due to database issues

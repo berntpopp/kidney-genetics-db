@@ -66,9 +66,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
 
         # Load filtering configuration
         raw_threshold = get_source_parameter("DiagnosticPanels", "min_panels", 1)
-        self.min_panels = validate_threshold_config(
-            raw_threshold, "panels", self.source_name
-        )
+        self.min_panels = validate_threshold_config(raw_threshold, "panels", self.source_name)
         self.filtering_enabled = get_source_parameter(
             "DiagnosticPanels", "min_panels_enabled", False
         )
@@ -76,7 +74,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         logger.sync_info(
             f"{self.source_name} initialized with filtering",
             min_panels=self.min_panels,
-            filtering_enabled=self.filtering_enabled
+            filtering_enabled=self.filtering_enabled,
         )
 
     def _get_default_ttl(self) -> int:
@@ -106,7 +104,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             "DiagnosticPanels.fetch_raw_data START",
             file_type=file_type,
             provider_name=provider_name,
-            content_size=len(file_content)
+            content_size=len(file_content),
         )
 
         try:
@@ -125,7 +123,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 "File parsed successfully",
                 row_count=len(df),
                 column_count=len(df.columns),
-                columns=list(df.columns)
+                columns=list(df.columns),
             )
 
             # Add provider metadata to each row
@@ -134,7 +132,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             logger.sync_info(
                 "DiagnosticPanels.fetch_raw_data COMPLETE",
                 entry_count=len(df),
-                provider_name=provider_name
+                provider_name=provider_name,
             )
             return df
 
@@ -192,7 +190,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         logger.sync_info(
             "DiagnosticPanels.process_data START",
             row_count=len(df),
-            has_provider=('provider' in df.columns)
+            has_provider=("provider" in df.columns),
         )
 
         gene_data = defaultdict(lambda: {"panels": set(), "providers": set(), "hgnc_ids": set()})
@@ -205,10 +203,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                     logger.sync_debug(f"No symbol found in row {idx}")
                     continue
 
-                logger.sync_debug(
-                    f"Processing row {idx}",
-                    symbol=symbol
-                )
+                logger.sync_debug(f"Processing row {idx}", symbol=symbol)
 
                 # Aggregate panels
                 panels = self._extract_panels(row)
@@ -245,7 +240,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             "DiagnosticPanels.process_data COMPLETE",
             unique_gene_count=len(result),
             total_panels=sum(len(data["panels"]) for data in result.values()),
-            total_providers=len({p for data in result.values() for p in data.get("providers", [])})
+            total_providers=len({p for data in result.values() for p in data.get("providers", [])}),
         )
         return result
 
@@ -307,7 +302,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         logger.sync_info(
             "DiagnosticPanels.store_evidence START",
             gene_count=len(gene_data) if gene_data else 0,
-            source_detail=source_detail
+            source_detail=source_detail,
         )
 
         if not gene_data:
@@ -323,7 +318,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         logger.sync_debug(
             "Fetching gene IDs from database",
             symbol_count=len(gene_symbols),
-            first_symbols=gene_symbols[:5] if gene_symbols else []
+            first_symbols=gene_symbols[:5] if gene_symbols else [],
         )
 
         # Batch fetch genes
@@ -334,16 +329,14 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         logger.sync_debug(
             "Gene IDs fetched",
             found_count=len(gene_map),
-            missing_count=len(gene_symbols) - len(gene_map)
+            missing_count=len(gene_symbols) - len(gene_map),
         )
 
         # Get existing evidence for these genes
         gene_ids = list(gene_map.values())
 
         logger.sync_debug(
-            "Fetching existing evidence",
-            gene_id_count=len(gene_ids),
-            source_name=self.source_name
+            "Fetching existing evidence", gene_id_count=len(gene_ids), source_name=self.source_name
         )
 
         stmt = select(GeneEvidence).where(
@@ -355,7 +348,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         logger.sync_debug(
             "Existing evidence fetched",
             existing_count=len(existing_map),
-            new_count=len(gene_ids) - len(existing_map)
+            new_count=len(gene_ids) - len(existing_map),
         )
 
         # Current provider from source_detail
@@ -403,7 +396,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                     "gene_id": gene_id,
                     "data": merged_data,
                     "record": record,
-                    "is_new": False
+                    "is_new": False,
                 }
 
                 logger.sync_debug(
@@ -411,7 +404,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                     symbol=symbol,
                     old_panels=len(existing_panels),
                     new_panels=len(new_panels),
-                    total_panels=len(merged_panels)
+                    total_panels=len(merged_panels),
                 )
             else:
                 # NEW: Prepare new data
@@ -427,20 +420,16 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                     "gene_id": gene_id,
                     "data": new_data,
                     "record": None,
-                    "is_new": True
+                    "is_new": True,
                 }
 
-                logger.sync_debug(
-                    "Added new gene",
-                    symbol=symbol,
-                    panel_count=data["panel_count"]
-                )
+                logger.sync_debug("Added new gene", symbol=symbol, panel_count=data["panel_count"])
 
         logger.sync_info(
             "Memory merge complete",
             total_genes=len(merged_gene_data),
             new_genes=sum(1 for info in merged_gene_data.values() if info["is_new"]),
-            existing_genes=sum(1 for info in merged_gene_data.values() if not info["is_new"])
+            existing_genes=sum(1 for info in merged_gene_data.values() if not info["is_new"]),
         )
 
         # Apply filtering if enabled
@@ -448,13 +437,10 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             logger.sync_info(
                 "Applying filter",
                 min_panels=self.min_panels,
-                genes_before_filter=len(merged_gene_data)
+                genes_before_filter=len(merged_gene_data),
             )
             # Extract data for filtering
-            data_to_filter = {
-                symbol: info["data"]
-                for symbol, info in merged_gene_data.items()
-            }
+            data_to_filter = {symbol: info["data"] for symbol, info in merged_gene_data.items()}
 
             filtered_data, filter_stats = apply_memory_filter(
                 data_dict=data_to_filter,
@@ -462,7 +448,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 min_threshold=self.min_panels,
                 entity_name="providers",
                 source_name=self.source_name,
-                enabled=self.filtering_enabled
+                enabled=self.filtering_enabled,
             )
 
             # Handle filtered genes
@@ -476,7 +462,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                             "Removing gene below threshold",
                             symbol=symbol,
                             provider_count=info["data"]["provider_count"],
-                            threshold=self.min_panels
+                            threshold=self.min_panels,
                         )
                     genes_to_remove.append(symbol)
                     stats["filtered"] += 1
@@ -488,7 +474,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             logger.sync_info(
                 "Filter applied",
                 removed_count=len(genes_to_remove),
-                remaining_count=len(merged_gene_data)
+                remaining_count=len(merged_gene_data),
             )
 
             # Log filter statistics (metadata storage removed - method doesn't exist)
@@ -496,14 +482,11 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 "Filter statistics",
                 source=self.source_name,
                 filtered_count=filter_stats.filtered_count,
-                filter_rate=f"{filter_stats.filter_rate:.1f}%"
+                filter_rate=f"{filter_stats.filter_rate:.1f}%",
             )
 
         # Process remaining genes (after filtering)
-        logger.sync_info(
-            "Starting database updates",
-            genes_to_process=len(merged_gene_data)
-        )
+        logger.sync_info("Starting database updates", genes_to_process=len(merged_gene_data))
 
         for symbol, info in merged_gene_data.items():
             if info["is_new"]:
@@ -545,7 +528,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             merged=stats["merged"],
             failed=stats["failed"],
             filtered=stats["filtered"],
-            total_processed=stats["created"] + stats["merged"]
+            total_processed=stats["created"] + stats["merged"],
         )
 
         return stats

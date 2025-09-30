@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import require_admin
+from app.core.validators import SQLSafeValidator
 from app.models.user import User
 
 router = APIRouter()
@@ -29,6 +30,8 @@ async def query_logs(
     end_time: datetime | None = Query(None, description="End time filter"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum results"),
     offset: int = Query(0, ge=0, description="Result offset"),
+    sort_by: str = Query("timestamp", description="Field to sort by"),
+    sort_order: str = Query("desc", description="Sort order (asc/desc)"),
 ) -> dict[str, Any]:
     """
     Query system logs with filtering and pagination.
@@ -60,25 +63,71 @@ async def query_logs(
             query += " AND timestamp <= :end_time"
             params["end_time"] = end_time
 
-        query += " ORDER BY timestamp DESC LIMIT :limit OFFSET :offset"
+        # Validate and apply sorting using centralized validator
+        # Map common column names to actual database columns
+        column_mapping = {
+            "timestamp": "timestamp",
+            "level": "level",
+            "source": "logger",
+            "logger": "logger",
+            "message": "message",
+            "request_id": "request_id",
+            "user_id": "user_id",
+            "ip_address": "ip_address",
+            "path": "path",
+            "method": "method",
+            "status_code": "status_code",
+            "duration_ms": "duration_ms",
+            "error_type": "error_type",
+            "created_at": "timestamp",  # Allow both names
+        }
+
+        # Map the sort_by field to actual column name
+        actual_column = column_mapping.get(sort_by, "timestamp")
+
+        # Validate column and sort order using centralized validator
+        try:
+            validated_column = SQLSafeValidator.validate_column(actual_column, "system_logs")
+            validated_order = SQLSafeValidator.validate_sort_order(sort_order)
+        except HTTPException:
+            # Fall back to defaults if validation fails
+            validated_column = "timestamp"
+            validated_order = "DESC"
+
+        query += f" ORDER BY {validated_column} {validated_order} LIMIT :limit OFFSET :offset"
 
         # Execute query
         result = db.execute(text(query), params)
         logs = []
 
         for row in result:
-            logs.append(
-                {
-                    "id": row.id,
-                    "timestamp": row.timestamp.isoformat(),
-                    "level": row.level,
-                    "source": row.source,
-                    "message": row.message,
-                    "request_id": row.request_id,
-                    "user_id": row.user_id,
-                    "extra_data": row.extra_data,
-                }
-            )
+            # Extract request details from context
+            context = row.context or {}
+            log_entry = {
+                "id": row.id,
+                "timestamp": row.timestamp.isoformat(),
+                "level": row.level,
+                "source": row.logger,
+                "message": row.message,
+                "request_id": row.request_id,
+                "user_id": row.user_id,
+                "ip_address": row.ip_address,
+                "user_agent": row.user_agent,
+                "path": row.path,
+                "method": row.method,
+                "status_code": row.status_code,
+                "duration_ms": row.duration_ms,
+                "error_type": row.error_type,
+                "error_message": row.error_message,
+                "stack_trace": row.stack_trace,
+                "context": context,
+                # Extract request details from context
+                "request_body": context.get("request_body"),
+                "query_params": context.get("query_params"),
+                "headers": context.get("headers"),
+                "client_info": context.get("client_info"),
+            }
+            logs.append(log_entry)
 
         # Get total count
         count_query = "SELECT COUNT(*) FROM system_logs WHERE 1=1"
@@ -149,10 +198,10 @@ async def get_log_statistics(
         # Get top sources
         source_stats = db.execute(
             text("""
-                SELECT source, COUNT(*) as count
+                SELECT logger as source, COUNT(*) as count
                 FROM system_logs
                 WHERE timestamp >= :cutoff
-                GROUP BY source
+                GROUP BY logger
                 ORDER BY count DESC
                 LIMIT 10
             """),

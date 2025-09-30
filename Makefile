@@ -1,7 +1,7 @@
 # Kidney Genetics Database - Development Makefile
 # Usage: make [command]
 
-.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend lint test
+.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend lint test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed
 
 # Detect docker compose command (v2 vs v1)
 DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
@@ -28,6 +28,7 @@ help:
 	@echo "  make frontend        - Run frontend locally"
 	@echo ""
 	@echo "🗄️  DATABASE MANAGEMENT:"
+	@echo "  make db-drop         - Drop and recreate database (disconnects users)"
 	@echo "  make db-reset        - Complete database reset (structure + data)"
 	@echo "  make db-clean        - Remove all data (keep structure)"
 	@echo "  make db-verify-complete - Verify complete schema (tables + views)"
@@ -39,7 +40,15 @@ help:
 	@echo ""
 	@echo "🔍 CODE QUALITY:"
 	@echo "  make lint            - Lint backend code with ruff"
-	@echo "  make test            - Run backend tests with pytest"
+	@echo ""
+	@echo "🧪 TESTING:"
+	@echo "  make test            - Run all backend tests"
+	@echo "  make test-unit       - Run unit tests only (fast)"
+	@echo "  make test-integration- Run integration tests"
+	@echo "  make test-e2e        - Run end-to-end tests"
+	@echo "  make test-critical   - Run critical tests only"
+	@echo "  make test-coverage   - Run tests with coverage report"
+	@echo "  make test-failed     - Re-run only failed tests"
 	@echo ""
 	@echo "🧹 CLEANUP:"
 	@echo "  make clean-backend   - Clean Python cache files (__pycache__, .pyc, etc.)"
@@ -133,14 +142,22 @@ frontend:
 # DATABASE MANAGEMENT
 # ════════════════════════════════════════════════════════════════════
 
-# Complete database reset (drop and recreate)
-db-reset: services-up
-	@echo "🔄 Resetting database completely..."
-	@docker exec kidney_genetics_postgres psql -U kidney_user -d postgres -c "DROP DATABASE IF EXISTS kidney_genetics;" 2>/dev/null || true
+# Drop database (disconnects all users first)
+db-drop: services-up
+	@echo "🗑️  Dropping database (will disconnect all users)..."
+	@docker exec kidney_genetics_postgres psql -U kidney_user -d postgres -c \
+		"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='kidney_genetics' AND pid <> pg_backend_pid();" >/dev/null 2>&1 || true
+	@docker exec kidney_genetics_postgres psql -U kidney_user -d postgres -c "DROP DATABASE IF EXISTS kidney_genetics;" >/dev/null 2>&1 || true
 	@docker exec kidney_genetics_postgres psql -U kidney_user -d postgres -c "CREATE DATABASE kidney_genetics;"
+	@echo "✅ Database dropped and recreated"
+
+# Complete database reset (drop and recreate)
+db-reset: db-drop
 	@echo "📦 Running migrations..."
 	@cd backend && uv run alembic upgrade head
-	@echo "🎯 Running full database initialization..."
+	@echo "🔧 Initializing annotation sources..."
+	@cd backend && uv run python -m app.scripts.init_annotation_sources || echo "⚠️  Annotation sources initialization failed"
+	@echo "🎯 Running full database initialization (includes admin user)..."
 	@cd backend && uv run python scripts/initialize_database.py
 	@echo "✅ Database reset complete!"
 
@@ -227,6 +244,48 @@ test:
 	@echo "🧪 Running backend tests with pytest..."
 	@cd backend && uv run pytest -v
 	@echo "✅ Tests complete!"
+
+# Run unit tests only (fast)
+test-unit:
+	@echo "🧪 Running unit tests only..."
+	@cd backend && uv run pytest tests/core -v -m "unit or not integration"
+	@echo "✅ Unit tests complete!"
+
+# Run integration tests
+test-integration:
+	@echo "🧪 Running integration tests..."
+	@cd backend && uv run pytest tests/api tests/pipeline -v -m "integration"
+	@echo "✅ Integration tests complete!"
+
+# Run end-to-end tests
+test-e2e:
+	@echo "🧪 Running E2E tests..."
+	@cd backend && uv run pytest tests/e2e -v -m "e2e" --tb=long
+	@echo "✅ E2E tests complete!"
+
+# Run critical tests (fast smoke test)
+test-critical:
+	@echo "🧪 Running critical tests..."
+	@cd backend && uv run pytest -v -m "critical"
+	@echo "✅ Critical tests complete!"
+
+# Run tests with coverage report
+test-coverage:
+	@echo "🧪 Running tests with coverage..."
+	@cd backend && uv run pytest --cov=app --cov-report=html --cov-report=term-missing --cov-report=xml
+	@echo "✅ Coverage report generated in backend/htmlcov/"
+	@echo "📊 Open backend/htmlcov/index.html to view coverage"
+
+# Run tests in watch mode (requires pytest-watch)
+test-watch:
+	@echo "🧪 Running tests in watch mode..."
+	@cd backend && uv run ptw -- -vv
+
+# Run only failed tests from last run
+test-failed:
+	@echo "🧪 Running only failed tests..."
+	@cd backend && uv run pytest --lf -v
+	@echo "✅ Failed tests re-run complete!"
 
 # Clean backend development cache files
 clean-backend:

@@ -4,7 +4,10 @@ OPTIMIZED: Includes robust connection management and pool monitoring
 """
 
 import asyncio
+import atexit
+import threading
 from collections.abc import Generator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from typing import Any
 
@@ -19,6 +22,36 @@ from app.core.config import settings
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Singleton thread pool for database operations
+# CRITICAL: Prevents resource exhaustion by reusing single pool
+_thread_pool_executor: ThreadPoolExecutor | None = None
+_thread_pool_lock = threading.Lock()
+
+
+def get_thread_pool_executor() -> ThreadPoolExecutor:
+    """
+    Get or create singleton thread pool for database operations.
+
+    IMPORTANT: Prevents resource exhaustion by reusing single pool.
+    Following best practices from issue #16 implementation.
+    """
+    global _thread_pool_executor
+
+    if _thread_pool_executor is None:
+        with _thread_pool_lock:
+            if _thread_pool_executor is None:
+                logger.info("Creating singleton thread pool executor")
+                _thread_pool_executor = ThreadPoolExecutor(
+                    max_workers=4,
+                    thread_name_prefix="db-executor-",
+                )
+
+    return _thread_pool_executor
+
+
+# Register cleanup on shutdown
+atexit.register(lambda: _thread_pool_executor and _thread_pool_executor.shutdown(wait=True))
 
 # Create database engine with robust connection management
 engine = create_engine(

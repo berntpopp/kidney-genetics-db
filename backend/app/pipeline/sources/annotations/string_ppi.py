@@ -307,7 +307,7 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
                     global_percentiles = await percentile_service.calculate_global_percentiles(
                         "string_ppi",
                         "ppi_score",
-                        force=False  # Respect frequency limiting
+                        force=False,  # Respect frequency limiting
                     )
 
             except Exception as e:
@@ -344,7 +344,9 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         """Format annotation data for storage."""
         return {
             "ppi_score": round(score, 2),
-            "ppi_percentile": None if percentile == 0 else round(percentile, 3),  # Use None for no data
+            "ppi_percentile": None
+            if percentile == 0
+            else round(percentile, 3),  # Use None for no data
             "ppi_degree": degree,
             "interactions": interactions,
             "summary": {
@@ -405,11 +407,13 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
             percentiles = await service.calculate_global_percentiles(
                 "string_ppi",
                 "ppi_score",
-                force=True  # Force recalculation after batch
+                force=True,  # Force recalculation after batch
             )
 
             if percentiles:
-                logger.sync_info(f"Updated global STRING PPI percentiles for {len(percentiles)} genes")
+                logger.sync_info(
+                    f"Updated global STRING PPI percentiles for {len(percentiles)} genes"
+                )
             else:
                 logger.sync_warning("No percentiles calculated - may need to check view")
 

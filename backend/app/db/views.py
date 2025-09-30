@@ -274,6 +274,132 @@ string_ppi_percentiles = ReplaceableObject(
 )
 
 
+# New views for database views migration (issue #16)
+
+gene_list_detailed = ReplaceableObject(
+    name="gene_list_detailed",
+    sqltext="""
+    SELECT
+        -- Core gene fields from simplified schema
+        g.id::bigint AS gene_id,
+        g.hgnc_id::text AS hgnc_id,
+        g.approved_symbol::text AS gene_symbol,
+        g.aliases::text[] AS alias_symbols,
+        -- Score fields from gene_scores view
+        COALESCE(gs.raw_score, 0.0)::float8 AS total_score,
+        COALESCE(gs.percentage_score, 0.0)::float8 AS percentage_score,
+        CASE
+            WHEN gs.percentage_score >= 80 THEN 'High'
+            WHEN gs.percentage_score >= 50 THEN 'Medium'
+            WHEN gs.percentage_score >= 20 THEN 'Low'
+            ELSE 'Unknown'
+        END::text AS classification,
+        -- Evidence counts
+        COALESCE(gs.source_count, 0)::integer AS source_count,
+        COALESCE(
+            (SELECT array_agg(DISTINCT source_name ORDER BY source_name)
+             FROM gene_evidence
+             WHERE gene_id = g.id),
+            '{}'::text[]
+        )::text[] AS sources,
+        -- Annotation counts
+        COALESCE(
+            (SELECT COUNT(DISTINCT source)::integer
+             FROM gene_annotations
+             WHERE gene_id = g.id),
+            0
+        )::integer AS annotation_count,
+        COALESCE(
+            (SELECT array_agg(DISTINCT source ORDER BY source)
+             FROM gene_annotations
+             WHERE gene_id = g.id),
+            '{}'::text[]
+        )::text[] AS annotation_sources,
+        -- Timestamps
+        g.created_at::timestamptz AS created_at,
+        g.updated_at::timestamptz AS updated_at
+    FROM genes g
+    LEFT JOIN gene_scores gs ON g.id = gs.gene_id
+    """,
+    dependencies=["gene_scores"],
+)
+
+admin_logs_filtered = ReplaceableObject(
+    name="admin_logs_filtered",
+    sqltext="""
+    SELECT
+        sl.id::bigint,
+        sl.timestamp::timestamptz,
+        sl.level::text,
+        sl.logger::text,
+        sl.message::text,
+        sl.request_id::text,
+        sl.user_id::bigint,
+        u.email::text AS user_email,
+        sl.ip_address::text,
+        sl.user_agent::text,
+        sl.path::text,
+        sl.method::text,
+        sl.status_code::integer,
+        sl.duration_ms::float8,
+        sl.error_type::text,
+        -- Extract additional fields from context JSONB
+        sl.context->>'action' AS action,
+        sl.context->>'endpoint' AS endpoint,
+        -- Add commonly used computed fields
+        CASE
+            WHEN sl.status_code < 400 THEN 'success'
+            WHEN sl.status_code < 500 THEN 'client_error'
+            ELSE 'server_error'
+        END::text AS status_category,
+        DATE(sl.timestamp) AS log_date,
+        EXTRACT(HOUR FROM sl.timestamp)::integer AS log_hour
+    FROM system_logs sl
+    LEFT JOIN users u ON sl.user_id = u.id
+    WHERE sl.path IS NOT NULL  -- Only API logs
+    """,
+    dependencies=[],
+)
+
+datasource_metadata_panelapp = ReplaceableObject(
+    name="datasource_metadata_panelapp",
+    sqltext="""
+    SELECT
+        ge.gene_id::bigint,
+        g.approved_symbol::text AS gene_symbol,
+        ge.evidence_data->>'source'::text AS source_region,
+        jsonb_array_length(COALESCE(ge.evidence_data->'panels', '[]'::jsonb))::integer AS panel_count,
+        ge.evidence_data->'panels' AS panels,
+        COALESCE((ge.evidence_data->>'confidence_level')::float, 0.0)::float8 AS max_confidence,
+        ge.evidence_data->>'moi'::text AS mode_of_inheritance,
+        ge.created_at::timestamptz,
+        ge.updated_at::timestamptz
+    FROM gene_evidence ge
+    JOIN genes g ON g.id = ge.gene_id
+    WHERE ge.source_name = 'PanelApp'
+    """,
+    dependencies=[],
+)
+
+datasource_metadata_gencc = ReplaceableObject(
+    name="datasource_metadata_gencc",
+    sqltext="""
+    SELECT
+        ge.gene_id::bigint,
+        g.approved_symbol::text AS gene_symbol,
+        jsonb_array_length(COALESCE(ge.evidence_data->'classifications', '[]'::jsonb))::integer AS classification_count,
+        ge.evidence_data->'classifications' AS classifications,
+        ge.evidence_data->>'disease_id'::text AS disease_id,
+        ge.evidence_data->>'disease_title'::text AS disease_title,
+        ge.created_at::timestamptz,
+        ge.updated_at::timestamptz
+    FROM gene_evidence ge
+    JOIN genes g ON g.id = ge.gene_id
+    WHERE ge.source_name = 'GenCC'
+    """,
+    dependencies=[],
+)
+
 # List of all views in dependency order
 ALL_VIEWS = [
     # Tier 1 (no dependencies)
@@ -281,6 +407,9 @@ ALL_VIEWS = [
     evidence_source_counts,
     evidence_classification_weights,
     string_ppi_percentiles,  # New view for STRING PPI percentiles
+    admin_logs_filtered,
+    datasource_metadata_panelapp,
+    datasource_metadata_gencc,
     # Tier 2 (depend on Tier 1)
     evidence_count_percentiles,
     evidence_normalized_scores,
@@ -289,4 +418,6 @@ ALL_VIEWS = [
     evidence_summary_view,
     # Tier 4 (final aggregation)
     gene_scores,
+    # Tier 5 (composite views that depend on multiple tiers)
+    gene_list_detailed,
 ]

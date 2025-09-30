@@ -14,6 +14,8 @@ import apiClient from '@/api/client'
  * @param {string} [params.end_time] - End time filter
  * @param {number} [params.limit=100] - Maximum results
  * @param {number} [params.offset=0] - Result offset
+ * @param {string} [params.sort_by] - Field to sort by
+ * @param {string} [params.sort_order] - Sort order (asc/desc)
  * @returns {Promise} Log entries with pagination
  */
 export const queryLogs = (params = {}) => {
@@ -26,6 +28,8 @@ export const queryLogs = (params = {}) => {
   if (params.end_time) queryParams.append('end_time', params.end_time)
   if (params.limit) queryParams.append('limit', params.limit)
   if (params.offset) queryParams.append('offset', params.offset)
+  if (params.sort_by) queryParams.append('sort_by', params.sort_by)
+  if (params.sort_order) queryParams.append('sort_order', params.sort_order)
 
   return apiClient.get(`/api/admin/logs/?${queryParams.toString()}`)
 }

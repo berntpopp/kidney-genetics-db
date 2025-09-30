@@ -2,11 +2,10 @@
 Cache model for database-backed caching
 """
 
-import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Index, Integer, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import BigInteger, DateTime, Index, Integer, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -18,9 +17,9 @@ class CacheEntry(Base):
 
     __tablename__ = "cache_entries"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
-    )
+    # Fix: Database has INTEGER id, not UUID
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, index=True)
+    # Fix: Database has VARCHAR(255), but we can safely use Text in model
     cache_key: Mapped[str] = mapped_column(Text, nullable=False)
     namespace: Mapped[str] = mapped_column(Text, nullable=False)
     data: Mapped[dict] = mapped_column(JSONB, nullable=False)

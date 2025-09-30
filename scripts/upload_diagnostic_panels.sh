@@ -7,7 +7,7 @@ if [ -z "$TOKEN" ]; then
     echo "Getting auth token..."
     TOKEN_RESPONSE=$(curl -s -X POST "http://localhost:8000/api/auth/login" \
         -H "Content-Type: application/x-www-form-urlencoded" \
-        -d "username=admin&password=admin123")
+        -d "username=admin&password=ChangeMe!Admin2024")
     TOKEN=$(echo $TOKEN_RESPONSE | jq -r '.access_token')
 fi
 

@@ -103,7 +103,9 @@ def cache_key_builder(
 
     # If we have a request, use URL and query params
     if request and isinstance(request, Request):
-        key_parts.append(request.method.lower())
+        # WebSocket connections don't have a method attribute
+        if hasattr(request, "method"):
+            key_parts.append(request.method.lower())
         key_parts.append(request.url.path)
         if request.query_params:
             key_parts.append(repr(sorted(request.query_params.items())))

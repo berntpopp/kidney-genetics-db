@@ -19,9 +19,10 @@ A comprehensive database of ~3,000 kidney disease-associated genes aggregated fr
 
 ## Architecture
 
-**Backend**: Python/FastAPI with PostgreSQL database and Celery task processing  
-**Frontend**: Vue.js/Vuetify with interactive gene browser and data visualizations  
+**Backend**: Python/FastAPI with PostgreSQL database and Celery task processing
+**Frontend**: Vue.js/Vuetify with interactive gene browser and data visualizations
 **Data**: PanelApp, HPO, commercial panels, literature curation, PubTator, ClinVar/OMIM
+**Configuration**: Three-tier system (ENV → YAML → Defaults) with pydantic-settings validation
 
 ## Quick Start
 
@@ -55,8 +56,9 @@ make dev-up
 ## Project Structure
 
 - `backend/` - FastAPI application with data pipeline
+- `backend/config/` - YAML configuration files (datasources, keywords, annotations)
 - `frontend/` - Vue.js/Vuetify web interface
-- `plan/` - Architecture documentation and schemas
+- `docs/` - Architecture documentation and implementation guides
 - `docker-compose.services.yml` - PostgreSQL database setup
 
 ## Development

@@ -114,7 +114,9 @@ class DatabaseLogger:
 
             if request:
                 endpoint = request.url.path
-                method = request.method
+                # WebSocket connections don't have a method attribute
+                if hasattr(request, "method"):
+                    method = request.method
 
                 # Extract IP address
                 forwarded_for = request.headers.get("X-Forwarded-For")
@@ -133,11 +135,17 @@ class DatabaseLogger:
             error_type = None
             error_traceback = None
             if error:
-                error_type = type(error).__name__
-                error_traceback = traceback.format_exception(
-                    type(error), error, error.__traceback__
-                )
-                error_traceback = "".join(error_traceback)
+                # Check if error is an exception object (has __traceback__) or just a string
+                if hasattr(error, "__traceback__"):
+                    error_type = type(error).__name__
+                    error_traceback = traceback.format_exception(
+                        type(error), error, error.__traceback__
+                    )
+                    error_traceback = "".join(error_traceback)
+                else:
+                    # If error is a string, use it as error_type
+                    error_type = "Error"
+                    error_traceback = str(error)
 
             # Prepare extra data as JSONB - serialize to JSON string for PostgreSQL
             jsonb_data = json.dumps(extra_data or {})
@@ -145,13 +153,13 @@ class DatabaseLogger:
             # Insert log entry
             insert_query = text("""
                 INSERT INTO system_logs (
-                    timestamp, level, message, source, request_id, endpoint, method,
-                    status_code, processing_time_ms, user_id, ip_address, user_agent,
-                    extra_data, error_type, error_traceback
+                    timestamp, level, message, logger, request_id, path, method,
+                    status_code, duration_ms, user_id, ip_address, user_agent,
+                    context, error_type, error_message, stack_trace
                 ) VALUES (
-                    :timestamp, :level, :message, :source, :request_id, :endpoint, :method,
-                    :status_code, :processing_time_ms, :user_id, :ip_address, :user_agent,
-                    :extra_data, :error_type, :error_traceback
+                    :timestamp, :level, :message, :logger, :request_id, :path, :method,
+                    :status_code, :duration_ms, :user_id, :ip_address, :user_agent,
+                    :context, :error_type, :error_message, :stack_trace
                 )
             """)
 
@@ -161,18 +169,19 @@ class DatabaseLogger:
                     "timestamp": datetime.now(timezone.utc),
                     "level": level,
                     "message": message,
-                    "source": source,
+                    "logger": source,
                     "request_id": request_id,
-                    "endpoint": endpoint,
+                    "path": endpoint,
                     "method": method,
                     "status_code": status_code,
-                    "processing_time_ms": processing_time_ms,
+                    "duration_ms": processing_time_ms,
                     "user_id": user_id,
                     "ip_address": ip_address,
                     "user_agent": user_agent,
-                    "extra_data": jsonb_data,
+                    "context": jsonb_data,
                     "error_type": error_type,
-                    "error_traceback": error_traceback,
+                    "error_message": str(error) if error else None,
+                    "stack_trace": error_traceback,
                 },
             )
 

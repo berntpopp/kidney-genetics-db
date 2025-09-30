@@ -19,6 +19,7 @@ from app.api.endpoints import (
     genes,
     ingestion,
     progress,
+    shadow_tests,
     statistics,
 )
 from app.core.background_tasks import task_manager
@@ -114,10 +115,11 @@ app.add_middleware(
 # Add unified logging middleware (replaces basic error handling)
 app.add_middleware(
     LoggingMiddleware,
-    log_request_body=False,  # Set to True for debugging, False for production
-    log_response_body=False,  # Set to True for debugging, False for production
+    log_request_body=True,  # Enable comprehensive request logging
+    log_response_body=False,  # Keep response logging disabled for performance
+    max_body_size=50000,  # Limit body size to 50KB for storage efficiency
     slow_request_threshold_ms=1000,
-    exclude_paths=["/health", "/docs", "/redoc", "/openapi.json"],
+    exclude_paths=["/health", "/docs", "/redoc", "/openapi.json", "/api/admin/logs"],
 )
 
 # Register standardized error handlers (enhanced by logging middleware)
@@ -148,6 +150,9 @@ app.include_router(statistics.router, prefix="/api/statistics", tags=["Analytics
 app.include_router(admin_logs.router, prefix="/api/admin/logs", tags=["Administration - Logging"])
 app.include_router(
     cache.router, prefix="/api/admin/cache", tags=["Administration - Cache Management"]
+)
+app.include_router(
+    shadow_tests.router, prefix="/api/admin/shadow-tests", tags=["Administration - Shadow Testing"]
 )
 
 

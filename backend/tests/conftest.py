@@ -29,7 +29,8 @@ def load_test_schema(**kwargs):
     # Create cache_entries table for cache testing
     with engine.connect() as conn:
         conn.execute(text("COMMIT"))
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE TABLE IF NOT EXISTS cache_entries (
                 id SERIAL PRIMARY KEY,
                 cache_key VARCHAR(255) NOT NULL UNIQUE,
@@ -40,16 +41,23 @@ def load_test_schema(**kwargs):
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """))
-        conn.execute(text("""
+        """)
+        )
+        conn.execute(
+            text("""
             CREATE INDEX IF NOT EXISTS idx_cache_namespace ON cache_entries(namespace)
-        """))
-        conn.execute(text("""
+        """)
+        )
+        conn.execute(
+            text("""
             CREATE INDEX IF NOT EXISTS idx_cache_expires ON cache_entries(expires_at)
-        """))
-        conn.execute(text("""
+        """)
+        )
+        conn.execute(
+            text("""
             CREATE INDEX IF NOT EXISTS idx_cache_key_namespace ON cache_entries(cache_key, namespace)
-        """))
+        """)
+        )
         conn.commit()
 
     # Create all other tables from models
@@ -85,11 +93,7 @@ def db_session(postgresql):
 
     # Create engine and session
     engine = create_engine(connection_string, poolclass=NullPool)
-    TestingSessionLocal = sessionmaker(
-        autocommit=False,
-        autoflush=False,
-        bind=engine
-    )
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
     session = TestingSessionLocal()
 
@@ -117,6 +121,7 @@ def mock_cache_entries(db_session):
     """
     Helper fixture to quickly populate cache entries for testing.
     """
+
     def _create_entries(entries: list[dict[str, Any]]):
         for entry in entries:
             db_session.execute(
@@ -130,7 +135,7 @@ def mock_cache_entries(db_session):
                     "namespace": entry.get("namespace", "test"),
                     "value": entry.get("value", "{}"),
                     "expires_at": entry.get("expires_at"),
-                }
+                },
             )
         db_session.commit()
 
@@ -138,3 +143,5 @@ def mock_cache_entries(db_session):
 
 
 # Note: Cache service instances are isolated per test through database transactions
+
+# Import fixtures from fixture modules to make them available globally
