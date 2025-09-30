@@ -147,7 +147,7 @@
                         {{ summaryStats.unique_genes.toLocaleString() }}
                       </div>
                       <div class="text-body-2 text-medium-emphasis">
-                        Unique Genes
+                        Genes with Evidence
                         <v-icon size="x-small" class="ml-1">mdi-help-circle-outline</v-icon>
                       </div>
                     </div>

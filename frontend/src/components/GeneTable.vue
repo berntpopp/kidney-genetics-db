@@ -6,9 +6,31 @@
         <div class="d-flex align-center justify-space-between mb-3">
           <div>
             <h2 class="text-h6 font-weight-medium mb-1">Search & Filter</h2>
-            <p class="text-caption text-medium-emphasis">
-              Explore {{ totalItems.toLocaleString() }} curated kidney disease genes
-            </p>
+            <div class="d-flex align-center ga-1">
+              <p class="text-caption text-medium-emphasis mb-0">
+                Explore {{ totalItems.toLocaleString() }} kidney disease genes
+              </p>
+              <v-tooltip location="bottom" max-width="300">
+                <template #activator="{ props }">
+                  <v-icon
+                    icon="mdi-information-outline"
+                    size="x-small"
+                    v-bind="props"
+                    class="text-medium-emphasis"
+                  />
+                </template>
+                <div class="pa-2">
+                  <strong>Genes with evidence:</strong> {{ totalItems.toLocaleString() }} genes with
+                  evidence score > 0
+                  <template v-if="hiddenGeneCount > 0">
+                    <br /><br />{{ hiddenGeneCount.toLocaleString() }} genes with insufficient
+                    evidence are currently hidden. <br />Toggle "Show genes with insufficient
+                    evidence" below to see all
+                    {{ (totalItems + hiddenGeneCount).toLocaleString() }} genes in the database.
+                  </template>
+                </div>
+              </v-tooltip>
+            </div>
           </div>
           <div class="d-flex ga-2">
             <v-btn
@@ -127,6 +149,50 @@
             </div>
           </v-col>
         </v-row>
+
+        <!-- Additional Filters Row -->
+        <v-row align="center">
+          <v-col cols="12">
+            <div class="d-flex align-center ga-4">
+              <v-switch
+                v-model="showZeroScoreGenes"
+                color="primary"
+                density="compact"
+                hide-details
+                @update:model-value="debouncedSearch"
+              >
+                <template #label>
+                  <span class="text-body-2">
+                    Show genes with insufficient evidence
+                    <v-tooltip location="bottom">
+                      <template #activator="{ props }">
+                        <v-icon
+                          icon="mdi-information-outline"
+                          size="x-small"
+                          v-bind="props"
+                          class="ml-1 text-medium-emphasis"
+                        />
+                      </template>
+                      <div class="pa-2">
+                        Include {{ hiddenGeneCount.toLocaleString() }} genes with evidence score = 0
+                        <br />(single source or disputed classification)
+                      </div>
+                    </v-tooltip>
+                  </span>
+                </template>
+              </v-switch>
+              <v-chip
+                v-if="!showZeroScoreGenes && hiddenGeneCount > 0"
+                size="small"
+                variant="tonal"
+                color="warning"
+              >
+                <v-icon icon="mdi-eye-off" size="x-small" class="mr-1" />
+                {{ hiddenGeneCount.toLocaleString() }} genes hidden
+              </v-chip>
+            </div>
+          </v-col>
+        </v-row>
       </v-card-text>
     </v-card>
 
@@ -135,9 +201,17 @@
       <v-card-text class="pa-3">
         <div class="d-flex align-center justify-space-between">
           <div class="d-flex align-center ga-4">
-            <div class="text-body-2">
+            <div class="text-body-2 d-flex align-center ga-1">
               <span class="font-weight-medium">{{ totalItems.toLocaleString() }}</span>
-              <span class="text-medium-emphasis"> Genes Found</span>
+              <span class="text-medium-emphasis">Genes</span>
+              <v-chip
+                v-if="!showZeroScoreGenes && hiddenGeneCount > 0"
+                size="x-small"
+                variant="text"
+                class="px-1"
+              >
+                ({{ hiddenGeneCount.toLocaleString() }} hidden)
+              </v-chip>
             </div>
             <v-divider vertical />
             <div class="text-body-2 text-medium-emphasis">
@@ -325,6 +399,7 @@ const evidenceCountRange = ref([0, 7]) // Initialize with a sensible default
 const sortOption = ref('score_desc')
 const filterMeta = ref(null)
 const sortBy = ref([{ key: 'evidence_score', order: 'desc' }])
+const showZeroScoreGenes = ref(false) // Default: hide genes with score=0
 
 // Track initialization to prevent circular updates
 const isInitializing = ref(true)
@@ -369,6 +444,11 @@ const pageRangeText = computed(() => {
   return `Showing ${start}–${end} of ${totalItems.value}`
 })
 
+const hiddenGeneCount = computed(() => {
+  // Get hidden count from API metadata
+  return filterMeta.value?.hidden_zero_scores || 0
+})
+
 const hasActiveFilters = computed(() => {
   return (
     search.value ||
@@ -376,7 +456,8 @@ const hasActiveFilters = computed(() => {
     evidenceScoreRange.value[1] < 100 ||
     evidenceCountRange.value[0] > 0 ||
     evidenceCountRange.value[1] < (filterMeta.value?.evidence_count?.max || 6) ||
-    selectedSources.value.length > 0
+    selectedSources.value.length > 0 ||
+    showZeroScoreGenes.value // Include zero score filter
   )
 })
 
@@ -440,6 +521,10 @@ const parseUrlParams = () => {
   if (query.source) {
     selectedSources.value = [query.source]
   }
+
+  if (query.show_zero_scores !== undefined) {
+    showZeroScoreGenes.value = query.show_zero_scores === 'true'
+  }
 }
 
 // Update URL with current state
@@ -462,6 +547,7 @@ const updateUrl = () => {
   if (evidenceCountRange.value[0] > 0) query.min_count = evidenceCountRange.value[0]
   if (evidenceCountRange.value[1] < 7) query.max_count = evidenceCountRange.value[1]
   if (selectedSources.value.length > 0) query.source = selectedSources.value[0]
+  if (showZeroScoreGenes.value) query.show_zero_scores = 'true' // Only add if true
 
   router.replace({ query })
 }
@@ -526,7 +612,8 @@ const loadGenes = async () => {
           : null,
       source: selectedSources.value.length > 0 ? selectedSources.value[0] : null,
       sortBy: sortByField,
-      sortDesc: sortDesc
+      sortDesc: sortDesc,
+      hideZeroScores: !showZeroScoreGenes.value // Inverse of showZeroScoreGenes
     })
 
     genes.value = response.items
@@ -602,6 +689,7 @@ const clearAllFilters = () => {
   selectedSources.value = []
   sortOption.value = 'score_desc'
   sortBy.value = [{ key: 'evidence_score', order: 'desc' }]
+  showZeroScoreGenes.value = false // Reset to default: hide genes with score=0
   page.value = 1
   updateUrl()
   loadGenes()

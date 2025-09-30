@@ -12,6 +12,7 @@ from app.api.deps import get_db
 from app.core.background_tasks import task_manager
 from app.core.datasource_config import DATA_SOURCE_CONFIG, get_auto_update_sources
 from app.core.exceptions import DataSourceError
+from app.core.gene_filters import count_filtered_genes_from_evidence_sql
 from app.core.responses import ResponseBuilder
 from app.models.gene import PipelineRun
 from app.schemas.datasource import DataSource, DataSourceStats
@@ -27,18 +28,23 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     sources = []
 
     try:
-        # Get statistics for each source from the database
+        # Get statistics for each source from the database (with score filtering)
+        from app.core.gene_filters import get_gene_evidence_filter_join
+
+        join_clause, filter_clause = get_gene_evidence_filter_join()
         result = db.execute(
             text(
-                """
+                f"""
                 SELECT
-                    source_name,
-                    COUNT(DISTINCT gene_id) as gene_count,
+                    gene_evidence.source_name,
+                    COUNT(DISTINCT gene_evidence.gene_id) as gene_count,
                     COUNT(*) as evidence_count,
-                    MAX(updated_at) as last_updated
+                    MAX(gene_evidence.updated_at) as last_updated
                 FROM gene_evidence
-                GROUP BY source_name
-                ORDER BY source_name
+                {join_clause}
+                WHERE {filter_clause}
+                GROUP BY gene_evidence.source_name
+                ORDER BY gene_evidence.source_name
             """
             )
         ).fetchall()
@@ -259,10 +265,8 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     # Count active sources
     active_count = len([s for s in sources if s.status == "active"])
 
-    # Get actual unique gene count (only genes with evidence)
-    unique_genes = (
-        db.execute(text("SELECT COUNT(DISTINCT gene_id) FROM gene_evidence")).scalar() or 0
-    )
+    # Get actual unique gene count (only genes with evidence, respecting score filter)
+    unique_genes = db.execute(text(count_filtered_genes_from_evidence_sql())).scalar() or 0
 
     # Get orphaned gene count
     orphaned_genes = (

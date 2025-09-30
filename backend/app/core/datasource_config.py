@@ -40,6 +40,7 @@ class DataSourceConfig(BaseSettings):
     datasources: dict[str, Any] = {}
     keywords: dict[str, list[str]] = {}
     annotations: dict[str, Any] = {}
+    api_defaults: dict[str, Any] = {}
 
     @classmethod
     def settings_customise_sources(
@@ -64,6 +65,7 @@ class DataSourceConfig(BaseSettings):
                 config_dir / "datasources.yaml",
                 config_dir / "keywords.yaml",
                 config_dir / "annotations.yaml",
+                config_dir / "api_defaults.yaml",
             ],
         )
 
@@ -92,6 +94,7 @@ def get_config() -> DataSourceConfig:
             datasources=len(config.datasources),
             keywords=len(config.keywords),
             annotations=len(config.annotations),
+            api_defaults=len(config.api_defaults),
         )
         return config
     except Exception as e:
@@ -150,6 +153,9 @@ ANNOTATION_SOURCE_CONFIG: dict[str, dict[str, Any]] = _config.annotations
 
 # Common annotation configuration
 ANNOTATION_COMMON_CONFIG = _config.annotations.get("common", {})
+
+# API default configurations
+API_DEFAULTS_CONFIG: dict[str, Any] = _config.api_defaults
 
 # List of sources that support automatic updates
 AUTO_UPDATE_SOURCES = [

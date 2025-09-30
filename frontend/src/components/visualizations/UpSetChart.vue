@@ -15,9 +15,18 @@
         >
       </v-tooltip>
       <v-spacer />
-      <v-chip v-if="data" variant="outlined" size="small" class="me-2">
-        {{ data.total_unique_genes }} total genes
-      </v-chip>
+      <v-tooltip v-if="data" location="bottom" max-width="300">
+        <template #activator="{ props }">
+          <v-chip v-bind="props" variant="outlined" size="small" class="me-2">
+            {{ data.total_unique_genes.toLocaleString() }} genes
+          </v-chip>
+        </template>
+        <div class="pa-2">
+          <strong>Genes with evidence:</strong> {{ data.total_unique_genes.toLocaleString() }} genes
+          with evidence score > 0 <br />These genes have kidney disease associations from at least
+          one data source
+        </div>
+      </v-tooltip>
       <v-btn
         icon="mdi-refresh"
         variant="text"

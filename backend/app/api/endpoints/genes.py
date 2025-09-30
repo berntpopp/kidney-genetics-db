@@ -9,6 +9,7 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.datasource_config import API_DEFAULTS_CONFIG
 from app.core.exceptions import GeneNotFoundError, ValidationError
 from app.core.jsonapi import (
     build_jsonapi_response,
@@ -65,6 +66,11 @@ async def get_genes(
     ),
     count_range: tuple[int | None, int | None] = Depends(get_range_filters("count", min_ge=0)),
     filter_source: str | None = Query(None, alias="filter[source]"),
+    hide_zero_scores: bool = Query(
+        default=API_DEFAULTS_CONFIG.get("hide_zero_scores", True),
+        alias="filter[hide_zero_scores]",
+        description="Hide genes with evidence_score=0 (default: true)",
+    ),
     # JSON:API sorting
     sort: str | None = Depends(get_sort_param("-evidence_score,approved_symbol")),
 ) -> dict[str, Any]:
@@ -108,6 +114,10 @@ async def get_genes(
             "EXISTS (SELECT 1 FROM gene_evidence ge2 WHERE ge2.gene_id = g.id AND ge2.source_name = :source)"
         )
         query_params["source"] = filter_source
+
+    # Hide genes with evidence_score=0 if enabled
+    if hide_zero_scores:
+        where_clauses.append("gs.percentage_score > 0")
 
     where_clause = " AND ".join(where_clauses)
 
@@ -225,6 +235,22 @@ async def get_genes(
 
     # Add filter metadata to response
     response["meta"]["filters"] = filter_meta
+
+    # Add zero-score filtering metadata
+    if hide_zero_scores:
+        # Get total count without zero-score filter
+        total_query_no_filter = """
+            SELECT COUNT(DISTINCT g.id)
+            FROM genes g
+            LEFT JOIN gene_scores gs ON gs.gene_id = g.id
+        """
+        total_all_genes = db.execute(text(total_query_no_filter)).scalar() or 0
+        response["meta"]["total_genes"] = total_all_genes
+        response["meta"]["hidden_zero_scores"] = total_all_genes - total
+    else:
+        response["meta"]["total_genes"] = total
+        response["meta"]["hidden_zero_scores"] = 0
+
     return response
 
 

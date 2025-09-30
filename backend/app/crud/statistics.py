@@ -7,6 +7,10 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.gene_filters import (
+    count_filtered_genes_from_evidence_sql,
+    get_gene_evidence_filter_join,
+)
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -29,24 +33,28 @@ class CRUDStatistics:
             Dictionary with sets and intersections data for UpSet.js
         """
         try:
-            # Build WHERE clause for source filtering if specified
-            where_clause = ""
+            # Build WHERE clause for source filtering and zero-score filtering
+            join_clause, filter_clause = get_gene_evidence_filter_join()
+            where_clauses = [filter_clause]
             params = {}
 
             if selected_sources:
-                where_clause = "WHERE source_name = ANY(:selected_sources)"
+                where_clauses.append("gene_evidence.source_name = ANY(:selected_sources)")
                 params["selected_sources"] = selected_sources
 
-            # Get source names and their gene counts (filtered if specified)
+            where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+
+            # Get source names and their gene counts (filtered by both source and score)
             sources_query = f"""
                 SELECT
-                    source_name,
-                    COUNT(DISTINCT gene_id) as gene_count,
-                    array_agg(DISTINCT gene_id ORDER BY gene_id) as gene_ids
+                    gene_evidence.source_name,
+                    COUNT(DISTINCT gene_evidence.gene_id) as gene_count,
+                    array_agg(DISTINCT gene_evidence.gene_id ORDER BY gene_evidence.gene_id) as gene_ids
                 FROM gene_evidence
+                {join_clause}
                 {where_clause}
-                GROUP BY source_name
-                ORDER BY source_name
+                GROUP BY gene_evidence.source_name
+                ORDER BY gene_evidence.source_name
             """
 
             sources_result = db.execute(text(sources_query), params).fetchall()
@@ -107,10 +115,13 @@ class CRUDStatistics:
 
             # Calculate summary statistics - count unique genes in selected sources
             if selected_sources:
-                total_genes_query = """
-                    SELECT COUNT(DISTINCT gene_id)
+                join_clause_total, filter_clause_total = get_gene_evidence_filter_join()
+                total_genes_query = f"""
+                    SELECT COUNT(DISTINCT gene_evidence.gene_id)
                     FROM gene_evidence
-                    WHERE source_name = ANY(:selected_sources)
+                    {join_clause_total}
+                    WHERE {filter_clause_total}
+                    AND gene_evidence.source_name = ANY(:selected_sources)
                 """
                 total_unique_genes = (
                     db.execute(
@@ -119,9 +130,9 @@ class CRUDStatistics:
                     or 0
                 )
             else:
-                # If no source filter, get all genes with evidence
+                # If no source filter, get all genes with evidence respecting score filter
                 total_unique_genes = (
-                    db.execute(text("SELECT COUNT(DISTINCT gene_id) FROM gene_evidence")).scalar()
+                    db.execute(text(count_filtered_genes_from_evidence_sql())).scalar()
                     or 0
                 )
 
@@ -161,10 +172,16 @@ class CRUDStatistics:
             Dictionary with distribution data for each source
         """
         try:
-            # Get all sources
-            sources = db.execute(
-                text("SELECT DISTINCT source_name FROM gene_evidence ORDER BY source_name")
-            ).fetchall()
+            # Get all sources (filtered by score if configured)
+            join_clause, filter_clause = get_gene_evidence_filter_join()
+            sources_query = f"""
+                SELECT DISTINCT gene_evidence.source_name
+                FROM gene_evidence
+                {join_clause}
+                WHERE {filter_clause}
+                ORDER BY gene_evidence.source_name
+            """
+            sources = db.execute(text(sources_query)).fetchall()
 
             source_distributions = {}
 
@@ -173,18 +190,20 @@ class CRUDStatistics:
 
                 # For sources with countable elements (panels, publications, etc.)
                 if source_name == "PanelApp":
-                    # Count panels per gene
+                    # Count panels per gene (with score filtering)
+                    join_for_dist, filter_for_dist = get_gene_evidence_filter_join()
                     distribution_data = db.execute(
-                        text("""
+                        text(f"""
                             SELECT
                                 panel_count,
                                 COUNT(*) as gene_count
                             FROM (
                                 SELECT
-                                    gene_id,
-                                    jsonb_array_length(COALESCE(evidence_data->'panels', '[]'::jsonb)) as panel_count
+                                    gene_evidence.gene_id,
+                                    jsonb_array_length(COALESCE(gene_evidence.evidence_data->'panels', '[]'::jsonb)) as panel_count
                                 FROM gene_evidence
-                                WHERE source_name = :source_name
+                                {join_for_dist}
+                                WHERE {filter_for_dist} AND gene_evidence.source_name = :source_name
                             ) panel_counts
                             GROUP BY panel_count
                             ORDER BY panel_count
@@ -210,18 +229,20 @@ class CRUDStatistics:
                     ).first()
 
                 elif source_name == "PubTator":
-                    # Count publications per gene
+                    # Count publications per gene (with score filtering)
+                    join_for_dist, filter_for_dist = get_gene_evidence_filter_join()
                     distribution_data = db.execute(
-                        text("""
+                        text(f"""
                             SELECT
                                 pub_count,
                                 COUNT(*) as gene_count
                             FROM (
                                 SELECT
-                                    gene_id,
-                                    jsonb_array_length(COALESCE(evidence_data->'pmids', '[]'::jsonb)) as pub_count
+                                    gene_evidence.gene_id,
+                                    jsonb_array_length(COALESCE(gene_evidence.evidence_data->'pmids', '[]'::jsonb)) as pub_count
                                 FROM gene_evidence
-                                WHERE source_name = :source_name
+                                {join_for_dist}
+                                WHERE {filter_for_dist} AND gene_evidence.source_name = :source_name
                             ) pub_counts
                             GROUP BY pub_count
                             ORDER BY pub_count
@@ -229,13 +250,15 @@ class CRUDStatistics:
                         {"source_name": source_name},
                     ).fetchall()
 
+                    join_for_meta, filter_for_meta = get_gene_evidence_filter_join()
                     metadata = db.execute(
-                        text("""
+                        text(f"""
                             WITH pub_stats AS (
                                 SELECT
                                     jsonb_array_length(COALESCE(evidence_data->'pmids', '[]'::jsonb)) as pub_count
                                 FROM gene_evidence
-                                WHERE source_name = :source_name
+                                {join_for_meta}
+                                WHERE {filter_for_meta} AND source_name = :source_name
                             )
                             SELECT
                                 COUNT(DISTINCT pub_count) as total_unique_counts,
@@ -247,18 +270,20 @@ class CRUDStatistics:
                     ).first()
 
                 elif source_name == "DiagnosticPanels":
-                    # Count diagnostic panels per gene
+                    # Count diagnostic panels per gene (with score filtering)
+                    join_for_dist, filter_for_dist = get_gene_evidence_filter_join()
                     distribution_data = db.execute(
-                        text("""
+                        text(f"""
                             SELECT
                                 panel_count,
                                 COUNT(*) as gene_count
                             FROM (
                                 SELECT
-                                    gene_id,
-                                    jsonb_array_length(COALESCE(evidence_data->'panels', '[]'::jsonb)) as panel_count
+                                    gene_evidence.gene_id,
+                                    jsonb_array_length(COALESCE(gene_evidence.evidence_data->'panels', '[]'::jsonb)) as panel_count
                                 FROM gene_evidence
-                                WHERE source_name = :source_name
+                                {join_for_dist}
+                                WHERE {filter_for_dist} AND gene_evidence.source_name = :source_name
                             ) panel_counts
                             GROUP BY panel_count
                             ORDER BY panel_count
@@ -266,13 +291,15 @@ class CRUDStatistics:
                         {"source_name": source_name},
                     ).fetchall()
 
+                    join_for_meta, filter_for_meta = get_gene_evidence_filter_join()
                     metadata = db.execute(
-                        text("""
+                        text(f"""
                             WITH panel_stats AS (
                                 SELECT
                                     jsonb_array_length(COALESCE(evidence_data->'panels', '[]'::jsonb)) as panel_count
                                 FROM gene_evidence
-                                WHERE source_name = :source_name
+                                {join_for_meta}
+                                WHERE {filter_for_meta} AND source_name = :source_name
                             )
                             SELECT
                                 COUNT(DISTINCT panel_count) as total_unique_counts,
@@ -284,27 +311,31 @@ class CRUDStatistics:
                     ).first()
 
                 else:
-                    # For sources like ClinGen, GenCC, HPO - count evidence items per gene
+                    # For sources like ClinGen, GenCC, HPO - count evidence items per gene (with score filtering)
+                    join_for_dist, filter_for_dist = get_gene_evidence_filter_join()
                     distribution_data = db.execute(
-                        text("""
+                        text(f"""
                             SELECT
                                 1 as evidence_count,
                                 COUNT(*) as gene_count
                             FROM gene_evidence
-                            WHERE source_name = :source_name
+                            {join_for_dist}
+                            WHERE {filter_for_dist} AND gene_evidence.source_name = :source_name
                             GROUP BY 1
                         """),
                         {"source_name": source_name},
                     ).fetchall()
 
+                    join_for_meta, filter_for_meta = get_gene_evidence_filter_join()
                     metadata = db.execute(
-                        text("""
+                        text(f"""
                             SELECT
                                 COUNT(*) as total_genes,
                                 1 as max_evidence_per_gene,
                                 1.0 as avg_evidence_per_gene
                             FROM gene_evidence
-                            WHERE source_name = :source_name
+                            {join_for_meta}
+                            WHERE {filter_for_meta} AND gene_evidence.source_name = :source_name
                         """),
                         {"source_name": source_name},
                     ).first()

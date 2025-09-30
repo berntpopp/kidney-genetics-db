@@ -1,0 +1,10 @@
+# API default configuration
+# Controls default behavior for API endpoints
+
+api_defaults:
+  # Hide genes with evidence_score=0 by default
+  # This reduces noise by filtering out genes with no evidence
+  hide_zero_scores: true
+
+  # Future: Configurable minimum score threshold
+  # minimum_evidence_score: 0.0

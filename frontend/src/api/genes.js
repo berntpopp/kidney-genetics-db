@@ -21,7 +21,8 @@ export const geneApi = {
       maxCount = null,
       source = null,
       sortBy = null,
-      sortDesc = false
+      sortDesc = false,
+      hideZeroScores = true
     } = params
 
     // Build JSON:API query parameters
@@ -37,6 +38,9 @@ export const geneApi = {
     if (minCount !== null) queryParams['filter[min_count]'] = minCount
     if (maxCount !== null) queryParams['filter[max_count]'] = maxCount
     if (source) queryParams['filter[source]'] = source
+
+    // Hide zero scores filter (explicitly set to control default behavior)
+    queryParams['filter[hide_zero_scores]'] = hideZeroScores
 
     // Build sort parameter (JSON:API spec: prefix with - for descending)
     if (sortBy) {

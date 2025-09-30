@@ -77,7 +77,7 @@ const hoveredCard = ref(null)
 
 const stats = ref([
   {
-    title: 'Total Genes',
+    title: 'Genes with Evidence',
     value: 0,
     color: 'primary',
     icon: 'mdi-dna'
