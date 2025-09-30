@@ -54,9 +54,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Key Directories
 - `backend/` - FastAPI application with data pipeline and models
 - `frontend/` - Vue.js/Vuetify web interface
-- `docs/` - Architecture documentation and implementation guides
+- `docs/` - Comprehensive documentation (see Documentation Structure below)
 - `scrapers/` - Data scraping utilities for diagnostic panels
 - `backups/` - Database and migration backups
+
+## Documentation Structure
+
+**Complete documentation is in `docs/` - organized by role and purpose:**
+
+- **[Getting Started](docs/getting-started/)** - Quick start, installation, development workflow
+- **[Guides](docs/guides/)** - By role (developer, administrator, deployment)
+- **[Architecture](docs/architecture/)** - System design (backend, frontend, database, data-sources)
+- **[Features](docs/features/)** - Feature documentation (annotations, scoring, caching, auth)
+- **[API](docs/api/)** - REST API reference and WebSocket documentation
+- **[Reference](docs/reference/)** - Technical references (config, logging, style guide)
+- **[Implementation Notes](docs/implementation-notes/)** - Development notes (completed, active, planning)
+- **[Troubleshooting](docs/troubleshooting/)** - Common issues, fixes, performance tuning
+- **[Project Management](docs/project-management/)** - Status, releases, roadmap
+- **[Archive](docs/archive/)** - Historical documentation
+
+**Key Documentation Files:**
+- [Main Documentation](docs/README.md) - Entry point with role-based navigation
+- [Quick Start](docs/getting-started/quick-start.md) - 5-minute setup guide
+- [Developer Setup](docs/guides/developer/setup-environment.md) - Complete environment setup
+- [Architecture Overview](docs/architecture/README.md) - System design principles
+- [Project Status](docs/project-management/status.md) - Current state and metrics
 
 ## Development Commands
 
@@ -312,7 +334,7 @@ def fetch_genes():
 - **LoggingMiddleware**: Request lifecycle tracking
 - **Performance decorators**: Automatic timing and alerting
 
-For detailed logging documentation, see [docs/development/logging-system.md](docs/development/logging-system.md)
+For detailed logging documentation, see [docs/reference/logging-system.md](docs/reference/logging-system.md)
 
 ## Caching System (MUST USE)
 
@@ -578,9 +600,12 @@ await loop.run_in_executor(
 - **Error Rate**: <0.1% with circuit breaker
 
 ### 📚 Documentation References
-- Logging system: `docs/development/logging-system.md`
-- Performance fixes: `docs/implementation/annotation-pipeline-performance-fixes.md`
-- Cache refactor: `docs/implementation/cache-refactor-summary.md`
-- Project status: `docs/PROJECT_STATUS.md`
+- Logging system: `docs/reference/logging-system.md`
+- Performance fixes: `docs/implementation-notes/completed/pipeline-performance-fixes.md`
+- Cache refactor: `docs/implementation-notes/completed/cache-refactor.md`
+- Project status: `docs/project-management/status.md`
+- Architecture: `docs/architecture/README.md`
+- Developer guides: `docs/guides/developer/`
+- Troubleshooting: `docs/troubleshooting/common-issues.md`
 
 Remember: **DRY + KISS + Non-blocking = Success**. Use what exists, configure don't code, never block the event loop!
