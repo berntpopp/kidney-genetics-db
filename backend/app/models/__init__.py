@@ -2,6 +2,7 @@
 Database models
 """
 
+from app.models.backup_job import BackupJob, BackupStatus, BackupTrigger
 from app.models.base import Base, TimestampMixin
 from app.models.cache import CacheEntry
 from app.models.data_release import DataRelease
@@ -16,6 +17,9 @@ from app.models.user import User
 __all__ = [
     "AnnotationHistory",
     "AnnotationSource",
+    "BackupJob",
+    "BackupStatus",
+    "BackupTrigger",
     "Base",
     "CacheEntry",
     "DataRelease",

@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from app.api.endpoints import (
+    admin_backups,
     admin_logs,
     auth,
     cache,
@@ -152,6 +153,9 @@ app.include_router(statistics.router, prefix="/api/statistics", tags=["Analytics
 
 # 4. Administration - System management and monitoring
 app.include_router(admin_logs.router, prefix="/api/admin/logs", tags=["Administration - Logging"])
+app.include_router(
+    admin_backups.router, prefix="/api/admin/backups", tags=["Administration - Backups"]
+)
 app.include_router(
     cache.router, prefix="/api/admin/cache", tags=["Administration - Cache Management"]
 )

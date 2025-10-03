@@ -84,6 +84,20 @@ class Settings(BaseSettings):
     # API Keys (optional)
     OPENAI_API_KEY: str | None = None
 
+    # Backup Configuration
+    BACKUP_DIR: str = "backups"  # Directory for backup files
+    BACKUP_RETENTION_DAYS: int = 7  # How long to keep backups
+    BACKUP_COMPRESSION_LEVEL: int = 6  # 0-9 for gzip compression
+    BACKUP_PARALLEL_JOBS: int = 2  # Number of parallel dump/restore jobs
+    BACKUP_MAX_SIZE_GB: int = 100  # Alert if backup exceeds this size
+
+    # PostgreSQL connection for backups (extracted from DATABASE_URL by default)
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_USER: str = "kidney_user"
+    POSTGRES_PASSWORD: str = "kidney_pass"
+    POSTGRES_DB: str = "kidney_genetics"
+
 
 # Create settings instance
 settings = Settings()

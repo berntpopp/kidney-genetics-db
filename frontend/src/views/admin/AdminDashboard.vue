@@ -256,6 +256,20 @@ const adminSections = [
       'Download exports',
       'Track release history'
     ]
+  },
+  {
+    id: 'backups',
+    title: 'Database Backups',
+    description: 'Create and manage database backups',
+    icon: 'mdi-database-export',
+    color: 'blue-grey',
+    route: '/admin/backups',
+    features: [
+      'Create on-demand backups',
+      'Restore from backup',
+      'Download backup files',
+      'Automatic retention policy'
+    ]
   }
 ]
 

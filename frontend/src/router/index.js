@@ -100,6 +100,12 @@ const routes = [
     name: 'admin-releases',
     component: () => import('../views/admin/AdminReleases.vue'),
     meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/backups',
+    name: 'admin-backups',
+    component: () => import('../views/admin/AdminBackups.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
   }
 ]
 
