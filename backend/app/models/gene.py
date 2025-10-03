@@ -4,6 +4,7 @@ Gene and related models
 
 from sqlalchemy import (
     ARRAY,
+    TIMESTAMP,
     BigInteger,
     Column,
     Date,
@@ -14,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -30,6 +32,18 @@ class Gene(Base, TimestampMixin):
     hgnc_id = Column(String(50), unique=True, index=True)
     approved_symbol = Column(String(100), nullable=False, index=True)
     aliases: Column[list[str] | None] = Column(ARRAY(Text), default=list)
+
+    # Temporal versioning (SQL:2011 pattern for CalVer releases)
+    valid_from = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text('NOW()')
+    )
+    valid_to = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=text("'infinity'::timestamptz")
+    )
 
     # Relationships
     evidence = relationship("GeneEvidence", back_populates="gene", cascade="all, delete-orphan")

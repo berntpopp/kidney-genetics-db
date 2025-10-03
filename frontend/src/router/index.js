@@ -94,6 +94,12 @@ const routes = [
     name: 'admin-annotations',
     component: () => import('../views/admin/AdminAnnotations.vue'),
     meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/releases',
+    name: 'admin-releases',
+    component: () => import('../views/admin/AdminReleases.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
   }
 ]
 

@@ -19,6 +19,7 @@ from app.api.endpoints import (
     genes,
     ingestion,
     progress,
+    releases,
     shadow_tests,
     statistics,
 )
@@ -136,6 +137,9 @@ app.include_router(
 )
 app.include_router(
     datasources.router, prefix="/api/datasources", tags=["Core Resources - Data Sources"]
+)
+app.include_router(
+    releases.router, prefix="/api/releases", tags=["Core Resources - Data Releases"]
 )
 
 # 2. Data Pipeline - Ingestion and processing operations

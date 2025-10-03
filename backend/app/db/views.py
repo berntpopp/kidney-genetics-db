@@ -422,6 +422,16 @@ datasource_metadata_gencc = ReplaceableObject(
     dependencies=[],
 )
 
+genes_current = ReplaceableObject(
+    name="genes_current",
+    sqltext="""
+    SELECT *
+    FROM genes
+    WHERE valid_to = 'infinity'::timestamptz
+    """,
+    dependencies=[],
+)
+
 # List of all views in dependency order
 ALL_VIEWS = [
     # Tier 1 (no dependencies)
@@ -432,6 +442,7 @@ ALL_VIEWS = [
     admin_logs_filtered,
     datasource_metadata_panelapp,
     datasource_metadata_gencc,
+    genes_current,  # Temporal versioning: current genes only
     # Tier 2 (depend on Tier 1)
     evidence_count_percentiles,
     evidence_normalized_scores,

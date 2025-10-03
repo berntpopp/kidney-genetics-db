@@ -42,6 +42,15 @@
           color="error"
         />
       </v-col>
+      <v-col cols="12" sm="6" md="3">
+        <AdminStatsCard
+          title="Data Releases"
+          :value="stats.totalReleases"
+          :loading="statsLoading"
+          icon="mdi-package-variant"
+          color="indigo"
+        />
+      </v-col>
     </v-row>
 
     <!-- Admin Function Cards -->
@@ -148,7 +157,8 @@ const stats = ref({
   activeUsers: 0,
   cacheHitRate: 0,
   pipelineJobs: 0,
-  pendingStaging: 0
+  pendingStaging: 0,
+  totalReleases: 0
 })
 
 const statsLoading = ref(true)
@@ -232,6 +242,20 @@ const adminSections = [
     color: 'teal',
     route: '/admin/annotations',
     features: ['Configure sources', 'Update annotations', 'View statistics', 'Schedule updates']
+  },
+  {
+    id: 'releases',
+    title: 'Data Releases',
+    description: 'Create and manage CalVer data releases',
+    icon: 'mdi-package-variant',
+    color: 'indigo',
+    route: '/admin/releases',
+    features: [
+      'Create versioned releases',
+      'Publish snapshots',
+      'Download exports',
+      'Track release history'
+    ]
   }
 ]
 
@@ -244,18 +268,20 @@ const loadStats = async () => {
   statsLoading.value = true
   try {
     // Load statistics from various endpoints
-    const [users, cache, pipeline, staging] = await Promise.all([
+    const [users, cache, pipeline, staging, releases] = await Promise.all([
       fetchUserStats(),
       fetchCacheStats(),
       fetchPipelineStats(),
-      fetchStagingStats()
+      fetchStagingStats(),
+      fetchReleasesStats()
     ])
 
     stats.value = {
       activeUsers: users?.activeCount || 0,
       cacheHitRate: Math.round((cache?.hit_rate || 0) * 100),
       pipelineJobs: pipeline?.running || 0,
-      pendingStaging: staging?.total_pending || 0
+      pendingStaging: staging?.total_pending || 0,
+      totalReleases: releases?.total || 0
     }
   } catch (error) {
     window.logService.error('Failed to load dashboard stats:', error)
@@ -321,6 +347,25 @@ const fetchStagingStats = async () => {
     return data.data || data
   } catch (error) {
     window.logService.error('Failed to fetch staging stats:', error)
+    return null
+  }
+}
+
+const fetchReleasesStats = async () => {
+  try {
+    const response = await fetch('/api/releases/', {
+      headers: {
+        Authorization: `Bearer ${authStore.accessToken}`
+      }
+    })
+    if (!response.ok) throw new Error('Failed to fetch releases stats')
+    const data = await response.json()
+    return {
+      total: data.meta?.total || 0,
+      published: data.data?.filter(r => r.status === 'published').length || 0
+    }
+  } catch (error) {
+    window.logService.error('Failed to fetch releases stats:', error)
     return null
   }
 }

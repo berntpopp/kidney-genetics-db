@@ -4,6 +4,7 @@ Database models
 
 from app.models.base import Base, TimestampMixin
 from app.models.cache import CacheEntry
+from app.models.data_release import DataRelease
 from app.models.gene import Gene, GeneCuration, GeneEvidence, PipelineRun
 from app.models.gene_annotation import AnnotationHistory, AnnotationSource, GeneAnnotation
 from app.models.gene_staging import GeneNormalizationLog, GeneNormalizationStaging
@@ -17,6 +18,7 @@ __all__ = [
     "AnnotationSource",
     "Base",
     "CacheEntry",
+    "DataRelease",
     "DataSourceProgress",
     "Gene",
     "GeneAnnotation",
