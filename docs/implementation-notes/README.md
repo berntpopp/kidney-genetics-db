@@ -53,11 +53,15 @@ Future plans and design documents:
 ## Recent Implementations
 
 See [Completed](completed/) for recent work including:
+- **Genes endpoint optimization** (Sept 2025) - 97.7% performance improvement (630ms → 14ms)
+- **Evidence tier classification system** (Sept 2025) - Comprehensive support levels
+- **PubTator intelligent updates** (Sept 2025) - Smart vs full update modes
+- **Configuration refactoring** (Sept 2025) - YAML-based configuration system
+- **Percentile service** (Sept 2025) - Global STRING PPI percentile calculations
 - Cache system refactoring (Aug 2025)
 - Annotation pipeline performance fixes
 - Database views implementation
 - Evidence quality filtering
-- PubTator streaming refactor
 
 ## Related Documentation
 
