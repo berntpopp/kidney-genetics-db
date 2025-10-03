@@ -88,3 +88,6 @@ backend/backend/
 
 # Backup files
 *.backup
+
+# Release exports
+backend/exports/

@@ -5,8 +5,6 @@ Tests for evidence filtering functionality (hide_zero_scores).
 import pytest
 from sqlalchemy import text
 
-from app.models.gene import Gene
-
 
 @pytest.fixture
 def sample_genes(db_session):
@@ -51,8 +49,6 @@ def sample_genes(db_session):
 
 def test_get_genes_default_hides_zero_scores(db_session, sample_genes):
     """Test that by default, genes with score=0 are hidden."""
-    from app.api.endpoints.genes import get_genes
-    from app.core.jsonapi import get_jsonapi_params
 
     # Mock dependencies
     class MockParams:

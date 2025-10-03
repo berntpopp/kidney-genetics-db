@@ -3,8 +3,8 @@
 
 from sqlalchemy import create_engine, text
 
-from app.db.views import ALL_VIEWS
 from app.db.replaceable_objects import topological_sort
+from app.db.views import ALL_VIEWS
 
 # Database connection
 DATABASE_URL = "postgresql://kidney_user:kidney_pass@localhost:5432/kidney_genetics"
