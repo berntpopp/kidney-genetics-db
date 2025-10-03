@@ -138,13 +138,40 @@ class ReleaseService:
         publish_time = datetime.now(timezone.utc)
 
         try:
+            # Step 1: Export current genes BEFORE closing ranges
+            # This ensures we capture all genes with valid_to = 'infinity'
+            loop = asyncio.get_event_loop()
             logger.sync_info(
-                "Closing temporal ranges",
+                "Exporting current genes",
                 version=release.version,
                 publish_time=publish_time.isoformat()
             )
 
-            # Step 1: Update all genes with valid_to = infinity (NO COMMIT YET)
+            export_path = await loop.run_in_executor(
+                self._executor,
+                self._export_release_sync,
+                release.version,
+                publish_time
+            )
+
+            # Step 2: Calculate checksum in thread pool
+            checksum = await loop.run_in_executor(
+                self._executor,
+                self._calculate_checksum,
+                export_path
+            )
+
+            # Step 3: Count genes before closing (still at infinity)
+            gene_count = self._count_genes_current()
+
+            # Step 4: Now close temporal ranges (NO COMMIT YET)
+            logger.sync_info(
+                "Closing temporal ranges",
+                version=release.version,
+                publish_time=publish_time.isoformat(),
+                gene_count=gene_count
+            )
+
             self.db.execute(
                 text("""
                     UPDATE genes
@@ -153,25 +180,6 @@ class ReleaseService:
                 """),
                 {"publish_time": publish_time}
             )
-
-            # Step 2: Export data in thread pool (file I/O can be slow)
-            loop = asyncio.get_event_loop()
-            export_path = await loop.run_in_executor(
-                self._executor,
-                self._export_release_sync,
-                release.version,
-                publish_time
-            )
-
-            # Step 3: Calculate checksum in thread pool
-            checksum = await loop.run_in_executor(
-                self._executor,
-                self._calculate_checksum,
-                export_path
-            )
-
-            # Step 4: Count genes at publish time
-            gene_count = self._count_genes(publish_time)
 
             # Step 5: Update release record
             release.status = "published"
@@ -209,9 +217,12 @@ class ReleaseService:
         """
         Export genes to JSON file (sync version for thread pool).
 
+        Exports all genes with valid_to = 'infinity' (current genes).
+        This method is called BEFORE closing temporal ranges.
+
         Args:
             version: Release version
-            timestamp: Point-in-time for temporal query
+            timestamp: Timestamp for export metadata
 
         Returns:
             Path: Path to exported JSON file
@@ -226,7 +237,8 @@ class ReleaseService:
             file_path=str(export_file)
         )
 
-        # Query genes with comprehensive data at specific timestamp
+        # Query current genes (valid_to = 'infinity') with comprehensive data
+        # This is called BEFORE we close the temporal ranges
         # Includes scores, evidence, and annotations for research reproducibility
         result = self.db.execute(
             text("""
@@ -271,10 +283,9 @@ class ReleaseService:
                     ) as annotations
                 FROM genes g
                 LEFT JOIN gene_scores gs ON g.id = gs.gene_id
-                WHERE tstzrange(g.valid_from, g.valid_to) @> :timestamp
+                WHERE g.valid_to = 'infinity'::timestamptz
                 ORDER BY g.approved_symbol
-            """),
-            {"timestamp": timestamp}
+            """)
         )
         genes = result.fetchall()
 
@@ -345,6 +356,24 @@ class ReleaseService:
         checksum = sha256.hexdigest()
         logger.sync_debug(f"Checksum calculated: {checksum[:16]}...")
         return checksum
+
+    def _count_genes_current(self) -> int:
+        """
+        Count current genes (valid_to = 'infinity').
+
+        Called before closing temporal ranges during publish.
+
+        Returns:
+            int: Number of current genes
+        """
+        result = self.db.execute(
+            text("""
+                SELECT COUNT(*)
+                FROM genes
+                WHERE valid_to = 'infinity'::timestamptz
+            """)
+        )
+        return result.scalar()
 
     def _count_genes(self, timestamp: datetime) -> int:
         """

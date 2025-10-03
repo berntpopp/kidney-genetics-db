@@ -8,18 +8,16 @@ Revises: 001_modern_complete
 Create Date: 2025-09-30 10:42:53.432432
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
-import sqlalchemy as sa
 from app.db.views import gene_scores
-
 
 # revision identifiers, used by Alembic.
 revision: str = 'ae289b364fa1'
-down_revision: Union[str, Sequence[str], None] = '001_modern_complete'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = '001_modern_complete'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
