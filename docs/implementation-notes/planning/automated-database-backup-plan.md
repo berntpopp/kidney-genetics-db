@@ -252,13 +252,14 @@ import asyncio
 import hashlib
 import shutil
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.database import get_thread_pool_executor
 from app.models.backup_job import BackupJob, BackupStatus, BackupTrigger
 
 logger = get_logger(__name__)
@@ -266,10 +267,12 @@ logger = get_logger(__name__)
 class BackupService:
     """Production-grade PostgreSQL backup service"""
 
-    def __init__(self, db: Session):
-        self.db = db
+    def __init__(self, db_session: Session | None = None):
+        self.db = db_session
         self.backup_dir = Path(settings.BACKUP_DIR)
         self.backup_dir.mkdir(parents=True, exist_ok=True)
+        # Use singleton thread pool to prevent resource exhaustion
+        self._executor = get_thread_pool_executor()
 
     async def create_backup(
         self,
@@ -300,7 +303,7 @@ class BackupService:
         parallel_jobs = parallel_jobs or settings.BACKUP_PARALLEL_JOBS
 
         # Create backup job record
-        timestamp = datetime.now()
+        timestamp = datetime.now(timezone.utc)
         filename = f"backup_{timestamp.strftime('%Y%m%d_%H%M%S')}.dump"
         file_path = self.backup_dir / filename
 
@@ -325,7 +328,7 @@ class BackupService:
         try:
             # Update status to running
             backup_job.status = BackupStatus.RUNNING
-            backup_job.started_at = datetime.now()
+            backup_job.started_at = datetime.now(timezone.utc)
             self.db.commit()
 
             await logger.info(
@@ -338,14 +341,14 @@ class BackupService:
             # Execute pg_dump in thread pool (blocking operation)
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(
-                None,
+                self._executor,
                 self._execute_pg_dump,
                 backup_job
             )
 
             # Update job with results
             backup_job.status = BackupStatus.COMPLETED
-            backup_job.completed_at = datetime.now()
+            backup_job.completed_at = datetime.now(timezone.utc)
             backup_job.duration_seconds = (
                 backup_job.completed_at - backup_job.started_at
             ).total_seconds()
@@ -368,7 +371,7 @@ class BackupService:
         except Exception as e:
             # Mark as failed
             backup_job.status = BackupStatus.FAILED
-            backup_job.completed_at = datetime.now()
+            backup_job.completed_at = datetime.now(timezone.utc)
             backup_job.error_message = str(e)
             backup_job.error_details = {"exception_type": type(e).__name__}
             self.db.commit()
@@ -494,10 +497,10 @@ class BackupService:
 
             # Execute restore in thread pool
             loop = asyncio.get_event_loop()
-            start_time = datetime.now()
+            start_time = datetime.now(timezone.utc)
 
             result = await loop.run_in_executor(
-                None,
+                self._executor,
                 self._execute_pg_restore,
                 backup_job,
                 drop_existing
@@ -506,13 +509,13 @@ class BackupService:
             # Run ANALYZE for query optimizer (BEST PRACTICE)
             if run_analyze:
                 await logger.info("Running ANALYZE on restored database")
-                await loop.run_in_executor(None, self._run_analyze)
+                await loop.run_in_executor(self._executor, self._run_analyze)
 
             # Mark backup as restored
             backup_job.status = BackupStatus.RESTORED
             self.db.commit()
 
-            duration = (datetime.now() - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
             await logger.info(
                 f"Database restore completed",
@@ -634,9 +637,10 @@ class BackupService:
 
     def _get_database_size(self) -> int:
         """Get current database size in bytes"""
-        result = self.db.execute(text(
-            f"SELECT pg_database_size('{settings.POSTGRES_DB}')"
-        ))
+        result = self.db.execute(
+            text("SELECT pg_database_size(:dbname)"),
+            {"dbname": settings.POSTGRES_DB}
+        )
         return result.scalar()
 
     def _get_table_count(self) -> int:
@@ -649,7 +653,7 @@ class BackupService:
 
     async def cleanup_old_backups(self) -> int:
         """Delete backups older than retention period"""
-        cutoff_date = datetime.now() - timedelta(days=settings.BACKUP_RETENTION_DAYS)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=settings.BACKUP_RETENTION_DAYS)
 
         old_backups = self.db.query(BackupJob).filter(
             BackupJob.status == BackupStatus.COMPLETED,
@@ -1145,17 +1149,6 @@ Based on PostgreSQL best practices research:
 - Parallel jobs (`--jobs=4`) can reduce time by 40-60% on multi-core systems
 - Custom format is ~15% smaller than plain SQL
 - SSD storage improves performance by 2-3x vs HDD
-
-## Future Enhancements
-
-- [ ] Point-In-Time Recovery (PITR) with WAL archiving
-- [ ] Off-site backup (S3, Google Cloud Storage)
-- [ ] Encryption at rest (GPG encryption)
-- [ ] Backup verification (restore to temp database)
-- [ ] Email notifications on backup success/failure
-- [ ] Backup size monitoring and alerts
-- [ ] Incremental backups for large databases
-- [ ] pgBackRest integration for enterprise needs
 
 ## References
 
