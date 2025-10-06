@@ -16,6 +16,19 @@
         }}</span>
       </v-tooltip>
       <v-spacer />
+      <v-tooltip location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <v-checkbox
+            v-model="showInsufficientEvidence"
+            v-bind="tooltipProps"
+            label="Show insufficient evidence"
+            density="compact"
+            hide-details
+            class="me-2"
+          />
+        </template>
+        <span>Include genes with percentage_score = 0 (no meaningful evidence)</span>
+      </v-tooltip>
       <v-select
         v-if="data && Object.keys(data).length > 0"
         v-model="selectedSource"
@@ -108,6 +121,7 @@ const loading = ref(false)
 const error = ref(null)
 const data = ref(null)
 const selectedSource = ref(null)
+const showInsufficientEvidence = ref(false) // Default: hide genes with score = 0
 
 // Computed properties
 const sourceOptions = computed(() => {
@@ -169,7 +183,10 @@ const loadData = async () => {
   error.value = null
 
   try {
-    const response = await statisticsApi.getSourceDistributions(props.selectedTiers)
+    const response = await statisticsApi.getSourceDistributions(
+      props.selectedTiers,
+      !showInsufficientEvidence.value // Invert: checkbox OFF = hide (true), checkbox ON = show (false)
+    )
     data.value = response.data
 
     // Set default selected source
@@ -179,7 +196,8 @@ const loadData = async () => {
       window.logService.info('Source distribution data loaded', {
         source: selectedSource.value,
         metadata: data.value[selectedSource.value]?.metadata,
-        distributionCount: data.value[selectedSource.value]?.distribution?.length
+        distributionCount: data.value[selectedSource.value]?.distribution?.length,
+        hideZeroScores: !showInsufficientEvidence.value
       })
     }
   } catch (err) {
@@ -236,6 +254,17 @@ watch(
     }
   },
   { deep: true }
+)
+
+// Watch for insufficient evidence toggle changes and reload data
+watch(
+  () => showInsufficientEvidence.value,
+  async () => {
+    window.logService.info('Insufficient evidence toggle changed', {
+      showInsufficientEvidence: showInsufficientEvidence.value
+    })
+    await loadData()
+  }
 )
 
 // Initialize

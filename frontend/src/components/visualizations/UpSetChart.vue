@@ -27,6 +27,19 @@
           one data source
         </div>
       </v-tooltip>
+      <v-tooltip location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <v-checkbox
+            v-model="showInsufficientEvidence"
+            v-bind="tooltipProps"
+            label="Show insufficient evidence"
+            density="compact"
+            hide-details
+            class="me-2"
+          />
+        </template>
+        <span>Include genes with percentage_score = 0 (no meaningful evidence)</span>
+      </v-tooltip>
       <v-btn
         icon="mdi-refresh"
         variant="text"
@@ -223,6 +236,7 @@ const selectedIntersection = ref(null)
 const upsetContainer = ref(null)
 const selectedSources = ref([])
 const availableSources = ref([])
+const showInsufficientEvidence = ref(false) // Default: hide genes with score = 0
 let resizeObserver = null
 
 // Computed properties
@@ -266,7 +280,11 @@ const transformToUpSetFormat = apiData => {
 // Load available sources
 const loadAvailableSources = async () => {
   try {
-    const response = await statisticsApi.getSourceOverlaps(null, props.selectedTiers)
+    const response = await statisticsApi.getSourceOverlaps(
+      null,
+      props.selectedTiers,
+      !showInsufficientEvidence.value // Invert: checkbox OFF = hide (true), checkbox ON = show (false)
+    )
     if (response.data?.sets) {
       // Sort by cardinality descending (largest first) to match UpSet.js default
       const sources = response.data.sets
@@ -297,12 +315,14 @@ const loadData = async () => {
 
     window.logService.info('Calling API with sources', {
       sources: selectedSources.value,
-      selectedTiers: props.selectedTiers
+      selectedTiers: props.selectedTiers,
+      hideZeroScores: !showInsufficientEvidence.value
     })
 
     const response = await statisticsApi.getSourceOverlaps(
       selectedSources.value,
-      props.selectedTiers
+      props.selectedTiers,
+      !showInsufficientEvidence.value // Invert: checkbox OFF = hide (true), checkbox ON = show (false)
     )
     window.logService.info('API response received', { data: response.data })
     data.value = response.data
@@ -381,6 +401,18 @@ watch(
     }
   },
   { deep: true }
+)
+
+// Watch for insufficient evidence toggle changes and reload data
+watch(
+  () => showInsufficientEvidence.value,
+  async () => {
+    window.logService.info('Insufficient evidence toggle changed', {
+      showInsufficientEvidence: showInsufficientEvidence.value
+    })
+    await loadAvailableSources()
+    await loadData()
+  }
 )
 
 // Render UpSet plot using @upsetjs/bundle
