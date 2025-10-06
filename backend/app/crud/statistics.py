@@ -39,22 +39,23 @@ class CRUDStatistics:
             Dictionary with sets and intersections data for UpSet.js
         """
         try:
+            logger.sync_debug("get_source_overlaps called", filter_tiers=filter_tiers, hide_zero_scores=hide_zero_scores, selected_sources=selected_sources)
+
             # Build WHERE clause
             join_clause, filter_clause = get_gene_evidence_filter_join(hide_zero_scores)
             where_clauses = [filter_clause]
 
-            # Add tier filtering if specified
-            if filter_tiers:
-                placeholders = ','.join([f':tier_{i}' for i in range(len(filter_tiers))])
-                where_clauses.append(f"gs.evidence_tier IN ({placeholders})")
+            # Add tier filtering if specified (using direct string interpolation for consistency with source_distributions)
+            if filter_tiers and len(filter_tiers) > 0:
+                # Sanitize and quote tier values for SQL IN clause
+                tier_list_str = ', '.join([f"'{tier}'" for tier in filter_tiers])
+                where_clauses.append(f"gs.evidence_tier IN ({tier_list_str})")
+                logger.sync_debug("Added tier filtering", tier_list=tier_list_str)
 
             filter_clause = " AND ".join(where_clauses) if len(where_clauses) > 1 else where_clauses[0]
 
-            # Build params dict for tier filtering
+            # Build params dict for source filtering only
             params = {}
-            if filter_tiers:
-                for i, tier in enumerate(filter_tiers):
-                    params[f"tier_{i}"] = tier
 
             # Add source filtering
             where_parts = [filter_clause]
@@ -63,6 +64,8 @@ class CRUDStatistics:
                 params["selected_sources"] = selected_sources
 
             where_clause = "WHERE " + " AND ".join(where_parts) if where_parts else ""
+
+            logger.sync_debug("WHERE clause built", where_clause=where_clause, params=params)
 
             # Get source names and their gene counts (filtered by both source and score)
             sources_query = f"""
