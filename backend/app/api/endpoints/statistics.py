@@ -22,6 +22,10 @@ async def get_source_overlaps(
     sources: list[str] | None = Query(
         None, description="Specific source names to include in analysis"
     ),
+    min_tier: str | None = Query(
+        None,
+        description="Minimum evidence tier (Very High, High, Medium, Low)"
+    ),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
@@ -30,13 +34,16 @@ async def get_source_overlaps(
     Args:
         sources: Optional list of source names to filter analysis (e.g., ['PanelApp', 'ClinGen'])
                 If None, includes all available sources.
+        min_tier: Optional minimum evidence tier for filtering
 
     Returns data optimized for UpSet.js library with sets and intersections.
     """
     start_time = time.time()
 
     try:
-        overlap_data = statistics_crud.get_source_overlaps(db, selected_sources=sources)
+        overlap_data = statistics_crud.get_source_overlaps(
+            db, selected_sources=sources, min_tier=min_tier
+        )
 
         query_duration_ms = round((time.time() - start_time) * 1000, 2)
 
@@ -47,27 +54,37 @@ async def get_source_overlaps(
                 "query_duration_ms": query_duration_ms,
                 "data_version": datetime.utcnow().strftime("%Y%m%d"),
                 "visualization_type": "upset_plot",
+                "min_tier": min_tier,
             },
         )
 
     except Exception as e:
         raise ValidationError(
-            field="source_overlaps", message=f"Failed to calculate source overlaps: {str(e)}"
+            field="source_overlaps", reason=f"Failed to calculate source overlaps: {str(e)}"
         ) from e
 
 
 @router.get("/source-distributions")
-async def get_source_distributions(db: Session = Depends(get_db)) -> dict[str, Any]:
+async def get_source_distributions(
+    min_tier: str | None = Query(
+        None,
+        description="Minimum evidence tier (Very High, High, Medium, Low)"
+    ),
+    db: Session = Depends(get_db)
+) -> dict[str, Any]:
     """
     Get source count distributions for bar chart visualizations.
 
     Returns distribution data showing how many genes appear in X number of
     panels/publications/evidence items for each source.
+
+    Args:
+        min_tier: Optional minimum evidence tier for filtering
     """
     start_time = time.time()
 
     try:
-        distribution_data = statistics_crud.get_source_distributions(db)
+        distribution_data = statistics_crud.get_source_distributions(db, min_tier=min_tier)
 
         query_duration_ms = round((time.time() - start_time) * 1000, 2)
 
@@ -79,28 +96,38 @@ async def get_source_distributions(db: Session = Depends(get_db)) -> dict[str, A
                 "data_version": datetime.utcnow().strftime("%Y%m%d"),
                 "visualization_type": "bar_charts",
                 "source_count": len(distribution_data),
+                "min_tier": min_tier,
             },
         )
 
     except Exception as e:
         raise ValidationError(
             field="source_distributions",
-            message=f"Failed to calculate source distributions: {str(e)}",
+            reason=f"Failed to calculate source distributions: {str(e)}",
         ) from e
 
 
 @router.get("/evidence-composition")
-async def get_evidence_composition(db: Session = Depends(get_db)) -> dict[str, Any]:
+async def get_evidence_composition(
+    min_tier: str | None = Query(
+        None,
+        description="Minimum evidence tier (Very High, High, Medium, Low)"
+    ),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
     """
     Get evidence quality and composition analysis.
 
     Returns breakdown of evidence scores, source contribution weights,
     and coverage statistics for comprehensive analysis.
+
+    Args:
+        min_tier: Optional minimum evidence tier for filtering
     """
     start_time = time.time()
 
     try:
-        composition_data = statistics_crud.get_evidence_composition(db)
+        composition_data = statistics_crud.get_evidence_composition(db, min_tier=min_tier)
 
         query_duration_ms = round((time.time() - start_time) * 1000, 2)
 
@@ -111,13 +138,14 @@ async def get_evidence_composition(db: Session = Depends(get_db)) -> dict[str, A
                 "query_duration_ms": query_duration_ms,
                 "data_version": datetime.utcnow().strftime("%Y%m%d"),
                 "visualization_type": "composition_analysis",
+                "min_tier": min_tier,
             },
         )
 
     except Exception as e:
         raise ValidationError(
             field="evidence_composition",
-            message=f"Failed to analyze evidence composition: {str(e)}",
+            reason=f"Failed to analyze evidence composition: {str(e)}",
         ) from e
 
 
@@ -182,5 +210,5 @@ async def get_statistics_summary(db: Session = Depends(get_db)) -> dict[str, Any
 
     except Exception as e:
         raise ValidationError(
-            field="statistics_summary", message=f"Failed to generate statistics summary: {str(e)}"
+            field="statistics_summary", reason=f"Failed to generate statistics summary: {str(e)}"
         ) from e

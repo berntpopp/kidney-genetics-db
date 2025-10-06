@@ -199,9 +199,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { statisticsApi } from '@/api/statistics'
 import * as d3 from 'd3'
+
+// Props
+const props = defineProps({
+  minTier: {
+    type: String,
+    default: null
+  }
+})
 
 // Reactive data
 const loading = ref(false)
@@ -222,7 +230,7 @@ const availableToAdd = computed(() =>
 // Initial load to get available sources
 const loadAvailableSources = async () => {
   try {
-    const response = await statisticsApi.getSourceOverlaps() // Get all sources
+    const response = await statisticsApi.getSourceOverlaps(null, props.minTier) // Get all sources with tier filter
     if (response.data?.sets) {
       const sources = response.data.sets.map(set => set.name).sort()
       availableSources.value = sources
@@ -249,9 +257,14 @@ const loadData = async () => {
       return
     }
 
-    // Call API with selected sources
-    window.logService.info('Calling API with sources:', selectedSources.value)
-    const response = await statisticsApi.getSourceOverlaps(selectedSources.value)
+    // Call API with selected sources and tier filter
+    window.logService.info(
+      'Calling API with sources:',
+      selectedSources.value,
+      'and minTier:',
+      props.minTier
+    )
+    const response = await statisticsApi.getSourceOverlaps(selectedSources.value, props.minTier)
     window.logService.info('API response:', response.data)
     data.value = response.data
 
@@ -319,6 +332,18 @@ watch(
   { deep: true, immediate: false }
 )
 
+// Watch for minTier changes and reload data
+watch(
+  () => props.minTier,
+  async (newTier, oldTier) => {
+    if (newTier !== oldTier) {
+      window.logService.info('Tier filter changed from', oldTier, 'to', newTier)
+      await loadAvailableSources()
+      await loadData()
+    }
+  }
+)
+
 // Render UpSet plot using D3
 const renderUpSetPlot = () => {
   if (!data.value || !upsetContainer.value) {
@@ -334,6 +359,39 @@ const renderUpSetPlot = () => {
   const width = containerWidth - margin.left - margin.right
   const height = containerHeight - margin.top - margin.bottom
 
+  // Validate dimensions - don't render if container is too small
+  const minWidth = 400
+  const minHeight = 300
+  if (width < minWidth || height < minHeight) {
+    window.logService.warn('Container too small for UpSet plot', {
+      containerWidth,
+      width,
+      height,
+      minWidth,
+      minHeight
+    })
+
+    // Show message in container
+    d3
+      .select(upsetContainer.value)
+      .append('div')
+      .style('display', 'flex')
+      .style('align-items', 'center')
+      .style('justify-content', 'center')
+      .style('height', '100%')
+      .style('color', 'var(--v-theme-on-surface-variant)')
+      .style('text-align', 'center')
+      .style('padding', '20px').html(`
+        <div>
+          <p>Container too small to display chart</p>
+          <p style="font-size: 0.875rem; margin-top: 8px;">
+            Minimum width: ${minWidth}px (current: ${Math.round(containerWidth)}px)
+          </p>
+        </div>
+      `)
+    return
+  }
+
   // Create SVG
   const svg = d3
     .select(upsetContainer.value)
@@ -348,14 +406,14 @@ const renderUpSetPlot = () => {
   const intersections = data.value.intersections.sort((a, b) => b.size - a.size)
 
   // Set up scales
-  const maxSetSize = Math.max(...sets.map(d => d.size))
-  const maxIntersectionSize = Math.max(...intersections.map(d => d.size))
+  const maxSetSize = Math.max(...sets.map(d => d.size), 1) // Ensure at least 1
+  const maxIntersectionSize = Math.max(...intersections.map(d => d.size), 1) // Ensure at least 1
 
   // Horizontal scale for set sizes (left bars)
   const setScale = d3
     .scaleLinear()
     .domain([0, maxSetSize])
-    .range([0, width * 0.25])
+    .range([0, Math.max(width * 0.25, 0)]) // Ensure non-negative
 
   // Vertical scale for intersection sizes (top bars)
   const intersectionScale = d3
@@ -373,7 +431,7 @@ const renderUpSetPlot = () => {
   const intersectionsX = d3
     .scaleBand()
     .domain(intersections.map((d, i) => i))
-    .range([width * 0.3, width])
+    .range([Math.max(width * 0.3, 0), width]) // Ensure start is non-negative
     .padding(0.1)
 
   // 1. Draw set size bars (horizontal bars on the left)
@@ -382,9 +440,9 @@ const renderUpSetPlot = () => {
     .enter()
     .append('rect')
     .attr('class', 'set-bar')
-    .attr('x', width * 0.25 - setScale.range()[1])
+    .attr('x', Math.max(width * 0.25 - setScale.range()[1], 0))
     .attr('y', d => setsY(d.name))
-    .attr('width', d => setScale(d.size))
+    .attr('width', d => Math.max(setScale(d.size), 0)) // Ensure non-negative width
     .attr('height', setsY.bandwidth())
     .attr('fill', '#0EA5E9')
     .attr('opacity', 0.8)
@@ -435,8 +493,8 @@ const renderUpSetPlot = () => {
     .attr('class', 'intersection-bar')
     .attr('x', (d, i) => intersectionsX(i))
     .attr('y', d => intersectionScale(d.size))
-    .attr('width', intersectionsX.bandwidth())
-    .attr('height', d => height * 0.6 - intersectionScale(d.size))
+    .attr('width', Math.max(intersectionsX.bandwidth(), 0)) // Ensure non-negative width
+    .attr('height', d => Math.max(height * 0.6 - intersectionScale(d.size), 0)) // Ensure non-negative height
     .attr('fill', '#10B981')
     .attr('opacity', 0.8)
     .style('cursor', 'pointer')
@@ -520,12 +578,36 @@ const renderUpSetPlot = () => {
   })
 }
 
+// Resize observer to handle container size changes
+let resizeObserver = null
+
 // Initialize
 onMounted(async () => {
   await loadAvailableSources()
   // Trigger initial load after sources are set
   if (selectedSources.value.length > 0) {
     loadData()
+  }
+
+  // Add resize observer to re-render when container size changes
+  if (upsetContainer.value) {
+    resizeObserver = new window.ResizeObserver(() => {
+      if (data.value && upsetContainer.value) {
+        // Debounce the render to avoid too many re-renders
+        setTimeout(() => {
+          renderUpSetPlot()
+        }, 150)
+      }
+    })
+    resizeObserver.observe(upsetContainer.value)
+  }
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (resizeObserver && upsetContainer.value) {
+    resizeObserver.unobserve(upsetContainer.value)
+    resizeObserver.disconnect()
   }
 })
 </script>

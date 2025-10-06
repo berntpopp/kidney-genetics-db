@@ -7,11 +7,12 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.datasource_config import API_DEFAULTS_CONFIG
 from app.core.gene_filters import (
-    count_filtered_genes_from_evidence_sql,
     get_gene_evidence_filter_join,
 )
 from app.core.logging import get_logger
+from app.crud.statistics_handlers import SourceDistributionHandlerFactory
 
 logger = get_logger(__name__)
 
@@ -20,7 +21,7 @@ class CRUDStatistics:
     """CRUD operations for statistics and data analysis"""
 
     def get_source_overlaps(
-        self, db: Session, selected_sources: list[str] | None = None
+        self, db: Session, selected_sources: list[str] | None = None, min_tier: str | None = None
     ) -> dict[str, Any]:
         """
         Calculate gene intersections between data sources for UpSet plot visualization
@@ -28,13 +29,16 @@ class CRUDStatistics:
         Args:
             db: Database session
             selected_sources: Optional list of source names to include. If None, uses all sources.
+            min_tier: Optional minimum evidence tier for filtering
 
         Returns:
             Dictionary with sets and intersections data for UpSet.js
         """
         try:
-            # Build WHERE clause for source filtering and zero-score filtering
-            join_clause, filter_clause = get_gene_evidence_filter_join()
+            from app.core.gene_filters import get_tier_filter_join_clause
+
+            # Build WHERE clause for source filtering, score filtering, and tier filtering
+            join_clause, filter_clause = get_tier_filter_join_clause(min_tier)
             where_clauses = [filter_clause]
             params = {}
 
@@ -115,12 +119,12 @@ class CRUDStatistics:
 
             # Calculate summary statistics - count unique genes in selected sources
             if selected_sources:
-                join_clause_total, filter_clause_total = get_gene_evidence_filter_join()
+                # Use the same tier filter as the main query
                 total_genes_query = f"""
                     SELECT COUNT(DISTINCT gene_evidence.gene_id)
                     FROM gene_evidence
-                    {join_clause_total}
-                    WHERE {filter_clause_total}
+                    {join_clause}
+                    WHERE {filter_clause}
                     AND gene_evidence.source_name = ANY(:selected_sources)
                 """
                 total_unique_genes = (
@@ -130,9 +134,15 @@ class CRUDStatistics:
                     or 0
                 )
             else:
-                # If no source filter, get all genes with evidence respecting score filter
+                # If no source filter, count all genes respecting tier filter
+                total_genes_query = f"""
+                    SELECT COUNT(DISTINCT gene_evidence.gene_id)
+                    FROM gene_evidence
+                    {join_clause}
+                    WHERE {filter_clause}
+                """
                 total_unique_genes = (
-                    db.execute(text(count_filtered_genes_from_evidence_sql())).scalar()
+                    db.execute(text(total_genes_query)).scalar()
                     or 0
                 )
 
@@ -164,8 +174,84 @@ class CRUDStatistics:
             )
             raise
 
-    def get_source_distributions(self, db: Session) -> dict[str, Any]:
+    def get_source_distributions(
+        self,
+        db: Session,
+        min_tier: str | None = None
+    ) -> dict[str, Any]:
         """
+        Calculate source-specific distributions using handler pattern.
+
+        Args:
+            db: Database session
+            min_tier: Optional minimum evidence tier for filtering
+
+        Returns:
+            Dict with source-specific distribution data
+        """
+        try:
+            from app.core.gene_filters import get_tier_filter_join_clause
+
+            logger.sync_info("Calculating source distributions", min_tier=min_tier)
+
+            # Get filter clauses (respects score filter + tier filter)
+            join_clause, filter_clause = get_tier_filter_join_clause(min_tier)
+
+            # Get all sources with filtering
+            sources_query = f"""
+                SELECT DISTINCT gene_evidence.source_name
+                FROM gene_evidence
+                {join_clause}
+                WHERE {filter_clause}
+                ORDER BY gene_evidence.source_name
+            """
+            sources = db.execute(text(sources_query)).fetchall()
+
+            source_distributions = {}
+
+            for source_row in sources:
+                source_name = source_row[0]
+
+                # Get appropriate handler for source
+                handler = SourceDistributionHandlerFactory.get_handler(source_name)
+
+                # Get distribution data using handler
+                distribution_data, metadata = handler.get_distribution(
+                    db, join_clause, filter_clause
+                )
+
+                # Convert to response format
+                distribution = [
+                    {"category": row[0], "gene_count": row[1]}
+                    for row in distribution_data
+                ]
+
+                source_distributions[source_name] = {
+                    "distribution": distribution,
+                    "metadata": metadata,
+                }
+
+            logger.sync_info(
+                "Source distributions calculated",
+                sources=len(source_distributions),
+                min_tier=min_tier
+            )
+
+            return source_distributions
+
+        except Exception as e:
+            logger.sync_error(
+                "Error calculating source distributions",
+                error=e,
+                min_tier=min_tier
+            )
+            raise
+
+    def get_source_distributions_old(self, db: Session) -> dict[str, Any]:
+        """
+        DEPRECATED: Old implementation with embedded SQL.
+        Kept temporarily for reference. Will be removed after frontend migration.
+
         Calculate source count distributions for bar chart visualizations
 
         Returns:
@@ -384,46 +470,57 @@ class CRUDStatistics:
             logger.sync_error("Error calculating source distributions", error=e)
             raise
 
-    def get_evidence_composition(self, db: Session) -> dict[str, Any]:
+    def get_evidence_composition(self, db: Session, min_tier: str | None = None) -> dict[str, Any]:
         """
         Analyze evidence quality and composition across sources
+
+        Args:
+            db: Database session
+            min_tier: Optional minimum evidence tier for filtering
 
         Returns:
             Dictionary with evidence composition analysis
         """
         try:
-            # Get evidence score distribution from gene_scores view
+            from app.core.gene_filters import get_tier_filter_clause
+
+            # Get tier configuration from config
+            tier_config = API_DEFAULTS_CONFIG.get("evidence_tiers", {})
+            tier_list = tier_config.get("tiers", [])
+
+            # Build tier -> label mapping from config
+            tier_mapping = {tier['tier']: tier['label'] for tier in tier_list}
+
+            # Build WHERE clause for tier filtering
+            tier_clause = get_tier_filter_clause(min_tier)
+            where_clause = f"WHERE {tier_clause}" if tier_clause != "1=1" else ""
+
+            # Get evidence score distribution from gene_scores view (query evidence_tier column directly)
             score_distribution = db.execute(
-                text("""
+                text(f"""
                     SELECT
-                        CASE
-                            WHEN percentage_score >= 90 THEN '90-100'
-                            WHEN percentage_score >= 70 THEN '70-90'
-                            WHEN percentage_score >= 50 THEN '50-70'
-                            WHEN percentage_score >= 30 THEN '30-50'
-                            ELSE '0-30'
-                        END as score_range,
+                        gs.evidence_tier,
                         COUNT(*) as gene_count
-                    FROM gene_scores
-                    GROUP BY 1
-                    ORDER BY MIN(percentage_score) DESC
+                    FROM gene_scores gs
+                    {where_clause}
+                    GROUP BY gs.evidence_tier
+                    ORDER BY
+                        CASE gs.evidence_tier
+                            WHEN 'comprehensive_support' THEN 1
+                            WHEN 'multi_source_support' THEN 2
+                            WHEN 'established_support' THEN 3
+                            WHEN 'preliminary_evidence' THEN 4
+                            WHEN 'minimal_evidence' THEN 5
+                            WHEN 'no_evidence' THEN 6
+                        END
                 """)
             ).fetchall()
-
-            # Map score ranges to confidence levels
-            confidence_mapping = {
-                "90-100": "Very High Confidence",
-                "70-90": "High Confidence",
-                "50-70": "Medium Confidence",
-                "30-50": "Low Confidence",
-                "0-30": "Very Low Confidence",
-            }
 
             evidence_quality_distribution = [
                 {
                     "score_range": row[0],
                     "gene_count": row[1],
-                    "label": confidence_mapping.get(row[0], f"{row[0]} Confidence"),
+                    "label": tier_mapping.get(row[0], row[0]),
                 }
                 for row in score_distribution
             ]
@@ -452,14 +549,15 @@ class CRUDStatistics:
 
             # Get source coverage statistics
             coverage_stats = db.execute(
-                text("""
+                text(f"""
                     SELECT
-                        source_count,
+                        gs.source_count,
                         COUNT(*) as gene_count,
                         ROUND((COUNT(*) * 100.0 / SUM(COUNT(*)) OVER()), 2) as percentage
-                    FROM gene_scores
-                    GROUP BY source_count
-                    ORDER BY source_count DESC
+                    FROM gene_scores gs
+                    {where_clause}
+                    GROUP BY gs.source_count
+                    ORDER BY gs.source_count DESC
                 """)
             ).fetchall()
 

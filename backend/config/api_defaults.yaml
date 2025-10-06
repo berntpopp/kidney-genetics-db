@@ -6,5 +6,43 @@ api_defaults:
   # This reduces noise by filtering out genes with no evidence
   hide_zero_scores: true
 
-  # Future: Configurable minimum score threshold
-  # minimum_evidence_score: 0.0
+  # Evidence tier configuration for aggregated scores (gene_scores view)
+  # Based ONLY on percentage_score (NOT source_count)
+  evidence_tiers:
+    ranges:
+      - range: "90-100"
+        label: "Very High Confidence"
+        threshold: 90
+        color: "#059669"
+      - range: "70-90"
+        label: "High Confidence"
+        threshold: 70
+        color: "#10B981"
+      - range: "50-70"
+        label: "Medium Confidence"
+        threshold: 50
+        color: "#34D399"
+      - range: "30-50"
+        label: "Low Confidence"
+        threshold: 30
+        color: "#FCD34D"
+      - range: "0-30"
+        label: "Very Low Confidence"
+        threshold: 0
+        color: "#F87171"
+
+    # Filter thresholds for API tier filtering
+    filter_thresholds:
+      Very High: 90
+      High: 70
+      Medium: 50
+      Low: 30
+
+  # Source-specific classification order (for ClinGen/GenCC)
+  classification_order:
+    Definitive: 1
+    Strong: 2
+    Moderate: 3
+    Limited: 4
+    Disputed: 5
+    Refuted: 6

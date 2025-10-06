@@ -64,17 +64,21 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             40070,  # Congenital Anomalies of the Kidney and Urinary Tract
         ]
 
-        # Classification scoring weights
-        self.classification_weights = {
-            "Definitive": 1.0,
-            "Strong": 0.8,
-            "Moderate": 0.6,
-            "Limited": 0.3,
-            "Disputed": 0.1,
-            "Refuted": 0.0,
-            "No Evidence": 0.0,
-            "No Known Disease Relationship": 0.0,
-        }
+        # Classification scoring weights - read from config
+        self.classification_weights = get_source_parameter(
+            "ClinGen",
+            "classification_weights",
+            {  # Fallback if config missing
+                "Definitive": 1.0,
+                "Strong": 0.8,
+                "Moderate": 0.6,
+                "Limited": 0.3,
+                "Disputed": 0.1,
+                "Refuted": 0.0,
+                "No Evidence": 0.0,
+                "No Known Disease Relationship": 0.0,
+            },
+        )
 
         # Kidney disease keywords
         self.kidney_keywords = [

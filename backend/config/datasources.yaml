@@ -64,6 +64,16 @@ datasources:
     download_url: https://search.clinicalgenome.org/kb/gene-validity/download
     # Classification settings
     min_classification: Limited  # Minimum classification level
+    # Classification weights for evidence scoring
+    classification_weights:
+      Definitive: 1.0
+      Strong: 0.8
+      Moderate: 0.6
+      Limited: 0.3
+      Disputed: 0.1
+      Refuted: 0.0
+      No Evidence: 0.0
+      No Known Disease Relationship: 0.0
     # Kidney-specific affiliate/expert panel IDs
     kidney_affiliate_ids:
       - 40066  # Kidney Cystic and Ciliopathy Disorders

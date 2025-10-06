@@ -108,26 +108,31 @@ export const useLogStore = defineStore('log', () => {
 
   // Actions
   function addLogEntry(entry, maxEntriesOverride = null) {
-    const max = maxEntriesOverride || maxEntries.value
+    // Defer to next tick to avoid slot warning during render
+    Promise.resolve().then(() => {
+      const max = maxEntriesOverride || maxEntries.value
 
-    // Add timestamp if not present
-    if (!entry.timestamp) {
-      entry.timestamp = new Date().toISOString()
-    }
+      // Add timestamp if not present
+      if (!entry.timestamp) {
+        entry.timestamp = new Date().toISOString()
+      }
 
-    // Update statistics
-    stats.value.totalLogsReceived++
-    stats.value.lastLogTime = entry.timestamp
+      // Update statistics
+      stats.value.totalLogsReceived++
+      stats.value.lastLogTime = entry.timestamp
 
-    // Add log entry
-    logs.value.push(entry)
+      // Add log entry using single reactive update
+      const newLogs = [...logs.value, entry]
 
-    // Trim logs if exceeding max entries
-    if (logs.value.length > max) {
-      const toRemove = logs.value.length - max
-      logs.value = logs.value.slice(toRemove)
-      stats.value.totalLogsDropped += toRemove
-    }
+      // Trim logs if exceeding max entries
+      if (newLogs.length > max) {
+        const toRemove = newLogs.length - max
+        logs.value = newLogs.slice(toRemove)
+        stats.value.totalLogsDropped += toRemove
+      } else {
+        logs.value = newLogs
+      }
+    })
   }
 
   function clearLogs() {

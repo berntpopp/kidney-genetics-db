@@ -13,6 +13,7 @@
       </v-tooltip>
       <v-spacer />
       <v-btn-toggle v-model="activeView" variant="outlined" density="compact" class="me-2">
+        <v-btn value="tiers" size="small">Tiers</v-btn>
         <v-btn value="coverage" size="small">Coverage</v-btn>
         <v-btn value="weights" size="small">Weights</v-btn>
       </v-btn-toggle>
@@ -40,8 +41,19 @@
       <div v-else-if="data">
         <!-- Chart container -->
         <div class="chart-container">
+          <!-- Evidence Tier Distribution -->
+          <div v-if="activeView === 'tiers'">
+            <h3 class="text-h6 mb-4">Evidence Tier Distribution</h3>
+            <div v-if="tierChartData.length > 0">
+              <D3DonutChart :data="tierChartData" :total="totalGenes" center-label="Total Genes" />
+            </div>
+            <v-alert v-else type="info" variant="outlined">
+              No tier distribution data available
+            </v-alert>
+          </div>
+
           <!-- Source coverage chart -->
-          <div v-if="activeView === 'coverage'">
+          <div v-else-if="activeView === 'coverage'">
             <h3 class="text-h6 mb-4">Source Coverage Distribution</h3>
             <div v-if="data?.source_coverage_distribution" class="coverage-bars">
               <div
@@ -96,14 +108,39 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { statisticsApi } from '@/api/statistics'
+import D3DonutChart from './D3DonutChart.vue'
+
+// Props
+const props = defineProps({
+  minTier: {
+    type: String,
+    default: null
+  }
+})
 
 // Reactive data
 const loading = ref(false)
 const error = ref(null)
 const data = ref(null)
-const activeView = ref('coverage')
+const activeView = ref('tiers') // Default to tiers view
+
+// Computed properties
+const tierChartData = computed(() => {
+  if (!data.value?.evidence_tier_distribution) return []
+
+  return data.value.evidence_tier_distribution.map(tier => ({
+    category: tier.tier_label || tier.score_range,
+    gene_count: tier.gene_count,
+    color: tier.color || '#6B7280'
+  }))
+})
+
+const totalGenes = computed(() => {
+  if (!data.value?.evidence_tier_distribution) return 0
+  return data.value.evidence_tier_distribution.reduce((sum, tier) => sum + tier.gene_count, 0)
+})
 
 // Methods
 const loadData = async () => {
@@ -111,7 +148,8 @@ const loadData = async () => {
   error.value = null
 
   try {
-    const response = await statisticsApi.getEvidenceComposition()
+    window.logService.info('Loading evidence composition with minTier:', props.minTier)
+    const response = await statisticsApi.getEvidenceComposition(props.minTier)
     data.value = response.data
   } catch (err) {
     error.value = err.message || 'Failed to load evidence composition data'
@@ -127,6 +165,8 @@ const refreshData = () => {
 
 const getViewDescription = () => {
   const descriptions = {
+    tiers:
+      'Distribution of genes across evidence tiers based on aggregated scores from all sources. Higher tiers indicate stronger evidence.',
     coverage:
       'Distribution showing how many sources each gene appears in. Genes in more sources generally have stronger evidence.',
     weights:
@@ -134,6 +174,17 @@ const getViewDescription = () => {
   }
   return descriptions[activeView.value] || ''
 }
+
+// Watch for minTier changes and reload data
+watch(
+  () => props.minTier,
+  async (newTier, oldTier) => {
+    if (newTier !== oldTier) {
+      window.logService.info('Tier filter changed from', oldTier, 'to', newTier)
+      await loadData()
+    }
+  }
+)
 
 // Initialize
 onMounted(() => {

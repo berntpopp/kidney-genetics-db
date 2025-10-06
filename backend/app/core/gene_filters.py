@@ -99,3 +99,61 @@ def count_filtered_genes_from_evidence_sql() -> str:
         SELECT COUNT(DISTINCT gene_id)
         FROM gene_evidence
     """
+
+
+def get_tier_filter_clause(min_tier: str | None = None) -> str:
+    """
+    Get WHERE clause for filtering genes by evidence tier.
+
+    Uses percentage_score thresholds from config (e.g., "Very High" >= 90).
+
+    Args:
+        min_tier: Minimum tier name (e.g., "Very High", "High", "Medium", "Low")
+
+    Returns:
+        SQL WHERE clause fragment (e.g., "gs.percentage_score >= 70" or "1=1")
+    """
+    if min_tier:
+        # Get thresholds from config
+        tier_config = API_DEFAULTS_CONFIG.get("evidence_tiers", {})
+        thresholds = tier_config.get("filter_thresholds", {})
+
+        if min_tier in thresholds:
+            threshold = thresholds[min_tier]
+            return f"gs.percentage_score >= {threshold}"
+
+    return "1=1"
+
+
+def get_tier_filter_join_clause(min_tier: str | None = None) -> tuple[str, str]:
+    """
+    Get JOIN and WHERE clauses for tier filtering.
+
+    Combines score filter with tier filter for gene_evidence queries.
+
+    Returns:
+        Tuple of (join_clause, where_clause)
+    """
+    base_join, base_where = get_gene_evidence_filter_join()
+    tier_clause = get_tier_filter_clause(min_tier)
+
+    # Combine filters
+    if base_where == "1=1" and tier_clause == "1=1":
+        return ("", "1=1")
+    elif base_where == "1=1":
+        return (base_join, tier_clause)
+    elif tier_clause == "1=1":
+        return (base_join, base_where)
+    else:
+        return (base_join, f"{base_where} AND {tier_clause}")
+
+
+def get_tier_ranges() -> list[dict]:
+    """
+    Get evidence tier configuration from config.
+
+    Returns:
+        List of tier range dictionaries with range, label, threshold, and color.
+    """
+    tier_config = API_DEFAULTS_CONFIG.get("evidence_tiers", {})
+    return tier_config.get("ranges", [])

@@ -128,8 +128,6 @@ evidence_classification_weights = ReplaceableObject(
     dependencies=[],
 )
 
-# static_evidence_counts removed - no longer needed after refactor
-
 # Tier 2: Views dependent on Tier 1
 
 evidence_count_percentiles = ReplaceableObject(
@@ -149,8 +147,6 @@ evidence_count_percentiles = ReplaceableObject(
     """,
     dependencies=["evidence_source_counts"],
 )
-
-# static_evidence_scores removed - no longer needed after refactor
 
 evidence_normalized_scores = ReplaceableObject(
     name="evidence_normalized_scores",
@@ -432,6 +428,98 @@ genes_current = ReplaceableObject(
     dependencies=[],
 )
 
+# Dashboard source distribution views
+source_distribution_hpo = ReplaceableObject(
+    name="source_distribution_hpo",
+    sqltext="""
+    SELECT
+        jsonb_array_length(evidence_data->'hpo_terms') as hpo_term_count,
+        COUNT(*) as gene_count
+    FROM gene_evidence
+    WHERE source_name = 'HPO'
+        AND evidence_data->'hpo_terms' IS NOT NULL
+    GROUP BY 1
+    ORDER BY 1 DESC
+    """,
+    dependencies=[],
+)
+
+source_distribution_gencc = ReplaceableObject(
+    name="source_distribution_gencc",
+    sqltext="""
+    SELECT
+        jsonb_array_elements_text(evidence_data->'classifications') as classification,
+        COUNT(DISTINCT gene_id) as gene_count
+    FROM gene_evidence
+    WHERE source_name = 'GenCC'
+        AND evidence_data->'classifications' IS NOT NULL
+    GROUP BY 1
+    ORDER BY 2 DESC
+    """,
+    dependencies=[],
+)
+
+source_distribution_clingen = ReplaceableObject(
+    name="source_distribution_clingen",
+    sqltext="""
+    SELECT
+        jsonb_array_elements_text(evidence_data->'classifications') as classification,
+        COUNT(DISTINCT gene_id) as gene_count
+    FROM gene_evidence
+    WHERE source_name = 'ClinGen'
+        AND evidence_data->'classifications' IS NOT NULL
+    GROUP BY 1
+    ORDER BY 2 DESC
+    """,
+    dependencies=[],
+)
+
+source_distribution_diagnosticpanels = ReplaceableObject(
+    name="source_distribution_diagnosticpanels",
+    sqltext="""
+    SELECT
+        jsonb_array_elements_text(evidence_data->'providers') as provider,
+        COUNT(DISTINCT gene_id) as gene_count
+    FROM gene_evidence
+    WHERE source_name = 'DiagnosticPanels'
+        AND evidence_data->'providers' IS NOT NULL
+    GROUP BY 1
+    ORDER BY 2 DESC
+    """,
+    dependencies=[],
+)
+
+source_distribution_panelapp = ReplaceableObject(
+    name="source_distribution_panelapp",
+    sqltext="""
+    SELECT
+        jsonb_array_elements_text(evidence_data->'evidence_levels') as evidence_level,
+        COUNT(DISTINCT gene_id) as gene_count
+    FROM gene_evidence
+    WHERE source_name = 'PanelApp'
+        AND evidence_data->'evidence_levels' IS NOT NULL
+    GROUP BY 1
+    ORDER BY 1 DESC
+    """,
+    dependencies=[],
+)
+
+source_distribution_pubtator = ReplaceableObject(
+    name="source_distribution_pubtator",
+    sqltext="""
+    SELECT
+        CAST(evidence_data->>'publication_count' AS INTEGER) as publication_count,
+        COUNT(DISTINCT gene_id) as gene_count
+    FROM gene_evidence
+    WHERE source_name = 'PubTator'
+        AND evidence_data->>'publication_count' IS NOT NULL
+    GROUP BY 1
+    ORDER BY 1 DESC
+    LIMIT 20
+    """,
+    dependencies=[],
+)
+
 # List of all views in dependency order
 ALL_VIEWS = [
     # Tier 1 (no dependencies)
@@ -443,6 +531,13 @@ ALL_VIEWS = [
     datasource_metadata_panelapp,
     datasource_metadata_gencc,
     genes_current,  # Temporal versioning: current genes only
+    # Dashboard source distribution views
+    source_distribution_hpo,
+    source_distribution_gencc,
+    source_distribution_clingen,
+    source_distribution_diagnosticpanels,
+    source_distribution_panelapp,
+    source_distribution_pubtator,
     # Tier 2 (depend on Tier 1)
     evidence_count_percentiles,
     evidence_normalized_scores,
