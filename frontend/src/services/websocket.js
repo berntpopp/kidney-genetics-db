@@ -33,11 +33,9 @@ class WebSocketService {
       url = `${protocol}//${host}/api/progress/ws`
     }
 
-    window.logService.info('Connecting to WebSocket:', { url })
     this.ws = new WebSocket(url)
 
     this.ws.onopen = () => {
-      window.logService.info('WebSocket connected')
       this.connected.value = true
       this.reconnectAttempts = 0
 
@@ -60,7 +58,6 @@ class WebSocketService {
     }
 
     this.ws.onclose = () => {
-      window.logService.info('WebSocket disconnected')
       this.connected.value = false
 
       // Notify handlers of disconnection
@@ -69,10 +66,6 @@ class WebSocketService {
       // Attempt reconnection if enabled
       if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
         this.reconnectAttempts++
-        window.logService.info(`Reconnecting in ${this.reconnectInterval}ms...`, {
-          attempt: this.reconnectAttempts,
-          maxAttempts: this.maxReconnectAttempts
-        })
         setTimeout(() => this.connect(url), this.reconnectInterval)
       }
     }

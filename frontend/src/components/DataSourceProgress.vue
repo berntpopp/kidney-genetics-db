@@ -384,7 +384,6 @@ const connectWebSocket = () => {
   ws.value = new WebSocket(wsUrl)
 
   ws.value.onopen = () => {
-    window.logService.info('WebSocket connected for progress updates')
     if (reconnectInterval.value) {
       clearInterval(reconnectInterval.value)
       reconnectInterval.value = null
@@ -418,11 +417,9 @@ const connectWebSocket = () => {
   }
 
   ws.value.onclose = () => {
-    window.logService.info('WebSocket disconnected')
     // Try to reconnect after 5 seconds
     if (!reconnectInterval.value) {
       reconnectInterval.value = setInterval(() => {
-        window.logService.info('Attempting to reconnect WebSocket...')
         connectWebSocket()
       }, 5000)
     }
