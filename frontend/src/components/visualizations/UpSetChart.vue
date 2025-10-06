@@ -37,8 +37,8 @@
     </v-card-title>
 
     <v-card-text>
-      <!-- Loading state -->
-      <div v-if="loading" class="d-flex justify-center align-center" style="height: 400px">
+      <!-- Loading state (only on initial load) -->
+      <div v-if="loading && !data" class="d-flex justify-center align-center" style="height: 400px">
         <v-progress-circular indeterminate size="64" />
       </div>
 
@@ -49,6 +49,10 @@
 
       <!-- UpSet visualization -->
       <div v-else-if="data">
+        <!-- Loading overlay for data updates -->
+        <v-overlay :model-value="loading" contained persistent class="align-center justify-center">
+          <v-progress-circular indeterminate size="64" />
+        </v-overlay>
         <!-- Summary stats -->
         <div class="mb-4">
           <v-row class="text-center">
@@ -99,7 +103,7 @@
               {{ source }}
             </v-chip>
 
-            <!-- Select All chip (appears when not all sources are selected) -->
+            <!-- Select All chip -->
             <v-chip
               v-if="selectedSources.length < availableSources.length"
               class="ma-1"
@@ -139,16 +143,16 @@
           </div>
         </div>
 
-        <!-- UpSet Plot -->
+        <!-- UpSet Plot Container -->
         <div
-          v-if="selectedSources.length > 0"
+          v-show="selectedSources.length > 0"
           ref="upsetContainer"
           class="upset-plot"
-          style="min-height: 500px; width: 100%"
+          style="width: 100%"
         ></div>
 
         <!-- Empty state when no sources selected -->
-        <div v-else class="empty-state">
+        <div v-show="selectedSources.length === 0" class="empty-state">
           <v-icon size="64" color="grey-lighten-1">mdi-chart-scatter-plot-hexbin</v-icon>
           <h3 class="text-h6 mt-4 mb-2 text-grey-lighten-1">No Sources Selected</h3>
           <p class="text-body-2 text-grey">
@@ -159,36 +163,36 @@
         <!-- Selected intersection details -->
         <v-card v-if="selectedIntersection" variant="outlined" class="mt-4">
           <v-card-title class="text-h6">
-            Selected Intersection: {{ selectedIntersection.sets.join(' ∩ ') }}
+            Selected Intersection: {{ selectedIntersection.name }}
           </v-card-title>
           <v-card-text>
             <div class="mb-2">
-              <strong>{{ selectedIntersection.size }}</strong> genes in this intersection
+              <strong>{{ selectedIntersection.cardinality }}</strong> genes in this intersection
             </div>
-            <v-chip-group v-if="selectedIntersection.genes.length <= 20">
+            <v-chip-group v-if="selectedIntersection.elems.length <= 20">
               <v-chip
-                v-for="gene in selectedIntersection.genes"
-                :key="gene"
+                v-for="elem in selectedIntersection.elems"
+                :key="elem.name"
                 size="small"
                 variant="outlined"
               >
-                {{ gene }}
+                {{ elem.name }}
               </v-chip>
             </v-chip-group>
             <div v-else>
               <div class="mb-2">First 20 genes:</div>
               <v-chip-group>
                 <v-chip
-                  v-for="gene in selectedIntersection.genes.slice(0, 20)"
-                  :key="gene"
+                  v-for="elem in selectedIntersection.elems.slice(0, 20)"
+                  :key="elem.name"
                   size="small"
                   variant="outlined"
                 >
-                  {{ gene }}
+                  {{ elem.name }}
                 </v-chip>
               </v-chip-group>
               <div class="text-caption mt-2">
-                ... and {{ selectedIntersection.genes.length - 20 }} more genes
+                ... and {{ selectedIntersection.elems.length - 20 }} more genes
               </div>
             </div>
           </v-card-text>
@@ -201,7 +205,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { statisticsApi } from '@/api/statistics'
-import * as d3 from 'd3'
+import { extractCombinations, renderUpSet } from '@upsetjs/bundle'
 
 // Props
 const props = defineProps({
@@ -217,22 +221,57 @@ const error = ref(null)
 const data = ref(null)
 const selectedIntersection = ref(null)
 const upsetContainer = ref(null)
-
-// Source selection state
 const selectedSources = ref([])
 const availableSources = ref([])
+let resizeObserver = null
 
 // Computed properties
 const availableToAdd = computed(() =>
   availableSources.value.filter(source => !selectedSources.value.includes(source))
 )
 
-// Initial load to get available sources
+// Transform API data to UpSet.js format
+const transformToUpSetFormat = apiData => {
+  if (!apiData || !apiData.intersections) return { elements: [], sets: [] }
+
+  // Build elements array: each element is a gene with its sets
+  const geneToSetsMap = new Map()
+
+  // Process each intersection
+  apiData.intersections.forEach(intersection => {
+    const sourceSets = intersection.sets
+    const genes = intersection.genes || []
+
+    // For each gene in this intersection, record which sets it belongs to
+    genes.forEach(geneName => {
+      if (!geneToSetsMap.has(geneName)) {
+        geneToSetsMap.set(geneName, new Set())
+      }
+      // Add all sources from this intersection
+      sourceSets.forEach(source => {
+        geneToSetsMap.get(geneName).add(source)
+      })
+    })
+  })
+
+  // Convert map to elements array
+  const elements = Array.from(geneToSetsMap.entries()).map(([geneName, sourceSets]) => ({
+    name: geneName,
+    sets: Array.from(sourceSets)
+  }))
+
+  return { elements }
+}
+
+// Load available sources
 const loadAvailableSources = async () => {
   try {
-    const response = await statisticsApi.getSourceOverlaps(null, props.minTier) // Get all sources with tier filter
+    const response = await statisticsApi.getSourceOverlaps(null, props.minTier)
     if (response.data?.sets) {
-      const sources = response.data.sets.map(set => set.name).sort()
+      // Sort by cardinality descending (largest first) to match UpSet.js default
+      const sources = response.data.sets
+        .sort((a, b) => b.cardinality - a.cardinality)
+        .map(set => set.name)
       availableSources.value = sources
       // Select all sources by default on first load
       if (selectedSources.value.length === 0) {
@@ -250,28 +289,30 @@ const loadData = async () => {
   error.value = null
 
   try {
-    // If no sources selected, show empty state
     if (selectedSources.value.length === 0) {
       data.value = null
       loading.value = false
       return
     }
 
-    // Call API with selected sources and tier filter
     window.logService.info('Calling API with sources', {
       sources: selectedSources.value,
       minTier: props.minTier
     })
+
     const response = await statisticsApi.getSourceOverlaps(selectedSources.value, props.minTier)
     window.logService.info('API response received', { data: response.data })
     data.value = response.data
 
     // Render UpSet plot after data is loaded
     await nextTick()
-    // Add a small delay to ensure DOM is fully rendered
-    setTimeout(() => {
-      renderUpSetPlot()
-    }, 100)
+    await nextTick() // Extra tick to ensure DOM is fully updated
+
+    if (!upsetContainer.value) {
+      window.logService.error('Container ref is null after data load')
+    }
+
+    renderUpSetPlot()
   } catch (err) {
     error.value = err.message || 'Failed to load source overlap data'
     window.logService.error('Error loading source overlaps:', err)
@@ -288,44 +329,39 @@ const refreshData = () => {
 const addSource = source => {
   if (!selectedSources.value.includes(source)) {
     window.logService.info('Adding source', { source })
-    // Create new array to ensure reactivity
     selectedSources.value = [...selectedSources.value, source]
-    window.logService.info('Selected sources updated', { sources: selectedSources.value })
   }
 }
 
-const removeSource = async source => {
+const removeSource = source => {
   const index = selectedSources.value.indexOf(source)
   if (index > -1) {
     window.logService.info('Removing source', { source })
-    // Create new array to ensure reactivity
     selectedSources.value = selectedSources.value.filter(s => s !== source)
-    window.logService.info('Selected sources updated', { sources: selectedSources.value })
   }
 }
 
 const selectAllSources = () => {
   window.logService.info('Selecting all sources')
   selectedSources.value = [...availableSources.value]
-  window.logService.info('Selected sources updated', { sources: selectedSources.value })
 }
 
 // Watch for changes in selectedSources and reload data
 watch(
   selectedSources,
   async (newSources, oldSources) => {
-    // Only reload if sources actually changed and we're not in the initial load
-    if (oldSources && newSources.length !== oldSources.length) {
+    // Only reload if we have old sources (not initial load) and the count changed
+    if (oldSources && oldSources.length > 0 && newSources.length !== oldSources.length) {
       window.logService.info('Source count changed', {
         from: oldSources.length,
         to: newSources.length,
-        previousSources: oldSources,
-        newSources: newSources
+        removed: oldSources.filter(s => !newSources.includes(s)),
+        added: newSources.filter(s => !oldSources.includes(s))
       })
       await loadData()
     }
   },
-  { deep: true, immediate: false }
+  { immediate: false }
 )
 
 // Watch for minTier changes and reload data
@@ -340,272 +376,117 @@ watch(
   }
 )
 
-// Render UpSet plot using D3
+// Render UpSet plot using @upsetjs/bundle
 const renderUpSetPlot = () => {
+  window.logService.info('renderUpSetPlot called', {
+    hasData: !!data.value,
+    hasContainer: !!upsetContainer.value,
+    dataKeys: data.value ? Object.keys(data.value) : []
+  })
+
   if (!data.value || !upsetContainer.value) {
+    window.logService.warn('Skipping render - missing requirements', {
+      hasData: !!data.value,
+      hasContainer: !!upsetContainer.value
+    })
     return
   }
 
   // Clear any existing plot
-  d3.select(upsetContainer.value).selectAll('*').remove()
+  upsetContainer.value.innerHTML = ''
 
-  const margin = { top: 40, right: 40, bottom: 120, left: 120 }
+  // Get container dimensions
   const containerWidth = upsetContainer.value.clientWidth
-  const containerHeight = 500
-  const width = containerWidth - margin.left - margin.right
-  const height = containerHeight - margin.top - margin.bottom
 
-  // Skip rendering if container is hidden (width = 0, e.g., on inactive tab)
-  // ResizeObserver will trigger render when tab becomes visible
-  if (containerWidth === 0) {
-    return
-  }
-
-  // Validate dimensions - don't render if container is too small
-  const minWidth = 400
-  const minHeight = 300
-  if (width < minWidth || height < minHeight) {
+  // Don't render if container is too small
+  if (containerWidth < 400) {
+    upsetContainer.value.innerHTML = `
+      <div style="text-align: center; padding: 40px;">
+        <p>📱 Screen too narrow</p>
+        <p>Please rotate to landscape or use a larger screen</p>
+      </div>
+    `
     window.logService.warn('Container too small for UpSet plot', {
       containerWidth,
-      width,
-      height,
-      minWidth,
-      minHeight
+      minimumWidth: 400
     })
-
-    // Show message in container
-    d3
-      .select(upsetContainer.value)
-      .append('div')
-      .style('display', 'flex')
-      .style('align-items', 'center')
-      .style('justify-content', 'center')
-      .style('height', '100%')
-      .style('color', 'var(--v-theme-on-surface-variant)')
-      .style('text-align', 'center')
-      .style('padding', '20px').html(`
-        <div>
-          <p>Container too small to display chart</p>
-          <p style="font-size: 0.875rem; margin-top: 8px;">
-            Minimum width: ${minWidth}px (current: ${Math.round(containerWidth)}px)
-          </p>
-        </div>
-      `)
     return
   }
 
-  // Create SVG
-  const svg = d3
-    .select(upsetContainer.value)
-    .append('svg')
-    .attr('width', containerWidth)
-    .attr('height', containerHeight)
+  // Calculate height based on number of sets
+  const baseHeight = 400
+  const heightPerSet = 30
+  const calculatedHeight = Math.max(baseHeight, data.value.sets.length * heightPerSet + 200)
 
-  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
+  // Transform data to UpSet.js format
+  const { elements } = transformToUpSetFormat(data.value)
 
-  // Prepare data
-  const sets = data.value.sets
-  const intersections = data.value.intersections.sort((a, b) => b.size - a.size)
-
-  // Set up scales
-  const maxSetSize = Math.max(...sets.map(d => d.size), 1) // Ensure at least 1
-  const maxIntersectionSize = Math.max(...intersections.map(d => d.size), 1) // Ensure at least 1
-
-  // Horizontal scale for set sizes (left bars)
-  const setScale = d3
-    .scaleLinear()
-    .domain([0, maxSetSize])
-    .range([0, Math.max(width * 0.25, 0)]) // Ensure non-negative
-
-  // Vertical scale for intersection sizes (top bars)
-  const intersectionScale = d3
-    .scaleLinear()
-    .domain([0, maxIntersectionSize])
-    .range([height * 0.6, 0])
-
-  // Position scales
-  const setsY = d3
-    .scaleBand()
-    .domain(sets.map(d => d.name))
-    .range([height * 0.6, height])
-    .padding(0.1)
-
-  const intersectionsX = d3
-    .scaleBand()
-    .domain(intersections.map((d, i) => i))
-    .range([Math.max(width * 0.3, 0), width]) // Ensure start is non-negative
-    .padding(0.1)
-
-  // 1. Draw set size bars (horizontal bars on the left)
-  g.selectAll('.set-bar')
-    .data(sets)
-    .enter()
-    .append('rect')
-    .attr('class', 'set-bar')
-    .attr('x', Math.max(width * 0.25 - setScale.range()[1], 0))
-    .attr('y', d => setsY(d.name))
-    .attr('width', d => Math.max(setScale(d.size), 0)) // Ensure non-negative width
-    .attr('height', setsY.bandwidth())
-    .attr('fill', '#0EA5E9')
-    .attr('opacity', 0.8)
-    .style('cursor', 'pointer')
-    .on('mouseover', function () {
-      d3.select(this)
-        .attr('opacity', 1)
-        .attr('stroke', 'rgb(var(--v-theme-on-surface))')
-        .attr('stroke-width', 1)
-    })
-    .on('mouseout', function () {
-      d3.select(this).attr('opacity', 0.8).attr('stroke', 'none')
-    })
-
-  // Set labels
-  g.selectAll('.set-label')
-    .data(sets)
-    .enter()
-    .append('text')
-    .attr('class', 'set-label')
-    .attr('x', width * 0.25 - setScale.range()[1] - 10)
-    .attr('y', d => setsY(d.name) + setsY.bandwidth() / 2)
-    .attr('text-anchor', 'end')
-    .attr('dominant-baseline', 'middle')
-    .attr('font-size', '12px')
-    .attr('font-weight', '500')
-    .attr('fill', 'currentColor')
-    .text(d => d.name)
-
-  // Set size labels
-  g.selectAll('.set-size')
-    .data(sets)
-    .enter()
-    .append('text')
-    .attr('class', 'set-size')
-    .attr('x', width * 0.25 + 5)
-    .attr('y', d => setsY(d.name) + setsY.bandwidth() / 2)
-    .attr('dominant-baseline', 'middle')
-    .attr('font-size', '10px')
-    .attr('fill', 'rgb(var(--v-theme-on-surface-variant))')
-    .text(d => d.size)
-
-  // 2. Draw intersection size bars (vertical bars on top)
-  g.selectAll('.intersection-bar')
-    .data(intersections)
-    .enter()
-    .append('rect')
-    .attr('class', 'intersection-bar')
-    .attr('x', (d, i) => intersectionsX(i))
-    .attr('y', d => intersectionScale(d.size))
-    .attr('width', Math.max(intersectionsX.bandwidth(), 0)) // Ensure non-negative width
-    .attr('height', d => Math.max(height * 0.6 - intersectionScale(d.size), 0)) // Ensure non-negative height
-    .attr('fill', '#10B981')
-    .attr('opacity', 0.8)
-    .style('cursor', 'pointer')
-    .on('click', (event, d) => {
-      selectedIntersection.value = d
-      window.logService.info('Selected intersection', { intersection: d })
-    })
-    .on('mouseover', function () {
-      // Highlight this bar
-      d3.select(this).attr('opacity', 1)
-
-      // Show tooltip or highlight effect
-      d3.select(this).attr('stroke', 'rgb(var(--v-theme-on-surface))').attr('stroke-width', 2)
-    })
-    .on('mouseout', function () {
-      // Reset bar appearance
-      d3.select(this).attr('opacity', 0.8).attr('stroke', 'none')
-    })
-
-  // Intersection size labels
-  g.selectAll('.intersection-size')
-    .data(intersections)
-    .enter()
-    .append('text')
-    .attr('class', 'intersection-size')
-    .attr('x', (d, i) => intersectionsX(i) + intersectionsX.bandwidth() / 2)
-    .attr('y', d => intersectionScale(d.size) - 5)
-    .attr('text-anchor', 'middle')
-    .attr('font-size', '10px')
-    .attr('fill', 'rgb(var(--v-theme-on-surface))')
-    .text(d => d.size)
-
-  // 3. Draw intersection matrix (dots and lines)
-  intersections.forEach((intersection, i) => {
-    const x = intersectionsX(i) + intersectionsX.bandwidth() / 2
-
-    // Draw vertical line connecting all dots for this intersection
-    const connectedSets = intersection.sets
-    if (connectedSets.length > 1) {
-      const minY = Math.min(...connectedSets.map(setName => setsY(setName) + setsY.bandwidth() / 2))
-      const maxY = Math.max(...connectedSets.map(setName => setsY(setName) + setsY.bandwidth() / 2))
-
-      g.append('line')
-        .attr('x1', x)
-        .attr('y1', minY)
-        .attr('x2', x)
-        .attr('y2', maxY)
-        .attr('stroke', 'rgb(var(--v-theme-on-surface))')
-        .attr('stroke-width', 2)
-    }
-
-    // Draw dots for each set
-    sets.forEach(set => {
-      const y = setsY(set.name) + setsY.bandwidth() / 2
-      const isInIntersection = intersection.sets.includes(set.name)
-
-      g.append('circle')
-        .attr('cx', x)
-        .attr('cy', y)
-        .attr('r', 4)
-        .attr(
-          'fill',
-          isInIntersection
-            ? 'rgb(var(--v-theme-on-surface))'
-            : 'rgb(var(--v-theme-surface-variant))'
-        )
-        .attr('stroke', 'rgb(var(--v-theme-on-surface))')
-        .attr('stroke-width', 1)
-        .style('cursor', 'pointer')
-        .on('mouseover', function () {
-          d3.select(this).attr('r', 6)
-        })
-        .on('mouseout', function () {
-          d3.select(this).attr('r', 4)
-        })
-        .on('click', function () {
-          selectedIntersection.value = intersection
-          window.logService.info('Selected intersection via dot', { intersection })
-        })
-    })
-  })
-}
-
-// Resize observer to handle container size changes
-let resizeObserver = null
-
-// Initialize
-onMounted(async () => {
-  await loadAvailableSources()
-  // Trigger initial load after sources are set
-  if (selectedSources.value.length > 0) {
-    loadData()
+  if (elements.length === 0) {
+    upsetContainer.value.innerHTML =
+      '<p style="text-align: center; padding: 40px;">No data to display</p>'
+    return
   }
 
-  // Add resize observer to re-render when container size changes
-  if (upsetContainer.value) {
-    resizeObserver = new window.ResizeObserver(() => {
-      if (data.value && upsetContainer.value) {
-        // Debounce the render to avoid too many re-renders
-        setTimeout(() => {
-          renderUpSetPlot()
-        }, 150)
+  // Extract combinations from elements with sorting options
+  const { sets, combinations } = extractCombinations(elements, {
+    setOrder: 'cardinality:desc', // Sort sets by size (largest first)
+    combinationOrder: 'cardinality:desc' // Sort combinations by size (largest first)
+  })
+
+  window.logService.info('Rendering UpSet plot', {
+    setsCount: sets.length,
+    combinationsCount: combinations.length,
+    width: containerWidth,
+    height: calculatedHeight
+  })
+
+  // Render function with current selection
+  const render = () => {
+    try {
+      const props = {
+        sets,
+        combinations,
+        width: containerWidth,
+        height: calculatedHeight,
+        selection: selectedIntersection.value,
+        onClick: set => {
+          // Toggle selection
+          if (selectedIntersection.value === set) {
+            selectedIntersection.value = null
+          } else {
+            selectedIntersection.value = set
+          }
+          render() // Re-render with new selection
+        }
       }
+      renderUpSet(upsetContainer.value, props)
+      window.logService.info('UpSet plot rendered successfully')
+    } catch (err) {
+      window.logService.error('Error rendering UpSet plot', err)
+      upsetContainer.value.innerHTML = `<p style="text-align: center; padding: 40px; color: red;">Error rendering chart: ${err.message}</p>`
+    }
+  }
+
+  render()
+}
+
+// Setup ResizeObserver
+onMounted(async () => {
+  await loadAvailableSources()
+  await loadData()
+
+  // Set up ResizeObserver to handle window resizing
+  if (upsetContainer.value) {
+    // eslint-disable-next-line no-undef
+    resizeObserver = new ResizeObserver(() => {
+      // Re-render on resize
+      renderUpSetPlot()
     })
     resizeObserver.observe(upsetContainer.value)
   }
 })
 
-// Cleanup on unmount
+// Cleanup
 onUnmounted(() => {
   if (resizeObserver && upsetContainer.value) {
     resizeObserver.unobserve(upsetContainer.value)
@@ -620,69 +501,18 @@ onUnmounted(() => {
 }
 
 .upset-plot {
-  border: 1px solid rgb(var(--v-theme-outline-variant));
-  border-radius: 4px;
-  background: rgb(var(--v-theme-surface));
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
-.upset-plot svg {
-  font-family: 'Roboto', sans-serif;
-}
-
-/* Source selection styles */
 .source-selection-container {
-  background: rgb(var(--v-theme-surface-variant));
-  border-radius: 8px;
-  padding: 16px;
-  border: 1px solid rgb(var(--v-theme-outline-variant));
+  background-color: rgb(var(--v-theme-surface));
+  border-radius: 4px;
+  padding: 12px;
 }
 
-.source-chips {
-  min-height: 40px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-}
-
-.source-chips .v-chip {
-  font-weight: 500;
-}
-
-.source-chips .v-chip--variant-outlined {
-  border-style: dashed;
-  color: rgb(var(--v-theme-primary));
-}
-
-/* Empty state */
 .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 300px;
-  padding: 48px 24px;
   text-align: center;
-}
-
-/* Responsive adjustments */
-@media (max-width: 600px) {
-  .intersections-container {
-    min-height: 200px;
-    padding: 8px;
-  }
-
-  .intersection-item {
-    padding: 8px;
-  }
-
-  .intersection-header {
-    gap: 8px;
-  }
-
-  .intersection-count {
-    font-size: 12px;
-  }
+  padding: 60px 20px;
 }
 </style>
