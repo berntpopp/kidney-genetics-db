@@ -34,46 +34,41 @@ class DistributionHandler(ABC):
 
 
 class DiagnosticPanelsHandler(DistributionHandler):
-    """Provider distribution for DiagnosticPanels"""
+    """Provider count distribution for DiagnosticPanels - shows histogram of genes by provider count"""
 
     def get_distribution(self, db, join_clause, filter_clause):
-        logger.sync_info("Calculating provider distribution", source="DiagnosticPanels")
+        logger.sync_info("Calculating provider count distribution", source="DiagnosticPanels")
 
-        # Extract providers from JSONB providers array
+        # Count how many providers each gene appears in (histogram like PubTator)
         distribution_data = db.execute(
             text(f"""
-                WITH provider_counts AS (
+                SELECT
+                    provider_count,
+                    COUNT(*) as gene_count
+                FROM (
                     SELECT
                         gene_evidence.gene_id,
-                        jsonb_array_elements_text(evidence_data->'providers') as provider
+                        jsonb_array_length(COALESCE(gene_evidence.evidence_data->'providers', '[]'::jsonb)) as provider_count
                     FROM gene_evidence
                     {join_clause}
-                    WHERE {filter_clause} AND source_name = 'DiagnosticPanels'
-                )
-                SELECT
-                    provider,
-                    COUNT(DISTINCT provider_counts.gene_id) as gene_count
-                FROM provider_counts
-                WHERE provider IS NOT NULL
-                GROUP BY provider
-                ORDER BY gene_count DESC
+                    WHERE {filter_clause} AND gene_evidence.source_name = 'DiagnosticPanels'
+                ) provider_counts
+                GROUP BY provider_count
+                ORDER BY provider_count
             """)
         ).fetchall()
 
-        total_providers = len(distribution_data)
-        total_genes = sum(row[1] for row in distribution_data)
-
         metadata = {
-            "total_providers": total_providers,
-            "total_genes": total_genes,
-            "visualization_type": "provider_bar_chart",
+            "max_providers": max(row[0] for row in distribution_data) if distribution_data else 0,
+            "total_genes": sum(row[1] for row in distribution_data) if distribution_data else 0,
+            "visualization_type": "provider_histogram",
         }
 
         logger.sync_info(
-            "Provider distribution calculated",
+            "Provider count distribution calculated",
             source="DiagnosticPanels",
-            providers=total_providers,
-            genes=total_genes
+            max_providers=metadata["max_providers"],
+            genes=metadata["total_genes"]
         )
 
         return distribution_data, metadata
@@ -191,34 +186,35 @@ class GenCCHandler(DistributionHandler):
 
 
 class HPOHandler(DistributionHandler):
-    """Phenotype count distribution for HPO"""
+    """HPO term count distribution for HPO"""
 
     def get_distribution(self, db, join_clause, filter_clause):
-        logger.sync_info("Calculating phenotype distribution", source="HPO")
+        logger.sync_info("Calculating HPO term count distribution", source="HPO")
 
+        # Fixed: use 'hpo_terms' not 'phenotypes' - that's the actual field name in evidence_data
         distribution_data = db.execute(
             text(f"""
-                WITH phenotype_counts AS (
+                WITH hpo_term_counts AS (
                     SELECT
                         gene_evidence.gene_id,
-                        jsonb_array_length(COALESCE(evidence_data->'phenotypes', '[]'::jsonb)) as phenotype_count
+                        jsonb_array_length(COALESCE(evidence_data->'hpo_terms', '[]'::jsonb)) as hpo_term_count
                     FROM gene_evidence
                     {join_clause}
                     WHERE {filter_clause} AND source_name = 'HPO'
                 )
                 SELECT
                     CASE
-                        WHEN phenotype_count = 0 THEN 'No phenotypes'
-                        WHEN phenotype_count BETWEEN 1 AND 5 THEN '1-5'
-                        WHEN phenotype_count BETWEEN 6 AND 10 THEN '6-10'
-                        WHEN phenotype_count BETWEEN 11 AND 20 THEN '11-20'
-                        WHEN phenotype_count BETWEEN 21 AND 50 THEN '21-50'
+                        WHEN hpo_term_count = 0 THEN '0'
+                        WHEN hpo_term_count BETWEEN 1 AND 5 THEN '1-5'
+                        WHEN hpo_term_count BETWEEN 6 AND 10 THEN '6-10'
+                        WHEN hpo_term_count BETWEEN 11 AND 20 THEN '11-20'
+                        WHEN hpo_term_count BETWEEN 21 AND 50 THEN '21-50'
                         ELSE '50+'
-                    END as phenotype_range,
+                    END as hpo_term_range,
                     COUNT(*) as gene_count
-                FROM phenotype_counts
+                FROM hpo_term_counts
                 GROUP BY 1
-                ORDER BY MIN(phenotype_count)
+                ORDER BY MIN(hpo_term_count)
             """)
         ).fetchall()
 
@@ -227,11 +223,11 @@ class HPOHandler(DistributionHandler):
         metadata = {
             "total_ranges": len(distribution_data),
             "total_genes": total_genes,
-            "visualization_type": "phenotype_histogram",
+            "visualization_type": "hpo_term_histogram",
         }
 
         logger.sync_info(
-            "Phenotype distribution calculated",
+            "HPO term count distribution calculated",
             source="HPO",
             ranges=len(distribution_data),
             genes=total_genes
@@ -241,7 +237,7 @@ class HPOHandler(DistributionHandler):
 
 
 class PanelAppHandler(DistributionHandler):
-    """Panel count distribution for PanelApp (existing - keep as-is)"""
+    """Panel count distribution for PanelApp"""
 
     def get_distribution(self, db, join_clause, filter_clause):
         logger.sync_info("Calculating panel distribution", source="PanelApp")
@@ -266,6 +262,7 @@ class PanelAppHandler(DistributionHandler):
 
         metadata = {
             "max_panels": max(row[0] for row in distribution_data) if distribution_data else 0,
+            "total_genes": sum(row[1] for row in distribution_data) if distribution_data else 0,
             "visualization_type": "panel_histogram",
         }
 
@@ -273,7 +270,7 @@ class PanelAppHandler(DistributionHandler):
 
 
 class PubTatorHandler(DistributionHandler):
-    """Publication count distribution for PubTator (existing - keep as-is)"""
+    """Publication count distribution for PubTator"""
 
     def get_distribution(self, db, join_clause, filter_clause):
         logger.sync_info("Calculating publication distribution", source="PubTator")
@@ -298,6 +295,7 @@ class PubTatorHandler(DistributionHandler):
 
         metadata = {
             "max_publications": max(row[0] for row in distribution_data) if distribution_data else 0,
+            "total_genes": sum(row[1] for row in distribution_data) if distribution_data else 0,
             "visualization_type": "publication_histogram",
         }
 
@@ -330,6 +328,7 @@ class LiteratureHandler(DistributionHandler):
 
         metadata = {
             "max_publications": max(row[0] for row in distribution_data) if distribution_data else 0,
+            "total_genes": sum(row[1] for row in distribution_data) if distribution_data else 0,
             "visualization_type": "publication_histogram",
         }
 

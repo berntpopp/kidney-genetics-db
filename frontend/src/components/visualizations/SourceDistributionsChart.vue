@@ -4,8 +4,8 @@
       <v-icon class="me-2">mdi-chart-bar</v-icon>
       Source Distributions
       <v-tooltip location="bottom">
-        <template #activator="{ props }">
-          <v-icon v-bind="props" class="me-2 text-medium-emphasis" size="small">
+        <template #activator="{ props: tooltipProps }">
+          <v-icon v-bind="tooltipProps" class="me-2 text-medium-emphasis" size="small">
             mdi-help-circle-outline
           </v-icon>
         </template>
@@ -70,12 +70,13 @@
             center-label="Total"
           />
 
-          <!-- All other sources: D3 Bar Chart -->
+          <!-- All other sources: D3 Bar Chart with blue color -->
           <D3BarChart
             v-else
             :data="d3ChartData"
             :x-axis-label="getXAxisLabel(selectedSource)"
             :y-axis-label="'Gene Count'"
+            bar-color="#1E88E5"
           />
         </div>
 
@@ -206,10 +207,11 @@ const getSourceDescription = source => {
   const descriptions = {
     PanelApp: 'Shows distribution of genes by number of diagnostic panels they appear in',
     PubTator: 'Shows distribution of genes by number of publications mentioning them',
-    DiagnosticPanels: 'Shows distribution of genes by commercial diagnostic panel providers',
+    DiagnosticPanels:
+      'Shows distribution of genes by number of commercial diagnostic providers offering tests',
     ClinGen: 'Shows distribution of genes by ClinGen classification level',
     GenCC: 'Shows distribution of genes by GenCC classification level',
-    HPO: 'Shows distribution of genes by number of HPO phenotype associations'
+    HPO: 'Shows distribution of genes by number of HPO term associations'
   }
   return descriptions[source] || `Distribution for ${source} data source`
 }
@@ -218,10 +220,10 @@ const getXAxisLabel = source => {
   const labels = {
     PanelApp: 'Panel Count',
     PubTator: 'Publication Count',
-    DiagnosticPanels: 'Provider',
+    DiagnosticPanels: 'Provider Count',
     ClinGen: 'Classification',
     GenCC: 'Classification',
-    HPO: 'Phenotype Count Range'
+    HPO: 'HPO Term Count Range'
   }
   return labels[source] || 'Category'
 }

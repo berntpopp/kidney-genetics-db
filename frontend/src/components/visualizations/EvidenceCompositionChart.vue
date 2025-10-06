@@ -4,8 +4,8 @@
       <v-icon class="me-2">mdi-chart-donut</v-icon>
       Evidence Composition
       <v-tooltip location="bottom">
-        <template #activator="{ props }">
-          <v-icon v-bind="props" class="me-2 text-medium-emphasis" size="small">
+        <template #activator="{ props: tooltipProps }">
+          <v-icon v-bind="tooltipProps" class="me-2 text-medium-emphasis" size="small">
             mdi-help-circle-outline
           </v-icon>
         </template>

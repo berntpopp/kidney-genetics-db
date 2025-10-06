@@ -4,8 +4,8 @@
       <v-icon class="me-2">mdi-chart-scatter-plot</v-icon>
       Gene Source Overlaps
       <v-tooltip location="bottom">
-        <template #activator="{ props }">
-          <v-icon v-bind="props" class="me-2 text-medium-emphasis" size="small">
+        <template #activator="{ props: tooltipProps }">
+          <v-icon v-bind="tooltipProps" class="me-2 text-medium-emphasis" size="small">
             mdi-help-circle-outline
           </v-icon>
         </template>
@@ -16,8 +16,8 @@
       </v-tooltip>
       <v-spacer />
       <v-tooltip v-if="data" location="bottom" max-width="300">
-        <template #activator="{ props }">
-          <v-chip v-bind="props" variant="outlined" size="small" class="me-2">
+        <template #activator="{ props: tooltipProps }">
+          <v-chip v-bind="tooltipProps" variant="outlined" size="small" class="me-2">
             {{ data.total_unique_genes.toLocaleString() }} genes
           </v-chip>
         </template>
@@ -118,9 +118,9 @@
 
             <!-- Add source menu -->
             <v-menu v-if="availableToAdd.length > 0">
-              <template #activator="{ props }">
+              <template #activator="{ props: menuProps }">
                 <v-chip
-                  v-bind="props"
+                  v-bind="menuProps"
                   class="ma-1"
                   variant="outlined"
                   color="primary"
