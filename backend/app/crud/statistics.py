@@ -484,43 +484,48 @@ class CRUDStatistics:
         try:
             from app.core.gene_filters import get_tier_filter_clause
 
-            # Get tier configuration from config
+            # Get tier configuration from config (FIXED: use 'ranges' not 'tiers')
             tier_config = API_DEFAULTS_CONFIG.get("evidence_tiers", {})
-            tier_list = tier_config.get("tiers", [])
+            tier_ranges = tier_config.get("ranges", [])
 
-            # Build tier -> label mapping from config
-            tier_mapping = {tier['tier']: tier['label'] for tier in tier_list}
+            # Build CASE statement from config for percentage_score ranges
+            case_clauses = [
+                f"WHEN gs.percentage_score >= {tier['threshold']} THEN '{tier['range']}'"
+                for tier in sorted(tier_ranges, key=lambda x: x['threshold'], reverse=True)
+            ]
 
             # Build WHERE clause for tier filtering
             tier_clause = get_tier_filter_clause(min_tier)
             where_clause = f"WHERE {tier_clause}" if tier_clause != "1=1" else ""
 
-            # Get evidence score distribution from gene_scores view (query evidence_tier column directly)
+            # Get evidence score distribution using percentage_score ranges (FIXED: use percentage_score not evidence_tier)
             score_distribution = db.execute(
                 text(f"""
                     SELECT
-                        gs.evidence_tier,
-                        COUNT(*) as gene_count
+                        CASE
+                            {' '.join(case_clauses)}
+                        END as score_range,
+                        COUNT(*) as gene_count,
+                        ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 2) as percentage
                     FROM gene_scores gs
                     {where_clause}
-                    GROUP BY gs.evidence_tier
-                    ORDER BY
-                        CASE gs.evidence_tier
-                            WHEN 'comprehensive_support' THEN 1
-                            WHEN 'multi_source_support' THEN 2
-                            WHEN 'established_support' THEN 3
-                            WHEN 'preliminary_evidence' THEN 4
-                            WHEN 'minimal_evidence' THEN 5
-                            WHEN 'no_evidence' THEN 6
-                        END
+                    GROUP BY 1
+                    ORDER BY MIN(gs.percentage_score) DESC
                 """)
             ).fetchall()
 
-            evidence_quality_distribution = [
+            # Map ranges to labels and colors from config (FIXED: include color information)
+            tier_label_map = {tier['range']: tier['label'] for tier in tier_ranges}
+            tier_color_map = {tier['range']: tier.get('color', '#6B7280') for tier in tier_ranges}
+
+            # FIXED: Return as evidence_tier_distribution with color information
+            evidence_tier_distribution = [
                 {
                     "score_range": row[0],
                     "gene_count": row[1],
-                    "label": tier_mapping.get(row[0], row[0]),
+                    "percentage": row[2],
+                    "tier_label": tier_label_map.get(row[0], "Unknown"),
+                    "color": tier_color_map.get(row[0], "#6B7280"),
                 }
                 for row in score_distribution
             ]
@@ -567,12 +572,13 @@ class CRUDStatistics:
             ]
 
             return {
-                "evidence_quality_distribution": evidence_quality_distribution,
+                "evidence_tier_distribution": evidence_tier_distribution,  # FIXED: Use correct field name
+                "evidence_quality_distribution": evidence_tier_distribution,  # Backward compatibility
                 "source_contribution_weights": source_contribution_weights,
                 "source_coverage_distribution": source_coverage_distribution,
                 "summary_statistics": {
                     "total_genes": sum(
-                        item["gene_count"] for item in evidence_quality_distribution
+                        item["gene_count"] for item in evidence_tier_distribution
                     ),
                     "total_evidence_records": total_evidence,
                     "active_sources": len(source_stats),
@@ -587,8 +593,9 @@ class CRUDStatistics:
             }
 
         except Exception as e:
+            # FIXED: Remove undefined source_name variable from error logging
             logger.sync_error(
-                "Error analyzing evidence composition", error=e, source_name=source_name
+                "Error analyzing evidence composition", error=e, min_tier=min_tier
             )
             raise
 

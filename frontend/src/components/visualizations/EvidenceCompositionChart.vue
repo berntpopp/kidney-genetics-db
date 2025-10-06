@@ -55,51 +55,33 @@
           <!-- Source coverage chart -->
           <div v-else-if="activeView === 'coverage'">
             <h3 class="text-h6 mb-4">Source Coverage Distribution</h3>
-            <div v-if="data?.source_coverage_distribution" class="coverage-bars">
-              <div
-                v-for="item in data.source_coverage_distribution"
-                :key="item.source_count"
-                class="coverage-item"
-              >
-                <div class="coverage-label">
-                  {{ item.source_count }} source{{ item.source_count !== 1 ? 's' : '' }}
-                </div>
-                <div class="coverage-bar-container">
-                  <v-progress-linear
-                    :model-value="item.percentage"
-                    height="20"
-                    rounded
-                    color="info"
-                    class="coverage-bar"
-                  />
-                  <div class="coverage-count">{{ item.gene_count }} genes</div>
-                </div>
-              </div>
+            <div v-if="coverageChartData.length > 0">
+              <D3BarChart
+                :data="coverageChartData"
+                x-axis-label="Number of Sources"
+                y-axis-label="Gene Count"
+                bar-color="#2196F3"
+              />
             </div>
+            <v-alert v-else type="info" variant="outlined">
+              No coverage distribution data available
+            </v-alert>
           </div>
 
           <!-- Source contribution weights -->
           <div v-else-if="activeView === 'weights'">
             <h3 class="text-h6 mb-4">Source Contribution Weights</h3>
-            <div v-if="data?.source_contribution_weights" class="weights-list">
-              <div
-                v-for="(weight, source) in data.source_contribution_weights"
-                :key="source"
-                class="weight-item"
-              >
-                <div class="weight-header">
-                  <div class="weight-source">{{ source }}</div>
-                  <div class="weight-value">{{ (weight * 100).toFixed(1) }}%</div>
-                </div>
-                <v-progress-linear
-                  :model-value="weight * 100"
-                  height="20"
-                  rounded
-                  color="secondary"
-                  class="weight-bar"
-                />
-              </div>
+            <div v-if="weightsChartData.length > 0">
+              <D3BarChart
+                :data="weightsChartData"
+                x-axis-label="Data Source"
+                y-axis-label="Contribution Percentage"
+                bar-color="#9C27B0"
+              />
             </div>
+            <v-alert v-else type="info" variant="outlined">
+              No weight distribution data available
+            </v-alert>
           </div>
         </div>
       </div>
@@ -111,6 +93,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { statisticsApi } from '@/api/statistics'
 import D3DonutChart from './D3DonutChart.vue'
+import D3BarChart from './D3BarChart.vue'
 
 // Props
 const props = defineProps({
@@ -140,6 +123,31 @@ const tierChartData = computed(() => {
 const totalGenes = computed(() => {
   if (!data.value?.evidence_tier_distribution) return 0
   return data.value.evidence_tier_distribution.reduce((sum, tier) => sum + tier.gene_count, 0)
+})
+
+const coverageChartData = computed(() => {
+  if (!data.value?.source_coverage_distribution) return []
+
+  // Sort by source_count ascending (1 → 7) for natural left-to-right reading
+  return data.value.source_coverage_distribution
+    .map(item => ({
+      category: `${item.source_count} source${item.source_count !== 1 ? 's' : ''}`,
+      gene_count: item.gene_count,
+      source_count: item.source_count // Keep for sorting
+    }))
+    .sort((a, b) => a.source_count - b.source_count) // Ascending order
+})
+
+const weightsChartData = computed(() => {
+  if (!data.value?.source_contribution_weights) return []
+
+  // Convert weights object to array and sort by weight descending
+  return Object.entries(data.value.source_contribution_weights)
+    .map(([source, weight]) => ({
+      category: source,
+      gene_count: Math.round(weight * 100) // Convert to percentage for display
+    }))
+    .sort((a, b) => b.gene_count - a.gene_count)
 })
 
 // Methods
@@ -204,100 +212,11 @@ onMounted(() => {
   border: 1px solid rgb(var(--v-theme-outline-variant));
 }
 
-/* Coverage bars */
-.coverage-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.coverage-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.coverage-label {
-  font-weight: 500;
-  color: rgb(var(--v-theme-on-surface));
-  font-size: 14px;
-}
-
-.coverage-bar-container {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.coverage-bar {
-  flex: 1;
-  min-width: 100px;
-}
-
-.coverage-count {
-  font-weight: 500;
-  font-size: 14px;
-  color: rgb(var(--v-theme-info));
-  min-width: 80px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Weights list */
-.weights-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.weight-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.weight-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.weight-source {
-  font-weight: 500;
-  color: rgb(var(--v-theme-on-surface));
-  font-size: 14px;
-}
-
-.weight-value {
-  font-weight: 600;
-  font-size: 14px;
-  color: rgb(var(--v-theme-secondary));
-  font-variant-numeric: tabular-nums;
-}
-
-.weight-bar {
-  flex: 1;
-  min-height: 20px !important;
-  height: 20px !important;
-}
-
 /* Responsive adjustments */
 @media (max-width: 600px) {
   .chart-container {
     min-height: 300px;
     padding: 8px;
-  }
-
-  .coverage-bar-container,
-  .weight-header {
-    gap: 8px;
-  }
-
-  .coverage-count,
-  .weight-value {
-    min-width: 60px;
-    font-size: 12px;
   }
 }
 </style>
