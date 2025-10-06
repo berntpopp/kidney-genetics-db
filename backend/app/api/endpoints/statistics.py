@@ -111,34 +111,47 @@ async def get_source_distributions(
 async def get_evidence_composition(
     min_tier: str | None = Query(
         None,
-        description="Minimum evidence tier (Very High, High, Medium, Low)"
+        description="Minimum evidence tier (comprehensive_support, multi_source_support, established_support, preliminary_evidence, minimal_evidence)"
+    ),
+    hide_zero_scores: bool = Query(
+        True,
+        description="Hide genes with percentage_score = 0 (default: true, matching /genes endpoint)"
     ),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
     Get evidence quality and composition analysis.
 
-    Returns breakdown of evidence scores, source contribution weights,
+    Uses actual evidence_tier column from gene_scores view, matching /genes endpoint behavior.
+    By default excludes genes with insufficient evidence (percentage_score = 0).
+
+    Returns breakdown of evidence tiers, source contribution weights,
     and coverage statistics for comprehensive analysis.
 
     Args:
         min_tier: Optional minimum evidence tier for filtering
+        hide_zero_scores: Hide genes with insufficient evidence (default: True)
     """
     start_time = time.time()
 
     try:
-        composition_data = statistics_crud.get_evidence_composition(db, min_tier=min_tier)
+        composition_data = statistics_crud.get_evidence_composition(
+            db,
+            min_tier=min_tier,
+            hide_zero_scores=hide_zero_scores
+        )
 
         query_duration_ms = round((time.time() - start_time) * 1000, 2)
 
         return ResponseBuilder.build_success_response(
             data=composition_data,
             meta={
-                "description": "Evidence quality and composition analysis",
+                "description": "Evidence quality and composition analysis using actual evidence tiers",
                 "query_duration_ms": query_duration_ms,
                 "data_version": datetime.utcnow().strftime("%Y%m%d"),
                 "visualization_type": "composition_analysis",
                 "min_tier": min_tier,
+                "hide_zero_scores": hide_zero_scores,
             },
         )
 

@@ -12,6 +12,19 @@
         <span>{{ getViewDescription() }}</span>
       </v-tooltip>
       <v-spacer />
+      <v-tooltip location="bottom">
+        <template #activator="{ props: tooltipProps }">
+          <v-checkbox
+            v-model="showInsufficientEvidence"
+            v-bind="tooltipProps"
+            label="Show insufficient evidence"
+            density="compact"
+            hide-details
+            class="me-2"
+          />
+        </template>
+        <span>Include genes with percentage_score = 0 (no meaningful evidence)</span>
+      </v-tooltip>
       <v-btn-toggle v-model="activeView" variant="outlined" density="compact" class="me-2">
         <v-btn value="tiers" size="small">Tiers</v-btn>
         <v-btn value="coverage" size="small">Coverage</v-btn>
@@ -108,15 +121,17 @@ const loading = ref(false)
 const error = ref(null)
 const data = ref(null)
 const activeView = ref('tiers') // Default to tiers view
+const showInsufficientEvidence = ref(false) // Default: hide genes with score = 0
 
 // Computed properties
 const tierChartData = computed(() => {
   if (!data.value?.evidence_tier_distribution) return []
 
+  // Use tier_label from backend (matches evidenceTiers.js labels)
   return data.value.evidence_tier_distribution.map(tier => ({
-    category: tier.tier_label || tier.score_range,
+    category: tier.tier_label,
     gene_count: tier.gene_count,
-    color: tier.color || '#6B7280'
+    color: tier.color
   }))
 })
 
@@ -156,8 +171,14 @@ const loadData = async () => {
   error.value = null
 
   try {
-    window.logService.info('Loading evidence composition', { minTier: props.minTier })
-    const response = await statisticsApi.getEvidenceComposition(props.minTier)
+    window.logService.info('Loading evidence composition', {
+      minTier: props.minTier,
+      hideZeroScores: !showInsufficientEvidence.value
+    })
+    const response = await statisticsApi.getEvidenceComposition(
+      props.minTier,
+      !showInsufficientEvidence.value // Invert: checkbox ON = show, API param = hide
+    )
     data.value = response.data
   } catch (err) {
     error.value = err.message || 'Failed to load evidence composition data'
@@ -183,13 +204,20 @@ const getViewDescription = () => {
   return descriptions[activeView.value] || ''
 }
 
-// Watch for minTier changes and reload data
+// Watch for minTier and showInsufficientEvidence changes and reload data
 watch(
   () => props.minTier,
   async (newTier, oldTier) => {
     if (newTier !== oldTier) {
       await loadData()
     }
+  }
+)
+
+watch(
+  () => showInsufficientEvidence.value,
+  async () => {
+    await loadData()
   }
 )
 

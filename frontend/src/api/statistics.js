@@ -64,9 +64,10 @@ export const statisticsApi = {
   /**
    * Get evidence quality and composition analysis
    * @param {string} minTier - Optional minimum evidence tier for filtering
+   * @param {boolean} hideZeroScores - Hide genes with percentage_score = 0 (default: true)
    * @returns {Promise} Evidence composition data
    */
-  async getEvidenceComposition(minTier = null) {
+  async getEvidenceComposition(minTier = null, hideZeroScores = true) {
     const params = new URLSearchParams()
 
     // Add min_tier parameter if provided
@@ -74,10 +75,11 @@ export const statisticsApi = {
       params.append('min_tier', minTier)
     }
 
+    // Always pass hide_zero_scores parameter (matches /genes endpoint behavior)
+    params.append('hide_zero_scores', hideZeroScores.toString())
+
     const queryString = params.toString()
-    const url = queryString
-      ? `/api/statistics/evidence-composition?${queryString}`
-      : '/api/statistics/evidence-composition'
+    const url = `/api/statistics/evidence-composition?${queryString}`
 
     const response = await apiClient.get(url)
     return {

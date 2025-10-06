@@ -7,7 +7,6 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.core.datasource_config import API_DEFAULTS_CONFIG
 from app.core.gene_filters import (
     get_gene_evidence_filter_join,
 )
@@ -470,64 +469,101 @@ class CRUDStatistics:
             logger.sync_error("Error calculating source distributions", error=e)
             raise
 
-    def get_evidence_composition(self, db: Session, min_tier: str | None = None) -> dict[str, Any]:
+    def get_evidence_composition(
+        self,
+        db: Session,
+        min_tier: str | None = None,
+        hide_zero_scores: bool = True
+    ) -> dict[str, Any]:
         """
         Analyze evidence quality and composition across sources
 
         Args:
             db: Database session
             min_tier: Optional minimum evidence tier for filtering
+            hide_zero_scores: Hide genes with percentage_score = 0 (default: True, matching /genes endpoint)
 
         Returns:
-            Dictionary with evidence composition analysis
+            Dictionary with evidence composition analysis using actual evidence_tier column
         """
         try:
-            from app.core.gene_filters import get_tier_filter_clause
+            # Tier label and color mapping (matches frontend evidenceTiers.js)
+            tier_config_map = {
+                "comprehensive_support": {
+                    "label": "Comprehensive Support",
+                    "color": "#4CAF50",  # success (green)
+                    "order": 1
+                },
+                "multi_source_support": {
+                    "label": "Multi-Source Support",
+                    "color": "#2196F3",  # info (blue)
+                    "order": 2
+                },
+                "established_support": {
+                    "label": "Established Support",
+                    "color": "#1976D2",  # primary (darker blue)
+                    "order": 3
+                },
+                "preliminary_evidence": {
+                    "label": "Preliminary Evidence",
+                    "color": "#FFC107",  # warning (amber)
+                    "order": 4
+                },
+                "minimal_evidence": {
+                    "label": "Minimal Evidence",
+                    "color": "#9E9E9E",  # grey
+                    "order": 5
+                }
+            }
 
-            # Get tier configuration from config (FIXED: use 'ranges' not 'tiers')
-            tier_config = API_DEFAULTS_CONFIG.get("evidence_tiers", {})
-            tier_ranges = tier_config.get("ranges", [])
+            # Build WHERE clause - filter out zero scores by default (matches /genes endpoint behavior)
+            where_clauses = []
+            if hide_zero_scores:
+                where_clauses.append("gs.percentage_score > 0")
 
-            # Build CASE statement from config for percentage_score ranges
-            case_clauses = [
-                f"WHEN gs.percentage_score >= {tier['threshold']} THEN '{tier['range']}'"
-                for tier in sorted(tier_ranges, key=lambda x: x['threshold'], reverse=True)
-            ]
+            # Add tier filter if specified
+            if min_tier:
+                tier_order = tier_config_map.get(min_tier, {}).get("order", 999)
+                valid_tiers = [tier for tier, config in tier_config_map.items() if config["order"] >= tier_order]
+                tier_list_str = ", ".join(f"'{tier}'" for tier in valid_tiers)
+                where_clauses.append(f"gs.evidence_tier IN ({tier_list_str})")
 
-            # Build WHERE clause for tier filtering
-            tier_clause = get_tier_filter_clause(min_tier)
-            where_clause = f"WHERE {tier_clause}" if tier_clause != "1=1" else ""
+            where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
 
-            # Get evidence score distribution using percentage_score ranges (FIXED: use percentage_score not evidence_tier)
+            # Query actual evidence_tier column from gene_scores view (NOT percentage_score ranges!)
             score_distribution = db.execute(
                 text(f"""
                     SELECT
-                        CASE
-                            {' '.join(case_clauses)}
-                        END as score_range,
+                        gs.evidence_tier,
                         COUNT(*) as gene_count,
                         ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 2) as percentage
                     FROM gene_scores gs
                     {where_clause}
-                    GROUP BY 1
-                    ORDER BY MIN(gs.percentage_score) DESC
+                    GROUP BY gs.evidence_tier
+                    ORDER BY
+                        CASE gs.evidence_tier
+                            WHEN 'comprehensive_support' THEN 1
+                            WHEN 'multi_source_support' THEN 2
+                            WHEN 'established_support' THEN 3
+                            WHEN 'preliminary_evidence' THEN 4
+                            WHEN 'minimal_evidence' THEN 5
+                            WHEN 'no_evidence' THEN 6
+                            ELSE 7
+                        END
                 """)
             ).fetchall()
 
-            # Map ranges to labels and colors from config (FIXED: include color information)
-            tier_label_map = {tier['range']: tier['label'] for tier in tier_ranges}
-            tier_color_map = {tier['range']: tier.get('color', '#6B7280') for tier in tier_ranges}
-
-            # FIXED: Return as evidence_tier_distribution with color information
+            # Build tier distribution with proper labels and colors
             evidence_tier_distribution = [
                 {
-                    "score_range": row[0],
+                    "tier": row[0],
+                    "tier_label": tier_config_map.get(row[0], {}).get("label", row[0]),
                     "gene_count": row[1],
                     "percentage": row[2],
-                    "tier_label": tier_label_map.get(row[0], "Unknown"),
-                    "color": tier_color_map.get(row[0], "#6B7280"),
+                    "color": tier_config_map.get(row[0], {}).get("color", "#9E9E9E"),
                 }
                 for row in score_distribution
+                if row[0] in tier_config_map  # Only include known tiers (exclude 'no_evidence')
             ]
 
             # Calculate source contribution weights (based on active sources)
