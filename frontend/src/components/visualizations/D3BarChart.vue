@@ -39,6 +39,14 @@ const props = defineProps({
   height: {
     type: Number,
     default: 400
+  },
+  valueLabel: {
+    type: String,
+    default: 'genes'
+  },
+  valueFormatter: {
+    type: Function,
+    default: value => Math.round(value)
   }
 })
 
@@ -270,7 +278,7 @@ const showTooltip = (event, d) => {
       <strong style="color: var(--v-theme-primary); display: block; margin-bottom: 4px;">
         ${d.category}
       </strong>
-      <div>${d.gene_count} genes</div>
+      <div>${props.valueFormatter(d.gene_count)} ${props.valueLabel}</div>
     </div>
   `
     )

@@ -74,6 +74,7 @@
                 x-axis-label="Number of Sources"
                 y-axis-label="Gene Count"
                 bar-color="#2196F3"
+                value-label="genes"
               />
             </div>
             <v-alert v-else type="info" variant="outlined">
@@ -85,11 +86,13 @@
           <div v-else-if="activeView === 'weights'">
             <h3 class="text-h6 mb-4">Source Contribution Weights</h3>
             <div v-if="weightsChartData.length > 0">
-              <D3BarChart
+              <D3DonutChart
                 :data="weightsChartData"
-                x-axis-label="Data Source"
-                y-axis-label="Contribution Percentage"
-                bar-color="#9C27B0"
+                :show-total="true"
+                :total="100"
+                :center-label="`Total Coverage (${totalGenes.toLocaleString()} genes)`"
+                :is-percentage="true"
+                :value-formatter="v => v.toFixed(1)"
               />
             </div>
             <v-alert v-else type="info" variant="outlined">
@@ -156,11 +159,23 @@ const coverageChartData = computed(() => {
 const weightsChartData = computed(() => {
   if (!data.value?.source_contribution_weights) return []
 
-  // Convert weights object to array and sort by weight descending
+  // Define source colors for donut chart
+  const sourceColors = {
+    PubTator: '#FF6384',
+    HPO: '#36A2EB',
+    DiagnosticPanels: '#FFCE56',
+    Literature: '#4BC0C0',
+    PanelApp: '#9966FF',
+    GenCC: '#FF9F40',
+    ClinGen: '#C9CBCF'
+  }
+
+  // Convert weights object to array for donut chart (percentages)
   return Object.entries(data.value.source_contribution_weights)
     .map(([source, weight]) => ({
       category: source,
-      gene_count: Math.round(weight * 100) // Convert to percentage for display
+      gene_count: parseFloat((weight * 100).toFixed(1)), // Keep 1 decimal for display
+      color: sourceColors[source] || '#9E9E9E'
     }))
     .sort((a, b) => b.gene_count - a.gene_count)
 })

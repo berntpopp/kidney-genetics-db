@@ -32,6 +32,10 @@ const props = defineProps({
     type: Number,
     default: null
   },
+  averageLabel: {
+    type: String,
+    default: 'Average'
+  },
   centerLabel: {
     type: String,
     default: 'Total'
@@ -39,6 +43,22 @@ const props = defineProps({
   height: {
     type: Number,
     default: 400
+  },
+  showTotal: {
+    type: Boolean,
+    default: true
+  },
+  valueLabel: {
+    type: String,
+    default: 'genes'
+  },
+  valueFormatter: {
+    type: Function,
+    default: value => Math.round(value)
+  },
+  isPercentage: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -176,45 +196,97 @@ const renderChart = () => {
       }
     })
 
-  // Add center text group
-  const centerGroup = g.append('g').attr('text-anchor', 'middle')
+  // Add center text group (only if showTotal is true)
+  if (props.showTotal) {
+    const centerGroup = g.append('g').attr('text-anchor', 'middle')
 
-  // Center label
-  centerGroup
-    .append('text')
-    .attr('dy', '-0.5em')
-    .style('font-size', '14px')
-    .style('font-weight', 'normal')
-    .style('fill', textColor)
-    .style('opacity', 0.7)
-    .text(props.centerLabel)
+    const hasAverage = props.average !== null
 
-  // Center value (total)
-  centerGroup
-    .append('text')
-    .attr('dy', '1.2em')
-    .style('font-size', '32px')
-    .style('font-weight', 'bold')
-    .style('fill', textColor)
-    .text(computedTotal.value)
+    if (props.isPercentage && hasAverage) {
+      // Percentage view with gene count: 4-line hierarchical composition
+      // Line 1: Large percentage (lower and more centered)
+      centerGroup
+        .append('text')
+        .attr('dy', '-0.8em')
+        .style('font-size', '42px')
+        .style('font-weight', 'bold')
+        .style('fill', textColor)
+        .text(`${computedTotal.value}%`)
 
-  // Center average (if provided)
-  if (props.average !== null) {
-    centerGroup
-      .append('text')
-      .attr('dy', '3em')
-      .style('font-size', '12px')
-      .style('fill', textColor)
-      .style('opacity', 0.7)
-      .text(`Average`)
+      // Line 2: Small label for percentage
+      centerGroup
+        .append('text')
+        .attr('dy', '0.5em')
+        .style('font-size', '11px')
+        .style('font-weight', 'normal')
+        .style('fill', textColor)
+        .style('opacity', 0.6)
+        .text(props.centerLabel)
 
-    centerGroup
-      .append('text')
-      .attr('dy', '4.5em')
-      .style('font-size', '16px')
-      .style('font-weight', '500')
-      .style('fill', textColor)
-      .text(props.average)
+      // Line 3: Gene count (smaller)
+      centerGroup
+        .append('text')
+        .attr('dy', '1.8em')
+        .style('font-size', '16px')
+        .style('font-weight', '500')
+        .style('fill', textColor)
+        .text(props.average.toLocaleString())
+
+      // Line 4: Small label for gene count
+      centerGroup
+        .append('text')
+        .attr('dy', '2.8em')
+        .style('font-size', '11px')
+        .style('font-weight', 'normal')
+        .style('fill', textColor)
+        .style('opacity', 0.6)
+        .text(props.averageLabel)
+    } else if (hasAverage) {
+      // Count view with average: 3-line composition
+      centerGroup
+        .append('text')
+        .attr('dy', '-1.2em')
+        .style('font-size', '36px')
+        .style('font-weight', 'bold')
+        .style('fill', textColor)
+        .text(computedTotal.value)
+
+      centerGroup
+        .append('text')
+        .attr('dy', '0.3em')
+        .style('font-size', '12px')
+        .style('font-weight', 'normal')
+        .style('fill', textColor)
+        .style('opacity', 0.6)
+        .text(props.centerLabel)
+
+      centerGroup
+        .append('text')
+        .attr('dy', '2.1em')
+        .style('font-size', '14px')
+        .style('font-weight', '500')
+        .style('fill', textColor)
+        .style('opacity', 0.8)
+        .text(`${props.averageLabel}: ${props.average}`)
+    } else {
+      // Simple 2-line composition: value + label
+      centerGroup
+        .append('text')
+        .attr('dy', '-0.3em')
+        .style('font-size', '42px')
+        .style('font-weight', 'bold')
+        .style('fill', textColor)
+        .text(props.isPercentage ? `${computedTotal.value}%` : computedTotal.value)
+
+      centerGroup
+        .append('text')
+        .attr('dy', '1.5em')
+        .style('font-size', '13px')
+        .style('font-weight', 'normal')
+        .style('fill', textColor)
+        .style('opacity', 0.7)
+        .text(props.centerLabel)
+    }
   }
 }
 
@@ -239,9 +311,18 @@ const showTooltip = (event, d) => {
       .style('opacity', 0)
   }
 
-  const percentage = ((d.data.gene_count / computedTotal.value) * 100).toFixed(1)
-
   tooltip.transition().duration(200).style('opacity', 0.95)
+
+  // Format tooltip content based on whether values are percentages or counts
+  let valueDisplay
+  if (props.isPercentage) {
+    // Values are already percentages - just show them with % sign
+    valueDisplay = `${props.valueFormatter(d.data.gene_count)}%`
+  } else {
+    // Values are counts - show count + calculated percentage
+    const percentage = ((d.data.gene_count / computedTotal.value) * 100).toFixed(1)
+    valueDisplay = `${props.valueFormatter(d.data.gene_count)} ${props.valueLabel} (${percentage}%)`
+  }
 
   tooltip
     .html(
@@ -250,7 +331,7 @@ const showTooltip = (event, d) => {
       <strong style="color: var(--v-theme-primary); display: block; margin-bottom: 4px;">
         ${d.data.category}
       </strong>
-      <div>${d.data.gene_count} genes (${percentage}%)</div>
+      <div>${valueDisplay}</div>
     </div>
   `
     )
@@ -297,6 +378,14 @@ watch(
 )
 watch(
   () => props.average,
+  () => nextTick(renderChart)
+)
+watch(
+  () => props.averageLabel,
+  () => nextTick(renderChart)
+)
+watch(
+  () => props.showTotal,
   () => nextTick(renderChart)
 )
 watch(
