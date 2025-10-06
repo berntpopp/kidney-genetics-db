@@ -65,6 +65,8 @@ class LogService {
    */
   initStore(store) {
     this.store = store
+    // Minimal startup confirmation
+    this.info('Application logging ready')
   }
 
   /**
