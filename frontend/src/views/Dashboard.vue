@@ -15,26 +15,29 @@
 
     <!-- Global Filters -->
     <v-row class="mb-4">
-      <v-col cols="12" md="6">
+      <v-col cols="12">
         <v-select
-          v-model="minEvidenceTier"
+          v-model="selectedTiers"
           :items="tierOptions"
-          label="Minimum Evidence Tier"
+          label="Evidence Tier Filter"
           density="compact"
           variant="outlined"
+          multiple
+          chips
+          closable-chips
           clearable
-          hint="Filter all visualizations by evidence quality"
+          hint="Select one or more evidence tiers to filter visualizations (multi-select with OR logic)"
           persistent-hint
         >
-          <template #item="{ props, item }">
-            <v-list-item v-bind="props" :subtitle="item.raw.description"></v-list-item>
+          <template #item="{ props: itemProps, item }">
+            <v-list-item v-bind="itemProps" :subtitle="item.raw.description"></v-list-item>
+          </template>
+          <template #chip="{ item, props }">
+            <v-chip v-bind="props" :color="getTierColor(item.value)" size="small" closable>
+              {{ item.title }}
+            </v-chip>
           </template>
         </v-select>
-      </v-col>
-      <v-col cols="12" md="6" class="d-flex align-center">
-        <v-chip size="small" color="primary" variant="outlined" class="me-2">
-          Filtering: {{ minEvidenceTier ? tierLabels[minEvidenceTier] : 'All Genes' }}
-        </v-chip>
       </v-col>
     </v-row>
 
@@ -60,7 +63,7 @@
           <v-tabs-window v-model="activeTab">
             <v-tabs-window-item value="overlaps">
               <div class="pa-4">
-                <UpSetChart :min-tier="minEvidenceTier" />
+                <UpSetChart :selected-tiers="selectedTiers" />
               </div>
             </v-tabs-window-item>
 
@@ -68,7 +71,7 @@
               <div class="pa-4">
                 <SourceDistributionsChart
                   v-if="activeTab === 'distributions'"
-                  :min-tier="minEvidenceTier"
+                  :selected-tiers="selectedTiers"
                 />
               </div>
             </v-tabs-window-item>
@@ -77,7 +80,7 @@
               <div class="pa-4">
                 <EvidenceCompositionChart
                   v-if="activeTab === 'composition'"
-                  :min-tier="minEvidenceTier"
+                  :selected-tiers="selectedTiers"
                 />
               </div>
             </v-tabs-window-item>
@@ -89,13 +92,14 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   UpSetChart,
   SourceDistributionsChart,
   EvidenceCompositionChart
 } from '@/components/visualizations'
+import { TIER_CONFIG } from '@/utils/evidenceTiers'
 
 // Meta
 defineOptions({
@@ -108,47 +112,23 @@ const router = useRouter()
 
 // Reactive data
 const activeTab = ref('overlaps')
-const minEvidenceTier = ref(null)
+const selectedTiers = ref([])
 
 // Valid tab values
 const validTabs = ['overlaps', 'distributions', 'composition']
 
-// Evidence tier options (matching backend configuration)
-const tierOptions = [
-  {
-    value: 'comprehensive_support',
-    title: 'Comprehensive Support',
-    description: '≥4 sources AND ≥50% score'
-  },
-  {
-    value: 'multi_source_support',
-    title: 'Multi-Source Support',
-    description: '≥3 sources AND ≥35% score'
-  },
-  {
-    value: 'established_support',
-    title: 'Established Support',
-    description: '≥2 sources AND ≥20% score'
-  },
-  {
-    value: 'preliminary_evidence',
-    title: 'Preliminary Evidence',
-    description: '≥10% score'
-  },
-  {
-    value: 'minimal_evidence',
-    title: 'Minimal Evidence',
-    description: '>0% score'
-  }
-]
+// Evidence tier options from config (matching GeneTable)
+const tierOptions = computed(() => {
+  return Object.entries(TIER_CONFIG).map(([key, config]) => ({
+    title: config.label,
+    value: key,
+    description: config.description
+  }))
+})
 
-// Tier labels for display
-const tierLabels = {
-  comprehensive_support: 'Comprehensive Support',
-  multi_source_support: 'Multi-Source Support',
-  established_support: 'Established Support',
-  preliminary_evidence: 'Preliminary Evidence',
-  minimal_evidence: 'Minimal Evidence'
+// Get tier color from config (matching GeneTable)
+const getTierColor = tierKey => {
+  return TIER_CONFIG[tierKey]?.color || 'grey'
 }
 
 // Initialize tab from URL

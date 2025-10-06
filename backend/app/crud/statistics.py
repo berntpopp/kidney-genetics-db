@@ -20,7 +20,11 @@ class CRUDStatistics:
     """CRUD operations for statistics and data analysis"""
 
     def get_source_overlaps(
-        self, db: Session, selected_sources: list[str] | None = None, min_tier: str | None = None
+        self,
+        db: Session,
+        selected_sources: list[str] | None = None,
+        hide_zero_scores: bool = True,
+        filter_tiers: list[str] | None = None
     ) -> dict[str, Any]:
         """
         Calculate gene intersections between data sources for UpSet plot visualization
@@ -28,24 +32,37 @@ class CRUDStatistics:
         Args:
             db: Database session
             selected_sources: Optional list of source names to include. If None, uses all sources.
-            min_tier: Optional minimum evidence tier for filtering
+            hide_zero_scores: Hide genes with percentage_score = 0 (default: True)
+            filter_tiers: Optional list of evidence tiers for filtering (comma-separated)
 
         Returns:
             Dictionary with sets and intersections data for UpSet.js
         """
         try:
-            from app.core.gene_filters import get_tier_filter_join_clause
-
-            # Build WHERE clause for source filtering, score filtering, and tier filtering
-            join_clause, filter_clause = get_tier_filter_join_clause(min_tier)
+            # Build WHERE clause
+            join_clause, filter_clause = get_gene_evidence_filter_join(hide_zero_scores)
             where_clauses = [filter_clause]
-            params = {}
 
+            # Add tier filtering if specified
+            if filter_tiers:
+                placeholders = ','.join([f':tier_{i}' for i in range(len(filter_tiers))])
+                where_clauses.append(f"gs.evidence_tier IN ({placeholders})")
+
+            filter_clause = " AND ".join(where_clauses) if len(where_clauses) > 1 else where_clauses[0]
+
+            # Build params dict for tier filtering
+            params = {}
+            if filter_tiers:
+                for i, tier in enumerate(filter_tiers):
+                    params[f"tier_{i}"] = tier
+
+            # Add source filtering
+            where_parts = [filter_clause]
             if selected_sources:
-                where_clauses.append("gene_evidence.source_name = ANY(:selected_sources)")
+                where_parts.append("gene_evidence.source_name = ANY(:selected_sources)")
                 params["selected_sources"] = selected_sources
 
-            where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+            where_clause = "WHERE " + " AND ".join(where_parts) if where_parts else ""
 
             # Get source names and their gene counts (filtered by both source and score)
             sources_query = f"""
@@ -176,25 +193,34 @@ class CRUDStatistics:
     def get_source_distributions(
         self,
         db: Session,
-        min_tier: str | None = None
+        hide_zero_scores: bool = True,
+        filter_tiers: list[str] | None = None
     ) -> dict[str, Any]:
         """
         Calculate source-specific distributions using handler pattern.
 
         Args:
             db: Database session
-            min_tier: Optional minimum evidence tier for filtering
+            hide_zero_scores: Hide genes with percentage_score = 0 (default: True)
+            filter_tiers: Optional list of evidence tiers for filtering
 
         Returns:
             Dict with source-specific distribution data
         """
         try:
-            from app.core.gene_filters import get_tier_filter_join_clause
+            logger.sync_info("Calculating source distributions", filter_tiers=filter_tiers)
 
-            logger.sync_info("Calculating source distributions", min_tier=min_tier)
+            # Build WHERE clause
+            join_clause, filter_clause = get_gene_evidence_filter_join(hide_zero_scores)
+            where_clauses = [filter_clause]
 
-            # Get filter clauses (respects score filter + tier filter)
-            join_clause, filter_clause = get_tier_filter_join_clause(min_tier)
+            # Add tier filtering if specified
+            if filter_tiers:
+                # Use parameterized query for security
+                tier_list_str = ', '.join([f"'{tier}'" for tier in filter_tiers])
+                where_clauses.append(f"gs.evidence_tier IN ({tier_list_str})")
+
+            filter_clause = " AND ".join(where_clauses) if len(where_clauses) > 1 else where_clauses[0]
 
             # Get all sources with filtering
             sources_query = f"""
@@ -233,7 +259,7 @@ class CRUDStatistics:
             logger.sync_info(
                 "Source distributions calculated",
                 sources=len(source_distributions),
-                min_tier=min_tier
+                filter_tiers=filter_tiers
             )
 
             return source_distributions
@@ -242,7 +268,7 @@ class CRUDStatistics:
             logger.sync_error(
                 "Error calculating source distributions",
                 error=e,
-                min_tier=min_tier
+                filter_tiers=filter_tiers
             )
             raise
 
@@ -472,7 +498,7 @@ class CRUDStatistics:
     def get_evidence_composition(
         self,
         db: Session,
-        min_tier: str | None = None,
+        filter_tiers: list[str] | None = None,
         hide_zero_scores: bool = True
     ) -> dict[str, Any]:
         """
@@ -480,7 +506,7 @@ class CRUDStatistics:
 
         Args:
             db: Database session
-            min_tier: Optional minimum evidence tier for filtering
+            filter_tiers: Optional list of evidence tiers for filtering
             hide_zero_scores: Hide genes with percentage_score = 0 (default: True, matching /genes endpoint)
 
         Returns:
@@ -526,11 +552,9 @@ class CRUDStatistics:
             if hide_zero_scores:
                 where_clauses.append("gs.percentage_score > 0")
 
-            # Add tier filter if specified
-            if min_tier:
-                tier_order = tier_config_map.get(min_tier, {}).get("order", 999)
-                valid_tiers = [tier for tier, config in tier_config_map.items() if config["order"] >= tier_order]
-                tier_list_str = ", ".join(f"'{tier}'" for tier in valid_tiers)
+            # Add tier filter if specified (multi-select with OR logic)
+            if filter_tiers:
+                tier_list_str = ", ".join(f"'{tier}'" for tier in filter_tiers)
                 where_clauses.append(f"gs.evidence_tier IN ({tier_list_str})")
 
             where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
@@ -636,9 +660,8 @@ class CRUDStatistics:
             }
 
         except Exception as e:
-            # FIXED: Remove undefined source_name variable from error logging
             logger.sync_error(
-                "Error analyzing evidence composition", error=e, min_tier=min_tier
+                "Error analyzing evidence composition", error=e, filter_tiers=filter_tiers
             )
             raise
 

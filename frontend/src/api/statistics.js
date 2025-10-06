@@ -8,10 +8,11 @@ export const statisticsApi = {
   /**
    * Get gene intersections between data sources for UpSet plot
    * @param {Array<string>} sources - Optional array of source names to filter by
-   * @param {string} minTier - Optional minimum evidence tier for filtering
+   * @param {Array<string>} tiers - Optional array of evidence tiers for filtering
+   * @param {boolean} hideZeroScores - Hide genes with percentage_score = 0 (default: true)
    * @returns {Promise} UpSet plot data with sets and intersections
    */
-  async getSourceOverlaps(sources = null, minTier = null) {
+  async getSourceOverlaps(sources = null, tiers = null, hideZeroScores = true) {
     const params = new URLSearchParams()
 
     // Add sources as query parameters if provided
@@ -19,10 +20,13 @@ export const statisticsApi = {
       sources.forEach(source => params.append('sources', source))
     }
 
-    // Add min_tier parameter if provided
-    if (minTier) {
-      params.append('min_tier', minTier)
+    // Add tier filter parameter if provided (comma-separated for multi-select with OR logic)
+    if (tiers && tiers.length > 0) {
+      params.append('filter[tier]', tiers.join(','))
     }
+
+    // Add hide_zero_scores parameter
+    params.append('filter[hide_zero_scores]', hideZeroScores.toString())
 
     const queryString = params.toString()
     const url = queryString
@@ -38,16 +42,20 @@ export const statisticsApi = {
 
   /**
    * Get source count distributions for bar charts
-   * @param {string} minTier - Optional minimum evidence tier for filtering
+   * @param {Array<string>} tiers - Optional array of evidence tiers for filtering
+   * @param {boolean} hideZeroScores - Hide genes with percentage_score = 0 (default: true)
    * @returns {Promise} Distribution data for each source
    */
-  async getSourceDistributions(minTier = null) {
+  async getSourceDistributions(tiers = null, hideZeroScores = true) {
     const params = new URLSearchParams()
 
-    // Add min_tier parameter if provided
-    if (minTier) {
-      params.append('min_tier', minTier)
+    // Add tier filter parameter if provided (comma-separated for multi-select with OR logic)
+    if (tiers && tiers.length > 0) {
+      params.append('filter[tier]', tiers.join(','))
     }
+
+    // Add hide_zero_scores parameter
+    params.append('filter[hide_zero_scores]', hideZeroScores.toString())
 
     const queryString = params.toString()
     const url = queryString
@@ -63,20 +71,20 @@ export const statisticsApi = {
 
   /**
    * Get evidence quality and composition analysis
-   * @param {string} minTier - Optional minimum evidence tier for filtering
+   * @param {Array<string>} tiers - Optional array of evidence tiers for filtering
    * @param {boolean} hideZeroScores - Hide genes with percentage_score = 0 (default: true)
    * @returns {Promise} Evidence composition data
    */
-  async getEvidenceComposition(minTier = null, hideZeroScores = true) {
+  async getEvidenceComposition(tiers = null, hideZeroScores = true) {
     const params = new URLSearchParams()
 
-    // Add min_tier parameter if provided
-    if (minTier) {
-      params.append('min_tier', minTier)
+    // Add tier filter parameter if provided (comma-separated for multi-select with OR logic)
+    if (tiers && tiers.length > 0) {
+      params.append('filter[tier]', tiers.join(','))
     }
 
     // Always pass hide_zero_scores parameter (matches /genes endpoint behavior)
-    params.append('hide_zero_scores', hideZeroScores.toString())
+    params.append('filter[hide_zero_scores]', hideZeroScores.toString())
 
     const queryString = params.toString()
     const url = `/api/statistics/evidence-composition?${queryString}`

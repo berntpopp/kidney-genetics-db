@@ -22,9 +22,15 @@ async def get_source_overlaps(
     sources: list[str] | None = Query(
         None, description="Specific source names to include in analysis"
     ),
-    min_tier: str | None = Query(
+    hide_zero_scores: bool = Query(
+        True,
+        alias="filter[hide_zero_scores]",
+        description="Hide genes with percentage_score = 0 (default: true, matching /genes endpoint)"
+    ),
+    filter_tier: str | None = Query(
         None,
-        description="Minimum evidence tier (Very High, High, Medium, Low)"
+        alias="filter[tier]",
+        description="Filter by evidence tier (comma-separated for multiple: comprehensive_support,multi_source_support,established_support,preliminary_evidence,minimal_evidence)",
     ),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -34,15 +40,37 @@ async def get_source_overlaps(
     Args:
         sources: Optional list of source names to filter analysis (e.g., ['PanelApp', 'ClinGen'])
                 If None, includes all available sources.
-        min_tier: Optional minimum evidence tier for filtering
+        hide_zero_scores: Hide genes with insufficient evidence (default: True)
+        filter_tier: Optional comma-separated evidence tiers (e.g., "comprehensive_support,multi_source_support")
 
     Returns data optimized for UpSet.js library with sets and intersections.
     """
     start_time = time.time()
 
     try:
+        # Parse and validate tiers (same pattern as genes endpoint)
+        requested_tiers = None
+        if filter_tier:
+            valid_tiers = [
+                'comprehensive_support',
+                'multi_source_support',
+                'established_support',
+                'preliminary_evidence',
+                'minimal_evidence'
+            ]
+            # Parse comma-separated tiers
+            requested_tiers = [t.strip() for t in filter_tier.split(',') if t.strip()]
+
+            # Validate all requested tiers
+            invalid_tiers = [t for t in requested_tiers if t not in valid_tiers]
+            if invalid_tiers:
+                raise ValidationError(
+                    field="filter[tier]",
+                    reason=f"Invalid tier(s): {', '.join(invalid_tiers)}. Must be one of: {', '.join(valid_tiers)}"
+                )
+
         overlap_data = statistics_crud.get_source_overlaps(
-            db, selected_sources=sources, min_tier=min_tier
+            db, selected_sources=sources, hide_zero_scores=hide_zero_scores, filter_tiers=requested_tiers
         )
 
         query_duration_ms = round((time.time() - start_time) * 1000, 2)
@@ -54,7 +82,7 @@ async def get_source_overlaps(
                 "query_duration_ms": query_duration_ms,
                 "data_version": datetime.utcnow().strftime("%Y%m%d"),
                 "visualization_type": "upset_plot",
-                "min_tier": min_tier,
+                "hide_zero_scores": hide_zero_scores,
             },
         )
 
@@ -66,9 +94,15 @@ async def get_source_overlaps(
 
 @router.get("/source-distributions")
 async def get_source_distributions(
-    min_tier: str | None = Query(
+    hide_zero_scores: bool = Query(
+        True,
+        alias="filter[hide_zero_scores]",
+        description="Hide genes with percentage_score = 0 (default: true, matching /genes endpoint)"
+    ),
+    filter_tier: str | None = Query(
         None,
-        description="Minimum evidence tier (Very High, High, Medium, Low)"
+        alias="filter[tier]",
+        description="Filter by evidence tier (comma-separated for multiple: comprehensive_support,multi_source_support,established_support,preliminary_evidence,minimal_evidence)",
     ),
     db: Session = Depends(get_db)
 ) -> dict[str, Any]:
@@ -79,12 +113,36 @@ async def get_source_distributions(
     panels/publications/evidence items for each source.
 
     Args:
-        min_tier: Optional minimum evidence tier for filtering
+        hide_zero_scores: Hide genes with insufficient evidence (default: True)
+        filter_tier: Optional comma-separated evidence tiers (e.g., "comprehensive_support,multi_source_support")
     """
     start_time = time.time()
 
     try:
-        distribution_data = statistics_crud.get_source_distributions(db, min_tier=min_tier)
+        # Parse and validate tiers (same pattern as genes endpoint)
+        requested_tiers = None
+        if filter_tier:
+            valid_tiers = [
+                'comprehensive_support',
+                'multi_source_support',
+                'established_support',
+                'preliminary_evidence',
+                'minimal_evidence'
+            ]
+            # Parse comma-separated tiers
+            requested_tiers = [t.strip() for t in filter_tier.split(',') if t.strip()]
+
+            # Validate all requested tiers
+            invalid_tiers = [t for t in requested_tiers if t not in valid_tiers]
+            if invalid_tiers:
+                raise ValidationError(
+                    field="filter[tier]",
+                    reason=f"Invalid tier(s): {', '.join(invalid_tiers)}. Must be one of: {', '.join(valid_tiers)}"
+                )
+
+        distribution_data = statistics_crud.get_source_distributions(
+            db, hide_zero_scores=hide_zero_scores, filter_tiers=requested_tiers
+        )
 
         query_duration_ms = round((time.time() - start_time) * 1000, 2)
 
@@ -96,7 +154,7 @@ async def get_source_distributions(
                 "data_version": datetime.utcnow().strftime("%Y%m%d"),
                 "visualization_type": "bar_charts",
                 "source_count": len(distribution_data),
-                "min_tier": min_tier,
+                "hide_zero_scores": hide_zero_scores,
             },
         )
 
@@ -109,13 +167,15 @@ async def get_source_distributions(
 
 @router.get("/evidence-composition")
 async def get_evidence_composition(
-    min_tier: str | None = Query(
-        None,
-        description="Minimum evidence tier (comprehensive_support, multi_source_support, established_support, preliminary_evidence, minimal_evidence)"
-    ),
     hide_zero_scores: bool = Query(
         True,
+        alias="filter[hide_zero_scores]",
         description="Hide genes with percentage_score = 0 (default: true, matching /genes endpoint)"
+    ),
+    filter_tier: str | None = Query(
+        None,
+        alias="filter[tier]",
+        description="Filter by evidence tier (comma-separated for multiple: comprehensive_support,multi_source_support,established_support,preliminary_evidence,minimal_evidence)",
     ),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -129,15 +189,36 @@ async def get_evidence_composition(
     and coverage statistics for comprehensive analysis.
 
     Args:
-        min_tier: Optional minimum evidence tier for filtering
         hide_zero_scores: Hide genes with insufficient evidence (default: True)
+        filter_tier: Optional comma-separated evidence tiers (e.g., "comprehensive_support,multi_source_support")
     """
     start_time = time.time()
 
     try:
+        # Parse and validate tiers (same pattern as genes endpoint)
+        requested_tiers = None
+        if filter_tier:
+            valid_tiers = [
+                'comprehensive_support',
+                'multi_source_support',
+                'established_support',
+                'preliminary_evidence',
+                'minimal_evidence'
+            ]
+            # Parse comma-separated tiers
+            requested_tiers = [t.strip() for t in filter_tier.split(',') if t.strip()]
+
+            # Validate all requested tiers
+            invalid_tiers = [t for t in requested_tiers if t not in valid_tiers]
+            if invalid_tiers:
+                raise ValidationError(
+                    field="filter[tier]",
+                    reason=f"Invalid tier(s): {', '.join(invalid_tiers)}. Must be one of: {', '.join(valid_tiers)}"
+                )
+
         composition_data = statistics_crud.get_evidence_composition(
             db,
-            min_tier=min_tier,
+            filter_tiers=requested_tiers,
             hide_zero_scores=hide_zero_scores
         )
 
@@ -150,7 +231,7 @@ async def get_evidence_composition(
                 "query_duration_ms": query_duration_ms,
                 "data_version": datetime.utcnow().strftime("%Y%m%d"),
                 "visualization_type": "composition_analysis",
-                "min_tier": min_tier,
+                "filter_tiers": requested_tiers,
                 "hide_zero_scores": hide_zero_scores,
             },
         )

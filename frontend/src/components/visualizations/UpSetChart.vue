@@ -209,9 +209,9 @@ import { extractCombinations, renderUpSet } from '@upsetjs/bundle'
 
 // Props
 const props = defineProps({
-  minTier: {
-    type: String,
-    default: null
+  selectedTiers: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -266,7 +266,7 @@ const transformToUpSetFormat = apiData => {
 // Load available sources
 const loadAvailableSources = async () => {
   try {
-    const response = await statisticsApi.getSourceOverlaps(null, props.minTier)
+    const response = await statisticsApi.getSourceOverlaps(null, props.selectedTiers)
     if (response.data?.sets) {
       // Sort by cardinality descending (largest first) to match UpSet.js default
       const sources = response.data.sets
@@ -297,10 +297,13 @@ const loadData = async () => {
 
     window.logService.info('Calling API with sources', {
       sources: selectedSources.value,
-      minTier: props.minTier
+      selectedTiers: props.selectedTiers
     })
 
-    const response = await statisticsApi.getSourceOverlaps(selectedSources.value, props.minTier)
+    const response = await statisticsApi.getSourceOverlaps(
+      selectedSources.value,
+      props.selectedTiers
+    )
     window.logService.info('API response received', { data: response.data })
     data.value = response.data
 
@@ -364,16 +367,20 @@ watch(
   { immediate: false }
 )
 
-// Watch for minTier changes and reload data
+// Watch for tier changes and reload data
 watch(
-  () => props.minTier,
-  async (newTier, oldTier) => {
-    if (newTier !== oldTier) {
-      window.logService.info('Tier filter changed', { from: oldTier, to: newTier })
+  () => props.selectedTiers,
+  async (newTiers, oldTiers) => {
+    // Deep comparison of arrays
+    const tiersChanged =
+      JSON.stringify(newTiers?.slice().sort()) !== JSON.stringify(oldTiers?.slice().sort())
+    if (tiersChanged) {
+      window.logService.info('Tier filter changed', { from: oldTiers, to: newTiers })
       await loadAvailableSources()
       await loadData()
     }
-  }
+  },
+  { deep: true }
 )
 
 // Render UpSet plot using @upsetjs/bundle

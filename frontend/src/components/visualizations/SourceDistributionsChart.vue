@@ -97,9 +97,9 @@ import D3BarChart from './D3BarChart.vue'
 
 // Props
 const props = defineProps({
-  minTier: {
-    type: String,
-    default: null
+  selectedTiers: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -169,12 +169,7 @@ const loadData = async () => {
   error.value = null
 
   try {
-    const params = {}
-    if (props.minTier) {
-      params.min_tier = props.minTier
-    }
-
-    const response = await statisticsApi.getSourceDistributions(params.min_tier)
+    const response = await statisticsApi.getSourceDistributions(props.selectedTiers)
     data.value = response.data
 
     // Set default selected source
@@ -230,10 +225,17 @@ const getXAxisLabel = source => {
 
 // Watch for tier changes
 watch(
-  () => props.minTier,
-  () => {
-    loadData()
-  }
+  () => props.selectedTiers,
+  async (newTiers, oldTiers) => {
+    // Deep comparison of arrays
+    const tiersChanged =
+      JSON.stringify(newTiers?.slice().sort()) !== JSON.stringify(oldTiers?.slice().sort())
+    if (tiersChanged) {
+      window.logService.info('Tier filter changed', { from: oldTiers, to: newTiers })
+      await loadData()
+    }
+  },
+  { deep: true }
 )
 
 // Initialize

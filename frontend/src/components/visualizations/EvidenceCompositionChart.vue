@@ -113,9 +113,9 @@ import D3BarChart from './D3BarChart.vue'
 
 // Props
 const props = defineProps({
-  minTier: {
-    type: String,
-    default: null
+  selectedTiers: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -187,11 +187,11 @@ const loadData = async () => {
 
   try {
     window.logService.info('Loading evidence composition', {
-      minTier: props.minTier,
+      selectedTiers: props.selectedTiers,
       hideZeroScores: !showInsufficientEvidence.value
     })
     const response = await statisticsApi.getEvidenceComposition(
-      props.minTier,
+      props.selectedTiers,
       !showInsufficientEvidence.value // Invert: checkbox ON = show, API param = hide
     )
     data.value = response.data
@@ -219,14 +219,19 @@ const getViewDescription = () => {
   return descriptions[activeView.value] || ''
 }
 
-// Watch for minTier and showInsufficientEvidence changes and reload data
+// Watch for selectedTiers and showInsufficientEvidence changes and reload data
 watch(
-  () => props.minTier,
-  async (newTier, oldTier) => {
-    if (newTier !== oldTier) {
+  () => props.selectedTiers,
+  async (newTiers, oldTiers) => {
+    // Deep comparison of arrays
+    const tiersChanged =
+      JSON.stringify(newTiers?.slice().sort()) !== JSON.stringify(oldTiers?.slice().sort())
+    if (tiersChanged) {
+      window.logService.info('Tier filter changed', { from: oldTiers, to: newTiers })
       await loadData()
     }
-  }
+  },
+  { deep: true }
 )
 
 watch(

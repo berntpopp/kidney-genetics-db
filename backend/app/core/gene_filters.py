@@ -42,18 +42,21 @@ def get_gene_score_filter_clause(hide_zero_scores: bool | None = None) -> str:
     return "1=1"
 
 
-def get_gene_evidence_filter_join() -> tuple[str, str]:
+def get_gene_evidence_filter_join(hide_zero_scores: bool | None = None) -> tuple[str, str]:
     """
     Get JOIN and WHERE clauses for filtering genes via gene_evidence table.
 
     Use this when querying gene_evidence table directly and need to respect score filter.
+
+    Args:
+        hide_zero_scores: If provided, overrides config default
 
     Returns:
         Tuple of (join_clause, where_clause)
         - join_clause: SQL to join with gene_scores
         - where_clause: SQL WHERE condition for filtering
     """
-    if should_hide_zero_scores():
+    if should_hide_zero_scores(hide_zero_scores):
         return (
             "INNER JOIN gene_scores gs ON gs.gene_id = gene_evidence.gene_id",
             "gs.percentage_score > 0"
