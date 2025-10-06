@@ -282,27 +282,21 @@ const refreshData = () => {
 // Source selection methods
 const addSource = source => {
   if (!selectedSources.value.includes(source)) {
-    window.logService.info('Adding source:', source)
     // Create new array to ensure reactivity
     selectedSources.value = [...selectedSources.value, source]
-    window.logService.info('New selected sources:', selectedSources.value)
   }
 }
 
 const removeSource = async source => {
   const index = selectedSources.value.indexOf(source)
   if (index > -1) {
-    window.logService.info('Removing source:', source)
     // Create new array to ensure reactivity
     selectedSources.value = selectedSources.value.filter(s => s !== source)
-    window.logService.info('New selected sources:', selectedSources.value)
   }
 }
 
 const selectAllSources = () => {
-  window.logService.info('Selecting all sources')
   selectedSources.value = [...availableSources.value]
-  window.logService.info('New selected sources:', selectedSources.value)
 }
 
 // Watch for changes in selectedSources and reload data
@@ -322,7 +316,6 @@ watch(
   () => props.minTier,
   async (newTier, oldTier) => {
     if (newTier !== oldTier) {
-      window.logService.info('Tier filter changed from', oldTier, 'to', newTier)
       await loadAvailableSources()
       await loadData()
     }
@@ -343,6 +336,12 @@ const renderUpSetPlot = () => {
   const containerHeight = 500
   const width = containerWidth - margin.left - margin.right
   const height = containerHeight - margin.top - margin.bottom
+
+  // Skip rendering if container is hidden (width = 0, e.g., on inactive tab)
+  // ResizeObserver will trigger render when tab becomes visible
+  if (containerWidth === 0) {
+    return
+  }
 
   // Validate dimensions - don't render if container is too small
   const minWidth = 400
@@ -485,7 +484,6 @@ const renderUpSetPlot = () => {
     .style('cursor', 'pointer')
     .on('click', (event, d) => {
       selectedIntersection.value = d
-      window.logService.info('Selected intersection:', d)
     })
     .on('mouseover', function () {
       // Highlight this bar
@@ -557,7 +555,6 @@ const renderUpSetPlot = () => {
         })
         .on('click', function () {
           selectedIntersection.value = intersection
-          window.logService.info('Selected intersection via dot:', intersection)
         })
     })
   })
