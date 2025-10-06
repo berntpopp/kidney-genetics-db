@@ -189,12 +189,18 @@ const loadData = async () => {
     )
     data.value = response.data
 
-    // Set default selected source
+    // Set default selected source only if not already set or if current selection is no longer available
     if (data.value && Object.keys(data.value).length > 0) {
-      selectedSource.value = Object.keys(data.value)[0]
+      const availableSources = Object.keys(data.value)
+
+      // Only reset selectedSource if it's not set OR if it's no longer in the available sources
+      if (!selectedSource.value || !availableSources.includes(selectedSource.value)) {
+        selectedSource.value = availableSources[0]
+      }
 
       window.logService.info('Source distribution data loaded', {
         source: selectedSource.value,
+        availableSources: availableSources,
         metadata: data.value[selectedSource.value]?.metadata,
         distributionCount: data.value[selectedSource.value]?.distribution?.length,
         hideZeroScores: !showInsufficientEvidence.value

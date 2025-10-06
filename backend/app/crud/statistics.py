@@ -211,7 +211,11 @@ class CRUDStatistics:
             Dict with source-specific distribution data
         """
         try:
-            logger.sync_info("Calculating source distributions", filter_tiers=filter_tiers)
+            logger.sync_debug(
+                "get_source_distributions called",
+                filter_tiers=filter_tiers,
+                hide_zero_scores=hide_zero_scores
+            )
 
             # Build WHERE clause
             join_clause, filter_clause = get_gene_evidence_filter_join(hide_zero_scores)
@@ -224,6 +228,12 @@ class CRUDStatistics:
                 where_clauses.append(f"gs.evidence_tier IN ({tier_list_str})")
 
             filter_clause = " AND ".join(where_clauses) if len(where_clauses) > 1 else where_clauses[0]
+
+            logger.sync_debug(
+                "WHERE clause built for source distributions",
+                join_clause=join_clause,
+                filter_clause=filter_clause
+            )
 
             # Get all sources with filtering
             sources_query = f"""
