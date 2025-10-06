@@ -148,6 +148,7 @@ const loadData = async () => {
   error.value = null
 
   try {
+    window.logService.info('Loading evidence composition', { minTier: props.minTier })
     const response = await statisticsApi.getEvidenceComposition(props.minTier)
     data.value = response.data
   } catch (err) {

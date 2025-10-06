@@ -258,7 +258,12 @@ const loadData = async () => {
     }
 
     // Call API with selected sources and tier filter
+    window.logService.info('Calling API with sources', {
+      sources: selectedSources.value,
+      minTier: props.minTier
+    })
     const response = await statisticsApi.getSourceOverlaps(selectedSources.value, props.minTier)
+    window.logService.info('API response received', { data: response.data })
     data.value = response.data
 
     // Render UpSet plot after data is loaded
@@ -282,21 +287,27 @@ const refreshData = () => {
 // Source selection methods
 const addSource = source => {
   if (!selectedSources.value.includes(source)) {
+    window.logService.info('Adding source', { source })
     // Create new array to ensure reactivity
     selectedSources.value = [...selectedSources.value, source]
+    window.logService.info('Selected sources updated', { sources: selectedSources.value })
   }
 }
 
 const removeSource = async source => {
   const index = selectedSources.value.indexOf(source)
   if (index > -1) {
+    window.logService.info('Removing source', { source })
     // Create new array to ensure reactivity
     selectedSources.value = selectedSources.value.filter(s => s !== source)
+    window.logService.info('Selected sources updated', { sources: selectedSources.value })
   }
 }
 
 const selectAllSources = () => {
+  window.logService.info('Selecting all sources')
   selectedSources.value = [...availableSources.value]
+  window.logService.info('Selected sources updated', { sources: selectedSources.value })
 }
 
 // Watch for changes in selectedSources and reload data
@@ -305,6 +316,12 @@ watch(
   async (newSources, oldSources) => {
     // Only reload if sources actually changed and we're not in the initial load
     if (oldSources && newSources.length !== oldSources.length) {
+      window.logService.info('Source count changed', {
+        from: oldSources.length,
+        to: newSources.length,
+        previousSources: oldSources,
+        newSources: newSources
+      })
       await loadData()
     }
   },
@@ -316,6 +333,7 @@ watch(
   () => props.minTier,
   async (newTier, oldTier) => {
     if (newTier !== oldTier) {
+      window.logService.info('Tier filter changed', { from: oldTier, to: newTier })
       await loadAvailableSources()
       await loadData()
     }
@@ -484,6 +502,7 @@ const renderUpSetPlot = () => {
     .style('cursor', 'pointer')
     .on('click', (event, d) => {
       selectedIntersection.value = d
+      window.logService.info('Selected intersection', { intersection: d })
     })
     .on('mouseover', function () {
       // Highlight this bar
@@ -555,6 +574,7 @@ const renderUpSetPlot = () => {
         })
         .on('click', function () {
           selectedIntersection.value = intersection
+          window.logService.info('Selected intersection via dot', { intersection })
         })
     })
   })

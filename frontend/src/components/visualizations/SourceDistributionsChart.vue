@@ -179,6 +179,12 @@ const loadData = async () => {
     // Set default selected source
     if (data.value && Object.keys(data.value).length > 0) {
       selectedSource.value = Object.keys(data.value)[0]
+
+      window.logService.info('Source distribution data loaded', {
+        source: selectedSource.value,
+        metadata: data.value[selectedSource.value]?.metadata,
+        distributionCount: data.value[selectedSource.value]?.distribution?.length
+      })
     }
   } catch (err) {
     error.value = err.message || 'Failed to load source distribution data'

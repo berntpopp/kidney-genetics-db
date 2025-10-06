@@ -65,8 +65,11 @@ class LogService {
    */
   initStore(store) {
     this.store = store
-    // Minimal startup confirmation
-    this.info('Application logging ready')
+    this.info('LogService initialized', {
+      maxEntries: this.maxEntries,
+      minLogLevel: this.minLogLevel,
+      consoleEcho: this.consoleEcho
+    })
   }
 
   /**
@@ -264,8 +267,8 @@ class LogService {
     } catch (error) {
       console.error('Failed to load console echo setting:', error)
     }
-    // Default: true in development, false in production
-    return import.meta.env.DEV
+    // Default: false (logs go to UI only, users can enable console in settings)
+    return false
   }
 
   loadMaxEntriesFromStorage() {
