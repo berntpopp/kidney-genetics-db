@@ -571,15 +571,17 @@ class CRUDStatistics:
                 if row[0] in tier_config_map  # Now includes 'no_evidence' when hide_zero_scores=False
             ]
 
-            # Calculate source contribution weights (based on active sources)
+            # Calculate source contribution weights (respecting hide_zero_scores filter)
             source_stats = db.execute(
-                text("""
+                text(f"""
                     SELECT
-                        source_name,
-                        COUNT(DISTINCT gene_id) as gene_count,
+                        ge.source_name,
+                        COUNT(DISTINCT ge.gene_id) as gene_count,
                         COUNT(*) as evidence_count
-                    FROM gene_evidence
-                    GROUP BY source_name
+                    FROM gene_evidence ge
+                    INNER JOIN gene_scores gs ON ge.gene_id = gs.gene_id
+                    {where_clause}
+                    GROUP BY ge.source_name
                     ORDER BY gene_count DESC
                 """)
             ).fetchall()
