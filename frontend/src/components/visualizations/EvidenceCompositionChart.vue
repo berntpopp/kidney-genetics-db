@@ -148,7 +148,6 @@ const loadData = async () => {
   error.value = null
 
   try {
-    window.logService.info('Loading evidence composition with minTier:', props.minTier)
     const response = await statisticsApi.getEvidenceComposition(props.minTier)
     data.value = response.data
   } catch (err) {
@@ -180,7 +179,6 @@ watch(
   () => props.minTier,
   async (newTier, oldTier) => {
     if (newTier !== oldTier) {
-      window.logService.info('Tier filter changed from', oldTier, 'to', newTier)
       await loadData()
     }
   }

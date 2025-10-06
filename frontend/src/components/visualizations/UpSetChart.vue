@@ -258,14 +258,7 @@ const loadData = async () => {
     }
 
     // Call API with selected sources and tier filter
-    window.logService.info(
-      'Calling API with sources:',
-      selectedSources.value,
-      'and minTier:',
-      props.minTier
-    )
     const response = await statisticsApi.getSourceOverlaps(selectedSources.value, props.minTier)
-    window.logService.info('API response:', response.data)
     data.value = response.data
 
     // Render UpSet plot after data is loaded
@@ -318,14 +311,6 @@ watch(
   async (newSources, oldSources) => {
     // Only reload if sources actually changed and we're not in the initial load
     if (oldSources && newSources.length !== oldSources.length) {
-      window.logService.info(
-        'Source count changed from',
-        oldSources.length,
-        'to',
-        newSources.length
-      )
-      window.logService.info('Previous sources:', oldSources)
-      window.logService.info('New sources:', newSources)
       await loadData()
     }
   },
