@@ -513,6 +513,11 @@ class CRUDStatistics:
                     "label": "Minimal Evidence",
                     "color": "#9E9E9E",  # grey
                     "order": 5
+                },
+                "no_evidence": {
+                    "label": "Insufficient Evidence",
+                    "color": "#BDBDBD",  # lighter grey
+                    "order": 6
                 }
             }
 
@@ -560,10 +565,10 @@ class CRUDStatistics:
                     "tier_label": tier_config_map.get(row[0], {}).get("label", row[0]),
                     "gene_count": row[1],
                     "percentage": row[2],
-                    "color": tier_config_map.get(row[0], {}).get("color", "#9E9E9E"),
+                    "color": tier_config_map.get(row[0], {}).get("color", "#BDBDBD"),
                 }
                 for row in score_distribution
-                if row[0] in tier_config_map  # Only include known tiers (exclude 'no_evidence')
+                if row[0] in tier_config_map  # Now includes 'no_evidence' when hide_zero_scores=False
             ]
 
             # Calculate source contribution weights (based on active sources)
