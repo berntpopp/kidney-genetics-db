@@ -65,11 +65,6 @@ class LogService {
    */
   initStore(store) {
     this.store = store
-    this.info('LogService initialized', {
-      maxEntries: this.maxEntries,
-      minLogLevel: this.minLogLevel,
-      consoleEcho: this.consoleEcho
-    })
   }
 
   /**
