@@ -16,7 +16,9 @@ To use this source:
 Alternative: Implement selenium-based browser automation for data retrieval.
 """
 
+import asyncio
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -251,15 +253,14 @@ class DescartesAnnotationSource(BaseAnnotationSource):
 
     async def _load_from_local_files(self) -> bool:
         """
-        Load Descartes data from local CSV files.
+        Load Descartes data from local CSV files (NON-BLOCKING).
 
         This is a fallback for when direct download is blocked by CloudFront.
+        Uses asyncio.to_thread to prevent event loop blocking during file I/O.
 
         Returns:
             True if successfully loaded, False otherwise
         """
-        from pathlib import Path
-
         cache_dir = Path(".cache/descartes")
         tpm_file = cache_dir / "kidney_tpm.csv"
         percentage_file = cache_dir / "kidney_percentage.csv"
@@ -268,18 +269,23 @@ class DescartesAnnotationSource(BaseAnnotationSource):
             return False
 
         try:
-            # Load TPM data
-            with open(tpm_file) as f:
-                self._tpm_data = self._parse_csv(f.read())
+            # Define sync file reader helper (runs in thread pool)
+            def read_file_sync(path: Path) -> str:
+                """Read file synchronously - will be executed in thread pool."""
+                with open(path, encoding="utf-8") as f:
+                    return f.read()
 
-            # Load percentage data
-            with open(percentage_file) as f:
-                self._percentage_data = self._parse_csv(f.read())
+            # Load files in thread pool (non-blocking)
+            tpm_content = await asyncio.to_thread(read_file_sync, tpm_file)
+            self._tpm_data = self._parse_csv(tpm_content)
+
+            percentage_content = await asyncio.to_thread(read_file_sync, percentage_file)
+            self._percentage_data = self._parse_csv(percentage_content)
 
             self._last_fetch = datetime.utcnow()
 
             logger.sync_info(
-                "Loaded Descartes data from local files",
+                "Loaded Descartes data from local files (non-blocking)",
                 tpm_genes=len(self._tpm_data),
                 percentage_genes=len(self._percentage_data),
             )

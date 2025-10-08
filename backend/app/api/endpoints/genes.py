@@ -167,25 +167,38 @@ def get_total_gene_count(db_session_id: int) -> int:
 def log_slow_query(
     query_name: str,
     execution_time_ms: float,
-    threshold_ms: float = 100,
+    threshold_ms: float = 50,
     query_preview: str | None = None
 ) -> None:
     """
     Log queries that exceed performance threshold.
 
+    Queries >50ms should be monitored. Queries >100ms should be
+    considered for thread pool offloading to prevent event loop blocking.
+
     Args:
         query_name: Descriptive name of the query
         execution_time_ms: Query execution time in milliseconds
-        threshold_ms: Threshold above which to log (default: 100ms)
+        threshold_ms: Threshold above which to log (default: 50ms)
         query_preview: Optional query preview (first 200 chars)
     """
     if execution_time_ms > threshold_ms:
-        logger.sync_warning(
-            f"Slow query detected: {query_name}",
-            execution_time_ms=round(execution_time_ms, 2),
-            threshold_ms=threshold_ms,
-            query_preview=query_preview[:200] if query_preview else None
-        )
+        # Suggest thread pool offloading for very slow queries
+        if execution_time_ms > 100:
+            logger.sync_warning(
+                f"CONSIDER OFFLOADING: {query_name}",
+                execution_time_ms=round(execution_time_ms, 2),
+                threshold_ms=threshold_ms,
+                recommendation="Use loop.run_in_executor() or run_in_threadpool() for queries >100ms",
+                query_preview=query_preview[:200] if query_preview else None
+            )
+        else:
+            logger.sync_warning(
+                f"Slow query detected: {query_name}",
+                execution_time_ms=round(execution_time_ms, 2),
+                threshold_ms=threshold_ms,
+                query_preview=query_preview[:200] if query_preview else None
+            )
 
 
 def transform_gene_to_jsonapi(results) -> list[dict]:
