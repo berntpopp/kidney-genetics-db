@@ -14,6 +14,8 @@
     "@mdi/font": "^7.4.47",
     "@upsetjs/bundle": "^1.11.0",
     "axios": "^1.11.0",
+    "cytoscape": "^3.33.1",
+    "cytoscape-cose-bilkent": "^4.1.0",
     "d3": "^7.9.0",
     "pinia": "^3.0.3",
     "vue": "^3.5.18",

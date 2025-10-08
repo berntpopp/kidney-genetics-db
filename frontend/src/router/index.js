@@ -38,6 +38,11 @@ const routes = [
     component: () => import('../views/DataSources.vue')
   },
   {
+    path: '/network-analysis',
+    name: 'network-analysis',
+    component: () => import('../views/NetworkAnalysis.vue')
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('../views/Login.vue')

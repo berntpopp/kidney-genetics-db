@@ -57,6 +57,16 @@
           Dashboard
         </v-btn>
         <v-btn
+          :to="'/network-analysis'"
+          variant="text"
+          :color="$route.path === '/network-analysis' ? 'primary' : ''"
+          class="text-none"
+          size="default"
+        >
+          <v-icon icon="mdi-chart-scatter-plot" size="small" class="mr-1" />
+          Network Analysis
+        </v-btn>
+        <v-btn
           :to="'/data-sources'"
           variant="text"
           :color="$route.path === '/data-sources' ? 'primary' : ''"
@@ -159,6 +169,12 @@
           title="Dashboard"
           :to="'/dashboard'"
           :active="$route.path === '/dashboard'"
+        />
+        <v-list-item
+          prepend-icon="mdi-chart-scatter-plot"
+          title="Network Analysis"
+          :to="'/network-analysis'"
+          :active="$route.path === '/network-analysis'"
         />
         <v-list-item
           prepend-icon="mdi-database-sync"

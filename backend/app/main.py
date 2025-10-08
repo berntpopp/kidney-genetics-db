@@ -19,6 +19,7 @@ from app.api.endpoints import (
     gene_staging,
     genes,
     ingestion,
+    network_analysis,
     progress,
     releases,
     shadow_tests,
@@ -149,7 +150,12 @@ app.include_router(ingestion.router, prefix="/api/ingestion", tags=["Pipeline - 
 app.include_router(progress.router, prefix="/api/progress", tags=["Pipeline - Progress Monitoring"])
 
 # 3. Analytics - Statistics and reporting
-app.include_router(statistics.router, prefix="/api/statistics", tags=["Analytics"])
+app.include_router(statistics.router, prefix="/api/statistics", tags=["Analytics - Statistics"])
+app.include_router(
+    network_analysis.router,
+    prefix="/api/network",
+    tags=["Analytics - Network Analysis & Enrichment"]
+)
 
 # 4. Administration - System management and monitoring
 app.include_router(admin_logs.router, prefix="/api/admin/logs", tags=["Administration - Logging"])
