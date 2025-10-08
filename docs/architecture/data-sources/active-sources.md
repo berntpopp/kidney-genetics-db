@@ -63,19 +63,29 @@ The kidney-genetics database integrates data from multiple authoritative sources
 - **Update Frequency**: Real-time API calls
 - **Note**: Using HPO API for all data retrieval
 
-## Pending Implementation (2)
+## Hybrid Sources (Upload-Based)
 
-### 6. Diagnostic Panels
-- **Status**: 🔄 Planned
-- **Sources**: Blueprint Genetics, Natera, Invitae
-- **Challenge**: Requires web scraping service
-- **Priority**: Medium
+### 6. DiagnosticPanels
+- **Status**: ✅ Fully Operational (Upload Interface)
+- **Sources**: Blueprint Genetics, Invitae, GeneDx, CeGaT, custom labs
+- **Upload Method**: Admin panel file upload
+- **Formats**: JSON, CSV, TSV, Excel (max 50MB)
+- **Features**:
+  - Provider attribution
+  - Evidence merging (no duplicates)
+  - Auto gene normalization
+  - Upload via `/admin/hybrid-sources`
 
 ### 7. Literature (Manual)
-- **Status**: 🔄 Planned
-- **Type**: Manual upload endpoint
-- **Format**: Excel/CSV upload
-- **Priority**: Low
+- **Status**: ✅ Fully Operational (Upload Interface)
+- **Type**: Manual curation upload
+- **Format**: Excel/CSV/JSON upload
+- **Use Case**: Research publications, case reports
+- **Features**:
+  - Custom evidence types
+  - Publication tracking
+  - PMID integration
+  - Upload via `/admin/hybrid-sources`
 
 ## Data Integration Flow
 
