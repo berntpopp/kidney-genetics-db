@@ -22,6 +22,7 @@ from .performance import (
     api_endpoint,
     batch_operation,
     database_query,
+    monitor_blocking,
     timed_operation,
 )
 from .unified_logger import UnifiedLogger, get_logger
@@ -41,6 +42,7 @@ __all__ = [
     "database_query",
     "api_endpoint",
     "batch_operation",
+    "monitor_blocking",
     "PerformanceMonitor",
 ]
 

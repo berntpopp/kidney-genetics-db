@@ -448,22 +448,31 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                 cache_file = backend_dir / cache_file_relative
 
                 if cache_file.exists():
-                    with open(cache_file) as f:
-                        self._mpo_terms_cache = set(json.load(f))
+                    # Read file in thread pool (non-blocking)
+                    def read_json_file(path: Path) -> set:
+                        """Read and parse JSON file synchronously."""
+                        with open(path, encoding="utf-8") as f:
+                            return set(json.load(f))
+
+                    self._mpo_terms_cache = await asyncio.to_thread(read_json_file, cache_file)
                     logger.sync_info(
-                        f"Loaded {len(self._mpo_terms_cache)} MPO terms from cache file"
+                        f"Loaded {len(self._mpo_terms_cache)} MPO terms from cache file (non-blocking)"
                     )
                 else:
                     # Fetch terms from API and create cache file
                     logger.sync_info("MPO terms cache not found, fetching from API...")
                     self._mpo_terms_cache = await self.fetch_kidney_mpo_terms()
 
-                    # Save to cache file for next time
-                    cache_file.parent.mkdir(exist_ok=True, parents=True)
-                    with open(cache_file, "w") as f:
-                        json.dump(sorted(self._mpo_terms_cache), f, indent=2)
+                    # Write file in thread pool (non-blocking)
+                    def write_json_file(path: Path, data: set) -> None:
+                        """Write JSON file synchronously."""
+                        path.parent.mkdir(exist_ok=True, parents=True)
+                        with open(path, "w", encoding="utf-8") as f:
+                            json.dump(sorted(data), f, indent=2)
+
+                    await asyncio.to_thread(write_json_file, cache_file, self._mpo_terms_cache)
                     logger.sync_info(
-                        f"Fetched {len(self._mpo_terms_cache)} MPO terms and saved to cache"
+                        f"Fetched {len(self._mpo_terms_cache)} MPO terms and saved to cache (non-blocking)"
                     )
                 self._mpo_cache_timestamp = datetime.now(timezone.utc)
 

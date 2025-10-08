@@ -270,6 +270,20 @@ const adminSections = [
       'Download backup files',
       'Automatic retention policy'
     ]
+  },
+  {
+    id: 'hybrid-sources',
+    title: 'Hybrid Sources',
+    description: 'Upload DiagnosticPanels and Literature data',
+    icon: 'mdi-database-import',
+    color: 'cyan',
+    route: '/admin/hybrid-sources',
+    features: [
+      'Upload diagnostic panel files',
+      'Upload literature evidence',
+      'View upload statistics',
+      'Manage provider data'
+    ]
   }
 ]
 

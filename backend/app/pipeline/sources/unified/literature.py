@@ -269,12 +269,47 @@ class LiteratureSource(UnifiedDataSource):
         return f"Literature: {pub_count} publications"
 
     async def store_evidence(
-        self, db: Session, gene_data: dict[str, Any], source_detail: str | None = None
+        self,
+        db: Session,
+        gene_data: dict[str, Any],
+        source_detail: str | None = None,
+        file_hash: str | None = None,
+        original_filename: str | None = None,
+        uploaded_by: str | None = None,
+        mode: str = "merge",
     ) -> dict[str, Any]:
         """Store evidence with MERGE semantics and filtering for literature sources."""
 
         if not gene_data:
             return {"merged": 0, "created": 0, "failed": 0, "filtered": 0}
+
+        # Create upload record if tracking parameters provided
+        from app.models.static_sources import StaticEvidenceUpload, StaticSource
+
+        upload_record = None
+        if file_hash:
+            static_source = db.query(StaticSource).filter(
+                StaticSource.source_name == self.source_name
+            ).first()
+
+            if static_source:
+                upload_record = StaticEvidenceUpload(
+                    source_id=static_source.id,
+                    evidence_name=source_detail or "unknown",
+                    file_hash=file_hash,
+                    original_filename=original_filename,
+                    upload_status="processing",
+                    uploaded_by=uploaded_by or "system",
+                    upload_metadata={"mode": mode},
+                )
+                db.add(upload_record)
+                db.flush()  # Get upload.id
+
+                logger.sync_info(
+                    "Upload record created",
+                    upload_id=upload_record.id,
+                    publication=source_detail,
+                )
 
         stats = {"merged": 0, "created": 0, "failed": 0, "filtered": 0}
 
@@ -428,6 +463,20 @@ class LiteratureSource(UnifiedDataSource):
                     publication_count=info["data"]["publication_count"],
                 )
                 stats["merged"] += 1
+
+        # Update upload record on completion
+        if upload_record:
+            upload_record.upload_status = "completed"
+            upload_record.gene_count = len(gene_data)
+            upload_record.genes_normalized = stats["created"] + stats["merged"]
+            upload_record.genes_failed = stats["failed"]
+            upload_record.processed_at = datetime.now(timezone.utc)
+
+            logger.sync_info(
+                "Upload record updated",
+                upload_id=upload_record.id,
+                stats=stats,
+            )
 
         return stats
 

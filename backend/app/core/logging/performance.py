@@ -310,3 +310,56 @@ class PerformanceMonitor:
             await _get_logger().info("Performance block completed", **context)
 
         return False  # Don't suppress exceptions
+
+
+def monitor_blocking(threshold_ms: float = 5.0):
+    """
+    Decorator to monitor and log event loop blocking in async functions.
+
+    Detects when async operations take longer than expected, which may
+    indicate blocking I/O or CPU-bound operations that should be offloaded
+    to a thread pool.
+
+    Args:
+        threshold_ms: Threshold in milliseconds above which to log a warning (default: 5ms)
+
+    Usage:
+        @monitor_blocking(threshold_ms=10.0)
+        async def potentially_blocking_function():
+            # Function code here
+            pass
+
+    Example:
+        @monitor_blocking(threshold_ms=5.0)
+        async def fetch_data():
+            # If this takes >5ms, a warning will be logged
+            result = await some_operation()
+            return result
+    """
+
+    def decorator(func: Callable) -> Callable:
+        if not asyncio.iscoroutinefunction(func):
+            raise TypeError(f"monitor_blocking can only be applied to async functions, got {func}")
+
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            loop = asyncio.get_event_loop()
+            start = loop.time()
+
+            result = await func(*args, **kwargs)
+
+            duration_ms = (loop.time() - start) * 1000
+            if duration_ms > threshold_ms:
+                await _get_logger().warning(
+                    f"Potential event loop blocking in {func.__name__}",
+                    duration_ms=round(duration_ms, 2),
+                    threshold_ms=threshold_ms,
+                    function=f"{func.__module__}.{func.__name__}",
+                    recommendation="Consider offloading to thread pool if this operation involves I/O or is CPU-bound",
+                )
+
+            return result
+
+        return wrapper
+
+    return decorator

@@ -106,6 +106,12 @@ const routes = [
     name: 'admin-backups',
     component: () => import('../views/admin/AdminBackups.vue'),
     meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/hybrid-sources',
+    name: 'admin-hybrid-sources',
+    component: () => import('../views/admin/AdminHybridSources.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
   }
 ]
 

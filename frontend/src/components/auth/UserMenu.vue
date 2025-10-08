@@ -41,13 +41,6 @@
           </template>
           <v-list-item-title>Admin Panel</v-list-item-title>
         </v-list-item>
-
-        <v-list-item v-if="authStore.isCurator" @click="goToDataIngestion">
-          <template #prepend>
-            <v-icon size="small">mdi-database-import</v-icon>
-          </template>
-          <v-list-item-title>Data Ingestion</v-list-item-title>
-        </v-list-item>
       </v-list>
 
       <v-divider />
@@ -93,11 +86,6 @@ const goToProfile = () => {
 const goToAdminPanel = () => {
   menu.value = false
   router.push('/admin')
-}
-
-const goToDataIngestion = () => {
-  menu.value = false
-  router.push('/ingestion')
 }
 
 const handleLogout = async () => {

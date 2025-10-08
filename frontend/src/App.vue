@@ -132,12 +132,6 @@
             title="Admin Panel"
             :to="'/admin'"
           />
-          <v-list-item
-            v-if="authStore.isCurator"
-            prepend-icon="mdi-database-import"
-            title="Data Ingestion"
-            :to="'/ingestion'"
-          />
           <v-list-item prepend-icon="mdi-logout" title="Logout" @click="handleLogout" />
         </v-list>
         <v-divider />
