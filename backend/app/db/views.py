@@ -520,6 +520,37 @@ source_distribution_pubtator = ReplaceableObject(
     dependencies=[],
 )
 
+# Hybrid source views for DiagnosticPanels and Literature management
+v_diagnostic_panel_providers = ReplaceableObject(
+    name="v_diagnostic_panel_providers",
+    sqltext="""
+    SELECT
+        jsonb_array_elements_text(evidence_data->'providers') as provider_name,
+        COUNT(DISTINCT gene_id) as gene_count,
+        MAX(updated_at) as last_updated
+    FROM gene_evidence
+    WHERE source_name = 'DiagnosticPanels'
+    GROUP BY provider_name
+    ORDER BY gene_count DESC
+    """,
+    dependencies=[],
+)
+
+v_literature_publications = ReplaceableObject(
+    name="v_literature_publications",
+    sqltext="""
+    SELECT
+        jsonb_array_elements_text(evidence_data->'publications') as pmid,
+        COUNT(DISTINCT gene_id) as gene_count,
+        MAX(updated_at) as last_updated
+    FROM gene_evidence
+    WHERE source_name = 'Literature'
+    GROUP BY pmid
+    ORDER BY gene_count DESC
+    """,
+    dependencies=[],
+)
+
 # List of all views in dependency order
 ALL_VIEWS = [
     # Tier 1 (no dependencies)
@@ -538,6 +569,9 @@ ALL_VIEWS = [
     source_distribution_diagnosticpanels,
     source_distribution_panelapp,
     source_distribution_pubtator,
+    # Hybrid source management views
+    v_diagnostic_panel_providers,
+    v_literature_publications,
     # Tier 2 (depend on Tier 1)
     evidence_count_percentiles,
     evidence_normalized_scores,

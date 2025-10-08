@@ -54,11 +54,10 @@ class StaticSourceAudit(Base):
     __tablename__ = "static_source_audit"
 
     id = Column(BigInteger, primary_key=True, index=True)
-    source_id = Column(Integer, ForeignKey("static_sources.id"), nullable=False, index=True)
-    upload_id = Column(Integer, nullable=True)
+    source_id = Column(BigInteger, ForeignKey("static_sources.id"), nullable=False, index=True)
     action = Column(String(50), nullable=False)  # Matches 'action' column in DB
-    details = Column(JSONB, nullable=True)
-    performed_by = Column(String(255), nullable=True)
+    user_id = Column(BigInteger, nullable=True)  # Actual DB column name
+    changes = Column(JSONB, nullable=True)  # Actual DB column name
     performed_at = Column(DateTime, nullable=True)  # No timezone in DB
 
     # Relationships

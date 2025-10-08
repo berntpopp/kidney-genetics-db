@@ -18,8 +18,10 @@ from app.core.exceptions import DataSourceError, ValidationError
 from app.core.logging import get_logger
 from app.core.responses import ResponseBuilder
 from app.models.gene import GeneEvidence
+from app.models.static_sources import StaticEvidenceUpload, StaticSourceAudit
 from app.models.user import User
 from app.pipeline.sources.unified import get_unified_source
+from app.services.hybrid_source_manager import get_source_manager
 
 logger = get_logger(__name__)
 
@@ -34,6 +36,7 @@ async def upload_evidence_file(
     source_name: str,
     file: UploadFile = File(...),
     provider_name: str | None = Form(None),
+    mode: str = Form("merge"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_curator),
 ) -> dict[str, Any]:
@@ -61,6 +64,10 @@ async def upload_evidence_file(
             f"Source does not support file uploads. Available: {', '.join(UPLOAD_SOURCES)}",
         )
 
+    # Validate mode
+    if mode not in ["merge", "replace"]:
+        raise ValidationError(field="mode", reason="Mode must be 'merge' or 'replace'")
+
     # Validate file size (50MB limit)
     file_size = 0
     content_chunks = []
@@ -73,6 +80,15 @@ async def upload_evidence_file(
             raise ValidationError(field="file", reason="File size exceeds 50MB limit")
 
     file_content = b"".join(content_chunks)
+
+    # Calculate SHA256 hash of file content
+    import hashlib
+
+    file_hash = hashlib.sha256(file_content).hexdigest()
+
+    await logger.info(
+        "File hash calculated", file_hash=file_hash, filename=file.filename, mode=mode
+    )
 
     # Determine file type
     if not file.filename:
@@ -98,9 +114,48 @@ async def upload_evidence_file(
         provider_name=provider_name,
         uploaded_by=current_user.username,
         user_role=current_user.role,
+        mode=mode,
     )
 
     try:
+        # REPLACE mode: Delete existing data first (with transaction safety)
+        if mode == "replace" and provider_name:
+            from app.services.hybrid_source_manager import get_source_manager
+
+            await logger.info(
+                "REPLACE mode: deleting existing data",
+                provider=provider_name,
+                source=source_name,
+            )
+
+            try:
+                # Start savepoint for rollback capability
+                savepoint = db.begin_nested()
+
+                try:
+                    manager = get_source_manager(source_name, db)
+                    delete_stats = await manager.delete_by_identifier(
+                        provider_name, current_user.username
+                    )
+
+                    await logger.info("REPLACE mode: existing data deleted", stats=delete_stats)
+
+                except Exception as delete_error:
+                    savepoint.rollback()
+                    await logger.error(
+                        "REPLACE mode: delete failed, rolling back", error=delete_error
+                    )
+                    raise DataSourceError(
+                        source_name,
+                        "replace_delete",
+                        f"Failed to delete existing data: {str(delete_error)}",
+                    ) from delete_error
+
+            except Exception:
+                # Rollback entire transaction on failure
+                db.rollback()
+                raise
+
         # Get source processor
         await logger.info("Getting source processor", source_name=source_name)
         source = get_unified_source(source_name, db_session=db)
@@ -212,7 +267,15 @@ async def upload_evidence_file(
             "Starting evidence storage", gene_count=len(processed_data), provider=provider_name
         )
 
-        evidence_stats = await source.store_evidence(db, processed_data, provider_name)
+        evidence_stats = await source.store_evidence(
+            db,
+            processed_data,
+            provider_name,
+            file_hash=file_hash,
+            original_filename=file.filename,
+            uploaded_by=current_user.username,
+            mode=mode,
+        )
 
         await logger.info("Evidence storage complete", stats=evidence_stats)
 
@@ -359,4 +422,353 @@ async def list_hybrid_sources() -> dict[str, Any]:
 
     return ResponseBuilder.build_success_response(
         data={"sources": sources}, meta={"total": len(sources)}
+    )
+
+
+@router.delete("/{source_name}/identifiers/{identifier}")
+async def delete_by_identifier(
+    source_name: str,
+    identifier: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_curator),
+) -> dict[str, Any]:
+    """
+    Delete evidence by provider/publication identifier.
+
+    Args:
+        source_name: Name of the source (DiagnosticPanels or Literature)
+        identifier: Provider name (DiagnosticPanels) or PMID (Literature)
+        db: Database session
+        current_user: Authenticated user
+
+    Returns:
+        Deletion statistics and audit record
+    """
+    if source_name not in UPLOAD_SOURCES:
+        raise DataSourceError(
+            source_name, "delete", f"Source not found. Available: {', '.join(UPLOAD_SOURCES)}"
+        )
+
+    await logger.info(
+        "Deleting evidence by identifier",
+        source=source_name,
+        identifier=identifier,
+        user=current_user.username,
+    )
+
+    try:
+        manager = get_source_manager(source_name, db)
+        stats = await manager.delete_by_identifier(identifier, current_user.username)
+
+        db.commit()
+
+        await logger.info("Deletion complete", source=source_name, identifier=identifier, stats=stats)
+
+        return ResponseBuilder.build_success_response(
+            data={
+                "source": source_name,
+                "identifier": identifier,
+                "deletion_stats": stats,
+                "message": f"Successfully deleted {stats.get('deleted_evidence', 0)} evidence records",
+            },
+            meta={"deleted_by": current_user.username},
+        )
+
+    except Exception as e:
+        db.rollback()
+        await logger.error(
+            "Failed to delete by identifier",
+            source=source_name,
+            identifier=identifier,
+            error=str(e),
+        )
+        raise DataSourceError(source_name, "delete", f"Deletion failed: {str(e)}") from e
+
+
+@router.delete("/{source_name}/uploads/{upload_id}")
+async def soft_delete_upload(
+    source_name: str,
+    upload_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_curator),
+) -> dict[str, Any]:
+    """
+    Soft delete an upload record (marks as deleted, doesn't remove data).
+
+    Args:
+        source_name: Name of the source
+        upload_id: ID of the upload to delete
+        db: Database session
+        current_user: Authenticated user
+
+    Returns:
+        Updated upload record
+    """
+    if source_name not in UPLOAD_SOURCES:
+        raise DataSourceError(
+            source_name, "delete", f"Source not found. Available: {', '.join(UPLOAD_SOURCES)}"
+        )
+
+    # Find upload record
+    stmt = select(StaticEvidenceUpload).where(StaticEvidenceUpload.id == upload_id)
+    upload = db.execute(stmt).scalar_one_or_none()
+
+    if not upload:
+        raise ValidationError(field="upload_id", reason=f"Upload {upload_id} not found")
+
+    await logger.info(
+        "Soft deleting upload record",
+        upload_id=upload_id,
+        source=source_name,
+        user=current_user.username,
+    )
+
+    # Soft delete by updating status
+    upload.upload_status = "deleted"
+    upload.updated_at = func.now()
+
+    # Create audit record
+    from app.models.static_sources import StaticSource
+
+    static_source = db.query(StaticSource).filter(StaticSource.source_name == source_name).first()
+
+    if static_source:
+        from datetime import datetime
+
+        # Get user ID for audit
+        user_result = db.execute(
+            select(User.id).where(User.username == current_user.username)
+        ).scalar_one_or_none()
+
+        audit = StaticSourceAudit(
+            source_id=static_source.id,
+            action="soft_delete_upload",
+            changes={"upload_id": upload_id, "evidence_name": upload.evidence_name},
+            user_id=user_result,
+            performed_at=datetime.utcnow(),
+        )
+        db.add(audit)
+
+    db.commit()
+
+    await logger.info("Upload soft deleted", upload_id=upload_id, source=source_name)
+
+    return ResponseBuilder.build_success_response(
+        data={
+            "upload_id": upload_id,
+            "source": source_name,
+            "status": "deleted",
+            "message": f"Upload {upload_id} marked as deleted",
+        },
+        meta={"deleted_by": current_user.username},
+    )
+
+
+@router.get("/{source_name}/uploads")
+async def list_uploads(
+    source_name: str,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    List upload history for a source.
+
+    Args:
+        source_name: Name of the source
+        limit: Maximum number of records to return
+        offset: Number of records to skip
+        db: Database session
+
+    Returns:
+        List of upload records
+    """
+    if source_name not in UPLOAD_SOURCES:
+        raise DataSourceError(
+            source_name, "list", f"Source not found. Available: {', '.join(UPLOAD_SOURCES)}"
+        )
+
+    # Get source ID
+    from app.models.static_sources import StaticSource
+
+    static_source = db.query(StaticSource).filter(StaticSource.source_name == source_name).first()
+
+    if not static_source:
+        raise DataSourceError(source_name, "list", "Source configuration not found")
+
+    # Query uploads
+    stmt = (
+        select(StaticEvidenceUpload)
+        .where(StaticEvidenceUpload.source_id == static_source.id)
+        .order_by(StaticEvidenceUpload.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    uploads = db.execute(stmt).scalars().all()
+
+    # Count total
+    count_stmt = select(func.count(StaticEvidenceUpload.id)).where(
+        StaticEvidenceUpload.source_id == static_source.id
+    )
+    total = db.execute(count_stmt).scalar()
+
+    # Convert to dict
+    upload_list = []
+    for upload in uploads:
+        upload_list.append(
+            {
+                "id": upload.id,
+                "evidence_name": upload.evidence_name,
+                "file_hash": upload.file_hash,
+                "original_filename": upload.original_filename,
+                "upload_status": upload.upload_status,
+                "uploaded_by": upload.uploaded_by,
+                "uploaded_at": upload.created_at.isoformat() if upload.created_at else None,
+                "processed_at": upload.processed_at.isoformat() if upload.processed_at else None,
+                "gene_count": upload.gene_count,
+                "genes_normalized": upload.genes_normalized,
+                "genes_failed": upload.genes_failed,
+                "upload_metadata": upload.upload_metadata,
+            }
+        )
+
+    return ResponseBuilder.build_success_response(
+        data={"uploads": upload_list},
+        meta={"total": total, "limit": limit, "offset": offset, "source_name": source_name},
+    )
+
+
+@router.get("/{source_name}/audit")
+async def get_audit_trail(
+    source_name: str,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Get audit trail for a source.
+
+    Args:
+        source_name: Name of the source
+        limit: Maximum number of records to return
+        offset: Number of records to skip
+        db: Database session
+
+    Returns:
+        List of audit records
+    """
+    if source_name not in UPLOAD_SOURCES:
+        raise DataSourceError(
+            source_name, "audit", f"Source not found. Available: {', '.join(UPLOAD_SOURCES)}"
+        )
+
+    # Get source ID
+    from app.models.static_sources import StaticSource
+
+    static_source = db.query(StaticSource).filter(StaticSource.source_name == source_name).first()
+
+    if not static_source:
+        raise DataSourceError(source_name, "audit", "Source configuration not found")
+
+    # Query audit records
+    stmt = (
+        select(StaticSourceAudit)
+        .where(StaticSourceAudit.source_id == static_source.id)
+        .order_by(StaticSourceAudit.performed_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    audits = db.execute(stmt).scalars().all()
+
+    # Count total
+    count_stmt = select(func.count(StaticSourceAudit.id)).where(
+        StaticSourceAudit.source_id == static_source.id
+    )
+    total = db.execute(count_stmt).scalar()
+
+    # Convert to dict
+    audit_list = []
+    for audit in audits:
+        # Get username from user_id
+        username = None
+        if audit.user_id:
+            user = db.execute(
+                select(User.username).where(User.id == audit.user_id)
+            ).scalar_one_or_none()
+            username = user if user else f"user_{audit.user_id}"
+
+        audit_list.append(
+            {
+                "id": audit.id,
+                "action": audit.action,
+                "performed_by": username,
+                "performed_at": audit.performed_at.isoformat() if audit.performed_at else None,
+                "details": audit.changes,
+            }
+        )
+
+    return ResponseBuilder.build_success_response(
+        data={"audit_records": audit_list},
+        meta={"total": total, "limit": limit, "offset": offset, "source_name": source_name},
+    )
+
+
+@router.get("/{source_name}/identifiers")
+async def list_identifiers(
+    source_name: str, db: Session = Depends(get_db)
+) -> dict[str, Any]:
+    """
+    List all providers (DiagnosticPanels) or PMIDs (Literature) for a source.
+
+    Args:
+        source_name: Name of the source
+        db: Database session
+
+    Returns:
+        List of identifiers with gene counts
+    """
+    if source_name not in UPLOAD_SOURCES:
+        raise DataSourceError(
+            source_name, "list", f"Source not found. Available: {', '.join(UPLOAD_SOURCES)}"
+        )
+
+    await logger.info("Listing identifiers", source=source_name)
+
+    # Use views for efficient identifier listing
+    if source_name == "DiagnosticPanels":
+        view_query = """
+            SELECT provider_name as identifier, gene_count, last_updated
+            FROM v_diagnostic_panel_providers
+            ORDER BY gene_count DESC
+        """
+    elif source_name == "Literature":
+        view_query = """
+            SELECT pmid as identifier, gene_count, last_updated
+            FROM v_literature_publications
+            ORDER BY gene_count DESC
+        """
+    else:
+        raise DataSourceError(source_name, "list", "Unsupported source")
+
+    from sqlalchemy import text
+
+    result = db.execute(text(view_query))
+    rows = result.fetchall()
+
+    # Convert to list of dicts
+    identifiers = []
+    for row in rows:
+        identifiers.append(
+            {
+                "identifier": row.identifier,
+                "gene_count": row.gene_count,
+                "last_updated": row.last_updated.isoformat() if row.last_updated else None,
+            }
+        )
+
+    return ResponseBuilder.build_success_response(
+        data={"identifiers": identifiers},
+        meta={"total": len(identifiers), "source_name": source_name},
     )
