@@ -6,7 +6,7 @@
         <div class="d-flex align-center">
           <v-chip :color="clusterColor" size="small" label class="mr-3">
             <v-icon start>mdi-atom</v-icon>
-            Cluster {{ clusterId + 1 }}
+            {{ clusterDisplayName || `Cluster ${clusterId + 1}` }}
           </v-chip>
           <div>
             <h3 class="text-h6 font-weight-medium">Cluster Details</h3>
@@ -154,6 +154,10 @@ const props = defineProps({
     type: Number,
     default: null
   },
+  clusterDisplayName: {
+    type: String,
+    default: ''
+  },
   clusterColor: {
     type: String,
     default: '#1976D2'
@@ -212,9 +216,12 @@ const copyGeneSymbol = symbol => {
 const exportClusterGenes = () => {
   if (props.genes.length === 0) return
 
+  // Use display name or fallback to cluster ID
+  const clusterName = props.clusterDisplayName || `Cluster ${props.clusterId + 1}`
+
   // Create CSV content
-  const headers = ['Gene Symbol', 'Gene ID', 'Cluster ID']
-  const rows = props.genes.map(g => [g.symbol, g.gene_id, props.clusterId + 1])
+  const headers = ['Gene Symbol', 'Gene ID', 'Cluster']
+  const rows = props.genes.map(g => [g.symbol, g.gene_id, clusterName])
 
   const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n')
 
@@ -222,7 +229,8 @@ const exportClusterGenes = () => {
   const blob = new Blob([csv], { type: 'text/csv' })
   const link = document.createElement('a')
   link.href = URL.createObjectURL(blob)
-  link.download = `cluster_${props.clusterId + 1}_genes_${Date.now()}.csv`
+  const sanitizedName = clusterName.toLowerCase().replace(/\s+/g, '_')
+  link.download = `${sanitizedName}_genes_${Date.now()}.csv`
   link.click()
 }
 

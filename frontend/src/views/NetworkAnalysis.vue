@@ -254,6 +254,8 @@
       :loading="buildingNetwork || clustering"
       :error="networkError"
       :min-string-score="minStringScore"
+      :cluster-id-mapping="clusterIdMapping"
+      :cluster-colors-map="clusterColors"
       height="700px"
       class="mb-6"
       @refresh="buildNetwork"
@@ -421,8 +423,8 @@ const networkError = ref(null)
 // Network Filtering
 // Filtering defaults (aligned with backend config: network_analysis.yaml filtering section)
 const removeIsolated = ref(false) // Default: keep isolated nodes (filtering.default_remove_isolated)
-const minDegree = ref(0) // Default: no degree filter (filtering.default_min_degree)
-const minClusterSize = ref(1) // Default: keep all clusters (filtering.default_min_cluster_size)
+const minDegree = ref(2) // Default: filter nodes with fewer than 2 connections
+const minClusterSize = ref(3) // Default: filter clusters with fewer than 3 genes
 const largestComponentOnly = ref(false) // Default: keep all components (filtering.default_largest_component_only)
 
 // Enrichment Analysis
@@ -461,6 +463,43 @@ const enrichmentOptions = [
 // Computed
 const displayNetwork = computed(() => clusterData.value || networkData.value)
 
+// Cluster ID mapping from backend ID to display ID (sorted by size)
+const clusterIdMapping = computed(() => {
+  if (!clusterStats.value) return new Map()
+
+  // Group genes by cluster
+  const clusterMap = {}
+  for (const [, clusterId] of Object.entries(clusterStats.value.clusters)) {
+    if (!clusterMap[clusterId]) {
+      clusterMap[clusterId] = { count: 0, backendId: parseInt(clusterId) }
+    }
+    clusterMap[clusterId].count++
+  }
+
+  // Sort by size descending and create mapping
+  const sorted = Object.values(clusterMap).sort((a, b) => b.count - a.count)
+  const mapping = new Map()
+  sorted.forEach((cluster, displayIndex) => {
+    mapping.set(cluster.backendId, displayIndex)
+  })
+
+  return mapping
+})
+
+// Extract colors from cytoscape data for each cluster
+const clusterColors = computed(() => {
+  if (!displayNetwork.value?.cytoscape_json?.elements) return new Map()
+
+  const colors = new Map()
+  displayNetwork.value.cytoscape_json.elements.forEach(element => {
+    if (element.data?.cluster_id !== undefined && element.data?.color) {
+      colors.set(element.data.cluster_id, element.data.color)
+    }
+  })
+
+  return colors
+})
+
 const clusterList = computed(() => {
   if (!clusterStats.value) return []
 
@@ -473,14 +512,22 @@ const clusterList = computed(() => {
     clusterMap[clusterId].push(parseInt(geneId))
   }
 
-  // Create list with colors from cytoscape data
-  return Object.entries(clusterMap).map(([clusterId, geneIds]) => ({
-    title: `Cluster ${parseInt(clusterId) + 1}`,
-    value: parseInt(clusterId),
-    size: geneIds.length,
-    genes: geneIds,
-    color: getClusterColor(parseInt(clusterId))
-  }))
+  // Create list with display IDs (sorted by size), using mapping
+  const clusters = Object.entries(clusterMap).map(([backendId, geneIds]) => {
+    const displayId = clusterIdMapping.value.get(parseInt(backendId)) ?? parseInt(backendId)
+    return {
+      title: `Cluster ${displayId + 1}`,
+      value: parseInt(backendId), // Keep backend ID as value for selection
+      displayId, // Display ID for UI
+      backendId: parseInt(backendId), // Backend ID for mapping
+      size: geneIds.length,
+      genes: geneIds,
+      color: clusterColors.value.get(parseInt(backendId)) || getClusterColor(displayId)
+    }
+  })
+
+  // Sort by size descending (which matches displayId order)
+  return clusters.sort((a, b) => b.size - a.size)
 })
 
 // Methods

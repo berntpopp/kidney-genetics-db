@@ -107,7 +107,22 @@
         ref="cytoscapeContainer"
         class="cytoscape-container"
         :style="{ height: graphHeight }"
-      />
+      >
+        <!-- Tooltip for node hover -->
+        <div
+          v-if="tooltipVisible"
+          class="node-tooltip"
+          :style="{
+            left: tooltipX + 'px',
+            top: tooltipY + 'px'
+          }"
+        >
+          <div class="tooltip-gene">{{ tooltipData.geneSymbol }}</div>
+          <div v-if="tooltipData.clusterName" class="tooltip-cluster">
+            {{ tooltipData.clusterName }}
+          </div>
+        </div>
+      </div>
 
       <!-- Loading State -->
       <div
@@ -148,7 +163,7 @@
     <v-card-text v-if="showClusterLegend" class="pa-3">
       <div class="d-flex flex-wrap ga-2">
         <v-chip
-          v-for="(color, clusterId) in clusterColors"
+          v-for="(color, clusterId) in sortedClusterColors"
           :key="clusterId"
           :color="color"
           size="small"
@@ -158,7 +173,7 @@
           @mouseleave="clearHighlight"
           @click="openClusterDialog(Number(clusterId))"
         >
-          Cluster {{ clusterId + 1 }}
+          {{ getClusterDisplayName(Number(clusterId)) }}
         </v-chip>
       </div>
     </v-card-text>
@@ -167,6 +182,9 @@
     <ClusterDetailsDialog
       v-model="clusterDialogOpen"
       :cluster-id="selectedClusterId"
+      :cluster-display-name="
+        selectedClusterId !== null ? getClusterDisplayName(selectedClusterId) : ''
+      "
       :cluster-color="selectedClusterColor"
       :genes="selectedClusterGenes"
       @highlight-gene="highlightGeneInNetwork"
@@ -204,6 +222,14 @@ const props = defineProps({
   minStringScore: {
     type: Number,
     default: 400
+  },
+  clusterIdMapping: {
+    type: Map,
+    default: () => new Map()
+  },
+  clusterColorsMap: {
+    type: Map,
+    default: () => new Map()
   }
 })
 
@@ -228,6 +254,15 @@ const clusterDialogOpen = ref(false)
 const selectedClusterId = ref(null)
 const selectedClusterGenes = ref([])
 
+// Tooltip state
+const tooltipVisible = ref(false)
+const tooltipX = ref(0)
+const tooltipY = ref(0)
+const tooltipData = ref({
+  geneSymbol: '',
+  clusterName: ''
+})
+
 // Computed
 const graphHeight = computed(() => props.height)
 
@@ -244,6 +279,32 @@ const showClusterLegend = computed(() => {
 const selectedClusterColor = computed(() => {
   if (selectedClusterId.value === null) return '#1976D2'
   return clusterColors.value[selectedClusterId.value] || '#1976D2'
+})
+
+// Sort cluster colors by display ID for consistent legend order
+const sortedClusterColors = computed(() => {
+  if (!props.clusterIdMapping || props.clusterIdMapping.size === 0) {
+    // Fallback to original order if no mapping provided
+    return clusterColors.value
+  }
+
+  // Create array of [backendId, color] pairs
+  const clusters = Object.entries(clusterColors.value).map(([backendId, color]) => ({
+    backendId: parseInt(backendId),
+    displayId: props.clusterIdMapping.get(parseInt(backendId)) ?? parseInt(backendId),
+    color
+  }))
+
+  // Sort by displayId
+  clusters.sort((a, b) => a.displayId - b.displayId)
+
+  // Convert back to object with backendId as key (for v-for compatibility)
+  const sorted = {}
+  clusters.forEach(c => {
+    sorted[c.backendId] = c.color
+  })
+
+  return sorted
 })
 
 // Layout options
@@ -263,6 +324,35 @@ const clusterOptions = [
 ]
 
 // Methods
+const getClusterDisplayName = backendClusterId => {
+  if (!props.clusterIdMapping || props.clusterIdMapping.size === 0) {
+    return `Cluster ${backendClusterId + 1}`
+  }
+  const displayId = props.clusterIdMapping.get(backendClusterId)
+  return `Cluster ${(displayId ?? backendClusterId) + 1}`
+}
+
+const showTooltip = (node, event) => {
+  const backendClusterId = node.data('cluster_id')
+  const clusterName =
+    backendClusterId !== undefined ? getClusterDisplayName(backendClusterId) : null
+
+  tooltipData.value = {
+    geneSymbol: node.data('label') || node.data('gene_id'),
+    clusterName
+  }
+
+  // Position tooltip near cursor with offset
+  tooltipX.value = event.renderedPosition?.x || event.position?.x || 0
+  tooltipY.value = (event.renderedPosition?.y || event.position?.y || 0) - 40
+
+  tooltipVisible.value = true
+}
+
+const hideTooltip = () => {
+  tooltipVisible.value = false
+}
+
 const highlightCluster = clusterId => {
   if (!cyInstance.value || clusterId === undefined) return
 
@@ -300,29 +390,29 @@ const clearHighlight = () => {
   })
 }
 
-const openClusterDialog = clusterId => {
-  if (!cyInstance.value || clusterId === undefined) return
+const openClusterDialog = backendClusterId => {
+  if (!cyInstance.value || backendClusterId === undefined) return
 
   // Collect genes for this cluster
   const clusterNodes = cyInstance.value
     .nodes()
-    .filter(node => node.data('cluster_id') === clusterId)
+    .filter(node => node.data('cluster_id') === backendClusterId)
 
   const genes = clusterNodes.map(node => ({
     gene_id: node.data('gene_id'),
     symbol: node.data('label'),
-    cluster_id: clusterId
+    cluster_id: backendClusterId
   }))
 
   // Sort genes alphabetically by symbol
   genes.sort((a, b) => a.symbol.localeCompare(b.symbol))
 
-  selectedClusterId.value = clusterId
+  selectedClusterId.value = backendClusterId
   selectedClusterGenes.value = genes
   clusterDialogOpen.value = true
 
   // Emit event to select this cluster in enrichment analysis
-  emit('selectCluster', clusterId)
+  emit('selectCluster', backendClusterId)
 }
 
 const highlightGeneInNetwork = geneId => {
@@ -467,13 +557,15 @@ const initializeCytoscape = () => {
     })
   })
 
-  // Node hover events for cluster highlighting
+  // Node hover events for cluster highlighting and tooltip
   cyInstance.value.on('mouseover', 'node', event => {
     highlightCluster(event.target.data('cluster_id'))
+    showTooltip(event.target, event)
   })
 
   cyInstance.value.on('mouseout', 'node', () => {
     clearHighlight()
+    hideTooltip()
   })
 
   // Auto-fit on load
@@ -570,6 +662,7 @@ onUnmounted(() => {
   width: 100%;
   background-color: #fafafa;
   border-radius: 4px;
+  position: relative;
 }
 
 .cluster-chip {
@@ -582,5 +675,42 @@ onUnmounted(() => {
 .cluster-chip:hover {
   transform: scale(1.1);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Tooltip styling */
+.node-tooltip {
+  position: absolute;
+  background: rgba(33, 33, 33, 0.95);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  pointer-events: none;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.tooltip-gene {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.tooltip-cluster {
+  font-size: 12px;
+  color: #bbdefb;
+  font-weight: 500;
+}
+
+/* Dark theme adjustments */
+.v-theme--dark .node-tooltip {
+  background: rgba(250, 250, 250, 0.95);
+  color: #212121;
+}
+
+.v-theme--dark .tooltip-cluster {
+  color: #1976d2;
 }
 </style>
