@@ -183,12 +183,11 @@
         <v-icon icon="mdi-filter-variant" class="mr-2" />
         Network Filtering
         <v-spacer />
-        <v-chip size="small" color="info" label>
-          Best Practice: Remove isolated nodes and small clusters
-        </v-chip>
+        <v-chip size="small" color="info" label> Filter network nodes and edges </v-chip>
       </v-card-title>
       <v-divider />
       <v-card-text class="pa-4">
+        <!-- Network Filtering Options -->
         <v-row align="center">
           <v-col cols="12" md="3">
             <v-checkbox
@@ -255,12 +254,15 @@
     <!-- Network Visualization -->
     <NetworkGraph
       v-if="displayNetwork"
+      v-model:color-mode="nodeColorMode"
       :network-data="displayNetwork"
       :loading="buildingNetwork || clustering"
       :error="networkError"
       :min-string-score="minStringScore"
       :cluster-id-mapping="clusterIdMapping"
       :cluster-colors-map="clusterColors"
+      :hpo-classifications="hpoClassifications"
+      :loading-h-p-o-data="loadingHPOClassifications"
       :height="networkAnalysisConfig.ui.defaultGraphHeight"
       class="mb-6"
       @refresh="buildNetwork"
@@ -400,7 +402,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { geneApi } from '../api/genes'
 import { networkApi } from '../api/network'
 import NetworkGraph from '../components/network/NetworkGraph.vue'
@@ -444,6 +446,11 @@ const enrichmentError = ref(null)
 // UI State
 const geneDialog = ref(false)
 const selectedGene = ref(null)
+
+// Node Coloring State (config-driven defaults)
+const nodeColorMode = ref(networkAnalysisConfig.nodeColoring.defaultMode)
+const hpoClassifications = ref(null)
+const loadingHPOClassifications = ref(false)
 
 // Options
 const tierOptions = [
@@ -716,6 +723,65 @@ const runEnrichment = async () => {
   }
 }
 
+const fetchHPOClassifications = async () => {
+  window.logService.info('[HPO] fetchHPOClassifications called', {
+    hasNetworkData: !!networkData.value,
+    colorMode: nodeColorMode.value
+  })
+
+  if (!networkData.value || nodeColorMode.value === 'cluster') {
+    window.logService.debug('[HPO] Skipping fetch - no network or cluster mode active')
+    return
+  }
+
+  // Check if cytoscape_json and elements exist
+  if (!networkData.value.cytoscape_json?.elements) {
+    window.logService.warn('[HPO] Network data structure incomplete, skipping HPO fetch', {
+      hasCytoscapeJson: !!networkData.value.cytoscape_json,
+      networkDataKeys: Object.keys(networkData.value)
+    })
+    return
+  }
+
+  const geneIds = networkData.value.cytoscape_json.elements
+    .filter(el => el.data?.id && !el.data?.source) // Only nodes (not edges)
+    .map(el => el.data?.gene_id)
+    .filter(id => id) // Remove undefined
+
+  window.logService.info(`[HPO] Extracted ${geneIds.length} gene IDs from network`, {
+    firstFewGeneIds: geneIds.slice(0, 5)
+  })
+
+  if (geneIds.length === 0) {
+    window.logService.warn('[HPO] No gene IDs found in network')
+    return
+  }
+
+  loadingHPOClassifications.value = true
+
+  try {
+    window.logService.info('[HPO] Fetching classifications from API', {
+      geneCount: geneIds.length,
+      colorMode: nodeColorMode.value
+    })
+    const response = await geneApi.getHPOClassifications(geneIds)
+    hpoClassifications.value = response
+    window.logService.info(
+      `[HPO] ✓ Fetched HPO classifications for ${response.data.length}/${geneIds.length} genes`,
+      {
+        cached: response.metadata?.cached,
+        fetchTimeMs: response.metadata?.fetch_time_ms,
+        sampleClassifications: response.data.slice(0, 3)
+      }
+    )
+  } catch (error) {
+    window.logService.error('[HPO] ✗ Failed to fetch HPO classifications:', error)
+    hpoClassifications.value = null
+  } finally {
+    loadingHPOClassifications.value = false
+  }
+}
+
 const handleClusterRequest = algorithm => {
   clusterAlgorithm.value = algorithm
   clusterNetwork()
@@ -772,6 +838,24 @@ const getClusterColor = clusterId => {
   ]
   return colors[clusterId % colors.length]
 }
+
+// Watchers
+watch(nodeColorMode, async (newMode, oldMode) => {
+  window.logService.info('[HPO] Node color mode changed', {
+    oldMode,
+    newMode,
+    hasNetworkData: !!networkData.value
+  })
+
+  // Fetch HPO classifications when switching to an HPO-based color mode
+  if (newMode !== 'cluster' && networkData.value) {
+    window.logService.info('[HPO] Triggering HPO fetch due to color mode change')
+    await fetchHPOClassifications()
+  } else if (newMode === 'cluster') {
+    window.logService.debug('[HPO] Switched back to cluster mode, clearing HPO data')
+    hpoClassifications.value = null
+  }
+})
 </script>
 
 <style scoped>

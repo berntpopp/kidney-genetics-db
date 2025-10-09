@@ -112,5 +112,22 @@ export const geneApi = {
   async getGeneAnnotations(geneId) {
     const response = await apiClient.get(`/api/annotations/genes/${geneId}/annotations`)
     return response.data
+  },
+
+  /**
+   * Get HPO classifications for multiple genes
+   * @param {Array<Number>} geneIds Array of gene IDs (max 1000)
+   * @returns {Promise} HPO classifications data with clinical_group, onset_group, is_syndromic
+   */
+  async getHPOClassifications(geneIds) {
+    if (!geneIds || geneIds.length === 0) {
+      return { data: [], metadata: { cached: false, gene_count: 0, fetch_time_ms: 0 } }
+    }
+
+    const response = await apiClient.post('/api/genes/hpo-classifications', {
+      gene_ids: geneIds
+    })
+
+    return response.data
   }
 }

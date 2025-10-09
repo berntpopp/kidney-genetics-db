@@ -25,6 +25,11 @@ from app.core.jsonapi import (
 from app.core.logging import get_logger
 from app.models.gene import Gene, GeneEvidence
 from app.schemas.gene import GeneCreate
+from app.schemas.network import (
+    HPOClassificationData,
+    HPOClassificationRequest,
+    HPOClassificationResponse,
+)
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -32,6 +37,10 @@ logger = get_logger(__name__)
 # Module-level cache for filter metadata (FastAPI recommended pattern)
 _metadata_cache: dict[str, Any] = {"data": None, "timestamp": None}
 _CACHE_TTL = timedelta(minutes=5)  # Semi-static data standard
+
+# Module-level cache for HPO classifications (static data until pipeline runs)
+_hpo_classifications_cache: dict[str, Any] = {"data": None, "timestamp": None}
+_HPO_CACHE_TTL = timedelta(hours=1)  # HPO data changes infrequently
 
 # Note: Gene annotations endpoint has been moved to the gene_annotations module
 # to maintain better separation of concerns and avoid duplicate endpoints
@@ -683,3 +692,123 @@ async def create_gene(
             },
         }
     }
+
+
+@router.post("/hpo-classifications", response_model=HPOClassificationResponse)
+async def get_hpo_classifications(
+    request: HPOClassificationRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Get HPO clinical classifications for specified genes.
+
+    Fetches classification data from gene_hpo_classifications view, which extracts
+    clinical_group, onset_group, and is_syndromic from HPO annotations.
+
+    This endpoint is optimized for network visualization coloring by clinical
+    category instead of clustering assignments.
+
+    Performance: <100ms for 1000 genes (cached), <500ms (uncached)
+
+    Args:
+        request: List of gene IDs to fetch classifications for
+        db: Database session
+
+    Returns:
+        HPOClassificationResponse with gene classifications and metadata
+
+    Raises:
+        ValidationError: If gene_ids list is invalid (empty or >1000 items)
+    """
+    start_time = time.time()
+    cache_key = f"hpo_classifications_{hash(tuple(sorted(request.gene_ids)))}"
+
+    await logger.info(
+        "Fetching HPO classifications",
+        gene_count=len(request.gene_ids),
+        cache_key=cache_key,
+    )
+
+    # Check cache
+    now = datetime.utcnow()
+    if _hpo_classifications_cache.get(cache_key):
+        cached_data = _hpo_classifications_cache[cache_key]
+        if cached_data.get("timestamp"):
+            age = now - cached_data["timestamp"]
+            if age < _HPO_CACHE_TTL:
+                fetch_time_ms = round((time.time() - start_time) * 1000, 2)
+                await logger.info(
+                    "HPO classifications cache HIT",
+                    cache_age_seconds=round(age.total_seconds(), 2),
+                    fetch_time_ms=fetch_time_ms,
+                )
+                return {
+                    "data": cached_data["data"],
+                    "metadata": {
+                        "cached": True,
+                        "gene_count": len(cached_data["data"]),
+                        "fetch_time_ms": fetch_time_ms,
+                        "cache_age_seconds": round(age.total_seconds(), 2),
+                    },
+                }
+
+    await logger.debug("HPO classifications cache MISS - fetching from database")
+
+    # Fetch from database view
+    try:
+        query = text("""
+            SELECT
+                gene_id,
+                gene_symbol,
+                clinical_group,
+                onset_group,
+                is_syndromic
+            FROM gene_hpo_classifications
+            WHERE gene_id = ANY(:gene_ids)
+        """)
+
+        result = db.execute(query, {"gene_ids": request.gene_ids}).fetchall()
+
+        # Convert to response format
+        classifications = [
+            HPOClassificationData(
+                gene_id=row.gene_id,
+                gene_symbol=row.gene_symbol,
+                clinical_group=row.clinical_group,
+                onset_group=row.onset_group,
+                is_syndromic=row.is_syndromic,
+            )
+            for row in result
+        ]
+
+        fetch_time_ms = round((time.time() - start_time) * 1000, 2)
+
+        await logger.info(
+            "Fetched HPO classifications from database",
+            requested_genes=len(request.gene_ids),
+            returned_classifications=len(classifications),
+            fetch_time_ms=fetch_time_ms,
+        )
+
+        # Update cache
+        _hpo_classifications_cache[cache_key] = {
+            "data": classifications,
+            "timestamp": now,
+        }
+
+        return {
+            "data": classifications,
+            "metadata": {
+                "cached": False,
+                "gene_count": len(classifications),
+                "fetch_time_ms": fetch_time_ms,
+            },
+        }
+
+    except Exception as e:
+        await logger.error(
+            "Failed to fetch HPO classifications",
+            error=str(e),
+            gene_count=len(request.gene_ids),
+        )
+        raise

@@ -253,3 +253,39 @@ class GOEnrichmentResponse(BaseModel):
     cluster_size: int = Field(..., description="Cluster gene count")
     gene_set: str = Field(..., description="Gene set used")
     fdr_threshold: float
+
+
+class HPOClassificationRequest(BaseModel):
+    """Request to fetch HPO classifications for genes"""
+
+    gene_ids: list[int] = Field(
+        ...,
+        description="List of gene IDs to fetch HPO classifications for",
+        min_length=1,
+        max_length=1000
+    )
+
+    @field_validator('gene_ids')
+    @classmethod
+    def validate_gene_ids(cls, v: list[int]) -> list[int]:
+        """Validate gene IDs are positive integers"""
+        if not all(gid > 0 for gid in v):
+            raise ValueError("All gene IDs must be positive integers")
+        return v
+
+
+class HPOClassificationData(BaseModel):
+    """HPO classification data for a single gene"""
+
+    gene_id: int = Field(..., description="Gene ID")
+    gene_symbol: str = Field(..., description="Gene symbol")
+    clinical_group: str | None = Field(None, description="Clinical classification group")
+    onset_group: str | None = Field(None, description="Age of onset group")
+    is_syndromic: bool = Field(False, description="Syndromic assessment")
+
+
+class HPOClassificationResponse(BaseModel):
+    """Response with HPO classifications for genes"""
+
+    data: list[HPOClassificationData] = Field(..., description="HPO classification data")
+    metadata: dict[str, Any] = Field(..., description="Response metadata")

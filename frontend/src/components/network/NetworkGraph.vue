@@ -57,7 +57,7 @@
     <!-- Network Controls -->
     <v-card-text class="pa-3">
       <v-row dense align="center">
-        <v-col cols="12" sm="4">
+        <v-col cols="12" sm="3">
           <v-select
             v-model="layoutType"
             :items="layoutOptions"
@@ -69,7 +69,7 @@
           />
         </v-col>
 
-        <v-col cols="12" sm="4">
+        <v-col cols="12" sm="3">
           <v-select
             v-model="clusterAlgorithm"
             :items="clusterOptions"
@@ -81,7 +81,23 @@
           />
         </v-col>
 
-        <v-col cols="12" sm="4">
+        <v-col cols="12" sm="3">
+          <v-select
+            :model-value="colorMode"
+            :items="networkAnalysisConfig.nodeColoring.modes"
+            item-title="label"
+            item-value="value"
+            label="Node Color"
+            prepend-inner-icon="mdi-palette"
+            density="compact"
+            variant="outlined"
+            hide-details
+            :loading="loadingHPOData"
+            @update:model-value="$emit('update:colorMode', $event)"
+          />
+        </v-col>
+
+        <v-col cols="12" sm="3">
           <v-text-field
             :model-value="minStringScore"
             label="Min STRING Score"
@@ -158,43 +174,75 @@
       </div>
     </v-card-text>
 
-    <!-- Legend for Clusters -->
-    <v-divider v-if="showClusterLegend" />
-    <v-card-text v-if="showClusterLegend" class="pa-3">
-      <div class="d-flex align-center justify-space-between mb-2">
-        <span class="text-caption text-medium-emphasis font-weight-medium">Clusters</span>
-        <v-btn-toggle
-          v-model="clusterSortMethod"
-          mandatory
-          density="compact"
-          variant="outlined"
-          divided
-          size="x-small"
-        >
-          <v-btn value="size" title="Sort by cluster size (largest first)">
-            <v-icon size="small">mdi-sort-numeric-descending</v-icon>
-            <span class="ml-1">Size</span>
-          </v-btn>
-          <v-btn value="spatial" title="Sort by spatial proximity in graph">
-            <v-icon size="small">mdi-map-marker-distance</v-icon>
-            <span class="ml-1">Spatial</span>
-          </v-btn>
-        </v-btn-toggle>
+    <!-- Dynamic Legend (Clusters or HPO Classifications) -->
+    <v-divider v-if="showLegend" />
+    <v-card-text v-if="showLegend" class="pa-3">
+      <!-- HPO Classification Legend (when in HPO mode) -->
+      <div v-if="hpoLegendItems.length > 0" class="mb-3">
+        <div class="d-flex align-center mb-2">
+          <span class="text-caption text-medium-emphasis font-weight-medium">{{
+            legendTitle
+          }}</span>
+        </div>
+        <div class="d-flex flex-wrap ga-2">
+          <v-chip
+            v-for="item in hpoLegendItems"
+            :key="item.id"
+            :color="item.color"
+            size="small"
+            label
+          >
+            {{ item.label }}
+          </v-chip>
+        </div>
       </div>
-      <div class="d-flex flex-wrap ga-2">
-        <v-chip
-          v-for="cluster in sortedClusterColors"
-          :key="cluster.backendId"
-          :color="cluster.color"
-          size="small"
-          label
-          class="cluster-chip"
-          @mouseenter="highlightCluster(cluster.backendId)"
-          @mouseleave="clearHighlight"
-          @click="openClusterDialog(cluster.backendId)"
-        >
-          {{ getClusterDisplayName(cluster.backendId) }}
-        </v-chip>
+
+      <!-- Cluster Legend (always visible when clusters exist) -->
+      <div v-if="clusterLegendItems.length > 0">
+        <div class="d-flex align-center justify-space-between mb-2">
+          <span class="text-caption text-medium-emphasis font-weight-medium">
+            {{ colorMode === 'cluster' ? legendTitle : 'Clusters' }}
+            <v-chip v-if="colorMode !== 'cluster'" size="x-small" variant="text" class="ml-1" label>
+              (inactive)
+            </v-chip>
+          </span>
+          <!-- Sort options only for cluster mode -->
+          <v-btn-toggle
+            v-if="colorMode === 'cluster'"
+            v-model="clusterSortMethod"
+            mandatory
+            density="compact"
+            variant="outlined"
+            divided
+            size="x-small"
+          >
+            <v-btn value="size" title="Sort by cluster size (largest first)">
+              <v-icon size="small">mdi-sort-numeric-descending</v-icon>
+              <span class="ml-1">Size</span>
+            </v-btn>
+            <v-btn value="spatial" title="Sort by spatial proximity in graph">
+              <v-icon size="small">mdi-map-marker-distance</v-icon>
+              <span class="ml-1">Spatial</span>
+            </v-btn>
+          </v-btn-toggle>
+        </div>
+        <div class="d-flex flex-wrap ga-2">
+          <v-chip
+            v-for="item in clusterLegendItems"
+            :key="item.id"
+            :color="item.isActive ? item.color : undefined"
+            :variant="item.isActive ? 'flat' : 'outlined'"
+            size="small"
+            label
+            class="cluster-chip cursor-pointer"
+            :class="{ 'inactive-chip': !item.isActive }"
+            @mouseenter="highlightCluster(item.id)"
+            @mouseleave="clearHighlight()"
+            @click="openClusterDialog(item.id)"
+          >
+            {{ item.label }}
+          </v-chip>
+        </div>
       </div>
     </v-card-text>
 
@@ -217,6 +265,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import cytoscape from 'cytoscape'
 import coseBilkent from 'cytoscape-cose-bilkent'
 import ClusterDetailsDialog from './ClusterDetailsDialog.vue'
+import { networkAnalysisConfig } from '../../config/networkAnalysis'
 
 // Register cose-bilkent layout
 cytoscape.use(coseBilkent)
@@ -250,6 +299,18 @@ const props = defineProps({
   clusterColorsMap: {
     type: Map,
     default: () => new Map()
+  },
+  colorMode: {
+    type: String,
+    default: 'cluster'
+  },
+  hpoClassifications: {
+    type: Object,
+    default: null
+  },
+  loadingHPOData: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -258,6 +319,7 @@ const emit = defineEmits([
   'refresh',
   'cluster',
   'update:minStringScore',
+  'update:colorMode',
   'nodeClick',
   'selectCluster'
 ])
@@ -294,8 +356,56 @@ const networkStats = computed(() => {
   return `${nodes} genes, ${edges} interactions, ${components} component(s)`
 })
 
-const showClusterLegend = computed(() => {
-  return Object.keys(clusterColors.value).length > 0
+// Legend visibility - show if clusters exist OR HPO data exists
+const showLegend = computed(() => {
+  const hasClusters = Object.keys(clusterColors.value).length > 0
+  const hasHPOData = props.hpoClassifications?.data && props.hpoClassifications.data.length > 0
+
+  // Show if we have clusters (always show them) OR HPO data
+  return hasClusters || hasHPOData
+})
+
+// Cluster legend items (always available when clusters exist)
+const clusterLegendItems = computed(() => {
+  if (Object.keys(clusterColors.value).length === 0) {
+    return []
+  }
+
+  return sortedClusterColors.value.map(cluster => ({
+    label: getClusterDisplayName(cluster.backendId),
+    color: cluster.color,
+    id: cluster.backendId,
+    type: 'cluster',
+    isActive: props.colorMode === 'cluster'
+  }))
+})
+
+// HPO legend items (when in HPO mode)
+const hpoLegendItems = computed(() => {
+  if (props.colorMode === 'cluster' || !props.hpoClassifications?.data) {
+    return []
+  }
+
+  const colorScheme = networkAnalysisConfig.nodeColoring.colorSchemes[props.colorMode]
+  const labels = networkAnalysisConfig.nodeColoring.labels[props.colorMode]
+
+  if (!colorScheme || !labels) {
+    return []
+  }
+
+  return Object.entries(colorScheme).map(([key, color]) => ({
+    label: labels[key] || key,
+    color,
+    id: key,
+    type: 'hpo',
+    isActive: true
+  }))
+})
+
+// Legend title based on color mode
+const legendTitle = computed(() => {
+  const mode = networkAnalysisConfig.nodeColoring.modes.find(m => m.value === props.colorMode)
+  return mode?.label || 'Legend'
 })
 
 const selectedClusterColor = computed(() => {
@@ -343,6 +453,73 @@ const sortedClusterColors = computed(() => {
   // Return array (NOT object) to preserve sort order
   // JavaScript auto-sorts numeric object keys, breaking our custom order
   return clusters
+})
+
+// Compute node colors based on color mode
+const nodeColorMap = computed(() => {
+  const colorMap = new Map()
+
+  if (!props.networkData?.cytoscape_json?.elements) {
+    return colorMap
+  }
+
+  const nodes = props.networkData.cytoscape_json.elements.filter(el => el.data.gene_id)
+
+  // Cluster coloring (default)
+  if (props.colorMode === 'cluster') {
+    nodes.forEach(node => {
+      const clusterId = node.data.cluster_id
+      if (clusterId !== undefined && props.clusterColorsMap.has(clusterId)) {
+        colorMap.set(node.data.gene_id, props.clusterColorsMap.get(clusterId))
+      } else {
+        colorMap.set(node.data.gene_id, node.data.color || '#1976D2')
+      }
+    })
+    return colorMap
+  }
+
+  // HPO-based coloring
+  if (!props.hpoClassifications?.data) {
+    // No HPO data available, use default color
+    nodes.forEach(node => {
+      colorMap.set(node.data.gene_id, '#9E9E9E') // Grey for no data
+    })
+    return colorMap
+  }
+
+  // Create lookup map of gene_id -> classification
+  const hpoLookup = new Map()
+  props.hpoClassifications.data.forEach(item => {
+    hpoLookup.set(item.gene_id, item)
+  })
+
+  // Get color schemes from config
+  const colorSchemes = networkAnalysisConfig.nodeColoring.colorSchemes
+
+  nodes.forEach(node => {
+    const geneId = node.data.gene_id
+    const classification = hpoLookup.get(geneId)
+
+    if (!classification) {
+      colorMap.set(geneId, colorSchemes[props.colorMode]?.null || '#9E9E9E')
+      return
+    }
+
+    let value
+    if (props.colorMode === 'clinical_group') {
+      value = classification.clinical_group
+    } else if (props.colorMode === 'onset_group') {
+      value = classification.onset_group
+    } else if (props.colorMode === 'syndromic') {
+      value = classification.is_syndromic
+    }
+
+    const color =
+      colorSchemes[props.colorMode]?.[value] || colorSchemes[props.colorMode]?.null || '#9E9E9E'
+    colorMap.set(geneId, color)
+  })
+
+  return colorMap
 })
 
 // Layout options
@@ -542,7 +719,10 @@ const initializeCytoscape = () => {
       {
         selector: 'node',
         style: {
-          'background-color': ele => ele.data('color') || '#1976D2',
+          'background-color': ele => {
+            const geneId = ele.data('gene_id')
+            return nodeColorMap.value.get(geneId) || ele.data('color') || '#1976D2'
+          },
           label: 'data(label)',
           width: 40,
           height: 40,
@@ -727,6 +907,38 @@ watch(
   }
 )
 
+// Watch for color mode or HPO classification changes and update node colors
+watch([() => props.colorMode, () => props.hpoClassifications], ([newColorMode], [oldColorMode]) => {
+  window.logService.info('[NetworkGraph] Color mode or HPO data changed', {
+    colorMode: newColorMode,
+    oldColorMode,
+    hasHPOData: !!props.hpoClassifications?.data,
+    hpoDataCount: props.hpoClassifications?.data?.length || 0,
+    hasCyInstance: !!cyInstance.value
+  })
+
+  if (!cyInstance.value) {
+    window.logService.warn('[NetworkGraph] No cytoscape instance, skipping color update')
+    return
+  }
+
+  const nodeCount = cyInstance.value.nodes().length
+  let updatedCount = 0
+
+  // Update node colors based on new color map
+  cyInstance.value.nodes().forEach(node => {
+    const geneId = node.data('gene_id')
+    const color = nodeColorMap.value.get(geneId) || node.data('color') || '#1976D2'
+    node.style('background-color', color)
+    updatedCount++
+  })
+
+  window.logService.info(`[NetworkGraph] ✓ Updated colors for ${updatedCount}/${nodeCount} nodes`, {
+    colorMode: newColorMode,
+    uniqueColors: new Set([...nodeColorMap.value.values()]).size
+  })
+})
+
 // Lifecycle
 onMounted(() => {
   if (props.networkData) {
@@ -761,6 +973,15 @@ onUnmounted(() => {
 .cluster-chip:hover {
   transform: scale(1.1);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.inactive-chip {
+  opacity: 0.5;
+  border-color: rgba(0, 0, 0, 0.3) !important;
+}
+
+.inactive-chip:hover {
+  opacity: 0.7;
 }
 
 /* Tooltip styling */
