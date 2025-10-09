@@ -631,6 +631,8 @@ const buildNetwork = async () => {
     networkError.value = error.message || 'Failed to build network'
   } finally {
     buildingNetwork.value = false
+    // Fetch HPO classifications for tooltips/dialogs (non-blocking)
+    fetchHPOClassifications()
   }
 }
 
@@ -673,6 +675,8 @@ const clusterNetwork = async () => {
     networkError.value = error.message || 'Failed to cluster network'
   } finally {
     clustering.value = false
+    // Fetch HPO classifications for tooltips/dialogs (non-blocking)
+    fetchHPOClassifications()
   }
 }
 
@@ -729,8 +733,10 @@ const fetchHPOClassifications = async () => {
     colorMode: nodeColorMode.value
   })
 
-  if (!networkData.value || nodeColorMode.value === 'cluster') {
-    window.logService.debug('[HPO] Skipping fetch - no network or cluster mode active')
+  // Always fetch HPO data when network exists (for dialog/tooltips)
+  // Color mode only affects how nodes are colored, not whether we fetch data
+  if (!networkData.value) {
+    window.logService.debug('[HPO] Skipping fetch - no network data')
     return
   }
 
@@ -847,13 +853,11 @@ watch(nodeColorMode, async (newMode, oldMode) => {
     hasNetworkData: !!networkData.value
   })
 
-  // Fetch HPO classifications when switching to an HPO-based color mode
-  if (newMode !== 'cluster' && networkData.value) {
+  // Always fetch HPO classifications when network exists (needed for tooltips/dialogs)
+  // regardless of color mode
+  if (networkData.value && !hpoClassifications.value) {
     window.logService.info('[HPO] Triggering HPO fetch due to color mode change')
     await fetchHPOClassifications()
-  } else if (newMode === 'cluster') {
-    window.logService.debug('[HPO] Switched back to cluster mode, clearing HPO data')
-    hpoClassifications.value = null
   }
 })
 </script>

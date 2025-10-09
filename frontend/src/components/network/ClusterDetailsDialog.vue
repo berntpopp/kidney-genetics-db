@@ -20,6 +20,89 @@
 
       <v-divider />
 
+      <!-- HPO Classification Statistics -->
+      <v-card-text v-if="clusterStatistics" class="pa-4 bg-surface-variant">
+        <div class="d-flex align-center mb-3">
+          <v-icon icon="mdi-chart-box" class="mr-2" color="primary" />
+          <h4 class="text-subtitle-1 font-weight-medium">HPO Classification Summary</h4>
+          <v-chip size="x-small" class="ml-auto" label>
+            <v-icon size="x-small" icon="mdi-database" start />
+            {{ clusterStatistics.hpoDataCount }} / {{ clusterStatistics.total }} genes ({{
+              clusterStatistics.hpoDataPercentage
+            }}%)
+          </v-chip>
+        </div>
+
+        <v-row dense>
+          <!-- Clinical Classification -->
+          <v-col v-if="clusterStatistics.clinical.length > 0" cols="12" md="4">
+            <div class="stats-section">
+              <div class="text-caption font-weight-medium text-medium-emphasis mb-2">
+                Clinical Classification
+              </div>
+              <div class="d-flex flex-wrap ga-1">
+                <v-chip
+                  v-for="stat in clusterStatistics.clinical"
+                  :key="stat.key"
+                  :color="stat.color"
+                  size="x-small"
+                  label
+                >
+                  {{ stat.label }}: {{ stat.percentage }}%
+                </v-chip>
+              </div>
+            </div>
+          </v-col>
+
+          <!-- Age of Onset -->
+          <v-col v-if="clusterStatistics.onset.length > 0" cols="12" md="4">
+            <div class="stats-section">
+              <div class="text-caption font-weight-medium text-medium-emphasis mb-2">
+                Age of Onset
+              </div>
+              <div class="d-flex flex-wrap ga-1">
+                <v-chip
+                  v-for="stat in clusterStatistics.onset"
+                  :key="stat.key"
+                  :color="stat.color"
+                  size="x-small"
+                  label
+                >
+                  {{ stat.label }}: {{ stat.percentage }}%
+                </v-chip>
+              </div>
+            </div>
+          </v-col>
+
+          <!-- Syndromic Assessment -->
+          <v-col v-if="clusterStatistics.syndromic.syndromicCount > 0" cols="12" md="4">
+            <div class="stats-section">
+              <div class="text-caption font-weight-medium text-medium-emphasis mb-2">
+                Syndromic Assessment
+              </div>
+              <div class="d-flex flex-wrap ga-1">
+                <v-chip
+                  :color="networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.true"
+                  size="x-small"
+                  label
+                >
+                  Syndromic: {{ clusterStatistics.syndromic.syndromicPercentage }}%
+                </v-chip>
+                <v-chip
+                  :color="networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.false"
+                  size="x-small"
+                  label
+                >
+                  Isolated: {{ clusterStatistics.syndromic.isolatedPercentage }}%
+                </v-chip>
+              </div>
+            </div>
+          </v-col>
+        </v-row>
+      </v-card-text>
+
+      <v-divider v-if="clusterStatistics" />
+
       <!-- Gene Table -->
       <v-card-text class="pa-0">
         <v-data-table
@@ -143,6 +226,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { networkAnalysisConfig } from '../../config/networkAnalysis'
 
 // Props
 const props = defineProps({
@@ -165,6 +249,10 @@ const props = defineProps({
   genes: {
     type: Array,
     default: () => []
+  },
+  hpoClassifications: {
+    type: Object,
+    default: null
   }
 })
 
@@ -190,6 +278,86 @@ const paginationText = computed(() => {
   const start = (page.value - 1) * itemsPerPage.value + 1
   const end = Math.min(page.value * itemsPerPage.value, geneCount.value)
   return `Showing ${start}–${end} of ${geneCount.value}`
+})
+
+// HPO classification statistics for this cluster
+const clusterStatistics = computed(() => {
+  if (!props.hpoClassifications?.data || props.genes.length === 0) {
+    return null
+  }
+
+  // Build HPO lookup
+  const hpoLookup = new Map()
+  props.hpoClassifications.data.forEach(item => {
+    hpoLookup.set(item.gene_id, item)
+  })
+
+  // Compute statistics for this cluster's genes
+  const clinicalCounts = {}
+  const onsetCounts = {}
+  let syndromicCount = 0
+  let isolatedCount = 0
+  let hpoDataCount = 0
+  const total = props.genes.length
+
+  props.genes.forEach(gene => {
+    const classification = hpoLookup.get(gene.gene_id)
+    if (classification) {
+      hpoDataCount++
+
+      // Clinical group
+      const clinicalGroup = classification.clinical_group || 'null'
+      clinicalCounts[clinicalGroup] = (clinicalCounts[clinicalGroup] || 0) + 1
+
+      // Onset group
+      const onsetGroup = classification.onset_group || 'null'
+      onsetCounts[onsetGroup] = (onsetCounts[onsetGroup] || 0) + 1
+
+      // Syndromic status
+      if (classification.is_syndromic) {
+        syndromicCount++
+      } else {
+        isolatedCount++
+      }
+    }
+  })
+
+  if (hpoDataCount === 0) return null
+
+  // Convert to sorted arrays
+  const clinicalBreakdown = Object.entries(clinicalCounts)
+    .map(([key, count]) => ({
+      key,
+      label: networkAnalysisConfig.nodeColoring.labels.clinical_group[key] || key,
+      color: networkAnalysisConfig.nodeColoring.colorSchemes.clinical_group[key],
+      count,
+      percentage: ((count / hpoDataCount) * 100).toFixed(1)
+    }))
+    .sort((a, b) => b.count - a.count)
+
+  const onsetBreakdown = Object.entries(onsetCounts)
+    .map(([key, count]) => ({
+      key,
+      label: networkAnalysisConfig.nodeColoring.labels.onset_group[key] || key,
+      color: networkAnalysisConfig.nodeColoring.colorSchemes.onset_group[key],
+      count,
+      percentage: ((count / hpoDataCount) * 100).toFixed(1)
+    }))
+    .sort((a, b) => b.count - a.count)
+
+  return {
+    total,
+    hpoDataCount,
+    hpoDataPercentage: ((hpoDataCount / total) * 100).toFixed(1),
+    clinical: clinicalBreakdown,
+    onset: onsetBreakdown,
+    syndromic: {
+      syndromicCount,
+      syndromicPercentage: ((syndromicCount / hpoDataCount) * 100).toFixed(1),
+      isolatedCount,
+      isolatedPercentage: ((isolatedCount / hpoDataCount) * 100).toFixed(1)
+    }
+  }
 })
 
 // Options
@@ -270,6 +438,11 @@ watch(
 .text-mono {
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
+}
+
+/* Statistics section styling */
+.stats-section {
+  height: 100%;
 }
 
 /* Dark theme adjustments */

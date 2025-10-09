@@ -227,21 +227,111 @@
           </v-btn-toggle>
         </div>
         <div class="d-flex flex-wrap ga-2">
-          <v-chip
+          <v-menu
             v-for="item in clusterLegendItems"
             :key="item.id"
-            :color="item.isActive ? item.color : undefined"
-            :variant="item.isActive ? 'flat' : 'outlined'"
-            size="small"
-            label
-            class="cluster-chip cursor-pointer"
-            :class="{ 'inactive-chip': !item.isActive }"
-            @mouseenter="highlightCluster(item.id)"
-            @mouseleave="clearHighlight()"
-            @click="openClusterDialog(item.id)"
+            open-on-hover
+            :open-delay="300"
+            :close-delay="100"
+            location="top"
+            :disabled="!clusterStatistics.has(item.id) || !hpoClassifications?.data"
           >
-            {{ item.label }}
-          </v-chip>
+            <template #activator="{ props: menuProps }">
+              <v-chip
+                v-bind="menuProps"
+                :color="item.isActive ? item.color : undefined"
+                :variant="item.isActive ? 'flat' : 'outlined'"
+                size="small"
+                label
+                class="cluster-chip cursor-pointer"
+                :class="{ 'inactive-chip': !item.isActive }"
+                @mouseenter="highlightCluster(item.id)"
+                @mouseleave="clearHighlight()"
+                @click="openClusterDialog(item.id)"
+              >
+                {{ item.label }}
+              </v-chip>
+            </template>
+
+            <!-- HPO Statistics Tooltip -->
+            <v-card
+              v-if="clusterStatistics.has(item.id)"
+              class="pa-3"
+              elevation="8"
+              max-width="320"
+            >
+              <v-card-title class="text-subtitle-2 pa-0 mb-2">
+                {{ item.label }}
+                <v-chip size="x-small" class="ml-2" label>
+                  {{ clusterStatistics.get(item.id).total }} genes
+                </v-chip>
+              </v-card-title>
+
+              <v-divider class="mb-2" />
+
+              <!-- HPO Data Coverage -->
+              <div class="text-caption text-medium-emphasis mb-3">
+                <v-icon size="x-small" icon="mdi-database" class="mr-1" />
+                HPO data:
+                {{ clusterStatistics.get(item.id).hpoDataCount }} /
+                {{ clusterStatistics.get(item.id).total }}
+                ({{ clusterStatistics.get(item.id).hpoDataPercentage }}%)
+              </div>
+
+              <!-- Clinical Group Breakdown -->
+              <div v-if="clusterStatistics.get(item.id).clinical.length > 0" class="mb-2">
+                <div class="text-caption font-weight-medium mb-1">Clinical Classification</div>
+                <div class="d-flex flex-wrap ga-1">
+                  <v-chip
+                    v-for="stat in clusterStatistics.get(item.id).clinical"
+                    :key="stat.key"
+                    :color="stat.color"
+                    size="x-small"
+                    label
+                  >
+                    {{ stat.label }}: {{ stat.percentage }}%
+                  </v-chip>
+                </div>
+              </div>
+
+              <!-- Onset Group Breakdown -->
+              <div v-if="clusterStatistics.get(item.id).onset.length > 0" class="mb-2">
+                <div class="text-caption font-weight-medium mb-1">Age of Onset</div>
+                <div class="d-flex flex-wrap ga-1">
+                  <v-chip
+                    v-for="stat in clusterStatistics.get(item.id).onset"
+                    :key="stat.key"
+                    :color="stat.color"
+                    size="x-small"
+                    label
+                  >
+                    {{ stat.label }}: {{ stat.percentage }}%
+                  </v-chip>
+                </div>
+              </div>
+
+              <!-- Syndromic Assessment -->
+              <div v-if="clusterStatistics.get(item.id).syndromic.syndromicCount > 0">
+                <div class="text-caption font-weight-medium mb-1">Syndromic Assessment</div>
+                <div class="d-flex ga-1">
+                  <v-chip
+                    :color="networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.true"
+                    size="x-small"
+                    label
+                  >
+                    Syndromic: {{ clusterStatistics.get(item.id).syndromic.syndromicPercentage }}%
+                  </v-chip>
+                  <v-chip
+                    :color="networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.false"
+                    size="x-small"
+                    label
+                  >
+                    Isolated: {{ clusterStatistics.get(item.id).syndromic.isolatedPercentage }}%
+                  </v-chip>
+                </div>
+              </div>
+            </v-card>
+          </v-menu>
         </div>
       </div>
     </v-card-text>
@@ -255,6 +345,7 @@
       "
       :cluster-color="selectedClusterColor"
       :genes="selectedClusterGenes"
+      :hpo-classifications="hpoClassifications"
       @highlight-gene="highlightGeneInNetwork"
     />
   </v-card>
@@ -453,6 +544,112 @@ const sortedClusterColors = computed(() => {
   // Return array (NOT object) to preserve sort order
   // JavaScript auto-sorts numeric object keys, breaking our custom order
   return clusters
+})
+
+// Compute HPO classification statistics per cluster for hover tooltips
+const clusterStatistics = computed(() => {
+  const stats = new Map()
+
+  // Need both network data and HPO classifications
+  if (!props.networkData?.cytoscape_json?.elements || !props.hpoClassifications?.data) {
+    return stats
+  }
+
+  window.logService.debug('[ClusterStats] Computing HPO statistics per cluster')
+
+  // Group genes by cluster
+  const clusterGenes = new Map()
+  props.networkData.cytoscape_json.elements
+    .filter(el => el.data?.gene_id && el.data?.cluster_id !== undefined)
+    .forEach(node => {
+      const clusterId = node.data.cluster_id
+      if (!clusterGenes.has(clusterId)) {
+        clusterGenes.set(clusterId, [])
+      }
+      clusterGenes.get(clusterId).push(node.data.gene_id)
+    })
+
+  // Build HPO lookup for O(1) access
+  const hpoLookup = new Map()
+  props.hpoClassifications.data.forEach(item => {
+    hpoLookup.set(item.gene_id, item)
+  })
+
+  // Compute statistics for each cluster
+  clusterGenes.forEach((geneIds, clusterId) => {
+    const clinicalCounts = {}
+    const onsetCounts = {}
+    let syndromicCount = 0
+    let isolatedCount = 0
+    let hpoDataCount = 0
+    const total = geneIds.length
+
+    geneIds.forEach(geneId => {
+      const classification = hpoLookup.get(geneId)
+      if (classification) {
+        hpoDataCount++
+
+        // Clinical group distribution
+        const clinicalGroup = classification.clinical_group || 'null'
+        clinicalCounts[clinicalGroup] = (clinicalCounts[clinicalGroup] || 0) + 1
+
+        // Onset group distribution
+        const onsetGroup = classification.onset_group || 'null'
+        onsetCounts[onsetGroup] = (onsetCounts[onsetGroup] || 0) + 1
+
+        // Syndromic status
+        if (classification.is_syndromic) {
+          syndromicCount++
+        } else {
+          isolatedCount++
+        }
+      }
+    })
+
+    // Convert to percentage arrays, sorted by count descending
+    const clinicalBreakdown = Object.entries(clinicalCounts)
+      .map(([key, count]) => ({
+        key,
+        label: networkAnalysisConfig.nodeColoring.labels.clinical_group[key] || key,
+        color: networkAnalysisConfig.nodeColoring.colorSchemes.clinical_group[key],
+        count,
+        percentage: ((count / hpoDataCount) * 100).toFixed(1)
+      }))
+      .sort((a, b) => b.count - a.count)
+
+    const onsetBreakdown = Object.entries(onsetCounts)
+      .map(([key, count]) => ({
+        key,
+        label: networkAnalysisConfig.nodeColoring.labels.onset_group[key] || key,
+        color: networkAnalysisConfig.nodeColoring.colorSchemes.onset_group[key],
+        count,
+        percentage: ((count / hpoDataCount) * 100).toFixed(1)
+      }))
+      .sort((a, b) => b.count - a.count)
+
+    stats.set(clusterId, {
+      total,
+      hpoDataCount,
+      hpoDataPercentage: ((hpoDataCount / total) * 100).toFixed(1),
+      clinical: clinicalBreakdown,
+      onset: onsetBreakdown,
+      syndromic: {
+        syndromicCount,
+        syndromicPercentage: ((syndromicCount / hpoDataCount) * 100).toFixed(1),
+        isolatedCount,
+        isolatedPercentage: ((isolatedCount / hpoDataCount) * 100).toFixed(1)
+      }
+    })
+  })
+
+  window.logService.info(`[ClusterStats] ✓ Computed statistics for ${stats.size} clusters`, {
+    totalClusters: stats.size,
+    avgHpoDataCoverage:
+      Array.from(stats.values()).reduce((sum, s) => sum + parseFloat(s.hpoDataPercentage), 0) /
+      stats.size
+  })
+
+  return stats
 })
 
 // Compute node colors based on color mode
