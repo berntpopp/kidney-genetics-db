@@ -153,6 +153,9 @@
           :color="color"
           size="small"
           label
+          class="cluster-chip"
+          @mouseenter="highlightCluster(Number(clusterId))"
+          @mouseleave="clearHighlight"
         >
           Cluster {{ clusterId + 1 }}
         </v-chip>
@@ -233,6 +236,43 @@ const clusterOptions = [
 ]
 
 // Methods
+const highlightCluster = clusterId => {
+  if (!cyInstance.value || clusterId === undefined) return
+
+  // Use batch for performance (prevents multiple redraws)
+  cyInstance.value.batch(() => {
+    const allNodes = cyInstance.value.nodes()
+    const allEdges = cyInstance.value.edges()
+
+    // Find nodes in the cluster
+    const clusterNodes = allNodes.filter(node => node.data('cluster_id') === clusterId)
+
+    // Find edges between cluster nodes
+    const clusterEdges = allEdges.filter(edge => {
+      const sourceCluster = edge.source().data('cluster_id')
+      const targetCluster = edge.target().data('cluster_id')
+      return sourceCluster === clusterId && targetCluster === clusterId
+    })
+
+    // Highlight cluster nodes and their edges
+    clusterNodes.addClass('highlighted')
+    clusterEdges.addClass('highlighted')
+
+    // Dim everything else
+    allNodes.difference(clusterNodes).addClass('dimmed')
+    allEdges.difference(clusterEdges).addClass('dimmed')
+  })
+}
+
+const clearHighlight = () => {
+  if (!cyInstance.value) return
+
+  // Use batch for performance
+  cyInstance.value.batch(() => {
+    cyInstance.value.elements().removeClass('highlighted dimmed')
+  })
+}
+
 const initializeCytoscape = () => {
   if (!cytoscapeContainer.value || !props.networkData) return
 
@@ -265,7 +305,28 @@ const initializeCytoscape = () => {
           'text-outline-width': 2,
           'text-outline-color': '#ffffff',
           'min-zoomed-font-size': 8,
-          color: '#000000'
+          color: '#000000',
+          'transition-property': 'border-width, border-color, opacity, overlay-opacity',
+          'transition-duration': '0.2s'
+        }
+      },
+      {
+        selector: 'node.highlighted',
+        style: {
+          'border-width': 5,
+          'border-color': '#FFC107',
+          'border-opacity': 1,
+          'overlay-color': '#FFC107',
+          'overlay-opacity': 0.25,
+          'overlay-padding': 12,
+          'z-index': 999
+        }
+      },
+      {
+        selector: 'node.dimmed',
+        style: {
+          opacity: 0.25,
+          'text-opacity': 0.25
         }
       },
       {
@@ -278,7 +339,25 @@ const initializeCytoscape = () => {
           'line-color': '#cccccc',
           'target-arrow-color': '#cccccc',
           opacity: 0.6,
-          'curve-style': 'bezier'
+          'curve-style': 'bezier',
+          'transition-property': 'line-color, width, opacity',
+          'transition-duration': '0.2s'
+        }
+      },
+      {
+        selector: 'edge.highlighted',
+        style: {
+          'line-color': '#FFC107',
+          'target-arrow-color': '#FFC107',
+          width: 4,
+          opacity: 1,
+          'z-index': 999
+        }
+      },
+      {
+        selector: 'edge.dimmed',
+        style: {
+          opacity: 0.1
         }
       },
       {
@@ -302,6 +381,7 @@ const initializeCytoscape = () => {
   })
 
   // Add event listeners
+  // Node click event
   cyInstance.value.on('tap', 'node', event => {
     const node = event.target
     emit('nodeClick', {
@@ -309,6 +389,15 @@ const initializeCytoscape = () => {
       label: node.data('label'),
       cluster_id: node.data('cluster_id')
     })
+  })
+
+  // Node hover events for cluster highlighting
+  cyInstance.value.on('mouseover', 'node', event => {
+    highlightCluster(event.target.data('cluster_id'))
+  })
+
+  cyInstance.value.on('mouseout', 'node', () => {
+    clearHighlight()
   })
 
   // Auto-fit on load
@@ -405,5 +494,17 @@ onUnmounted(() => {
   width: 100%;
   background-color: #fafafa;
   border-radius: 4px;
+}
+
+.cluster-chip {
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.cluster-chip:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 </style>
