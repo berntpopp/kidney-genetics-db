@@ -403,8 +403,8 @@ import EnrichmentTable from '../components/network/EnrichmentTable.vue'
 
 // Gene Selection
 const selectedTiers = ref(['comprehensive_support', 'multi_source_support', 'established_support'])
-const minScore = ref(50)
-const maxGenes = ref(500)
+const minScore = ref(20)
+const maxGenes = ref(700)
 const filteredGenes = ref([])
 const loadingGenes = ref(false)
 
