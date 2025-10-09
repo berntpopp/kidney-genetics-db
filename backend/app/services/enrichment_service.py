@@ -32,6 +32,7 @@ logger = get_logger(__name__)
 # Lazy import of gseapy (not always needed)
 try:
     import gseapy as gp
+
     GSEAPY_AVAILABLE = True
 except ImportError:
     GSEAPY_AVAILABLE = False
@@ -68,7 +69,7 @@ class EnrichmentService:
         cluster_genes: list[int],
         session: Session,
         background_genes: list[int] | None = None,
-        fdr_threshold: float = 0.05
+        fdr_threshold: float = 0.05,
     ) -> list[dict[str, Any]]:
         """
         Perform HPO term enrichment using Fisher's exact test.
@@ -97,20 +98,12 @@ class EnrichmentService:
             ]
         """
         # Get gene symbols for cluster
-        cluster_gene_objs = (
-            session.query(Gene)
-            .filter(Gene.id.in_(cluster_genes))
-            .all()
-        )
+        cluster_gene_objs = session.query(Gene).filter(Gene.id.in_(cluster_genes)).all()
         cluster_symbols = {g.approved_symbol for g in cluster_gene_objs}
 
         if not cluster_symbols:
             await logger.warning("No valid genes found in cluster")
             return []
-
-        # Get background genes
-        if not background_genes:
-            background_genes = [g.id for g in session.query(Gene).all()]
 
         # Get HPO annotations from database (JSONB extraction)
         hpo_term_to_genes = await self._get_hpo_annotations(session)
@@ -119,11 +112,24 @@ class EnrichmentService:
             await logger.warning("No HPO annotations found in database")
             return []
 
+        # CRITICAL FIX: Background must be only genes WITH HPO annotations
+        # Get all unique genes that have ANY HPO annotation
+        all_annotated_genes = set()
+        for term_genes in hpo_term_to_genes.values():
+            all_annotated_genes.update(term_genes)
+
+        await logger.info(
+            "HPO enrichment background",
+            cluster_size=len(cluster_symbols),
+            background_size=len(all_annotated_genes),
+            hpo_terms=len(hpo_term_to_genes),
+        )
+
         # Perform Fisher's exact test for each HPO term
         results = []
         p_values = []
 
-        total_background = len(background_genes)
+        total_background = len(all_annotated_genes)
 
         for term_id, term_genes in hpo_term_to_genes.items():
             # Contingency table for Fisher's exact test
@@ -142,23 +148,22 @@ class EnrichmentService:
                 continue  # No overlap - skip
 
             # Fisher's exact test (one-tailed, testing for over-representation)
-            odds_ratio, p_value = fisher_exact(
-                [[a, b], [c, d]],
-                alternative='greater'
-            )
+            odds_ratio, p_value = fisher_exact([[a, b], [c, d]], alternative="greater")
 
             p_values.append(p_value)
 
-            results.append({
-                "term_id": term_id,
-                "term_name": None,  # Will be filled later
-                "p_value": float(p_value),
-                "gene_count": a,
-                "cluster_size": len(cluster_symbols),
-                "background_count": len(term_genes),
-                "genes": sorted(cluster_symbols & term_genes),
-                "odds_ratio": float(odds_ratio)
-            })
+            results.append(
+                {
+                    "term_id": term_id,
+                    "term_name": None,  # Will be filled later
+                    "p_value": float(p_value),
+                    "gene_count": a,
+                    "cluster_size": len(cluster_symbols),
+                    "background_count": len(term_genes),
+                    "genes": sorted(cluster_symbols & term_genes),
+                    "odds_ratio": float(odds_ratio),
+                }
+            )
 
         if not results:
             await logger.info("No HPO terms enriched in cluster")
@@ -177,10 +182,7 @@ class EnrichmentService:
                 term = await self.hpo_client.get_term(result["term_id"])
                 result["term_name"] = term.name if term else result["term_id"]
             except Exception as e:
-                await logger.debug(
-                    f"Failed to get HPO term name: {e}",
-                    term_id=result["term_id"]
-                )
+                await logger.debug(f"Failed to get HPO term name: {e}", term_id=result["term_id"])
                 result["term_name"] = result["term_id"]
 
         # Filter by FDR and sort
@@ -191,7 +193,7 @@ class EnrichmentService:
             "HPO enrichment complete",
             significant_terms=len(results),
             cluster_size=len(cluster_symbols),
-            fdr_threshold=fdr_threshold
+            fdr_threshold=fdr_threshold,
         )
 
         return results
@@ -202,7 +204,7 @@ class EnrichmentService:
         session: Session,
         gene_set: str = "GO_Biological_Process_2023",
         fdr_threshold: float = 0.05,
-        timeout_seconds: int = 120
+        timeout_seconds: int = 120,
     ) -> list[dict[str, Any]]:
         """
         Perform GO/KEGG enrichment using GSEApy with timeout and rate limiting.
@@ -235,12 +237,9 @@ class EnrichmentService:
         try:
             enr_result = await asyncio.wait_for(
                 loop.run_in_executor(
-                    self._executor,
-                    self._run_gseapy_enrichr_safe,
-                    gene_symbols,
-                    gene_set
+                    self._executor, self._run_gseapy_enrichr_safe, gene_symbols, gene_set
                 ),
-                timeout=timeout_seconds
+                timeout=timeout_seconds,
             )
 
             if enr_result is None:
@@ -251,14 +250,11 @@ class EnrichmentService:
             await logger.error(
                 f"GSEApy enrichment timed out after {timeout_seconds}s",
                 gene_count=len(gene_symbols),
-                gene_set=gene_set
+                gene_set=gene_set,
             )
             return []
         except Exception as e:
-            await logger.error(
-                f"GSEApy enrichment failed: {e}",
-                gene_set=gene_set
-            )
+            await logger.error(f"GSEApy enrichment failed: {e}", gene_set=gene_set)
             return []
 
         # Convert GSEApy results to our format
@@ -269,39 +265,39 @@ class EnrichmentService:
             return []
 
         for _, row in enr_result.results.iterrows():
-            if row['Adjusted P-value'] > fdr_threshold:
+            if row["Adjusted P-value"] > fdr_threshold:
                 continue
 
-            gene_list = row['Genes'].split(';') if isinstance(row['Genes'], str) else []
+            gene_list = row["Genes"].split(";") if isinstance(row["Genes"], str) else []
 
-            results.append({
-                "term_id": row['Term'],
-                "term_name": row['Term'],  # GSEApy uses same for both
-                "p_value": float(row['P-value']),
-                "fdr": float(row['Adjusted P-value']),
-                "gene_count": len(gene_list),
-                "cluster_size": len(gene_symbols),
-                "background_count": None,  # Not provided by Enrichr
-                "genes": gene_list,
-                "enrichment_score": -np.log10(row['Adjusted P-value']) if row['Adjusted P-value'] > 0 else 100.0,
-                "odds_ratio": float(row.get('Odds Ratio', 0)),
-                "combined_score": float(row['Combined Score'])  # Enrichr-specific
-            })
+            results.append(
+                {
+                    "term_id": row["Term"],
+                    "term_name": row["Term"],  # GSEApy uses same for both
+                    "p_value": float(row["P-value"]),
+                    "fdr": float(row["Adjusted P-value"]),
+                    "gene_count": len(gene_list),
+                    "cluster_size": len(gene_symbols),
+                    "background_count": None,  # Not provided by Enrichr
+                    "genes": gene_list,
+                    "enrichment_score": -np.log10(row["Adjusted P-value"])
+                    if row["Adjusted P-value"] > 0
+                    else 100.0,
+                    "odds_ratio": float(row.get("Odds Ratio", 0)),
+                    "combined_score": float(row["Combined Score"]),  # Enrichr-specific
+                }
+            )
 
         await logger.info(
             "GO enrichment complete",
             significant_terms=len(results),
             gene_set=gene_set,
-            cluster_size=len(gene_symbols)
+            cluster_size=len(gene_symbols),
         )
 
         return results
 
-    def _run_gseapy_enrichr_safe(
-        self,
-        gene_list: list[str],
-        gene_set: str
-    ):
+    def _run_gseapy_enrichr_safe(self, gene_list: list[str], gene_set: str):
         """
         Synchronous GSEApy call with rate limiting (runs in thread pool).
 
@@ -315,9 +311,7 @@ class EnrichmentService:
 
             if elapsed < self._enrichr_min_interval:
                 sleep_time = self._enrichr_min_interval - elapsed
-                logger.sync_debug(
-                    f"Rate limiting: sleeping {sleep_time:.2f}s before Enrichr call"
-                )
+                logger.sync_debug(f"Rate limiting: sleeping {sleep_time:.2f}s before Enrichr call")
                 time.sleep(sleep_time)
 
             self._last_enrichr_call = time.time()
@@ -325,16 +319,14 @@ class EnrichmentService:
         # Call GSEApy (has built-in retry=5)
         try:
             logger.sync_info(
-                "Calling GSEApy Enrichr API",
-                gene_count=len(gene_list),
-                gene_set=gene_set
+                "Calling GSEApy Enrichr API", gene_count=len(gene_list), gene_set=gene_set
             )
 
             result = gp.enrichr(
                 gene_list=gene_list,
                 gene_sets=gene_set,
-                organism='human',
-                outdir=None  # Don't save files
+                organism="human",
+                outdir=None,  # Don't save files
             )
 
             return result
@@ -344,37 +336,46 @@ class EnrichmentService:
             return None
 
     async def _get_hpo_annotations(
-        self,
-        session: Session
+        self, session: Session, use_kidney_only: bool = True
     ) -> dict[str, set]:
         """
         Get HPO term → genes mapping from database using JSONB operators.
 
         Extracts HPO terms from gene_annotations.annotations JSONB column.
 
+        Args:
+            session: Database session
+            use_kidney_only: If True, use kidney_phenotypes; if False, use all phenotypes
+
         Returns:
             {"HP:0000107": {"WT1", "PAX2", ...}, ...}
         """
         try:
+            # Choose which phenotype field to use
+            phenotype_field = "kidney_phenotypes" if use_kidney_only else "phenotypes"
+
             # Use PostgreSQL JSONB operators to extract phenotypes
-            result = session.execute(text("""
+            # Note: phenotype_field must be string-formatted (not parameterized) for JSONB key access
+            result = session.execute(
+                text(f"""
                 WITH hpo_genes AS (
                     SELECT
                         g.approved_symbol,
-                        jsonb_array_elements(ga.annotations->'phenotypes') AS phenotype
+                        jsonb_array_elements(ga.annotations->'{phenotype_field}') AS phenotype
                     FROM gene_annotations ga
                     JOIN genes g ON ga.gene_id = g.id
                     WHERE ga.source = 'hpo'
-                      AND ga.annotations ? 'phenotypes'
-                      AND jsonb_typeof(ga.annotations->'phenotypes') = 'array'
+                      AND ga.annotations ? '{phenotype_field}'
+                      AND jsonb_typeof(ga.annotations->'{phenotype_field}') = 'array'
                 )
                 SELECT
-                    phenotype->>'term_id' AS hpo_term_id,
+                    phenotype->>'id' AS hpo_term_id,
                     array_agg(DISTINCT approved_symbol) AS gene_symbols
                 FROM hpo_genes
-                WHERE phenotype->>'term_id' IS NOT NULL
-                GROUP BY phenotype->>'term_id'
-            """))
+                WHERE phenotype->>'id' IS NOT NULL
+                GROUP BY phenotype->>'id'
+            """)
+            )
 
             hpo_to_genes = {}
             for row in result:
@@ -383,8 +384,9 @@ class EnrichmentService:
 
             logger.sync_info(
                 "Loaded HPO annotations from database",
+                phenotype_field=phenotype_field,
                 term_count=len(hpo_to_genes),
-                total_genes=sum(len(genes) for genes in hpo_to_genes.values())
+                total_genes=sum(len(genes) for genes in hpo_to_genes.values()),
             )
 
             return hpo_to_genes
@@ -394,9 +396,7 @@ class EnrichmentService:
             return {}
 
     async def get_cluster_summary(
-        self,
-        cluster_genes: list[int],
-        session: Session
+        self, cluster_genes: list[int], session: Session
     ) -> dict[str, Any]:
         """
         Get summary statistics for a gene cluster.

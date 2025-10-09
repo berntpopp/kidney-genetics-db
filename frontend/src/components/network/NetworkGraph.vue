@@ -264,6 +264,7 @@ const initializeCytoscape = () => {
           'text-halign': 'center',
           'text-outline-width': 2,
           'text-outline-color': '#ffffff',
+          'min-zoomed-font-size': 8,
           color: '#000000'
         }
       },
@@ -293,7 +294,9 @@ const initializeCytoscape = () => {
       animate: true,
       animationDuration: 500
     },
-    wheelSensitivity: 0.2,
+    // Performance optimizations
+    hideEdgesOnViewport: true, // Hide edges during pan/zoom for better performance
+    pixelRatio: 1, // Use standard pixel ratio for better performance
     minZoom: 0.1,
     maxZoom: 5
   })
