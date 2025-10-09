@@ -29,7 +29,13 @@
               variant="outlined"
               hint="Select which evidence tiers to include"
               persistent-hint
-            />
+            >
+              <template #chip="{ item, props }">
+                <v-chip v-bind="props" :color="getTierColor(item.value)" size="small" closable>
+                  {{ item.title }}
+                </v-chip>
+              </template>
+            </v-select>
           </v-col>
 
           <v-col cols="12" md="3">
@@ -400,6 +406,7 @@ import { networkApi } from '../api/network'
 import NetworkGraph from '../components/network/NetworkGraph.vue'
 import EnrichmentTable from '../components/network/EnrichmentTable.vue'
 import { networkAnalysisConfig } from '../config/networkAnalysis'
+import { TIER_CONFIG } from '../utils/evidenceTiers'
 
 // Gene Selection (config-driven defaults)
 const selectedTiers = ref(['comprehensive_support', 'multi_source_support', 'established_support'])
@@ -527,6 +534,11 @@ const clusterList = computed(() => {
   // Sort by size descending (which matches displayId order)
   return clusters.sort((a, b) => b.size - a.size)
 })
+
+// Utility Functions
+const getTierColor = tierKey => {
+  return TIER_CONFIG[tierKey]?.color || 'grey'
+}
 
 // Methods
 const fetchFilteredGenes = async () => {
