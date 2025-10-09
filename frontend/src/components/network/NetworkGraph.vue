@@ -137,6 +137,29 @@
           <div v-if="tooltipData.clusterName" class="tooltip-cluster">
             {{ tooltipData.clusterName }}
           </div>
+          <div v-if="tooltipData.hpoData" class="tooltip-hpo">
+            <div class="tooltip-hpo-divider"></div>
+            <div v-if="tooltipData.hpoData.clinical_group" class="tooltip-hpo-item">
+              <span class="tooltip-hpo-label">Clinical:</span>
+              {{
+                networkAnalysisConfig.nodeColoring.labels.clinical_group[
+                  tooltipData.hpoData.clinical_group
+                ] || tooltipData.hpoData.clinical_group
+              }}
+            </div>
+            <div v-if="tooltipData.hpoData.onset_group" class="tooltip-hpo-item">
+              <span class="tooltip-hpo-label">Onset:</span>
+              {{
+                networkAnalysisConfig.nodeColoring.labels.onset_group[
+                  tooltipData.hpoData.onset_group
+                ] || tooltipData.hpoData.onset_group
+              }}
+            </div>
+            <div v-if="tooltipData.hpoData.is_syndromic !== null" class="tooltip-hpo-item">
+              <span class="tooltip-hpo-label">Type:</span>
+              {{ tooltipData.hpoData.is_syndromic ? 'Syndromic' : 'Isolated' }}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -435,7 +458,8 @@ const tooltipX = ref(0)
 const tooltipY = ref(0)
 const tooltipData = ref({
   geneSymbol: '',
-  clusterName: ''
+  clusterName: '',
+  hpoData: null
 })
 
 // Computed
@@ -749,9 +773,17 @@ const showTooltip = (node, event) => {
   const clusterName =
     backendClusterId !== undefined ? getClusterDisplayName(backendClusterId) : null
 
+  // Look up HPO classification data for this gene
+  const geneId = node.data('gene_id')
+  let hpoData = null
+  if (props.hpoClassifications?.data && geneId) {
+    hpoData = props.hpoClassifications.data.find(item => item.gene_id === geneId)
+  }
+
   tooltipData.value = {
     geneSymbol: node.data('label') || node.data('gene_id'),
-    clusterName
+    clusterName,
+    hpoData
   }
 
   // Position tooltip near cursor with offset
@@ -1208,6 +1240,28 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
+.tooltip-hpo {
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.tooltip-hpo-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  margin-bottom: 6px;
+}
+
+.tooltip-hpo-item {
+  line-height: 1.6;
+  margin-bottom: 2px;
+}
+
+.tooltip-hpo-label {
+  font-weight: 600;
+  color: #90caf9;
+  margin-right: 4px;
+}
+
 /* Dark theme adjustments */
 .v-theme--dark .node-tooltip {
   background: rgba(250, 250, 250, 0.95);
@@ -1215,6 +1269,14 @@ onUnmounted(() => {
 }
 
 .v-theme--dark .tooltip-cluster {
+  color: #1976d2;
+}
+
+.v-theme--dark .tooltip-hpo-divider {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.v-theme--dark .tooltip-hpo-label {
   color: #1976d2;
 }
 </style>
