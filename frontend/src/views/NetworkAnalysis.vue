@@ -51,11 +51,11 @@
               v-model.number="maxGenes"
               label="Max Genes"
               type="number"
-              min="10"
-              max="2000"
+              :min="networkAnalysisConfig.geneSelection.minGenesLimit"
+              :max="networkAnalysisConfig.geneSelection.maxGenesHardLimit"
               density="comfortable"
               variant="outlined"
-              hint="Maximum genes (performance limit)"
+              :hint="`Maximum genes (limit: ${networkAnalysisConfig.geneSelection.maxGenesHardLimit})`"
               persistent-hint
             />
           </v-col>
@@ -78,17 +78,16 @@
       </v-card-text>
     </v-card>
 
-    <!-- Warning for large networks -->
+    <!-- Warning for large networks (config-driven threshold) -->
     <v-alert
-      v-if="filteredGenes.length > 500"
+      v-if="filteredGenes.length > networkAnalysisConfig.geneSelection.largeNetworkThreshold"
       type="warning"
       variant="outlined"
       class="mb-6"
       prominent
     >
-      <template #title>Large Network Warning</template>
-      You have selected {{ filteredGenes.length }} genes. Networks with >500 nodes may take longer
-      to build and visualize. Consider filtering to higher evidence tiers for better performance.
+      <template #title>{{ networkAnalysisConfig.ui.warningMessages.largeNetwork.title }}</template>
+      {{ networkAnalysisConfig.ui.warningMessages.largeNetwork.message(filteredGenes.length) }}
     </v-alert>
 
     <!-- Network Construction Card -->
@@ -105,12 +104,12 @@
               v-model.number="minStringScore"
               label="Min STRING Score"
               type="number"
-              min="0"
-              max="1000"
-              step="50"
+              :min="networkAnalysisConfig.networkConstruction.minStringScoreRange.min"
+              :max="networkAnalysisConfig.networkConstruction.minStringScoreRange.max"
+              :step="networkAnalysisConfig.networkConstruction.minStringScoreRange.step"
               density="comfortable"
               variant="outlined"
-              hint="Minimum interaction confidence (0-1000)"
+              :hint="`Minimum interaction confidence (${networkAnalysisConfig.networkConstruction.minStringScoreRange.min}-${networkAnalysisConfig.networkConstruction.minStringScoreRange.max})`"
               persistent-hint
             />
           </v-col>
@@ -256,7 +255,7 @@
       :min-string-score="minStringScore"
       :cluster-id-mapping="clusterIdMapping"
       :cluster-colors-map="clusterColors"
-      height="700px"
+      :height="networkAnalysisConfig.ui.defaultGraphHeight"
       class="mb-6"
       @refresh="buildNetwork"
       @cluster="handleClusterRequest"
@@ -400,18 +399,18 @@ import { geneApi } from '../api/genes'
 import { networkApi } from '../api/network'
 import NetworkGraph from '../components/network/NetworkGraph.vue'
 import EnrichmentTable from '../components/network/EnrichmentTable.vue'
+import { networkAnalysisConfig } from '../config/networkAnalysis'
 
-// Gene Selection
+// Gene Selection (config-driven defaults)
 const selectedTiers = ref(['comprehensive_support', 'multi_source_support', 'established_support'])
-const minScore = ref(20)
-const maxGenes = ref(700)
+const minScore = ref(networkAnalysisConfig.geneSelection.defaultMinScore)
+const maxGenes = ref(networkAnalysisConfig.geneSelection.defaultMaxGenes)
 const filteredGenes = ref([])
 const loadingGenes = ref(false)
 
-// Network Construction
-// Network construction and filtering defaults (aligned with backend config)
-const minStringScore = ref(400) // From network_analysis.yaml: network.min_string_score
-const clusterAlgorithm = ref('leiden')
+// Network Construction (config-driven defaults)
+const minStringScore = ref(networkAnalysisConfig.networkConstruction.defaultMinStringScore)
+const clusterAlgorithm = ref(networkAnalysisConfig.networkConstruction.defaultClusteringAlgorithm)
 const buildingNetwork = ref(false)
 const clustering = ref(false)
 const networkData = ref(null)
@@ -420,18 +419,17 @@ const networkStats = ref(null)
 const clusterStats = ref(null)
 const networkError = ref(null)
 
-// Network Filtering
-// Filtering defaults (aligned with backend config: network_analysis.yaml filtering section)
-const removeIsolated = ref(false) // Default: keep isolated nodes (filtering.default_remove_isolated)
-const minDegree = ref(2) // Default: filter nodes with fewer than 2 connections
-const minClusterSize = ref(3) // Default: filter clusters with fewer than 3 genes
-const largestComponentOnly = ref(false) // Default: keep all components (filtering.default_largest_component_only)
+// Network Filtering (config-driven defaults)
+const removeIsolated = ref(networkAnalysisConfig.filtering.defaultRemoveIsolated)
+const minDegree = ref(networkAnalysisConfig.filtering.defaultMinDegree)
+const minClusterSize = ref(networkAnalysisConfig.filtering.defaultMinClusterSize)
+const largestComponentOnly = ref(networkAnalysisConfig.filtering.defaultLargestComponentOnly)
 
-// Enrichment Analysis
+// Enrichment Analysis (config-driven defaults)
 const selectedClusters = ref([]) // Changed to array for multi-select
-const enrichmentType = ref('hpo')
-const geneSet = ref('GO_Biological_Process_2023')
-const fdrThreshold = ref(0.05)
+const enrichmentType = ref(networkAnalysisConfig.enrichment.defaultEnrichmentType)
+const geneSet = ref(networkAnalysisConfig.enrichment.goGeneSets[0])
+const fdrThreshold = ref(networkAnalysisConfig.enrichment.defaultFdrThreshold)
 const runningEnrichment = ref(false)
 const enrichmentResults = ref(null)
 const enrichmentError = ref(null)
@@ -534,12 +532,18 @@ const clusterList = computed(() => {
 const fetchFilteredGenes = async () => {
   loadingGenes.value = true
   try {
+    // Enforce hard limit from config
+    const effectiveMaxGenes = Math.min(
+      maxGenes.value,
+      networkAnalysisConfig.geneSelection.maxGenesHardLimit
+    )
+
     // Fetch all pages up to maxGenes limit (API has 100 per page limit)
     const allGenes = []
     let page = 1
     const perPage = 100 // API maximum
 
-    while (allGenes.length < maxGenes.value) {
+    while (allGenes.length < effectiveMaxGenes) {
       const response = await geneApi.getGenes({
         page,
         perPage,
@@ -562,8 +566,8 @@ const fetchFilteredGenes = async () => {
       page++
     }
 
-    // Trim to maxGenes limit
-    filteredGenes.value = allGenes.slice(0, maxGenes.value)
+    // Trim to effective maxGenes limit (enforces hard limit from config)
+    filteredGenes.value = allGenes.slice(0, effectiveMaxGenes)
     window.logService.info(`Filtered ${filteredGenes.value.length} genes (fetched ${page} page(s))`)
   } catch (error) {
     window.logService.error('Failed to fetch genes:', error)
