@@ -12,7 +12,7 @@ export const networkAnalysisConfig = {
     defaultMaxGenes: 700, // Maximum genes to include in network
     maxGenesHardLimit: 700, // Hard limit for gene count (cannot exceed)
     minGenesLimit: 10, // Minimum genes required
-    largeNetworkThreshold: 500 // Show warning when exceeding this threshold
+    largeNetworkThreshold: 700 // Show warning when exceeding this threshold
   },
 
   // Network Construction Parameters
@@ -36,7 +36,7 @@ export const networkAnalysisConfig = {
 
   // Enrichment Analysis Parameters
   enrichment: {
-    defaultEnrichmentType: 'hpo', // Default enrichment type (hpo or go)
+    defaultEnrichmentType: 'go', // Default enrichment type (go or hpo)
     defaultFdrThreshold: 0.05, // Default FDR significance threshold
     hpoGeneSet: 'HPO (Phenotypes)',
     goGeneSets: [
@@ -52,7 +52,7 @@ export const networkAnalysisConfig = {
     warningMessages: {
       largeNetwork: {
         title: 'Large Network Warning',
-        threshold: 500,
+        threshold: 700,
         message: count =>
           `You have selected ${count} genes. Networks with >${networkAnalysisConfig.geneSelection.largeNetworkThreshold} nodes may take longer to build and visualize. Consider filtering to higher evidence tiers for better performance.`
       }

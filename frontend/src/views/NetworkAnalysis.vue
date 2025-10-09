@@ -454,8 +454,8 @@ const algorithmOptions = [
 ]
 
 const enrichmentOptions = [
-  { title: 'HPO (Phenotypes)', value: 'hpo' },
-  { title: 'GO (Gene Ontology)', value: 'go' }
+  { title: 'GO (Gene Ontology)', value: 'go' },
+  { title: 'HPO (Phenotypes)', value: 'hpo' }
 ]
 
 // Computed
