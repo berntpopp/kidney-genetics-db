@@ -152,6 +152,11 @@ class EnrichmentService:
 
             p_values.append(p_value)
 
+            # Cap infinite odds ratios to a large finite value for JSON serialization
+            # Infinity occurs with perfect enrichment (all cluster genes have term)
+            if np.isinf(odds_ratio):
+                odds_ratio = 1000.0
+
             results.append(
                 {
                     "term_id": term_id,
@@ -270,6 +275,15 @@ class EnrichmentService:
 
             gene_list = row["Genes"].split(";") if isinstance(row["Genes"], str) else []
 
+            # Cap infinite values for JSON serialization
+            odds_ratio = float(row.get("Odds Ratio", 0))
+            if np.isinf(odds_ratio):
+                odds_ratio = 1000.0
+
+            combined_score = float(row["Combined Score"])
+            if np.isinf(combined_score):
+                combined_score = 1000.0
+
             results.append(
                 {
                     "term_id": row["Term"],
@@ -283,8 +297,8 @@ class EnrichmentService:
                     "enrichment_score": -np.log10(row["Adjusted P-value"])
                     if row["Adjusted P-value"] > 0
                     else 100.0,
-                    "odds_ratio": float(row.get("Odds Ratio", 0)),
-                    "combined_score": float(row["Combined Score"]),  # Enrichr-specific
+                    "odds_ratio": odds_ratio,
+                    "combined_score": combined_score,  # Enrichr-specific
                 }
             )
 

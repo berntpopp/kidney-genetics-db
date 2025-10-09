@@ -430,26 +430,199 @@ class NetworkAnalysisService:
 
         return results
 
+    async def filter_network(
+        self,
+        graph: ig.Graph,
+        session: Session,
+        min_degree: int = 1,
+        remove_isolated: bool = True,
+        largest_component_only: bool = False
+    ) -> ig.Graph:
+        """
+        Filter network graph by removing low-degree and isolated nodes.
+
+        Args:
+            graph: Network graph to filter
+            session: Database session
+            min_degree: Minimum node degree threshold (default: 1)
+            remove_isolated: Remove nodes with degree=0 (default: True)
+            largest_component_only: Keep only largest connected component (default: False)
+
+        Returns:
+            Filtered subgraph
+
+        Best Practices:
+            - Remove isolated nodes (degree=0) to reduce visual clutter
+            - Set min_degree=2 to show only nodes with multiple interactions
+            - Use largest_component_only=True for cleaner visualization
+        """
+        loop = asyncio.get_event_loop()
+        filtered_graph = await loop.run_in_executor(
+            self._executor,
+            self._filter_network_sync,
+            graph,
+            min_degree,
+            remove_isolated,
+            largest_component_only
+        )
+        return filtered_graph
+
+    def _filter_network_sync(
+        self,
+        graph: ig.Graph,
+        min_degree: int,
+        remove_isolated: bool,
+        largest_component_only: bool
+    ) -> ig.Graph:
+        """
+        Synchronous network filtering (runs in thread pool).
+        """
+        if graph.vcount() == 0:
+            return graph
+
+        vertices_to_keep = set(range(graph.vcount()))
+
+        # Filter by degree
+        if remove_isolated or min_degree > 0:
+            degrees = graph.degree()
+            threshold = max(1 if remove_isolated else 0, min_degree)
+            vertices_to_keep = {
+                v.index for v in graph.vs
+                if degrees[v.index] >= threshold
+            }
+
+        # Keep only largest component if requested
+        if largest_component_only and vertices_to_keep:
+            components = graph.connected_components()
+            if len(components) > 0:
+                largest_component = max(components, key=len)
+                vertices_to_keep = vertices_to_keep & set(largest_component)
+
+        if not vertices_to_keep:
+            logger.sync_warning("All vertices filtered out, returning empty graph")
+            return ig.Graph()
+
+        # Create filtered subgraph
+        filtered_graph = graph.subgraph(list(vertices_to_keep))
+
+        logger.sync_info(
+            "Filtered network graph",
+            original_nodes=graph.vcount(),
+            filtered_nodes=filtered_graph.vcount(),
+            removed_nodes=graph.vcount() - filtered_graph.vcount(),
+            min_degree=min_degree,
+            remove_isolated=remove_isolated
+        )
+
+        return filtered_graph
+
+    async def filter_clusters_by_size(
+        self,
+        gene_to_cluster: dict[int, int],
+        session: Session,
+        min_cluster_size: int = 3
+    ) -> dict[int, int]:
+        """
+        Filter out small clusters below size threshold.
+
+        Args:
+            gene_to_cluster: {gene_id: cluster_id} mapping
+            session: Database session
+            min_cluster_size: Minimum cluster size (default: 3)
+
+        Returns:
+            Filtered {gene_id: cluster_id} mapping with small clusters removed
+
+        Best Practices:
+            - Use min_cluster_size=3 to remove singleton and doublet clusters
+            - Use min_cluster_size=5-10 for large networks with many clusters
+        """
+        loop = asyncio.get_event_loop()
+        filtered_mapping = await loop.run_in_executor(
+            self._executor,
+            self._filter_clusters_by_size_sync,
+            gene_to_cluster,
+            min_cluster_size
+        )
+        return filtered_mapping
+
+    def _filter_clusters_by_size_sync(
+        self,
+        gene_to_cluster: dict[int, int],
+        min_cluster_size: int
+    ) -> dict[int, int]:
+        """
+        Synchronous cluster size filtering.
+        """
+        # Count cluster sizes
+        cluster_sizes = {}
+        for _gene_id, cluster_id in gene_to_cluster.items():
+            cluster_sizes[cluster_id] = cluster_sizes.get(cluster_id, 0) + 1
+
+        # Filter clusters below threshold
+        clusters_to_keep = {
+            cluster_id for cluster_id, size in cluster_sizes.items()
+            if size >= min_cluster_size
+        }
+
+        # Create filtered mapping with renumbered cluster IDs
+        filtered_mapping = {}
+        cluster_id_remap = {}
+        next_cluster_id = 0
+
+        for gene_id, cluster_id in gene_to_cluster.items():
+            if cluster_id in clusters_to_keep:
+                # Renumber cluster IDs sequentially
+                if cluster_id not in cluster_id_remap:
+                    cluster_id_remap[cluster_id] = next_cluster_id
+                    next_cluster_id += 1
+                filtered_mapping[gene_id] = cluster_id_remap[cluster_id]
+
+        original_clusters = len(cluster_sizes)
+        filtered_clusters = len(cluster_id_remap)
+        removed_genes = len(gene_to_cluster) - len(filtered_mapping)
+
+        logger.sync_info(
+            "Filtered small clusters",
+            original_clusters=original_clusters,
+            filtered_clusters=filtered_clusters,
+            removed_clusters=original_clusters - filtered_clusters,
+            removed_genes=removed_genes,
+            min_cluster_size=min_cluster_size
+        )
+
+        return filtered_mapping
+
     def _load_default_config(self) -> dict[str, Any]:
         """
-        Load default configuration.
+        Load configuration from YAML using centralized config system.
 
-        Can be overridden by loading from YAML in production.
+        Uses get_config() to load from network_analysis.yaml.
         """
+        from app.core.datasource_config import get_config
+
+        cfg = get_config()
+        na_config = cfg.network_analysis
+
         return {
             # Leiden algorithm parameters
-            "leiden_resolution": 1.0,
-            "leiden_iterations": 2,
+            "leiden_resolution": na_config.get("clustering", {}).get("leiden", {}).get("resolution", 1.0),
+            "leiden_iterations": na_config.get("clustering", {}).get("leiden", {}).get("iterations", 2),
             # Louvain algorithm parameters
-            "louvain_resolution": 1.0,
+            "louvain_resolution": na_config.get("clustering", {}).get("louvain", {}).get("resolution", 1.0),
             # Walktrap algorithm parameters
-            "walktrap_steps": 4,
+            "walktrap_steps": na_config.get("clustering", {}).get("walktrap", {}).get("steps", 4),
             # Network construction
-            "min_string_score": 400,
-            "max_graph_size": 2000,
+            "min_string_score": na_config.get("network", {}).get("min_string_score", 400),
+            "max_graph_size": na_config.get("network", {}).get("max_nodes", 2000),
+            # Filtering defaults (from config, not hardcoded)
+            "default_min_degree": na_config.get("filtering", {}).get("default_min_degree", 0),
+            "default_min_cluster_size": na_config.get("filtering", {}).get("default_min_cluster_size", 1),
+            "default_remove_isolated": na_config.get("filtering", {}).get("default_remove_isolated", False),
+            "default_largest_component_only": na_config.get("filtering", {}).get("default_largest_component_only", False),
             # Cache settings
-            "cache_ttl_seconds": 3600,
-            "max_cached_graphs": 50
+            "cache_ttl_seconds": na_config.get("network", {}).get("cache_ttl_hours", 1) * 3600,
+            "max_cached_graphs": na_config.get("network", {}).get("max_cached_graphs", 50)
         }
 
     def clear_cache(self) -> None:

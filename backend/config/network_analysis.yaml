@@ -36,6 +36,21 @@ network_analysis:
     optional_metrics:
       - pagerank
 
+  # Network filtering settings
+  filtering:
+    # Node filtering
+    default_min_degree: 0  # Default minimum node degree (0 = no filter)
+    max_min_degree: 10  # Maximum allowed min_degree parameter
+    default_remove_isolated: false  # Default: keep isolated nodes (degree=0)
+
+    # Cluster filtering
+    default_min_cluster_size: 1  # Default: keep all clusters (1 = no filter)
+    recommended_min_cluster_size: 3  # Recommended minimum for meaningful clusters
+    max_min_cluster_size: 50  # Maximum allowed min_cluster_size parameter
+
+    # Component filtering
+    default_largest_component_only: false  # Default: keep all components
+
   # Subgraph extraction
   subgraph:
     max_k_hops: 5  # Maximum neighborhood depth

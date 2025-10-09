@@ -10,12 +10,24 @@ export const networkApi = {
    * @param {Object} params Network parameters
    * @param {Array<number>} params.gene_ids Gene IDs to include
    * @param {number} params.min_string_score Minimum STRING confidence (0-1000)
+   * @param {boolean} params.remove_isolated Remove isolated nodes
+   * @param {number} params.min_degree Minimum node degree
+   * @param {boolean} params.largest_component_only Keep only largest component
    * @returns {Promise} Network data with Cytoscape.js JSON
    */
-  async buildNetwork({ gene_ids, min_string_score = 400 }) {
+  async buildNetwork({
+    gene_ids,
+    min_string_score = 400,
+    remove_isolated = false,
+    min_degree = 0,
+    largest_component_only = false
+  }) {
     const response = await apiClient.post('/api/network/build', {
       gene_ids,
-      min_string_score
+      min_string_score,
+      remove_isolated,
+      min_degree,
+      largest_component_only
     })
     return response.data
   },
@@ -26,13 +38,29 @@ export const networkApi = {
    * @param {Array<number>} params.gene_ids Gene IDs in network
    * @param {number} params.min_string_score Minimum STRING confidence
    * @param {string} params.algorithm Clustering algorithm (leiden, louvain, walktrap)
+   * @param {boolean} params.remove_isolated Remove isolated nodes
+   * @param {number} params.min_degree Minimum node degree
+   * @param {number} params.min_cluster_size Minimum cluster size
+   * @param {boolean} params.largest_component_only Keep only largest component
    * @returns {Promise} Clustering results with Cytoscape.js JSON
    */
-  async clusterNetwork({ gene_ids, min_string_score = 400, algorithm = 'leiden' }) {
+  async clusterNetwork({
+    gene_ids,
+    min_string_score = 400,
+    algorithm = 'leiden',
+    remove_isolated = false,
+    min_degree = 0,
+    min_cluster_size = 1,
+    largest_component_only = false
+  }) {
     const response = await apiClient.post('/api/network/cluster', {
       gene_ids,
       min_string_score,
-      algorithm
+      algorithm,
+      remove_isolated,
+      min_degree,
+      min_cluster_size,
+      largest_component_only
     })
     return response.data
   },

@@ -178,6 +178,34 @@ async def build_network(
         min_string_score=request.min_string_score
     )
 
+    await logger.info(
+        "Initial network built",
+        nodes=graph.vcount(),
+        edges=graph.ecount(),
+        components=len(graph.connected_components())
+    )
+
+    # Apply filtering if requested
+    if request.min_degree > 0 or request.remove_isolated or request.largest_component_only:
+        await logger.info(
+            "Applying network filters",
+            min_degree=request.min_degree,
+            remove_isolated=request.remove_isolated,
+            largest_component_only=request.largest_component_only
+        )
+        graph = await network_service.filter_network(
+            graph=graph,
+            session=db,
+            min_degree=request.min_degree,
+            remove_isolated=request.remove_isolated,
+            largest_component_only=request.largest_component_only
+        )
+        await logger.info(
+            "Network filtering applied",
+            final_nodes=graph.vcount(),
+            final_edges=graph.ecount()
+        )
+
     # Convert to Cytoscape.js format
     cytoscape_json = igraph_to_cytoscape(graph, gene_id_to_symbol)
 
@@ -230,7 +258,11 @@ async def cluster_network(
     await logger.info(
         "Clustering network",
         gene_count=len(request.gene_ids),
-        algorithm=request.algorithm
+        algorithm=request.algorithm,
+        remove_isolated=request.remove_isolated,
+        min_degree=request.min_degree,
+        min_cluster_size=request.min_cluster_size,
+        largest_component_only=request.largest_component_only
     )
 
     # Build network
@@ -240,12 +272,71 @@ async def cluster_network(
         min_string_score=request.min_string_score
     )
 
+    await logger.info(
+        "Initial network for clustering",
+        nodes=graph.vcount(),
+        edges=graph.ecount()
+    )
+
+    # Apply node filtering if requested
+    if request.min_degree > 0 or request.remove_isolated or request.largest_component_only:
+        await logger.info(
+            "Applying node filters before clustering",
+            min_degree=request.min_degree,
+            remove_isolated=request.remove_isolated,
+            largest_component_only=request.largest_component_only
+        )
+        graph = await network_service.filter_network(
+            graph=graph,
+            session=db,
+            min_degree=request.min_degree,
+            remove_isolated=request.remove_isolated,
+            largest_component_only=request.largest_component_only
+        )
+        await logger.info(
+            "Node filtering complete",
+            filtered_nodes=graph.vcount(),
+            filtered_edges=graph.ecount()
+        )
+
     # Detect communities
     gene_to_cluster, modularity = await network_service.detect_communities(
         graph=graph,
         session=db,
         algorithm=request.algorithm
     )
+
+    # Apply cluster size filtering if requested
+    if request.min_cluster_size > 1:
+        await logger.info(
+            "Filtering clusters by size",
+            original_clusters=len(set(gene_to_cluster.values())),
+            min_cluster_size=request.min_cluster_size
+        )
+        gene_to_cluster = await network_service.filter_clusters_by_size(
+            gene_to_cluster=gene_to_cluster,
+            session=db,
+            min_cluster_size=request.min_cluster_size
+        )
+
+        # CRITICAL: Filter graph to only include genes in filtered clusters
+        genes_in_clusters = set(gene_to_cluster.keys())
+        vertices_to_keep = [
+            v.index for v in graph.vs
+            if v["gene_id"] in genes_in_clusters
+        ]
+
+        if vertices_to_keep:
+            graph = graph.subgraph(vertices_to_keep)
+            await logger.info(
+                "Filtered graph to clustered genes only",
+                original_nodes=len(gene_id_to_symbol),
+                filtered_nodes=graph.vcount(),
+                removed_nodes=len(gene_id_to_symbol) - graph.vcount()
+            )
+        else:
+            await logger.warning("All genes filtered out - returning empty graph")
+            graph = ig.Graph()
 
     # Add cluster IDs to graph vertices
     for vertex in graph.vs:

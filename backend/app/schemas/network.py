@@ -6,6 +6,15 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.datasource_config import get_config
+
+# Load network analysis configuration
+_config = get_config()
+_na_config = _config.network_analysis
+_enrichment_config = _config.enrichment
+_filtering_config = _na_config.get("filtering", {})
+_network_config = _na_config.get("network", {})
+
 
 class NetworkBuildRequest(BaseModel):
     """Request to build a PPI network"""
@@ -14,13 +23,27 @@ class NetworkBuildRequest(BaseModel):
         ...,
         description="List of gene IDs to include in network",
         min_length=1,
-        max_length=2000
+        max_length=_network_config.get("max_nodes", 2000)
     )
     min_string_score: int = Field(
-        default=400,
+        default=_network_config.get("min_string_score", 400),
         ge=0,
         le=1000,
         description="Minimum STRING confidence score (0-1000)"
+    )
+    min_degree: int = Field(
+        default=_filtering_config.get("default_min_degree", 0),
+        ge=0,
+        le=_filtering_config.get("max_min_degree", 10),
+        description="Minimum node degree (0=include all, 1=remove isolated, 2+=require multiple interactions)"
+    )
+    remove_isolated: bool = Field(
+        default=_filtering_config.get("default_remove_isolated", False),
+        description="Remove nodes with no interactions (degree=0)"
+    )
+    largest_component_only: bool = Field(
+        default=_filtering_config.get("default_largest_component_only", False),
+        description="Keep only largest connected component"
     )
 
     @field_validator('gene_ids')
@@ -39,17 +62,37 @@ class NetworkClusterRequest(BaseModel):
         ...,
         description="List of gene IDs in network",
         min_length=1,
-        max_length=2000
+        max_length=_network_config.get("max_nodes", 2000)
     )
     min_string_score: int = Field(
-        default=400,
+        default=_network_config.get("min_string_score", 400),
         ge=0,
         le=1000,
         description="Minimum STRING confidence score (0-1000)"
     )
     algorithm: str = Field(
-        default="leiden",
+        default=_na_config.get("clustering", {}).get("default_algorithm", "leiden"),
         description="Clustering algorithm: leiden, louvain, or walktrap"
+    )
+    min_degree: int = Field(
+        default=_filtering_config.get("default_min_degree", 0),
+        ge=0,
+        le=_filtering_config.get("max_min_degree", 10),
+        description="Minimum node degree filter"
+    )
+    remove_isolated: bool = Field(
+        default=_filtering_config.get("default_remove_isolated", False),
+        description="Remove isolated nodes (degree=0)"
+    )
+    min_cluster_size: int = Field(
+        default=_filtering_config.get("default_min_cluster_size", 1),
+        ge=1,
+        le=_filtering_config.get("max_min_cluster_size", 50),
+        description="Minimum cluster size (1=keep all, 3+=filter small clusters)"
+    )
+    largest_component_only: bool = Field(
+        default=_filtering_config.get("default_largest_component_only", False),
+        description="Keep only largest connected component"
     )
 
     @field_validator('algorithm')
@@ -71,24 +114,24 @@ class SubgraphRequest(BaseModel):
         ...,
         description="Seed gene IDs to center subgraph around",
         min_length=1,
-        max_length=50
+        max_length=_na_config.get("subgraph", {}).get("max_seed_genes", 50)
     )
     gene_ids: list[int] = Field(
         ...,
         description="Full network gene IDs",
         min_length=1,
-        max_length=2000
+        max_length=_network_config.get("max_nodes", 2000)
     )
     min_string_score: int = Field(
-        default=400,
+        default=_network_config.get("min_string_score", 400),
         ge=0,
         le=1000,
         description="Minimum STRING confidence score"
     )
     k: int = Field(
-        default=2,
+        default=_na_config.get("subgraph", {}).get("default_k_hops", 2),
         ge=1,
-        le=5,
+        le=_na_config.get("subgraph", {}).get("max_k_hops", 5),
         description="Number of hops (1-5)"
     )
 
@@ -100,14 +143,14 @@ class HPOEnrichmentRequest(BaseModel):
         ...,
         description="Gene IDs in cluster to test",
         min_length=1,
-        max_length=500
+        max_length=_enrichment_config.get("hpo", {}).get("max_cluster_size", 500)
     )
     background_genes: list[int] | None = Field(
         default=None,
         description="Background gene set (default: all genes)"
     )
     fdr_threshold: float = Field(
-        default=0.05,
+        default=_enrichment_config.get("hpo", {}).get("default_fdr_threshold", 0.05),
         gt=0.0,
         le=1.0,
         description="FDR significance threshold"
@@ -121,22 +164,22 @@ class GOEnrichmentRequest(BaseModel):
         ...,
         description="Gene IDs in cluster",
         min_length=1,
-        max_length=500
+        max_length=_enrichment_config.get("go", {}).get("max_cluster_size", 500)
     )
     gene_set: str = Field(
-        default="GO_Biological_Process_2023",
+        default=_enrichment_config.get("go", {}).get("default_gene_set", "GO_Biological_Process_2023"),
         description="GSEApy gene set name"
     )
     fdr_threshold: float = Field(
-        default=0.05,
+        default=_enrichment_config.get("go", {}).get("default_fdr_threshold", 0.05),
         gt=0.0,
         le=1.0,
         description="FDR significance threshold"
     )
     timeout_seconds: int = Field(
-        default=120,
-        ge=30,
-        le=300,
+        default=_enrichment_config.get("go", {}).get("timeout_seconds", 120),
+        ge=_enrichment_config.get("go", {}).get("min_timeout_seconds", 30),
+        le=_enrichment_config.get("go", {}).get("max_timeout_seconds", 300),
         description="API timeout (30-300 seconds)"
     )
 

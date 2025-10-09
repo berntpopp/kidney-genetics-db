@@ -92,7 +92,7 @@
             density="compact"
             variant="outlined"
             hide-details
-            @update:model-value="$emit('update:minStringScore', $event)"
+            @update:model-value="$emit('update:minStringScore', Number($event))"
           />
         </v-col>
       </v-row>

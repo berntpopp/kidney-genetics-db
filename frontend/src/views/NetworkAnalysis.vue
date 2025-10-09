@@ -172,6 +172,81 @@
       </v-card-text>
     </v-card>
 
+    <!-- Network Filtering Controls -->
+    <v-card elevation="2" class="mb-6" rounded="lg">
+      <v-card-title class="pa-4">
+        <v-icon icon="mdi-filter-variant" class="mr-2" />
+        Network Filtering
+        <v-spacer />
+        <v-chip size="small" color="info" label>
+          Best Practice: Remove isolated nodes and small clusters
+        </v-chip>
+      </v-card-title>
+      <v-divider />
+      <v-card-text class="pa-4">
+        <v-row align="center">
+          <v-col cols="12" md="3">
+            <v-checkbox
+              v-model="removeIsolated"
+              label="Remove Isolated Nodes"
+              density="compact"
+              hint="Hide genes with no interactions (degree=0)"
+              persistent-hint
+              color="primary"
+            />
+          </v-col>
+
+          <v-col cols="12" md="3">
+            <v-checkbox
+              v-model="largestComponentOnly"
+              label="Largest Component Only"
+              density="compact"
+              hint="Keep only the largest connected subnetwork"
+              persistent-hint
+              color="primary"
+            />
+          </v-col>
+
+          <v-col cols="12" md="3">
+            <v-text-field
+              v-model.number="minDegree"
+              label="Min Node Degree"
+              type="number"
+              min="0"
+              max="10"
+              density="comfortable"
+              variant="outlined"
+              hint="Minimum connections per node (0=all, 2+=multiple interactions)"
+              persistent-hint
+            />
+          </v-col>
+
+          <v-col cols="12" md="3">
+            <v-text-field
+              v-model.number="minClusterSize"
+              label="Min Cluster Size"
+              type="number"
+              min="1"
+              max="20"
+              density="comfortable"
+              variant="outlined"
+              hint="Filter out small clusters (1=keep all, 3+=meaningful clusters)"
+              persistent-hint
+            />
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col cols="12">
+            <v-alert type="info" variant="tonal" density="compact">
+              <strong>Tip:</strong> For cleaner visualization of large networks, enable "Remove
+              Isolated Nodes" and set Min Cluster Size to 3-5. This removes genes with no
+              interactions and filters out singleton/doublet clusters.
+            </v-alert>
+          </v-col>
+        </v-row>
+      </v-card-text>
+    </v-card>
+
     <!-- Network Visualization -->
     <NetworkGraph
       v-if="displayNetwork"
@@ -318,7 +393,8 @@ const filteredGenes = ref([])
 const loadingGenes = ref(false)
 
 // Network Construction
-const minStringScore = ref(400)
+// Network construction and filtering defaults (aligned with backend config)
+const minStringScore = ref(400) // From network_analysis.yaml: network.min_string_score
 const clusterAlgorithm = ref('leiden')
 const buildingNetwork = ref(false)
 const clustering = ref(false)
@@ -327,6 +403,13 @@ const clusterData = ref(null)
 const networkStats = ref(null)
 const clusterStats = ref(null)
 const networkError = ref(null)
+
+// Network Filtering
+// Filtering defaults (aligned with backend config: network_analysis.yaml filtering section)
+const removeIsolated = ref(false) // Default: keep isolated nodes (filtering.default_remove_isolated)
+const minDegree = ref(0) // Default: no degree filter (filtering.default_min_degree)
+const minClusterSize = ref(1) // Default: keep all clusters (filtering.default_min_cluster_size)
+const largestComponentOnly = ref(false) // Default: keep all components (filtering.default_largest_component_only)
 
 // Enrichment Analysis
 const selectedCluster = ref(null)
@@ -442,7 +525,10 @@ const buildNetwork = async () => {
     const geneIds = filteredGenes.value.map(g => parseInt(g.id))
     const response = await networkApi.buildNetwork({
       gene_ids: geneIds,
-      min_string_score: minStringScore.value
+      min_string_score: minStringScore.value,
+      remove_isolated: removeIsolated.value,
+      min_degree: minDegree.value,
+      largest_component_only: largestComponentOnly.value
     })
 
     networkData.value = response
@@ -475,15 +561,19 @@ const clusterNetwork = async () => {
     const response = await networkApi.clusterNetwork({
       gene_ids: geneIds,
       min_string_score: minStringScore.value,
-      algorithm: clusterAlgorithm.value
+      algorithm: clusterAlgorithm.value,
+      remove_isolated: removeIsolated.value,
+      min_degree: minDegree.value,
+      min_cluster_size: minClusterSize.value,
+      largest_component_only: largestComponentOnly.value
     })
 
     // Merge cluster data with original network stats
     clusterData.value = {
       ...response,
-      nodes: networkData.value.nodes,
-      edges: networkData.value.edges,
-      components: networkData.value.components
+      nodes: response.nodes,
+      edges: response.edges,
+      components: response.components
     }
     clusterStats.value = {
       clusters: response.clusters,
