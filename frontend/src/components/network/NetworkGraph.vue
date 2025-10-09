@@ -163,17 +163,17 @@
     <v-card-text v-if="showClusterLegend" class="pa-3">
       <div class="d-flex flex-wrap ga-2">
         <v-chip
-          v-for="(color, clusterId) in sortedClusterColors"
-          :key="clusterId"
-          :color="color"
+          v-for="cluster in sortedClusterColors"
+          :key="cluster.backendId"
+          :color="cluster.color"
           size="small"
           label
           class="cluster-chip"
-          @mouseenter="highlightCluster(Number(clusterId))"
+          @mouseenter="highlightCluster(cluster.backendId)"
           @mouseleave="clearHighlight"
-          @click="openClusterDialog(Number(clusterId))"
+          @click="openClusterDialog(cluster.backendId)"
         >
-          {{ getClusterDisplayName(Number(clusterId)) }}
+          {{ getClusterDisplayName(cluster.backendId) }}
         </v-chip>
       </div>
     </v-card-text>
@@ -284,27 +284,29 @@ const selectedClusterColor = computed(() => {
 // Sort cluster colors by display ID for consistent legend order
 const sortedClusterColors = computed(() => {
   if (!props.clusterIdMapping || props.clusterIdMapping.size === 0) {
-    // Fallback to original order if no mapping provided
-    return clusterColors.value
+    // Fallback: convert to array sorted by backendId
+    return Object.entries(clusterColors.value)
+      .map(([backendId, color]) => ({
+        backendId: parseInt(backendId),
+        displayId: parseInt(backendId),
+        color
+      }))
+      .sort((a, b) => a.backendId - b.backendId)
   }
 
-  // Create array of [backendId, color] pairs
+  // Create array of cluster objects with display info
   const clusters = Object.entries(clusterColors.value).map(([backendId, color]) => ({
     backendId: parseInt(backendId),
     displayId: props.clusterIdMapping.get(parseInt(backendId)) ?? parseInt(backendId),
     color
   }))
 
-  // Sort by displayId
+  // Sort by displayId (size-based ranking: 0 = largest cluster)
   clusters.sort((a, b) => a.displayId - b.displayId)
 
-  // Convert back to object with backendId as key (for v-for compatibility)
-  const sorted = {}
-  clusters.forEach(c => {
-    sorted[c.backendId] = c.color
-  })
-
-  return sorted
+  // Return array (NOT object) to preserve sort order
+  // JavaScript auto-sorts numeric object keys, breaking our size-based order
+  return clusters
 })
 
 // Layout options
