@@ -156,11 +156,21 @@
           class="cluster-chip"
           @mouseenter="highlightCluster(Number(clusterId))"
           @mouseleave="clearHighlight"
+          @click="openClusterDialog(Number(clusterId))"
         >
           Cluster {{ clusterId + 1 }}
         </v-chip>
       </div>
     </v-card-text>
+
+    <!-- Cluster Details Dialog -->
+    <ClusterDetailsDialog
+      v-model="clusterDialogOpen"
+      :cluster-id="selectedClusterId"
+      :cluster-color="selectedClusterColor"
+      :genes="selectedClusterGenes"
+      @highlight-gene="highlightGeneInNetwork"
+    />
   </v-card>
 </template>
 
@@ -168,6 +178,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import cytoscape from 'cytoscape'
 import coseBilkent from 'cytoscape-cose-bilkent'
+import ClusterDetailsDialog from './ClusterDetailsDialog.vue'
 
 // Register cose-bilkent layout
 cytoscape.use(coseBilkent)
@@ -197,7 +208,13 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['refresh', 'cluster', 'update:minStringScore', 'nodeClick'])
+const emit = defineEmits([
+  'refresh',
+  'cluster',
+  'update:minStringScore',
+  'nodeClick',
+  'selectCluster'
+])
 
 // Refs
 const cytoscapeContainer = ref(null)
@@ -205,6 +222,11 @@ const cyInstance = ref(null)
 const layoutType = ref('cose-bilkent')
 const clusterAlgorithm = ref('leiden')
 const clusterColors = ref({})
+
+// Cluster details dialog state
+const clusterDialogOpen = ref(false)
+const selectedClusterId = ref(null)
+const selectedClusterGenes = ref([])
 
 // Computed
 const graphHeight = computed(() => props.height)
@@ -217,6 +239,11 @@ const networkStats = computed(() => {
 
 const showClusterLegend = computed(() => {
   return Object.keys(clusterColors.value).length > 0
+})
+
+const selectedClusterColor = computed(() => {
+  if (selectedClusterId.value === null) return '#1976D2'
+  return clusterColors.value[selectedClusterId.value] || '#1976D2'
 })
 
 // Layout options
@@ -271,6 +298,55 @@ const clearHighlight = () => {
   cyInstance.value.batch(() => {
     cyInstance.value.elements().removeClass('highlighted dimmed')
   })
+}
+
+const openClusterDialog = clusterId => {
+  if (!cyInstance.value || clusterId === undefined) return
+
+  // Collect genes for this cluster
+  const clusterNodes = cyInstance.value
+    .nodes()
+    .filter(node => node.data('cluster_id') === clusterId)
+
+  const genes = clusterNodes.map(node => ({
+    gene_id: node.data('gene_id'),
+    symbol: node.data('label'),
+    cluster_id: clusterId
+  }))
+
+  // Sort genes alphabetically by symbol
+  genes.sort((a, b) => a.symbol.localeCompare(b.symbol))
+
+  selectedClusterId.value = clusterId
+  selectedClusterGenes.value = genes
+  clusterDialogOpen.value = true
+
+  // Emit event to select this cluster in enrichment analysis
+  emit('selectCluster', clusterId)
+}
+
+const highlightGeneInNetwork = geneId => {
+  if (!cyInstance.value) return
+
+  // Find and highlight the specific gene
+  const node = cyInstance.value.nodes().filter(n => n.data('gene_id') === geneId)
+
+  if (node.length > 0) {
+    // Center on the node and highlight it
+    cyInstance.value.animate({
+      fit: {
+        eles: node,
+        padding: 100
+      },
+      duration: 500
+    })
+
+    // Temporarily highlight the node
+    node.addClass('highlighted')
+    setTimeout(() => {
+      node.removeClass('highlighted')
+    }, 2000)
+  }
 }
 
 const initializeCytoscape = () => {

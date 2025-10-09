@@ -1,0 +1,271 @@
+<template>
+  <v-dialog v-model="dialog" max-width="800" scrollable>
+    <v-card>
+      <!-- Header -->
+      <v-card-title class="d-flex align-center justify-space-between pa-4">
+        <div class="d-flex align-center">
+          <v-chip :color="clusterColor" size="small" label class="mr-3">
+            <v-icon start>mdi-atom</v-icon>
+            Cluster {{ clusterId + 1 }}
+          </v-chip>
+          <div>
+            <h3 class="text-h6 font-weight-medium">Cluster Details</h3>
+            <p class="text-caption text-medium-emphasis mt-1">
+              {{ geneCount }} gene{{ geneCount !== 1 ? 's' : '' }} in cluster
+            </p>
+          </div>
+        </div>
+        <v-btn icon="mdi-close" variant="text" size="small" @click="close" />
+      </v-card-title>
+
+      <v-divider />
+
+      <!-- Gene Table -->
+      <v-card-text class="pa-0">
+        <v-data-table
+          :headers="headers"
+          :items="genes"
+          :items-per-page="itemsPerPage"
+          :page="page"
+          hide-default-footer
+          class="cluster-genes-table"
+        >
+          <!-- Gene Symbol with Link -->
+          <template #item.symbol="{ item }">
+            <router-link :to="`/genes/${item.symbol}`" class="gene-link">
+              <v-chip size="small" color="primary" variant="outlined">
+                <v-icon start size="small">mdi-dna</v-icon>
+                {{ item.symbol }}
+              </v-chip>
+            </router-link>
+          </template>
+
+          <!-- Gene ID -->
+          <template #item.gene_id="{ item }">
+            <span class="text-mono text-caption">{{ item.gene_id }}</span>
+          </template>
+
+          <!-- Actions -->
+          <template #item.actions="{ item }">
+            <div class="d-flex ga-1">
+              <v-tooltip location="bottom">
+                <template #activator="{ props: tooltipProps }">
+                  <v-btn
+                    icon="mdi-eye"
+                    variant="text"
+                    size="x-small"
+                    v-bind="tooltipProps"
+                    :to="`/genes/${item.symbol}`"
+                  />
+                </template>
+                <span>View gene details</span>
+              </v-tooltip>
+
+              <v-tooltip location="bottom">
+                <template #activator="{ props: tooltipProps }">
+                  <v-btn
+                    icon="mdi-content-copy"
+                    variant="text"
+                    size="x-small"
+                    v-bind="tooltipProps"
+                    @click="copyGeneSymbol(item.symbol)"
+                  />
+                </template>
+                <span>Copy gene symbol</span>
+              </v-tooltip>
+
+              <v-tooltip location="bottom">
+                <template #activator="{ props: tooltipProps }">
+                  <v-btn
+                    icon="mdi-map-marker"
+                    variant="text"
+                    size="x-small"
+                    v-bind="tooltipProps"
+                    @click="$emit('highlightGene', item.gene_id)"
+                  />
+                </template>
+                <span>Highlight in network</span>
+              </v-tooltip>
+            </div>
+          </template>
+        </v-data-table>
+      </v-card-text>
+
+      <!-- Pagination -->
+      <v-divider v-if="totalPages > 1" />
+      <v-card-text v-if="totalPages > 1" class="pa-3">
+        <div class="d-flex align-center justify-space-between">
+          <div class="text-caption text-medium-emphasis">
+            {{ paginationText }}
+          </div>
+          <div class="d-flex align-center ga-2">
+            <v-select
+              v-model="itemsPerPage"
+              :items="itemsPerPageOptions"
+              label="Per page"
+              density="compact"
+              variant="outlined"
+              hide-details
+              style="max-width: 100px"
+            />
+            <v-btn
+              icon="mdi-chevron-left"
+              variant="text"
+              size="small"
+              :disabled="page === 1"
+              @click="page--"
+            />
+            <span class="text-caption">{{ page }} / {{ totalPages }}</span>
+            <v-btn
+              icon="mdi-chevron-right"
+              variant="text"
+              size="small"
+              :disabled="page === totalPages"
+              @click="page++"
+            />
+          </div>
+        </div>
+      </v-card-text>
+
+      <v-divider />
+
+      <!-- Footer Actions -->
+      <v-card-actions class="pa-3">
+        <v-btn variant="text" prepend-icon="mdi-download" size="small" @click="exportClusterGenes">
+          Export Genes
+        </v-btn>
+        <v-spacer />
+        <v-btn variant="tonal" @click="close">Close</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+</template>
+
+<script setup>
+import { ref, computed, watch } from 'vue'
+
+// Props
+const props = defineProps({
+  modelValue: {
+    type: Boolean,
+    default: false
+  },
+  clusterId: {
+    type: Number,
+    default: null
+  },
+  clusterColor: {
+    type: String,
+    default: '#1976D2'
+  },
+  genes: {
+    type: Array,
+    default: () => []
+  }
+})
+
+// Emits
+const emit = defineEmits(['update:modelValue', 'highlightGene'])
+
+// Refs
+const page = ref(1)
+const itemsPerPage = ref(10)
+
+// Computed
+const dialog = computed({
+  get: () => props.modelValue,
+  set: value => emit('update:modelValue', value)
+})
+
+const geneCount = computed(() => props.genes.length)
+
+const totalPages = computed(() => Math.ceil(geneCount.value / itemsPerPage.value))
+
+const paginationText = computed(() => {
+  if (geneCount.value === 0) return ''
+  const start = (page.value - 1) * itemsPerPage.value + 1
+  const end = Math.min(page.value * itemsPerPage.value, geneCount.value)
+  return `Showing ${start}–${end} of ${geneCount.value}`
+})
+
+// Options
+const itemsPerPageOptions = [10, 20, 50, 100]
+
+const headers = [
+  { title: 'Gene Symbol', key: 'symbol', sortable: true },
+  { title: 'Gene ID', key: 'gene_id', sortable: true },
+  { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
+]
+
+// Methods
+const close = () => {
+  dialog.value = false
+}
+
+const copyGeneSymbol = symbol => {
+  navigator.clipboard.writeText(symbol).then(() => {
+    // Could add a snackbar notification here
+    console.log('Gene symbol copied:', symbol)
+  })
+}
+
+const exportClusterGenes = () => {
+  if (props.genes.length === 0) return
+
+  // Create CSV content
+  const headers = ['Gene Symbol', 'Gene ID', 'Cluster ID']
+  const rows = props.genes.map(g => [g.symbol, g.gene_id, props.clusterId + 1])
+
+  const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n')
+
+  // Download CSV
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = `cluster_${props.clusterId + 1}_genes_${Date.now()}.csv`
+  link.click()
+}
+
+// Reset page when genes change
+watch(
+  () => props.genes,
+  () => {
+    page.value = 1
+  }
+)
+</script>
+
+<style scoped>
+/* Following Style Guide - Clean table display */
+.cluster-genes-table :deep(table) {
+  table-layout: auto;
+}
+
+.cluster-genes-table :deep(th) {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cluster-genes-table :deep(td) {
+  padding: 12px 16px;
+}
+
+.gene-link {
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.gene-link:hover {
+  opacity: 0.8;
+}
+
+.text-mono {
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+}
+
+/* Dark theme adjustments */
+.v-theme--dark .v-card {
+  background: rgb(var(--v-theme-surface));
+}
+</style>

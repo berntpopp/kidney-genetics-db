@@ -260,6 +260,7 @@
       @cluster="handleClusterRequest"
       @node-click="handleNodeClick"
       @update:min-string-score="minStringScore = $event"
+      @select-cluster="handleClusterSelection"
     />
 
     <!-- Cluster Selection & Enrichment -->
@@ -273,21 +274,34 @@
         <v-row align="center">
           <v-col cols="12" md="4">
             <v-select
-              v-model="selectedCluster"
+              v-model="selectedClusters"
               :items="clusterList"
-              label="Select Cluster"
+              label="Select Clusters"
               density="comfortable"
               variant="outlined"
-              hint="Choose a cluster for enrichment analysis"
+              hint="Choose one or more clusters for enrichment analysis"
               persistent-hint
+              multiple
+              chips
+              closable-chips
             >
+              <!-- Custom chip rendering with cluster colors -->
+              <template #chip="{ item, props: chipProps }">
+                <v-chip v-bind="chipProps" :color="item.raw.color" size="small" closable>
+                  {{ item.title }}
+                </v-chip>
+              </template>
+
+              <!-- Custom dropdown item rendering -->
               <template #item="{ props: itemProps, item }">
                 <v-list-item v-bind="itemProps">
                   <template #prepend>
                     <v-icon :color="item.raw.color" icon="mdi-circle" />
                   </template>
                   <template #append>
-                    <v-chip size="small" label>{{ item.raw.size }} genes</v-chip>
+                    <v-chip :color="item.raw.color" size="small" label variant="tonal">
+                      {{ item.raw.size }} genes
+                    </v-chip>
                   </template>
                 </v-list-item>
               </template>
@@ -322,7 +336,7 @@
               color="primary"
               prepend-icon="mdi-chart-box"
               :loading="runningEnrichment"
-              :disabled="selectedCluster === null"
+              :disabled="selectedClusters.length === 0"
               block
               @click="runEnrichment"
             >
@@ -379,7 +393,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { geneApi } from '../api/genes'
 import { networkApi } from '../api/network'
 import NetworkGraph from '../components/network/NetworkGraph.vue'
@@ -412,7 +426,7 @@ const minClusterSize = ref(1) // Default: keep all clusters (filtering.default_m
 const largestComponentOnly = ref(false) // Default: keep all components (filtering.default_largest_component_only)
 
 // Enrichment Analysis
-const selectedCluster = ref(null)
+const selectedClusters = ref([]) // Changed to array for multi-select
 const enrichmentType = ref('hpo')
 const geneSet = ref('GO_Biological_Process_2023')
 const fdrThreshold = ref(0.05)
@@ -593,10 +607,17 @@ const clusterNetwork = async () => {
 }
 
 const runEnrichment = async () => {
-  if (selectedCluster.value === null) return
+  if (selectedClusters.value.length === 0) return
 
-  const cluster = clusterList.value.find(c => c.value === selectedCluster.value)
-  if (!cluster) return
+  // Combine genes from all selected clusters
+  const selectedClusterData = clusterList.value.filter(c =>
+    selectedClusters.value.includes(c.value)
+  )
+
+  // Merge all gene IDs from selected clusters (remove duplicates with Set)
+  const allGenes = [...new Set(selectedClusterData.flatMap(c => c.genes))]
+
+  if (allGenes.length === 0) return
 
   runningEnrichment.value = true
   enrichmentError.value = null
@@ -605,19 +626,25 @@ const runEnrichment = async () => {
     let response
     if (enrichmentType.value === 'hpo') {
       response = await networkApi.enrichHPO({
-        cluster_genes: cluster.genes,
+        cluster_genes: allGenes,
         fdr_threshold: fdrThreshold.value
       })
     } else {
       response = await networkApi.enrichGO({
-        cluster_genes: cluster.genes,
+        cluster_genes: allGenes,
         gene_set: geneSet.value,
         fdr_threshold: fdrThreshold.value
       })
     }
 
     enrichmentResults.value = response
-    window.logService.info(`Found ${response.total_terms} significant terms`)
+    const clusterText =
+      selectedClusters.value.length === 1
+        ? `cluster ${selectedClusters.value[0] + 1}`
+        : `${selectedClusters.value.length} clusters`
+    window.logService.info(
+      `Found ${response.total_terms} significant terms in ${clusterText} (${allGenes.length} genes)`
+    )
   } catch (error) {
     window.logService.error('Failed to run enrichment:', error)
     enrichmentError.value = error.message || 'Failed to run enrichment analysis'
@@ -634,6 +661,31 @@ const handleClusterRequest = algorithm => {
 const handleNodeClick = nodeData => {
   selectedGene.value = nodeData
   geneDialog.value = true
+}
+
+const handleClusterSelection = clusterId => {
+  // Add the cluster to selected clusters (if not already selected)
+  if (!selectedClusters.value.includes(clusterId)) {
+    selectedClusters.value.push(clusterId)
+  }
+
+  // Smooth scroll to enrichment section with better UX
+  nextTick(() => {
+    const enrichmentSection = document.querySelector('.v-card:has(.mdi-chart-box)')
+    if (enrichmentSection) {
+      enrichmentSection.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      })
+
+      // Highlight the section briefly
+      enrichmentSection.style.transition = 'box-shadow 0.3s'
+      enrichmentSection.style.boxShadow = '0 0 20px rgba(25, 118, 210, 0.5)'
+      setTimeout(() => {
+        enrichmentSection.style.boxShadow = ''
+      }, 1500)
+    }
+  })
 }
 
 const handleGeneClick = geneSymbol => {
