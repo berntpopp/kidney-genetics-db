@@ -139,6 +139,7 @@
           </div>
           <div v-if="tooltipData.hpoData" class="tooltip-hpo">
             <div class="tooltip-hpo-divider"></div>
+            <div class="tooltip-hpo-section-title">Gene Classification</div>
             <div v-if="tooltipData.hpoData.clinical_group" class="tooltip-hpo-item">
               <span class="tooltip-hpo-label">Clinical:</span>
               {{
@@ -146,9 +147,6 @@
                   tooltipData.hpoData.clinical_group
                 ] || tooltipData.hpoData.clinical_group
               }}
-              <span v-if="tooltipData.hpoPercentages?.clinical" class="tooltip-hpo-percent">
-                ({{ tooltipData.hpoPercentages.clinical }}%)
-              </span>
             </div>
             <div v-if="tooltipData.hpoData.onset_group" class="tooltip-hpo-item">
               <span class="tooltip-hpo-label">Onset:</span>
@@ -157,16 +155,46 @@
                   tooltipData.hpoData.onset_group
                 ] || tooltipData.hpoData.onset_group
               }}
-              <span v-if="tooltipData.hpoPercentages?.onset" class="tooltip-hpo-percent">
-                ({{ tooltipData.hpoPercentages.onset }}%)
-              </span>
             </div>
             <div v-if="tooltipData.hpoData.is_syndromic !== null" class="tooltip-hpo-item">
               <span class="tooltip-hpo-label">Type:</span>
               {{ tooltipData.hpoData.is_syndromic ? 'Syndromic' : 'Isolated' }}
-              <span v-if="tooltipData.hpoPercentages?.syndromic" class="tooltip-hpo-percent">
-                ({{ tooltipData.hpoPercentages.syndromic }}%)
-              </span>
+            </div>
+
+            <!-- Cluster context percentages -->
+            <div v-if="tooltipData.hpoPercentages" class="tooltip-cluster-context">
+              <div class="tooltip-hpo-divider"></div>
+              <div class="tooltip-hpo-section-title">In Cluster</div>
+              <div v-if="tooltipData.hpoPercentages.clinical" class="tooltip-context-item">
+                <span class="tooltip-context-percent"
+                  >{{ tooltipData.hpoPercentages.clinical }}%</span
+                >
+                <span class="tooltip-context-label">
+                  {{
+                    networkAnalysisConfig.nodeColoring.labels.clinical_group[
+                      tooltipData.hpoData.clinical_group
+                    ] || tooltipData.hpoData.clinical_group
+                  }}
+                </span>
+              </div>
+              <div v-if="tooltipData.hpoPercentages.onset" class="tooltip-context-item">
+                <span class="tooltip-context-percent">{{ tooltipData.hpoPercentages.onset }}%</span>
+                <span class="tooltip-context-label">
+                  {{
+                    networkAnalysisConfig.nodeColoring.labels.onset_group[
+                      tooltipData.hpoData.onset_group
+                    ] || tooltipData.hpoData.onset_group
+                  }}
+                </span>
+              </div>
+              <div v-if="tooltipData.hpoPercentages.syndromic" class="tooltip-context-item">
+                <span class="tooltip-context-percent"
+                  >{{ tooltipData.hpoPercentages.syndromic }}%</span
+                >
+                <span class="tooltip-context-label">
+                  {{ tooltipData.hpoData.is_syndromic ? 'Syndromic' : 'Isolated' }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -829,9 +857,9 @@ const showTooltip = (node, event) => {
     hpoPercentages
   }
 
-  // Position tooltip near cursor with offset
-  tooltipX.value = event.renderedPosition?.x || event.position?.x || 0
-  tooltipY.value = (event.renderedPosition?.y || event.position?.y || 0) - 40
+  // Position tooltip's top-left corner at bottom-right of pointer cursor
+  tooltipX.value = (event.renderedPosition?.x || event.position?.x || 0) + 15
+  tooltipY.value = (event.renderedPosition?.y || event.position?.y || 0) + 15
 
   tooltipVisible.value = true
 }
@@ -1291,7 +1319,16 @@ onUnmounted(() => {
 .tooltip-hpo-divider {
   height: 1px;
   background: rgba(255, 255, 255, 0.2);
-  margin-bottom: 6px;
+  margin: 6px 0;
+}
+
+.tooltip-hpo-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64b5f6;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
 }
 
 .tooltip-hpo-item {
@@ -1305,10 +1342,28 @@ onUnmounted(() => {
   margin-right: 4px;
 }
 
-.tooltip-hpo-percent {
-  color: rgba(255, 255, 255, 0.7);
+.tooltip-cluster-context {
+  margin-top: 4px;
+}
+
+.tooltip-context-item {
+  line-height: 1.6;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: baseline;
+}
+
+.tooltip-context-percent {
+  font-weight: 700;
+  color: #ffeb3b;
+  margin-right: 6px;
+  min-width: 38px;
+  font-size: 11px;
+}
+
+.tooltip-context-label {
+  color: rgba(255, 255, 255, 0.8);
   font-size: 10px;
-  margin-left: 4px;
 }
 
 /* Dark theme adjustments */
@@ -1325,11 +1380,19 @@ onUnmounted(() => {
   background: rgba(0, 0, 0, 0.1);
 }
 
+.v-theme--dark .tooltip-hpo-section-title {
+  color: #1976d2;
+}
+
 .v-theme--dark .tooltip-hpo-label {
   color: #1976d2;
 }
 
-.v-theme--dark .tooltip-hpo-percent {
-  color: rgba(0, 0, 0, 0.6);
+.v-theme--dark .tooltip-context-percent {
+  color: #f57c00;
+}
+
+.v-theme--dark .tooltip-context-label {
+  color: rgba(0, 0, 0, 0.7);
 }
 </style>
