@@ -146,6 +146,9 @@
                   tooltipData.hpoData.clinical_group
                 ] || tooltipData.hpoData.clinical_group
               }}
+              <span v-if="tooltipData.hpoPercentages?.clinical" class="tooltip-hpo-percent">
+                ({{ tooltipData.hpoPercentages.clinical }}%)
+              </span>
             </div>
             <div v-if="tooltipData.hpoData.onset_group" class="tooltip-hpo-item">
               <span class="tooltip-hpo-label">Onset:</span>
@@ -154,10 +157,16 @@
                   tooltipData.hpoData.onset_group
                 ] || tooltipData.hpoData.onset_group
               }}
+              <span v-if="tooltipData.hpoPercentages?.onset" class="tooltip-hpo-percent">
+                ({{ tooltipData.hpoPercentages.onset }}%)
+              </span>
             </div>
             <div v-if="tooltipData.hpoData.is_syndromic !== null" class="tooltip-hpo-item">
               <span class="tooltip-hpo-label">Type:</span>
               {{ tooltipData.hpoData.is_syndromic ? 'Syndromic' : 'Isolated' }}
+              <span v-if="tooltipData.hpoPercentages?.syndromic" class="tooltip-hpo-percent">
+                ({{ tooltipData.hpoPercentages.syndromic }}%)
+              </span>
             </div>
           </div>
         </div>
@@ -459,7 +468,8 @@ const tooltipY = ref(0)
 const tooltipData = ref({
   geneSymbol: '',
   clusterName: '',
-  hpoData: null
+  hpoData: null,
+  hpoPercentages: null
 })
 
 // Computed
@@ -776,14 +786,47 @@ const showTooltip = (node, event) => {
   // Look up HPO classification data for this gene
   const geneId = node.data('gene_id')
   let hpoData = null
+  let hpoPercentages = null
+
   if (props.hpoClassifications?.data && geneId) {
     hpoData = props.hpoClassifications.data.find(item => item.gene_id === geneId)
+
+    // Calculate percentages within cluster for context
+    if (
+      hpoData &&
+      backendClusterId !== undefined &&
+      clusterStatistics.value.has(backendClusterId)
+    ) {
+      const clusterStats = clusterStatistics.value.get(backendClusterId)
+
+      hpoPercentages = {}
+
+      // Clinical group percentage
+      if (hpoData.clinical_group) {
+        const stat = clusterStats.clinical.find(s => s.key === hpoData.clinical_group)
+        if (stat) hpoPercentages.clinical = stat.percentage
+      }
+
+      // Onset group percentage
+      if (hpoData.onset_group) {
+        const stat = clusterStats.onset.find(s => s.key === hpoData.onset_group)
+        if (stat) hpoPercentages.onset = stat.percentage
+      }
+
+      // Syndromic percentage
+      if (hpoData.is_syndromic !== null) {
+        hpoPercentages.syndromic = hpoData.is_syndromic
+          ? clusterStats.syndromic.syndromicPercentage
+          : clusterStats.syndromic.isolatedPercentage
+      }
+    }
   }
 
   tooltipData.value = {
     geneSymbol: node.data('label') || node.data('gene_id'),
     clusterName,
-    hpoData
+    hpoData,
+    hpoPercentages
   }
 
   // Position tooltip near cursor with offset
@@ -1262,6 +1305,12 @@ onUnmounted(() => {
   margin-right: 4px;
 }
 
+.tooltip-hpo-percent {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  margin-left: 4px;
+}
+
 /* Dark theme adjustments */
 .v-theme--dark .node-tooltip {
   background: rgba(250, 250, 250, 0.95);
@@ -1278,5 +1327,9 @@ onUnmounted(() => {
 
 .v-theme--dark .tooltip-hpo-label {
   color: #1976d2;
+}
+
+.v-theme--dark .tooltip-hpo-percent {
+  color: rgba(0, 0, 0, 0.6);
 }
 </style>
