@@ -161,6 +161,26 @@
     <!-- Legend for Clusters -->
     <v-divider v-if="showClusterLegend" />
     <v-card-text v-if="showClusterLegend" class="pa-3">
+      <div class="d-flex align-center justify-space-between mb-2">
+        <span class="text-caption text-medium-emphasis font-weight-medium">Clusters</span>
+        <v-btn-toggle
+          v-model="clusterSortMethod"
+          mandatory
+          density="compact"
+          variant="outlined"
+          divided
+          size="x-small"
+        >
+          <v-btn value="size" title="Sort by cluster size (largest first)">
+            <v-icon size="small">mdi-sort-numeric-descending</v-icon>
+            <span class="ml-1">Size</span>
+          </v-btn>
+          <v-btn value="spatial" title="Sort by spatial proximity in graph">
+            <v-icon size="small">mdi-map-marker-distance</v-icon>
+            <span class="ml-1">Spatial</span>
+          </v-btn>
+        </v-btn-toggle>
+      </div>
       <div class="d-flex flex-wrap ga-2">
         <v-chip
           v-for="cluster in sortedClusterColors"
@@ -248,6 +268,8 @@ const cyInstance = ref(null)
 const layoutType = ref('cose-bilkent')
 const clusterAlgorithm = ref('leiden')
 const clusterColors = ref({})
+const clusterCentroids = ref({}) // { clusterId: { x, y } }
+const clusterSortMethod = ref('size') // 'size' or 'spatial'
 
 // Cluster details dialog state
 const clusterDialogOpen = ref(false)
@@ -281,7 +303,7 @@ const selectedClusterColor = computed(() => {
   return clusterColors.value[selectedClusterId.value] || '#1976D2'
 })
 
-// Sort cluster colors by display ID for consistent legend order
+// Sort cluster colors by display ID or spatial proximity
 const sortedClusterColors = computed(() => {
   if (!props.clusterIdMapping || props.clusterIdMapping.size === 0) {
     // Fallback: convert to array sorted by backendId
@@ -294,18 +316,32 @@ const sortedClusterColors = computed(() => {
       .sort((a, b) => a.backendId - b.backendId)
   }
 
-  // Create array of cluster objects with display info
+  // Create array of cluster objects with display info and centroids
   const clusters = Object.entries(clusterColors.value).map(([backendId, color]) => ({
     backendId: parseInt(backendId),
     displayId: props.clusterIdMapping.get(parseInt(backendId)) ?? parseInt(backendId),
-    color
+    color,
+    centroid: clusterCentroids.value[backendId] || null
   }))
 
-  // Sort by displayId (size-based ranking: 0 = largest cluster)
-  clusters.sort((a, b) => a.displayId - b.displayId)
+  // Sort based on selected method
+  if (clusterSortMethod.value === 'spatial' && Object.keys(clusterCentroids.value).length > 0) {
+    // Spatial sorting: by angle from center (clockwise from top)
+    // This creates a natural circular flow around the network
+    clusters.sort((a, b) => {
+      if (!a.centroid || !b.centroid) return 0
+      // Calculate angle from center (atan2 returns -π to π, adjust to 0-2π)
+      const angleA = Math.atan2(a.centroid.y, a.centroid.x) + Math.PI
+      const angleB = Math.atan2(b.centroid.y, b.centroid.x) + Math.PI
+      return angleA - angleB
+    })
+  } else {
+    // Default: Sort by displayId (size-based ranking: 0 = largest cluster)
+    clusters.sort((a, b) => a.displayId - b.displayId)
+  }
 
   // Return array (NOT object) to preserve sort order
-  // JavaScript auto-sorts numeric object keys, breaking our size-based order
+  // JavaScript auto-sorts numeric object keys, breaking our custom order
   return clusters
 })
 
@@ -390,6 +426,49 @@ const clearHighlight = () => {
   cyInstance.value.batch(() => {
     cyInstance.value.elements().removeClass('highlighted dimmed')
   })
+}
+
+/**
+ * Compute cluster centroids from node positions
+ * O(N) complexity - very fast even for large networks
+ * Called after layout completes (layoutstop event)
+ */
+const computeClusterCentroids = () => {
+  if (!cyInstance.value) return
+
+  const centroids = {}
+  const clusterNodes = {} // { clusterId: [nodes...] }
+
+  // Group nodes by cluster
+  cyInstance.value.nodes().forEach(node => {
+    const clusterId = node.data('cluster_id')
+    if (clusterId === undefined) return
+
+    if (!clusterNodes[clusterId]) {
+      clusterNodes[clusterId] = []
+    }
+    clusterNodes[clusterId].push(node)
+  })
+
+  // Compute centroid for each cluster (average of all node positions)
+  Object.entries(clusterNodes).forEach(([clusterId, nodes]) => {
+    if (nodes.length === 0) return
+
+    let sumX = 0
+    let sumY = 0
+    nodes.forEach(node => {
+      const pos = node.position()
+      sumX += pos.x
+      sumY += pos.y
+    })
+
+    centroids[clusterId] = {
+      x: sumX / nodes.length,
+      y: sumY / nodes.length
+    }
+  })
+
+  clusterCentroids.value = centroids
 }
 
 const openClusterDialog = backendClusterId => {
@@ -568,6 +647,11 @@ const initializeCytoscape = () => {
   cyInstance.value.on('mouseout', 'node', () => {
     clearHighlight()
     hideTooltip()
+  })
+
+  // Layout completion event - compute centroids after layout finishes
+  cyInstance.value.on('layoutstop', () => {
+    computeClusterCentroids()
   })
 
   // Auto-fit on load
