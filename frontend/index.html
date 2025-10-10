@@ -2,9 +2,61 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+
+    <!-- Favicon Links (2025 Best Practice) -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.webmanifest">
+
+    <!-- Viewport & Mobile -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + Vue</title>
+
+    <!-- Theme Color (Dynamic for light/dark mode) -->
+    <meta name="theme-color" content="#0EA5E9" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0284C7" media="(prefers-color-scheme: dark)">
+
+    <!-- Apple-Specific Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="KGDB">
+
+    <!-- Primary Meta Tags -->
+    <title>KGDB - Kidney Genetics Database</title>
+    <meta name="title" content="KGDB - Kidney Genetics Database">
+    <meta name="description" content="Evidence-based kidney disease gene curation with multi-source integration. Professional-quality research platform for nephrology genomics.">
+    <meta name="keywords" content="kidney genetics, nephrology, genomics, gene curation, kidney disease, genetic research, KGDB">
+    <meta name="author" content="Kidney Genetics Database Team">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://db.kidney-genetics.org/">
+    <meta property="og:title" content="KGDB - Kidney Genetics Database">
+    <meta property="og:description" content="Evidence-based kidney disease gene curation with multi-source integration.">
+    <meta property="og:image" content="/icon-512.png">
+    <meta property="og:site_name" content="Kidney Genetics Database">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://db.kidney-genetics.org/">
+    <meta property="twitter:title" content="KGDB - Kidney Genetics Database">
+    <meta property="twitter:description" content="Evidence-based kidney disease gene curation with multi-source integration.">
+    <meta property="twitter:image" content="/icon-512.png">
+
+    <!-- Microsoft Tiles (Optional) -->
+    <meta name="msapplication-TileColor" content="#0EA5E9">
+    <meta name="msapplication-TileImage" content="/icon-144.png">
+    <meta name="msapplication-config" content="none">
+
+    <!-- Additional PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="KGDB">
+
+    <!-- Security Headers -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
   </head>
   <body>
     <div id="app"></div>

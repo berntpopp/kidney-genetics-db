@@ -7,19 +7,16 @@
       class="border-b"
       :class="{ 'bg-surface': !isDark, 'bg-surface-bright': isDark }"
     >
-      <!-- Logo and Title -->
+      <!-- Brand Logo (consistent everywhere) -->
       <div class="d-flex align-center">
-        <KidneyGeneticsLogo
+        <KGDBLogo
           :size="40"
-          variant="kidneys"
+          variant="with-text"
+          text-layout="horizontal"
           :animated="false"
-          interactive
-          class="mr-3 cursor-pointer"
+          :interactive="true"
           @click="$router.push('/')"
         />
-        <v-app-bar-title class="text-h6 font-weight-medium">
-          Kidney Genetics Database
-        </v-app-bar-title>
       </div>
 
       <v-spacer />
@@ -215,29 +212,10 @@
     <LogViewer />
 
     <!-- Footer -->
-    <v-footer app class="bg-surface-light" height="auto">
-      <v-container>
-        <v-row align="center" justify="center">
-          <v-col cols="12" md="4" class="text-center text-md-left">
-            <div class="d-flex align-center justify-center justify-md-start">
-              <KidneyGeneticsLogo
-                :size="32"
-                variant="kidneys"
-                :animated="false"
-                monochrome
-                class="mr-2 opacity-60"
-              />
-              <span class="text-body-2 text-medium-emphasis">
-                © {{ new Date().getFullYear() }} Kidney Genetics Database
-              </span>
-            </div>
-          </v-col>
-          <v-col cols="12" md="4" class="text-center">
-            <div class="text-caption text-medium-emphasis">
-              Advancing nephrology through genomic research
-            </div>
-          </v-col>
-          <v-col cols="12" md="4" class="text-center text-md-right">
+    <v-footer app class="bg-surface-light py-1">
+      <v-container class="py-0">
+        <v-row align="center" justify="end" class="py-0 ma-0">
+          <v-col cols="12" class="text-right py-0">
             <v-btn
               icon="mdi-github"
               size="small"
@@ -279,7 +257,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useTheme } from 'vuetify'
 // import { useRoute } from 'vue-router' // Removed unused import
-import KidneyGeneticsLogo from '@/components/KidneyGeneticsLogo.vue'
+import { KGDBLogo } from '@/components/branding'
 import UserMenu from '@/components/auth/UserMenu.vue'
 import LogViewer from '@/components/admin/LogViewer.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -330,10 +308,6 @@ onUnmounted(() => {
 
 .cursor-pointer {
   cursor: pointer;
-}
-
-.opacity-60 {
-  opacity: 0.6;
 }
 
 /* Page transition */

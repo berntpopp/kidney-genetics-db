@@ -4,10 +4,17 @@
     <v-container fluid class="pa-0">
       <div class="hero-section text-center py-12 px-4">
         <v-container>
-          <!-- Logo + Title aligned properly -->
+          <!-- Logo with integrated text (horizontal layout - text right of kidney) -->
           <div class="d-flex align-center justify-center mb-6">
-            <KidneyGeneticsLogo :size="80" variant="full" :animated="true" class="mr-4" />
-            <h1 class="text-h2 text-md-h1 font-weight-bold">Kidney Genetics Database</h1>
+            <KGDBLogo
+              :size="logoSize"
+              variant="with-text"
+              text-layout="horizontal"
+              :animated="true"
+              :breathing="true"
+              :interactive="true"
+              @click="router.push('/')"
+            />
           </div>
 
           <p class="text-h6 text-md-h5 text-medium-emphasis mx-auto mb-8" style="max-width: 600px">
@@ -69,11 +76,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useDisplay } from 'vuetify'
+import { useRouter } from 'vue-router'
 import { datasourceApi } from '../api/datasources'
-import KidneyGeneticsLogo from '@/components/KidneyGeneticsLogo.vue'
+import { KGDBLogo } from '@/components/branding'
 
+const router = useRouter()
+const { xs, sm } = useDisplay()
 const hoveredCard = ref(null)
+
+// Responsive logo sizing
+const logoSize = computed(() => {
+  if (xs.value) return 60 // Mobile - smaller to fit viewport
+  if (sm.value) return 100 // Tablet
+  return 180 // Desktop
+})
 
 const stats = ref([
   {
