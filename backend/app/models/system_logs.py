@@ -1,6 +1,6 @@
 """System logging models for database persistence."""
 
-from sqlalchemy import BigInteger, Column, DateTime, Float, ForeignKey, Integer, Text
+from sqlalchemy import BigInteger, Column, DateTime, Float, ForeignKey, Integer, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -18,7 +18,7 @@ class SystemLog(Base):
     level = Column(Text, nullable=False)
     logger = Column(Text, nullable=False)  # Changed from logger_name
     message = Column(Text, nullable=False)
-    context = Column(JSONB, server_default="{}", nullable=False)  # Changed from extra_data
+    context = Column(JSONB, server_default=text("'{}'::jsonb"), nullable=False)  # Changed from extra_data
 
     # Request context
     request_id = Column(Text, nullable=True)

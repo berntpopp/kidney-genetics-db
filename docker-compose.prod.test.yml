@@ -1,0 +1,95 @@
+networks:
+  kidney_genetics_internal:
+    driver: bridge
+    name: kidney_genetics_internal
+
+volumes:
+  kidney_genetics_postgres_data:
+    name: kidney_genetics_postgres_data
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: kidney_genetics_postgres
+    networks:
+      - kidney_genetics_internal
+    volumes:
+      - kidney_genetics_postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kidney_genetics}
+      POSTGRES_USER: ${POSTGRES_USER:-kidney_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5434:5432"  # Non-standard port to avoid conflicts
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kidney_user} -d ${POSTGRES_DB:-kidney_genetics}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: "5"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: kidney_genetics_backend:latest
+    container_name: kidney_genetics_backend
+    networks:
+      - kidney_genetics_internal
+    ports:
+      - "8001:8000"  # Non-standard port to avoid conflicts
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kidney_user}:${POSTGRES_PASSWORD}@kidney_genetics_postgres:5432/${POSTGRES_DB:-kidney_genetics}
+      SECRET_KEY: ${SECRET_KEY}
+      BACKEND_CORS_ORIGINS: '["*"]'  # Allow all in test mode
+      API_V1_STR: /api/v1
+      PROJECT_NAME: "Kidney Genetics Database"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      ALLOWED_HOSTS: "*"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: "5"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: kidney_genetics_frontend:latest
+    container_name: kidney_genetics_frontend
+    networks:
+      - kidney_genetics_internal
+    ports:
+      - "8080:80"  # Non-standard port to avoid conflicts
+    environment:
+      API_BASE_URL: http://localhost:8001
+      WS_URL: ws://localhost:8001
+      ENVIRONMENT: test
+    depends_on:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: "5"

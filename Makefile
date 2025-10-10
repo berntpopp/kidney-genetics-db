@@ -1,7 +1,7 @@
 # Kidney Genetics Database - Development Makefile
 # Usage: make [command]
 
-.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend lint test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed
+.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend lint test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check
 
 # Detect docker compose command (v2 vs v1)
 DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
@@ -53,6 +53,16 @@ help:
 	@echo "🧹 CLEANUP:"
 	@echo "  make clean-backend   - Clean Python cache files (__pycache__, .pyc, etc.)"
 	@echo "  make clean-all       - Stop everything and clean all data"
+	@echo ""
+	@echo "🚢 PRODUCTION DEPLOYMENT:"
+	@echo "  make prod-build      - Build production images"
+	@echo "  make prod-test-up    - Start test mode (ports: 8080/8001/5433)"
+	@echo "  make prod-test-health- Test mode health check"
+	@echo "  make prod-test-down  - Stop test mode"
+	@echo "  make prod-up         - Start production (NPM mode, no ports)"
+	@echo "  make prod-health     - Production health check"
+	@echo "  make prod-down       - Stop production"
+	@echo "  make npm-network-create - Create shared npm_proxy_network"
 
 # ════════════════════════════════════════════════════════════════════
 # HYBRID DEVELOPMENT MODE (DB in Docker, API/Frontend local)
@@ -559,3 +569,70 @@ bump-all-patch:
 	@echo "✅ All components bumped to patch versions"
 	@echo ""
 	@$(MAKE) version
+
+# ════════════════════════════════════════════════════════════════════
+# PRODUCTION DEPLOYMENT
+# ════════════════════════════════════════════════════════════════════
+
+.PHONY: prod-build prod-up prod-down prod-logs prod-restart prod-health
+.PHONY: prod-test-up prod-test-down prod-test-logs prod-test-health
+.PHONY: npm-network-create npm-network-check
+
+# Production mode (NPM-integrated, no ports exposed)
+prod-build:
+	@echo "🔨 Building production images..."
+	docker-compose -f docker-compose.prod.yml build --no-cache
+
+prod-up:
+	@echo "🚀 Starting production deployment (NPM mode)..."
+	@echo "⚠️  Requires 'npm_proxy_network' network to exist!"
+	@$(MAKE) npm-network-check
+	docker-compose -f docker-compose.prod.yml up -d
+
+prod-down:
+	@echo "🛑 Stopping production deployment..."
+	docker-compose -f docker-compose.prod.yml down
+
+prod-logs:
+	docker-compose -f docker-compose.prod.yml logs -f --tail=100
+
+prod-restart:
+	docker-compose -f docker-compose.prod.yml restart
+
+prod-health:
+	@echo "=== Production Health Check ==="
+	@docker ps --filter "name=kidney_genetics" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "No containers running"
+
+# Test mode (standalone with exposed ports)
+prod-test-up:
+	@echo "🧪 Starting production TEST mode (ports exposed)..."
+	@echo "Access:"
+	@echo "  - Frontend: http://localhost:8080"
+	@echo "  - Backend API: http://localhost:8001/api/health"
+	@echo "  - Database: localhost:5433"
+	docker-compose -f docker-compose.prod.test.yml up -d
+
+prod-test-down:
+	@echo "🛑 Stopping test mode..."
+	docker-compose -f docker-compose.prod.test.yml down
+
+prod-test-logs:
+	docker-compose -f docker-compose.prod.test.yml logs -f --tail=100
+
+prod-test-health:
+	@echo "=== Test Mode Health Check ==="
+	@echo "Frontend: http://localhost:8080"
+	@echo -n "Backend API: "
+	@curl -sf http://localhost:8001/api/health >/dev/null && echo "✅ Healthy" || echo "❌ Unhealthy"
+	@echo ""
+	@docker ps --filter "name=kidney_genetics" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+# Network management
+npm-network-create:
+	@echo "🌐 Creating shared npm_proxy_network..."
+	@docker network create npm_proxy_network 2>/dev/null || echo "✅ Network already exists"
+
+npm-network-check:
+	@docker network inspect npm_proxy_network >/dev/null 2>&1 || \
+	(echo "❌ npm_proxy_network missing! Run: make npm-network-create" && exit 1)
+	@echo "✅ npm_proxy_network exists"

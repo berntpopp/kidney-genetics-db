@@ -91,3 +91,4 @@ backend/backend/
 
 # Release exports
 backend/exports/
+.env.production
