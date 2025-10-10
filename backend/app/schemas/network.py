@@ -48,11 +48,11 @@ class NetworkBuildRequest(BaseModel):
 
     @field_validator('gene_ids')
     @classmethod
-    def validate_gene_ids(cls, v: list[int]) -> list[int]:
-        """Validate gene IDs are positive integers"""
+    def validate_and_normalize_gene_ids(cls, v: list[int]) -> list[int]:
+        """Validate gene IDs and normalize to sorted order for cache consistency"""
         if not all(gid > 0 for gid in v):
             raise ValueError("All gene IDs must be positive integers")
-        return v
+        return sorted(v)  # Ensures deterministic cache keys
 
 
 class NetworkClusterRequest(BaseModel):
@@ -95,6 +95,14 @@ class NetworkClusterRequest(BaseModel):
         description="Keep only largest connected component"
     )
 
+    @field_validator('gene_ids')
+    @classmethod
+    def validate_and_normalize_gene_ids(cls, v: list[int]) -> list[int]:
+        """Validate gene IDs and normalize to sorted order for cache consistency"""
+        if not all(gid > 0 for gid in v):
+            raise ValueError("All gene IDs must be positive integers")
+        return sorted(v)  # Ensures deterministic cache keys
+
     @field_validator('algorithm')
     @classmethod
     def validate_algorithm(cls, v: str) -> str:
@@ -134,6 +142,14 @@ class SubgraphRequest(BaseModel):
         le=_na_config.get("subgraph", {}).get("max_k_hops", 5),
         description="Number of hops (1-5)"
     )
+
+    @field_validator('seed_gene_ids', 'gene_ids')
+    @classmethod
+    def validate_and_normalize_gene_ids(cls, v: list[int]) -> list[int]:
+        """Validate gene IDs and normalize to sorted order for cache consistency"""
+        if not all(gid > 0 for gid in v):
+            raise ValueError("All gene IDs must be positive integers")
+        return sorted(v)  # Ensures deterministic cache keys
 
 
 class HPOEnrichmentRequest(BaseModel):

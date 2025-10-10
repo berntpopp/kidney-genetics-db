@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.cache_decorator import cache
 from app.core.exceptions import ValidationError
 from app.core.logging import get_logger
 from app.models.gene import Gene
@@ -137,6 +138,7 @@ def generate_cluster_colors(num_clusters: int) -> dict[int, str]:
 
 
 @router.post("/build", response_model=NetworkBuildResponse)
+@cache(namespace="network_analysis", ttl=3600)
 async def build_network(
     request: NetworkBuildRequest,
     db: Session = Depends(get_db),
@@ -228,6 +230,7 @@ async def build_network(
 
 
 @router.post("/cluster", response_model=NetworkClusterResponse)
+@cache(namespace="network_analysis", ttl=3600)
 async def cluster_network(
     request: NetworkClusterRequest,
     db: Session = Depends(get_db),
@@ -370,6 +373,7 @@ async def cluster_network(
 
 
 @router.post("/subgraph", response_model=NetworkBuildResponse)
+@cache(namespace="network_analysis", ttl=3600)
 async def extract_subgraph(
     request: SubgraphRequest,
     db: Session = Depends(get_db),
@@ -427,6 +431,7 @@ async def extract_subgraph(
 
 
 @router.post("/enrich/hpo", response_model=HPOEnrichmentResponse)
+@cache(namespace="network_analysis", ttl=1800)
 async def enrich_hpo(
     request: HPOEnrichmentRequest,
     db: Session = Depends(get_db),
@@ -470,6 +475,7 @@ async def enrich_hpo(
 
 
 @router.post("/enrich/go", response_model=GOEnrichmentResponse)
+@cache(namespace="network_analysis", ttl=1800)
 async def enrich_go(
     request: GOEnrichmentRequest,
     db: Session = Depends(get_db),
