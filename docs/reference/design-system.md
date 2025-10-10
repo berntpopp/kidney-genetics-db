@@ -11,6 +11,451 @@
 4. **Professional Trust** - Medical-grade interface design that respects genetic research
 5. **Accessibility First** - Controls visible without scrolling, proper contrast, keyboard navigation
 
+## Logo & Branding System
+
+### Brand Identity: "KGdb"
+
+The KGDB logo embodies the project's identity as the **Kidney-Genetics database**. The branding emphasizes "KG" (Kidney-Genetics) as the primary identifier with "db" (database) as a descriptive suffix.
+
+#### **Visual Hierarchy**
+```
+Kidney-Genetics  ← Primary brand name (100% size)
+database         ← Descriptor (75% size, lowercase)
+```
+
+### Logo Variants
+
+#### **1. Icon-Only** (`variant="icon-only"`)
+```vue
+<!-- Favicon, mobile icons, compact spaces -->
+<KGDBLogo :size="32" variant="icon-only" />
+
+Use cases:
+- Browser favicon (16x16, 32x32)
+- Mobile app icons (192x192, 512x512)
+- Compact navigation bars
+- Social media profile images
+```
+
+#### **2. With-Text Horizontal** (`variant="with-text" text-layout="horizontal"`)
+```vue
+<!-- Navigation bar, hero section -->
+<KGDBLogo
+  :size="40"
+  variant="with-text"
+  text-layout="horizontal"
+  :interactive="true"
+/>
+
+Layout: [Kidney-icon] Kidney-Genetics
+                       database
+
+Use cases:
+- Primary navigation bar (size: 40px)
+- Hero section (size: 60-180px, responsive)
+- Page headers
+- Marketing materials
+```
+
+#### **3. With-Text Vertical** (`variant="with-text" text-layout="vertical"`)
+```vue
+<!-- Splash screens, print materials -->
+<KGDBLogo
+  :size="120"
+  variant="with-text"
+  text-layout="vertical"
+/>
+
+Layout:  [Kidney-icon]
+         Kidney-Genetics
+         database
+
+Use cases:
+- Splash screens
+- Print materials (posters, reports)
+- Standalone branding
+```
+
+#### **4. Text-Only** (`variant="text-only"`)
+```vue
+<!-- Fallback for accessibility -->
+<KGDBLogo variant="text-only" />
+
+Use cases:
+- Screen readers
+- Text-only contexts
+- Email signatures
+```
+
+### Typography Specifications
+
+#### **Text Styling**
+```scss
+.kgdb-logo__text {
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 700;          // Bold for brand prominence
+  letter-spacing: -0.02em;   // Tight tracking for cohesion
+  color: rgb(var(--v-theme-on-surface));  // Theme-aware
+}
+
+.kgdb-logo__text-primary {
+  // "Kidney-Genetics" - Full size, title case
+  font-size: 1em;            // Base size (scales with logo size)
+}
+
+.kgdb-logo__text-secondary {
+  // "database" - Smaller, lowercase
+  font-size: 0.75em;         // 75% of primary
+  text-transform: lowercase;  // Always lowercase
+}
+```
+
+#### **Size Scale**
+```scss
+// Size classes (automatically applied based on logo size prop)
+.kgdb-logo--xs  { font-size: 10px; }  // 16-24px logo
+.kgdb-logo--sm  { font-size: 14px; }  // 25-40px logo
+.kgdb-logo--md  { font-size: 24px; }  // 41-64px logo (mobile hero)
+.kgdb-logo--lg  { font-size: 36px; }  // 65-128px logo (tablet hero)
+.kgdb-logo--xl  { font-size: 64px; }  // 129-512px logo (desktop hero)
+```
+
+### Responsive Sizing
+
+#### **Breakpoint Guidelines**
+```vue
+<script setup>
+import { computed } from 'vue'
+import { useDisplay } from 'vuetify'
+
+const { xs, sm } = useDisplay()
+
+// Responsive logo sizing
+const logoSize = computed(() => {
+  if (xs.value) return 60   // Mobile (375px)
+  if (sm.value) return 100  // Tablet (768px)
+  return 180                // Desktop (1920px)
+})
+</script>
+
+<template>
+  <KGDBLogo
+    :size="logoSize"
+    variant="with-text"
+    text-layout="horizontal"
+  />
+</template>
+```
+
+#### **Context-Specific Sizes**
+```scss
+// Navigation bar
+.v-app-bar .kgdb-logo { size: 40px; }
+
+// Hero section
+.hero-section .kgdb-logo {
+  size: 60px;   // Mobile
+  size: 100px;  // Tablet
+  size: 180px;  // Desktop
+}
+
+// Footer
+.v-footer .kgdb-logo {
+  size: 32px;
+  monochrome: true;  // Grayscale version
+}
+```
+
+### Interactive States
+
+#### **Hover Effects** (when `interactive="true"`)
+```scss
+.kgdb-logo--interactive {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+
+  &:hover .kgdb-logo__image {
+    transform: scale(1.05) rotate(-2deg);  // Subtle playful lift
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  &:active .kgdb-logo__image {
+    transform: scale(0.98);  // Press feedback
+    transition-duration: 0.1s;
+  }
+}
+```
+
+#### **Focus States** (keyboard navigation)
+```scss
+.kgdb-logo--interactive:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+```
+
+### Animation System
+
+#### **Entrance Animation** (when `animated="true"`)
+```scss
+@keyframes logo-entrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.kgdb-logo--animated {
+  animation: logo-entrance 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+```
+
+#### **Breathing Animation** (when `breathing="true"`)
+```scss
+@keyframes logo-breathe {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0px rgba(72, 156, 158, 0.3));
+  }
+  50% {
+    transform: scale(1.02);
+    filter: drop-shadow(0 0 8px rgba(72, 156, 158, 0.3));
+  }
+}
+
+.kgdb-logo--breathing .kgdb-logo__image {
+  animation: logo-breathe 4s ease-in-out infinite;
+}
+```
+
+#### **Motion Preferences**
+```scss
+@media (prefers-reduced-motion: reduce) {
+  .kgdb-logo,
+  .kgdb-logo * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+### Color & Theme
+
+#### **Light Mode**
+```scss
+.kgdb-logo {
+  --kidney-color: #489c9e;           // Teal kidney shape
+  --kidney-shadow: rgba(72, 156, 158, 0.3);
+  --text-color: rgb(var(--v-theme-on-surface));
+}
+```
+
+#### **Dark Mode**
+```scss
+.kgdb-logo--dark .kgdb-logo__image {
+  filter: brightness(1.1) contrast(1.05);  // Enhance visibility
+}
+```
+
+#### **Monochrome Mode** (footer)
+```scss
+.kgdb-logo--monochrome .kgdb-logo__image {
+  filter: grayscale(100%) brightness(0.6) contrast(1.2);
+}
+
+.kgdb-logo--monochrome .kgdb-logo__text {
+  opacity: 0.7;
+}
+```
+
+### Accessibility
+
+#### **Screen Reader Support**
+```vue
+<div
+  role="img"
+  :aria-label="ariaLabel"
+  :tabindex="interactive ? 0 : -1"
+>
+  <!-- ariaLabel examples: -->
+  <!-- "Kidney Genetics Database logo" (icon-only) -->
+  <!-- "Kidney Genetics Database - click to navigate home" (interactive) -->
+</div>
+```
+
+#### **Text Selection**
+```scss
+// Logo image is non-selectable
+.kgdb-logo__image {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+// Text is selectable for copying
+.kgdb-logo__text {
+  user-select: auto;  // Default - text can be selected
+}
+```
+
+#### **High Contrast Mode**
+```scss
+@media (prefers-contrast: high) {
+  .kgdb-logo__image {
+    filter: contrast(1.5) !important;
+  }
+
+  .kgdb-logo__text {
+    font-weight: 800;  // Bolder for visibility
+  }
+}
+```
+
+### Usage Guidelines
+
+#### **✅ Correct Usage**
+```vue
+<!-- Navigation bar -->
+<KGDBLogo
+  :size="40"
+  variant="with-text"
+  text-layout="horizontal"
+  :animated="false"
+  :interactive="true"
+  @click="$router.push('/')"
+/>
+
+<!-- Hero section -->
+<KGDBLogo
+  :size="logoSize"  <!-- responsive -->
+  variant="with-text"
+  text-layout="horizontal"
+  :animated="true"
+  :breathing="true"
+  :interactive="true"
+  @click="$router.push('/')"
+/>
+
+<!-- Footer -->
+<KGDBLogo
+  :size="32"
+  variant="icon-only"
+  :monochrome="true"
+/>
+```
+
+#### **❌ Incorrect Usage**
+```vue
+<!-- ❌ Don't mix layouts inconsistently -->
+<KGDBLogo text-layout="vertical" />  <!-- Nav bar should be horizontal -->
+
+<!-- ❌ Don't use oversized logos in navigation -->
+<KGDBLogo :size="200" />  <!-- Too large for app bar -->
+
+<!-- ❌ Don't animate in static contexts -->
+<KGDBLogo :breathing="true" />  <!-- Footer should be static -->
+
+<!-- ❌ Don't make footer logo interactive -->
+<KGDBLogo variant="icon-only" :interactive="true" />  <!-- Footer is for display only -->
+```
+
+### Spacing & Clear Space
+
+#### **Minimum Clear Space**
+```scss
+// Maintain clear space around logo
+.logo-container {
+  padding: calc(var(--logo-size) * 0.25);  // 25% of logo size
+  min-height: calc(var(--logo-size) * 1.5);
+}
+```
+
+#### **Gap Between Logo and Text**
+```scss
+.kgdb-logo__with-text-horizontal {
+  gap: 4px;  // Very tight - text is part of logo lockup
+}
+
+.kgdb-logo__with-text-vertical {
+  gap: calc(var(--logo-size) * 0.2);  // Proportional to size
+}
+```
+
+### File Locations
+
+#### **Component Files**
+```
+frontend/src/components/branding/
+├── KGDBLogo.vue          # Main component
+├── index.js              # Export file
+└── README.md             # Component documentation
+```
+
+#### **Asset Files**
+```
+frontend/public/
+├── KGDB_logo.svg                # Icon only (kidney shape)
+├── KGDB_logo_with_letters.svg   # Full logo with "KGdb" letters
+├── icon.svg                     # Optimized for web
+├── favicon.ico                  # Multi-resolution ICO
+├── icon-192.png                 # PWA icon (Android)
+├── icon-512.png                 # PWA icon (Android)
+├── apple-touch-icon.png         # iOS icon (180x180)
+└── manifest.webmanifest         # PWA configuration
+```
+
+### Favicon Implementation
+
+#### **HTML Meta Tags** (2025 Best Practices)
+```html
+<!-- Essential favicons -->
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<!-- PWA manifest -->
+<link rel="manifest" href="/manifest.webmanifest">
+
+<!-- Theme color -->
+<meta name="theme-color" content="#0EA5E9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0284C7" media="(prefers-color-scheme: dark)">
+```
+
+#### **PWA Manifest**
+```json
+{
+  "name": "Kidney Genetics Database",
+  "short_name": "KGDB",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#0EA5E9",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}
+```
+
+### Brand Consistency Checklist
+
+- [ ] Logo uses "Kidney-Genetics" (title case) + "database" (lowercase)
+- [ ] "database" text is 75% size of "Kidney-Genetics"
+- [ ] Horizontal layout for navigation and hero sections
+- [ ] Interactive logos have hover effects enabled
+- [ ] Responsive sizing based on viewport (60px → 100px → 180px)
+- [ ] Animation respects `prefers-reduced-motion`
+- [ ] Proper ARIA labels for accessibility
+- [ ] Clear space maintained (25% of logo size minimum)
+- [ ] Favicon includes all required formats (ICO, SVG, PNG)
+- [ ] Theme colors defined for light and dark modes
+
+---
+
 ## Current Implementation
 
 ### Homepage Architecture (v2.0)
@@ -352,9 +797,19 @@ const GeneTable = () => import('./components/GeneTable.vue')
 
 ## Version History
 
+- **v2.1.0** (2025-10-10): Logo & branding system documentation
+  - Comprehensive logo component guidelines
+  - "KGdb" brand identity (Kidney-Genetics + database)
+  - Four logo variants with usage specifications
+  - Responsive sizing patterns (mobile/tablet/desktop)
+  - Interactive states and animations
+  - Accessibility features (ARIA, keyboard nav, motion preferences)
+  - Favicon implementation (2025 best practices)
+  - Brand consistency checklist
+
 - **v2.0.0** (2025-01-16): Production implementation after UX audit
   - Homepage redesign with single CTA pattern
-  - Logo alignment improvements  
+  - Logo alignment improvements
   - Data table density optimization
   - Pagination accessibility enhancements
   - Evidence display with tooltips
