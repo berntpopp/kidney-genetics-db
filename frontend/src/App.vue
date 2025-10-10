@@ -211,45 +211,8 @@
     <!-- Log Viewer Component -->
     <LogViewer />
 
-    <!-- Footer -->
-    <v-footer app class="bg-surface-light py-1">
-      <v-container class="py-0">
-        <v-row align="center" justify="end" class="py-0 ma-0">
-          <v-col cols="12" class="text-right py-0">
-            <v-btn
-              icon="mdi-github"
-              size="small"
-              variant="text"
-              href="https://github.com"
-              target="_blank"
-              title="GitHub"
-            />
-            <v-btn
-              icon="mdi-file-document"
-              size="small"
-              variant="text"
-              to="/about"
-              title="Documentation"
-            />
-            <v-btn
-              size="small"
-              variant="text"
-              :title="`Open Log Viewer (Ctrl+Shift+L) - ${logStore.errorCount} errors`"
-              @click="logStore.showViewer"
-            >
-              <v-badge
-                :content="logStore.errorCount"
-                :model-value="logStore.errorCount > 0"
-                color="error"
-                dot
-              >
-                <v-icon>mdi-text-box-search-outline</v-icon>
-              </v-badge>
-            </v-btn>
-          </v-col>
-        </v-row>
-      </v-container>
-    </v-footer>
+    <!-- Footer with Version Information -->
+    <AppFooter />
   </v-app>
 </template>
 
@@ -260,6 +223,7 @@ import { useTheme } from 'vuetify'
 import { KGDBLogo } from '@/components/branding'
 import UserMenu from '@/components/auth/UserMenu.vue'
 import LogViewer from '@/components/admin/LogViewer.vue'
+import AppFooter from '@/components/AppFooter.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useLogStore } from '@/stores/logStore'
 

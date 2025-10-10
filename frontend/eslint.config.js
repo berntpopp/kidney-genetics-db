@@ -28,7 +28,8 @@ export default [
         WebSocket: 'readonly',
         fetch: 'readonly',
         confirm: 'readonly',
-        CustomEvent: 'readonly'
+        CustomEvent: 'readonly',
+        __APP_VERSION__: 'readonly'
       }
     },
     rules: {

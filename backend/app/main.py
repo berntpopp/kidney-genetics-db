@@ -24,6 +24,7 @@ from app.api.endpoints import (
     releases,
     shadow_tests,
     statistics,
+    version,
 )
 from app.core.background_tasks import task_manager
 from app.core.config import settings
@@ -129,10 +130,13 @@ app.add_middleware(
 register_error_handlers(app)
 
 # Include routers - organized by functional areas
-# 0. Authentication - User management and auth
+# 0. System - Health, version, and root endpoints
+app.include_router(version.router, tags=["System"])
+
+# 1. Authentication - User management and auth
 app.include_router(auth.router, tags=["Authentication"])
 
-# 1. Core Resources - Primary domain entities
+# 2. Core Resources - Primary domain entities
 app.include_router(genes.router, prefix="/api/genes", tags=["Core Resources - Genes"])
 app.include_router(
     gene_annotations.router, prefix="/api/annotations", tags=["Core Resources - Annotations"]
@@ -144,12 +148,12 @@ app.include_router(
     releases.router, prefix="/api/releases", tags=["Core Resources - Data Releases"]
 )
 
-# 2. Data Pipeline - Ingestion and processing operations
+# 3. Data Pipeline - Ingestion and processing operations
 app.include_router(gene_staging.router, prefix="/api/staging", tags=["Pipeline - Staging"])
 app.include_router(ingestion.router, prefix="/api/ingestion", tags=["Pipeline - Ingestion"])
 app.include_router(progress.router, prefix="/api/progress", tags=["Pipeline - Progress Monitoring"])
 
-# 3. Analytics - Statistics and reporting
+# 4. Analytics - Statistics and reporting
 app.include_router(statistics.router, prefix="/api/statistics", tags=["Analytics - Statistics"])
 app.include_router(
     network_analysis.router,
@@ -157,7 +161,7 @@ app.include_router(
     tags=["Analytics - Network Analysis & Enrichment"]
 )
 
-# 4. Administration - System management and monitoring
+# 5. Administration - System management and monitoring
 app.include_router(admin_logs.router, prefix="/api/admin/logs", tags=["Administration - Logging"])
 app.include_router(
     admin_backups.router, prefix="/api/admin/backups", tags=["Administration - Backups"]

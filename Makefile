@@ -486,3 +486,76 @@ db-refresh-views:
 
 # Create log directory if it doesn't exist
 $(shell mkdir -p logs)
+# ════════════════════════════════════════════════════════════════════
+# VERSION MANAGEMENT
+# ════════════════════════════════════════════════════════════════════
+
+.PHONY: version version-check bump-backend-minor bump-backend-patch bump-frontend-minor bump-frontend-patch bump-all-minor bump-all-patch
+
+# Show all component versions
+version:
+	@echo "╔════════════════════════════════════════════════════════════════╗"
+	@echo "║                    COMPONENT VERSIONS                           ║"
+	@echo "╚════════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "📦 Backend API:"
+	@cd backend && uv run python -c "import tomllib; data = tomllib.load(open('pyproject.toml', 'rb')); print(f'   Version: {data[\"project\"][\"version\"]}')"
+	@echo ""
+	@echo "🖥️  Frontend:"
+	@cd frontend && node -p "'   Version: ' + require('./package.json').version"
+	@echo ""
+	@echo "🗄️  Database Schema:"
+	@cd backend && uv run python -c "\
+from sqlalchemy import create_engine, text; \
+from app.core.config import settings; \
+try: \
+    engine = create_engine(settings.DATABASE_URL); \
+    conn = engine.connect(); \
+    result = conn.execute(text('SELECT version, applied_at FROM schema_versions ORDER BY applied_at DESC LIMIT 1')).fetchone(); \
+    if result: \
+        print(f'   Version: {result.version}'); \
+        print(f'   Applied: {result.applied_at}'); \
+    else: \
+        print('   Not initialized'); \
+    conn.close(); \
+except Exception as e: \
+    print(f'   Error: {e}');" 2>/dev/null || echo "   Database not accessible"
+
+# Check version via API (requires running backend)
+version-check:
+	@echo "🔍 Fetching versions from API..."
+	@curl -s http://localhost:8000/version 2>/dev/null | python3 -m json.tool || echo "❌ Backend not running on http://localhost:8000"
+
+# Bump backend minor version (0.1.0 -> 0.2.0)
+bump-backend-minor:
+	@cd backend && uv run python -c "import tomllib; f = open('pyproject.toml', 'rb'); data = tomllib.load(f); f.close(); parts = data['project']['version'].split('.'); new_version = f'{parts[0]}.{int(parts[1])+1}.0'; f = open('pyproject.toml', 'r'); content = f.read(); f.close(); content = content.replace(f'version = \"{data[\"project\"][\"version\"]}\"', f'version = \"{new_version}\"'); f = open('pyproject.toml', 'w'); f.write(content); f.close(); print(f'✅ Backend bumped: {data[\"project\"][\"version\"]} → {new_version}')"
+
+# Bump backend patch version (0.1.0 -> 0.1.1)
+bump-backend-patch:
+	@cd backend && uv run python -c "import tomllib; f = open('pyproject.toml', 'rb'); data = tomllib.load(f); f.close(); parts = data['project']['version'].split('.'); new_version = f'{parts[0]}.{parts[1]}.{int(parts[2])+1}'; f = open('pyproject.toml', 'r'); content = f.read(); f.close(); content = content.replace(f'version = \"{data[\"project\"][\"version\"]}\"', f'version = \"{new_version}\"'); f = open('pyproject.toml', 'w'); f.write(content); f.close(); print(f'✅ Backend bumped: {data[\"project\"][\"version\"]} → {new_version}')"
+
+# Bump frontend minor version (0.1.0 -> 0.2.0)
+bump-frontend-minor:
+	@cd frontend && npm version minor --no-git-tag-version && echo "✅ Frontend bumped to $$(node -p 'require(\"./package.json\").version')"
+
+# Bump frontend patch version (0.1.0 -> 0.1.1)
+bump-frontend-patch:
+	@cd frontend && npm version patch --no-git-tag-version && echo "✅ Frontend bumped to $$(node -p 'require(\"./package.json\").version')"
+
+# Bump all components (minor version)
+bump-all-minor:
+	@$(MAKE) bump-backend-minor
+	@$(MAKE) bump-frontend-minor
+	@echo ""
+	@echo "✅ All components bumped to minor versions"
+	@echo ""
+	@$(MAKE) version
+
+# Bump all components (patch version)
+bump-all-patch:
+	@$(MAKE) bump-backend-patch
+	@$(MAKE) bump-frontend-patch
+	@echo ""
+	@echo "✅ All components bumped to patch versions"
+	@echo ""
+	@$(MAKE) version
