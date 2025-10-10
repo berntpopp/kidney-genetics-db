@@ -1,15 +1,23 @@
 <template>
-  <v-container fluid>
+  <v-container>
     <!-- Page Header -->
-    <div class="mb-6">
-      <h1 class="text-h3 font-weight-bold mb-2">Network Analysis & Clustering</h1>
-      <p class="text-body-1 text-medium-emphasis">
-        Explore protein-protein interactions and functional clusters across kidney disease genes
-      </p>
-    </div>
+    <v-row>
+      <v-col cols="12">
+        <div class="d-flex align-center mb-6">
+          <v-icon color="primary" size="large" class="mr-3">mdi-graph</v-icon>
+          <div>
+            <h1 class="text-h4 font-weight-bold">Network Analysis & Clustering</h1>
+            <p class="text-body-2 text-medium-emphasis ma-0">
+              Explore protein-protein interactions and functional clusters across kidney disease
+              genes
+            </p>
+          </div>
+        </div>
+      </v-col>
+    </v-row>
 
     <!-- Gene Selection Card -->
-    <v-card elevation="2" class="mb-6" rounded="lg">
+    <v-card elevation="0" class="mb-6" rounded="lg">
       <v-card-title class="pa-4">
         <v-icon icon="mdi-filter" class="mr-2" />
         Gene Selection
@@ -108,7 +116,7 @@
     </v-alert>
 
     <!-- Network Construction Card -->
-    <v-card elevation="2" class="mb-6" rounded="lg">
+    <v-card elevation="0" class="mb-6" rounded="lg">
       <v-card-title class="pa-4">
         <v-icon icon="mdi-graph" class="mr-2" />
         Network Construction
@@ -189,7 +197,7 @@
     </v-card>
 
     <!-- Network Filtering Controls -->
-    <v-card elevation="2" class="mb-6" rounded="lg">
+    <v-card elevation="0" class="mb-6" rounded="lg">
       <v-card-title class="pa-4">
         <v-icon icon="mdi-filter-variant" class="mr-2" />
         Network Filtering
@@ -284,7 +292,7 @@
     />
 
     <!-- Cluster Selection & Enrichment -->
-    <v-card v-if="clusterStats" elevation="2" class="mb-6" rounded="lg">
+    <v-card v-if="clusterStats" elevation="0" class="mb-6" rounded="lg">
       <v-card-title class="pa-4">
         <v-icon icon="mdi-chart-box" class="mr-2" />
         Functional Enrichment Analysis

@@ -1,15 +1,18 @@
 <template>
-  <v-container fluid class="dashboard-container">
+  <v-container>
     <!-- Page Header -->
-    <v-row class="mb-6">
+    <v-row>
       <v-col cols="12">
-        <div class="d-flex align-center mb-2">
-          <v-icon class="me-3" size="large" color="primary">mdi-view-dashboard</v-icon>
-          <h1 class="text-h4 font-weight-bold">Data Visualization Dashboard</h1>
+        <div class="d-flex align-center mb-6">
+          <v-icon color="primary" size="large" class="mr-3">mdi-view-dashboard</v-icon>
+          <div>
+            <h1 class="text-h4 font-weight-bold">Data Visualization Dashboard</h1>
+            <p class="text-body-2 text-medium-emphasis ma-0">
+              Comprehensive analysis of gene-disease associations across multiple genomic data
+              sources
+            </p>
+          </div>
         </div>
-        <p class="text-body-1 text-medium-emphasis">
-          Comprehensive analysis of gene-disease associations across multiple genomic data sources
-        </p>
       </v-col>
     </v-row>
 
@@ -44,7 +47,7 @@
     <!-- Visualization Tabs -->
     <v-row>
       <v-col cols="12">
-        <v-card>
+        <v-card rounded="lg">
           <v-tabs v-model="activeTab" color="primary" align-tabs="start" show-arrows>
             <v-tab value="overlaps">
               <v-icon class="me-2">mdi-chart-scatter-plot</v-icon>
