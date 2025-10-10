@@ -42,6 +42,10 @@ _CACHE_TTL = timedelta(minutes=5)  # Semi-static data standard
 _hpo_classifications_cache: dict[str, Any] = {"data": None, "timestamp": None}
 _HPO_CACHE_TTL = timedelta(hours=1)  # HPO data changes infrequently
 
+# Module-level cache for gene IDs queries (for URL state restoration)
+_gene_ids_cache: dict[str, Any] = {}
+_GENE_IDS_CACHE_TTL = timedelta(hours=1)  # Genes are semi-static
+
 # Note: Gene annotations endpoint has been moved to the gene_annotations module
 # to maintain better separation of concerns and avoid duplicate endpoints
 
@@ -147,6 +151,17 @@ def invalidate_metadata_cache() -> None:
     _metadata_cache["data"] = None
     _metadata_cache["timestamp"] = None
     logger.sync_info("Metadata cache invalidated")
+
+
+def clear_gene_ids_cache() -> None:
+    """
+    Clear gene IDs cache.
+    Call this after pipeline updates to force fresh data on next request.
+    Used for URL state restoration queries.
+    """
+    global _gene_ids_cache
+    _gene_ids_cache = {}
+    logger.sync_info("Gene IDs cache cleared")
 
 
 @lru_cache(maxsize=1)
@@ -266,6 +281,12 @@ async def get_genes(
         alias="filter[group]",
         description="Filter by evidence group (well_supported, emerging_evidence)",
     ),
+    # NEW: Filter by gene IDs (for URL state restoration)
+    filter_ids: str | None = Query(
+        None,
+        alias="filter[ids]",
+        description="Filter by gene IDs (comma-separated, max 5000). Used for URL state restoration.",
+    ),
     # JSON:API sorting
     sort: str | None = Depends(get_sort_param("-evidence_score,approved_symbol")),
 ) -> dict[str, Any]:
@@ -274,9 +295,22 @@ async def get_genes(
 
     Query parameters follow JSON:API specification:
     - Pagination: page[number], page[size]
-    - Filtering: filter[search], filter[min_score], filter[source], etc.
+    - Filtering: filter[search], filter[min_score], filter[source], filter[ids], etc.
     - Sorting: sort=-evidence_score,approved_symbol (prefix with - for descending)
+
+    NEW: filter[ids] - Filter by comma-separated gene IDs for URL state restoration.
+              Used when users share network analysis URLs with specific gene sets.
+              Example: /api/genes?filter[ids]=1,2,3,4,5&page[size]=100
     """
+    # IMPORTANT: Do NOT cache filter[ids] queries because:
+    # 1. They are paginated requests (page 1, 2, 3, etc.)
+    # 2. Cache key doesn't include page number, causing all pages to return same cached result
+    # 3. This is only used for URL restoration (one-time operation), so caching provides no benefit
+    # 4. Caching was causing bug: 614 IDs requested but 700 genes returned (page 1 cached, returned 7 times)
+    #
+    # If caching is needed in future, cache key MUST include page number:
+    # cache_key = f"genes_ids_{filter_ids}_page{page_number}"
+
     # Build WHERE clauses first
     where_clauses = ["1=1"]
     query_params = {}
@@ -354,6 +388,40 @@ async def get_genes(
             )
         where_clauses.append("gs.evidence_group = :group")
         query_params["group"] = filter_group
+
+    # NEW: Filter by gene IDs (for URL state restoration)
+    if filter_ids:
+        # Parse and validate gene IDs
+        requested_ids = []
+        for id_str in filter_ids.split(','):
+            id_str = id_str.strip()
+            if id_str.isdigit():
+                requested_ids.append(int(id_str))
+
+        if not requested_ids:
+            raise ValidationError(
+                field="filter[ids]",
+                reason="No valid gene IDs provided"
+            )
+
+        # Limit to prevent abuse
+        if len(requested_ids) > 5000:
+            raise ValidationError(
+                field="filter[ids]",
+                reason="Maximum 5000 gene IDs allowed per request"
+            )
+
+        # Build IN clause
+        placeholders = ','.join([f':id_{i}' for i in range(len(requested_ids))])
+        where_clauses.append(f"g.id IN ({placeholders})")
+        for i, gene_id in enumerate(requested_ids):
+            query_params[f"id_{i}"] = gene_id
+
+        logger.sync_debug(
+            "Filtering by gene IDs",
+            count=len(requested_ids),
+            first_five=requested_ids[:5]
+        )
 
     where_clause = " AND ".join(where_clauses)
 
@@ -502,6 +570,9 @@ async def get_genes(
     else:
         response["meta"]["total_genes"] = total
         response["meta"]["hidden_zero_scores"] = 0
+
+    # NOTE: We do NOT cache filter[ids] queries (see comment above for explanation)
+    # This prevents the pagination bug where all pages return the same cached result
 
     return response
 

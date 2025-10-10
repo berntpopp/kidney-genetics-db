@@ -76,6 +76,17 @@
             >
               Filter Genes
             </v-btn>
+            <v-btn
+              v-if="filteredGenes.length > 0"
+              color="secondary"
+              prepend-icon="mdi-share-variant"
+              :loading="isEncoding"
+              variant="outlined"
+              block
+              @click="handleShareNetwork"
+            >
+              Share
+            </v-btn>
             <v-chip v-if="filteredGenes.length > 0" color="success" label>
               {{ filteredGenes.length }} genes selected
             </v-chip>
@@ -398,17 +409,25 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Share Success Snackbar -->
+    <v-snackbar v-model="shareSnackbar" color="success" timeout="3000" location="bottom">
+      <v-icon icon="mdi-check-circle" class="mr-2" />
+      {{ shareSnackbarMessage }}
+    </v-snackbar>
   </v-container>
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { geneApi } from '../api/genes'
 import { networkApi } from '../api/network'
 import NetworkGraph from '../components/network/NetworkGraph.vue'
 import EnrichmentTable from '../components/network/EnrichmentTable.vue'
 import { networkAnalysisConfig } from '../config/networkAnalysis'
 import { TIER_CONFIG } from '../utils/evidenceTiers'
+import useNetworkUrlState from '../composables/useNetworkUrlState'
 
 // Gene Selection (config-driven defaults)
 const selectedTiers = ref(['comprehensive_support', 'multi_source_support', 'established_support'])
@@ -446,6 +465,16 @@ const enrichmentError = ref(null)
 // UI State
 const geneDialog = ref(false)
 const selectedGene = ref(null)
+const shareSnackbar = ref(false)
+const shareSnackbarMessage = ref('')
+
+// URL State Management
+const router = useRouter()
+const route = useRoute()
+const isRestoringFromUrl = ref(false) // Prevent sync loops during restoration
+const { syncStateToUrl, restoreStateFromUrl, copyShareableUrl, isEncoding } = useNetworkUrlState({
+  debounceMs: 800
+})
 
 // Node Coloring State (config-driven defaults)
 const nodeColorMode = ref(networkAnalysisConfig.nodeColoring.defaultMode)
@@ -845,7 +874,171 @@ const getClusterColor = clusterId => {
   return colors[clusterId % colors.length]
 }
 
-// Watchers
+// URL State Management Helpers
+const getStateSnapshot = () => {
+  return {
+    // CRITICAL: Only store gene IDs, not full objects!
+    geneIds: filteredGenes.value.map(g => parseInt(g.id)),
+    selectedTiers: selectedTiers.value,
+    minScore: minScore.value,
+    maxGenes: maxGenes.value,
+    minStringScore: minStringScore.value,
+    clusterAlgorithm: clusterAlgorithm.value,
+    removeIsolated: removeIsolated.value,
+    minDegree: minDegree.value,
+    minClusterSize: minClusterSize.value,
+    largestComponentOnly: largestComponentOnly.value,
+    nodeColorMode: nodeColorMode.value,
+    enrichmentType: enrichmentType.value,
+    fdrThreshold: fdrThreshold.value,
+    selectedClusters: selectedClusters.value,
+    highlightedCluster: null, // Could add if needed
+    isClustered: !!clusterStats.value // Track whether clustering has been performed
+  }
+}
+
+const applyRestoredState = async urlState => {
+  isRestoringFromUrl.value = true // Prevent URL sync during restoration
+
+  window.logService.info('[NetworkAnalysis] ═══ RESTORATION STARTED ═══', {
+    geneIdsCount: urlState.geneIds?.length,
+    maxGenes: urlState.maxGenes,
+    minClusterSize: urlState.minClusterSize,
+    isClustered: urlState.isClustered,
+    currentFilteredGenesCount: filteredGenes.value.length
+  })
+
+  try {
+    // Restore filter settings
+    if (urlState.selectedTiers) {
+      window.logService.debug('[NetworkAnalysis] Restoring selectedTiers', {
+        value: urlState.selectedTiers
+      })
+      selectedTiers.value = urlState.selectedTiers
+    }
+    if (urlState.minScore !== undefined) {
+      window.logService.debug('[NetworkAnalysis] Restoring minScore', { value: urlState.minScore })
+      minScore.value = urlState.minScore
+    }
+    if (urlState.maxGenes !== undefined) {
+      window.logService.debug('[NetworkAnalysis] Restoring maxGenes', { value: urlState.maxGenes })
+      maxGenes.value = urlState.maxGenes
+    }
+
+    // Restore network construction settings
+    if (urlState.minStringScore !== undefined) minStringScore.value = urlState.minStringScore
+    if (urlState.clusterAlgorithm) clusterAlgorithm.value = urlState.clusterAlgorithm
+
+    // Restore filtering settings
+    if (urlState.removeIsolated !== undefined) removeIsolated.value = urlState.removeIsolated
+    if (urlState.minDegree !== undefined) minDegree.value = urlState.minDegree
+    if (urlState.minClusterSize !== undefined) minClusterSize.value = urlState.minClusterSize
+    if (urlState.largestComponentOnly !== undefined)
+      largestComponentOnly.value = urlState.largestComponentOnly
+
+    // Restore node coloring
+    if (urlState.nodeColorMode) nodeColorMode.value = urlState.nodeColorMode
+
+    // Restore enrichment settings
+    if (urlState.enrichmentType) enrichmentType.value = urlState.enrichmentType
+    if (urlState.fdrThreshold !== undefined) fdrThreshold.value = urlState.fdrThreshold
+    if (urlState.selectedClusters) selectedClusters.value = urlState.selectedClusters
+
+    // Fetch genes by IDs (most critical part)
+    if (urlState.geneIds && urlState.geneIds.length > 0) {
+      loadingGenes.value = true
+      try {
+        window.logService.info('[NetworkAnalysis] 🔍 FETCHING GENES BY IDS', {
+          requestedCount: urlState.geneIds.length,
+          firstFiveIds: urlState.geneIds.slice(0, 5),
+          currentFilteredCount: filteredGenes.value.length
+        })
+
+        const response = await geneApi.getGenesByIds(urlState.geneIds)
+
+        window.logService.info('[NetworkAnalysis] 📥 API RESPONSE RECEIVED', {
+          responseItemsCount: response.items.length,
+          requestedCount: urlState.geneIds.length,
+          match: response.items.length === urlState.geneIds.length ? '✅' : '❌ MISMATCH!'
+        })
+
+        window.logService.info('[NetworkAnalysis] 📝 BEFORE ASSIGNMENT', {
+          filteredGenesCountBefore: filteredGenes.value.length
+        })
+
+        filteredGenes.value = response.items
+
+        window.logService.info('[NetworkAnalysis] 📝 AFTER ASSIGNMENT', {
+          filteredGenesCountAfter: filteredGenes.value.length,
+          expectedCount: urlState.geneIds.length,
+          match: filteredGenes.value.length === urlState.geneIds.length ? '✅' : '❌ MISMATCH!'
+        })
+
+        // Auto-build network if genes restored successfully
+        await nextTick()
+        window.logService.info('[NetworkAnalysis] Auto-building network from restored state...')
+        await buildNetwork()
+
+        window.logService.info('[NetworkAnalysis] ✓ Network auto-built from URL state')
+
+        // Auto-trigger clustering if it was part of the saved state
+        if (urlState.isClustered) {
+          await nextTick()
+          window.logService.info('[NetworkAnalysis] Auto-clustering network from restored state...')
+          await clusterNetwork()
+          window.logService.info('[NetworkAnalysis] ✓ Network auto-clustered from URL state')
+        }
+      } catch (error) {
+        window.logService.error('[NetworkAnalysis] ✗ Failed to restore genes:', error)
+        if (window.snackbar) {
+          window.snackbar.error(`Failed to restore genes from URL: ${error.message}`)
+        }
+      } finally {
+        loadingGenes.value = false
+      }
+    }
+  } catch (error) {
+    window.logService.error('[NetworkAnalysis] ✗ Failed to apply restored state:', error)
+    if (window.snackbar) {
+      window.snackbar.error('Failed to restore network state from URL')
+    }
+  } finally {
+    isRestoringFromUrl.value = false // Re-enable URL sync
+  }
+}
+
+const handleShareNetwork = async () => {
+  const state = getStateSnapshot()
+  const success = await copyShareableUrl(state)
+
+  if (success) {
+    shareSnackbarMessage.value = 'Shareable URL copied to clipboard!'
+    shareSnackbar.value = true
+  }
+}
+
+// Lifecycle - Restore state from URL on mount
+onMounted(async () => {
+  // Wait for router to be ready before checking URL state
+  await router.isReady()
+
+  // Check if URL has state parameters directly
+  const hasUrlState = !!(route.query.v && (route.query.c || route.query.genes))
+
+  if (hasUrlState) {
+    window.logService.info('[NetworkAnalysis] URL state detected, restoring...')
+
+    const urlState = restoreStateFromUrl()
+
+    if (urlState) {
+      await applyRestoredState(urlState)
+    } else {
+      window.logService.error('[NetworkAnalysis] Failed to restore URL state')
+    }
+  }
+})
+
+// Watchers for existing functionality
 watch(nodeColorMode, async (newMode, oldMode) => {
   window.logService.info('[HPO] Node color mode changed', {
     oldMode,
@@ -860,6 +1053,43 @@ watch(nodeColorMode, async (newMode, oldMode) => {
     await fetchHPOClassifications()
   }
 })
+
+// Watchers for URL state synchronization
+// Automatically sync state to URL for shareable links and browser navigation
+watch(
+  () => ({
+    geneIds: filteredGenes.value.map(g => parseInt(g.id)),
+    selectedTiers: selectedTiers.value,
+    minScore: minScore.value,
+    maxGenes: maxGenes.value,
+    minStringScore: minStringScore.value,
+    clusterAlgorithm: clusterAlgorithm.value,
+    removeIsolated: removeIsolated.value,
+    minDegree: minDegree.value,
+    minClusterSize: minClusterSize.value,
+    largestComponentOnly: largestComponentOnly.value,
+    nodeColorMode: nodeColorMode.value,
+    enrichmentType: enrichmentType.value,
+    fdrThreshold: fdrThreshold.value,
+    selectedClusters: selectedClusters.value,
+    isClustered: !!clusterStats.value // Track clustering state changes
+  }),
+  state => {
+    // Skip sync during URL restoration to prevent loops
+    if (isRestoringFromUrl.value) {
+      return
+    }
+
+    // Only sync if we have genes (avoid empty state in URL)
+    if (state.geneIds && state.geneIds.length > 0) {
+      window.logService.debug('[NetworkAnalysis] State changed, syncing to URL...', {
+        geneCount: state.geneIds.length
+      })
+      syncStateToUrl(state)
+    }
+  },
+  { deep: true }
+)
 </script>
 
 <style scoped>
