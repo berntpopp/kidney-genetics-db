@@ -14,7 +14,10 @@
     "@mdi/font": "^7.4.47",
     "@upsetjs/bundle": "^1.11.0",
     "axios": "^1.11.0",
+    "cytoscape": "^3.33.1",
+    "cytoscape-cose-bilkent": "^4.1.0",
     "d3": "^7.9.0",
+    "lz-string": "^1.5.0",
     "pinia": "^3.0.3",
     "vue": "^3.5.18",
     "vue-router": "^4.5.1",
@@ -26,6 +29,7 @@
     "@vue/eslint-config-prettier": "^10.2.0",
     "eslint": "^9.33.0",
     "eslint-plugin-vue": "^10.4.0",
+    "playwright": "^1.56.0",
     "prettier": "^3.6.2",
     "vite": "^7.1.2"
   }

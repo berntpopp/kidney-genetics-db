@@ -50,7 +50,19 @@ def cache(namespace: str = "default", ttl: int | None = None, key_builder: Calla
                 key_parts = [func.__name__]
                 for name, value in bound.arguments.items():
                     if name not in ("self", "cls", "db"):  # Skip common non-cache params
-                        key_parts.append(f"{name}:{value}")
+                        # Handle Pydantic BaseModel (v2)
+                        if hasattr(value, "model_dump"):
+                            value_str = json.dumps(value.model_dump(), sort_keys=True, default=str)
+                        # Handle Pydantic BaseModel (v1)
+                        elif hasattr(value, "dict"):
+                            value_str = json.dumps(value.dict(), sort_keys=True, default=str)
+                        # Handle dict/list
+                        elif isinstance(value, dict | list):
+                            value_str = json.dumps(value, sort_keys=True, default=str)
+                        # Fallback to string
+                        else:
+                            value_str = str(value)
+                        key_parts.append(f"{name}:{value_str}")
 
                 raw_key = ":".join(key_parts)
                 cache_key = hashlib.sha256(raw_key.encode()).hexdigest()
@@ -119,8 +131,17 @@ def cache_key_builder(
         for name, value in bound.arguments.items():
             if name not in ("self", "cls", "db", "request", "response"):
                 # Convert complex types to string representation
-                if isinstance(value, dict | list):
+
+                # Handle Pydantic BaseModel (v2)
+                if hasattr(value, "model_dump"):
+                    value_str = json.dumps(value.model_dump(), sort_keys=True, default=str)
+                # Handle Pydantic BaseModel (v1)
+                elif hasattr(value, "dict"):
+                    value_str = json.dumps(value.dict(), sort_keys=True, default=str)
+                # Handle dict/list
+                elif isinstance(value, dict | list):
                     value_str = json.dumps(value, sort_keys=True, default=str)
+                # Fallback to string
                 else:
                     value_str = str(value)
                 key_parts.append(f"{name}:{value_str}")

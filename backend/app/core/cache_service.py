@@ -129,6 +129,8 @@ class CacheService:
             "panelapp": get_source_cache_ttl("PanelApp"),
             "hpo": get_source_cache_ttl("HPO"),
             "clingen": get_source_cache_ttl("ClinGen"),
+            "annotations": 3600,  # General annotations cache (1 hour)
+            "network_analysis": 3600,  # Network analysis cache (1 hour)
             "default": settings.CACHE_DEFAULT_TTL,
         }
 
@@ -333,7 +335,13 @@ class CacheService:
         except Exception as e:
             self.stats.errors += 1
             logger.sync_error(
-                "Error setting cache entry", namespace=namespace, key=str(key), error=str(e)
+                "Error setting cache entry",
+                namespace=namespace,
+                key=str(key),
+                error=str(e),
+                error_type=type(e).__name__,
+                value_type=type(value).__name__,
+                traceback=str(e.__traceback__) if hasattr(e, "__traceback__") else "N/A",
             )
             return False
 
@@ -582,8 +590,16 @@ class CacheService:
 
         try:
             # For JSONB column, we can store the value directly as dict/list
-            # No need to serialize to string
-            data_value = entry.value
+            # Handle Pydantic BaseModel (v2)
+            if hasattr(entry.value, "model_dump"):
+                data_value = entry.value.model_dump()
+            # Handle Pydantic BaseModel (v1)
+            elif hasattr(entry.value, "dict"):
+                data_value = entry.value.dict()
+            # Already a dict/list
+            else:
+                data_value = entry.value
+
             data_size = len(json.dumps(data_value).encode("utf-8"))
 
             query = text(
@@ -639,7 +655,15 @@ class CacheService:
                 await self.db_session.rollback()
             else:
                 self.db_session.rollback()
-            logger.sync_error("Database cache set error", error=str(e))
+            logger.sync_error(
+                "Database cache set error",
+                error=str(e),
+                error_type=type(e).__name__,
+                cache_key=cache_key,
+                namespace=entry.namespace,
+                data_size=len(json.dumps(entry.value).encode("utf-8")),
+                session_type=type(self.db_session).__name__,
+            )
             return False
 
     async def _delete_from_db(self, cache_key: str) -> bool:

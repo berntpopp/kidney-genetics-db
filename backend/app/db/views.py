@@ -12,11 +12,14 @@ cache_stats = ReplaceableObject(
     sqltext="""
     SELECT cache_entries.namespace,
         count(*) AS total_entries,
-        sum(COALESCE(cache_entries.data_size, pg_column_size(cache_entries.data))) AS total_size_bytes,
+        sum(COALESCE(cache_entries.data_size, pg_column_size(cache_entries.data)))
+            AS total_size_bytes,
         sum(cache_entries.access_count) AS total_accesses,
         avg(cache_entries.access_count) AS avg_accesses,
-        count(*) FILTER (WHERE cache_entries.expires_at IS NULL OR cache_entries.expires_at > now()) AS active_entries,
-        count(*) FILTER (WHERE cache_entries.expires_at IS NOT NULL AND cache_entries.expires_at <= now()) AS expired_entries,
+        count(*) FILTER (WHERE cache_entries.expires_at IS NULL
+            OR cache_entries.expires_at > now()) AS active_entries,
+        count(*) FILTER (WHERE cache_entries.expires_at IS NOT NULL
+            AND cache_entries.expires_at <= now()) AS expired_entries,
         max(cache_entries.last_accessed) AS last_access_time,
         min(cache_entries.created_at) AS oldest_entry,
         max(cache_entries.created_at) AS newest_entry
@@ -34,14 +37,28 @@ evidence_source_counts = ReplaceableObject(
         g.approved_symbol,
         ge.source_name,
         CASE ge.source_name
-            WHEN 'PanelApp'::text THEN (COALESCE(jsonb_array_length(ge.evidence_data -> 'panels'::text), 0))::bigint
-            WHEN 'HPO'::text THEN ((COALESCE(jsonb_array_length(ge.evidence_data -> 'hpo_terms'::text), 0) + COALESCE(jsonb_array_length(ge.evidence_data -> 'diseases'::text), 0)))::bigint
-            WHEN 'PubTator'::text THEN (COALESCE((ge.evidence_data ->> 'publication_count'::text)::integer, jsonb_array_length(ge.evidence_data -> 'pmids'::text)))::bigint
-            WHEN 'DiagnosticPanels'::text THEN (COALESCE((ge.evidence_data ->> 'panel_count'::text)::integer,
-                                                jsonb_array_length(ge.evidence_data -> 'panels'::text)))::bigint
-            WHEN 'GenCC'::text THEN (COALESCE(jsonb_array_length(ge.evidence_data -> 'classifications'::text), 0))::bigint
-            WHEN 'ClinGen'::text THEN (COALESCE((ge.evidence_data ->> 'assertion_count'::text)::integer, 1))::bigint
-            WHEN 'Literature'::text THEN (COALESCE((ge.evidence_data ->> 'publication_count'::text)::integer, jsonb_array_length(ge.evidence_data -> 'publications'::text)))::bigint
+            WHEN 'PanelApp'::text THEN
+                (COALESCE(jsonb_array_length(ge.evidence_data -> 'panels'::text),
+                    0))::bigint
+            WHEN 'HPO'::text THEN
+                ((COALESCE(jsonb_array_length(ge.evidence_data -> 'hpo_terms'::text), 0)
+                + COALESCE(jsonb_array_length(ge.evidence_data -> 'diseases'::text),
+                    0)))::bigint
+            WHEN 'PubTator'::text THEN
+                (COALESCE((ge.evidence_data ->> 'publication_count'::text)::integer,
+                jsonb_array_length(ge.evidence_data -> 'pmids'::text)))::bigint
+            WHEN 'DiagnosticPanels'::text THEN
+                (COALESCE((ge.evidence_data ->> 'panel_count'::text)::integer,
+                jsonb_array_length(ge.evidence_data -> 'panels'::text)))::bigint
+            WHEN 'GenCC'::text THEN
+                (COALESCE(jsonb_array_length(
+                    ge.evidence_data -> 'classifications'::text), 0))::bigint
+            WHEN 'ClinGen'::text THEN
+                (COALESCE((ge.evidence_data ->> 'assertion_count'::text)::integer,
+                    1))::bigint
+            WHEN 'Literature'::text THEN
+                (COALESCE((ge.evidence_data ->> 'publication_count'::text)::integer,
+                jsonb_array_length(ge.evidence_data -> 'publications'::text)))::bigint
             ELSE (0)::bigint
         END AS source_count
     FROM gene_evidence ge
@@ -237,30 +254,48 @@ gene_scores = ReplaceableObject(
            COUNT(DISTINCT source_name) AS evidence_count,  -- Alias for backward compatibility
            SUM(source_score) AS raw_score,
            -- Sum of scores divided by total possible sources, as percentage
-           SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 AS percentage_score,
+           SUM(source_score) /
+               (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
+               * 100 AS percentage_score,
            -- Source breakdown
-           jsonb_object_agg(source_name, ROUND(source_score::numeric, 4)) AS source_scores,
+           jsonb_object_agg(source_name, ROUND(source_score::numeric, 4))
+               AS source_scores,
            -- Total active sources for reference
-           (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) AS total_active_sources,
+           (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
+               AS total_active_sources,
            -- Evidence tier classification
            CASE
-               WHEN COUNT(DISTINCT source_name) >= 4 AND SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 >= 50
+               WHEN COUNT(DISTINCT source_name) >= 4 AND SUM(source_score) /
+                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
+                   * 100 >= 50
                    THEN 'comprehensive_support'
-               WHEN COUNT(DISTINCT source_name) >= 3 AND SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 >= 35
+               WHEN COUNT(DISTINCT source_name) >= 3 AND SUM(source_score) /
+                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
+                   * 100 >= 35
                    THEN 'multi_source_support'
-               WHEN COUNT(DISTINCT source_name) >= 2 AND SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 >= 20
+               WHEN COUNT(DISTINCT source_name) >= 2 AND SUM(source_score) /
+                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
+                   * 100 >= 20
                    THEN 'established_support'
-               WHEN SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 >= 10
+               WHEN SUM(source_score) /
+                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
+                   * 100 >= 10
                    THEN 'preliminary_evidence'
-               WHEN SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 > 0
+               WHEN SUM(source_score) /
+                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
+                   * 100 > 0
                    THEN 'minimal_evidence'
                ELSE 'no_evidence'
            END AS evidence_tier,
            -- Evidence group classification
            CASE
-               WHEN COUNT(DISTINCT source_name) >= 2 AND SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 >= 20
+               WHEN COUNT(DISTINCT source_name) >= 2 AND SUM(source_score) /
+                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
+                   * 100 >= 20
                    THEN 'well_supported'
-               WHEN SUM(source_score) / (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores) * 100 > 0
+               WHEN SUM(source_score) /
+                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
+                   * 100 > 0
                    THEN 'emerging_evidence'
                ELSE 'insufficient'
            END AS evidence_group
@@ -386,7 +421,8 @@ datasource_metadata_panelapp = ReplaceableObject(
         ge.gene_id::bigint,
         g.approved_symbol::text AS gene_symbol,
         ge.evidence_data->>'source'::text AS source_region,
-        jsonb_array_length(COALESCE(ge.evidence_data->'panels', '[]'::jsonb))::integer AS panel_count,
+        jsonb_array_length(COALESCE(ge.evidence_data->'panels', '[]'::jsonb))::integer
+            AS panel_count,
         ge.evidence_data->'panels' AS panels,
         COALESCE((ge.evidence_data->>'confidence_level')::float, 0.0)::float8 AS max_confidence,
         ge.evidence_data->>'moi'::text AS mode_of_inheritance,
@@ -405,7 +441,9 @@ datasource_metadata_gencc = ReplaceableObject(
     SELECT
         ge.gene_id::bigint,
         g.approved_symbol::text AS gene_symbol,
-        jsonb_array_length(COALESCE(ge.evidence_data->'classifications', '[]'::jsonb))::integer AS classification_count,
+        jsonb_array_length(
+            COALESCE(ge.evidence_data->'classifications', '[]'::jsonb))::integer
+            AS classification_count,
         ge.evidence_data->'classifications' AS classifications,
         ge.evidence_data->>'disease_id'::text AS disease_id,
         ge.evidence_data->>'disease_title'::text AS disease_title,
@@ -424,6 +462,24 @@ genes_current = ReplaceableObject(
     SELECT *
     FROM genes
     WHERE valid_to = 'infinity'::timestamptz
+    """,
+    dependencies=[],
+)
+
+gene_hpo_classifications = ReplaceableObject(
+    name="gene_hpo_classifications",
+    sqltext="""
+    SELECT
+        g.id AS gene_id,
+        g.approved_symbol AS gene_symbol,
+        ga.annotations->'classification'->'clinical_group'->>'primary' AS clinical_group,
+        ga.annotations->'classification'->'onset_group'->>'primary' AS onset_group,
+        COALESCE(
+            (ga.annotations->'classification'->'syndromic_assessment'->>'is_syndromic')::boolean,
+            FALSE
+        ) AS is_syndromic
+    FROM genes g
+    LEFT JOIN gene_annotations ga ON g.id = ga.gene_id AND ga.source = 'hpo'
     """,
     dependencies=[],
 )
@@ -562,6 +618,7 @@ ALL_VIEWS = [
     datasource_metadata_panelapp,
     datasource_metadata_gencc,
     genes_current,  # Temporal versioning: current genes only
+    gene_hpo_classifications,  # HPO clinical classifications for network coloring
     # Dashboard source distribution views
     source_distribution_hpo,
     source_distribution_gencc,

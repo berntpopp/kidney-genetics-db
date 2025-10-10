@@ -3,6 +3,7 @@
  */
 
 import apiClient from './client'
+import { networkAnalysisConfig } from '@/config/networkAnalysis'
 
 export const geneApi = {
   /**
@@ -112,5 +113,135 @@ export const geneApi = {
   async getGeneAnnotations(geneId) {
     const response = await apiClient.get(`/api/annotations/genes/${geneId}/annotations`)
     return response.data
+  },
+
+  /**
+   * Get HPO classifications for multiple genes
+   * @param {Array<Number>} geneIds Array of gene IDs (max 1000)
+   * @returns {Promise} HPO classifications data with clinical_group, onset_group, is_syndromic
+   */
+  async getHPOClassifications(geneIds) {
+    if (!geneIds || geneIds.length === 0) {
+      return { data: [], metadata: { cached: false, gene_count: 0, fetch_time_ms: 0 } }
+    }
+
+    const response = await apiClient.post('/api/genes/hpo-classifications', {
+      gene_ids: geneIds
+    })
+
+    return response.data
+  },
+
+  /**
+   * Get genes by IDs (for URL state restoration)
+   * @param {Array<Number>} geneIds Array of gene IDs (max 1000)
+   * @param {Object} options Optional parameters (page, perPage, sort)
+   * @returns {Promise} JSON:API response with genes
+   */
+  async getGenesByIds(geneIds, options = {}) {
+    window.logService?.info('[geneApi.getGenesByIds] Called with', {
+      requestedCount: geneIds?.length || 0,
+      firstFiveIds: geneIds?.slice(0, 5),
+      options
+    })
+
+    if (!geneIds || geneIds.length === 0) {
+      window.logService?.warn('[geneApi.getGenesByIds] No gene IDs provided')
+      return {
+        items: [],
+        total: 0,
+        page: 1,
+        perPage: 20,
+        pageCount: 0,
+        meta: {}
+      }
+    }
+
+    // Validate max gene IDs (backend limit from config)
+    const maxGeneIds = networkAnalysisConfig.geneSelection.maxGeneIds
+    if (geneIds.length > maxGeneIds) {
+      throw new Error(`Maximum ${maxGeneIds} gene IDs allowed per request`)
+    }
+
+    const { sortBy = null, sortDesc = false } = options
+
+    // Fetch all genes with pagination (API max is 100 per page)
+    const allGenes = []
+    const perPage = 100 // API maximum
+    let page = 1
+
+    // Build sort parameter (JSON:API spec: prefix with - for descending)
+    let sortParam = null
+    if (sortBy) {
+      const sortPrefix = sortDesc ? '-' : ''
+      sortParam = `${sortPrefix}${sortBy}`
+    }
+
+    // Fetch pages until we have all genes
+    while (true) {
+      const queryParams = {
+        'filter[ids]': geneIds.join(','),
+        'page[number]': page,
+        'page[size]': perPage
+      }
+
+      if (sortParam) {
+        queryParams.sort = sortParam
+      }
+
+      window.logService?.debug('[geneApi.getGenesByIds] Fetching page', {
+        page,
+        perPage,
+        currentTotal: allGenes.length
+      })
+
+      const response = await apiClient.get('/api/genes/', {
+        params: queryParams
+      })
+
+      const pageGenes = response.data.data.map(item => ({
+        id: item.id,
+        ...item.attributes
+      }))
+
+      window.logService?.debug('[geneApi.getGenesByIds] Page received', {
+        page,
+        receivedCount: pageGenes.length,
+        metaTotal: response.data.meta.total,
+        cumulativeTotal: allGenes.length + pageGenes.length
+      })
+
+      allGenes.push(...pageGenes)
+
+      // Stop if we've fetched all genes or this page was not full
+      if (allGenes.length >= response.data.meta.total || pageGenes.length < perPage) {
+        window.logService?.info('[geneApi.getGenesByIds] Pagination complete', {
+          totalPages: page,
+          finalCount: allGenes.length,
+          metaTotal: response.data.meta.total
+        })
+        break
+      }
+
+      page++
+    }
+
+    // Transform JSON:API response to simpler format for Vue components
+    const result = {
+      items: allGenes,
+      total: allGenes.length,
+      page: 1,
+      perPage: allGenes.length,
+      pageCount: 1,
+      meta: {}
+    }
+
+    window.logService?.info('[geneApi.getGenesByIds] Returning', {
+      returnedCount: result.items.length,
+      requestedCount: geneIds.length,
+      match: result.items.length === geneIds.length ? '✅' : '❌ MISMATCH!'
+    })
+
+    return result
   }
 }

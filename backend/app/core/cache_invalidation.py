@@ -73,6 +73,11 @@ class CacheInvalidationManager:
             depends_on_tables={"gene_evidence"},
             cache_namespaces={"views:datasource", "api:datasources"},
         ),
+        "network_analysis_cache": ViewDependency(
+            view_name="network_analysis_cache",
+            depends_on_tables={"gene_annotations"},
+            cache_namespaces={"network_analysis"},
+        ),
     }
 
     # Reverse mapping: table -> views that depend on it

@@ -1,0 +1,129 @@
+# Network Analysis and Enrichment Configuration
+# Settings for PPI network construction, clustering, and functional enrichment
+
+network_analysis:
+  # Network construction settings
+  network:
+    max_nodes: 2000  # Maximum genes in network (performance limit)
+    min_string_score: 400  # Default minimum STRING confidence (0-1000)
+    cache_ttl_hours: 1  # Graph cache TTL (1 hour)
+    max_cached_graphs: 50  # Maximum graphs in LRU cache
+    max_graph_size_mb: 50  # Estimated max memory per graph
+
+  # Clustering algorithm parameters
+  clustering:
+    default_algorithm: leiden  # Default: leiden (superior to louvain)
+
+    # Leiden algorithm (recommended)
+    leiden:
+      resolution: 1.0  # Higher = more clusters (0.5-2.0 typical)
+      iterations: 2  # CPM iterations (2 is good balance)
+
+    # Louvain algorithm (alternative)
+    louvain:
+      resolution: 1.0  # Modularity resolution parameter
+
+    # Walktrap algorithm (random walk-based)
+    walktrap:
+      steps: 4  # Random walk length (3-5 typical)
+
+  # Centrality metrics
+  centrality:
+    default_metrics:
+      - degree
+      - betweenness
+      - closeness
+    optional_metrics:
+      - pagerank
+
+  # Network filtering settings
+  filtering:
+    # Node filtering
+    default_min_degree: 0  # Default minimum node degree (0 = no filter)
+    max_min_degree: 10  # Maximum allowed min_degree parameter
+    default_remove_isolated: false  # Default: keep isolated nodes (degree=0)
+
+    # Cluster filtering
+    default_min_cluster_size: 1  # Default: keep all clusters (1 = no filter)
+    recommended_min_cluster_size: 3  # Recommended minimum for meaningful clusters
+    max_min_cluster_size: 50  # Maximum allowed min_cluster_size parameter
+
+    # Component filtering
+    default_largest_component_only: false  # Default: keep all components
+
+  # Subgraph extraction
+  subgraph:
+    max_k_hops: 5  # Maximum neighborhood depth
+    default_k_hops: 2  # Default neighborhood depth
+    max_seed_genes: 50  # Maximum seed genes for subgraph
+
+  # Performance monitoring
+  performance:
+    warn_threshold_ms: 2000  # Log warning if operation >2s
+    error_threshold_ms: 10000  # Log error if operation >10s
+
+# Functional enrichment settings
+enrichment:
+  # HPO enrichment (Fisher's exact test)
+  hpo:
+    default_fdr_threshold: 0.05  # Benjamini-Hochberg FDR
+    max_cluster_size: 500  # Maximum genes in test cluster
+    min_term_genes: 2  # Minimum genes per term to test
+    max_p_value: 0.05  # Pre-FDR p-value filter
+
+  # GO/KEGG enrichment (GSEApy with Enrichr)
+  go:
+    default_fdr_threshold: 0.05
+    max_cluster_size: 500
+    timeout_seconds: 120  # Enrichr API timeout
+    max_timeout_seconds: 300  # Maximum allowed timeout
+    min_timeout_seconds: 30  # Minimum allowed timeout
+
+    # Rate limiting for Enrichr API
+    min_request_interval: 2.0  # Minimum seconds between API calls
+    max_concurrent_requests: 1  # Only 1 concurrent request (IP blocking prevention)
+
+    # Retry configuration
+    max_retries: 3  # GSEApy has built-in retry=5, this is our wrapper
+
+    # Available gene sets (validated in schema)
+    available_gene_sets:
+      - GO_Biological_Process_2023
+      - GO_Molecular_Function_2023
+      - GO_Cellular_Component_2023
+      - KEGG_2021_Human
+      - Reactome_2022
+      - WikiPathway_2023_Human
+
+    default_gene_set: GO_Biological_Process_2023
+
+  # General enrichment settings
+  general:
+    max_results_returned: 100  # Maximum enrichment results per request
+    min_enrichment_score: 1.3  # -log10(FDR) threshold for display (FDR < 0.05)
+
+# Visualization settings
+visualization:
+  # Cytoscape.js export
+  cytoscape:
+    max_nodes_render: 1000  # Warn if graph >1000 nodes
+    max_edges_render: 5000  # Warn if graph >5000 edges
+
+  # Cluster coloring
+  colors:
+    max_distinct_colors: 20  # Maximum distinct cluster colors
+    default_palette: material_design  # Color palette to use
+
+  # Layout hints (for frontend)
+  layout:
+    default: cose-bilkent  # Default layout algorithm
+    large_network_threshold: 500  # Switch to simpler layout if >500 nodes
+    large_network_layout: cose  # Layout for large networks
+
+# API response limits
+api:
+  max_response_size_mb: 10  # Maximum JSON response size
+  enable_compression: true  # Gzip compression for large responses
+  pagination:
+    default_page_size: 50
+    max_page_size: 200

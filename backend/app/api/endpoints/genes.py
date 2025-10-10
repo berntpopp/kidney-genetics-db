@@ -25,6 +25,11 @@ from app.core.jsonapi import (
 from app.core.logging import get_logger
 from app.models.gene import Gene, GeneEvidence
 from app.schemas.gene import GeneCreate
+from app.schemas.network import (
+    HPOClassificationData,
+    HPOClassificationRequest,
+    HPOClassificationResponse,
+)
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -32,6 +37,14 @@ logger = get_logger(__name__)
 # Module-level cache for filter metadata (FastAPI recommended pattern)
 _metadata_cache: dict[str, Any] = {"data": None, "timestamp": None}
 _CACHE_TTL = timedelta(minutes=5)  # Semi-static data standard
+
+# Module-level cache for HPO classifications (static data until pipeline runs)
+_hpo_classifications_cache: dict[str, Any] = {"data": None, "timestamp": None}
+_HPO_CACHE_TTL = timedelta(hours=1)  # HPO data changes infrequently
+
+# Module-level cache for gene IDs queries (for URL state restoration)
+_gene_ids_cache: dict[str, Any] = {}
+_GENE_IDS_CACHE_TTL = timedelta(hours=1)  # Genes are semi-static
 
 # Note: Gene annotations endpoint has been moved to the gene_annotations module
 # to maintain better separation of concerns and avoid duplicate endpoints
@@ -138,6 +151,17 @@ def invalidate_metadata_cache() -> None:
     _metadata_cache["data"] = None
     _metadata_cache["timestamp"] = None
     logger.sync_info("Metadata cache invalidated")
+
+
+def clear_gene_ids_cache() -> None:
+    """
+    Clear gene IDs cache.
+    Call this after pipeline updates to force fresh data on next request.
+    Used for URL state restoration queries.
+    """
+    global _gene_ids_cache
+    _gene_ids_cache = {}
+    logger.sync_info("Gene IDs cache cleared")
 
 
 @lru_cache(maxsize=1)
@@ -257,6 +281,12 @@ async def get_genes(
         alias="filter[group]",
         description="Filter by evidence group (well_supported, emerging_evidence)",
     ),
+    # NEW: Filter by gene IDs (for URL state restoration)
+    filter_ids: str | None = Query(
+        None,
+        alias="filter[ids]",
+        description=f"Filter by gene IDs (comma-separated, max {API_DEFAULTS_CONFIG.get('max_gene_ids', 5000)}). Used for URL state restoration.",
+    ),
     # JSON:API sorting
     sort: str | None = Depends(get_sort_param("-evidence_score,approved_symbol")),
 ) -> dict[str, Any]:
@@ -265,9 +295,22 @@ async def get_genes(
 
     Query parameters follow JSON:API specification:
     - Pagination: page[number], page[size]
-    - Filtering: filter[search], filter[min_score], filter[source], etc.
+    - Filtering: filter[search], filter[min_score], filter[source], filter[ids], etc.
     - Sorting: sort=-evidence_score,approved_symbol (prefix with - for descending)
+
+    NEW: filter[ids] - Filter by comma-separated gene IDs for URL state restoration.
+              Used when users share network analysis URLs with specific gene sets.
+              Example: /api/genes?filter[ids]=1,2,3,4,5&page[size]=100
     """
+    # IMPORTANT: Do NOT cache filter[ids] queries because:
+    # 1. They are paginated requests (page 1, 2, 3, etc.)
+    # 2. Cache key doesn't include page number, causing all pages to return same cached result
+    # 3. This is only used for URL restoration (one-time operation), so caching provides no benefit
+    # 4. Caching was causing bug: 614 IDs requested but 700 genes returned (page 1 cached, returned 7 times)
+    #
+    # If caching is needed in future, cache key MUST include page number:
+    # cache_key = f"genes_ids_{filter_ids}_page{page_number}"
+
     # Build WHERE clauses first
     where_clauses = ["1=1"]
     query_params = {}
@@ -345,6 +388,41 @@ async def get_genes(
             )
         where_clauses.append("gs.evidence_group = :group")
         query_params["group"] = filter_group
+
+    # NEW: Filter by gene IDs (for URL state restoration)
+    if filter_ids:
+        # Parse and validate gene IDs
+        requested_ids = []
+        for id_str in filter_ids.split(','):
+            id_str = id_str.strip()
+            if id_str.isdigit():
+                requested_ids.append(int(id_str))
+
+        if not requested_ids:
+            raise ValidationError(
+                field="filter[ids]",
+                reason="No valid gene IDs provided"
+            )
+
+        # Limit to prevent abuse (uses configuration, not hardcoded)
+        max_gene_ids = API_DEFAULTS_CONFIG.get("max_gene_ids", 5000)
+        if len(requested_ids) > max_gene_ids:
+            raise ValidationError(
+                field="filter[ids]",
+                reason=f"Maximum {max_gene_ids} gene IDs allowed per request"
+            )
+
+        # Build IN clause
+        placeholders = ','.join([f':id_{i}' for i in range(len(requested_ids))])
+        where_clauses.append(f"g.id IN ({placeholders})")
+        for i, gene_id in enumerate(requested_ids):
+            query_params[f"id_{i}"] = gene_id
+
+        logger.sync_debug(
+            "Filtering by gene IDs",
+            count=len(requested_ids),
+            first_five=requested_ids[:5]
+        )
 
     where_clause = " AND ".join(where_clauses)
 
@@ -493,6 +571,9 @@ async def get_genes(
     else:
         response["meta"]["total_genes"] = total
         response["meta"]["hidden_zero_scores"] = 0
+
+    # NOTE: We do NOT cache filter[ids] queries (see comment above for explanation)
+    # This prevents the pagination bug where all pages return the same cached result
 
     return response
 
@@ -683,3 +764,123 @@ async def create_gene(
             },
         }
     }
+
+
+@router.post("/hpo-classifications", response_model=HPOClassificationResponse)
+async def get_hpo_classifications(
+    request: HPOClassificationRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Get HPO clinical classifications for specified genes.
+
+    Fetches classification data from gene_hpo_classifications view, which extracts
+    clinical_group, onset_group, and is_syndromic from HPO annotations.
+
+    This endpoint is optimized for network visualization coloring by clinical
+    category instead of clustering assignments.
+
+    Performance: <100ms for 1000 genes (cached), <500ms (uncached)
+
+    Args:
+        request: List of gene IDs to fetch classifications for
+        db: Database session
+
+    Returns:
+        HPOClassificationResponse with gene classifications and metadata
+
+    Raises:
+        ValidationError: If gene_ids list is invalid (empty or >1000 items)
+    """
+    start_time = time.time()
+    cache_key = f"hpo_classifications_{hash(tuple(sorted(request.gene_ids)))}"
+
+    await logger.info(
+        "Fetching HPO classifications",
+        gene_count=len(request.gene_ids),
+        cache_key=cache_key,
+    )
+
+    # Check cache
+    now = datetime.utcnow()
+    if _hpo_classifications_cache.get(cache_key):
+        cached_data = _hpo_classifications_cache[cache_key]
+        if cached_data.get("timestamp"):
+            age = now - cached_data["timestamp"]
+            if age < _HPO_CACHE_TTL:
+                fetch_time_ms = round((time.time() - start_time) * 1000, 2)
+                await logger.info(
+                    "HPO classifications cache HIT",
+                    cache_age_seconds=round(age.total_seconds(), 2),
+                    fetch_time_ms=fetch_time_ms,
+                )
+                return {
+                    "data": cached_data["data"],
+                    "metadata": {
+                        "cached": True,
+                        "gene_count": len(cached_data["data"]),
+                        "fetch_time_ms": fetch_time_ms,
+                        "cache_age_seconds": round(age.total_seconds(), 2),
+                    },
+                }
+
+    await logger.debug("HPO classifications cache MISS - fetching from database")
+
+    # Fetch from database view
+    try:
+        query = text("""
+            SELECT
+                gene_id,
+                gene_symbol,
+                clinical_group,
+                onset_group,
+                is_syndromic
+            FROM gene_hpo_classifications
+            WHERE gene_id = ANY(:gene_ids)
+        """)
+
+        result = db.execute(query, {"gene_ids": request.gene_ids}).fetchall()
+
+        # Convert to response format
+        classifications = [
+            HPOClassificationData(
+                gene_id=row.gene_id,
+                gene_symbol=row.gene_symbol,
+                clinical_group=row.clinical_group,
+                onset_group=row.onset_group,
+                is_syndromic=row.is_syndromic,
+            )
+            for row in result
+        ]
+
+        fetch_time_ms = round((time.time() - start_time) * 1000, 2)
+
+        await logger.info(
+            "Fetched HPO classifications from database",
+            requested_genes=len(request.gene_ids),
+            returned_classifications=len(classifications),
+            fetch_time_ms=fetch_time_ms,
+        )
+
+        # Update cache
+        _hpo_classifications_cache[cache_key] = {
+            "data": classifications,
+            "timestamp": now,
+        }
+
+        return {
+            "data": classifications,
+            "metadata": {
+                "cached": False,
+                "gene_count": len(classifications),
+                "fetch_time_ms": fetch_time_ms,
+            },
+        }
+
+    except Exception as e:
+        await logger.error(
+            "Failed to fetch HPO classifications",
+            error=str(e),
+            gene_count=len(request.gene_ids),
+        )
+        raise

@@ -219,6 +219,21 @@ class AnnotationPipeline:
             if results:
                 await self._refresh_materialized_view()
 
+            # Invalidate API caches after pipeline completion
+            if results:
+                try:
+                    from app.api.endpoints.genes import (
+                        clear_gene_ids_cache,
+                        invalidate_metadata_cache,
+                    )
+
+                    clear_gene_ids_cache()
+                    invalidate_metadata_cache()
+                    logger.sync_info("API caches invalidated after pipeline completion")
+                except Exception as e:
+                    # Log but don't fail the pipeline
+                    logger.sync_error(f"Failed to invalidate API caches: {e}")
+
             # Update global percentiles for STRING PPI after batch completion
             if "string_ppi" in sources_completed:
                 try:

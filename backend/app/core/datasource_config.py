@@ -41,6 +41,10 @@ class DataSourceConfig(BaseSettings):
     keywords: dict[str, list[str]] = {}
     annotations: dict[str, Any] = {}
     api_defaults: dict[str, Any] = {}
+    network_analysis: dict[str, Any] = {}
+    enrichment: dict[str, Any] = {}
+    visualization: dict[str, Any] = {}
+    api: dict[str, Any] = {}
 
     @classmethod
     def settings_customise_sources(
@@ -66,6 +70,7 @@ class DataSourceConfig(BaseSettings):
                 config_dir / "keywords.yaml",
                 config_dir / "annotations.yaml",
                 config_dir / "api_defaults.yaml",
+                config_dir / "network_analysis.yaml",
             ],
         )
 
@@ -95,6 +100,10 @@ def get_config() -> DataSourceConfig:
             keywords=len(config.keywords),
             annotations=len(config.annotations),
             api_defaults=len(config.api_defaults),
+            network_analysis=len(config.network_analysis),
+            enrichment=len(config.enrichment),
+            visualization=len(config.visualization),
+            api=len(config.api),
         )
         return config
     except Exception as e:
