@@ -616,9 +616,11 @@ const fetchFilteredGenes = async () => {
 
     // Trim to effective maxGenes limit (enforces hard limit from config)
     filteredGenes.value = allGenes.slice(0, effectiveMaxGenes)
-    window.logService.info(`Filtered ${filteredGenes.value.length} genes (fetched ${page} page(s))`)
+    window.logService?.info(
+      `Filtered ${filteredGenes.value.length} genes (fetched ${page} page(s))`
+    )
   } catch (error) {
-    window.logService.error('Failed to fetch genes:', error)
+    window.logService?.error('Failed to fetch genes:', error)
     filteredGenes.value = []
   } finally {
     loadingGenes.value = false
@@ -627,7 +629,7 @@ const fetchFilteredGenes = async () => {
 
 const buildNetwork = async () => {
   if (filteredGenes.value.length === 0) {
-    window.logService.warn('No genes selected')
+    window.logService?.warn('No genes selected')
     return
   }
 
@@ -654,9 +656,9 @@ const buildNetwork = async () => {
       components: response.components
     }
 
-    window.logService.info('Network built successfully')
+    window.logService?.info('Network built successfully')
   } catch (error) {
-    window.logService.error('Failed to build network:', error)
+    window.logService?.error('Failed to build network:', error)
     networkError.value = error.message || 'Failed to build network'
   } finally {
     buildingNetwork.value = false
@@ -696,11 +698,11 @@ const clusterNetwork = async () => {
       modularity: response.modularity
     }
 
-    window.logService.info(
+    window.logService?.info(
       `Detected ${response.num_clusters} clusters (modularity: ${response.modularity.toFixed(3)})`
     )
   } catch (error) {
-    window.logService.error('Failed to cluster network:', error)
+    window.logService?.error('Failed to cluster network:', error)
     networkError.value = error.message || 'Failed to cluster network'
   } finally {
     clustering.value = false
@@ -745,11 +747,11 @@ const runEnrichment = async () => {
       selectedClusters.value.length === 1
         ? `cluster ${selectedClusters.value[0] + 1}`
         : `${selectedClusters.value.length} clusters`
-    window.logService.info(
+    window.logService?.info(
       `Found ${response.total_terms} significant terms in ${clusterText} (${allGenes.length} genes)`
     )
   } catch (error) {
-    window.logService.error('Failed to run enrichment:', error)
+    window.logService?.error('Failed to run enrichment:', error)
     enrichmentError.value = error.message || 'Failed to run enrichment analysis'
   } finally {
     runningEnrichment.value = false
@@ -757,7 +759,7 @@ const runEnrichment = async () => {
 }
 
 const fetchHPOClassifications = async () => {
-  window.logService.info('[HPO] fetchHPOClassifications called', {
+  window.logService?.info('[HPO] fetchHPOClassifications called', {
     hasNetworkData: !!networkData.value,
     colorMode: nodeColorMode.value
   })
@@ -765,13 +767,13 @@ const fetchHPOClassifications = async () => {
   // Always fetch HPO data when network exists (for dialog/tooltips)
   // Color mode only affects how nodes are colored, not whether we fetch data
   if (!networkData.value) {
-    window.logService.debug('[HPO] Skipping fetch - no network data')
+    window.logService?.debug('[HPO] Skipping fetch - no network data')
     return
   }
 
   // Check if cytoscape_json and elements exist
   if (!networkData.value.cytoscape_json?.elements) {
-    window.logService.warn('[HPO] Network data structure incomplete, skipping HPO fetch', {
+    window.logService?.warn('[HPO] Network data structure incomplete, skipping HPO fetch', {
       hasCytoscapeJson: !!networkData.value.cytoscape_json,
       networkDataKeys: Object.keys(networkData.value)
     })
@@ -783,25 +785,25 @@ const fetchHPOClassifications = async () => {
     .map(el => el.data?.gene_id)
     .filter(id => id) // Remove undefined
 
-  window.logService.info(`[HPO] Extracted ${geneIds.length} gene IDs from network`, {
+  window.logService?.info(`[HPO] Extracted ${geneIds.length} gene IDs from network`, {
     firstFewGeneIds: geneIds.slice(0, 5)
   })
 
   if (geneIds.length === 0) {
-    window.logService.warn('[HPO] No gene IDs found in network')
+    window.logService?.warn('[HPO] No gene IDs found in network')
     return
   }
 
   loadingHPOClassifications.value = true
 
   try {
-    window.logService.info('[HPO] Fetching classifications from API', {
+    window.logService?.info('[HPO] Fetching classifications from API', {
       geneCount: geneIds.length,
       colorMode: nodeColorMode.value
     })
     const response = await geneApi.getHPOClassifications(geneIds)
     hpoClassifications.value = response
-    window.logService.info(
+    window.logService?.info(
       `[HPO] ✓ Fetched HPO classifications for ${response.data.length}/${geneIds.length} genes`,
       {
         cached: response.metadata?.cached,
@@ -810,7 +812,7 @@ const fetchHPOClassifications = async () => {
       }
     )
   } catch (error) {
-    window.logService.error('[HPO] ✗ Failed to fetch HPO classifications:', error)
+    window.logService?.error('[HPO] ✗ Failed to fetch HPO classifications:', error)
     hpoClassifications.value = null
   } finally {
     loadingHPOClassifications.value = false
@@ -900,7 +902,7 @@ const getStateSnapshot = () => {
 const applyRestoredState = async urlState => {
   isRestoringFromUrl.value = true // Prevent URL sync during restoration
 
-  window.logService.info('[NetworkAnalysis] ═══ RESTORATION STARTED ═══', {
+  window.logService?.info('[NetworkAnalysis] ═══ RESTORATION STARTED ═══', {
     geneIdsCount: urlState.geneIds?.length,
     maxGenes: urlState.maxGenes,
     minClusterSize: urlState.minClusterSize,
@@ -911,17 +913,17 @@ const applyRestoredState = async urlState => {
   try {
     // Restore filter settings
     if (urlState.selectedTiers) {
-      window.logService.debug('[NetworkAnalysis] Restoring selectedTiers', {
+      window.logService?.debug('[NetworkAnalysis] Restoring selectedTiers', {
         value: urlState.selectedTiers
       })
       selectedTiers.value = urlState.selectedTiers
     }
     if (urlState.minScore !== undefined) {
-      window.logService.debug('[NetworkAnalysis] Restoring minScore', { value: urlState.minScore })
+      window.logService?.debug('[NetworkAnalysis] Restoring minScore', { value: urlState.minScore })
       minScore.value = urlState.minScore
     }
     if (urlState.maxGenes !== undefined) {
-      window.logService.debug('[NetworkAnalysis] Restoring maxGenes', { value: urlState.maxGenes })
+      window.logService?.debug('[NetworkAnalysis] Restoring maxGenes', { value: urlState.maxGenes })
       maxGenes.value = urlState.maxGenes
     }
 
@@ -948,7 +950,7 @@ const applyRestoredState = async urlState => {
     if (urlState.geneIds && urlState.geneIds.length > 0) {
       loadingGenes.value = true
       try {
-        window.logService.info('[NetworkAnalysis] 🔍 FETCHING GENES BY IDS', {
+        window.logService?.info('[NetworkAnalysis] 🔍 FETCHING GENES BY IDS', {
           requestedCount: urlState.geneIds.length,
           firstFiveIds: urlState.geneIds.slice(0, 5),
           currentFilteredCount: filteredGenes.value.length
@@ -956,19 +958,19 @@ const applyRestoredState = async urlState => {
 
         const response = await geneApi.getGenesByIds(urlState.geneIds)
 
-        window.logService.info('[NetworkAnalysis] 📥 API RESPONSE RECEIVED', {
+        window.logService?.info('[NetworkAnalysis] 📥 API RESPONSE RECEIVED', {
           responseItemsCount: response.items.length,
           requestedCount: urlState.geneIds.length,
           match: response.items.length === urlState.geneIds.length ? '✅' : '❌ MISMATCH!'
         })
 
-        window.logService.info('[NetworkAnalysis] 📝 BEFORE ASSIGNMENT', {
+        window.logService?.info('[NetworkAnalysis] 📝 BEFORE ASSIGNMENT', {
           filteredGenesCountBefore: filteredGenes.value.length
         })
 
         filteredGenes.value = response.items
 
-        window.logService.info('[NetworkAnalysis] 📝 AFTER ASSIGNMENT', {
+        window.logService?.info('[NetworkAnalysis] 📝 AFTER ASSIGNMENT', {
           filteredGenesCountAfter: filteredGenes.value.length,
           expectedCount: urlState.geneIds.length,
           match: filteredGenes.value.length === urlState.geneIds.length ? '✅' : '❌ MISMATCH!'
@@ -976,20 +978,22 @@ const applyRestoredState = async urlState => {
 
         // Auto-build network if genes restored successfully
         await nextTick()
-        window.logService.info('[NetworkAnalysis] Auto-building network from restored state...')
+        window.logService?.info('[NetworkAnalysis] Auto-building network from restored state...')
         await buildNetwork()
 
-        window.logService.info('[NetworkAnalysis] ✓ Network auto-built from URL state')
+        window.logService?.info('[NetworkAnalysis] ✓ Network auto-built from URL state')
 
         // Auto-trigger clustering if it was part of the saved state
         if (urlState.isClustered) {
           await nextTick()
-          window.logService.info('[NetworkAnalysis] Auto-clustering network from restored state...')
+          window.logService?.info(
+            '[NetworkAnalysis] Auto-clustering network from restored state...'
+          )
           await clusterNetwork()
-          window.logService.info('[NetworkAnalysis] ✓ Network auto-clustered from URL state')
+          window.logService?.info('[NetworkAnalysis] ✓ Network auto-clustered from URL state')
         }
       } catch (error) {
-        window.logService.error('[NetworkAnalysis] ✗ Failed to restore genes:', error)
+        window.logService?.error('[NetworkAnalysis] ✗ Failed to restore genes:', error)
         if (window.snackbar) {
           window.snackbar.error(`Failed to restore genes from URL: ${error.message}`)
         }
@@ -998,7 +1002,7 @@ const applyRestoredState = async urlState => {
       }
     }
   } catch (error) {
-    window.logService.error('[NetworkAnalysis] ✗ Failed to apply restored state:', error)
+    window.logService?.error('[NetworkAnalysis] ✗ Failed to apply restored state:', error)
     if (window.snackbar) {
       window.snackbar.error('Failed to restore network state from URL')
     }
@@ -1026,21 +1030,21 @@ onMounted(async () => {
   const hasUrlState = !!(route.query.v && (route.query.c || route.query.genes))
 
   if (hasUrlState) {
-    window.logService.info('[NetworkAnalysis] URL state detected, restoring...')
+    window.logService?.info('[NetworkAnalysis] URL state detected, restoring...')
 
     const urlState = restoreStateFromUrl()
 
     if (urlState) {
       await applyRestoredState(urlState)
     } else {
-      window.logService.error('[NetworkAnalysis] Failed to restore URL state')
+      window.logService?.error('[NetworkAnalysis] Failed to restore URL state')
     }
   }
 })
 
 // Watchers for existing functionality
 watch(nodeColorMode, async (newMode, oldMode) => {
-  window.logService.info('[HPO] Node color mode changed', {
+  window.logService?.info('[HPO] Node color mode changed', {
     oldMode,
     newMode,
     hasNetworkData: !!networkData.value
@@ -1049,7 +1053,7 @@ watch(nodeColorMode, async (newMode, oldMode) => {
   // Always fetch HPO classifications when network exists (needed for tooltips/dialogs)
   // regardless of color mode
   if (networkData.value && !hpoClassifications.value) {
-    window.logService.info('[HPO] Triggering HPO fetch due to color mode change')
+    window.logService?.info('[HPO] Triggering HPO fetch due to color mode change')
     await fetchHPOClassifications()
   }
 })
@@ -1082,7 +1086,7 @@ watch(
 
     // Only sync if we have genes (avoid empty state in URL)
     if (state.geneIds && state.geneIds.length > 0) {
-      window.logService.debug('[NetworkAnalysis] State changed, syncing to URL...', {
+      window.logService?.debug('[NetworkAnalysis] State changed, syncing to URL...', {
         geneCount: state.geneIds.length
       })
       syncStateToUrl(state)

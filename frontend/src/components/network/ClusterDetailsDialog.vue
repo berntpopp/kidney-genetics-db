@@ -375,10 +375,19 @@ const close = () => {
 }
 
 const copyGeneSymbol = symbol => {
-  navigator.clipboard.writeText(symbol).then(() => {
-    // Could add a snackbar notification here
-    console.log('Gene symbol copied:', symbol)
-  })
+  navigator.clipboard
+    .writeText(symbol)
+    .then(() => {
+      // Successfully copied - silent success (standard UX pattern for copy operations)
+      window.logService?.debug('[ClusterDetails] Gene symbol copied to clipboard', { symbol })
+    })
+    .catch(error => {
+      // Log copy failure
+      window.logService?.error('[ClusterDetails] Failed to copy gene symbol', {
+        symbol,
+        error: error.message
+      })
+    })
 }
 
 const exportClusterGenes = () => {
