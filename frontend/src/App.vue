@@ -7,108 +7,104 @@
       class="border-b"
       :class="{ 'bg-surface': !isDark, 'bg-surface-bright': isDark }"
     >
-      <!-- Brand Logo (consistent everywhere) -->
-      <div class="d-flex align-center">
-        <KGDBLogo
-          :size="40"
-          variant="with-text"
-          text-layout="horizontal"
-          :animated="false"
-          :interactive="true"
-          @click="$router.push('/')"
-        />
-      </div>
+      <v-container class="py-0">
+        <v-row align="center" justify="space-between" class="py-0 ma-0">
+          <v-col cols="auto" class="d-flex align-center py-0">
+            <!-- Brand Logo (consistent everywhere) -->
+            <KGDBLogo
+              :size="40"
+              variant="with-text"
+              text-layout="horizontal"
+              :animated="false"
+              :interactive="true"
+              @click="$router.push('/')"
+            />
+          </v-col>
 
-      <v-spacer />
+          <v-spacer class="d-none d-md-flex" />
 
-      <!-- Navigation Links -->
-      <div class="d-none d-md-flex align-center ga-1 mr-4">
-        <v-btn
-          :to="'/'"
-          variant="text"
-          :color="$route.path === '/' ? 'primary' : ''"
-          class="text-none"
-          size="default"
-        >
-          <v-icon icon="mdi-home" size="small" class="mr-1" />
-          Home
-        </v-btn>
-        <v-btn
-          :to="'/genes'"
-          variant="text"
-          :color="$route.path.startsWith('/genes') ? 'primary' : ''"
-          class="text-none"
-          size="default"
-        >
-          <v-icon icon="mdi-dna" size="small" class="mr-1" />
-          Gene Browser
-        </v-btn>
-        <v-btn
-          :to="'/dashboard'"
-          variant="text"
-          :color="$route.path === '/dashboard' ? 'primary' : ''"
-          class="text-none"
-          size="default"
-        >
-          <v-icon icon="mdi-view-dashboard" size="small" class="mr-1" />
-          Dashboard
-        </v-btn>
-        <v-btn
-          :to="'/network-analysis'"
-          variant="text"
-          :color="$route.path === '/network-analysis' ? 'primary' : ''"
-          class="text-none"
-          size="default"
-        >
-          <v-icon icon="mdi-chart-scatter-plot" size="small" class="mr-1" />
-          Network Analysis
-        </v-btn>
-        <v-btn
-          :to="'/data-sources'"
-          variant="text"
-          :color="$route.path === '/data-sources' ? 'primary' : ''"
-          class="text-none"
-          size="default"
-        >
-          <v-icon icon="mdi-database-sync" size="small" class="mr-1" />
-          Data Sources
-        </v-btn>
-        <v-btn
-          :to="'/about'"
-          variant="text"
-          :color="$route.path === '/about' ? 'primary' : ''"
-          class="text-none"
-          size="default"
-        >
-          <v-icon icon="mdi-information" size="small" class="mr-1" />
-          About
-        </v-btn>
-      </div>
+          <!-- Navigation Links -->
+          <v-col cols="auto" class="d-none d-md-flex align-center ga-1 py-0">
+            <v-btn
+              :to="'/genes'"
+              variant="text"
+              :color="$route.path.startsWith('/genes') ? 'primary' : ''"
+              class="text-none"
+              size="default"
+            >
+              <v-icon icon="mdi-dna" size="small" class="mr-1" />
+              Gene Browser
+            </v-btn>
+            <v-btn
+              :to="'/dashboard'"
+              variant="text"
+              :color="$route.path === '/dashboard' ? 'primary' : ''"
+              class="text-none"
+              size="default"
+            >
+              <v-icon icon="mdi-view-dashboard" size="small" class="mr-1" />
+              Data Overview
+            </v-btn>
+            <v-btn
+              :to="'/network-analysis'"
+              variant="text"
+              :color="$route.path === '/network-analysis' ? 'primary' : ''"
+              class="text-none"
+              size="default"
+            >
+              <v-icon icon="mdi-chart-scatter-plot" size="small" class="mr-1" />
+              Network Analysis
+            </v-btn>
+            <v-btn
+              :to="'/data-sources'"
+              variant="text"
+              :color="$route.path === '/data-sources' ? 'primary' : ''"
+              class="text-none"
+              size="default"
+            >
+              <v-icon icon="mdi-database-sync" size="small" class="mr-1" />
+              Data Sources
+            </v-btn>
+            <v-btn
+              :to="'/about'"
+              variant="text"
+              :color="$route.path === '/about' ? 'primary' : ''"
+              class="text-none"
+              size="default"
+            >
+              <v-icon icon="mdi-information" size="small" class="mr-1" />
+              About
+            </v-btn>
+          </v-col>
 
-      <!-- Desktop Auth Controls -->
-      <div class="d-none d-md-flex align-center ga-2">
-        <!-- User Menu for authenticated users -->
-        <UserMenu v-if="authStore.isAuthenticated" />
+          <!-- Desktop Auth Controls -->
+          <v-col cols="auto" class="d-none d-md-flex align-center ga-2 py-0">
+            <!-- User Menu for authenticated users -->
+            <UserMenu v-if="authStore.isAuthenticated" />
 
-        <!-- Login button for unauthenticated users -->
-        <v-btn v-else :to="'/login'" color="primary" size="default" variant="tonal">
-          <v-icon start>mdi-login</v-icon>
-          Login
-        </v-btn>
+            <!-- Login button for unauthenticated users -->
+            <v-btn v-else :to="'/login'" color="primary" size="default" variant="tonal">
+              <v-icon start>mdi-login</v-icon>
+              Login
+            </v-btn>
 
-        <!-- Theme Toggle -->
-        <v-btn
-          icon
-          size="default"
-          :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
-          @click="toggleTheme"
-        >
-          <v-icon :icon="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'" />
-        </v-btn>
-      </div>
+            <!-- Theme Toggle -->
+            <v-btn
+              icon
+              size="default"
+              :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+              @click="toggleTheme"
+            >
+              <v-icon :icon="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'" />
+            </v-btn>
+          </v-col>
 
-      <!-- Mobile Menu Button -->
-      <v-app-bar-nav-icon class="d-md-none" @click="drawer = !drawer" />
+          <!-- Mobile Menu Button -->
+          <v-col cols="auto" class="d-md-none py-0">
+            <v-app-bar-nav-icon @click="drawer = !drawer" />
+          </v-col>
+        </v-row>
+      </v-container>
     </v-app-bar>
 
     <!-- Mobile Navigation Drawer -->
@@ -154,7 +150,6 @@
 
       <!-- Navigation Links -->
       <v-list density="comfortable" nav>
-        <v-list-item prepend-icon="mdi-home" title="Home" :to="'/'" :active="$route.path === '/'" />
         <v-list-item
           prepend-icon="mdi-dna"
           title="Gene Browser"
@@ -163,7 +158,7 @@
         />
         <v-list-item
           prepend-icon="mdi-view-dashboard"
-          title="Dashboard"
+          title="Data Overview"
           :to="'/dashboard'"
           :active="$route.path === '/dashboard'"
         />

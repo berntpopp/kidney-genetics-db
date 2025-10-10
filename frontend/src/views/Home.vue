@@ -17,14 +17,9 @@
             />
           </div>
 
-          <p class="text-h6 text-md-h5 text-medium-emphasis mx-auto mb-8" style="max-width: 600px">
+          <p class="text-h6 text-md-h5 text-medium-emphasis mx-auto" style="max-width: 600px">
             Evidence-based kidney disease gene curation with multi-source integration
           </p>
-
-          <!-- Single primary action -->
-          <v-btn color="primary" size="x-large" to="/genes" prepend-icon="mdi-dna" class="px-8">
-            Explore Genes
-          </v-btn>
         </v-container>
       </div>
     </v-container>
@@ -35,9 +30,10 @@
         <v-col v-for="(stat, index) in stats" :key="stat.title" cols="12" sm="6" md="4">
           <v-card
             :elevation="hoveredCard === index ? 4 : 1"
-            class="stat-card"
+            :class="['stat-card', { 'stat-card-clickable': stat.route }]"
             @mouseenter="hoveredCard = index"
             @mouseleave="hoveredCard = null"
+            @click="stat.route ? router.push(stat.route) : null"
           >
             <div
               class="stat-gradient pa-4"
@@ -98,19 +94,22 @@ const stats = ref([
     title: 'Genes with Evidence',
     value: 0,
     color: 'primary',
-    icon: 'mdi-dna'
+    icon: 'mdi-dna',
+    route: '/genes'
   },
   {
     title: 'Active Sources',
     value: 0,
     color: 'success',
-    icon: 'mdi-database-check'
+    icon: 'mdi-database-check',
+    route: '/data-sources'
   },
   {
     title: 'Last Update',
     value: 'Loading...',
     color: 'info',
-    icon: 'mdi-clock-check'
+    icon: 'mdi-clock-check',
+    route: null
   }
 ])
 
@@ -215,13 +214,50 @@ onMounted(async () => {
   overflow: hidden;
 }
 
+/* Clickable cards get pointer cursor and subtle hover effects */
+.stat-card-clickable {
+  cursor: pointer;
+}
+
+.stat-card-clickable:hover {
+  transform: translateY(-4px) scale(1.02);
+}
+
+.stat-card-clickable:active {
+  transform: translateY(-2px) scale(1.01);
+  transition-duration: 0.1s;
+}
+
 .stat-gradient {
   text-align: center;
   border-radius: inherit;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card-clickable:hover .stat-gradient {
+  filter: brightness(1.05);
 }
 
 .text-white-darken-1 {
   opacity: 0.95;
+}
+
+/* Focus states for keyboard navigation - Following Style Guide */
+.stat-card-clickable:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
+}
+
+/* Motion preferences - Following Style Guide */
+@media (prefers-reduced-motion: reduce) {
+  .stat-card,
+  .stat-gradient {
+    transition-duration: 0.01ms !important;
+  }
+
+  .stat-card-clickable:hover {
+    transform: none;
+  }
 }
 
 /* Smooth scroll for anchor links */
