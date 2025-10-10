@@ -6,6 +6,10 @@ api_defaults:
   # This reduces noise by filtering out genes with no evidence
   hide_zero_scores: true
 
+  # Maximum gene IDs allowed per API request (for URL state restoration)
+  # Prevents abuse while supporting large network analysis sharing
+  max_gene_ids: 5000
+
   # Evidence tier configuration for aggregated scores (gene_scores view)
   # Based ONLY on percentage_score (NOT source_count)
   evidence_tiers:

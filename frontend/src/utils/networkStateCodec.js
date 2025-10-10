@@ -32,10 +32,20 @@ export function encodeNetworkState(state, version = 2) {
 }
 
 /**
- * Encode network state to v2 (compressed) format
+ * Encodes the network analysis state into v2 (compressed) format for use in URL query parameters.
+ * Uses LZ-string compression via `compressState`. If compression fails, falls back to v1 (uncompressed) format.
+ * Logs encoding details and errors using `window.logService` if available.
  *
- * @param {Object} state - Network analysis state
- * @returns {Object} Query parameters with compressed state
+ * @param {Object} state - The network analysis state to encode.
+ * @param {Array<number>} [state.geneIds] - List of gene IDs
+ * @param {Array<string>} [state.selectedTiers] - Selected evidence tiers
+ * @param {number} [state.minScore] - Minimum score threshold
+ * @param {string} [state.clusterAlgorithm] - Clustering algorithm (leiden, louvain, etc.)
+ * @param {boolean} [state.isClustered] - Whether clustering has been performed
+ * @returns {Object} Query parameters object containing the compressed state (`v: '2', c: <compressed>`).
+ * @throws Will not throw; falls back to v1 encoding if compression fails.
+ *
+ * @private
  */
 function encodeNetworkStateV2(state) {
   try {

@@ -680,7 +680,7 @@ const clusterStatistics = computed(() => {
     return stats
   }
 
-  window.logService.debug('[ClusterStats] Computing HPO statistics per cluster')
+  window.logService?.debug('[ClusterStats] Computing HPO statistics per cluster')
 
   // Group genes by cluster
   const clusterGenes = new Map()
@@ -767,7 +767,7 @@ const clusterStatistics = computed(() => {
     })
   })
 
-  window.logService.info(`[ClusterStats] ✓ Computed statistics for ${stats.size} clusters`, {
+  window.logService?.info(`[ClusterStats] ✓ Computed statistics for ${stats.size} clusters`, {
     totalClusters: stats.size,
     avgHpoDataCoverage:
       Array.from(stats.values()).reduce((sum, s) => sum + parseFloat(s.hpoDataPercentage), 0) /
@@ -1086,7 +1086,7 @@ const handleSearchInput = () => {
 
 const handleSearch = pattern => {
   if (!cyInstance.value) {
-    window.logService.warn('[NetworkSearch] No cytoscape instance available')
+    window.logService?.warn('[NetworkSearch] No cytoscape instance available')
     return
   }
 
@@ -1098,14 +1098,14 @@ const handleSearch = pattern => {
   // Perform search using composable (this will update matchCount)
   searchMatchedNodes.value = searchNodes(cyInstance.value, pattern)
 
-  window.logService.info(
+  window.logService?.info(
     `[NetworkSearch] Found ${matchCount.value} matches for pattern "${pattern}"`
   )
 }
 
 const highlightSearchMatches = () => {
   if (!cyInstance.value || searchMatchedNodes.value.length === 0) {
-    window.logService.warn('[NetworkSearch] No matches to highlight')
+    window.logService?.warn('[NetworkSearch] No matches to highlight')
     return
   }
 
@@ -1137,12 +1137,12 @@ const highlightSearchMatches = () => {
     })
   })
 
-  window.logService.info(`[NetworkSearch] Highlighted ${matchCount.value} matched nodes`)
+  window.logService?.info(`[NetworkSearch] Highlighted ${matchCount.value} matched nodes`)
 }
 
 const fitSearchMatches = () => {
   if (!cyInstance.value || searchMatchedNodes.value.length === 0) {
-    window.logService.warn('[NetworkSearch] No matches to fit')
+    window.logService?.warn('[NetworkSearch] No matches to fit')
     return
   }
 
@@ -1167,7 +1167,7 @@ const fitSearchMatches = () => {
     }
   )
 
-  window.logService.info('[NetworkSearch] Fitted view to matched nodes')
+  window.logService?.info('[NetworkSearch] Fitted view to matched nodes')
 }
 
 const clearSearchHighlight = () => {
@@ -1182,7 +1182,7 @@ const clearSearchHighlight = () => {
   localSearchPattern.value = ''
   clearSearch()
 
-  window.logService.debug('[NetworkSearch] Cleared search highlights')
+  window.logService?.debug('[NetworkSearch] Cleared search highlights')
 }
 
 const initializeCytoscape = () => {
@@ -1397,7 +1397,7 @@ watch(
 
 // Watch for color mode or HPO classification changes and update node colors
 watch([() => props.colorMode, () => props.hpoClassifications], ([newColorMode], [oldColorMode]) => {
-  window.logService.info('[NetworkGraph] Color mode or HPO data changed', {
+  window.logService?.info('[NetworkGraph] Color mode or HPO data changed', {
     colorMode: newColorMode,
     oldColorMode,
     hasHPOData: !!props.hpoClassifications?.data,
@@ -1406,7 +1406,7 @@ watch([() => props.colorMode, () => props.hpoClassifications], ([newColorMode], 
   })
 
   if (!cyInstance.value) {
-    window.logService.warn('[NetworkGraph] No cytoscape instance, skipping color update')
+    window.logService?.warn('[NetworkGraph] No cytoscape instance, skipping color update')
     return
   }
 
@@ -1421,7 +1421,7 @@ watch([() => props.colorMode, () => props.hpoClassifications], ([newColorMode], 
     updatedCount++
   })
 
-  window.logService.info(`[NetworkGraph] ✓ Updated colors for ${updatedCount}/${nodeCount} nodes`, {
+  window.logService?.info(`[NetworkGraph] ✓ Updated colors for ${updatedCount}/${nodeCount} nodes`, {
     colorMode: newColorMode,
     uniqueColors: new Set([...nodeColorMap.value.values()]).size
   })
@@ -1435,6 +1435,12 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  // Cleanup search debounce timer to prevent memory leaks
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+    searchDebounceTimer = null
+  }
+
   destroyCytoscape()
 })
 </script>

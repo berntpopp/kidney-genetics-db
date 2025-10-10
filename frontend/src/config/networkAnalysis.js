@@ -12,7 +12,8 @@ export const networkAnalysisConfig = {
     defaultMaxGenes: 700, // Maximum genes to include in network
     maxGenesHardLimit: 700, // Hard limit for gene count (cannot exceed)
     minGenesLimit: 10, // Minimum genes required
-    largeNetworkThreshold: 700 // Show warning when exceeding this threshold
+    largeNetworkThreshold: 700, // Show warning when exceeding this threshold
+    maxGeneIds: 5000 // Maximum gene IDs allowed per API request (backend limit)
   },
 
   // Network Construction Parameters

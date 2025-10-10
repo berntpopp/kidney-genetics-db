@@ -7,7 +7,7 @@
  * @module composables/useNetworkUrlState
  */
 
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   encodeNetworkState,
@@ -274,6 +274,13 @@ export function useNetworkUrlState(options = {}) {
       return false
     }
   }
+
+  // Cleanup debounced function on unmount to prevent memory leaks
+  onUnmounted(() => {
+    if (syncStateToUrl && syncStateToUrl.cancel) {
+      syncStateToUrl.cancel()
+    }
+  })
 
   return {
     // Reactive state

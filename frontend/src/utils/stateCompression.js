@@ -30,14 +30,14 @@ export function compressState(state) {
     const compressed = LZString.compressToEncodedURIComponent(json)
     const compressedSize = compressed.length
 
-    // Calculate compression ratio
-    const ratio = ((originalSize - compressedSize) / originalSize).toFixed(2)
+    // Calculate compression ratio (compressedSize / originalSize)
+    const ratio = (compressedSize / originalSize).toFixed(2)
 
     if (window.logService) {
       window.logService.debug('[StateCompression] Compression successful', {
         originalSize,
         compressedSize,
-        ratio: `${(ratio * 100).toFixed(0)}%`,
+        ratio: `${(ratio * 100).toFixed(0)}%`, // e.g., "27%" means compressed is 27% of original
         geneCount: state.filteredGenes?.length || 0
       })
     }
@@ -126,7 +126,7 @@ export function isValidCompressed(compressed) {
  */
 export function estimateCompressedSize(state) {
   const json = JSON.stringify(state)
-  // Use empirical compression ratio of 74%
+  // Use empirical compression ratio of 0.26 (compressed is ~26% of original size)
   return Math.ceil(json.length * 0.26)
 }
 

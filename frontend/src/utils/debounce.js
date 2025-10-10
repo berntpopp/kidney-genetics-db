@@ -31,8 +31,14 @@
  */
 export function debounce(fn, delay) {
   let timeoutId = null
+  let lastArgs = null
+  let lastThis = null
 
   const debounced = function (...args) {
+    // Store the latest args and context
+    lastArgs = args
+    lastThis = this
+
     // Clear previous timeout
     if (timeoutId !== null) {
       clearTimeout(timeoutId)
@@ -41,7 +47,7 @@ export function debounce(fn, delay) {
     // Schedule new execution
     timeoutId = setTimeout(() => {
       timeoutId = null
-      fn.apply(this, args)
+      fn.apply(lastThis, lastArgs)
     }, delay)
   }
 
@@ -51,14 +57,21 @@ export function debounce(fn, delay) {
       clearTimeout(timeoutId)
       timeoutId = null
     }
+    lastArgs = null
+    lastThis = null
   }
 
-  // Add flush method to immediately execute pending call
-  debounced.flush = function (...args) {
+  // Add flush method to immediately execute with last stored args
+  debounced.flush = function () {
     if (timeoutId !== null) {
       clearTimeout(timeoutId)
       timeoutId = null
-      fn.apply(this, args)
+    }
+    // Execute with last stored args even if no timeout was pending
+    if (lastArgs !== null) {
+      fn.apply(lastThis, lastArgs)
+      lastArgs = null
+      lastThis = null
     }
   }
 

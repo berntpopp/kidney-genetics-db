@@ -285,7 +285,7 @@ async def get_genes(
     filter_ids: str | None = Query(
         None,
         alias="filter[ids]",
-        description="Filter by gene IDs (comma-separated, max 5000). Used for URL state restoration.",
+        description=f"Filter by gene IDs (comma-separated, max {API_DEFAULTS_CONFIG.get('max_gene_ids', 5000)}). Used for URL state restoration.",
     ),
     # JSON:API sorting
     sort: str | None = Depends(get_sort_param("-evidence_score,approved_symbol")),
@@ -404,11 +404,12 @@ async def get_genes(
                 reason="No valid gene IDs provided"
             )
 
-        # Limit to prevent abuse
-        if len(requested_ids) > 5000:
+        # Limit to prevent abuse (uses configuration, not hardcoded)
+        max_gene_ids = API_DEFAULTS_CONFIG.get("max_gene_ids", 5000)
+        if len(requested_ids) > max_gene_ids:
             raise ValidationError(
                 field="filter[ids]",
-                reason="Maximum 5000 gene IDs allowed per request"
+                reason=f"Maximum {max_gene_ids} gene IDs allowed per request"
             )
 
         # Build IN clause

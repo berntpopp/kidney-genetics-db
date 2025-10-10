@@ -3,6 +3,7 @@
  */
 
 import apiClient from './client'
+import { networkAnalysisConfig } from '@/config/networkAnalysis'
 
 export const geneApi = {
   /**
@@ -156,9 +157,10 @@ export const geneApi = {
       }
     }
 
-    // Validate max 5000 IDs (backend limit)
-    if (geneIds.length > 5000) {
-      throw new Error('Maximum 5000 gene IDs allowed per request')
+    // Validate max gene IDs (backend limit from config)
+    const maxGeneIds = networkAnalysisConfig.geneSelection.maxGeneIds
+    if (geneIds.length > maxGeneIds) {
+      throw new Error(`Maximum ${maxGeneIds} gene IDs allowed per request`)
     }
 
     const { sortBy = null, sortDesc = false } = options
