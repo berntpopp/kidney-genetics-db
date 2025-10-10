@@ -241,7 +241,7 @@ const handleLogout = async () => {
 const isDark = computed(() => theme.global.current.value.dark)
 
 const toggleTheme = () => {
-  theme.global.name.value = isDark.value ? 'light' : 'dark'
+  theme.change(isDark.value ? 'light' : 'dark')
 }
 
 // Keyboard shortcut for log viewer (Ctrl+Shift+L)
