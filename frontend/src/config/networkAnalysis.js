@@ -59,6 +59,18 @@ export const networkAnalysisConfig = {
     }
   },
 
+  // Search Configuration
+  search: {
+    enabled: true, // Enable/disable search functionality
+    placeholder: 'Search genes (e.g., COL*, PKD1, *A1)', // Input placeholder text
+    highlightColor: '#FFC107', // Orange (Material Amber) for search matches
+    maxResults: 100, // Maximum number of results to display
+    caseSensitive: false, // Case-insensitive search by default
+    wildcardSupport: true, // Enable wildcard patterns (* and ?)
+    showHelp: true, // Show help text for wildcard usage
+    animationDuration: 500 // Animation duration for fit view (ms)
+  },
+
   // Node Coloring Configuration
   nodeColoring: {
     // Available color modes

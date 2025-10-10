@@ -112,12 +112,66 @@
           />
         </v-col>
       </v-row>
+
+      <!-- Search Controls Row -->
+      <v-row v-if="cyInstance && !loading && !error" dense align="center" class="mt-2">
+        <v-col cols="12" sm="6">
+          <v-text-field
+            v-model="localSearchPattern"
+            label="Search genes"
+            placeholder="e.g., COL*, PKD1, *A1"
+            prepend-inner-icon="mdi-magnify"
+            density="compact"
+            variant="outlined"
+            hide-details="auto"
+            clearable
+            @input="handleSearchInput"
+            @keyup.enter="handleSearch(localSearchPattern)"
+            @click:clear="clearSearchHighlight"
+          >
+            <template v-if="matchCount > 0" #append-inner>
+              <v-chip size="x-small" color="success" label class="mr-2">
+                {{ matchCount }} {{ matchCount === 1 ? 'match' : 'matches' }}
+              </v-chip>
+            </template>
+          </v-text-field>
+        </v-col>
+
+        <v-col cols="12" sm="6">
+          <div class="d-flex ga-2 align-center">
+            <v-btn
+              color="warning"
+              size="small"
+              prepend-icon="mdi-checkbox-multiple-marked"
+              :disabled="matchCount === 0"
+              @click="highlightSearchMatches"
+            >
+              Highlight All
+            </v-btn>
+            <v-btn
+              color="secondary"
+              size="small"
+              prepend-icon="mdi-fit-to-screen"
+              :disabled="matchCount === 0"
+              @click="fitSearchMatches"
+            >
+              Fit View
+            </v-btn>
+            <span
+              v-if="localSearchPattern && matchCount === 0"
+              class="text-caption text-medium-emphasis"
+            >
+              No matches found
+            </span>
+          </div>
+        </v-col>
+      </v-row>
     </v-card-text>
 
     <v-divider />
 
     <!-- Cytoscape Graph Container -->
-    <v-card-text class="pa-0">
+    <v-card-text class="pa-0 network-container-wrapper">
       <div
         v-show="!loading && !error"
         ref="cytoscapeContainer"
@@ -416,6 +470,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import cytoscape from 'cytoscape'
 import coseBilkent from 'cytoscape-cose-bilkent'
 import ClusterDetailsDialog from './ClusterDetailsDialog.vue'
+import { useNetworkSearch } from '../../composables/useNetworkSearch'
 import { networkAnalysisConfig } from '../../config/networkAnalysis'
 
 // Register cose-bilkent layout
@@ -499,6 +554,14 @@ const tooltipData = ref({
   hpoData: null,
   hpoPercentages: null
 })
+
+// Search state (using composable)
+const { matchCount, searchNodes, clearSearch } = useNetworkSearch()
+const searchMatchedNodes = ref([])
+const localSearchPattern = ref('')
+
+// Debounce timer for auto-search
+let searchDebounceTimer = null
 
 // Computed
 const graphHeight = computed(() => props.height)
@@ -997,6 +1060,131 @@ const highlightGeneInNetwork = geneId => {
   }
 }
 
+/**
+ * Search Methods
+ */
+
+const handleSearchInput = () => {
+  // Clear existing timer
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+  }
+
+  const pattern = localSearchPattern.value?.trim()
+
+  // If empty, clear search immediately
+  if (!pattern) {
+    clearSearchHighlight()
+    return
+  }
+
+  // Debounce search by 300ms to avoid searching on every keystroke
+  searchDebounceTimer = setTimeout(() => {
+    handleSearch(pattern)
+  }, 300)
+}
+
+const handleSearch = pattern => {
+  if (!cyInstance.value) {
+    window.logService.warn('[NetworkSearch] No cytoscape instance available')
+    return
+  }
+
+  // Don't search if pattern is empty
+  if (!pattern || !pattern.trim()) {
+    return
+  }
+
+  // Perform search using composable (this will update matchCount)
+  searchMatchedNodes.value = searchNodes(cyInstance.value, pattern)
+
+  window.logService.info(
+    `[NetworkSearch] Found ${matchCount.value} matches for pattern "${pattern}"`
+  )
+}
+
+const highlightSearchMatches = () => {
+  if (!cyInstance.value || searchMatchedNodes.value.length === 0) {
+    window.logService.warn('[NetworkSearch] No matches to highlight')
+    return
+  }
+
+  // Use batch for performance (single redraw)
+  cyInstance.value.batch(() => {
+    // Dim all nodes and edges
+    cyInstance.value.nodes().addClass('dimmed')
+    cyInstance.value.edges().addClass('dimmed')
+
+    // Highlight matched nodes with orange border
+    searchMatchedNodes.value.forEach(node => {
+      node.addClass('search-match')
+      node.removeClass('dimmed')
+
+      // Also highlight edges connected to matched nodes
+      const connectedEdges = node.connectedEdges()
+      connectedEdges.forEach(edge => {
+        // If both source and target are matched, highlight the edge
+        const source = edge.source()
+        const target = edge.target()
+        const sourceMatched = searchMatchedNodes.value.includes(source)
+        const targetMatched = searchMatchedNodes.value.includes(target)
+
+        if (sourceMatched && targetMatched) {
+          edge.addClass('search-edge-match')
+          edge.removeClass('dimmed')
+        }
+      })
+    })
+  })
+
+  window.logService.info(`[NetworkSearch] Highlighted ${matchCount.value} matched nodes`)
+}
+
+const fitSearchMatches = () => {
+  if (!cyInstance.value || searchMatchedNodes.value.length === 0) {
+    window.logService.warn('[NetworkSearch] No matches to fit')
+    return
+  }
+
+  // Create collection of matched nodes
+  const collection = cyInstance.value.collection(searchMatchedNodes.value)
+
+  // Animate zoom/pan to fit matched nodes
+  cyInstance.value.animate(
+    {
+      fit: {
+        eles: collection,
+        padding: 80
+      },
+      duration: 500,
+      easing: 'ease-out-cubic'
+    },
+    {
+      complete: () => {
+        // Highlight after animation completes
+        highlightSearchMatches()
+      }
+    }
+  )
+
+  window.logService.info('[NetworkSearch] Fitted view to matched nodes')
+}
+
+const clearSearchHighlight = () => {
+  if (!cyInstance.value) return
+
+  // Use batch for performance
+  cyInstance.value.batch(() => {
+    cyInstance.value.elements().removeClass('search-match search-edge-match dimmed')
+  })
+
+  searchMatchedNodes.value = []
+  localSearchPattern.value = ''
+  clearSearch()
+
+  window.logService.debug('[NetworkSearch] Cleared search highlights')
+}
+
 const initializeCytoscape = () => {
   if (!cytoscapeContainer.value || !props.networkData) return
 
@@ -1254,6 +1442,12 @@ onUnmounted(() => {
 <style scoped>
 .network-graph-card {
   width: 100%;
+  position: relative; /* Allow absolute positioning of search overlay */
+}
+
+.network-container-wrapper {
+  position: relative;
+  width: 100%;
 }
 
 .cytoscape-container {
@@ -1394,5 +1588,23 @@ onUnmounted(() => {
 
 .v-theme--dark .tooltip-context-label {
   color: rgba(0, 0, 0, 0.7);
+}
+
+/* Search match highlighting */
+.search-match {
+  border-width: 4px !important;
+  border-color: #ffc107 !important;
+  border-style: solid !important;
+  border-opacity: 1 !important;
+  z-index: 998;
+  box-shadow: 0 0 16px rgba(255, 193, 7, 0.6);
+  transition: all 0.3s ease-out;
+}
+
+.search-edge-match {
+  line-color: #ffc107 !important;
+  width: 3 !important;
+  opacity: 0.9 !important;
+  z-index: 997;
 }
 </style>
