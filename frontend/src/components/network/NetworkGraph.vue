@@ -1421,10 +1421,13 @@ watch([() => props.colorMode, () => props.hpoClassifications], ([newColorMode], 
     updatedCount++
   })
 
-  window.logService?.info(`[NetworkGraph] ✓ Updated colors for ${updatedCount}/${nodeCount} nodes`, {
-    colorMode: newColorMode,
-    uniqueColors: new Set([...nodeColorMap.value.values()]).size
-  })
+  window.logService?.info(
+    `[NetworkGraph] ✓ Updated colors for ${updatedCount}/${nodeCount} nodes`,
+    {
+      colorMode: newColorMode,
+      uniqueColors: new Set([...nodeColorMap.value.values()]).size
+    }
+  )
 })
 
 // Lifecycle
