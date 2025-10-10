@@ -179,7 +179,7 @@ async def get_gene_annotation_summary(
     return summary
 
 
-@router.post("/genes/{gene_id}/annotations/update")
+@router.post("/genes/{gene_id}/annotations/update", dependencies=[Depends(require_admin)])
 async def update_gene_annotations(
     gene_id: int,
     background_tasks: BackgroundTasks,
@@ -187,6 +187,7 @@ async def update_gene_annotations(
         ["hgnc", "gnomad", "gtex", "hpo", "clinvar", "string_ppi"], description="Sources to update"
     ),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
 ) -> dict[str, Any]:
     """
     Trigger annotation update for a specific gene.
@@ -200,6 +201,14 @@ async def update_gene_annotations(
     Returns:
         Status message
     """
+    await logger.info(
+        "Admin action: Gene annotation update triggered",
+        user_id=current_user.id,
+        username=current_user.username,
+        gene_id=gene_id,
+        sources=sources,
+    )
+
     # Get the gene
     gene = db.query(Gene).filter(Gene.id == gene_id).first()
     if not gene:
@@ -479,8 +488,11 @@ async def get_annotation_sources(
     ]
 
 
-@router.post("/refresh-view")
-async def refresh_materialized_view(db: Session = Depends(get_db)) -> dict[str, str]:
+@router.post("/refresh-view", dependencies=[Depends(require_admin)])
+async def refresh_materialized_view(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+) -> dict[str, str]:
     """
     Refresh the gene_annotations_summary materialized view.
 
@@ -490,6 +502,12 @@ async def refresh_materialized_view(db: Session = Depends(get_db)) -> dict[str, 
     Returns:
         Status message
     """
+    await logger.info(
+        "Admin action: Materialized view refresh triggered",
+        user_id=current_user.id,
+        username=current_user.username,
+    )
+
     try:
         # Try concurrent refresh first
         db.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY gene_annotations_summary"))
@@ -640,7 +658,7 @@ async def get_annotation_statistics(db: Session = Depends(get_db)) -> dict[str, 
 # Pipeline Management Endpoints
 
 
-@router.post("/pipeline/update")
+@router.post("/pipeline/update", dependencies=[Depends(require_admin)])
 async def trigger_pipeline_update(
     background_tasks: BackgroundTasks,
     strategy: str = Query(
@@ -650,6 +668,7 @@ async def trigger_pipeline_update(
     gene_ids: list[int] | None = Query(None, description="Specific gene IDs to update"),
     force: bool = Query(False, description="Force update regardless of TTL"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
 ) -> dict[str, Any]:
     """
     Trigger annotation pipeline update.
@@ -665,6 +684,15 @@ async def trigger_pipeline_update(
     Returns:
         Update task information
     """
+    await logger.info(
+        "Admin action: Pipeline update triggered",
+        user_id=current_user.id,
+        username=current_user.username,
+        strategy=strategy,
+        sources=sources,
+        force=force,
+    )
+
     import uuid
 
     from app.pipeline.annotation_pipeline import UpdateStrategy
@@ -697,11 +725,12 @@ async def trigger_pipeline_update(
     }
 
 
-@router.post("/pipeline/update-failed")
+@router.post("/pipeline/update-failed", dependencies=[Depends(require_admin)])
 async def update_failed_annotations(
     background_tasks: BackgroundTasks,
     sources: list[str] | None = Query(None, description="Specific sources to retry"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
 ) -> dict[str, Any]:
     """
     Retry annotations for genes that failed in the last pipeline run.
@@ -715,6 +744,12 @@ async def update_failed_annotations(
     """
     from app.pipeline.annotation_pipeline import UpdateStrategy
 
+    await logger.info(
+        "Admin action: Failed annotations update requested",
+        user_id=current_user.id,
+        username=current_user.username,
+        sources=sources,
+    )
     await logger.info("Failed annotations update requested", sources=sources)
 
     # Query genes that have incomplete annotations
@@ -769,11 +804,12 @@ async def update_failed_annotations(
     }
 
 
-@router.post("/pipeline/update-new")
+@router.post("/pipeline/update-new", dependencies=[Depends(require_admin)])
 async def update_new_genes(
     background_tasks: BackgroundTasks,
     days_back: int = Query(7, description="Number of days to look back for new genes"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
 ) -> dict[str, Any]:
     """
     Process genes added recently without annotations.
@@ -788,6 +824,12 @@ async def update_new_genes(
 
     from app.pipeline.annotation_pipeline import UpdateStrategy
 
+    await logger.info(
+        "Admin action: New genes update requested",
+        user_id=current_user.id,
+        username=current_user.username,
+        days_back=days_back,
+    )
     await logger.info("New genes update requested", days_back=days_back)
 
     # Query genes without annotations, ordered by clinical importance
@@ -836,11 +878,12 @@ async def update_new_genes(
     }
 
 
-@router.post("/pipeline/update-missing/{source_name}")
+@router.post("/pipeline/update-missing/{source_name}", dependencies=[Depends(require_admin)])
 async def update_missing_source(
     source_name: str,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
 ) -> dict[str, Any]:
     """
     Update genes missing annotations from specific source.
@@ -853,6 +896,12 @@ async def update_missing_source(
         Update result with count of genes being updated
     """
 
+    await logger.info(
+        "Admin action: Missing source update requested",
+        user_id=current_user.id,
+        username=current_user.username,
+        source=source_name,
+    )
     await logger.info("Missing source update requested", source=source_name)
 
     # Validate source exists
@@ -1066,8 +1115,11 @@ async def get_scheduled_jobs() -> dict[str, Any]:
     }
 
 
-@router.post("/scheduler/trigger/{job_id}")
-async def trigger_scheduled_job(job_id: str) -> dict[str, Any]:
+@router.post("/scheduler/trigger/{job_id}", dependencies=[Depends(require_admin)])
+async def trigger_scheduled_job(
+    job_id: str,
+    current_user: User = Depends(require_admin),
+) -> dict[str, Any]:
     """
     Manually trigger a scheduled job.
 
@@ -1077,6 +1129,13 @@ async def trigger_scheduled_job(job_id: str) -> dict[str, Any]:
     Returns:
         Trigger status
     """
+    await logger.info(
+        "Admin action: Scheduled job triggered",
+        user_id=current_user.id,
+        username=current_user.username,
+        job_id=job_id,
+    )
+
     from app.core.scheduler import annotation_scheduler
 
     success = annotation_scheduler.trigger_job(job_id)

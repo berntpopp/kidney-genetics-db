@@ -256,7 +256,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import axios from 'axios'
+import apiClient from '@/api/client'
 
 // Browser globals are already defined in eslint config
 
@@ -348,7 +348,7 @@ const toggleAutoRefresh = () => {
 
 const fetchStatus = async () => {
   try {
-    const response = await axios.get('http://localhost:8000/api/progress/status')
+    const response = await apiClient.get('/api/progress/status')
     sources.value = response.data.data
     lastUpdate.value = new Date()
 
@@ -432,7 +432,7 @@ const connectWebSocket = () => {
 const triggerUpdate = async sourceName => {
   triggering.value[sourceName] = true
   try {
-    await axios.post(`http://localhost:8000/api/progress/trigger/${sourceName}`)
+    await apiClient.post(`/api/progress/trigger/${sourceName}`)
   } catch (error) {
     window.logService.error(`Failed to trigger ${sourceName}:`, error)
   } finally {
@@ -442,7 +442,7 @@ const triggerUpdate = async sourceName => {
 
 const pauseSource = async sourceName => {
   try {
-    await axios.post(`http://localhost:8000/api/progress/pause/${sourceName}`)
+    await apiClient.post(`/api/progress/pause/${sourceName}`)
   } catch (error) {
     window.logService.error(`Failed to pause ${sourceName}:`, error)
   }
@@ -450,7 +450,7 @@ const pauseSource = async sourceName => {
 
 const resumeSource = async sourceName => {
   try {
-    await axios.post(`http://localhost:8000/api/progress/resume/${sourceName}`)
+    await apiClient.post(`/api/progress/resume/${sourceName}`)
   } catch (error) {
     window.logService.error(`Failed to resume ${sourceName}:`, error)
   }

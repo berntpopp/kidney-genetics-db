@@ -11,6 +11,8 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.dependencies import require_admin
+from app.models.user import User
 from app.core.datasource_config import (
     DATA_SOURCE_CONFIG,
     INTERNAL_PROCESS_CONFIG,
@@ -242,8 +244,12 @@ async def get_source_status(source_name: str, db: Session = Depends(get_db)) -> 
     )
 
 
-@router.post("/trigger/{source_name}")
-async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+@router.post("/trigger/{source_name}", dependencies=[Depends(require_admin)])
+async def trigger_update(
+    source_name: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+) -> dict[str, Any]:
     """
     Trigger an update for a specific data source
 
@@ -253,6 +259,12 @@ async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dic
     Returns:
         Status message
     """
+    await logger.info(
+        "Admin action: Source triggered",
+        user_id=current_user.id,
+        username=current_user.username,
+        source_name=source_name,
+    )
     await logger.info("API trigger endpoint called", source_name=source_name)
 
     from app.core.background_tasks import task_manager
@@ -295,8 +307,12 @@ async def trigger_update(source_name: str, db: Session = Depends(get_db)) -> dic
     )
 
 
-@router.post("/pause/{source_name}")
-async def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+@router.post("/pause/{source_name}", dependencies=[Depends(require_admin)])
+async def pause_source(
+    source_name: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+) -> dict[str, Any]:
     """
     Pause a running data source update
 
@@ -306,6 +322,13 @@ async def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[
     Returns:
         Status message
     """
+    await logger.info(
+        "Admin action: Source paused",
+        user_id=current_user.id,
+        username=current_user.username,
+        source_name=source_name,
+    )
+
     progress = db.query(DataSourceProgress).filter_by(source_name=source_name).first()
 
     if not progress:
@@ -330,8 +353,12 @@ async def pause_source(source_name: str, db: Session = Depends(get_db)) -> dict[
     )
 
 
-@router.post("/resume/{source_name}")
-async def resume_source(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+@router.post("/resume/{source_name}", dependencies=[Depends(require_admin)])
+async def resume_source(
+    source_name: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+) -> dict[str, Any]:
     """
     Resume a paused data source update
 
@@ -341,6 +368,13 @@ async def resume_source(source_name: str, db: Session = Depends(get_db)) -> dict
     Returns:
         Status message
     """
+    await logger.info(
+        "Admin action: Source resumed",
+        user_id=current_user.id,
+        username=current_user.username,
+        source_name=source_name,
+    )
+
     from app.core.background_tasks import task_manager
 
     progress = db.query(DataSourceProgress).filter_by(source_name=source_name).first()

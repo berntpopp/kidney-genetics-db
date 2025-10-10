@@ -447,6 +447,9 @@
       </v-data-table>
     </v-card>
 
+    <!-- Real-time Progress Monitor -->
+    <DataSourceProgress class="mb-6" />
+
     <!-- Scheduled Jobs -->
     <v-card class="mb-6">
       <v-card-title class="d-flex align-center justify-space-between">
@@ -581,6 +584,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
+import DataSourceProgress from '@/components/DataSourceProgress.vue'
 import * as annotationsApi from '@/api/admin/annotations'
 
 // Reactive data
