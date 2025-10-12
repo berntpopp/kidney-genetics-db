@@ -35,9 +35,8 @@ setting_category_enum = ENUM(
 
 
 def upgrade() -> None:
-    # Create enums
-    setting_type_enum.create(op.get_bind(), checkfirst=True)
-    setting_category_enum.create(op.get_bind(), checkfirst=True)
+    # Enums will be created automatically by SQLAlchemy when creating tables
+    # that reference them, so we don't need to create them explicitly
 
     # Create system_settings table
     op.create_table(
