@@ -80,8 +80,9 @@ backend/.cache/
 # playwright
 .playwright-mcp/
 
-# database backup folder
-backups/
+# database backup folder (only at root, not frontend components)
+/backups/
+/backend/backups/
 
 # Duplicate backend folder (accidental)
 backend/backend/
@@ -91,3 +92,4 @@ backend/backend/
 
 # Release exports
 backend/exports/
+.env.production

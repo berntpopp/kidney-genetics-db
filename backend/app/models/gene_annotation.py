@@ -18,6 +18,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -106,7 +107,7 @@ class AnnotationSource(Base, TimestampMixin):
     update_frequency = Column(Text, nullable=True)  # e.g., "daily", "weekly", "quarterly"
     last_update = Column(DateTime(timezone=True), nullable=True)
     next_update = Column(DateTime(timezone=True), nullable=True)
-    config = Column(JSONB, nullable=True, server_default=func.cast("{}", JSONB))
+    config = Column(JSONB, nullable=True, server_default=text("'{}'::jsonb"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

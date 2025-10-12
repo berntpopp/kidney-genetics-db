@@ -35,64 +35,65 @@ import { KGDBLogo } from '@/components/branding'
   />
 
   <!-- Footer: Monochrome, subdued -->
-  <KGDBLogo
-    :size="32"
-    variant="icon-only"
-    :monochrome="true"
-    :animated="false"
-  />
+  <KGDBLogo :size="32" variant="icon-only" :monochrome="true" :animated="false" />
 </template>
 ```
 
 #### Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `size` | Number/String | 64 | Logo size in pixels (16-512) |
-| `variant` | String | 'icon-only' | Display variant: 'icon-only', 'with-text', 'text-only' |
-| `textLayout` | String | 'horizontal' | Text layout: 'horizontal' (side-by-side), 'vertical' (stacked) |
-| `animated` | Boolean | true | Enable entrance animation on mount |
-| `interactive` | Boolean | false | Enable hover effects and cursor pointer |
-| `breathing` | Boolean | false | Enable subtle idle breathing animation |
-| `monochrome` | Boolean | false | Convert to grayscale (for footer, print) |
-| `customColor` | String | null | Override default kidney color (#489c9e) |
-| `alt` | String | 'KGDB Logo' | Alt text for screen readers |
+| Prop          | Type          | Default      | Description                                                    |
+| ------------- | ------------- | ------------ | -------------------------------------------------------------- |
+| `size`        | Number/String | 64           | Logo size in pixels (16-512)                                   |
+| `variant`     | String        | 'icon-only'  | Display variant: 'icon-only', 'with-text', 'text-only'         |
+| `textLayout`  | String        | 'horizontal' | Text layout: 'horizontal' (side-by-side), 'vertical' (stacked) |
+| `animated`    | Boolean       | true         | Enable entrance animation on mount                             |
+| `interactive` | Boolean       | false        | Enable hover effects and cursor pointer                        |
+| `breathing`   | Boolean       | false        | Enable subtle idle breathing animation                         |
+| `monochrome`  | Boolean       | false        | Convert to grayscale (for footer, print)                       |
+| `customColor` | String        | null         | Override default kidney color (#489c9e)                        |
+| `alt`         | String        | 'KGDB Logo'  | Alt text for screen readers                                    |
 
 #### Events
 
-| Event | Payload | Description |
-|-------|---------|-------------|
+| Event   | Payload    | Description                                                  |
+| ------- | ---------- | ------------------------------------------------------------ |
 | `click` | MouseEvent | Emitted when logo is clicked (only if `interactive` is true) |
 
 #### Variants
 
 **icon-only** (Default)
+
 - Just the kidney logo icon
 - Perfect for navigation bars, footers, compact spaces
 - Scales cleanly from 16px to 512px
 
 **with-text**
+
 - Icon + "Kidney-Genetics\nDatabase" text
 - Available in horizontal (nav bar) or vertical (hero) layouts
 - Professional branding for headers and landing pages
 
 **text-only**
+
 - Just the text without icon
 - Rarely used, available for special layouts
 
 #### Animations
 
 **Load Animation** (0.6s, enabled by default)
+
 - Smooth entrance: fade-in + scale + slide up
 - Uses elastic easing for pleasant feel
 - Automatically disabled if `prefers-reduced-motion`
 
 **Hover Animation** (0.3s, interactive mode only)
+
 - Subtle scale-up (1.05x) and rotation (-2deg)
 - Smooth cubic-bezier easing
 - Active state: quick scale-down (0.98x)
 
 **Breathing Animation** (4s infinite, opt-in)
+
 - Gentle pulse: scale 1.0 ↔ 1.02
 - Soft glow: drop-shadow 0px ↔ 8px
 - Perfect for hero sections to draw attention

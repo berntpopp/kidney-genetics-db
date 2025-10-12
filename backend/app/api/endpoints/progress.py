@@ -11,19 +11,19 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.dependencies import require_admin
-from app.models.user import User
 from app.core.datasource_config import (
     DATA_SOURCE_CONFIG,
     INTERNAL_PROCESS_CONFIG,
     get_auto_update_sources,
     get_internal_process_config,
 )
+from app.core.dependencies import require_admin
 from app.core.events import EventTypes, event_bus
 from app.core.exceptions import DataSourceError
 from app.core.logging import get_logger
 from app.core.responses import ResponseBuilder
 from app.models.progress import DataSourceProgress, SourceStatus
+from app.models.user import User
 
 logger = get_logger(__name__)
 

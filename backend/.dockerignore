@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Tests
+tests/
+test_*.py
+*_test.py
+
+# Docs (exclude docs/ dir, but keep README.md)
+docs/
+
+# CI/CD
+.git/
+.github/
+.gitignore
+
+# Secrets
+.env*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Temp
+tmp/
+*.log
+*.tmp

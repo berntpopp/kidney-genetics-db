@@ -590,17 +590,34 @@ class CacheService:
 
         try:
             # For JSONB column, we can store the value directly as dict/list
-            # Handle Pydantic BaseModel (v2)
-            if hasattr(entry.value, "model_dump"):
-                data_value = entry.value.model_dump()
-            # Handle Pydantic BaseModel (v1)
-            elif hasattr(entry.value, "dict"):
-                data_value = entry.value.dict()
-            # Already a dict/list
-            else:
-                data_value = entry.value
+            # Handle pandas DataFrame
+            try:
+                import pandas as pd
 
-            data_size = len(json.dumps(data_value).encode("utf-8"))
+                if isinstance(entry.value, pd.DataFrame):
+                    # Serialize DataFrame using _serialize_value
+                    serialized_data = self._serialize_value(entry.value)
+                    data_value = json.loads(serialized_data)  # Convert back to dict for JSONB
+                    data_size = len(serialized_data.encode("utf-8"))
+                else:
+                    raise ImportError  # Skip to normal handling
+            except ImportError:
+                # pandas not available or not a DataFrame - use normal handling
+                # Handle Pydantic BaseModel (v2)
+                if hasattr(entry.value, "model_dump"):
+                    data_value = entry.value.model_dump()
+                # Handle Pydantic BaseModel (v1)
+                elif hasattr(entry.value, "dict"):
+                    data_value = entry.value.dict()
+                # Handle dict/list directly
+                elif isinstance(entry.value, dict | list):
+                    data_value = entry.value
+                # For other types, serialize using _serialize_value
+                else:
+                    serialized_data = self._serialize_value(entry.value)
+                    data_value = json.loads(serialized_data)
+
+                data_size = len(json.dumps(data_value).encode("utf-8"))
 
             query = text(
                 """
@@ -655,13 +672,21 @@ class CacheService:
                 await self.db_session.rollback()
             else:
                 self.db_session.rollback()
+
+            # Safely calculate data size for logging
+            try:
+                calc_data_size = len(json.dumps(entry.value, default=str).encode("utf-8"))
+            except Exception:
+                calc_data_size = -1  # Indicates serialization failed
+
             logger.sync_error(
                 "Database cache set error",
                 error=str(e),
                 error_type=type(e).__name__,
                 cache_key=cache_key,
                 namespace=entry.namespace,
-                data_size=len(json.dumps(entry.value).encode("utf-8")),
+                value_type=type(entry.value).__name__,
+                data_size=calc_data_size,
                 session_type=type(self.db_session).__name__,
             )
             return False

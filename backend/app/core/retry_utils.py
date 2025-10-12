@@ -190,7 +190,7 @@ def retry_with_backoff(
 
                     # Don't retry if this was the last attempt
                     if attempt < config.max_retries:
-                        logger.warning(
+                        await logger.warning(
                             "Attempt failed, retrying",
                             attempt=attempt + 1,
                             max_attempts=config.max_retries + 1,
@@ -227,7 +227,7 @@ def retry_with_backoff(
 
                     # Don't retry if this was the last attempt
                     if attempt < config.max_retries:
-                        logger.warning(
+                        logger.sync_warning(
                             "Attempt failed, retrying",
                             attempt=attempt + 1,
                             max_attempts=config.max_retries + 1,
@@ -300,13 +300,13 @@ class RetryStrategy:
 
                 if attempt < self.config.max_retries:
                     delay = self.config.calculate_delay(attempt)
-                    logger.warning(
+                    await logger.warning(
                         f"Attempt {attempt + 1}/{self.config.max_retries + 1} failed: {e}. "
                         f"Retrying in {delay:.2f}s..."
                     )
                     await asyncio.sleep(delay)
                 else:
-                    logger.error(f"All {self.config.max_retries + 1} attempts failed")
+                    await logger.error(f"All {self.config.max_retries + 1} attempts failed")
 
         if last_exception:
             raise last_exception
@@ -336,13 +336,13 @@ class RetryStrategy:
 
                 if attempt < self.config.max_retries:
                     delay = self.config.calculate_delay(attempt)
-                    logger.warning(
+                    logger.sync_warning(
                         f"Attempt {attempt + 1}/{self.config.max_retries + 1} failed: {e}. "
                         f"Retrying in {delay:.2f}s..."
                     )
                     time.sleep(delay)
                 else:
-                    logger.error(f"All {self.config.max_retries + 1} attempts failed")
+                    logger.sync_error(f"All {self.config.max_retries + 1} attempts failed")
 
         if last_exception:
             raise last_exception

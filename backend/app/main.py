@@ -52,6 +52,20 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.sync_info("Starting application...")
 
+    # Initialize database (admin user, views, etc.) - MUST run in async context
+    from app.core.database_init import initialize_database
+    db = next(get_db())
+    try:
+        init_status = await initialize_database(db)
+        await logger.info(
+            "Database initialization completed",
+            views_created=init_status.get("views_created"),
+            admin_created=init_status.get("admin_created"),
+            cache_cleared=init_status.get("cache_cleared"),
+        )
+    finally:
+        db.close()
+
     # Run startup tasks (register data sources, etc.)
     run_startup_tasks()
 
