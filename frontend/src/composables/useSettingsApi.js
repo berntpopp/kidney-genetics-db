@@ -49,7 +49,7 @@ export function useSettingsApi() {
       if (params.limit) queryParams.append('limit', params.limit)
       if (params.offset) queryParams.append('offset', params.offset)
 
-      return await apiRequest(`/api/admin/settings?${queryParams}`)
+      return await apiRequest(`/api/admin/settings/?${queryParams}`)
     } finally {
       loading.value = false
     }
