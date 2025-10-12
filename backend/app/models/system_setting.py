@@ -40,8 +40,18 @@ class SystemSetting(Base, TimestampMixin):
     id = Column(BigInteger, primary_key=True, index=True)
     key = Column(String(100), unique=True, nullable=False, index=True)
     value = Column(JSONB, nullable=False)
-    value_type = Column(ENUM(SettingType), nullable=False)
-    category = Column(ENUM(SettingCategory), nullable=False, index=True)
+    # Use values_callable to ensure SQLAlchemy uses enum VALUES not NAMES
+    value_type = Column(
+        ENUM(SettingType, values_callable=lambda x: [e.value for e in x], name="setting_type"),
+        nullable=False,
+    )
+    category = Column(
+        ENUM(
+            SettingCategory, values_callable=lambda x: [e.value for e in x], name="setting_category"
+        ),
+        nullable=False,
+        index=True,
+    )
     description = Column(Text)
     default_value = Column(JSONB, nullable=False)
     requires_restart = Column(Boolean, default=False, nullable=False)

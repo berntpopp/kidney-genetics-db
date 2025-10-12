@@ -19,7 +19,8 @@ down_revision: str | Sequence[str] | None = "df7756c38ecd"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-# Define enums
+# Define enums with explicit lowercase values to match Python enum values
+# The Python model uses: SettingType.STRING = "string", etc.
 setting_type_enum = ENUM("string", "number", "boolean", "json", name="setting_type")
 setting_category_enum = ENUM(
     "cache",
