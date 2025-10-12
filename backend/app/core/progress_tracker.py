@@ -299,6 +299,8 @@ class ProgressTracker:
 
     def _commit_and_broadcast(self):
         """Commit to database and publish update to event bus - NO MORE DIRECT CALLBACKS!"""
+        from sqlalchemy.exc import DisconnectionError, OperationalError
+
         # Always recalculate progress percentage before committing
         # Prefer pages over items for better accuracy when both are available
         if self.progress_record.total_pages and self.progress_record.total_pages > 0:
@@ -330,6 +332,7 @@ class ProgressTracker:
                     if hasattr(self.progress_record, "id")
                     else None,
                 )
+
                 # Ensure the progress record is marked as modified
                 if self.progress_record in self.db:
                     # Mark object as dirty to ensure SQLAlchemy tracks changes
@@ -354,11 +357,38 @@ class ProgressTracker:
                     # Use merge instead of add to avoid conflicts
                     self.progress_record = self.db.merge(self.progress_record)
 
-                self.db.commit()
-                logger.sync_debug(
-                    "Database commit successful",
-                    source_name=self.source_name,
-                )
+                # BUGFIX: Handle stale database connections with retry
+                # SQLAlchemy's pool_pre_ping handles most cases, but we add retry for edge cases
+                max_retries = 2
+                for attempt in range(max_retries):
+                    try:
+                        self.db.commit()
+                        logger.sync_debug(
+                            "Database commit successful",
+                            source_name=self.source_name,
+                            attempt=attempt + 1,
+                        )
+                        break
+                    except (DisconnectionError, OperationalError) as e:
+                        # Connection was lost - SQLAlchemy will handle reconnection
+                        if attempt < max_retries - 1:
+                            logger.sync_warning(
+                                "Database connection error, retrying",
+                                source_name=self.source_name,
+                                attempt=attempt + 1,
+                                error=str(e),
+                            )
+                            self.db.rollback()
+                            # SQLAlchemy's pool_pre_ping will test connection on next use
+                            continue
+                        else:
+                            # Final retry failed
+                            logger.sync_error(
+                                "Database commit failed after retries",
+                                source_name=self.source_name,
+                                error=str(e),
+                            )
+                            raise
             else:
                 logger.sync_debug(
                     "Skipping database commit for manual upload source",
