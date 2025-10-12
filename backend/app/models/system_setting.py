@@ -2,10 +2,8 @@
 
 import enum
 import re
-from sqlalchemy import (
-    BigInteger, Boolean, Column, DateTime, ForeignKey,
-    String, Text, text
-)
+
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, String, Text, text
 from sqlalchemy.dialects.postgresql import ENUM, JSONB
 from sqlalchemy.orm import relationship, validates
 
@@ -14,6 +12,7 @@ from app.models.base import Base, TimestampMixin
 
 class SettingType(str, enum.Enum):
     """Setting value type enum"""
+
     STRING = "string"
     NUMBER = "number"
     BOOLEAN = "boolean"
@@ -22,6 +21,7 @@ class SettingType(str, enum.Enum):
 
 class SettingCategory(str, enum.Enum):
     """Setting category enum"""
+
     CACHE = "cache"
     SECURITY = "security"
     PIPELINE = "pipeline"
@@ -52,12 +52,14 @@ class SystemSetting(Base, TimestampMixin):
 
     # Relationships
     updated_by = relationship("User", foreign_keys=[updated_by_id])
-    audit_logs = relationship("SettingAuditLog", back_populates="setting", cascade="all, delete-orphan")
+    audit_logs = relationship(
+        "SettingAuditLog", back_populates="setting", cascade="all, delete-orphan"
+    )
 
-    @validates('key')
+    @validates("key")
     def validate_key(self, key, value):
         """Validate setting key format - lowercase alphanumeric + dots + underscores"""
-        if not re.match(r'^[a-z][a-z0-9_.]*$', value):
+        if not re.match(r"^[a-z][a-z0-9_.]*$", value):
             raise ValueError(
                 f"Invalid setting key format: {value}. "
                 f"Must start with lowercase letter and contain only "
@@ -80,11 +82,7 @@ class SettingAuditLog(Base):
     old_value = Column(JSONB)  # Masked if sensitive
     new_value = Column(JSONB, nullable=False)  # Masked if sensitive
     changed_by_id = Column(BigInteger, ForeignKey("users.id"))
-    changed_at = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=text("NOW()")
-    )
+    changed_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
     ip_address = Column(String(45))
     user_agent = Column(Text)
     change_reason = Column(Text)
@@ -94,4 +92,6 @@ class SettingAuditLog(Base):
     changed_by = relationship("User", foreign_keys=[changed_by_id])
 
     def __repr__(self) -> str:
-        return f"<SettingAuditLog(setting_key='{self.setting_key}', changed_at='{self.changed_at}')>"
+        return (
+            f"<SettingAuditLog(setting_key='{self.setting_key}', changed_at='{self.changed_at}')>"
+        )
