@@ -23,12 +23,8 @@ cat /usr/share/nginx/html/env-config.js
 
 # Make sure index.html loads this script
 # Add script tag to index.html if not already present
-if ! grep -qi "env-config\.js" /usr/share/nginx/html/index.html; then
-    # Use more robust sed pattern:
-    # - 0,/pattern/ limits replacement to first match only
-    # - [[:space:]]* matches any whitespace before closing tag
-    # - Case-insensitive match for </head> or </HEAD>
-    sed -i '0,/<\/[Hh][Ee][Aa][Dd]>/s|[[:space:]]*<\/\([Hh][Ee][Aa][Dd]\)>|  <script src="/env-config.js"></script>\n  </\1>|' /usr/share/nginx/html/index.html
+if ! grep -q "env-config.js" /usr/share/nginx/html/index.html; then
+    sed -i 's|</head>|  <script src="/env-config.js"></script>\n  </head>|' /usr/share/nginx/html/index.html
     echo "Added env-config.js script tag to index.html"
 fi
 

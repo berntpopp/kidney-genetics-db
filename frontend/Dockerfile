@@ -25,8 +25,8 @@ COPY nginx.prod.conf /etc/nginx/conf.d/default.conf
 # SECURITY: Configure nginx for non-root operation
 RUN rm -f /etc/nginx/conf.d/default.conf.template && \
     # Move PID file to /tmp (writable by nginx user)
-    # Pattern: ^pid[[:space:]]\+ matches "pid" at line start + one or more whitespace chars
-    sed -i 's|^pid[[:space:]]\+/var/run/nginx\.pid;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf && \
+    # Note: nginx.conf has multiple spaces, so use [[:space:]]* to match any whitespace
+    sed -i 's|pid[[:space:]][[:space:]]*\/var\/run\/nginx\.pid;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf && \
     # Remove user directive (conflicts with USER instruction)
     sed -i '/^user/d' /etc/nginx/nginx.conf && \
     # Set ownership of all required directories
