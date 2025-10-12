@@ -10,10 +10,16 @@ This project uses Docker for production deployment with a sophisticated multi-st
 
 ## Quick Links
 
-- **[Production Deployment Guide](production-deployment.md)** - Step-by-step deployment to VPS with NPM
-- **[Docker Architecture](architecture.md)** - System design and network topology
-- **[Dockerfile Reference](dockerfile-reference.md)** - Deep dive into multi-stage builds
-- **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
+### Getting Started
+- 🚀 **[VPS Setup Guide](vps-setup-guide.md)** - Complete VPS setup from scratch (NEW!)
+- 📋 **[Quick Reference](quick-reference.md)** - Commands, files, and directories (NEW!)
+- 📖 **[Production Deployment Guide](production-deployment.md)** - Step-by-step deployment to VPS with NPM
+
+### Technical Details
+- 🏗️ **[Docker Architecture](architecture.md)** - System design and network topology
+- 🔧 **[Dockerfile Reference](dockerfile-reference.md)** - Deep dive into multi-stage builds
+- 🔒 **[Security Implementation](../implementation-notes/completed/docker-security-implementation-summary.md)** - OWASP security hardening (NEW!)
+- 🐛 **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
 
 ## Key Features
 
@@ -32,11 +38,16 @@ This project uses Docker for production deployment with a sophisticated multi-st
 - Shared network topology for multi-app VPS
 - No exposed ports (NPM connects via container names)
 
-### 4. Security Features
-- Non-root users (UID 1000 for backend, nginx user for frontend)
-- Minimal attack surface with multi-stage builds
-- Security headers in nginx configuration
-- No unnecessary capabilities
+### 4. Security Features (OWASP-Compliant)
+- ✅ Non-root containers (UID 1000 backend, UID 101 frontend)
+- ✅ Linux capability dropping (principle of least privilege)
+- ✅ SHA256 image pinning (supply chain protection)
+- ✅ Resource limits (CPU, memory, PID limits)
+- ✅ Security headers (OWASP header suite)
+- ✅ Automated vulnerability scanning (Trivy CI/CD)
+- ✅ Minimal attack surface with multi-stage builds
+
+**Security implemented:** 2025-10-12. See [Security Implementation Summary](../implementation-notes/completed/docker-security-implementation-summary.md) for details.
 
 ### 5. WebSocket Support
 - Proper Connection header handling via nginx map
@@ -87,8 +98,10 @@ make prod-test-down    # Stop services
 
 **Access:**
 - Frontend: http://localhost:8080
-- Backend API: http://localhost:8001/api/health
-- Database: localhost:5433
+- Frontend Health: http://localhost:8080/health
+- Backend API: http://localhost:8001
+- Backend Health: http://localhost:8001/health
+- Database: Internal only (no external port)
 
 ### Network Management
 ```bash
@@ -111,16 +124,21 @@ make npm-network-check     # Verify network exists
 
 ### Network Topology
 ```
-Internet → NPM (SSL termination) → npm_proxy_network
-                                       ↓
-                   ┌──────────────────┼──────────────────┐
-                   ↓                  ↓                  ↓
-            Frontend:80         Backend:8000      (Other Apps)
-                   ↓
-          kidney_genetics_internal_net
-                   ↓
-             PostgreSQL:5432 (isolated)
+Internet → NPM (SSL termination, ports 80/443) → npm_proxy_network
+                                                      ↓
+                          ┌──────────────────────────┼──────────────────────────┐
+                          ↓                          ↓                          ↓
+                   Frontend:8080               Backend:8000              (Other Apps)
+                   (non-root nginx)            (non-root FastAPI)
+                          ↓
+                 kidney_genetics_internal_net
+                          ↓
+                   PostgreSQL:5432 (isolated, internal only)
 ```
+
+**Port Changes (Security Hardening 2025-10-12):**
+- Frontend: Changed from port 80 → 8080 (non-privileged port)
+- NPM configuration must use port 8080 for frontend proxy
 
 ### Container Names (with underscores)
 - `kidney_genetics_postgres` - PostgreSQL 14 database
@@ -190,9 +208,14 @@ make prod-health
 # Test mode health
 make prod-test-health
 
-# Manual checks
+# Manual checks (test mode only)
 docker ps --filter "name=kidney_genetics"
-curl http://localhost:8001/api/health  # Test mode only
+curl http://localhost:8001/health       # Backend health
+curl http://localhost:8080/health       # Frontend health
+
+# Production checks (via NPM/HTTPS)
+curl https://db.kidney-genetics.org/health            # Frontend
+curl https://db.kidney-genetics.org/api/v1/health     # Backend via proxy
 ```
 
 ### Logs

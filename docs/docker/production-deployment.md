@@ -1,6 +1,21 @@
 # Production Deployment Guide
 
+**Last Updated:** 2025-10-12
+**Security Hardening:** ✅ Implemented (OWASP compliant)
+
 Step-by-step guide for deploying Kidney Genetics Database to a VPS with Nginx Proxy Manager.
+
+## 🔒 Security Features
+
+This deployment includes comprehensive security hardening:
+- ✅ Non-root containers (UID 1000 backend, UID 101 frontend)
+- ✅ Linux capability dropping (principle of least privilege)
+- ✅ SHA256 image pinning (supply chain protection)
+- ✅ Resource limits (CPU, memory, PID limits)
+- ✅ Security headers (OWASP-compliant)
+- ✅ Automated vulnerability scanning (Trivy CI/CD)
+
+For details, see [Security Implementation Summary](../implementation-notes/completed/docker-security-implementation-summary.md)
 
 ## Prerequisites
 
@@ -190,12 +205,12 @@ Wait 30 seconds for services to start, then check health:
 docker ps --filter "name=kidney_genetics"
 
 # Test backend API
-curl http://localhost:8001/api/health
-# Expected: {"status":"ok"}
+curl http://localhost:8001/health
+# Expected: {"status":"healthy","service":"kidney-genetics-api","version":"0.1.0","database":"healthy"}
 
 # Test frontend
-curl -I http://localhost:8080
-# Expected: HTTP/1.1 200 OK
+curl http://localhost:8080/health
+# Expected: {"status":"healthy","service":"kidney_genetics_frontend"}
 ```
 
 If tests pass, stop test mode:
@@ -247,7 +262,7 @@ Access NPM admin panel (usually at `http://your-vps-ip:81`):
    - Domain Names: `db.kidney-genetics.org`
    - Scheme: `http`
    - Forward Hostname/IP: `kidney_genetics_frontend`
-   - Forward Port: `80`
+   - Forward Port: `8080` ⚠️ **IMPORTANT: Changed from 80 to 8080 (security hardening)**
    - Cache Assets: ✅ Enabled
    - Block Common Exploits: ✅ Enabled
    - Websockets Support: ✅ Enabled (IMPORTANT!)
@@ -299,8 +314,12 @@ Test HTTPS access:
 curl -I https://db.kidney-genetics.org
 # Expected: HTTP/2 200
 
-curl https://db.kidney-genetics.org/api/health
-# Expected: {"status":"ok"}
+curl https://db.kidney-genetics.org/health
+# Expected: {"status":"healthy","service":"kidney_genetics_frontend"}
+
+# Test backend API through frontend proxy
+curl https://db.kidney-genetics.org/api/v1/health
+# Expected: {"status":"healthy","service":"kidney-genetics-api","version":"0.1.0","database":"healthy"}
 ```
 
 Test WebSocket connection (if applicable):

@@ -1,0 +1,145 @@
+name: Trivy Security Scan
+
+on:
+  push:
+    branches:
+      - main
+      - dev/**
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  trivy-scan:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: backend
+            dockerfile: ./backend/Dockerfile
+            context: ./backend
+          - name: frontend
+            dockerfile: ./frontend/Dockerfile
+            context: ./frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image for ${{ matrix.target.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.target.context }}
+          file: ${{ matrix.target.dockerfile }}
+          push: false
+          load: true
+          tags: kidney-genetics-${{ matrix.target.name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy vulnerability scanner (Table Output)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: kidney-genetics-${{ matrix.target.name }}:${{ github.sha }}
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Trivy vulnerability scanner (SARIF Output)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: kidney-genetics-${{ matrix.target.name }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results-${{ matrix.target.name }}.sarif'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results-${{ matrix.target.name }}.sarif'
+          category: trivy-${{ matrix.target.name }}
+
+  trivy-config-scan:
+    name: Trivy Config Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy misconfiguration scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+          skip-dirs: 'node_modules,venv,.venv,dist,build'
+
+      - name: Run Trivy secret scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '0'
+          scanners: 'secret'
+          severity: 'CRITICAL,HIGH'
+          skip-dirs: 'node_modules,venv,.venv,dist,build'
+
+  trivy-postgres-scan:
+    name: Trivy PostgreSQL Base Image Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy on PostgreSQL base image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'postgres:14-alpine@sha256:82578ecb615adb8358e5962e62eb3a74bea08f41428ff067d71e382640996e18'
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Trivy on PostgreSQL base image (SARIF)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'postgres:14-alpine@sha256:82578ecb615adb8358e5962e62eb3a74bea08f41428ff067d71e382640996e18'
+          format: 'sarif'
+          output: 'trivy-results-postgres.sarif'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy PostgreSQL scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results-postgres.sarif'
+          category: trivy-postgres
