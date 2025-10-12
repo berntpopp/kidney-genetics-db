@@ -84,6 +84,8 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
+      # Note: Uses /health (not /api/health) - this is the actual endpoint defined in backend/app/main.py
+      # The /api/ prefix is only added by nginx proxy for external requests
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
