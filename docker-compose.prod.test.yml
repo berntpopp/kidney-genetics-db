@@ -37,6 +37,7 @@ services:
       - CHOWN
       - SETGID
       - SETUID
+      - DAC_OVERRIDE  # Needed for existing volume permissions
 
     # SECURITY: Resource limits
     deploy:
