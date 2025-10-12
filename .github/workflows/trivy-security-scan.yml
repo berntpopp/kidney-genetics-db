@@ -14,6 +14,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read       # Required for private repos
   contents: read
   security-events: write
 
@@ -74,7 +75,9 @@ jobs:
 
       - name: Upload Trivy scan results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        # Skip upload for pull requests from forks (lack permissions)
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        continue-on-error: true
         with:
           sarif_file: 'trivy-results-${{ matrix.target.name }}.sarif'
           category: trivy-${{ matrix.target.name }}
@@ -139,7 +142,9 @@ jobs:
 
       - name: Upload Trivy PostgreSQL scan results
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        # Skip upload for pull requests from forks (lack permissions)
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        continue-on-error: true
         with:
           sarif_file: 'trivy-results-postgres.sarif'
           category: trivy-postgres
