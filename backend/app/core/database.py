@@ -119,13 +119,19 @@ def get_db_context() -> Generator[Session, None, None]:
         if db:
             try:
                 db.rollback()
-            except Exception:
+            except Exception as rollback_err:
                 # If rollback fails, invalidate the session
                 try:
                     db.invalidate()
                 except Exception:
                     pass
-        logger.sync_error("Database error in context", error=e)
+                logger.sync_warning("Rollback failed, session invalidated", rollback_error=str(rollback_err))
+        logger.sync_error(
+            "Database error in context",
+            error=str(e),
+            error_type=type(e).__name__,
+            has_active_transaction=db.in_transaction() if db else None,
+        )
         raise
     finally:
         if db:
