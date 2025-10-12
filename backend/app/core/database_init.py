@@ -98,11 +98,14 @@ async def create_database_views(db: Session) -> None:
     try:
         from app.db.views import ALL_VIEWS
 
-        # Check which views already exist
+        # Check which views already exist (both regular views and materialized views)
         result = db.execute(
             text("""
             SELECT table_name FROM information_schema.views
             WHERE table_schema = 'public'
+            UNION
+            SELECT matviewname FROM pg_matviews
+            WHERE schemaname = 'public'
         """)
         )
         existing_views = {row[0] for row in result.fetchall()}
@@ -112,61 +115,92 @@ async def create_database_views(db: Session) -> None:
         for view_def in ALL_VIEWS:
             if view_def.name not in existing_views:
                 try:
-                    db.execute(text(f"CREATE VIEW {view_def.name} AS {view_def.sqltext}"))
+                    # Use CREATE OR REPLACE for safer operation
+                    db.execute(text(f"CREATE OR REPLACE VIEW {view_def.name} AS {view_def.sqltext}"))
+                    db.commit()  # Commit each view independently
                     created_count += 1
                     await logger.info(f"Created view: {view_def.name}")
                 except Exception as e:
-                    # Log but don't fail - view might have different definition
-                    await logger.warning(f"Could not create view {view_def.name}: {str(e)}")
+                    # CRITICAL: Rollback failed transaction to prevent subsequent errors
+                    db.rollback()
+                    await logger.warning(
+                        f"Could not create view {view_def.name}: {str(e)}",
+                        view_name=view_def.name,
+                        error_type=type(e).__name__,
+                    )
 
         if created_count > 0:
-            db.commit()
             await logger.info(f"Created {created_count} missing views")
         else:
             await logger.info("All required views already exist")
 
         # Check for and create gene_annotations_summary materialized view separately
         # This is a materialized view, not a regular view
-        result = db.execute(
-            text("""
-            SELECT EXISTS (
-                SELECT 1 FROM pg_matviews
-                WHERE matviewname = 'gene_annotations_summary'
-            )
-        """)
-        )
-        has_summary = result.scalar()
-
-        if not has_summary:
-            db.execute(
+        try:
+            result = db.execute(
                 text("""
-                CREATE MATERIALIZED VIEW IF NOT EXISTS gene_annotations_summary AS
-                SELECT
-                    g.id as gene_id,
-                    g.approved_symbol,
-                    g.hgnc_id,
-                    ga_hgnc.annotations->>'ncbi_gene_id' as ncbi_gene_id,
-                    ga_hgnc.annotations->>'ensembl_gene_id' as ensembl_gene_id,
-                    ga_hgnc.annotations->>'mane_select' as mane_select_transcript,
-                    (ga_gnomad.annotations->>'pLI')::float as pli,
-                    (ga_gnomad.annotations->>'oe_lof')::float as oe_lof,
-                    (ga_gnomad.annotations->>'oe_lof_upper')::float as oe_lof_upper,
-                    (ga_gnomad.annotations->>'oe_lof_lower')::float as oe_lof_lower,
-                    (ga_gnomad.annotations->>'lof_z')::float as lof_z,
-                    (ga_gnomad.annotations->>'mis_z')::float as mis_z,
-                    (ga_gnomad.annotations->>'syn_z')::float as syn_z,
-                    (ga_gnomad.annotations->>'oe_mis')::float as oe_mis,
-                    (ga_gnomad.annotations->>'oe_syn')::float as oe_syn
-                FROM genes g
-                LEFT JOIN gene_annotations ga_hgnc ON g.id = ga_hgnc.gene_id AND ga_hgnc.source = 'hgnc'
-                LEFT JOIN gene_annotations ga_gnomad ON g.id = ga_gnomad.gene_id AND ga_gnomad.source = 'gnomad'
+                SELECT EXISTS (
+                    SELECT 1 FROM pg_matviews
+                    WHERE matviewname = 'gene_annotations_summary'
+                )
             """)
             )
-            db.commit()
-            await logger.info("Created gene_annotations_summary materialized view")
+            has_summary = result.scalar()
+        except Exception as e:
+            # If the query fails, rollback and set has_summary to True to skip creation
+            db.rollback()
+            await logger.warning(
+                "Could not check for gene_annotations_summary materialized view",
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            has_summary = True  # Assume it exists to prevent further errors
+
+        if not has_summary:
+            try:
+                db.execute(
+                    text("""
+                    CREATE MATERIALIZED VIEW IF NOT EXISTS gene_annotations_summary AS
+                    SELECT
+                        g.id as gene_id,
+                        g.approved_symbol,
+                        g.hgnc_id,
+                        ga_hgnc.annotations->>'ncbi_gene_id' as ncbi_gene_id,
+                        ga_hgnc.annotations->>'ensembl_gene_id' as ensembl_gene_id,
+                        ga_hgnc.annotations->>'mane_select' as mane_select_transcript,
+                        (ga_gnomad.annotations->>'pLI')::float as pli,
+                        (ga_gnomad.annotations->>'oe_lof')::float as oe_lof,
+                        (ga_gnomad.annotations->>'oe_lof_upper')::float as oe_lof_upper,
+                        (ga_gnomad.annotations->>'oe_lof_lower')::float as oe_lof_lower,
+                        (ga_gnomad.annotations->>'lof_z')::float as lof_z,
+                        (ga_gnomad.annotations->>'mis_z')::float as mis_z,
+                        (ga_gnomad.annotations->>'syn_z')::float as syn_z,
+                        (ga_gnomad.annotations->>'oe_mis')::float as oe_mis,
+                        (ga_gnomad.annotations->>'oe_syn')::float as oe_syn
+                    FROM genes g
+                    LEFT JOIN gene_annotations ga_hgnc ON g.id = ga_hgnc.gene_id AND ga_hgnc.source = 'hgnc'
+                    LEFT JOIN gene_annotations ga_gnomad ON g.id = ga_gnomad.gene_id AND ga_gnomad.source = 'gnomad'
+                """)
+                )
+                db.commit()
+                await logger.info("Created gene_annotations_summary materialized view")
+            except Exception as e:
+                # Rollback on failure
+                db.rollback()
+                await logger.warning(
+                    "Could not create gene_annotations_summary materialized view",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
 
     except Exception as e:
-        await logger.error(f"Error creating database views: {str(e)}")
+        # Rollback any pending transaction
+        db.rollback()
+        await logger.error(
+            "Error creating database views",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         # Don't raise - allow startup to continue
 
 
@@ -203,7 +237,9 @@ async def create_default_admin(db: Session) -> bool:
             db.commit()
 
             await logger.info(
-                f"Created default admin user (username: {settings.ADMIN_USERNAME}, password: from config)"
+                "Created default admin user",
+                username=settings.ADMIN_USERNAME,
+                email=settings.ADMIN_EMAIL,
             )
             return True
         else:
@@ -218,8 +254,13 @@ async def create_default_admin(db: Session) -> bool:
             return False
 
     except Exception as e:
-        await logger.error(f"Error creating admin user: {str(e)}")
         db.rollback()
+        await logger.error(
+            "Error creating admin user",
+            error=str(e),
+            error_type=type(e).__name__,
+            username=settings.ADMIN_USERNAME if hasattr(settings, "ADMIN_USERNAME") else "unknown",
+        )
         return False
 
 
@@ -241,13 +282,17 @@ async def clear_cache(db: Session) -> int:
             # Clear all cache
             db.query(CacheEntry).delete()
             db.commit()
-            await logger.info(f"Cleared {count} cache entries")
+            await logger.info("Cleared cache entries", count=count)
             return count
         return 0
 
     except Exception as e:
-        await logger.error(f"Error clearing cache: {str(e)}")
         db.rollback()
+        await logger.error(
+            "Error clearing cache",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         return 0
 
 
@@ -270,7 +315,12 @@ async def check_aggregation_needed(db: Session) -> bool:
         return genes_count > 0 and curations_count == 0
 
     except Exception as e:
-        await logger.error(f"Error checking aggregation status: {str(e)}")
+        db.rollback()
+        await logger.error(
+            "Error checking aggregation status",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         return False
 
 
@@ -326,7 +376,14 @@ async def verify_database_ready(db: Session) -> dict:
             status["reason"] = ", ".join(reasons)
 
     except Exception as e:
+        db.rollback()
         status["ready"] = False
         status["error"] = str(e)
+        status["error_type"] = type(e).__name__
+        await logger.error(
+            "Error verifying database readiness",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
 
     return status
