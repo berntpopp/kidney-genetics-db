@@ -13,6 +13,12 @@ from app.models.progress import DataSourceProgress, SourceStatus
 from app.models.schema_version import SchemaVersion
 from app.models.static_sources import StaticEvidenceUpload, StaticSource, StaticSourceAudit
 from app.models.system_logs import SystemLog
+from app.models.system_setting import (
+    SystemSetting,
+    SettingAuditLog,
+    SettingType,
+    SettingCategory
+)
 from app.models.user import User
 
 __all__ = [
@@ -38,6 +44,10 @@ __all__ = [
     "StaticSourceAudit",
     "StaticEvidenceUpload",
     "SystemLog",
+    "SystemSetting",
+    "SettingAuditLog",
+    "SettingType",
+    "SettingCategory",
     "TimestampMixin",
     "User",
 ]
