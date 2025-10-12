@@ -4,8 +4,7 @@ networks:
     name: kidney_genetics_internal
 
 volumes:
-  kidney_genetics_postgres_data:
-    name: kidney_genetics_postgres_data
+  postgres_data:
 
 services:
   postgres:
@@ -14,7 +13,7 @@ services:
     networks:
       - kidney_genetics_internal
     volumes:
-      - kidney_genetics_postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-kidney_genetics}
       POSTGRES_USER: ${POSTGRES_USER:-kidney_user}
