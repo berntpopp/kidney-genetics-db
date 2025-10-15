@@ -72,7 +72,7 @@
               </v-card-item>
               <v-card-text class="pt-0">
                 <p class="text-body-2 mb-3">
-                  Evidence scores reflect confidence in gene-disease associations based on 9
+                  Evidence scores reflect confidence in gene-disease associations based on multiple
                   authoritative sources. Higher scores indicate stronger evidence from multiple
                   independent sources.
                 </p>
