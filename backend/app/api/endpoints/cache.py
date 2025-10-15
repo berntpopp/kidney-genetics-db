@@ -22,7 +22,7 @@ from app.core.config import settings
 from app.core.database import get_pool_status
 from app.core.datasource_config import get_source_cache_ttl
 from app.core.dependencies import require_admin
-from app.core.exceptions import CacheError, ValidationError
+from app.core.exceptions import CacheError
 from app.core.logging import get_logger
 from app.core.monitoring import get_monitoring_service
 from app.models.user import User
@@ -158,13 +158,28 @@ async def get_namespace_stats(
 ) -> NamespaceStatsResponse:
     """
     Get detailed statistics for a specific cache namespace.
+
+    Returns zero statistics if namespace has no cache entries yet.
     """
     try:
         cache_service = get_cache_service(db)
         stats = await cache_service._get_namespace_stats(namespace)
 
+        # Return zeros for empty namespaces instead of error
+        # This is a valid state - namespace exists but has no entries
         if not stats:
-            raise ValidationError(field="namespace", reason=f"Namespace '{namespace}' not found")
+            return NamespaceStatsResponse(
+                namespace=namespace,
+                total_entries=0,
+                active_entries=0,
+                expired_entries=0,
+                total_accesses=0,
+                avg_accesses=0.0,
+                total_size_bytes=0,
+                last_access_time=None,
+                oldest_entry=None,
+                newest_entry=None,
+            )
 
         return NamespaceStatsResponse(
             namespace=namespace,

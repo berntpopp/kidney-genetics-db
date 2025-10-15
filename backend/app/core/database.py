@@ -41,7 +41,7 @@ def get_thread_pool_executor() -> ThreadPoolExecutor:
     if _thread_pool_executor is None:
         with _thread_pool_lock:
             if _thread_pool_executor is None:
-                logger.info("Creating singleton thread pool executor")
+                logger.sync_info("Creating singleton thread pool executor")
                 _thread_pool_executor = ThreadPoolExecutor(
                     max_workers=4,
                     thread_name_prefix="db-executor-",
