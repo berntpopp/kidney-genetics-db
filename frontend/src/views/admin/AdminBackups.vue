@@ -1,10 +1,12 @@
 <template>
-  <v-container fluid class="pa-4">
+  <v-container>
     <!-- Header -->
     <AdminHeader
       title="Database Backups"
       subtitle="Create, manage, and restore database backups"
-      back-route="/admin"
+      icon="mdi-database-export"
+      icon-color="blue-grey"
+      :breadcrumbs="ADMIN_BREADCRUMBS.backups"
     >
       <template #actions>
         <v-btn
@@ -249,6 +251,7 @@ import BackupFilters from '@/components/admin/backups/BackupFilters.vue'
 
 import { useBackupApi } from '@/composables/useBackupApi'
 import { useBackupFormatters } from '@/composables/useBackupFormatters'
+import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 
 // Composables
 const {

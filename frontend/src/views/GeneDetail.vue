@@ -189,6 +189,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { geneApi } from '../api/genes'
 import { useAuthStore } from '../stores/auth'
+import { getGeneDetailBreadcrumbs } from '@/utils/publicBreadcrumbs'
 import ScoreBreakdown from '../components/ScoreBreakdown.vue'
 import EvidenceCard from '../components/evidence/EvidenceCard.vue'
 import GeneInformationCard from '../components/gene/GeneInformationCard.vue'
@@ -208,12 +209,10 @@ const showFilterPanel = ref(false)
 const selectedEvidenceSources = ref([])
 const evidenceSortOrder = ref('score_desc')
 
-// Computed
-const breadcrumbs = computed(() => [
-  { title: 'Home', to: '/' },
-  { title: 'Gene Browser', to: '/genes' },
-  { title: gene.value?.approved_symbol || 'Loading...', disabled: true }
-])
+// Computed - Using utility function for consistency
+const breadcrumbs = computed(() =>
+  getGeneDetailBreadcrumbs(gene.value?.approved_symbol || 'Loading...')
+)
 
 const availableEvidenceSources = computed(() => {
   const sources = [...new Set(evidence.value.map(e => e.source))]

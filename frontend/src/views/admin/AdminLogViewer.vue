@@ -1,6 +1,23 @@
 <template>
-  <v-container fluid class="pa-4">
-    <AdminHeader title="System Logs" subtitle="View and analyze system logs" back-route="/admin" />
+  <v-container>
+    <AdminHeader
+      title="System Logs"
+      subtitle="View and analyze system logs"
+      icon="mdi-file-document-outline"
+      icon-color="orange"
+      :breadcrumbs="ADMIN_BREADCRUMBS.logs"
+    >
+      <template #actions>
+        <v-btn
+          color="warning"
+          variant="elevated"
+          prepend-icon="mdi-broom"
+          @click="showCleanupDialog = true"
+        >
+          Clean Up Old Logs
+        </v-btn>
+      </template>
+    </AdminHeader>
 
     <!-- Stats Overview -->
     <v-row class="mb-6">
@@ -582,18 +599,6 @@
       </v-card>
     </v-dialog>
 
-    <!-- Actions FAB -->
-    <v-btn
-      color="warning"
-      icon="mdi-broom"
-      position="fixed"
-      location="bottom right"
-      size="large"
-      class="mb-4 mr-4"
-      elevation="4"
-      @click="showCleanupDialog = true"
-    />
-
     <!-- Snackbar -->
     <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="3000" location="top">
       {{ snackbarText }}
@@ -612,6 +617,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as logsApi from '@/api/admin/logs'
+import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 
 // const authStore = useAuthStore()
 

@@ -1,9 +1,11 @@
 <template>
-  <v-container fluid class="pa-4">
+  <v-container>
     <AdminHeader
       title="Gene Staging"
       subtitle="Review genes that couldn't be automatically normalized to HGNC symbols"
-      back-route="/admin"
+      icon="mdi-dna"
+      icon-color="red"
+      :breadcrumbs="ADMIN_BREADCRUMBS.staging"
     >
       <template #actions>
         <v-btn
@@ -546,6 +548,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as stagingApi from '@/api/admin/staging'
+import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 
 // Reactive data
 const loading = ref(false)

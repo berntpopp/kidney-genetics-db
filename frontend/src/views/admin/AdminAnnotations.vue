@@ -1,9 +1,11 @@
 <template>
-  <v-container fluid class="pa-4">
+  <v-container>
     <AdminHeader
       title="Annotations Management"
       subtitle="Control gene annotation pipeline and manage enrichment data sources"
-      back-route="/admin"
+      icon="mdi-tag-multiple"
+      icon-color="teal"
+      :breadcrumbs="ADMIN_BREADCRUMBS.annotations"
     >
       <template #actions>
         <v-btn
@@ -586,6 +588,7 @@ import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import DataSourceProgress from '@/components/DataSourceProgress.vue'
 import * as annotationsApi from '@/api/admin/annotations'
+import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 
 // Reactive data
 const loading = ref(false)

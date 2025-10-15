@@ -1,9 +1,11 @@
 <template>
-  <v-container fluid class="pa-4">
+  <v-container>
     <AdminHeader
       title="Hybrid Source Management"
       subtitle="Upload and manage DiagnosticPanels and Literature evidence"
-      back-route="/admin"
+      icon="mdi-database-import"
+      icon-color="cyan"
+      :breadcrumbs="ADMIN_BREADCRUMBS.hybridSources"
     />
 
     <!-- Source Statistics Cards -->
@@ -418,6 +420,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as ingestionApi from '@/api/admin/ingestion'
+import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 
 // State
 const selectedSource = ref('DiagnosticPanels')

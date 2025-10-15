@@ -1,10 +1,21 @@
 <template>
   <v-container>
-    <!-- Page Header -->
-    <div class="d-flex align-center justify-space-between mb-6">
-      <div>
-        <h1 class="text-h4 font-weight-medium mb-1">User Profile</h1>
-        <p class="text-body-1 text-medium-emphasis">Manage your account settings</p>
+    <!-- Page Header with Breadcrumbs -->
+    <div class="mb-6">
+      <!-- Breadcrumbs -->
+      <v-breadcrumbs :items="breadcrumbs" density="compact" class="pa-0 mb-2">
+        <template #divider>
+          <v-icon size="small">mdi-chevron-right</v-icon>
+        </template>
+      </v-breadcrumbs>
+
+      <!-- Header -->
+      <div class="d-flex align-center">
+        <v-icon color="primary" size="large" class="mr-3">mdi-account-circle</v-icon>
+        <div class="flex-grow-1">
+          <h1 class="text-h4 font-weight-bold">User Profile</h1>
+          <p class="text-body-2 text-medium-emphasis ma-0">Manage your account settings</p>
+        </div>
       </div>
     </div>
 
@@ -265,6 +276,19 @@ import { useRouter } from 'vue-router'
 
 const authStore = useAuthStore()
 const router = useRouter()
+
+// Breadcrumbs
+const breadcrumbs = [
+  {
+    title: 'Home',
+    to: '/',
+    disabled: false
+  },
+  {
+    title: 'Profile',
+    disabled: true
+  }
+]
 
 // Check authentication
 onMounted(() => {

@@ -3,6 +3,13 @@
     <!-- Page Header -->
     <v-row>
       <v-col cols="12">
+        <!-- Breadcrumbs -->
+        <v-breadcrumbs :items="breadcrumbs" density="compact" class="pa-0 mb-2">
+          <template #divider>
+            <v-icon size="small">mdi-chevron-right</v-icon>
+          </template>
+        </v-breadcrumbs>
+
         <div class="d-flex align-center mb-6">
           <v-icon color="primary" size="large" class="mr-3">mdi-graph</v-icon>
           <div>
@@ -435,7 +442,11 @@ import NetworkGraph from '../components/network/NetworkGraph.vue'
 import EnrichmentTable from '../components/network/EnrichmentTable.vue'
 import { networkAnalysisConfig } from '../config/networkAnalysis'
 import { TIER_CONFIG } from '../utils/evidenceTiers'
+import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
 import useNetworkUrlState from '../composables/useNetworkUrlState'
+
+// Breadcrumbs
+const breadcrumbs = PUBLIC_BREADCRUMBS.networkAnalysis
 
 // Gene Selection (config-driven defaults)
 const selectedTiers = ref(['comprehensive_support', 'multi_source_support', 'established_support'])

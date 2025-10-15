@@ -3,6 +3,13 @@
     <!-- Page Header (matches DataSources.vue pattern) -->
     <v-row>
       <v-col cols="12">
+        <!-- Breadcrumbs -->
+        <v-breadcrumbs :items="breadcrumbs" density="compact" class="pa-0 mb-2">
+          <template #divider>
+            <v-icon size="small">mdi-chevron-right</v-icon>
+          </template>
+        </v-breadcrumbs>
+
         <div class="d-flex align-center mb-6">
           <v-icon color="primary" size="large" class="mr-3">mdi-information</v-icon>
           <div>
@@ -431,6 +438,11 @@
 </template>
 
 <script setup>
+import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
+
+// Breadcrumbs
+const breadcrumbs = PUBLIC_BREADCRUMBS.about
+
 // No reactive data needed - all content is static
 </script>
 

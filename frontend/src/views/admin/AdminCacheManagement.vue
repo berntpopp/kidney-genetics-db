@@ -1,9 +1,11 @@
 <template>
-  <v-container fluid class="pa-4">
+  <v-container>
     <AdminHeader
       title="Cache Management"
       subtitle="Monitor and control cache performance"
-      back-route="/admin"
+      icon="mdi-memory"
+      icon-color="purple"
+      :breadcrumbs="ADMIN_BREADCRUMBS.cache"
     />
 
     <!-- Cache Stats Overview -->
@@ -293,6 +295,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as cacheApi from '@/api/admin/cache'
+import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 
 // const authStore = useAuthStore()
 

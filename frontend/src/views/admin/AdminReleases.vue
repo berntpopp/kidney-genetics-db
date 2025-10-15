@@ -1,9 +1,11 @@
 <template>
-  <v-container fluid class="pa-4">
+  <v-container>
     <AdminHeader
       title="Data Releases"
       subtitle="Create and manage CalVer data releases"
-      back-route="/admin"
+      icon="mdi-package-variant"
+      icon-color="indigo"
+      :breadcrumbs="ADMIN_BREADCRUMBS.releases"
     />
 
     <!-- Stats Overview -->
@@ -380,6 +382,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
+import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 
 const authStore = useAuthStore()
 

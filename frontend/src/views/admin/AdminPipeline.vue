@@ -1,9 +1,11 @@
 <template>
-  <v-container fluid class="pa-4">
+  <v-container>
     <AdminHeader
       title="Data Pipeline Control"
       subtitle="Monitor and control data ingestion pipelines"
-      back-route="/admin"
+      icon="mdi-pipe"
+      icon-color="green"
+      :breadcrumbs="ADMIN_BREADCRUMBS.pipeline"
     >
       <template #actions>
         <v-chip :color="wsConnected ? 'success' : 'error'" size="small" label>
@@ -355,6 +357,7 @@ import { useWebSocket } from '@/services/websocket'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as pipelineApi from '@/api/admin/pipeline'
+import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 
 // const authStore = useAuthStore()
 const { connected: wsConnected, connect, disconnect, subscribe } = useWebSocket()

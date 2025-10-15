@@ -1,10 +1,12 @@
 <template>
-  <v-container fluid class="pa-4">
+  <v-container>
     <!-- Header -->
     <AdminHeader
       title="System Settings"
       subtitle="Manage application configuration"
-      back-route="/admin"
+      icon="mdi-cog"
+      icon-color="deep-purple"
+      :breadcrumbs="ADMIN_BREADCRUMBS.settings"
     />
 
     <!-- Stats Overview -->
@@ -154,6 +156,7 @@ import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import SettingEditDialog from '@/components/admin/settings/SettingEditDialog.vue'
 import SettingHistoryDialog from '@/components/admin/settings/SettingHistoryDialog.vue'
 import { useSettingsApi } from '@/composables/useSettingsApi'
+import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 
 // Composables
 const {

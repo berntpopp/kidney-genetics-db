@@ -3,6 +3,14 @@
     <!-- Page Header -->
     <v-row>
       <v-col cols="12">
+        <!-- Breadcrumbs -->
+        <v-breadcrumbs :items="breadcrumbs" density="compact" class="pa-0 mb-2">
+          <template #divider>
+            <v-icon size="small">mdi-chevron-right</v-icon>
+          </template>
+        </v-breadcrumbs>
+
+        <!-- Header -->
         <div class="d-flex align-center mb-6">
           <v-icon color="primary" size="large" class="mr-3">mdi-database-sync</v-icon>
           <div>
@@ -195,6 +203,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { datasourceApi } from '@/api/datasources'
+import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
+
+// Breadcrumbs
+const breadcrumbs = PUBLIC_BREADCRUMBS.dataSources
 
 const loading = ref(true)
 const hoveredCard = ref(null)

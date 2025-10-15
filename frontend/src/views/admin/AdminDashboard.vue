@@ -1,7 +1,13 @@
 <template>
-  <v-container fluid class="pa-4">
+  <v-container>
     <!-- Admin Header -->
-    <AdminHeader title="Admin Dashboard" subtitle="System administration and management" />
+    <AdminHeader
+      title="Admin Dashboard"
+      subtitle="System administration and management"
+      icon="mdi-view-dashboard-variant"
+      icon-color="primary"
+      :breadcrumbs="ADMIN_BREADCRUMBS.dashboard"
+    />
 
     <!-- Stats Overview -->
     <v-row class="mb-6">
@@ -148,6 +154,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
+import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 
 const router = useRouter()
 const authStore = useAuthStore()

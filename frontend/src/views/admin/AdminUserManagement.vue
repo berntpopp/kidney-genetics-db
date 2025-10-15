@@ -1,9 +1,11 @@
 <template>
-  <v-container fluid class="pa-4">
+  <v-container>
     <AdminHeader
       title="User Management"
       subtitle="Manage user accounts, roles, and permissions"
-      back-route="/admin"
+      icon="mdi-account-group"
+      icon-color="primary"
+      :breadcrumbs="ADMIN_BREADCRUMBS.users"
     />
 
     <!-- Actions Bar -->
@@ -222,6 +224,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
+import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 
 const authStore = useAuthStore()
 
