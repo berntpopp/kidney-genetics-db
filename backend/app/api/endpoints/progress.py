@@ -80,15 +80,49 @@ class ConnectionManager:
         disconnected = []
         for connection in self.active_connections:
             try:
-                await connection.send_json(message)
+                # Check if connection is still open before sending
+                if connection.client_state.value == 1:  # 1 = CONNECTED state
+                    await connection.send_json(message)
+                else:
+                    # Connection already closed, mark for cleanup
+                    disconnected.append(connection)
+            except WebSocketDisconnect:
+                # Client disconnected gracefully
+                await logger.warning(
+                    "Client disconnected during broadcast",
+                    total_connections=len(self.active_connections) - 1
+                )
+                disconnected.append(connection)
+            except RuntimeError as e:
+                # WebSocket already closed or in invalid state
+                if "websocket.send" in str(e).lower() or "websocket.close" in str(e).lower():
+                    await logger.warning(
+                        "Attempted to send to closed websocket",
+                        message_type=message.get("type")
+                    )
+                else:
+                    await logger.error("Unexpected runtime error in websocket broadcast", error=e)
+                disconnected.append(connection)
             except Exception as e:
-                await logger.error("Failed to send to websocket", error=e)
+                # Unexpected error
+                await logger.error(
+                    "Unexpected error sending to websocket",
+                    error=e,
+                    error_type=type(e).__name__
+                )
                 disconnected.append(connection)
 
         # Clean up disconnected connections
         for conn in disconnected:
             if conn in self.active_connections:
                 self.active_connections.remove(conn)
+
+        if disconnected:
+            await logger.info(
+                "Cleaned up disconnected websockets",
+                cleaned=len(disconnected),
+                remaining=len(self.active_connections)
+            )
 
 
 manager = ConnectionManager()

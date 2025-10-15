@@ -666,12 +666,34 @@ class CacheService:
             return True
 
         except Exception as e:
+            from sqlalchemy.exc import DisconnectionError, OperationalError
             from sqlalchemy.ext.asyncio import AsyncSession
 
-            if isinstance(self.db_session, AsyncSession):
-                await self.db_session.rollback()
+            # Handle critical connection errors that require session invalidation
+            is_connection_error = isinstance(e, DisconnectionError | OperationalError)
+            if is_connection_error and "server closed the connection" in str(e).lower():
+                # Critical: Don't return this session to the pool
+                try:
+                    if isinstance(self.db_session, AsyncSession):
+                        await self.db_session.invalidate()
+                    else:
+                        self.db_session.invalidate()
+                    logger.sync_warning(
+                        "Database connection lost during cache write, session invalidated",
+                        cache_key=cache_key,
+                        namespace=entry.namespace
+                    )
+                except Exception:
+                    pass  # Session already in bad state
             else:
-                self.db_session.rollback()
+                # Normal error - safe to rollback
+                try:
+                    if isinstance(self.db_session, AsyncSession):
+                        await self.db_session.rollback()
+                    else:
+                        self.db_session.rollback()
+                except Exception:
+                    pass  # Rollback may fail if connection is dead
 
             # Safely calculate data size for logging
             try:
@@ -688,6 +710,7 @@ class CacheService:
                 value_type=type(entry.value).__name__,
                 data_size=calc_data_size,
                 session_type=type(self.db_session).__name__,
+                connection_error=is_connection_error
             )
             return False
 
