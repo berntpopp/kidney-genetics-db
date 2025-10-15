@@ -272,6 +272,20 @@ const adminSections = [
     ]
   },
   {
+    id: 'settings',
+    title: 'System Settings',
+    description: 'Manage application configuration',
+    icon: 'mdi-cog',
+    color: 'deep-purple',
+    route: '/admin/settings',
+    features: [
+      'Configure cache settings',
+      'Manage security options',
+      'Update pipeline parameters',
+      'View change history'
+    ]
+  },
+  {
     id: 'hybrid-sources',
     title: 'Hybrid Sources',
     description: 'Upload DiagnosticPanels and Literature data',

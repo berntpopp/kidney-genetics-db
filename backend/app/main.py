@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.api.endpoints import (
     admin_backups,
     admin_logs,
+    admin_settings,
     auth,
     cache,
     datasources,
@@ -54,6 +55,7 @@ async def lifespan(app: FastAPI):
 
     # Initialize database (admin user, views, etc.) - MUST run in async context
     from app.core.database_init import initialize_database
+
     db = next(get_db())
     try:
         init_status = await initialize_database(db)
@@ -158,9 +160,7 @@ app.include_router(
 app.include_router(
     datasources.router, prefix="/api/datasources", tags=["Core Resources - Data Sources"]
 )
-app.include_router(
-    releases.router, prefix="/api/releases", tags=["Core Resources - Data Releases"]
-)
+app.include_router(releases.router, prefix="/api/releases", tags=["Core Resources - Data Releases"])
 
 # 3. Data Pipeline - Ingestion and processing operations
 app.include_router(gene_staging.router, prefix="/api/staging", tags=["Pipeline - Staging"])
@@ -172,13 +172,16 @@ app.include_router(statistics.router, prefix="/api/statistics", tags=["Analytics
 app.include_router(
     network_analysis.router,
     prefix="/api/network",
-    tags=["Analytics - Network Analysis & Enrichment"]
+    tags=["Analytics - Network Analysis & Enrichment"],
 )
 
 # 5. Administration - System management and monitoring
 app.include_router(admin_logs.router, prefix="/api/admin/logs", tags=["Administration - Logging"])
 app.include_router(
     admin_backups.router, prefix="/api/admin/backups", tags=["Administration - Backups"]
+)
+app.include_router(
+    admin_settings.router, prefix="/api/admin/settings", tags=["Administration - Settings"]
 )
 app.include_router(
     cache.router, prefix="/api/admin/cache", tags=["Administration - Cache Management"]

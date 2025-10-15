@@ -113,6 +113,12 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
+    path: '/admin/settings',
+    name: 'admin-settings',
+    component: () => import('../views/admin/AdminSettings.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
     path: '/admin/hybrid-sources',
     name: 'admin-hybrid-sources',
     component: () => import('../views/admin/AdminHybridSources.vue'),
