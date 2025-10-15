@@ -5,17 +5,17 @@ Revises: cc1fbec614ed
 Create Date: 2025-10-10 13:18:47.707077
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = 'df7756c38ecd'
-down_revision: Union[str, Sequence[str], None] = 'cc1fbec614ed'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = 'cc1fbec614ed'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

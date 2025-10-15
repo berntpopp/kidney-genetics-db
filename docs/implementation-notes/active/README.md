@@ -7,6 +7,7 @@ This directory contains implementation plans that are ready to execute.
 **No active implementation plans at this time.**
 
 Recently completed:
+- ✅ About Page & README Content Update (moved to `../completed/`)
 - ✅ Annotation Source Management Refactor (moved to `../completed/`)
 
 ## How to Use This Directory
