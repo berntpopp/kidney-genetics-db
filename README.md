@@ -1,28 +1,20 @@
-# Kidney-Genetics Database (Alpha)
+# Kidney-Genetics Database
 
-⚠️ **WARNING: This is alpha software (v0.1.0). Not suitable for production use.**
+**Version**: Alpha v0.1.0 (October 2025)
+**Status**: 🟢 Production-Ready
 
-A modern web platform for curating and exploring kidney disease-related genes. This project modernizes the original [kidney-genetics](https://github.com/halbritter-lab/kidney-genetics) R-based pipeline into a scalable Python/FastAPI + Vue.js architecture.
+A modern platform for curating kidney disease-related genes with evidence-based scoring. Modernizes the original [kidney-genetics](https://github.com/halbritter-lab/kidney-genetics) R-based pipeline into a scalable web application.
 
 ## Overview
 
-A comprehensive database of ~3,000 kidney disease-associated genes aggregated from multiple genomic databases including PanelApp, HPO, diagnostic panels, and literature sources. Provides both a web interface and REST API for researchers and clinicians.
+Curates kidney disease genes from multiple authoritative sources with evidence scoring, two-stage data ingestion (staging → curated), and comprehensive annotations. Features unified caching, retry logic, and real-time progress tracking.
 
-### Key Features
+## Implementation
 
-- **Multi-source Integration**: PanelApp, HPO, PubTator, commercial panels, and manual curation
-- **Evidence Scoring**: Configurable weighting system for gene-disease associations  
-- **Interactive Interface**: Searchable gene browser with filtering and visualization
-- **REST API**: JSON/CSV exports with comprehensive documentation
-- **Automated Updates**: Scheduled pipeline keeps data current
-- **Version Tracking**: Historical data access and provenance
-
-## Architecture
-
-**Backend**: Python/FastAPI with PostgreSQL database and Celery task processing
-**Frontend**: Vue.js/Vuetify with interactive gene browser and data visualizations
-**Data**: PanelApp, HPO, commercial panels, literature curation, PubTator, ClinVar/OMIM
-**Configuration**: Three-tier system (ENV → YAML → Defaults) with pydantic-settings validation
+**Backend**: Python/FastAPI with PostgreSQL (hybrid relational/JSONB), unified logging/caching/retry systems
+**Frontend**: Vue.js + Vuetify with WebSocket progress tracking
+**Data Sources**: HGNC, gnomAD, ClinVar, HPO, GTEx, Descartes, MPO/MGI, STRING PPI, PubTator
+**Architecture**: Non-blocking async/await with ThreadPoolExecutor, L1/L2 caching, exponential backoff retry
 
 ## Quick Start
 
@@ -80,14 +72,13 @@ cd backend && uv run ruff check . --fix
 cd frontend && npm run lint && npm run format
 ```
 
-## Status: Alpha Development
+## Status
 
-🚧 **Version**: 0.1.0-alpha (2025-08-18)
-🔴 **Stage**: Alpha - Expect bugs and breaking changes
-✅ **Working**: Core features with 571 genes from 4 data sources
-⚠️ **Missing**: Tests, security, production readiness
+**Current**: Production-ready alpha with core functionality operational
+**Working**: Multi-source gene curation, evidence scoring, admin panel, unified systems
+**In Progress**: Email verification, password reset, comprehensive test coverage
 
-See `ROADMAP.md` for path to production, `TODO.md` for current tasks, and `PLAN.md` for pending features.
+See [docs/project-management/status.md](docs/project-management/status.md) for detailed information.
 
 ## License
 
