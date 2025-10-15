@@ -8,12 +8,13 @@ Tests the core functionality of system settings management including:
 - Statistics generation
 """
 
-import pytest
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
+import pytest
+
+from app.models.system_setting import SettingCategory, SettingType, SystemSetting
 from app.services.settings_service import SettingsService
-from app.models.system_setting import SystemSetting, SettingType, SettingCategory
 
 
 class TestSettingsService:
@@ -53,10 +54,14 @@ class TestSettingsService:
 
     async def test_get_all_settings(self, service, mock_db, sample_setting):
         """Test retrieving all settings"""
-        # Mock database query result
-        mock_result = MagicMock()
-        mock_result.scalars().all.return_value = [sample_setting]
-        mock_db.execute.return_value = mock_result
+        # Mock database query for SQLAlchemy 2.0 Core API (not ORM)
+        # Service uses: self.db.query(SystemSetting).order_by(...).limit(...).offset(...).all()
+        mock_query = MagicMock()
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.offset.return_value = mock_query
+        mock_query.all.return_value = [sample_setting]
+        mock_db.query.return_value = mock_query
 
         # Call service method
         settings = await service.get_all_settings(limit=100, offset=0)
@@ -67,18 +72,23 @@ class TestSettingsService:
         assert settings[0]["value"] == 3600
         assert settings[0]["is_sensitive"] is False
 
-    async def test_get_setting_by_id(self, service, mock_db, sample_setting):
-        """Test retrieving a single setting by ID"""
-        # Mock database query
-        mock_db.get.return_value = sample_setting
+    async def test_get_single_setting(self, service, mock_db, sample_setting):
+        """Test retrieving a single setting using get_all_settings with filter"""
+        # Note: Service doesn't have get_setting() method, use get_all_settings instead
+        mock_query = MagicMock()
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.offset.return_value = mock_query
+        mock_query.all.return_value = [sample_setting]
+        mock_db.query.return_value = mock_query
 
-        # Call service method
-        setting = await service.get_setting(setting_id=1)
+        # Call service method to get all settings
+        settings = await service.get_all_settings(limit=1, offset=0)
 
-        # Verify results
-        assert setting["key"] == "cache.default_ttl"
-        assert setting["value"] == 3600
-        mock_db.get.assert_called_once()
+        # Verify we can retrieve a specific setting
+        assert len(settings) == 1
+        assert settings[0]["key"] == "cache.default_ttl"
+        assert settings[0]["value"] == 3600
 
     async def test_update_setting_success(self, service, mock_db, sample_setting):
         """Test successfully updating a setting"""
@@ -104,8 +114,8 @@ class TestSettingsService:
         # Mock database operations
         mock_db.get.return_value = sample_setting
 
-        # Attempt to update with wrong type
-        with pytest.raises(ValueError, match="must be a number"):
+        # Attempt to update with wrong type (match actual error message from service)
+        with pytest.raises(ValueError, match="Cannot convert .* to number"):
             await service.update_setting(
                 setting_id=1,
                 new_value="invalid_string",  # Should be number
@@ -143,32 +153,52 @@ class TestSettingsService:
         sensitive_setting.value_type = SettingType.STRING
         sensitive_setting.category = SettingCategory.SECURITY
         sensitive_setting.is_sensitive = True
+        sensitive_setting.description = "JWT secret"
+        sensitive_setting.default_value = "changeme"
+        sensitive_setting.requires_restart = True
+        sensitive_setting.is_readonly = False
+        sensitive_setting.updated_at = datetime.now(timezone.utc)
+        sensitive_setting.updated_by_id = None
 
-        mock_db.get.return_value = sensitive_setting
+        # Mock database query
+        mock_query = MagicMock()
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.offset.return_value = mock_query
+        mock_query.all.return_value = [sensitive_setting]
+        mock_db.query.return_value = mock_query
 
-        # Get setting
-        result = await service.get_setting(setting_id=1)
+        # Get all settings (which includes masking)
+        results = await service.get_all_settings(limit=100, offset=0)
 
         # Verify value is masked
-        assert result["value"] == "***MASKED***"
+        assert len(results) == 1
+        assert results[0]["value"] == "***MASKED***"
 
     async def test_get_stats(self, service, mock_db):
         """Test retrieving settings statistics"""
-        # Mock database query results
-        mock_result_total = MagicMock()
-        mock_result_total.scalar.return_value = 13
+        # Mock database query results for ORM .query().scalar() pattern
+        # Service uses: self.db.query(func.count(...)).scalar()
 
-        mock_result_restart = MagicMock()
-        mock_result_restart.scalar.return_value = 5
+        # Mock for total count query
+        mock_query_total = MagicMock()
+        mock_query_total.scalar.return_value = 13
 
-        mock_result_recent = MagicMock()
-        mock_result_recent.scalar.return_value = 2
+        # Mock for requires_restart count
+        mock_query_restart = MagicMock()
+        mock_query_restart.filter.return_value = mock_query_restart
+        mock_query_restart.scalar.return_value = 5
 
-        # Set up mock to return different results for different queries
-        mock_db.execute.side_effect = [
-            mock_result_total,
-            mock_result_restart,
-            mock_result_recent
+        # Mock for recent changes count
+        mock_query_recent = MagicMock()
+        mock_query_recent.filter.return_value = mock_query_recent
+        mock_query_recent.scalar.return_value = 2
+
+        # Set up mock to return different query objects for different queries
+        mock_db.query.side_effect = [
+            mock_query_total,
+            mock_query_restart,
+            mock_query_recent
         ]
 
         # Call service method
@@ -201,9 +231,14 @@ class TestSettingsService:
 
     async def test_category_filtering(self, service, mock_db, sample_setting):
         """Test filtering settings by category"""
-        mock_result = MagicMock()
-        mock_result.scalars().all.return_value = [sample_setting]
-        mock_db.execute.return_value = mock_result
+        # Mock database query with filter chaining
+        mock_query = MagicMock()
+        mock_query.filter.return_value = mock_query  # Allow chaining
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.offset.return_value = mock_query
+        mock_query.all.return_value = [sample_setting]
+        mock_db.query.return_value = mock_query
 
         # Get settings filtered by category
         settings = await service.get_all_settings(
@@ -215,6 +250,8 @@ class TestSettingsService:
         # Verify filtering was applied
         assert len(settings) == 1
         assert settings[0]["category"] == "cache"
+        # Verify filter was called
+        mock_query.filter.assert_called_once()
 
 
 @pytest.mark.asyncio
