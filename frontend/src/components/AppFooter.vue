@@ -117,13 +117,6 @@
             title="GitHub"
           />
           <v-btn
-            icon="mdi-file-document"
-            size="small"
-            variant="text"
-            to="/about"
-            title="Documentation"
-          />
-          <v-btn
             size="small"
             variant="text"
             :title="`Open Log Viewer (Ctrl+Shift+L) - ${logStore.errorCount} errors`"
