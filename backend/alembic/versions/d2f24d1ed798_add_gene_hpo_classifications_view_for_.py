@@ -18,7 +18,6 @@ from collections.abc import Sequence
 from alembic import op
 from app.db.views import gene_hpo_classifications
 
-
 # revision identifiers, used by Alembic.
 revision: str = 'd2f24d1ed798'
 down_revision: str | Sequence[str] | None = '77c32f88d831'
