@@ -49,6 +49,10 @@ export function useSettingsApi() {
       if (params.limit) queryParams.append('limit', params.limit)
       if (params.offset) queryParams.append('offset', params.offset)
 
+      // CRITICAL: Trailing slash is required to prevent FastAPI 307 redirect
+      // Without trailing slash: /api/admin/settings?query → redirects to /api/admin/settings/?query
+      // The redirect causes browsers to drop the Authorization header (security feature)
+      // This creates inconsistency with other endpoints but is necessary until backend routing is standardized
       return await apiRequest(`/api/admin/settings/?${queryParams}`)
     } finally {
       loading.value = false

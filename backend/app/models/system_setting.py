@@ -40,7 +40,9 @@ class SystemSetting(Base, TimestampMixin):
     id = Column(BigInteger, primary_key=True, index=True)
     key = Column(String(100), unique=True, nullable=False, index=True)
     value = Column(JSONB, nullable=False)
-    # Use values_callable to ensure SQLAlchemy uses enum VALUES not NAMES
+    # CRITICAL: values_callable ensures PostgreSQL enum uses VALUES ("string") not NAMES (STRING)
+    # Without this, SQLAlchemy creates enum as ('STRING', 'NUMBER', ...) instead of ('string', 'number', ...)
+    # This caused LookupError during queries before fix - see issue #4 testing phase
     value_type = Column(
         ENUM(SettingType, values_callable=lambda x: [e.value for e in x], name="setting_type"),
         nullable=False,

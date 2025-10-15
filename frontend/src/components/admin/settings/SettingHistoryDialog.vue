@@ -89,7 +89,7 @@ watch(
         const data = await getSettingHistory(props.setting.id, 50)
         history.value = data.history || []
       } catch (error) {
-        console.error('Failed to load history:', error)
+        window.logService.error('Failed to load history:', error)
       } finally {
         loading.value = false
       }

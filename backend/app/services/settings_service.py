@@ -255,6 +255,7 @@ class SettingsService:
             # ✅ FIX: Corrected type conversion logic
             try:
                 # If already correct numeric type, return as-is
+                # Note: Using Python 3.10+ union syntax (project requires >=3.10)
                 if isinstance(value, int | float):
                     return value
 
