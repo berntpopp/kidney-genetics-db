@@ -17,12 +17,14 @@ from app.models.gene_annotation import AnnotationSource, GeneAnnotation
 from app.models.user import User
 from app.pipeline.sources.annotations.clinvar import ClinVarAnnotationSource
 from app.pipeline.sources.annotations.descartes import DescartesAnnotationSource
+from app.pipeline.sources.annotations.ensembl import EnsemblAnnotationSource
 from app.pipeline.sources.annotations.gnomad import GnomADAnnotationSource
 from app.pipeline.sources.annotations.gtex import GTExAnnotationSource
 from app.pipeline.sources.annotations.hgnc import HGNCAnnotationSource
 from app.pipeline.sources.annotations.hpo import HPOAnnotationSource
 from app.pipeline.sources.annotations.mpo_mgi import MPOMGIAnnotationSource
 from app.pipeline.sources.annotations.string_ppi import StringPPIAnnotationSource
+from app.pipeline.sources.annotations.uniprot import UniProtAnnotationSource
 from app.pipeline.tasks.percentile_updater import (
     update_percentiles_for_source,
     validate_percentiles,
@@ -184,7 +186,8 @@ async def update_gene_annotations(
     gene_id: int,
     background_tasks: BackgroundTasks,
     sources: list[str] = Query(
-        ["hgnc", "gnomad", "gtex", "hpo", "clinvar", "string_ppi"], description="Sources to update"
+        ["hgnc", "gnomad", "gtex", "hpo", "clinvar", "string_ppi", "ensembl", "uniprot"],
+        description="Sources to update",
     ),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -232,6 +235,10 @@ async def update_gene_annotations(
             background_tasks.add_task(_update_mpo_mgi_annotation, gene, db)
         elif source_name == "string_ppi":
             background_tasks.add_task(_update_string_ppi_annotation, gene, db)
+        elif source_name == "ensembl":
+            background_tasks.add_task(_update_ensembl_annotation, gene, db)
+        elif source_name == "uniprot":
+            background_tasks.add_task(_update_uniprot_annotation, gene, db)
 
     return {
         "status": "update_scheduled",
@@ -441,6 +448,58 @@ async def _update_string_ppi_annotation(gene: Gene, db: Session):
     except Exception as e:
         await logger.error(
             f"Error updating STRING PPI annotation: {str(e)}", gene_symbol=gene.approved_symbol
+        )
+
+
+async def _update_ensembl_annotation(gene: Gene, db: Session):
+    """Background task to update Ensembl annotation."""
+    from app.core.cache_service import get_cache_service
+
+    try:
+        source = EnsemblAnnotationSource(db)
+        success = await source.update_gene(gene)
+
+        if success:
+            # Invalidate cache for this gene
+            cache_service = get_cache_service(db)
+            await cache_service.delete(f"{gene.id}:*", namespace="annotations")
+
+            await logger.info(
+                "Ensembl annotation updated for gene", gene_symbol=gene.approved_symbol
+            )
+        else:
+            await logger.warning(
+                "Failed to update Ensembl annotation", gene_symbol=gene.approved_symbol
+            )
+    except Exception as e:
+        await logger.error(
+            f"Error updating Ensembl annotation: {str(e)}", gene_symbol=gene.approved_symbol
+        )
+
+
+async def _update_uniprot_annotation(gene: Gene, db: Session):
+    """Background task to update UniProt annotation."""
+    from app.core.cache_service import get_cache_service
+
+    try:
+        source = UniProtAnnotationSource(db)
+        success = await source.update_gene(gene)
+
+        if success:
+            # Invalidate cache for this gene
+            cache_service = get_cache_service(db)
+            await cache_service.delete(f"{gene.id}:*", namespace="annotations")
+
+            await logger.info(
+                "UniProt annotation updated for gene", gene_symbol=gene.approved_symbol
+            )
+        else:
+            await logger.warning(
+                "Failed to update UniProt annotation", gene_symbol=gene.approved_symbol
+            )
+    except Exception as e:
+        await logger.error(
+            f"Error updating UniProt annotation: {str(e)}", gene_symbol=gene.approved_symbol
         )
 
 
