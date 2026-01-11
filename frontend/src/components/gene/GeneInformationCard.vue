@@ -15,6 +15,17 @@
           </template>
         </span>
       </v-card-title>
+      <template #append>
+        <v-btn
+          variant="tonal"
+          size="small"
+          color="primary"
+          prepend-icon="mdi-dna"
+          :to="`/genes/${gene.approved_symbol}/structure`"
+        >
+          Structure
+        </v-btn>
+      </template>
     </v-card-item>
 
     <v-card-text class="pb-2 pt-2">

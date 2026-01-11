@@ -661,7 +661,18 @@ const strategyOptions = [
 ]
 
 const sourceFilterOptions = computed(() => {
-  const sources = ['hgnc', 'gnomad', 'gtex', 'hpo', 'clinvar', 'string_ppi', 'descartes', 'mpo_mgi']
+  const sources = [
+    'hgnc',
+    'gnomad',
+    'gtex',
+    'hpo',
+    'clinvar',
+    'string_ppi',
+    'descartes',
+    'mpo_mgi',
+    'ensembl',
+    'uniprot'
+  ]
   return sources.map(source => ({ title: source.toUpperCase(), value: source }))
 })
 
