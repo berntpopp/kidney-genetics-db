@@ -23,6 +23,21 @@ const routes = [
     props: true
   },
   {
+    path: '/genes/:symbol/structure',
+    name: 'gene-structure',
+    component: () => import('../views/GeneStructure.vue'),
+    props: true,
+    beforeEnter: async (to, from, next) => {
+      // Validate gene symbol format
+      const symbol = to.params.symbol
+      if (!/^[A-Z0-9][A-Z0-9-]*$/i.test(symbol)) {
+        next({ name: 'genes' })
+        return
+      }
+      next()
+    }
+  },
+  {
     path: '/dashboard',
     name: 'dashboard',
     component: () => import('../views/Dashboard.vue')
