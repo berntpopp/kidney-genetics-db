@@ -2,6 +2,7 @@
 Hybrid Source CRUD Manager
 Handles source-specific operations for DiagnosticPanels and Literature
 """
+
 import asyncio
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
@@ -34,9 +35,7 @@ class HybridSourceManager(ABC):
         pass
 
     @abstractmethod
-    async def delete_by_identifier(
-        self, identifier: str, user: str
-    ) -> dict[str, Any]:
+    async def delete_by_identifier(self, identifier: str, user: str) -> dict[str, Any]:
         """Delete all evidence for given identifier (provider or PMID)"""
         pass
 
@@ -44,15 +43,12 @@ class HybridSourceManager(ABC):
         self, action: str, details: dict, user: str, upload_id: int | None = None
     ) -> None:
         """Create audit trail entry"""
-        source = self.db.query(StaticSource).filter(
-            StaticSource.source_name == self.source_name
-        ).first()
+        source = (
+            self.db.query(StaticSource).filter(StaticSource.source_name == self.source_name).first()
+        )
 
         if not source:
-            await logger.warning(
-                "StaticSource not found for audit",
-                source_name=self.source_name
-            )
+            await logger.warning("StaticSource not found for audit", source_name=self.source_name)
             return
 
         audit = StaticSourceAudit(
@@ -61,7 +57,7 @@ class HybridSourceManager(ABC):
             action=action,
             details=details,
             performed_by=user,
-            performed_at=datetime.utcnow()
+            performed_at=datetime.utcnow(),
         )
         self.db.add(audit)
 
@@ -73,33 +69,24 @@ class HybridSourceManager(ABC):
             await cache_service.delete(f"{gene_id}:*", namespace="annotations")
             await cache_service.delete(f"{gene_id}:*", namespace="evidence")
 
-        await logger.info(
-            "Invalidated caches for affected genes",
-            gene_count=len(gene_ids)
-        )
+        await logger.info("Invalidated caches for affected genes", gene_count=len(gene_ids))
 
     async def _recalculate_evidence_scores(self, gene_ids: list[int]) -> None:
         """Recalculate evidence scores using thread pool"""
         loop = asyncio.get_event_loop()
 
         # Run in thread pool to avoid blocking event loop
-        await loop.run_in_executor(
-            self._executor,
-            self._recalculate_sync,
-            gene_ids
-        )
+        await loop.run_in_executor(self._executor, self._recalculate_sync, gene_ids)
 
     def _recalculate_sync(self, gene_ids: list[int]) -> None:
         """Synchronous recalculation in thread pool"""
         # For now, trigger full recalculation
         # TODO: Optimize to only recalculate affected genes
         from app.pipeline.aggregate import update_all_curations
+
         update_all_curations(self.db)
 
-        logger.sync_info(
-            "Evidence recalculation complete",
-            affected_genes=len(gene_ids)
-        )
+        logger.sync_info("Evidence recalculation complete", affected_genes=len(gene_ids))
 
 
 class DiagnosticPanelsManager(HybridSourceManager):
@@ -109,23 +96,17 @@ class DiagnosticPanelsManager(HybridSourceManager):
     def source_name(self) -> str:
         return "DiagnosticPanels"
 
-    async def delete_by_identifier(
-        self, provider_name: str, user: str
-    ) -> dict[str, Any]:
+    async def delete_by_identifier(self, provider_name: str, user: str) -> dict[str, Any]:
         """Delete all evidence from a specific provider"""
 
-        await logger.info(
-            "Starting provider deletion",
-            provider=provider_name,
-            user=user
-        )
+        await logger.info("Starting provider deletion", provider=provider_name, user=user)
 
         # Get all affected genes WITH row-level locking
         stmt = (
             select(GeneEvidence)
             .where(
                 GeneEvidence.source_name == self.source_name,
-                GeneEvidence.evidence_data['providers'].astext.contains(provider_name)
+                GeneEvidence.evidence_data["providers"].astext.contains(provider_name),
             )
             .with_for_update()  # CRITICAL: Prevent race conditions
             .options(selectinload(GeneEvidence.gene))
@@ -153,7 +134,7 @@ class DiagnosticPanelsManager(HybridSourceManager):
                 await logger.debug(
                     "Removed evidence record",
                     gene_id=evidence.gene_id,
-                    symbol=evidence.gene.approved_symbol if evidence.gene else "unknown"
+                    symbol=evidence.gene.approved_symbol if evidence.gene else "unknown",
                 )
             else:
                 # Update without this provider
@@ -166,7 +147,7 @@ class DiagnosticPanelsManager(HybridSourceManager):
                 await logger.debug(
                     "Updated evidence record",
                     gene_id=evidence.gene_id,
-                    remaining_providers=len(providers)
+                    remaining_providers=len(providers),
                 )
 
         # Create audit log
@@ -176,9 +157,9 @@ class DiagnosticPanelsManager(HybridSourceManager):
                 "provider": provider_name,
                 "genes_affected": len(set(affected_gene_ids)),
                 "evidence_removed": genes_with_evidence_removed,
-                "evidence_deleted": genes_fully_removed
+                "evidence_deleted": genes_fully_removed,
             },
-            user=user
+            user=user,
         )
 
         # Commit changes
@@ -195,7 +176,7 @@ class DiagnosticPanelsManager(HybridSourceManager):
             "provider": provider_name,
             "genes_affected": len(set(affected_gene_ids)),
             "evidence_updated": genes_with_evidence_removed,
-            "evidence_deleted": genes_fully_removed
+            "evidence_deleted": genes_fully_removed,
         }
 
         await logger.info("Provider deletion complete", stats=stats)
@@ -209,23 +190,17 @@ class LiteratureManager(HybridSourceManager):
     def source_name(self) -> str:
         return "Literature"
 
-    async def delete_by_identifier(
-        self, pmid: str, user: str
-    ) -> dict[str, Any]:
+    async def delete_by_identifier(self, pmid: str, user: str) -> dict[str, Any]:
         """Delete all evidence from a specific publication (PMID)"""
 
-        await logger.info(
-            "Starting publication deletion",
-            pmid=pmid,
-            user=user
-        )
+        await logger.info("Starting publication deletion", pmid=pmid, user=user)
 
         # Get all affected genes WITH row-level locking
         stmt = (
             select(GeneEvidence)
             .where(
                 GeneEvidence.source_name == self.source_name,
-                GeneEvidence.evidence_data['publications'].astext.contains(pmid)
+                GeneEvidence.evidence_data["publications"].astext.contains(pmid),
             )
             .with_for_update()  # CRITICAL: Prevent race conditions
             .options(selectinload(GeneEvidence.gene))
@@ -257,7 +232,7 @@ class LiteratureManager(HybridSourceManager):
                 await logger.debug(
                     "Removed evidence record",
                     gene_id=evidence.gene_id,
-                    symbol=evidence.gene.approved_symbol if evidence.gene else "unknown"
+                    symbol=evidence.gene.approved_symbol if evidence.gene else "unknown",
                 )
             else:
                 # Update without this publication
@@ -271,7 +246,7 @@ class LiteratureManager(HybridSourceManager):
                 await logger.debug(
                     "Updated evidence record",
                     gene_id=evidence.gene_id,
-                    remaining_publications=len(publications)
+                    remaining_publications=len(publications),
                 )
 
         # Create audit log
@@ -281,9 +256,9 @@ class LiteratureManager(HybridSourceManager):
                 "pmid": pmid,
                 "genes_affected": len(set(affected_gene_ids)),
                 "evidence_removed": genes_with_evidence_removed,
-                "evidence_deleted": genes_fully_removed
+                "evidence_deleted": genes_fully_removed,
             },
-            user=user
+            user=user,
         )
 
         # Commit changes
@@ -300,7 +275,7 @@ class LiteratureManager(HybridSourceManager):
             "pmid": pmid,
             "genes_affected": len(set(affected_gene_ids)),
             "evidence_updated": genes_with_evidence_removed,
-            "evidence_deleted": genes_fully_removed
+            "evidence_deleted": genes_fully_removed,
         }
 
         await logger.info("Publication deletion complete", stats=stats)

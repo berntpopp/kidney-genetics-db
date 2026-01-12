@@ -130,7 +130,9 @@ def get_db_context() -> Generator[Session, None, None]:
                     db.invalidate()
                 except Exception:
                     pass
-                logger.sync_warning("Rollback failed, session invalidated", rollback_error=str(rollback_err))
+                logger.sync_warning(
+                    "Rollback failed, session invalidated", rollback_error=str(rollback_err)
+                )
         logger.sync_error(
             "Database error in context",
             error=e,
@@ -231,9 +233,7 @@ def increment_close(dbapi_conn: Any, connection_record: Any) -> None:
 
 
 @event.listens_for(Pool, "checkout")
-def increment_checkout(
-    dbapi_conn: Any, connection_record: Any, connection_proxy: Any
-) -> None:
+def increment_checkout(dbapi_conn: Any, connection_record: Any, connection_proxy: Any) -> None:
     """Track connections checked out from pool"""
     connection_stats["connections_checked_out"] += 1
 

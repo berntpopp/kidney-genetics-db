@@ -136,9 +136,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             raise  # Let retry decorator handle it
 
         except Exception as e:
-            logger.sync_error(
-                f"Error searching ClinVar variants for {gene_symbol}: {e}"
-            )
+            logger.sync_error(f"Error searching ClinVar variants for {gene_symbol}: {e}")
             raise
 
     def _parse_variant(self, variant_data: dict[str, Any]) -> dict[str, Any]:
@@ -521,9 +519,9 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                     consequence_categories["other"] += 1
 
         # Get top 10 molecular consequences
-        top_consequences = sorted(
-            molecular_consequences.items(), key=lambda x: x[1], reverse=True
-        )[:10]
+        top_consequences = sorted(molecular_consequences.items(), key=lambda x: x[1], reverse=True)[
+            :10
+        ]
         top_molecular_consequences = [
             {"consequence": c[0], "count": c[1]} for c in top_consequences
         ]
@@ -544,9 +542,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
         high_confidence_percentage = 0.0
         pathogenic_percentage = 0.0
         if total_count > 0:
-            high_confidence_percentage = round(
-                (high_confidence_count / total_count) * 100, 1
-            )
+            high_confidence_percentage = round((high_confidence_count / total_count) * 100, 1)
             pathogenic_percentage = round(
                 ((pathogenic_count + likely_pathogenic_count) / total_count) * 100, 1
             )
@@ -707,9 +703,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             return annotation
 
         except Exception as e:
-            logger.sync_error(
-                f"Error fetching ClinVar annotation for {gene.approved_symbol}: {e}"
-            )
+            logger.sync_error(f"Error fetching ClinVar annotation for {gene.approved_symbol}: {e}")
             return None
 
     def _is_valid_annotation(self, annotation_data: dict) -> bool:

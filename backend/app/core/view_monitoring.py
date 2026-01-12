@@ -170,9 +170,7 @@ def track_view_performance(view_name: str) -> Callable[[Callable[..., Any]], Cal
                 status = "error"
                 error_type = type(e).__name__
                 view_query_errors.labels(view_name=view_name, error_type=error_type).inc()
-                logger.sync_error(
-                    f"View query failed: {view_name}", error=e, view_name=view_name
-                )
+                logger.sync_error(f"View query failed: {view_name}", error=e, view_name=view_name)
                 raise
             finally:
                 duration = time.time() - start_time
@@ -252,7 +250,9 @@ def track_shadow_test(endpoint: str) -> Callable[[Callable[..., Any]], Callable[
     return decorator
 
 
-def track_materialized_view_refresh(view_name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def track_materialized_view_refresh(
+    view_name: str,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator to track materialized view refresh operations.
     """

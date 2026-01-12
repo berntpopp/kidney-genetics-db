@@ -455,7 +455,8 @@ class GnomADAnnotationSource(BaseAnnotationSource):
 
             except Exception as e:
                 logger.sync_error(
-                    f"Failed to fetch gnomAD annotation for {gene.approved_symbol}", error_detail=str(e)
+                    f"Failed to fetch gnomAD annotation for {gene.approved_symbol}",
+                    error_detail=str(e),
                 )
                 failed_genes.append(gene.approved_symbol)
 

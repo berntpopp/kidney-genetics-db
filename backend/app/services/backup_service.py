@@ -45,7 +45,7 @@ class BackupService:
         include_cache: bool = False,
         compression_level: int | None = None,
         parallel_jobs: int | None = None,
-        trigger_source: BackupTrigger = BackupTrigger.MANUAL_API
+        trigger_source: BackupTrigger = BackupTrigger.MANUAL_API,
     ) -> BackupJob:
         """
         Create a PostgreSQL backup with configurable options.
@@ -81,7 +81,7 @@ class BackupService:
             trigger_source=trigger_source,
             created_by_id=user_id,
             description=description,
-            expires_at=timestamp + timedelta(days=settings.BACKUP_RETENTION_DAYS)
+            expires_at=timestamp + timedelta(days=settings.BACKUP_RETENTION_DAYS),
         )
 
         self.db.add(backup_job)
@@ -95,19 +95,12 @@ class BackupService:
             self.db.commit()
 
             await logger.info(
-                "Starting backup",
-                backup_id=backup_job.id,
-                filename=filename,
-                user_id=user_id
+                "Starting backup", backup_id=backup_job.id, filename=filename, user_id=user_id
             )
 
             # Execute pg_dump in thread pool (blocking operation)
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                self._executor,
-                self._execute_pg_dump,
-                backup_job
-            )
+            await loop.run_in_executor(self._executor, self._execute_pg_dump, backup_job)
 
             # Update job with results
             backup_job.status = BackupStatus.COMPLETED
@@ -117,18 +110,14 @@ class BackupService:
             )
             backup_job.file_size = file_path.stat().st_size
             backup_job.checksum_sha256 = await loop.run_in_executor(
-                self._executor,
-                self._calculate_checksum,
-                file_path
+                self._executor, self._calculate_checksum, file_path
             )
             # Run database queries in thread pool (non-blocking)
             backup_job.database_size_bytes = await loop.run_in_executor(
-                self._executor,
-                self._get_database_size
+                self._executor, self._get_database_size
             )
             backup_job.tables_count = await loop.run_in_executor(
-                self._executor,
-                self._get_table_count
+                self._executor, self._get_table_count
             )
 
             self.db.commit()
@@ -137,7 +126,7 @@ class BackupService:
                 "Backup completed successfully",
                 backup_id=backup_job.id,
                 file_size_mb=round(backup_job.file_size / (1024 * 1024), 2),
-                duration_seconds=backup_job.duration_seconds
+                duration_seconds=backup_job.duration_seconds,
             )
 
             return backup_job
@@ -171,7 +160,7 @@ class BackupService:
             f"--compress={backup_job.compression_level}",
             "--verbose",
             "--no-owner",  # Don't dump ownership
-            "--no-acl",    # Don't dump access privileges
+            "--no-acl",  # Don't dump access privileges
         ]
 
         # Note: --jobs (parallel backup) only works with directory format
@@ -179,20 +168,24 @@ class BackupService:
 
         # Exclude tables based on options
         if not backup_job.include_logs:
-            pg_dump_args.extend([
-                "--exclude-table=system_logs",
-            ])
+            pg_dump_args.extend(
+                [
+                    "--exclude-table=system_logs",
+                ]
+            )
         if not backup_job.include_cache:
-            pg_dump_args.extend([
-                "--exclude-table=cache_entries",
-            ])
+            pg_dump_args.extend(
+                [
+                    "--exclude-table=cache_entries",
+                ]
+            )
 
         # Use docker exec to run pg_dump inside the container (hybrid mode)
         # Find container name dynamically
         find_container = subprocess.run(
             ["docker", "ps", "--filter", "ancestor=postgres:14-alpine", "--format", "{{.Names}}"],
             capture_output=True,
-            text=True
+            text=True,
         )
 
         container_name = find_container.stdout.strip() or "kidney_genetics_postgres"
@@ -200,24 +193,29 @@ class BackupService:
         # Build full docker exec command with PGPASSWORD environment variable
         # Use -e flag to set environment inside container
         cmd = [
-            "docker", "exec", "-i",
-            "-e", f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
-            container_name
+            "docker",
+            "exec",
+            "-i",
+            "-e",
+            f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
+            container_name,
         ] + pg_dump_args
 
         # Execute command and capture output
         result = subprocess.run(
             cmd,
             capture_output=True,
-            timeout=3600  # 1 hour timeout
+            timeout=3600,  # 1 hour timeout
         )
 
         if result.returncode != 0:
-            error_msg = result.stderr.decode() if isinstance(result.stderr, bytes) else result.stderr
+            error_msg = (
+                result.stderr.decode() if isinstance(result.stderr, bytes) else result.stderr
+            )
             raise RuntimeError(f"pg_dump failed: {error_msg}")
 
         # Write the binary output to file
-        with open(backup_job.file_path, 'wb') as f:
+        with open(backup_job.file_path, "wb") as f:
             f.write(result.stdout)
 
         return result
@@ -228,7 +226,7 @@ class BackupService:
         user_id: int,
         create_safety_backup: bool = True,
         drop_existing: bool = True,
-        run_analyze: bool = True
+        run_analyze: bool = True,
     ) -> dict[str, Any]:
         """
         Restore database from backup.
@@ -259,9 +257,7 @@ class BackupService:
         # Verify checksum
         loop = asyncio.get_event_loop()
         actual_checksum = await loop.run_in_executor(
-            self._executor,
-            self._calculate_checksum,
-            backup_path
+            self._executor, self._calculate_checksum, backup_path
         )
         if actual_checksum != backup_job.checksum_sha256:
             raise ValueError("Backup file checksum mismatch - file may be corrupted")
@@ -270,7 +266,7 @@ class BackupService:
             "Starting database restore",
             backup_id=backup_id,
             user_id=user_id,
-            create_safety_backup=create_safety_backup
+            create_safety_backup=create_safety_backup,
         )
 
         safety_backup_job = None
@@ -281,17 +277,14 @@ class BackupService:
                 safety_backup_job = await self.create_backup(
                     user_id=user_id,
                     description=f"Safety backup before restoring backup {backup_id}",
-                    trigger_source=BackupTrigger.PRE_RESTORE_SAFETY
+                    trigger_source=BackupTrigger.PRE_RESTORE_SAFETY,
                 )
 
             # Execute restore in thread pool
             start_time = datetime.now(timezone.utc)
 
             await loop.run_in_executor(
-                self._executor,
-                self._execute_pg_restore,
-                backup_job,
-                drop_existing
+                self._executor, self._execute_pg_restore, backup_job, drop_existing
             )
 
             # Run ANALYZE for query optimizer (BEST PRACTICE)
@@ -309,7 +302,7 @@ class BackupService:
                 "Database restore completed",
                 backup_id=backup_id,
                 duration_seconds=duration,
-                safety_backup_id=safety_backup_job.id if safety_backup_job else None
+                safety_backup_id=safety_backup_job.id if safety_backup_job else None,
             )
 
             return {
@@ -317,7 +310,7 @@ class BackupService:
                 "backup_id": backup_id,
                 "duration_seconds": duration,
                 "safety_backup_id": safety_backup_job.id if safety_backup_job else None,
-                "analyzed": run_analyze
+                "analyzed": run_analyze,
             }
 
         except Exception as e:
@@ -330,9 +323,7 @@ class BackupService:
             raise
 
     def _execute_pg_restore(
-        self,
-        backup_job: BackupJob,
-        drop_existing: bool
+        self, backup_job: BackupJob, drop_existing: bool
     ) -> subprocess.CompletedProcess:
         """Execute pg_restore command (sync, runs in thread pool)"""
 
@@ -360,25 +351,28 @@ class BackupService:
         find_container = subprocess.run(
             ["docker", "ps", "--filter", "ancestor=postgres:14-alpine", "--format", "{{.Names}}"],
             capture_output=True,
-            text=True
+            text=True,
         )
         container_name = find_container.stdout.strip() or "kidney_genetics_postgres"
 
         # Use docker exec to run pg_restore inside the container with PGPASSWORD
         cmd = [
-            "docker", "exec", "-i",
-            "-e", f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
-            container_name
+            "docker",
+            "exec",
+            "-i",
+            "-e",
+            f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
+            container_name,
         ] + pg_restore_args
 
         # Read backup file and pipe to pg_restore via stdin
-        with open(backup_job.file_path, 'rb') as backup_file:
+        with open(backup_job.file_path, "rb") as backup_file:
             result = subprocess.run(
                 cmd,
                 stdin=backup_file,
                 capture_output=True,
                 text=True,
-                timeout=7200  # 2 hour timeout
+                timeout=7200,  # 2 hour timeout
             )
 
         if result.returncode != 0:
@@ -392,7 +386,7 @@ class BackupService:
         find_container = subprocess.run(
             ["docker", "ps", "--filter", "ancestor=postgres:14-alpine", "--format", "{{.Names}}"],
             capture_output=True,
-            text=True
+            text=True,
         )
         container_name = find_container.stdout.strip() or "kidney_genetics_postgres"
 
@@ -403,7 +397,8 @@ class BackupService:
             "--port=5432",
             f"--username={settings.POSTGRES_USER}",
             "--dbname=postgres",
-            "-c", f"DROP DATABASE IF EXISTS {settings.POSTGRES_DB};"
+            "-c",
+            f"DROP DATABASE IF EXISTS {settings.POSTGRES_DB};",
         ]
 
         psql_create_args = [
@@ -412,20 +407,27 @@ class BackupService:
             "--port=5432",
             f"--username={settings.POSTGRES_USER}",
             "--dbname=postgres",
-            "-c", f"CREATE DATABASE {settings.POSTGRES_DB};"
+            "-c",
+            f"CREATE DATABASE {settings.POSTGRES_DB};",
         ]
 
         # Execute via docker exec with PGPASSWORD
         cmd_drop = [
-            "docker", "exec", "-i",
-            "-e", f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
-            container_name
+            "docker",
+            "exec",
+            "-i",
+            "-e",
+            f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
+            container_name,
         ] + psql_drop_args
 
         cmd_create = [
-            "docker", "exec", "-i",
-            "-e", f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
-            container_name
+            "docker",
+            "exec",
+            "-i",
+            "-e",
+            f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
+            container_name,
         ] + psql_create_args
 
         subprocess.run(cmd_drop, check=True, capture_output=True)
@@ -437,7 +439,7 @@ class BackupService:
         find_container = subprocess.run(
             ["docker", "ps", "--filter", "ancestor=postgres:14-alpine", "--format", "{{.Names}}"],
             capture_output=True,
-            text=True
+            text=True,
         )
         container_name = find_container.stdout.strip() or "kidney_genetics_postgres"
 
@@ -448,21 +450,25 @@ class BackupService:
             "--port=5432",
             f"--username={settings.POSTGRES_USER}",
             f"--dbname={settings.POSTGRES_DB}",
-            "-c", "ANALYZE;"
+            "-c",
+            "ANALYZE;",
         ]
 
         # Execute via docker exec with PGPASSWORD
         cmd = [
-            "docker", "exec", "-i",
-            "-e", f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
-            container_name
+            "docker",
+            "exec",
+            "-i",
+            "-e",
+            f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
+            container_name,
         ] + psql_args
         subprocess.run(cmd, check=True, capture_output=True)
 
     def _calculate_checksum(self, file_path: Path) -> str:
         """Calculate SHA256 checksum of file"""
         sha256 = hashlib.sha256()
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             for chunk in iter(lambda: f.read(8192), b""):
                 sha256.update(chunk)
         return sha256.hexdigest()
@@ -470,27 +476,26 @@ class BackupService:
     def _get_database_size(self) -> int:
         """Get current database size in bytes"""
         result = self.db.execute(
-            text("SELECT pg_database_size(:dbname)"),
-            {"dbname": settings.POSTGRES_DB}
+            text("SELECT pg_database_size(:dbname)"), {"dbname": settings.POSTGRES_DB}
         )
         return result.scalar() or 0
 
     def _get_table_count(self) -> int:
         """Get count of tables in database"""
-        result = self.db.execute(text(
-            "SELECT COUNT(*) FROM information_schema.tables "
-            "WHERE table_schema = 'public'"
-        ))
+        result = self.db.execute(
+            text("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'")
+        )
         return result.scalar() or 0
 
     def _cleanup_old_backups_sync(self) -> int:
         """Delete backups older than retention period (sync for thread pool)"""
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=settings.BACKUP_RETENTION_DAYS)
 
-        old_backups = self.db.query(BackupJob).filter(
-            BackupJob.status == BackupStatus.COMPLETED,
-            BackupJob.expires_at < cutoff_date
-        ).all()
+        old_backups = (
+            self.db.query(BackupJob)
+            .filter(BackupJob.status == BackupStatus.COMPLETED, BackupJob.expires_at < cutoff_date)
+            .all()
+        )
 
         deleted_count = 0
         for backup in old_backups:
@@ -505,9 +510,7 @@ class BackupService:
                 deleted_count += 1
 
                 logger.sync_info(
-                    "Deleted expired backup",
-                    backup_id=backup.id,
-                    filename=backup.filename
+                    "Deleted expired backup", backup_id=backup.id, filename=backup.filename
                 )
             except Exception as e:
                 logger.sync_error(
@@ -522,15 +525,10 @@ class BackupService:
     async def cleanup_old_backups(self) -> int:
         """Delete backups older than retention period (non-blocking)"""
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            self._executor,
-            self._cleanup_old_backups_sync
-        )
+        return await loop.run_in_executor(self._executor, self._cleanup_old_backups_sync)
 
     def _list_backups_sync(
-        self,
-        limit: int = 50,
-        status: BackupStatus | None = None
+        self, limit: int = 50, status: BackupStatus | None = None
     ) -> list[BackupJob]:
         """List backups with optional filtering (sync for thread pool)"""
         query = self.db.query(BackupJob).order_by(BackupJob.created_at.desc())
@@ -541,35 +539,36 @@ class BackupService:
         return cast(list[BackupJob], query.limit(limit).all())
 
     async def list_backups(
-        self,
-        limit: int = 50,
-        status: BackupStatus | None = None
+        self, limit: int = 50, status: BackupStatus | None = None
     ) -> list[BackupJob]:
         """List backups with optional filtering (non-blocking)"""
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            self._executor,
-            self._list_backups_sync,
-            limit,
-            status
-        )
+        return await loop.run_in_executor(self._executor, self._list_backups_sync, limit, status)
 
     def _get_backup_stats_sync(self) -> dict[str, Any]:
         """Get backup statistics (sync method for thread pool)"""
         total_backups = self.db.query(BackupJob).count()
-        completed_backups = self.db.query(BackupJob).filter(
-            BackupJob.status == BackupStatus.COMPLETED
-        ).count()
+        completed_backups = (
+            self.db.query(BackupJob).filter(BackupJob.status == BackupStatus.COMPLETED).count()
+        )
 
         # Total backup storage used
-        total_size = self.db.execute(text(
-            "SELECT COALESCE(SUM(file_size), 0) FROM backup_jobs WHERE status = 'COMPLETED'"
-        )).scalar() or 0
+        total_size = (
+            self.db.execute(
+                text(
+                    "SELECT COALESCE(SUM(file_size), 0) FROM backup_jobs WHERE status = 'COMPLETED'"
+                )
+            ).scalar()
+            or 0
+        )
 
         # Latest successful backup
-        latest_backup = self.db.query(BackupJob).filter(
-            BackupJob.status == BackupStatus.COMPLETED
-        ).order_by(BackupJob.completed_at.desc()).first()
+        latest_backup = (
+            self.db.query(BackupJob)
+            .filter(BackupJob.status == BackupStatus.COMPLETED)
+            .order_by(BackupJob.completed_at.desc())
+            .first()
+        )
 
         return {
             "total_backups": total_backups,
@@ -577,16 +576,13 @@ class BackupService:
             "total_size_gb": round(total_size / (1024**3), 2),
             "latest_backup_date": latest_backup.completed_at if latest_backup else None,
             "retention_days": settings.BACKUP_RETENTION_DAYS,
-            "backup_directory": str(self.backup_dir)
+            "backup_directory": str(self.backup_dir),
         }
 
     async def get_backup_stats(self) -> dict[str, Any]:
         """Get backup statistics (non-blocking)"""
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            self._executor,
-            self._get_backup_stats_sync
-        )
+        return await loop.run_in_executor(self._executor, self._get_backup_stats_sync)
 
     def _delete_backup_sync(self, backup_id: int, filename: str) -> None:
         """Delete backup file and record (sync for thread pool)"""
@@ -603,11 +599,7 @@ class BackupService:
         self.db.delete(backup_job)
         self.db.commit()
 
-        logger.sync_info(
-            "Deleted backup",
-            backup_id=backup_id,
-            filename=filename
-        )
+        logger.sync_info("Deleted backup", backup_id=backup_id, filename=filename)
 
     async def delete_backup(self, backup_id: int) -> bool:
         """Delete a specific backup by ID (non-blocking)"""
@@ -619,11 +611,6 @@ class BackupService:
         filename = backup_job.filename
 
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            self._executor,
-            self._delete_backup_sync,
-            backup_id,
-            filename
-        )
+        await loop.run_in_executor(self._executor, self._delete_backup_sync, backup_id, filename)
 
         return True

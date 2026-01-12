@@ -52,10 +52,7 @@ class NetworkAnalysisService:
         self._cache_lock = threading.Lock()
 
     async def build_network_from_string_data(
-        self,
-        gene_ids: list[int],
-        session: Session,
-        min_string_score: int = 400
+        self, gene_ids: list[int], session: Session, min_string_score: int = 400
     ) -> ig.Graph:
         """
         Construct igraph from STRING-DB annotations stored in database.
@@ -78,19 +75,14 @@ class NetworkAnalysisService:
         with self._cache_lock:
             if cache_key in self._graph_cache:
                 await logger.debug(
-                    "Using cached network graph",
-                    cache_key=cache_key,
-                    nodes=len(gene_ids)
+                    "Using cached network graph", cache_key=cache_key, nodes=len(gene_ids)
                 )
                 return self._graph_cache[cache_key]
 
         # Build graph in thread pool (non-blocking for event loop)
         loop = asyncio.get_event_loop()
         graph = await loop.run_in_executor(
-            self._executor,
-            self._build_graph_sync,
-            gene_ids,
-            min_string_score
+            self._executor, self._build_graph_sync, gene_ids, min_string_score
         )
 
         # Cache result
@@ -101,16 +93,12 @@ class NetworkAnalysisService:
             "Built and cached network graph",
             nodes=graph.vcount(),
             edges=graph.ecount(),
-            components=len(graph.connected_components())
+            components=len(graph.connected_components()),
         )
 
         return graph
 
-    def _build_graph_sync(
-        self,
-        gene_ids: list[int],
-        min_string_score: int
-    ) -> ig.Graph:
+    def _build_graph_sync(self, gene_ids: list[int], min_string_score: int) -> ig.Graph:
         """
         Synchronous graph construction (runs in thread pool).
 
@@ -125,10 +113,7 @@ class NetworkAnalysisService:
             # Query STRING annotations from JSONB
             annotations = (
                 db.query(GeneAnnotation)
-                .filter(
-                    GeneAnnotation.gene_id.in_(gene_ids),
-                    GeneAnnotation.source == "string_ppi"
-                )
+                .filter(GeneAnnotation.gene_id.in_(gene_ids), GeneAnnotation.source == "string_ppi")
                 .all()
             )
 
@@ -160,9 +145,7 @@ class NetworkAnalysisService:
                             continue
 
                         partner_gene = (
-                            db.query(Gene)
-                            .filter_by(approved_symbol=partner_symbol)
-                            .first()
+                            db.query(Gene).filter_by(approved_symbol=partner_symbol).first()
                         )
 
                         if partner_gene and partner_gene.id in gene_id_to_idx:
@@ -182,16 +165,13 @@ class NetworkAnalysisService:
                 nodes=g.vcount(),
                 edges=g.ecount(),
                 components=len(g.connected_components()),
-                min_score=min_string_score
+                min_score=min_string_score,
             )
 
             return g
 
     async def detect_communities(
-        self,
-        graph: ig.Graph,
-        session: Session,
-        algorithm: str = "leiden"
+        self, graph: ig.Graph, session: Session, algorithm: str = "leiden"
     ) -> tuple[dict[int, int], float]:
         """
         Detect communities using igraph clustering algorithms.
@@ -208,17 +188,12 @@ class NetworkAnalysisService:
         """
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
-            self._executor,
-            self._detect_communities_sync,
-            graph,
-            algorithm
+            self._executor, self._detect_communities_sync, graph, algorithm
         )
         return result
 
     def _detect_communities_sync(
-        self,
-        graph: ig.Graph,
-        algorithm: str
+        self, graph: ig.Graph, algorithm: str
     ) -> tuple[dict[int, int], float]:
         """
         Synchronous community detection (runs in thread pool).
@@ -231,22 +206,22 @@ class NetworkAnalysisService:
             partition = graph.community_leiden(
                 weights="weight",
                 resolution_parameter=self.config.get("leiden_resolution", 1.0),
-                n_iterations=self.config.get("leiden_iterations", 2)
+                n_iterations=self.config.get("leiden_iterations", 2),
             )
         elif algorithm == "louvain":
             # Louvain algorithm (multilevel optimization)
             partition = graph.community_multilevel(
-                weights="weight",
-                resolution=self.config.get("louvain_resolution", 1.0)
+                weights="weight", resolution=self.config.get("louvain_resolution", 1.0)
             )
         elif algorithm == "walktrap":
             # Walktrap algorithm (random walk-based)
             partition = graph.community_walktrap(
-                weights="weight",
-                steps=self.config.get("walktrap_steps", 4)
+                weights="weight", steps=self.config.get("walktrap_steps", 4)
             ).as_clustering()
         else:
-            raise ValueError(f"Unknown algorithm: {algorithm}. Use 'leiden', 'louvain', or 'walktrap'")
+            raise ValueError(
+                f"Unknown algorithm: {algorithm}. Use 'leiden', 'louvain', or 'walktrap'"
+            )
 
         # Convert to {gene_id: cluster_id} mapping
         gene_to_cluster = {}
@@ -263,17 +238,13 @@ class NetworkAnalysisService:
             num_clusters=len(partition),
             algorithm=algorithm,
             modularity=round(modularity, 3),
-            nodes=graph.vcount()
+            nodes=graph.vcount(),
         )
 
         return gene_to_cluster, modularity
 
     async def get_k_hop_subgraph(
-        self,
-        graph: ig.Graph,
-        seed_gene_ids: list[int],
-        session: Session,
-        k: int = 2
+        self, graph: ig.Graph, seed_gene_ids: list[int], session: Session, k: int = 2
     ) -> ig.Graph:
         """
         Extract k-hop neighborhood subgraph around seed genes.
@@ -289,19 +260,12 @@ class NetworkAnalysisService:
         """
         loop = asyncio.get_event_loop()
         subgraph = await loop.run_in_executor(
-            self._executor,
-            self._get_k_hop_subgraph_sync,
-            graph,
-            seed_gene_ids,
-            k
+            self._executor, self._get_k_hop_subgraph_sync, graph, seed_gene_ids, k
         )
         return subgraph
 
     def _get_k_hop_subgraph_sync(
-        self,
-        graph: ig.Graph,
-        seed_gene_ids: list[int],
-        k: int
+        self, graph: ig.Graph, seed_gene_ids: list[int], k: int
     ) -> ig.Graph:
         """
         Synchronous k-hop subgraph extraction.
@@ -324,14 +288,12 @@ class NetworkAnalysisService:
                 neighborhood = graph.neighborhood(
                     vertices=seed_vertex.index,
                     order=k,
-                    mode="all"  # Undirected
+                    mode="all",  # Undirected
                 )
                 vertices_to_include.update(neighborhood)
 
             except (ValueError, IndexError) as e:
-                logger.sync_debug(
-                    f"Error finding seed gene {seed_gene_id}: {e}"
-                )
+                logger.sync_debug(f"Error finding seed gene {seed_gene_id}: {e}")
                 continue
 
         # Extract subgraph
@@ -345,16 +307,13 @@ class NetworkAnalysisService:
             f"Extracted {k}-hop subgraph",
             seed_genes=len(seed_gene_ids),
             total_nodes=subgraph.vcount(),
-            total_edges=subgraph.ecount()
+            total_edges=subgraph.ecount(),
         )
 
         return subgraph
 
     async def calculate_centrality_metrics(
-        self,
-        graph: ig.Graph,
-        session: Session,
-        metrics: list[str] | None = None
+        self, graph: ig.Graph, session: Session, metrics: list[str] | None = None
     ) -> dict[int, dict[str, float]]:
         """
         Calculate centrality metrics for all nodes.
@@ -373,17 +332,12 @@ class NetworkAnalysisService:
 
         loop = asyncio.get_event_loop()
         centrality_data = await loop.run_in_executor(
-            self._executor,
-            self._calculate_centrality_sync,
-            graph,
-            metrics
+            self._executor, self._calculate_centrality_sync, graph, metrics
         )
         return centrality_data
 
     def _calculate_centrality_sync(
-        self,
-        graph: ig.Graph,
-        metrics: list[str]
+        self, graph: ig.Graph, metrics: list[str]
     ) -> dict[int, dict[str, float]]:
         """
         Synchronous centrality calculation.
@@ -423,9 +377,7 @@ class NetworkAnalysisService:
                 results[v["gene_id"]]["pagerank"] = pagerank[v.index]
 
         logger.sync_info(
-            "Calculated centrality metrics",
-            metrics=metrics,
-            node_count=graph.vcount()
+            "Calculated centrality metrics", metrics=metrics, node_count=graph.vcount()
         )
 
         return results
@@ -436,7 +388,7 @@ class NetworkAnalysisService:
         session: Session,
         min_degree: int = 1,
         remove_isolated: bool = True,
-        largest_component_only: bool = False
+        largest_component_only: bool = False,
     ) -> ig.Graph:
         """
         Filter network graph by removing low-degree and isolated nodes.
@@ -463,16 +415,12 @@ class NetworkAnalysisService:
             graph,
             min_degree,
             remove_isolated,
-            largest_component_only
+            largest_component_only,
         )
         return filtered_graph
 
     def _filter_network_sync(
-        self,
-        graph: ig.Graph,
-        min_degree: int,
-        remove_isolated: bool,
-        largest_component_only: bool
+        self, graph: ig.Graph, min_degree: int, remove_isolated: bool, largest_component_only: bool
     ) -> ig.Graph:
         """
         Synchronous network filtering (runs in thread pool).
@@ -486,10 +434,7 @@ class NetworkAnalysisService:
         if remove_isolated or min_degree > 0:
             degrees = graph.degree()
             threshold = max(1 if remove_isolated else 0, min_degree)
-            vertices_to_keep = {
-                v.index for v in graph.vs
-                if degrees[v.index] >= threshold
-            }
+            vertices_to_keep = {v.index for v in graph.vs if degrees[v.index] >= threshold}
 
         # Keep only largest component if requested
         if largest_component_only and vertices_to_keep:
@@ -511,16 +456,13 @@ class NetworkAnalysisService:
             filtered_nodes=filtered_graph.vcount(),
             removed_nodes=graph.vcount() - filtered_graph.vcount(),
             min_degree=min_degree,
-            remove_isolated=remove_isolated
+            remove_isolated=remove_isolated,
         )
 
         return filtered_graph
 
     async def filter_clusters_by_size(
-        self,
-        gene_to_cluster: dict[int, int],
-        session: Session,
-        min_cluster_size: int = 3
+        self, gene_to_cluster: dict[int, int], session: Session, min_cluster_size: int = 3
     ) -> dict[int, int]:
         """
         Filter out small clusters below size threshold.
@@ -539,17 +481,12 @@ class NetworkAnalysisService:
         """
         loop = asyncio.get_event_loop()
         filtered_mapping = await loop.run_in_executor(
-            self._executor,
-            self._filter_clusters_by_size_sync,
-            gene_to_cluster,
-            min_cluster_size
+            self._executor, self._filter_clusters_by_size_sync, gene_to_cluster, min_cluster_size
         )
         return filtered_mapping
 
     def _filter_clusters_by_size_sync(
-        self,
-        gene_to_cluster: dict[int, int],
-        min_cluster_size: int
+        self, gene_to_cluster: dict[int, int], min_cluster_size: int
     ) -> dict[int, int]:
         """
         Synchronous cluster size filtering.
@@ -561,8 +498,7 @@ class NetworkAnalysisService:
 
         # Filter clusters below threshold
         clusters_to_keep = {
-            cluster_id for cluster_id, size in cluster_sizes.items()
-            if size >= min_cluster_size
+            cluster_id for cluster_id, size in cluster_sizes.items() if size >= min_cluster_size
         }
 
         # Create filtered mapping with renumbered cluster IDs
@@ -588,7 +524,7 @@ class NetworkAnalysisService:
             filtered_clusters=filtered_clusters,
             removed_clusters=original_clusters - filtered_clusters,
             removed_genes=removed_genes,
-            min_cluster_size=min_cluster_size
+            min_cluster_size=min_cluster_size,
         )
 
         return filtered_mapping
@@ -606,10 +542,16 @@ class NetworkAnalysisService:
 
         return {
             # Leiden algorithm parameters
-            "leiden_resolution": na_config.get("clustering", {}).get("leiden", {}).get("resolution", 1.0),
-            "leiden_iterations": na_config.get("clustering", {}).get("leiden", {}).get("iterations", 2),
+            "leiden_resolution": na_config.get("clustering", {})
+            .get("leiden", {})
+            .get("resolution", 1.0),
+            "leiden_iterations": na_config.get("clustering", {})
+            .get("leiden", {})
+            .get("iterations", 2),
             # Louvain algorithm parameters
-            "louvain_resolution": na_config.get("clustering", {}).get("louvain", {}).get("resolution", 1.0),
+            "louvain_resolution": na_config.get("clustering", {})
+            .get("louvain", {})
+            .get("resolution", 1.0),
             # Walktrap algorithm parameters
             "walktrap_steps": na_config.get("clustering", {}).get("walktrap", {}).get("steps", 4),
             # Network construction
@@ -617,12 +559,18 @@ class NetworkAnalysisService:
             "max_graph_size": na_config.get("network", {}).get("max_nodes", 2000),
             # Filtering defaults (from config, not hardcoded)
             "default_min_degree": na_config.get("filtering", {}).get("default_min_degree", 0),
-            "default_min_cluster_size": na_config.get("filtering", {}).get("default_min_cluster_size", 1),
-            "default_remove_isolated": na_config.get("filtering", {}).get("default_remove_isolated", False),
-            "default_largest_component_only": na_config.get("filtering", {}).get("default_largest_component_only", False),
+            "default_min_cluster_size": na_config.get("filtering", {}).get(
+                "default_min_cluster_size", 1
+            ),
+            "default_remove_isolated": na_config.get("filtering", {}).get(
+                "default_remove_isolated", False
+            ),
+            "default_largest_component_only": na_config.get("filtering", {}).get(
+                "default_largest_component_only", False
+            ),
             # Cache settings
             "cache_ttl_seconds": na_config.get("network", {}).get("cache_ttl_hours", 1) * 3600,
-            "max_cached_graphs": na_config.get("network", {}).get("max_cached_graphs", 50)
+            "max_cached_graphs": na_config.get("network", {}).get("max_cached_graphs", 50),
         }
 
     def clear_cache(self) -> None:
@@ -654,5 +602,5 @@ class NetworkAnalysisService:
                 "current_size": len(self._graph_cache),
                 "max_size": self._graph_cache.maxsize,
                 "ttl_seconds": self._graph_cache.ttl,
-                "utilization": len(self._graph_cache) / self._graph_cache.maxsize
+                "utilization": len(self._graph_cache) / self._graph_cache.maxsize,
             }

@@ -16,9 +16,7 @@ class ReversibleOp(MigrateOperation):
         self.target = target
 
     @classmethod
-    def invoke_for_target(
-        cls, operations: Operations, target: ReplaceableObject
-    ) -> Any:
+    def invoke_for_target(cls, operations: Operations, target: ReplaceableObject) -> Any:
         """Create and invoke this operation for a target object."""
         op = cls(target)
         return operations.invoke(op)
@@ -53,9 +51,7 @@ class ReversibleOp(MigrateOperation):
         operations.invoke(create_new)
 
     @classmethod
-    def _get_object_from_version(
-        cls, operations: Operations, ident: str
-    ) -> ReplaceableObject:
+    def _get_object_from_version(cls, operations: Operations, ident: str) -> ReplaceableObject:
         """Get an object definition from a specific migration version."""
         version, objname = ident.split(".")
         module = operations.get_context().script.get_revision(version).module

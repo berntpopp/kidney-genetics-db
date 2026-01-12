@@ -1,7 +1,7 @@
 # Kidney Genetics Database - Development Makefile
 # Usage: make [command]
 
-.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend lint test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check
+.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend lint lint-frontend format-check test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check security bandit pip-audit npm-audit ci
 
 # Detect docker compose command (v2 vs v1)
 DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
@@ -40,6 +40,14 @@ help:
 	@echo ""
 	@echo "🔍 CODE QUALITY:"
 	@echo "  make lint            - Lint backend code with ruff"
+	@echo "  make lint-frontend   - Lint frontend code with eslint"
+	@echo "  make format-check    - Check formatting (backend + frontend)"
+	@echo ""
+	@echo "🔒 SECURITY:"
+	@echo "  make security        - Run all security scans"
+	@echo "  make bandit          - Run Python SAST with Bandit"
+	@echo "  make pip-audit       - Scan Python dependencies"
+	@echo "  make npm-audit       - Scan JavaScript dependencies"
 	@echo ""
 	@echo "🧪 TESTING:"
 	@echo "  make test            - Run all backend tests"
@@ -248,6 +256,102 @@ lint:
 	@echo "🔍 Linting backend app code with ruff..."
 	@cd backend && uv run ruff check app/ --fix
 	@echo "✅ Linting complete!"
+
+# Lint frontend code
+lint-frontend:
+	@echo "🔍 Linting frontend code with eslint..."
+	@cd frontend && npm run lint:check
+	@echo "✅ Frontend linting complete!"
+
+# Check formatting (no auto-fix)
+format-check:
+	@echo "🔍 Checking formatting..."
+	@cd backend && uv run ruff format --check app/
+	@cd frontend && npm run format:check
+	@echo "✅ Format check complete!"
+
+# ════════════════════════════════════════════════════════════════════
+# SECURITY SCANNING
+# ════════════════════════════════════════════════════════════════════
+
+.PHONY: security bandit pip-audit npm-audit
+
+# Run all security scans
+security: bandit pip-audit npm-audit
+	@echo "✅ All security scans complete!"
+
+# Run Bandit security scan (Python SAST)
+bandit:
+	@echo "🔒 Running Bandit security scan..."
+	@cd backend && uv run bandit -r app/ -c pyproject.toml
+	@echo "✅ Bandit scan complete!"
+
+# Run pip-audit (Python dependency scan)
+pip-audit:
+	@echo "🔒 Running pip-audit dependency scan..."
+	@cd backend && uv run pip-audit || true
+	@echo "✅ pip-audit scan complete!"
+
+# Run npm audit (JavaScript dependency scan)
+npm-audit:
+	@echo "🔒 Running npm audit dependency scan..."
+	@cd frontend && npm audit --omit=dev || true
+	@echo "✅ npm audit scan complete!"
+
+# ════════════════════════════════════════════════════════════════════
+# CI/CD LOCAL VERIFICATION
+# ════════════════════════════════════════════════════════════════════
+
+# Run all CI checks locally (matches GitHub Actions exactly)
+ci: ci-backend ci-frontend
+	@echo ""
+	@echo "╔════════════════════════════════════════════════════════════════╗"
+	@echo "║                    ✅ ALL CI CHECKS PASSED                      ║"
+	@echo "╚════════════════════════════════════════════════════════════════╝"
+
+# Run backend CI checks (matches GitHub Actions backend-ci job)
+ci-backend:
+	@echo "╔════════════════════════════════════════════════════════════════╗"
+	@echo "║                    BACKEND CI CHECKS                           ║"
+	@echo "╚════════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "🔍 Step 1/3: Linting with ruff..."
+	@cd backend && uv run ruff check app/
+	@echo "✅ Lint passed"
+	@echo ""
+	@echo "🔍 Step 2/3: Format check with ruff..."
+	@cd backend && uv run ruff format --check app/
+	@echo "✅ Format check passed"
+	@echo ""
+	@echo "🧪 Step 3/3: Running tests with pytest..."
+	@cd backend && uv run pytest tests/ -v
+	@echo "✅ Tests passed"
+	@echo ""
+	@echo "✅ Backend CI complete!"
+
+# Run frontend CI checks (matches GitHub Actions frontend-ci job)
+ci-frontend:
+	@echo "╔════════════════════════════════════════════════════════════════╗"
+	@echo "║                    FRONTEND CI CHECKS                          ║"
+	@echo "╚════════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "🔍 Step 1/3: Linting with eslint..."
+	@cd frontend && npm run lint:check
+	@echo "✅ ESLint passed"
+	@echo ""
+	@echo "🔍 Step 2/3: Format check with prettier..."
+	@cd frontend && npm run format:check
+	@echo "✅ Prettier check passed"
+	@echo ""
+	@echo "🔨 Step 3/3: Building frontend..."
+	@cd frontend && npm run build
+	@echo "✅ Build passed"
+	@echo ""
+	@echo "✅ Frontend CI complete!"
+
+# ════════════════════════════════════════════════════════════════════
+# TESTING
+# ════════════════════════════════════════════════════════════════════
 
 # Run backend tests
 test:

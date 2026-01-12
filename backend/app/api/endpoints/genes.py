@@ -67,10 +67,7 @@ def get_filter_metadata(db: Session) -> dict[str, Any]:
     if cached_data and _metadata_cache["timestamp"]:
         age = now - _metadata_cache["timestamp"]
         if age < _CACHE_TTL:
-            logger.sync_debug(
-                "Metadata cache HIT",
-                age_seconds=round(age.total_seconds(), 2)
-            )
+            logger.sync_debug("Metadata cache HIT", age_seconds=round(age.total_seconds(), 2))
             return cached_data
 
     logger.sync_debug("Metadata cache MISS - fetching fresh data")
@@ -78,9 +75,7 @@ def get_filter_metadata(db: Session) -> dict[str, Any]:
     # Cache miss or expired - fetch fresh data
     try:
         # Max evidence count
-        max_count_result = db.execute(
-            text("SELECT MAX(evidence_count) FROM gene_scores")
-        ).scalar()
+        max_count_result = db.execute(text("SELECT MAX(evidence_count) FROM gene_scores")).scalar()
 
         # Available sources
         sources_result = db.execute(
@@ -107,10 +102,7 @@ def get_filter_metadata(db: Session) -> dict[str, Any]:
         tier_results = db.execute(tier_distribution_query).fetchall()
 
         # Build tier metadata structure
-        tier_meta: dict[str, dict[str, int]] = {
-            "well_supported": {},
-            "emerging_evidence": {}
-        }
+        tier_meta: dict[str, dict[str, int]] = {"well_supported": {}, "emerging_evidence": {}}
 
         for row in tier_results:
             group = row.evidence_group
@@ -126,7 +118,7 @@ def get_filter_metadata(db: Session) -> dict[str, Any]:
         metadata = {
             "max_count": max_count_result or 0,
             "sources": [row[0] for row in sources_result],
-            "tier_distribution": tier_meta
+            "tier_distribution": tier_meta,
         }
 
         # Update cache
@@ -194,7 +186,7 @@ def log_slow_query(
     query_name: str,
     execution_time_ms: float,
     threshold_ms: float = 50,
-    query_preview: str | None = None
+    query_preview: str | None = None,
 ) -> None:
     """
     Log queries that exceed performance threshold.
@@ -216,14 +208,14 @@ def log_slow_query(
                 execution_time_ms=round(execution_time_ms, 2),
                 threshold_ms=threshold_ms,
                 recommendation="Use loop.run_in_executor() or run_in_threadpool() for queries >100ms",
-                query_preview=query_preview[:200] if query_preview else None
+                query_preview=query_preview[:200] if query_preview else None,
             )
         else:
             logger.sync_warning(
                 f"Slow query detected: {query_name}",
                 execution_time_ms=round(execution_time_ms, 2),
                 threshold_ms=threshold_ms,
-                query_preview=query_preview[:200] if query_preview else None
+                query_preview=query_preview[:200] if query_preview else None,
             )
 
 
@@ -356,37 +348,37 @@ async def get_genes(
     # Filter by evidence tier (supports multiple tiers with OR logic)
     if filter_tier:
         valid_tiers = [
-            'comprehensive_support',
-            'multi_source_support',
-            'established_support',
-            'preliminary_evidence',
-            'minimal_evidence'
+            "comprehensive_support",
+            "multi_source_support",
+            "established_support",
+            "preliminary_evidence",
+            "minimal_evidence",
         ]
         # Parse comma-separated tiers
-        requested_tiers = [t.strip() for t in filter_tier.split(',') if t.strip()]
+        requested_tiers = [t.strip() for t in filter_tier.split(",") if t.strip()]
 
         # Validate all requested tiers
         invalid_tiers = [t for t in requested_tiers if t not in valid_tiers]
         if invalid_tiers:
             raise ValidationError(
                 field="filter[tier]",
-                reason=f"Invalid tier(s): {', '.join(invalid_tiers)}. Must be one of: {', '.join(valid_tiers)}"
+                reason=f"Invalid tier(s): {', '.join(invalid_tiers)}. Must be one of: {', '.join(valid_tiers)}",
             )
 
         if requested_tiers:
             # Use IN clause for OR logic
-            placeholders = ','.join([f':tier_{i}' for i in range(len(requested_tiers))])
+            placeholders = ",".join([f":tier_{i}" for i in range(len(requested_tiers))])
             where_clauses.append(f"gs.evidence_tier IN ({placeholders})")
             for i, tier in enumerate(requested_tiers):
                 query_params[f"tier_{i}"] = tier
 
     # Filter by evidence group
     if filter_group:
-        valid_groups = ['well_supported', 'emerging_evidence']
+        valid_groups = ["well_supported", "emerging_evidence"]
         if filter_group not in valid_groups:
             raise ValidationError(
                 field="filter[group]",
-                reason=f"Invalid group. Must be one of: {', '.join(valid_groups)}"
+                reason=f"Invalid group. Must be one of: {', '.join(valid_groups)}",
             )
         where_clauses.append("gs.evidence_group = :group")
         query_params["group"] = filter_group
@@ -395,35 +387,29 @@ async def get_genes(
     if filter_ids:
         # Parse and validate gene IDs
         requested_ids = []
-        for id_str in filter_ids.split(','):
+        for id_str in filter_ids.split(","):
             id_str = id_str.strip()
             if id_str.isdigit():
                 requested_ids.append(int(id_str))
 
         if not requested_ids:
-            raise ValidationError(
-                field="filter[ids]",
-                reason="No valid gene IDs provided"
-            )
+            raise ValidationError(field="filter[ids]", reason="No valid gene IDs provided")
 
         # Limit to prevent abuse (uses configuration, not hardcoded)
         max_gene_ids = API_DEFAULTS_CONFIG.get("max_gene_ids", 5000)
         if len(requested_ids) > max_gene_ids:
             raise ValidationError(
-                field="filter[ids]",
-                reason=f"Maximum {max_gene_ids} gene IDs allowed per request"
+                field="filter[ids]", reason=f"Maximum {max_gene_ids} gene IDs allowed per request"
             )
 
         # Build IN clause
-        placeholders = ','.join([f':id_{i}' for i in range(len(requested_ids))])
+        placeholders = ",".join([f":id_{i}" for i in range(len(requested_ids))])
         where_clauses.append(f"g.id IN ({placeholders})")
         for i, gene_id in enumerate(requested_ids):
             query_params[f"id_{i}"] = gene_id
 
         logger.sync_debug(
-            "Filtering by gene IDs",
-            count=len(requested_ids),
-            first_five=requested_ids[:5]
+            "Filtering by gene IDs", count=len(requested_ids), first_five=requested_ids[:5]
         )
 
     where_clause = " AND ".join(where_clauses)
@@ -560,7 +546,7 @@ async def get_genes(
         "multi_source_support",
         "established_support",
         "preliminary_evidence",
-        "minimal_evidence"
+        "minimal_evidence",
     ]
     response["meta"]["valid_groups"] = ["well_supported", "emerging_evidence"]
 

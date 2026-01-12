@@ -208,7 +208,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             return stats
 
         except Exception as e:
-            logger.sync_error("Data update failed", source_name=self.source_name, error_detail=str(e))
+            logger.sync_error(
+                "Data update failed", source_name=self.source_name, error_detail=str(e)
+            )
             tracker.error(str(e))
             stats["error"] = str(e)
             stats["completed_at"] = datetime.now(timezone.utc).isoformat()

@@ -457,8 +457,7 @@ class CacheMonitoringService:
         started_at_str = str(results["started_at"])
         completed_at_str = str(results["completed_at"])
         duration = (
-            datetime.fromisoformat(completed_at_str)
-            - datetime.fromisoformat(started_at_str)
+            datetime.fromisoformat(completed_at_str) - datetime.fromisoformat(started_at_str)
         ).total_seconds()
         results["duration_seconds"] = round(duration, 2)
 

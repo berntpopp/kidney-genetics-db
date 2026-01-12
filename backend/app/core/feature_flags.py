@@ -136,7 +136,9 @@ class FeatureFlags:
         next_step = current_step + 1
         if next_step in rollout_steps:
             flag["current_step"] = next_step
-            logger.sync_info(f"Advanced {flag_name} to step {next_step} ({rollout_steps[next_step]}%)")
+            logger.sync_info(
+                f"Advanced {flag_name} to step {next_step} ({rollout_steps[next_step]}%)"
+            )
             return True
 
         return False

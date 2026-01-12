@@ -59,9 +59,7 @@ class UniProtAnnotationSource(BaseAnnotationSource):
         self.batch_size = config.get("batch_size", 100)
 
         # Initialize rate limiter (5 req/s for UniProt)
-        self.rate_limiter = SimpleRateLimiter(
-            requests_per_second=self.requests_per_second
-        )
+        self.rate_limiter = SimpleRateLimiter(requests_per_second=self.requests_per_second)
 
         # Update source configuration
         if self.source_record:
@@ -102,10 +100,7 @@ class UniProtAnnotationSource(BaseAnnotationSource):
             # Search for reviewed human protein by gene name
             # Escape special characters to prevent query injection
             escaped_symbol = _escape_uniprot_query(gene.approved_symbol)
-            query = (
-                f"(gene_exact:{escaped_symbol}) AND "
-                "(organism_id:9606) AND (reviewed:true)"
-            )
+            query = f"(gene_exact:{escaped_symbol}) AND (organism_id:9606) AND (reviewed:true)"
             url = f"{self.base_url}/uniprotkb/search"
             params = {
                 "query": query,
@@ -119,15 +114,19 @@ class UniProtAnnotationSource(BaseAnnotationSource):
                 "size": "1",
             }
 
-            response = await client.get(url, params=params, headers={
-                "Accept": "application/json",
-            })
+            response = await client.get(
+                url,
+                params=params,
+                headers={
+                    "Accept": "application/json",
+                },
+            )
 
             if response.status_code != 200:
                 logger.sync_warning(
                     "Unexpected status from UniProt",
                     gene_symbol=gene.approved_symbol,
-                    status_code=response.status_code
+                    status_code=response.status_code,
                 )
                 return None
 
@@ -135,10 +134,7 @@ class UniProtAnnotationSource(BaseAnnotationSource):
             results = data.get("results", [])
 
             if not results:
-                logger.sync_debug(
-                    "Gene not found in UniProt",
-                    gene_symbol=gene.approved_symbol
-                )
+                logger.sync_debug("Gene not found in UniProt", gene_symbol=gene.approved_symbol)
                 return None
 
             return self._parse_protein_data(gene.approved_symbol, results[0])
@@ -159,9 +155,7 @@ class UniProtAnnotationSource(BaseAnnotationSource):
             )
             return None
 
-    def _parse_protein_data(
-        self, gene_symbol: str, data: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    def _parse_protein_data(self, gene_symbol: str, data: dict[str, Any]) -> dict[str, Any] | None:
         """
         Parse UniProt API response into annotation format.
 
@@ -288,9 +282,7 @@ class UniProtAnnotationSource(BaseAnnotationSource):
 
         return domains
 
-    def _parse_database_refs(
-        self, data: dict[str, Any], db_name: str
-    ) -> list[dict[str, str]]:
+    def _parse_database_refs(self, data: dict[str, Any], db_name: str) -> list[dict[str, str]]:
         """
         Parse external database references.
 
@@ -342,7 +334,7 @@ class UniProtAnnotationSource(BaseAnnotationSource):
 
         # Process in chunks of batch_size
         for i in range(0, len(genes), self.batch_size):
-            batch = genes[i:i + self.batch_size]
+            batch = genes[i : i + self.batch_size]
 
             async with semaphore:
                 batch_results = await self._fetch_batch_chunk(batch)
@@ -355,9 +347,7 @@ class UniProtAnnotationSource(BaseAnnotationSource):
         return results
 
     @retry_with_backoff(config=RetryConfig(max_retries=5))
-    async def _fetch_batch_chunk(
-        self, genes: list[Gene]
-    ) -> dict[int, dict[str, Any]]:
+    async def _fetch_batch_chunk(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
         """
         Fetch a single batch of genes using OR query.
 
@@ -392,9 +382,13 @@ class UniProtAnnotationSource(BaseAnnotationSource):
                 "size": str(len(genes)),
             }
 
-            response = await client.get(url, params=params, headers={
-                "Accept": "application/json",
-            })
+            response = await client.get(
+                url,
+                params=params,
+                headers={
+                    "Accept": "application/json",
+                },
+            )
 
             if response.status_code != 200:
                 logger.sync_warning(
@@ -420,9 +414,7 @@ class UniProtAnnotationSource(BaseAnnotationSource):
 
                     if gene_upper in gene_map:
                         gene = gene_map[gene_upper]
-                        annotation = self._parse_protein_data(
-                            gene.approved_symbol, protein_data
-                        )
+                        annotation = self._parse_protein_data(gene.approved_symbol, protein_data)
                         if annotation:
                             results[gene.id] = annotation
                         break

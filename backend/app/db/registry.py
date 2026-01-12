@@ -119,9 +119,7 @@ class DatabaseRegistry:
         self._objects.clear()
         self._dependencies.clear()
 
-    def validate_against_database(
-        self, connection: Connection
-    ) -> dict[str, list[str] | bool]:
+    def validate_against_database(self, connection: Connection) -> dict[str, list[str] | bool]:
         """
         Validate registry against actual database state.
 

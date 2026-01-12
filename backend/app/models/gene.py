@@ -34,15 +34,9 @@ class Gene(Base, TimestampMixin):
     aliases: Column[list[str] | None] = Column(ARRAY(Text), default=list)
 
     # Temporal versioning (SQL:2011 pattern for CalVer releases)
-    valid_from = Column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        server_default=text('NOW()')
-    )
+    valid_from = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("NOW()"))
     valid_to = Column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        server_default=text("'infinity'::timestamptz")
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("'infinity'::timestamptz")
     )
 
     # Relationships

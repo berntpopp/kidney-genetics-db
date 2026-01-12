@@ -588,9 +588,7 @@ class AnnotationPipeline:
                         success = await source.update_gene(gene)
                         return (gene, success)
                     except Exception as e:
-                        logger.sync_warning(
-                            f"Failed to update {gene.approved_symbol}: {e}"
-                        )
+                        logger.sync_warning(f"Failed to update {gene.approved_symbol}: {e}")
                         return (gene, False)
 
             # Execute batch concurrently

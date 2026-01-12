@@ -136,9 +136,7 @@ class DatabaseLogger:
             error_traceback: str | None = None
             if error:
                 error_type = type(error).__name__
-                tb_lines = traceback.format_exception(
-                    type(error), error, error.__traceback__
-                )
+                tb_lines = traceback.format_exception(type(error), error, error.__traceback__)
                 error_traceback = "".join(tb_lines)
 
             # Prepare extra data as JSONB - serialize to JSON string for PostgreSQL
@@ -216,9 +214,7 @@ class DatabaseLogger:
         """Log an error message."""
         await self.log("ERROR", message, error=error, **kwargs)
 
-    async def critical(
-        self, message: str, error: Exception | None = None, **kwargs: Any
-    ) -> None:
+    async def critical(self, message: str, error: Exception | None = None, **kwargs: Any) -> None:
         """Log a critical message."""
         await self.log("CRITICAL", message, error=error, **kwargs)
 

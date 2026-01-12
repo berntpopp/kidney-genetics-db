@@ -113,8 +113,11 @@ dev = [
     "psycopg-binary>=3.2.9",
     "pytest-asyncio>=1.1.0",
     "pytest-postgresql>=7.0.2",
+    "pytest-cov>=4.1.0",
     "ruff>=0.12.9",
     "types-cachetools>=6.2.0.20251022",
+    "bandit[sarif]>=1.7.0",
+    "pip-audit>=2.7.0",
 ]
 
 [tool.ruff]
@@ -195,3 +198,9 @@ omit = [
     "*/alembic/*",
     "*/__init__.py",
 ]
+
+[tool.bandit]
+exclude_dirs = ["tests", "alembic", ".venv"]
+skips = ["B101"]  # Skip assert_used (common in tests)
+severity = "medium"
+confidence = "medium"

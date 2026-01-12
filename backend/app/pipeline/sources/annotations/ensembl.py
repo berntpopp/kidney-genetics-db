@@ -51,9 +51,7 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
         self.batch_size = config.get("batch_size", 500)
 
         # Initialize rate limiter (15 req/s for Ensembl)
-        self.rate_limiter = SimpleRateLimiter(
-            requests_per_second=self.requests_per_second
-        )
+        self.rate_limiter = SimpleRateLimiter(requests_per_second=self.requests_per_second)
 
         # Update source configuration
         if self.source_record:
@@ -101,23 +99,24 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
             url = f"{self.base_url}/lookup/symbol/homo_sapiens/{gene.approved_symbol}"
             params = {"expand": "1"}  # Include transcripts and exons
 
-            response = await client.get(url, params=params, headers={
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-            })
+            response = await client.get(
+                url,
+                params=params,
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+            )
 
             if response.status_code == 404:
-                logger.sync_debug(
-                    "Gene not found in Ensembl",
-                    gene_symbol=gene.approved_symbol
-                )
+                logger.sync_debug("Gene not found in Ensembl", gene_symbol=gene.approved_symbol)
                 return None
 
             if response.status_code != 200:
                 logger.sync_warning(
                     "Unexpected status from Ensembl",
                     gene_symbol=gene.approved_symbol,
-                    status_code=response.status_code
+                    status_code=response.status_code,
                 )
                 return None
 
@@ -140,9 +139,7 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
             )
             return None
 
-    def _parse_gene_data(
-        self, gene_symbol: str, data: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    def _parse_gene_data(self, gene_symbol: str, data: dict[str, Any]) -> dict[str, Any] | None:
         """
         Parse Ensembl API response into annotation format.
 
@@ -164,7 +161,7 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
             logger.sync_debug(
                 "No canonical transcript found",
                 gene_symbol=gene_symbol,
-                transcript_count=len(transcripts)
+                transcript_count=len(transcripts),
             )
             return None
 
@@ -209,9 +206,7 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
 
         return annotation
 
-    def _find_canonical_transcript(
-        self, transcripts: list[dict]
-    ) -> dict[str, Any] | None:
+    def _find_canonical_transcript(self, transcripts: list[dict]) -> dict[str, Any] | None:
         """
         Find canonical transcript, preferring MANE Select.
 
@@ -237,10 +232,7 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
         # Priority 3: Return longest protein-coding transcript
         protein_coding = [t for t in transcripts if t.get("biotype") == "protein_coding"]
         if protein_coding:
-            return max(
-                protein_coding,
-                key=lambda x: (x.get("end", 0) - x.get("start", 0))
-            )
+            return max(protein_coding, key=lambda x: (x.get("end", 0) - x.get("start", 0)))
 
         # Fallback: Return first transcript
         return transcripts[0] if transcripts else None
@@ -311,7 +303,7 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
 
         # Process in chunks of batch_size
         for i in range(0, len(genes), self.batch_size):
-            batch = genes[i:i + self.batch_size]
+            batch = genes[i : i + self.batch_size]
             batch_results = await self._fetch_batch_chunk(batch)
             results.update(batch_results)
 
@@ -322,9 +314,7 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
         return results
 
     @retry_with_backoff(config=RetryConfig(max_retries=5))
-    async def _fetch_batch_chunk(
-        self, genes: list[Gene]
-    ) -> dict[int, dict[str, Any]]:
+    async def _fetch_batch_chunk(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
         """
         Fetch a single batch of genes using POST endpoint.
 

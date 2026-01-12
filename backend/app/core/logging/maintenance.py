@@ -228,9 +228,7 @@ class LogMaintenance:
 log_maintenance = LogMaintenance()
 
 
-async def setup_log_maintenance(
-    retention_days: int = 30, cleanup_interval_hours: int = 24
-) -> None:
+async def setup_log_maintenance(retention_days: int = 30, cleanup_interval_hours: int = 24) -> None:
     """
     Setup and start log maintenance tasks.
 

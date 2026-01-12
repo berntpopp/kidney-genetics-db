@@ -8,11 +8,12 @@ from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
 # CalVer validation pattern
-CALVER_PATTERN = re.compile(r'^\d{4}\.\d{1,2}$')  # YYYY.M or YYYY.MM
+CALVER_PATTERN = re.compile(r"^\d{4}\.\d{1,2}$")  # YYYY.M or YYYY.MM
 
 
 class ReleaseBase(BaseModel):
     """Base release schema"""
+
     version: str = Field(..., description="CalVer version (e.g., 2025.10)")
     release_notes: str | None = Field(None, description="Optional release notes")
 
@@ -27,11 +28,13 @@ class ReleaseBase(BaseModel):
 
 class ReleaseCreate(ReleaseBase):
     """Schema for creating a new release"""
+
     pass
 
 
 class ReleaseUpdate(BaseModel):
     """Schema for updating a draft release"""
+
     version: str | None = Field(None, description="CalVer version (e.g., 2025.10)")
     release_notes: str | None = Field(None, description="Optional release notes")
 
@@ -46,6 +49,7 @@ class ReleaseUpdate(BaseModel):
 
 class ReleaseResponse(ReleaseBase):
     """Schema for release response"""
+
     id: int
     status: str
     release_date: datetime | None = None
@@ -66,12 +70,14 @@ class ReleaseResponse(ReleaseBase):
 
 class ReleaseList(BaseModel):
     """Schema for paginated release list"""
+
     data: list[ReleaseResponse]
     meta: dict[str, int]
 
 
 class ReleaseGeneResponse(BaseModel):
     """Schema for gene from a release"""
+
     approved_symbol: str
     hgnc_id: str
     aliases: list[str] | None = None
@@ -81,6 +87,7 @@ class ReleaseGeneResponse(BaseModel):
 
 class ReleaseGenesResponse(BaseModel):
     """Schema for genes from a release"""
+
     version: str
     release_date: datetime | None
     total: int

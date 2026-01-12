@@ -217,9 +217,7 @@ class SettingsService:
             self.db.refresh(setting)
         except Exception as e:
             self.db.rollback()
-            logger.sync_error(
-                "Failed to commit setting update", error=e, setting_id=setting.id
-            )
+            logger.sync_error("Failed to commit setting update", error=e, setting_id=setting.id)
             raise ValueError(f"Database transaction failed: {e}") from e
 
         # Log with masked values

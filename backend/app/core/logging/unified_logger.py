@@ -269,9 +269,7 @@ class UnifiedLogger:
         """Synchronous warning logging."""
         self.sync_log("WARNING", message, **kwargs)
 
-    def sync_error(
-        self, message: str, error: str | Exception | None = None, **kwargs: Any
-    ) -> None:
+    def sync_error(self, message: str, error: str | Exception | None = None, **kwargs: Any) -> None:
         """Synchronous error logging."""
         self.sync_log("ERROR", message, error=error, **kwargs)
 

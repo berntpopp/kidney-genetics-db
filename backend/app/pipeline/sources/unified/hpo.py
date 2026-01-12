@@ -151,7 +151,9 @@ class HPOUnifiedSource(UnifiedDataSource):
                     return [root_term]
 
             except Exception as e:
-                logger.sync_error("Error fetching HPO hierarchy", root_term=root_term, error_detail=str(e))
+                logger.sync_error(
+                    "Error fetching HPO hierarchy", root_term=root_term, error_detail=str(e)
+                )
                 return [root_term]
 
         # Use unified caching
@@ -194,7 +196,9 @@ class HPOUnifiedSource(UnifiedDataSource):
                     return []
 
             except Exception as e:
-                logger.sync_error("Error fetching associations", hpo_term=hpo_term, error_detail=str(e))
+                logger.sync_error(
+                    "Error fetching associations", hpo_term=hpo_term, error_detail=str(e)
+                )
                 return []
 
         # Use unified caching
@@ -331,7 +335,9 @@ class HPOUnifiedSource(UnifiedDataSource):
                     return None
 
             except Exception as e:
-                logger.sync_error("Error fetching disease", disease_id=disease_id, error_detail=str(e))
+                logger.sync_error(
+                    "Error fetching disease", disease_id=disease_id, error_detail=str(e)
+                )
                 return None
 
         # Use unified caching

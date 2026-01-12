@@ -165,7 +165,9 @@ def retry_with_backoff(
                     # Check if it's an HTTP status error with retryable status code
                     if isinstance(e, httpx.HTTPStatusError):
                         if e.response.status_code not in config.retry_on_status_codes:
-                            logger.sync_debug(f"Status code {e.response.status_code} is not retryable")
+                            logger.sync_debug(
+                                f"Status code {e.response.status_code} is not retryable"
+                            )
                             raise
 
                         # Special handling for rate limiting

@@ -246,9 +246,7 @@ async def logout(
 
 
 @router.post("/forgot-password")
-async def forgot_password(
-    request: PasswordReset, db: Session = Depends(get_db)
-) -> dict[str, str]:
+async def forgot_password(request: PasswordReset, db: Session = Depends(get_db)) -> dict[str, str]:
     """
     Request password reset token.
     Always returns success to prevent email enumeration.

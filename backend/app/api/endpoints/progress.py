@@ -90,15 +90,14 @@ class ConnectionManager:
                 # Client disconnected gracefully
                 await logger.warning(
                     "Client disconnected during broadcast",
-                    total_connections=len(self.active_connections) - 1
+                    total_connections=len(self.active_connections) - 1,
                 )
                 disconnected.append(connection)
             except RuntimeError as e:
                 # WebSocket already closed or in invalid state
                 if "websocket.send" in str(e).lower() or "websocket.close" in str(e).lower():
                     await logger.warning(
-                        "Attempted to send to closed websocket",
-                        message_type=message.get("type")
+                        "Attempted to send to closed websocket", message_type=message.get("type")
                     )
                 else:
                     await logger.error("Unexpected runtime error in websocket broadcast", error=e)
@@ -106,9 +105,7 @@ class ConnectionManager:
             except Exception as e:
                 # Unexpected error
                 await logger.error(
-                    "Unexpected error sending to websocket",
-                    error=e,
-                    error_type=type(e).__name__
+                    "Unexpected error sending to websocket", error=e, error_type=type(e).__name__
                 )
                 disconnected.append(connection)
 
@@ -121,7 +118,7 @@ class ConnectionManager:
             await logger.info(
                 "Cleaned up disconnected websockets",
                 cleaned=len(disconnected),
-                remaining=len(self.active_connections)
+                remaining=len(self.active_connections),
             )
 
 

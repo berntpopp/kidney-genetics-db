@@ -153,7 +153,9 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             return df
 
         except Exception as e:
-            logger.sync_error("Failed to parse file", provider_name=provider_name, error_detail=str(e))
+            logger.sync_error(
+                "Failed to parse file", provider_name=provider_name, error_detail=str(e)
+            )
             raise
 
     def _parse_json(self, content: bytes) -> pd.DataFrame:
@@ -342,9 +344,9 @@ class DiagnosticPanelsSource(UnifiedDataSource):
 
         upload_record = None
         if file_hash:
-            static_source = db.query(StaticSource).filter(
-                StaticSource.source_name == self.source_name
-            ).first()
+            static_source = (
+                db.query(StaticSource).filter(StaticSource.source_name == self.source_name).first()
+            )
 
             if static_source:
                 upload_record = StaticEvidenceUpload(

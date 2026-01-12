@@ -61,8 +61,12 @@ class BackupJob(Base, TimestampMixin):
     parallel_jobs = Column(SmallInteger, default=1, nullable=True)
 
     # Status tracking
-    status = Column(ENUM(BackupStatus, name="backup_status"), default=BackupStatus.PENDING, nullable=True)
-    trigger_source = Column(ENUM(BackupTrigger, name="backup_trigger"), default=BackupTrigger.MANUAL_API, nullable=True)
+    status = Column(
+        ENUM(BackupStatus, name="backup_status"), default=BackupStatus.PENDING, nullable=True
+    )
+    trigger_source = Column(
+        ENUM(BackupTrigger, name="backup_trigger"), default=BackupTrigger.MANUAL_API, nullable=True
+    )
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
     duration_seconds = Column(Integer, nullable=True)
