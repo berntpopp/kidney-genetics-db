@@ -1,17 +1,20 @@
 name: CI - Continuous Integration
 
 on:
+  # Push only triggers on main/develop (direct commits, merges)
+  # Feature branches are covered by pull_request events
+  # This avoids duplicate runs when pushing to feature branches with open PRs
   push:
     branches:
       - main
       - develop
-      - feature/**
     paths-ignore:
       - 'docs/**'
       - '*.md'
       - 'LICENSE'
       - '.github/workflows/trivy-security-scan.yml'
       - '.github/workflows/security.yml'
+  # Pull requests trigger for all PRs targeting main/develop
   pull_request:
     branches:
       - main
