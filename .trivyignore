@@ -1,0 +1,38 @@
+# Trivy Ignore File
+# These CVEs are suppressed because they are false positives for our use case.
+# See: https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/
+
+# =============================================================================
+# gosu CVEs - False Positives
+# =============================================================================
+# gosu is a simple Go binary used only for privilege dropping during container
+# startup. It does NOT use the vulnerable code paths in Go's standard library:
+# - No tar file parsing (archive/tar)
+# - No TLS connections (crypto/tls, crypto/x509)
+# - No HTTP client/server (net/http)
+# - No email parsing (net/mail)
+# - No URL parsing from untrusted sources (net/url)
+# - No PEM/ASN.1/DER parsing (encoding/pem, encoding/asn1)
+# - No text protocol parsing (net/textproto)
+#
+# gosu simply: parses CLI args -> looks up user/group -> setuid/setgid -> exec
+# These vulnerabilities require specific attack vectors that gosu never exercises.
+#
+# Reference: https://github.com/tianon/gosu (gosu source code)
+# Last reviewed: 2026-01-12
+
+# HIGH severity
+CVE-2025-58183  # archive/tar: Unbounded allocation - gosu doesn't parse tar
+CVE-2025-61729  # crypto/x509: Resource consumption - gosu doesn't validate certs
+
+# MEDIUM severity
+CVE-2025-47912  # net/url: IPv6 validation - gosu doesn't parse URLs
+CVE-2025-58185  # encoding/asn1: Memory exhaustion - gosu doesn't parse ASN.1
+CVE-2025-58186  # net/http: Cookie parsing - gosu doesn't use HTTP
+CVE-2025-58187  # crypto/x509: Name constraints - gosu doesn't validate certs
+CVE-2025-58188  # crypto/x509: DSA panic - gosu doesn't validate certs
+CVE-2025-58189  # crypto/tls: ALPN negotiation - gosu doesn't use TLS
+CVE-2025-61723  # encoding/pem: Quadratic complexity - gosu doesn't parse PEM
+CVE-2025-61724  # net/textproto: CPU consumption - gosu doesn't parse text proto
+CVE-2025-61725  # net/mail: CPU consumption - gosu doesn't parse email
+CVE-2024-34155  # crypto/x509: Subdomain wildcard - gosu doesn't validate certs
