@@ -56,7 +56,7 @@ jobs:
 
   # =============================================================================
   # Backend CI - Python/FastAPI
-  # Matches: make lint, make test
+  # Matches: make ci-backend
   # =============================================================================
   backend-ci:
     name: Backend CI
@@ -98,7 +98,7 @@ jobs:
         working-directory: backend
         run: uv sync --group dev
 
-      # Quality checks - matches `make lint` exactly
+      # Quality checks - matches `make lint`
       - name: Run linting (ruff check)
         working-directory: backend
         run: uv run ruff check app/
@@ -116,7 +116,7 @@ jobs:
           SECRET_KEY: test-secret-key-for-ci
         run: uv run alembic upgrade head
 
-      # Tests - matches `make test` exactly
+      # Tests - matches `make test`
       - name: Run tests (pytest)
         working-directory: backend
         env:
@@ -124,20 +124,19 @@ jobs:
           JWT_SECRET: test-secret-key-for-ci
           SECRET_KEY: test-secret-key-for-ci
           TESTING: "true"
-        run: |
-          uv run pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
+        run: uv run pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          file: ./backend/coverage.xml
+          files: ./backend/coverage.xml
           flags: backend
           name: backend-coverage
-        continue-on-error: true
+          fail_ci_if_error: false
 
   # =============================================================================
   # Frontend CI - Vue.js/Vite
-  # Matches: npm run lint, npm run build
+  # Matches: make ci-frontend
   # =============================================================================
   frontend-ci:
     name: Frontend CI
@@ -177,35 +176,11 @@ jobs:
           VITE_API_URL: /api
 
   # =============================================================================
-  # Dependency Review - checks PRs for vulnerable dependencies
-  # Requires: GitHub Advanced Security (free for public repos, paid for private)
-  # =============================================================================
-  dependency-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      pull-requests: write
-    continue-on-error: true  # Non-blocking until Advanced Security is enabled
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high
-          fail-on-scopes: runtime
-          license-check: false
-          comment-summary-in-pr: on-failure
-
-  # =============================================================================
   # CI Summary - aggregates all results
   # =============================================================================
   ci-summary:
     name: CI Summary
-    needs: [changes, backend-ci, frontend-ci, dependency-review]
+    needs: [changes, backend-ci, frontend-ci]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -217,7 +192,6 @@ jobs:
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Backend CI | ${{ needs.backend-ci.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Frontend CI | ${{ needs.frontend-ci.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Dependency Review | ${{ needs.dependency-review.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Fail if any required job failed (skip doesn't count as failure)
@@ -229,11 +203,6 @@ jobs:
           if [[ "${{ needs.frontend-ci.result }}" == "failure" ]]; then
             echo "::error::Frontend CI failed"
             exit 1
-          fi
-
-          # Dependency review is advisory (requires GitHub Advanced Security)
-          if [[ "${{ needs.dependency-review.result }}" == "failure" ]]; then
-            echo "::warning::Dependency review unavailable - enable GitHub Advanced Security for this feature"
           fi
 
           echo "::notice::All CI checks passed or skipped appropriately"
