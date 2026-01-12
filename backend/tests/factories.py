@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 import factory
 from factory.alchemy import SQLAlchemyModelFactory
-from factory.fuzzy import FuzzyChoice, FuzzyFloat
+from factory.fuzzy import FuzzyChoice
 from faker import Faker
 
 from app.core.security import get_password_hash
@@ -30,58 +30,37 @@ class BaseFactory(SQLAlchemyModelFactory):
 
 
 class GeneFactory(BaseFactory):
-    """Gene factory with realistic genomic data."""
+    """
+    Gene factory matching the actual Gene model schema.
+
+    The Gene model only has:
+    - id (BigInteger, auto-generated)
+    - hgnc_id (String)
+    - approved_symbol (String, required)
+    - aliases (ARRAY of Text)
+    - valid_from/valid_to (TIMESTAMP, server defaults)
+    - created_at/updated_at (from TimestampMixin)
+
+    Note: evidence_score, classification, etc. are in GeneCuration, not Gene.
+    """
 
     class Meta:
         model = Gene
 
-    # Basic identifiers
-    symbol = factory.LazyFunction(lambda: f"GENE{fake.random_int(1, 9999)}")
-    hgnc_id = factory.LazyAttribute(lambda o: f"HGNC:{abs(hash(o.symbol)) % 100000}")
-    ensembl_gene_id = factory.LazyAttribute(lambda o: f"ENSG{fake.random_number(11, fix_len=True)}")
-    gene_name = factory.LazyAttribute(lambda o: f"{o.symbol} gene")
-
-    # Evidence and classification
-    evidence_score = FuzzyFloat(0.1, 1.0)
-    classification = FuzzyChoice(["definitive", "strong", "moderate", "limited"])
-    confidence_level = FuzzyChoice(["high", "moderate", "low"])
-
-    # JSONB annotations with realistic structure
-    annotations = factory.LazyFunction(
-        lambda: {
-            "panelapp": {
-                "confidence": fake.random_element([3, 2, 1]),
-                "mode_of_inheritance": fake.random_element(["AD", "AR", "XL", "MT"]),
-                "panel_name": fake.random_element(["Cystic kidney disease", "FSGS", "CAKUT"]),
-            },
-            "clinvar": {
-                "pathogenic": fake.random_int(0, 10),
-                "likely_pathogenic": fake.random_int(0, 10),
-                "vus": fake.random_int(0, 20),
-                "conflicting": fake.random_int(0, 5),
-            },
-            "omim": {"mim_number": str(fake.random_number(6))},
-            "hpo": {
-                "terms": [
-                    f"HP:{fake.random_number(7, fix_len=True)}"
-                    for _ in range(fake.random_int(1, 5))
-                ],
-                "kidney_related": fake.boolean(chance_of_getting_true=80),
-            },
-        }
+    # Core identifiers matching actual Gene model - use UUID for guaranteed uniqueness
+    approved_symbol = factory.LazyFunction(
+        lambda: f"TG{fake.uuid4()[:8].upper().replace('-', '')}"
+    )
+    hgnc_id = factory.LazyFunction(
+        lambda: f"HGNC:T{fake.uuid4()[:10].upper().replace('-', '')}"
     )
 
-    # Aggregated data
-    aggregated_data = factory.LazyAttribute(
-        lambda o: {
-            "total_sources": fake.random_int(3, 9),
-            "kidney_specificity_score": o.evidence_score * fake.pyfloat(0.5, 1.0),
-            "publication_count": fake.random_int(0, 100),
-            "last_updated": datetime.utcnow().isoformat(),
-        }
+    # Aliases as an array of strings
+    aliases = factory.LazyFunction(
+        lambda: [f"ALIAS{fake.random_int(1, 999)}" for _ in range(fake.random_int(0, 3))]
     )
 
-    # Timestamps
+    # Timestamps (valid_from and valid_to have server defaults, so we don't set them)
     created_at = factory.LazyFunction(
         lambda: fake.date_time_between(start_date="-1y", end_date="now")
     )
@@ -154,11 +133,18 @@ class UserFactory(BaseFactory):
 
 # Batch creation helpers for common scenarios
 class GeneFactoryBatch:
-    """Helper class for creating batches of genes with specific characteristics."""
+    """
+    Helper class for creating batches of genes with specific characteristics.
+
+    Note: The Gene model only contains basic identifiers (hgnc_id, approved_symbol, aliases).
+    Evidence scores and classifications are stored in GeneCuration, not Gene.
+    These helpers create Gene records with appropriate symbols for testing.
+    """
 
     @staticmethod
     def create_kidney_panel(session, count: int = 10) -> list[Gene]:
         """Create genes specifically for kidney disease testing."""
+        import uuid
         genes = []
         kidney_genes = [
             "PKD1",
@@ -174,10 +160,12 @@ class GeneFactoryBatch:
         ]
 
         for i in range(min(count, len(kidney_genes))):
+            # Use unique HGNC ID to avoid conflicts with dev database
+            unique_id = uuid.uuid4().hex[:8].upper()
             gene = GeneFactory.build(
-                symbol=kidney_genes[i],
-                classification="definitive" if i < 5 else "strong",
-                evidence_score=0.8 + (i * 0.02),
+                approved_symbol=f"T{kidney_genes[i]}_{unique_id}",
+                hgnc_id=f"HGNC:TK{unique_id}",
+                aliases=[f"{kidney_genes[i]}_alias"],
             )
             gene._session = session
             genes.append(gene)
@@ -195,18 +183,21 @@ class GeneFactoryBatch:
 
     @staticmethod
     def create_with_varying_evidence(session, count: int = 20) -> list[Gene]:
-        """Create genes with varying evidence scores for testing filters."""
+        """
+        Create genes for testing.
+
+        Note: The Gene model doesn't have evidence_score or classification fields.
+        Those are in GeneCuration. This method creates basic Gene records.
+        """
+        import uuid
         genes = []
         for i in range(count):
-            # Create distribution across evidence scores
-            score = i / count  # Linear distribution from 0 to 1
-            classification = (
-                "definitive"
-                if score > 0.75
-                else ("strong" if score > 0.5 else ("moderate" if score > 0.25 else "limited"))
+            # Use unique HGNC ID to avoid conflicts with dev database
+            unique_id = uuid.uuid4().hex[:8].upper()
+            gene = GeneFactory.build(
+                approved_symbol=f"TGENE{i}_{unique_id}",
+                hgnc_id=f"HGNC:TV{unique_id}",
             )
-
-            gene = GeneFactory.build(evidence_score=score, classification=classification)
             gene._session = session
             genes.append(gene)
 

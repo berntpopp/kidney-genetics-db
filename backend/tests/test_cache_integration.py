@@ -23,8 +23,6 @@ def sample_gene():
         id=1,
         approved_symbol="TEST1",
         hgnc_id="HGNC:12345",
-        entrez_gene_id="67890",
-        omim_gene_id="123456",
     )
     return gene
 
