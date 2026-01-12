@@ -138,6 +138,16 @@ async def test_syndromic_classification_empty():
     session = MagicMock()
     hpo_source = HPOAnnotationSource(session)
 
+    # Mock descendant lookup to avoid real API calls
+    hpo_source.get_classification_term_descendants = AsyncMock(
+        return_value={
+            "neurologic": set(),
+            "head_neck": set(),
+            "growth": set(),
+            "skeletal": set(),
+        }
+    )
+
     result = await hpo_source._assess_syndromic_features(set())
 
     assert result["is_syndromic"] is False
