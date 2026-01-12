@@ -62,10 +62,14 @@ class BackupJob(Base, TimestampMixin):
 
     # Status tracking
     status = Column(
-        ENUM(BackupStatus, name="backup_status"), default=BackupStatus.PENDING, nullable=True
+        ENUM(BackupStatus, name="backup_status", create_type=False),
+        default=BackupStatus.PENDING,
+        nullable=True,
     )
     trigger_source = Column(
-        ENUM(BackupTrigger, name="backup_trigger"), default=BackupTrigger.MANUAL_API, nullable=True
+        ENUM(BackupTrigger, name="backup_trigger", create_type=False),
+        default=BackupTrigger.MANUAL_API,
+        nullable=True,
     )
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
