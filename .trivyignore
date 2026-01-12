@@ -36,3 +36,4 @@ CVE-2025-61723  # encoding/pem: Quadratic complexity - gosu doesn't parse PEM
 CVE-2025-61724  # net/textproto: CPU consumption - gosu doesn't parse text proto
 CVE-2025-61725  # net/mail: CPU consumption - gosu doesn't parse email
 CVE-2024-34155  # crypto/x509: Subdomain wildcard - gosu doesn't validate certs
+CVE-2025-61727  # crypto/x509: Excluded subdomain constraint wildcard SANs - gosu doesn't validate certs
