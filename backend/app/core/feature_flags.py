@@ -88,8 +88,10 @@ class FeatureFlags:
         elif strategy == RolloutStrategy.PERCENTAGE:
             if not user_id:
                 return False
-            # Consistent hash for user
-            user_hash = int(hashlib.md5(user_id.encode()).hexdigest(), 16)
+            # Consistent hash for user (MD5 for distribution, not security)
+            user_hash = int(
+                hashlib.md5(user_id.encode(), usedforsecurity=False).hexdigest(), 16
+            )
             percentage = int(flag.get("percentage", 0))
             return bool((user_hash % 100) < percentage)
 
@@ -104,7 +106,9 @@ class FeatureFlags:
                 target_percentage = 0
 
             if user_id:
-                user_hash = int(hashlib.md5(user_id.encode()).hexdigest(), 16)
+                user_hash = int(
+                    hashlib.md5(user_id.encode(), usedforsecurity=False).hexdigest(), 16
+                )
                 return bool((user_hash % 100) < target_percentage)
 
             return False

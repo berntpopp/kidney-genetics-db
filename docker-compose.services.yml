@@ -3,7 +3,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:14-alpine
+    image: postgres:17-alpine
     container_name: kidney_genetics_postgres
     environment:
       POSTGRES_DB: kidney_genetics

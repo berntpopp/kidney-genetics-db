@@ -319,7 +319,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             tracker.update(operation=f"Resumed from page {start_page - 1}", force=True)
             # Log status after resume
             logger.sync_info("Status after resume", new_status=str(tracker.progress_record.status))
-        query_hash = hashlib.md5(query.encode()).hexdigest()[:8]
+        # MD5 used for cache key fingerprinting, not security
+        query_hash = hashlib.md5(query.encode(), usedforsecurity=False).hexdigest()[:8]
 
         # Verify same query on resume
         if checkpoint.get("query_hash") and checkpoint.get("query_hash") != query_hash:

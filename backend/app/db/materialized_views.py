@@ -200,7 +200,10 @@ class MaterializedViewManager:
             Integer lock ID
         """
         # Create hash and take first 8 bytes as signed int
-        hash_bytes = hashlib.md5(f"matview_{view_name}".encode()).digest()[:8]
+        # MD5 used for consistent lock ID generation, not security
+        hash_bytes = hashlib.md5(
+            f"matview_{view_name}".encode(), usedforsecurity=False
+        ).digest()[:8]
         return int.from_bytes(hash_bytes, byteorder="big", signed=True) % (2**31)
 
     def _acquire_advisory_lock(self, lock_id: int, timeout_seconds: int = 5) -> bool:
