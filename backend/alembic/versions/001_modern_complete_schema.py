@@ -21,7 +21,7 @@ from sqlalchemy.dialects import postgresql
 
 from alembic import op
 from app.db.alembic_ops import create_all_views, drop_all_views
-from app.db.views import ALL_VIEWS
+from app.db.views import INITIAL_VIEWS
 
 revision = "001_modern_complete"
 down_revision = None
@@ -544,14 +544,14 @@ def upgrade():
     # ========================================
     # CREATE VIEWS (using existing system)
     # ========================================
-    create_all_views(op, ALL_VIEWS)
+    create_all_views(op, INITIAL_VIEWS)
 
 
 def downgrade():
     """Drop all tables and types."""
 
     # Drop views first
-    drop_all_views(op, ALL_VIEWS)
+    drop_all_views(op, INITIAL_VIEWS)
 
     # Drop tables in reverse order (respecting foreign keys)
     op.drop_table("system_logs")

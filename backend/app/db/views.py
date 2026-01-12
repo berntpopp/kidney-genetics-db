@@ -607,17 +607,17 @@ v_literature_publications = ReplaceableObject(
     dependencies=[],
 )
 
-# List of all views in dependency order
-ALL_VIEWS = [
+# Initial views for base migration (no dependency on later migration columns)
+# Use this in 001_modern_complete_schema.py
+INITIAL_VIEWS = [
     # Tier 1 (no dependencies)
     cache_stats,
     evidence_source_counts,
     evidence_classification_weights,
-    string_ppi_percentiles,  # New view for STRING PPI percentiles
+    string_ppi_percentiles,
     admin_logs_filtered,
     datasource_metadata_panelapp,
     datasource_metadata_gencc,
-    genes_current,  # Temporal versioning: current genes only
     gene_hpo_classifications,  # HPO clinical classifications for network coloring
     # Dashboard source distribution views
     source_distribution_hpo,
@@ -640,3 +640,12 @@ ALL_VIEWS = [
     # Tier 5 (composite views that depend on multiple tiers)
     gene_list_detailed,
 ]
+
+# Views that depend on temporal versioning columns (valid_to)
+# Added by later migrations after 68b329da9893_add_temporal_versioning_to_genes
+TEMPORAL_VIEWS = [
+    genes_current,  # Requires valid_to column from temporal versioning migration
+]
+
+# List of all views in dependency order (for use after all migrations are applied)
+ALL_VIEWS = INITIAL_VIEWS + TEMPORAL_VIEWS
