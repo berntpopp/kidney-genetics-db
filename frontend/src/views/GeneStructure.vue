@@ -58,7 +58,20 @@
             Gene Structure
           </v-card-title>
           <v-card-subtitle v-if="ensemblData">
-            {{ ensemblData.canonical_transcript?.transcript_id || 'Canonical transcript' }}
+            {{
+              ensemblData.canonical_transcript?.refseq_transcript_id ||
+              ensemblData.canonical_transcript?.transcript_id ||
+              'Canonical transcript'
+            }}
+            <span
+              v-if="
+                ensemblData.canonical_transcript?.refseq_transcript_id &&
+                ensemblData.canonical_transcript?.transcript_id
+              "
+              class="text-medium-emphasis"
+            >
+              ({{ ensemblData.canonical_transcript?.transcript_id }})
+            </span>
           </v-card-subtitle>
           <v-card-text>
             <div v-if="loadingEnsembl" class="text-center py-8">
@@ -142,12 +155,53 @@
               </v-card-title>
               <v-card-text>
                 <v-list density="compact">
+                  <v-list-item v-if="ensemblData.canonical_transcript?.refseq_transcript_id">
+                    <template #prepend>
+                      <v-icon icon="mdi-identifier" size="small" />
+                    </template>
+                    <v-list-item-title>RefSeq Transcript</v-list-item-title>
+                    <v-list-item-subtitle>
+                      <a
+                        :href="`https://www.ncbi.nlm.nih.gov/nuccore/${ensemblData.canonical_transcript.refseq_transcript_id}`"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {{ ensemblData.canonical_transcript.refseq_transcript_id }}
+                        <v-icon icon="mdi-open-in-new" size="x-small" />
+                      </a>
+                    </v-list-item-subtitle>
+                  </v-list-item>
                   <v-list-item>
                     <template #prepend>
                       <v-icon icon="mdi-identifier" size="small" />
                     </template>
-                    <v-list-item-title>Ensembl ID</v-list-item-title>
-                    <v-list-item-subtitle>{{ ensemblData.gene_id }}</v-list-item-subtitle>
+                    <v-list-item-title>Ensembl Gene ID</v-list-item-title>
+                    <v-list-item-subtitle>
+                      <a
+                        :href="`https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=${ensemblData.gene_id}`"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {{ ensemblData.gene_id }}
+                        <v-icon icon="mdi-open-in-new" size="x-small" />
+                      </a>
+                    </v-list-item-subtitle>
+                  </v-list-item>
+                  <v-list-item v-if="ensemblData.canonical_transcript?.transcript_id">
+                    <template #prepend>
+                      <v-icon icon="mdi-dna" size="small" />
+                    </template>
+                    <v-list-item-title>Ensembl Transcript</v-list-item-title>
+                    <v-list-item-subtitle>
+                      <a
+                        :href="`https://www.ensembl.org/Homo_sapiens/Transcript/Summary?t=${ensemblData.canonical_transcript.transcript_id}`"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {{ ensemblData.canonical_transcript.transcript_id }}
+                        <v-icon icon="mdi-open-in-new" size="x-small" />
+                      </a>
+                    </v-list-item-subtitle>
                   </v-list-item>
                   <v-list-item>
                     <template #prepend>

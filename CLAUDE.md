@@ -189,11 +189,20 @@ Additional components:
 
 ## Code Quality and Testing
 
+### 🚨 CRITICAL: Commit Requirements
+**ALL code must pass lint, typecheck, and tests BEFORE committing.** Never skip these checks or assume issues are "pre-existing":
+- **Backend**: Run `make lint` + `uv run mypy <files> --ignore-missing-imports` on all modified files
+- **Frontend**: Run `npm run lint` on all modified files
+- **Tests**: Run `make test` to verify no regressions
+- **Fix ALL warnings**: Even in files you didn't originally create - we maintain clean code throughout
+- **No exceptions**: Do not commit code with lint errors, type errors, or failing tests
+
 ### Backend (Python/FastAPI)
 ```bash
 make lint     # Lint with ruff (100-char line length)
 make test     # Run pytest test suite
 cd backend && uv run ruff check app/ --fix
+cd backend && uv run mypy <file.py> --ignore-missing-imports  # Typecheck modified files
 cd backend && uv run pytest -v
 ```
 

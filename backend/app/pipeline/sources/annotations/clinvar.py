@@ -108,9 +108,12 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
 
         try:
             search_url = f"{self.base_url}/esearch.fcgi"
+            # Note: Removed single_gene[prop] filter because it excludes variants
+            # that are annotated for overlapping genes (e.g., PKD1 and PKD1-AS1).
+            # This was causing ~900 PKD1 variants to be missing from our database.
             params = {
                 "db": "clinvar",
-                "term": f"{gene_symbol}[gene] AND single_gene[prop]",
+                "term": f"{gene_symbol}[gene]",
                 "retmax": self.search_batch_size,
                 "retmode": "json",
             }
@@ -619,7 +622,9 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             # Use semaphore to limit concurrent requests to NCBI API
             semaphore = asyncio.Semaphore(self.max_concurrent_variant_fetches)
 
-            async def fetch_batch_with_semaphore(batch_ids, batch_num):
+            async def fetch_batch_with_semaphore(
+                batch_ids: list[str], batch_num: int
+            ) -> list[dict[str, Any]]:
                 async with semaphore:
                     try:
                         if batch_num % 5 == 0:  # Log every 5th batch
@@ -629,7 +634,8 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                                 batch=f"{batch_num + 1}/{total_batches}",
                                 variants=f"{batch_num * self.variant_batch_size}/{len(variant_ids)}",
                             )
-                        return await self._fetch_variant_batch(batch_ids)
+                        result: list[dict[str, Any]] = await self._fetch_variant_batch(batch_ids)
+                        return result
                     except Exception as e:
                         logger.sync_error(
                             f"Failed to fetch variant batch {batch_num} for {gene.approved_symbol}: {e}"
@@ -732,7 +738,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
         # Process genes concurrently but with a limit
         semaphore = asyncio.Semaphore(3)  # Limit concurrent requests
 
-        async def fetch_with_semaphore(gene):
+        async def fetch_with_semaphore(gene: Gene) -> None:
             async with semaphore:
                 annotation = await self.fetch_annotation(gene)
                 if annotation:

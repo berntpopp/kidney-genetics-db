@@ -73,11 +73,11 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
 
         # Must have at least one transcript with exons
         if has_required and "canonical_transcript" in annotation_data:
-            transcript = annotation_data["canonical_transcript"]
-            has_exons = transcript.get("exon_count", 0) > 0
-            return has_exons
+            transcript: dict[str, Any] = annotation_data["canonical_transcript"]
+            exon_count: int = int(transcript.get("exon_count", 0))
+            return exon_count > 0
 
-        return has_required
+        return bool(has_required)
 
     @retry_with_backoff(config=RetryConfig(max_retries=5))
     async def fetch_annotation(self, gene: Gene) -> dict[str, Any] | None:
@@ -121,7 +121,23 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
                 return None
 
             data = response.json()
-            return self._parse_gene_data(gene.approved_symbol, data)
+            annotation = self._parse_gene_data(gene.approved_symbol, data)
+
+            # Fetch RefSeq ID if we have a canonical transcript
+            if annotation and annotation.get("canonical_transcript"):
+                transcript_id = annotation["canonical_transcript"].get("transcript_id")
+                if transcript_id:
+                    refseq_id = await self._fetch_refseq_id(transcript_id)
+                    if refseq_id:
+                        annotation["canonical_transcript"]["refseq_transcript_id"] = refseq_id
+                        logger.sync_debug(
+                            "Found RefSeq ID",
+                            gene_symbol=gene.approved_symbol,
+                            ensembl_id=transcript_id,
+                            refseq_id=refseq_id,
+                        )
+
+            return annotation
 
         except httpx.HTTPStatusError as e:
             logger.sync_error(
@@ -266,7 +282,10 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
 
     def _find_refseq_id(self, transcript: dict[str, Any]) -> str | None:
         """
-        Extract RefSeq transcript ID if available.
+        Extract RefSeq transcript ID if available from transcript data.
+
+        Note: This is a synchronous fallback. The async method _fetch_refseq_id
+        should be used when possible to get accurate RefSeq mappings.
 
         Args:
             transcript: Transcript data
@@ -275,16 +294,77 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
             RefSeq ID or None
         """
         # Check display name for NM_ prefix
-        display_name = transcript.get("display_name", "")
+        display_name: str = str(transcript.get("display_name", ""))
         if display_name and display_name.startswith("NM_"):
             return display_name
 
         # Check external references if available
-        external_refs = transcript.get("external_name", "")
-        if external_refs and "NM_" in str(external_refs):
+        external_refs: str = str(transcript.get("external_name", ""))
+        if external_refs and "NM_" in external_refs:
             return external_refs
 
         return None
+
+    async def _fetch_refseq_id(self, transcript_id: str) -> str | None:
+        """
+        Fetch RefSeq transcript ID from Ensembl xrefs endpoint.
+
+        Uses /xrefs/id/{id} to get cross-references including RefSeq NM_ IDs.
+
+        Args:
+            transcript_id: Ensembl transcript ID (e.g., ENST00000262304)
+
+        Returns:
+            RefSeq NM transcript ID or None
+        """
+        if not transcript_id:
+            return None
+
+        try:
+            await self.rate_limiter.wait()
+            client = await self.get_http_client()
+
+            url = f"{self.base_url}/xrefs/id/{transcript_id}"
+            # Filter for RefSeq mRNA only - returns versioned NM_ IDs
+            params = {"external_db": "RefSeq_mRNA"}
+
+            response = await client.get(
+                url,
+                params=params,
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+            )
+
+            if response.status_code != 200:
+                return None
+
+            xrefs: list[dict[str, Any]] = response.json()
+
+            # Find the best RefSeq transcript ID (prefer NM_ with version)
+            refseq_ids: list[str] = []
+            for xref in xrefs:
+                display_id: str = xref.get("display_id", "")
+                if display_id.startswith("NM_"):
+                    refseq_ids.append(display_id)
+
+            # Return the one with version number if available
+            versioned: list[str] = [r for r in refseq_ids if "." in r]
+            if versioned:
+                return versioned[0]
+            if refseq_ids:
+                return refseq_ids[0]
+
+            return None
+
+        except Exception as e:
+            logger.sync_debug(
+                "Could not fetch RefSeq xref",
+                transcript_id=transcript_id,
+                error=str(e),
+            )
+            return None
 
     async def fetch_batch(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
         """
@@ -361,6 +441,15 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
                     annotation = self._parse_gene_data(symbol, data[symbol])
                     if annotation:
                         results[gene.id] = annotation
+
+            # Fetch RefSeq IDs for all annotations (separate API calls)
+            for _gene_id, annotation in results.items():
+                if annotation.get("canonical_transcript"):
+                    transcript_id = annotation["canonical_transcript"].get("transcript_id")
+                    if transcript_id:
+                        refseq_id = await self._fetch_refseq_id(transcript_id)
+                        if refseq_id:
+                            annotation["canonical_transcript"]["refseq_transcript_id"] = refseq_id
 
             logger.sync_info(
                 "Batch fetch completed",
