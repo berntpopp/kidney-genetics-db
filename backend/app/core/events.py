@@ -19,20 +19,20 @@ class EventBus:
     Implements pub/sub pattern to eliminate database polling.
     """
 
-    def __init__(self):
-        self._subscribers: dict[str, list[Callable]] = defaultdict(list)
-        self._queue: asyncio.Queue = asyncio.Queue()
+    def __init__(self) -> None:
+        self._subscribers: dict[str, list[Callable[..., Any]]] = defaultdict(list)
+        self._queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
         self._running = False
-        self._processor_task = None
+        self._processor_task: asyncio.Task[None] | None = None
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the event processor"""
         if not self._running:
             self._running = True
             self._processor_task = asyncio.create_task(self._process_events())
             logger.sync_info("EventBus started")
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the event processor"""
         self._running = False
         if self._processor_task:
@@ -43,7 +43,7 @@ class EventBus:
                 pass
         logger.sync_info("EventBus stopped")
 
-    async def _process_events(self):
+    async def _process_events(self) -> None:
         """Process events from the queue"""
         while self._running:
             try:
@@ -69,7 +69,7 @@ class EventBus:
             except Exception as e:
                 logger.sync_error("Error processing events", error=str(e))
 
-    async def publish(self, event_type: str, data: Any):
+    async def publish(self, event_type: str, data: Any) -> None:
         """
         Publish an event to all subscribers.
 
@@ -80,7 +80,7 @@ class EventBus:
         await self._queue.put((event_type, data))
         logger.sync_debug("Published event", event_type=event_type)
 
-    def subscribe(self, event_type: str, callback: Callable):
+    def subscribe(self, event_type: str, callback: Callable[..., Any]) -> None:
         """
         Subscribe to an event type.
 
@@ -91,7 +91,7 @@ class EventBus:
         self._subscribers[event_type].append(callback)
         logger.sync_debug("Subscribed to event", event_type=event_type)
 
-    def unsubscribe(self, event_type: str, callback: Callable):
+    def unsubscribe(self, event_type: str, callback: Callable[..., Any]) -> None:
         """
         Unsubscribe from an event type.
 
@@ -106,7 +106,7 @@ class EventBus:
             except ValueError:
                 pass  # Callback was not in the list
 
-    def get_subscriber_count(self, event_type: str = None) -> int:
+    def get_subscriber_count(self, event_type: str | None = None) -> int:
         """Get count of subscribers for an event type"""
         if event_type:
             return len(self._subscribers.get(event_type, []))

@@ -115,7 +115,7 @@ class LogHealthMonitor:
             return result
 
         except Exception as e:
-            await logger.error("Health check failed", error=str(e))
+            await logger.error("Health check failed", error=e)
             return {
                 "status": HealthStatus.CRITICAL,
                 "error": str(e),

@@ -47,7 +47,7 @@ class JSONAPIFilter:
     def __init__(self, model: type):
         """Initialize with SQLAlchemy model."""
         self.model = model
-        self.conditions = []
+        self.conditions: list[ColumnElement] = []
 
     def add_search(
         self,
@@ -127,7 +127,7 @@ class JSONAPISorter:
     def __init__(self, model: type, sort_string: str | None = None):
         """Initialize with SQLAlchemy model and optional sort string."""
         self.model = model
-        self.sort_clauses = []
+        self.sort_clauses: list[Any] = []
         if sort_string:
             self.parse_sort_string(sort_string)
 
@@ -179,10 +179,10 @@ def get_search_filter(
 
 def get_range_filters(
     field_name: str,
-    min_alias: str = None,
-    max_alias: str = None,
-    min_ge: float = None,
-    max_le: float = None,
+    min_alias: str | None = None,
+    max_alias: str | None = None,
+    min_ge: float | None = None,
+    max_le: float | None = None,
 ) -> Callable:
     """Factory for range filter dependencies."""
     min_alias = min_alias or f"filter[min_{field_name}]"
@@ -215,14 +215,14 @@ def jsonapi_endpoint(
     resource_type: str,
     model: type,
     searchable_fields: list[str] | None = None,
-):
+) -> Callable:
     """
     Decorator to mark an endpoint as JSON:API compliant.
     Provides metadata for automatic documentation and validation.
     """
 
-    def decorator(func):
-        func.__jsonapi_metadata__ = {
+    def decorator(func: Callable) -> Callable:
+        func.__jsonapi_metadata__ = {  # type: ignore[attr-defined]
             "resource_type": resource_type,
             "model": model,
             "searchable_fields": searchable_fields or [],
@@ -234,17 +234,17 @@ def jsonapi_endpoint(
 
 # Helper to build JSON:API response
 def build_jsonapi_response(
-    data: list[dict],
+    data: list[dict[str, Any]],
     total: int,
     page_number: int,
     page_size: int,
     base_url: str = "/api/resource",
-) -> dict:
+) -> dict[str, Any]:
     """Build a JSON:API compliant response."""
     page_count = (total + page_size - 1) // page_size if total else 0
 
     # Build links
-    links = {
+    links: dict[str, str | None] = {
         "self": f"{base_url}?page[number]={page_number}&page[size]={page_size}",
         "first": f"{base_url}?page[number]=1&page[size]={page_size}",
         "last": f"{base_url}?page[number]={page_count if page_count > 0 else 1}&page[size]={page_size}",

@@ -63,14 +63,15 @@ def get_filter_metadata(db: Session) -> dict[str, Any]:
     now = datetime.utcnow()
 
     # Check cache validity
-    if _metadata_cache["data"] and _metadata_cache["timestamp"]:
+    cached_data: dict[str, Any] | None = _metadata_cache["data"]
+    if cached_data and _metadata_cache["timestamp"]:
         age = now - _metadata_cache["timestamp"]
         if age < _CACHE_TTL:
             logger.sync_debug(
                 "Metadata cache HIT",
                 age_seconds=round(age.total_seconds(), 2)
             )
-            return _metadata_cache["data"]
+            return cached_data
 
     logger.sync_debug("Metadata cache MISS - fetching fresh data")
 
@@ -106,7 +107,7 @@ def get_filter_metadata(db: Session) -> dict[str, Any]:
         tier_results = db.execute(tier_distribution_query).fetchall()
 
         # Build tier metadata structure
-        tier_meta = {
+        tier_meta: dict[str, dict[str, int]] = {
             "well_supported": {},
             "emerging_evidence": {}
         }
@@ -137,9 +138,10 @@ def get_filter_metadata(db: Session) -> dict[str, Any]:
     except Exception as e:
         # On error, return cached data if available, otherwise raise
         logger.sync_error(f"Error fetching filter metadata: {e}")
-        if _metadata_cache["data"]:
+        stale_data: dict[str, Any] | None = _metadata_cache["data"]
+        if stale_data:
             logger.sync_warning("Returning stale cached metadata due to error")
-            return _metadata_cache["data"]
+            return stale_data
         raise
 
 
@@ -225,7 +227,7 @@ def log_slow_query(
             )
 
 
-def transform_gene_to_jsonapi(results) -> list[dict]:
+def transform_gene_to_jsonapi(results: Any) -> list[dict[str, Any]]:
     """Transform gene query results to JSON:API format."""
     data = []
     for row in results:
@@ -312,8 +314,8 @@ async def get_genes(
     # cache_key = f"genes_ids_{filter_ids}_page{page_number}"
 
     # Build WHERE clauses first
-    where_clauses = ["1=1"]
-    query_params = {}
+    where_clauses: list[str] = ["1=1"]
+    query_params: dict[str, Any] = {}
 
     # Apply filters
     if search:
@@ -880,7 +882,7 @@ async def get_hpo_classifications(
     except Exception as e:
         await logger.error(
             "Failed to fetch HPO classifications",
-            error=str(e),
+            error=e,
             gene_count=len(request.gene_ids),
         )
         raise

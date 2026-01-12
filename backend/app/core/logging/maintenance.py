@@ -6,6 +6,7 @@ Provides scheduled tasks for log cleanup, optimization, and monitoring.
 
 import asyncio
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from sqlalchemy import text
 
@@ -34,10 +35,10 @@ class LogMaintenance:
         self.retention_days = retention_days
         self.cleanup_interval_hours = cleanup_interval_hours
         self.optimization_interval_days = optimization_interval_days
-        self._cleanup_task = None
-        self._monitor_task = None
+        self._cleanup_task: asyncio.Task[None] | None = None
+        self._monitor_task: asyncio.Task[None] | None = None
 
-    async def start(self):
+    async def start(self) -> None:
         """Start automated maintenance tasks."""
         await logger.info(
             "Starting log maintenance",
@@ -51,7 +52,7 @@ class LogMaintenance:
         # Start monitoring task
         self._monitor_task = asyncio.create_task(self._monitor_loop())
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop automated maintenance tasks."""
         if self._cleanup_task:
             self._cleanup_task.cancel()
@@ -61,7 +62,7 @@ class LogMaintenance:
 
         await logger.info("Log maintenance stopped")
 
-    async def _cleanup_loop(self):
+    async def _cleanup_loop(self) -> None:
         """Background loop for periodic log cleanup."""
         while True:
             try:
@@ -70,9 +71,9 @@ class LogMaintenance:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                await logger.error("Cleanup loop error", error=str(e))
+                await logger.error("Cleanup loop error", error=e)
 
-    async def _monitor_loop(self):
+    async def _monitor_loop(self) -> None:
         """Background loop for monitoring log volume."""
         while True:
             try:
@@ -81,9 +82,9 @@ class LogMaintenance:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                await logger.error("Monitor loop error", error=str(e))
+                await logger.error("Monitor loop error", error=e)
 
-    async def cleanup_old_logs(self) -> dict:
+    async def cleanup_old_logs(self) -> dict[str, Any]:
         """
         Clean up logs older than retention period.
 
@@ -141,12 +142,12 @@ class LogMaintenance:
                 return {"logs_deleted": 0}
 
         except Exception as e:
-            await logger.error("Log cleanup failed", error=str(e))
+            await logger.error("Log cleanup failed", error=e)
             raise
         finally:
             db.close()
 
-    async def monitor_log_volume(self) -> dict:
+    async def monitor_log_volume(self) -> dict[str, Any]:
         """
         Monitor log volume and alert if growing too fast.
 
@@ -194,12 +195,12 @@ class LogMaintenance:
             return stats
 
         except Exception as e:
-            await logger.error("Log monitoring failed", error=str(e))
+            await logger.error("Log monitoring failed", error=e)
             raise
         finally:
             db.close()
 
-    async def optimize_log_table(self):
+    async def optimize_log_table(self) -> None:
         """
         Optimize the log table for better performance.
 
@@ -217,7 +218,7 @@ class LogMaintenance:
             await logger.info("Log table optimized")
 
         except Exception as e:
-            await logger.error("Table optimization failed", error=str(e))
+            await logger.error("Table optimization failed", error=e)
             raise
         finally:
             db.close()
@@ -227,7 +228,9 @@ class LogMaintenance:
 log_maintenance = LogMaintenance()
 
 
-async def setup_log_maintenance(retention_days: int = 30, cleanup_interval_hours: int = 24):
+async def setup_log_maintenance(
+    retention_days: int = 30, cleanup_interval_hours: int = 24
+) -> None:
     """
     Setup and start log maintenance tasks.
 
@@ -240,7 +243,7 @@ async def setup_log_maintenance(retention_days: int = 30, cleanup_interval_hours
     await log_maintenance.start()
 
 
-async def shutdown_log_maintenance():
+async def shutdown_log_maintenance() -> None:
     """
     Stop log maintenance tasks.
 

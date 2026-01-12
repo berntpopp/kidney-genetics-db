@@ -8,10 +8,12 @@ capabilities, request correlation, and automatic context binding.
 import time
 import traceback
 from collections.abc import Callable
+from typing import Any
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 
 from app.core.logging import get_logger
 from app.core.logging.context import bind_context, clear_context, extract_context_from_request
@@ -31,13 +33,13 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
     def __init__(
         self,
-        app,
+        app: ASGIApp,
         log_request_body: bool = False,
         log_response_body: bool = False,
         max_body_size: int = 10000,
         slow_request_threshold_ms: int = 1000,
-        exclude_paths: list = None,
-    ):
+        exclude_paths: list[str] | None = None,
+    ) -> None:
         super().__init__(app)
         self.log_request_body = log_request_body
         self.log_response_body = log_response_body
@@ -50,7 +52,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         """Determine if request should be logged."""
         return request.url.path not in self.exclude_paths
 
-    def _sanitize_headers(self, headers: dict) -> dict:
+    def _sanitize_headers(self, headers: dict[str, str]) -> dict[str, str]:
         """Remove sensitive headers from logging."""
         sensitive_headers = {
             "authorization",
@@ -65,7 +67,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             for key, value in headers.items()
         }
 
-    async def _read_request_body(self, request: Request) -> str:
+    async def _read_request_body(self, request: Request) -> str | None:
         """Safely read request body for logging."""
         if not self.log_request_body:
             return None
@@ -76,13 +78,14 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 return f"[BODY TOO LARGE: {len(body)} bytes]"
 
             try:
-                return body.decode("utf-8")[: self.max_body_size]
+                decoded: str = body.decode("utf-8")
+                return decoded[: self.max_body_size]
             except UnicodeDecodeError:
                 return f"[BINARY BODY: {len(body)} bytes]"
         except Exception:
             return "[ERROR READING BODY]"
 
-    def _extract_client_info(self, request: Request) -> dict:
+    def _extract_client_info(self, request: Request) -> dict[str, str]:
         """Extract client information from request."""
         forwarded_for = request.headers.get("X-Forwarded-For")
         if forwarded_for:
@@ -168,7 +171,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         processing_time = (time.perf_counter() - start_time) * 1000
 
         # Extract response information
-        response_data = {}
+        response_data: dict[str, Any] = {}
         if self.log_response_body and hasattr(response, "body"):
             try:
                 body_bytes = getattr(response, "body", b"")
@@ -198,30 +201,20 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # Log request completion
         log_message = f"Request completed: {request.method} {request.url.path}"
 
+        # Build common kwargs for logging
+        log_kwargs: dict[str, Any] = {
+            "status_code": status_code,
+            "processing_time_ms": int(processing_time),
+            "response_headers": dict(response.headers),
+        }
+        log_kwargs.update(response_data)
+
         if log_level == "ERROR":
-            await self.logger.error(
-                log_message,
-                status_code=status_code,
-                processing_time_ms=int(processing_time),
-                response_headers=dict(response.headers),
-                **response_data,
-            )
+            await self.logger.error(log_message, **log_kwargs)
         elif log_level == "WARNING":
-            await self.logger.warning(
-                log_message,
-                status_code=status_code,
-                processing_time_ms=int(processing_time),
-                response_headers=dict(response.headers),
-                **response_data,
-            )
+            await self.logger.warning(log_message, **log_kwargs)
         else:
-            await self.logger.info(
-                log_message,
-                status_code=status_code,
-                processing_time_ms=int(processing_time),
-                response_headers=dict(response.headers),
-                **response_data,
-            )
+            await self.logger.info(log_message, **log_kwargs)
 
         # Add performance and correlation headers
         response.headers["X-Request-ID"] = context.get("request_id", "unknown")

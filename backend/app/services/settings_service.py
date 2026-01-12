@@ -36,7 +36,7 @@ class SettingsService:
     def __init__(self, db_session: Session):
         self.db = db_session
         self._executor = get_thread_pool_executor()
-        self._pending_cache_invalidations = []
+        self._pending_cache_invalidations: list[str] = []
 
     async def get_all_settings(
         self, category: SettingCategory | None = None, limit: int = 100, offset: int = 0
@@ -91,7 +91,8 @@ class SettingsService:
         query = self.db.query(func.count(SystemSetting.id))
         if category:
             query = query.filter(SystemSetting.category == category)
-        return query.scalar()
+        count = query.scalar()
+        return int(count) if count is not None else 0
 
     async def get_category_counts(self) -> list[tuple[str, int]]:
         """Get category counts (optimized SQL - no Python iteration)"""
@@ -217,7 +218,7 @@ class SettingsService:
         except Exception as e:
             self.db.rollback()
             logger.sync_error(
-                "Failed to commit setting update", setting_id=setting.id, error=str(e)
+                "Failed to commit setting update", error=e, setting_id=setting.id
             )
             raise ValueError(f"Database transaction failed: {e}") from e
 
@@ -289,7 +290,7 @@ class SettingsService:
         else:
             raise ValueError(f"Unsupported value type: {value_type}")
 
-    async def invalidate_setting_cache(self, setting_key: str):
+    async def invalidate_setting_cache(self, setting_key: str) -> None:
         """Invalidate cache for a specific setting (NEW)"""
         cache = get_cache_service(self.db)
         await cache.delete(f"setting:{setting_key}", namespace="settings")

@@ -2,6 +2,8 @@
 FastAPI dependencies for authentication and authorization
 """
 
+from collections.abc import Callable
+
 from fastapi import Depends, HTTPException, status
 
 from app.api.endpoints.auth import get_current_user, get_current_user_optional
@@ -28,7 +30,7 @@ def require_curator(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
-def require_any_role(*roles: str):
+def require_any_role(*roles: str) -> Callable[..., User]:
     """
     Factory function to require any of the specified roles.
     """
@@ -47,7 +49,7 @@ def require_any_role(*roles: str):
 # Permission-based dependencies
 
 
-def require_permission(permission: str):
+def require_permission(permission: str) -> Callable[..., User]:
     """
     Factory function to require a specific permission.
     """
@@ -63,7 +65,7 @@ def require_permission(permission: str):
     return check_permission
 
 
-def require_any_permission(*permissions: str):
+def require_any_permission(*permissions: str) -> Callable[..., User]:
     """
     Factory function to require any of the specified permissions.
     """

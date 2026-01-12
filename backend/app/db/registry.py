@@ -6,7 +6,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from sqlalchemy import inspect, text
+from sqlalchemy import Connection, inspect, text
+from sqlalchemy.schema import MetaData
 
 
 class ObjectType(Enum):
@@ -40,10 +41,10 @@ class DatabaseObject:
             return f"{self.schema}.{self.name}"
         return self.name
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.type.value, self.qualified_name))
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, DatabaseObject):
             return False
         return self.type == other.type and self.qualified_name == other.qualified_name
@@ -52,7 +53,7 @@ class DatabaseObject:
 class DatabaseRegistry:
     """Central registry for all database objects."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._objects: dict[str, DatabaseObject] = {}
         self._dependencies: dict[str, list[str]] = {}
 
@@ -79,11 +80,11 @@ class DatabaseRegistry:
 
     def get_creation_order(self) -> list[DatabaseObject]:
         """Get objects in dependency order using topological sort."""
-        visited = set()
-        visiting = set()
-        sorted_objects = []
+        visited: set[str] = set()
+        visiting: set[str] = set()
+        sorted_objects: list[DatabaseObject] = []
 
-        def visit(key: str):
+        def visit(key: str) -> None:
             if key in visited:
                 return
             if key in visiting:
@@ -118,12 +119,14 @@ class DatabaseRegistry:
         self._objects.clear()
         self._dependencies.clear()
 
-    def validate_against_database(self, connection) -> dict[str, list[str]]:
+    def validate_against_database(
+        self, connection: Connection
+    ) -> dict[str, list[str] | bool]:
         """
         Validate registry against actual database state.
 
         Returns:
-            Dictionary with 'missing', 'extra', and 'mismatched' lists
+            Dictionary with 'missing', 'extra', 'mismatched' lists, and 'valid' bool
         """
         inspector = inspect(connection)
 
@@ -168,7 +171,7 @@ class DatabaseRegistry:
 registry = DatabaseRegistry()
 
 
-def register_views_from_module():
+def register_views_from_module() -> None:
     """Register all views from the views module."""
     from app.db.views import ALL_VIEWS
 
@@ -182,7 +185,7 @@ def register_views_from_module():
         registry.register(obj)
 
 
-def register_tables_from_metadata(metadata):
+def register_tables_from_metadata(metadata: MetaData) -> None:
     """Register all tables from SQLAlchemy metadata."""
     for table in metadata.tables.values():
         obj = DatabaseObject(
@@ -204,7 +207,7 @@ def register_tables_from_metadata(metadata):
             registry.register(idx_obj)
 
 
-def discover_from_database(connection):
+def discover_from_database(connection: Connection) -> None:
     """Discover and register objects from live database."""
     inspector = inspect(connection)
 

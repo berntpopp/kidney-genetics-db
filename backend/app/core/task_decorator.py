@@ -17,7 +17,7 @@ from app.core.progress_tracker import ProgressTracker
 logger = get_logger(__name__)
 
 
-def managed_task(source_name: str):
+def managed_task(source_name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator for background tasks with common setup/teardown.
 
@@ -25,9 +25,9 @@ def managed_task(source_name: str):
         source_name: Name of the data source for tracking
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def wrapper(self, resume: bool = False, mode: str = "smart") -> dict[str, Any]:
+        async def wrapper(self: Any, resume: bool = False, mode: str = "smart") -> dict[str, Any]:
             """Wrapper with ROBUST database management."""
             tracker = None
 
@@ -67,7 +67,7 @@ def managed_task(source_name: str):
     return decorator
 
 
-def executor_task(source_name: str):
+def executor_task(source_name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator for background tasks that need to run in thread executor.
 
@@ -75,9 +75,9 @@ def executor_task(source_name: str):
         source_name: Name of the data source for tracking
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def wrapper(self, resume: bool = False) -> dict[str, Any]:
+        async def wrapper(self: Any, resume: bool = False) -> dict[str, Any]:
             """Wrapper with executor and ROBUST database management."""
             tracker = None
 
@@ -116,7 +116,11 @@ def executor_task(source_name: str):
 class TaskMixin:
     """Mixin providing common task functionality with unified client architecture."""
 
-    def _get_source_instance(self, source_name: str, db_session):
+    # These will be set by subclasses
+    broadcast_callback: Callable[..., Any] | None
+    executor: Any
+
+    def _get_source_instance(self, source_name: str, db_session: Any) -> Any:
         """Factory to get a configured source instance."""
         # This helper ensures that all dependencies are correctly instantiated
         # on a per-task basis, using the correct DB session.
@@ -132,42 +136,59 @@ class TaskMixin:
         )
 
     @managed_task("PubTator")
-    async def _run_pubtator(self, db, tracker, resume: bool = False, mode: str = "smart"):
+    async def _run_pubtator(
+        self, db: Any, tracker: Any, resume: bool = False, mode: str = "smart"
+    ) -> dict[str, Any]:
         """Run PubTator update using the unified template method."""
         source = self._get_source_instance("PubTator", db)
-        return await source.update_data(db, tracker, mode=mode)
+        result: dict[str, Any] = await source.update_data(db, tracker, mode=mode)
+        return result
 
     @managed_task("GenCC")
-    async def _run_gencc(self, db, tracker, resume: bool = False, mode: str = "smart"):
+    async def _run_gencc(
+        self, db: Any, tracker: Any, resume: bool = False, mode: str = "smart"
+    ) -> dict[str, Any]:
         """Run GenCC update using the unified template method."""
         source = self._get_source_instance("GenCC", db)
-        return await source.update_data(db, tracker, mode=mode)
+        result: dict[str, Any] = await source.update_data(db, tracker, mode=mode)
+        return result
 
     @managed_task("PanelApp")
-    async def _run_panelapp(self, db, tracker, resume: bool = False, mode: str = "smart"):
+    async def _run_panelapp(
+        self, db: Any, tracker: Any, resume: bool = False, mode: str = "smart"
+    ) -> dict[str, Any]:
         """Run PanelApp update using the unified template method."""
         source = self._get_source_instance("PanelApp", db)
-        return await source.update_data(db, tracker, mode=mode)
+        result: dict[str, Any] = await source.update_data(db, tracker, mode=mode)
+        return result
 
     @managed_task("HPO")
-    async def _run_hpo(self, db, tracker, resume: bool = False, mode: str = "smart"):
+    async def _run_hpo(
+        self, db: Any, tracker: Any, resume: bool = False, mode: str = "smart"
+    ) -> dict[str, Any]:
         """Run HPO update using the unified template method."""
         source = self._get_source_instance("HPO", db)
-        return await source.update_data(db, tracker, mode=mode)
+        result: dict[str, Any] = await source.update_data(db, tracker, mode=mode)
+        return result
 
     @managed_task("ClinGen")
-    async def _run_clingen(self, db, tracker, resume: bool = False, mode: str = "smart"):
+    async def _run_clingen(
+        self, db: Any, tracker: Any, resume: bool = False, mode: str = "smart"
+    ) -> dict[str, Any]:
         """Run ClinGen update using the unified template method."""
         source = self._get_source_instance("ClinGen", db)
-        return await source.update_data(db, tracker, mode=mode)
+        result: dict[str, Any] = await source.update_data(db, tracker, mode=mode)
+        return result
 
     @executor_task("HGNC_Normalization")
-    def _run_hgnc_normalization(self, db, tracker, resume: bool = False):
+    def _run_hgnc_normalization(
+        self, db: Any, tracker: Any, resume: bool = False
+    ) -> dict[str, Any]:
         """Run HGNC normalization with managed lifecycle."""
         from app.pipeline.normalize import normalize_all_genes
 
         with tracker.track_operation("Normalizing gene symbols"):
-            result = normalize_all_genes(db)
+            result: dict[str, Any] = normalize_all_genes(db)
 
             tracker.update(
                 items_added=result.get("normalized", 0),
@@ -177,18 +198,20 @@ class TaskMixin:
             return result
 
     @managed_task("Evidence_Aggregation")
-    async def _run_evidence_aggregation(self, db, tracker, resume: bool = False):
+    async def _run_evidence_aggregation(
+        self, db: Any, tracker: Any, resume: bool = False
+    ) -> dict[str, Any]:
         """Run evidence aggregation with managed lifecycle."""
         from app.pipeline.aggregate import update_all_curations
 
         tracker.start("Starting evidence aggregation")
         loop = asyncio.get_event_loop()
 
-        def run_aggregation():
+        def run_aggregation() -> dict[str, Any]:
             with get_db_context() as agg_db:
                 return update_all_curations(agg_db)
 
-        result = await loop.run_in_executor(self.executor, run_aggregation)
+        result: dict[str, Any] = await loop.run_in_executor(self.executor, run_aggregation)
 
         tracker.update(
             items_updated=result.get("curations_updated", 0),
@@ -199,8 +222,8 @@ class TaskMixin:
 
     @managed_task("annotation_pipeline")
     async def _run_annotation_pipeline(
-        self, db, tracker, resume: bool = False, mode: str = "smart"
-    ):
+        self, db: Any, tracker: Any, resume: bool = False, mode: str = "smart"
+    ) -> dict[str, Any]:
         """Run annotation pipeline with managed lifecycle and pause/resume support."""
         from app.pipeline.annotation_pipeline import AnnotationPipeline, UpdateStrategy
 

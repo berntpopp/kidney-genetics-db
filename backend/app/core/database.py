@@ -51,7 +51,12 @@ def get_thread_pool_executor() -> ThreadPoolExecutor:
 
 
 # Register cleanup on shutdown
-atexit.register(lambda: _thread_pool_executor and _thread_pool_executor.shutdown(wait=True))
+def _cleanup_executor() -> None:
+    if _thread_pool_executor:
+        _thread_pool_executor.shutdown(wait=True)
+
+
+atexit.register(_cleanup_executor)
 
 # Create database engine with robust connection management
 engine = create_engine(
@@ -128,7 +133,7 @@ def get_db_context() -> Generator[Session, None, None]:
                 logger.sync_warning("Rollback failed, session invalidated", rollback_error=str(rollback_err))
         logger.sync_error(
             "Database error in context",
-            error=str(e),
+            error=e,
             error_type=type(e).__name__,
             has_active_transaction=db.in_transaction() if db else None,
         )
@@ -211,7 +216,7 @@ connection_stats = {
 
 
 @event.listens_for(Pool, "connect")
-def increment_connect(dbapi_conn, connection_record):
+def increment_connect(dbapi_conn: Any, connection_record: Any) -> None:
     """Track new connections created"""
     connection_stats["connections_created"] += 1
     logger.sync_debug(
@@ -220,25 +225,29 @@ def increment_connect(dbapi_conn, connection_record):
 
 
 @event.listens_for(Pool, "close")
-def increment_close(dbapi_conn, connection_record):
+def increment_close(dbapi_conn: Any, connection_record: Any) -> None:
     """Track connections closed"""
     connection_stats["connections_closed"] += 1
 
 
 @event.listens_for(Pool, "checkout")
-def increment_checkout(dbapi_conn, connection_record, connection_proxy):
+def increment_checkout(
+    dbapi_conn: Any, connection_record: Any, connection_proxy: Any
+) -> None:
     """Track connections checked out from pool"""
     connection_stats["connections_checked_out"] += 1
 
 
 @event.listens_for(Pool, "checkin")
-def increment_checkin(dbapi_conn, connection_record):
+def increment_checkin(dbapi_conn: Any, connection_record: Any) -> None:
     """Track connections returned to pool"""
     connection_stats["connections_checked_in"] += 1
 
 
 @event.listens_for(Pool, "invalidate")
-def increment_invalidate(dbapi_conn, connection_record, exception):
+def increment_invalidate(
+    dbapi_conn: Any, connection_record: Any, exception: BaseException | None
+) -> None:
     """Track invalidated connections"""
     connection_stats["connections_invalidated"] += 1
     if exception:

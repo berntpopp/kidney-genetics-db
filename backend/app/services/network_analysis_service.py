@@ -354,7 +354,7 @@ class NetworkAnalysisService:
         self,
         graph: ig.Graph,
         session: Session,
-        metrics: list[str] = None
+        metrics: list[str] | None = None
     ) -> dict[int, dict[str, float]]:
         """
         Calculate centrality metrics for all nodes.
@@ -390,7 +390,7 @@ class NetworkAnalysisService:
 
         igraph is 10-50x faster than NetworkX for these operations.
         """
-        results = {v["gene_id"]: {} for v in graph.vs}
+        results: dict[int, dict[str, float]] = {v["gene_id"]: {} for v in graph.vs}
 
         if "degree" in metrics:
             degree_cent = graph.degree()
@@ -555,7 +555,7 @@ class NetworkAnalysisService:
         Synchronous cluster size filtering.
         """
         # Count cluster sizes
-        cluster_sizes = {}
+        cluster_sizes: dict[int, int] = {}
         for _gene_id, cluster_id in gene_to_cluster.items():
             cluster_sizes[cluster_id] = cluster_sizes.get(cluster_id, 0) + 1
 

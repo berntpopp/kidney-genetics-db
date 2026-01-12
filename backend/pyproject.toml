@@ -108,10 +108,13 @@ Repository = "https://github.com/kidney-genetics/kidney-genetics-db.git"
 
 [dependency-groups]
 dev = [
+    "factory-boy>=3.3.3",
+    "hypothesis>=6.140.2",
     "psycopg-binary>=3.2.9",
     "pytest-asyncio>=1.1.0",
     "pytest-postgresql>=7.0.2",
     "ruff>=0.12.9",
+    "types-cachetools>=6.2.0.20251022",
 ]
 
 [tool.ruff]

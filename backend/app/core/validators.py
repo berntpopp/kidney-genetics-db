@@ -3,6 +3,8 @@ Centralized validation for SQL-safe parameters.
 Implements DRY principle for input validation across the application.
 """
 
+from typing import Any
+
 from fastapi import HTTPException
 
 from app.core.logging import get_logger
@@ -146,7 +148,7 @@ class SQLSafeValidator:
             column_name = column
 
         if column_name not in safe_columns:
-            logger.warning(
+            logger.sync_warning(
                 f"Rejected unsafe column: {column}", table=table, attempted_column=column
             )
             raise HTTPException(
@@ -188,7 +190,7 @@ class SQLSafeValidator:
             HTTPException: If order is not valid
         """
         if order.upper() not in cls.SAFE_SORT_ORDERS:
-            logger.warning(f"Rejected invalid sort order: {order}")
+            logger.sync_warning(f"Rejected invalid sort order: {order}")
             raise HTTPException(
                 status_code=400,
                 detail=f"Sort order must be one of: {', '.join(cls.SAFE_SORT_ORDERS)}",
@@ -215,7 +217,7 @@ class SQLSafeValidator:
             raise HTTPException(status_code=400, detail="Limit must be positive")
 
         if limit > max_limit:
-            logger.info(f"Capping limit from {limit} to {max_limit}")
+            logger.sync_info(f"Capping limit from {limit} to {max_limit}")
             return max_limit
 
         return limit
@@ -260,7 +262,7 @@ class SQLSafeValidator:
         operator_upper = operator.upper()
 
         if operator_upper not in cls.SAFE_OPERATORS:
-            logger.warning(f"Rejected unsafe operator: {operator}")
+            logger.sync_warning(f"Rejected unsafe operator: {operator}")
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid operator. Allowed: {', '.join(cls.SAFE_OPERATORS)}",
@@ -283,7 +285,7 @@ class SQLSafeValidator:
             HTTPException: If table is not recognized
         """
         if table not in cls.SAFE_COLUMNS:
-            logger.warning(f"Rejected unknown table: {table}")
+            logger.sync_warning(f"Rejected unknown table: {table}")
             raise HTTPException(status_code=400, detail=f"Unknown table: {table}")
 
         return table
@@ -309,8 +311,8 @@ class SQLSafeValidator:
 
     @classmethod
     def build_safe_where_clause(
-        cls, conditions: dict[str, any], table: str, operator: str = "="
-    ) -> tuple[str, dict]:
+        cls, conditions: dict[str, Any], table: str, operator: str = "="
+    ) -> tuple[str, dict[str, Any]]:
         """
         Build a safe WHERE clause from conditions.
 

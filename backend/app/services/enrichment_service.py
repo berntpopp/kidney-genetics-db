@@ -14,7 +14,7 @@ CRITICAL DESIGN PATTERNS:
 import asyncio
 import threading
 import time
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from scipy.stats import fisher_exact
@@ -50,7 +50,7 @@ class EnrichmentService:
     - Rate limiting for Enrichr API
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize enrichment service.
 
@@ -60,8 +60,8 @@ class EnrichmentService:
         self._executor = get_thread_pool_executor()
 
         # Rate limiting for GSEApy/Enrichr API (prevents IP blocking)
-        self._last_enrichr_call = 0
-        self._enrichr_min_interval = 2.0  # 2 seconds between calls
+        self._last_enrichr_call: float = 0.0
+        self._enrichr_min_interval: float = 2.0  # 2 seconds between calls
         self._enrichr_lock = threading.Lock()
 
     async def enrich_hpo_terms(
@@ -178,21 +178,24 @@ class EnrichmentService:
         _, fdr_values = fdrcorrection([r["p_value"] for r in results])
 
         for i, result in enumerate(results):
-            result["fdr"] = float(fdr_values[i])
-            result["enrichment_score"] = -np.log10(result["fdr"]) if result["fdr"] > 0 else 100.0
+            fdr_val = float(fdr_values[i])
+            result["fdr"] = fdr_val
+            result["enrichment_score"] = -np.log10(fdr_val) if fdr_val > 0 else 100.0
 
         # Get term names from HPO API
         for result in results:
             try:
-                term = await self.hpo_client.get_term(result["term_id"])
-                result["term_name"] = term.name if term else result["term_id"]
+                hpo_term_id: str = str(result["term_id"])
+                term = await self.hpo_client.get_term(hpo_term_id)
+                result["term_name"] = term.name if term else hpo_term_id
             except Exception as e:
-                await logger.debug(f"Failed to get HPO term name: {e}", term_id=result["term_id"])
-                result["term_name"] = result["term_id"]
+                hpo_term_id_str = str(result["term_id"])
+                await logger.debug(f"Failed to get HPO term name: {e}", term_id=hpo_term_id_str)
+                result["term_name"] = hpo_term_id_str
 
-        # Filter by FDR and sort
-        results = [r for r in results if r["fdr"] < fdr_threshold]
-        results.sort(key=lambda x: x["fdr"])
+        # Filter by FDR and sort - fdr is always set as float earlier
+        results = [r for r in results if cast(float, r["fdr"]) < fdr_threshold]
+        results.sort(key=lambda x: cast(float, x["fdr"]))
 
         await logger.info(
             "HPO enrichment complete",
@@ -311,7 +314,7 @@ class EnrichmentService:
 
         return results
 
-    def _run_gseapy_enrichr_safe(self, gene_list: list[str], gene_set: str):
+    def _run_gseapy_enrichr_safe(self, gene_list: list[str], gene_set: str) -> Any:
         """
         Synchronous GSEApy call with rate limiting (runs in thread pool).
 

@@ -38,5 +38,5 @@ class SystemLog(Base):
     # Relationships
     user = relationship("User", back_populates="logs")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<SystemLog {self.id}: {self.level} - {self.message[:50]}>"

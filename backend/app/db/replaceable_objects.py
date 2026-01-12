@@ -69,7 +69,7 @@ def topological_sort(objects: list[ReplaceableObject]) -> list[ReplaceableObject
     visiting = set()
     sorted_objects = []
 
-    def visit(obj_name: str):
+    def visit(obj_name: str) -> None:
         if obj_name in visited:
             return
         if obj_name in visiting:

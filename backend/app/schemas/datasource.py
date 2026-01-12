@@ -5,7 +5,7 @@ Data source schemas
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class DataSourceStats(BaseModel):
@@ -14,7 +14,7 @@ class DataSourceStats(BaseModel):
     gene_count: int
     evidence_count: int
     last_updated: datetime | None
-    metadata: dict[str, Any] | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class DataSource(BaseModel):

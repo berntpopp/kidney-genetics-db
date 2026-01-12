@@ -75,7 +75,7 @@ async def get_release(
     """
     await logger.info("Getting release", version=version)
 
-    release = db.query(DataRelease).filter_by(version=version).first()
+    release: DataRelease | None = db.query(DataRelease).filter_by(version=version).first()
     if not release:
         raise HTTPException(status_code=404, detail=f"Release {version} not found")
 

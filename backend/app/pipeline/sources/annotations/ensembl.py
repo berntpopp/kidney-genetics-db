@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import httpx
+from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, SimpleRateLimiter, retry_with_backoff
@@ -37,7 +38,7 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
     # Default values (overridden by config)
     batch_size = 500  # API limit is 1000
 
-    def __init__(self, session):
+    def __init__(self, session: Session) -> None:
         """Initialize the Ensembl annotation source."""
         super().__init__(session)
 
@@ -135,7 +136,7 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
             logger.sync_error(
                 "Error fetching Ensembl annotation",
                 gene_symbol=gene.approved_symbol,
-                error=str(e),
+                error_detail=str(e),
             )
             return None
 
@@ -390,7 +391,7 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
         except Exception as e:
             logger.sync_error(
                 "Error in batch fetch",
-                error=str(e),
+                error_detail=str(e),
                 batch_size=len(genes),
             )
             return {}

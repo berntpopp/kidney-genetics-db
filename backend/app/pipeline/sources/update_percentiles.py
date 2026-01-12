@@ -27,23 +27,24 @@ def update_source_percentiles(db: Session, source_name: str) -> dict[str, Any]:
     Returns:
         Statistics about the update
     """
-    stats = {
-        "source": source_name,
-        "records_processed": 0,
-        "percentiles_updated": 0,
-    }
+    records_processed = 0
+    percentiles_updated = 0
 
     # Get all evidence for this source
     evidence_records = db.query(GeneEvidence).filter(GeneEvidence.source_name == source_name).all()
 
     if not evidence_records:
-        logger.warning(f"No evidence records found for source: {source_name}")
-        return stats
+        logger.sync_warning(f"No evidence records found for source: {source_name}")
+        return {
+            "source": source_name,
+            "records_processed": records_processed,
+            "percentiles_updated": percentiles_updated,
+        }
 
-    logger.info(f"Calculating percentiles for {len(evidence_records)} {source_name} records")
+    logger.sync_info(f"Calculating percentiles for {len(evidence_records)} {source_name} records")
 
     # Extract counts based on source type
-    gene_counts = []
+    gene_counts: list[tuple[GeneEvidence, int]] = []
     for evidence in evidence_records:
         count = _get_count_for_evidence(evidence)
         gene_counts.append((evidence, count))
@@ -54,7 +55,7 @@ def update_source_percentiles(db: Session, source_name: str) -> dict[str, Any]:
 
     # Calculate percentiles using rank with average tie handling
     # This matches R's rank(ties.method = "average") / n()
-    count_groups = {}
+    count_groups: dict[int, list[GeneEvidence]] = {}
     for evidence, count in gene_counts:
         if count not in count_groups:
             count_groups[count] = []
@@ -75,7 +76,7 @@ def update_source_percentiles(db: Session, source_name: str) -> dict[str, Any]:
 
         # Update each evidence record
         for evidence in evidence_list:
-            stats["records_processed"] += 1
+            records_processed += 1
 
             # Add percentile to evidence_data
             if evidence.evidence_data is None:
@@ -86,7 +87,7 @@ def update_source_percentiles(db: Session, source_name: str) -> dict[str, Any]:
 
             # Mark as modified for SQLAlchemy to detect JSONB change
             db.add(evidence)
-            stats["percentiles_updated"] += 1
+            percentiles_updated += 1
 
         current_rank += num_ties
 
@@ -96,10 +97,14 @@ def update_source_percentiles(db: Session, source_name: str) -> dict[str, Any]:
     logger.sync_info(
         "Updated percentiles",
         source_name=source_name,
-        percentiles_updated=stats["percentiles_updated"],
+        percentiles_updated=percentiles_updated,
     )
 
-    return stats
+    return {
+        "source": source_name,
+        "records_processed": records_processed,
+        "percentiles_updated": percentiles_updated,
+    }
 
 
 def _get_count_for_evidence(evidence: GeneEvidence) -> int:
@@ -125,11 +130,17 @@ def _get_count_for_evidence(evidence: GeneEvidence) -> int:
 
     elif evidence.source_name == "PubTator":
         # Use publication_count if available, else count pmids
-        return data.get("publication_count", len(data.get("pmids", [])))
+        pub_count = data.get("publication_count")
+        if pub_count is not None:
+            return int(pub_count)
+        return len(data.get("pmids", []))
 
     elif evidence.source_name == "DiagnosticPanels":
         # Count panels
-        return data.get("panel_count", len(data.get("panels", [])))
+        panel_count = data.get("panel_count")
+        if panel_count is not None:
+            return int(panel_count)
+        return len(data.get("panels", []))
 
     else:
         # Default: try to count common fields
@@ -150,24 +161,26 @@ def update_all_source_percentiles(db: Session) -> dict[str, Any]:
     sources = db.query(GeneEvidence.source_name).distinct().all()
     source_names = [s[0] for s in sources]
 
-    logger.info(f"Updating percentiles for {len(source_names)} sources: {source_names}")
+    logger.sync_info(f"Updating percentiles for {len(source_names)} sources: {source_names}")
 
-    all_stats = {
-        "sources_updated": 0,
-        "total_records_processed": 0,
-        "source_details": {},
-    }
+    sources_updated = 0
+    total_records_processed = 0
+    source_details: dict[str, dict[str, Any]] = {}
 
     for source_name in source_names:
         stats = update_source_percentiles(db, source_name)
-        all_stats["sources_updated"] += 1
-        all_stats["total_records_processed"] += stats["records_processed"]
-        all_stats["source_details"][source_name] = stats
+        sources_updated += 1
+        total_records_processed += stats["records_processed"]
+        source_details[source_name] = stats
 
     logger.sync_info(
         "Percentile update complete",
-        sources_updated=all_stats["sources_updated"],
-        total_records_processed=all_stats["total_records_processed"],
+        sources_updated=sources_updated,
+        total_records_processed=total_records_processed,
     )
 
-    return all_stats
+    return {
+        "sources_updated": sources_updated,
+        "total_records_processed": total_records_processed,
+        "source_details": source_details,
+    }

@@ -58,7 +58,7 @@ class GeneNormalizationStaging(Base):
     requires_expert_review = Column(Boolean, default=False, nullable=False)
     is_duplicate_submission = Column(Boolean, default=False, nullable=False)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<GeneNormalizationStaging(id={self.id}, original_text='{self.original_text}', source='{self.source_name}', status='{self.status}')>"
 
 
@@ -94,5 +94,5 @@ class GeneNormalizationLog(Base):
     api_calls_made = Column(Integer, default=0, nullable=False)
     processing_time_ms = Column(Integer, nullable=True)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<GeneNormalizationLog(id={self.id}, original_text='{self.original_text}', success={self.success})>"

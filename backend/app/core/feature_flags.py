@@ -65,7 +65,7 @@ class FeatureFlags:
         """
         flag = cls.FLAGS.get(flag_name)
         if not flag:
-            logger.warning(f"Unknown feature flag: {flag_name}")
+            logger.sync_warning(f"Unknown feature flag: {flag_name}")
             return False
 
         # Check if globally disabled
@@ -83,20 +83,20 @@ class FeatureFlags:
 
         elif strategy == RolloutStrategy.USER_WHITELIST:
             whitelist = flag.get("whitelist_users", [])
-            return user_id and user_id in whitelist
+            return bool(user_id and user_id in whitelist)
 
         elif strategy == RolloutStrategy.PERCENTAGE:
             if not user_id:
                 return False
             # Consistent hash for user
             user_hash = int(hashlib.md5(user_id.encode()).hexdigest(), 16)
-            percentage = flag.get("percentage", 0)
-            return (user_hash % 100) < percentage
+            percentage = int(flag.get("percentage", 0))
+            return bool((user_hash % 100) < percentage)
 
         elif strategy == RolloutStrategy.GRADUAL:
             # Use current step to determine percentage
-            current_step = flag.get("current_step", 1)
-            rollout_steps = flag.get("rollout_steps", {})
+            current_step = int(flag.get("current_step", 1))
+            rollout_steps: dict[int, int] = flag.get("rollout_steps", {})
 
             if current_step in rollout_steps:
                 target_percentage = rollout_steps[current_step]
@@ -105,7 +105,7 @@ class FeatureFlags:
 
             if user_id:
                 user_hash = int(hashlib.md5(user_id.encode()).hexdigest(), 16)
-                return (user_hash % 100) < target_percentage
+                return bool((user_hash % 100) < target_percentage)
 
             return False
 
@@ -136,13 +136,13 @@ class FeatureFlags:
         next_step = current_step + 1
         if next_step in rollout_steps:
             flag["current_step"] = next_step
-            logger.info(f"Advanced {flag_name} to step {next_step} ({rollout_steps[next_step]}%)")
+            logger.sync_info(f"Advanced {flag_name} to step {next_step} ({rollout_steps[next_step]}%)")
             return True
 
         return False
 
     @classmethod
-    def set_percentage(cls, flag_name: str, percentage: float):
+    def set_percentage(cls, flag_name: str, percentage: float) -> None:
         """
         Update rollout percentage (for testing/emergency rollback).
 
@@ -152,10 +152,10 @@ class FeatureFlags:
         """
         if flag_name in cls.FLAGS:
             cls.FLAGS[flag_name]["percentage"] = max(0, min(100, percentage))
-            logger.info(f"Updated {flag_name} to {percentage}%")
+            logger.sync_info(f"Updated {flag_name} to {percentage}%")
 
     @classmethod
-    def emergency_disable(cls, flag_name: str):
+    def emergency_disable(cls, flag_name: str) -> None:
         """
         Emergency disable a feature flag.
 
@@ -164,7 +164,7 @@ class FeatureFlags:
         """
         if flag_name in cls.FLAGS:
             cls.FLAGS[flag_name]["enabled"] = False
-            logger.critical(f"EMERGENCY: Disabled feature flag {flag_name}")
+            logger.sync_critical(f"EMERGENCY: Disabled feature flag {flag_name}")
 
     @classmethod
     def get_status(cls) -> dict[str, dict[str, Any]]:

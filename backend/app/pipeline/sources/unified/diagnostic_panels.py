@@ -82,14 +82,30 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         return 86400 * 365  # 1 year
 
     async def fetch_raw_data(
+        self, tracker: "ProgressTracker | None" = None, mode: str = "smart"
+    ) -> Any:
+        """
+        Not used for DiagnosticPanels - use parse_uploaded_file instead.
+
+        This source receives file uploads rather than fetching from an API.
+        """
+        raise NotImplementedError(
+            "DiagnosticPanels source uses parse_uploaded_file() for file uploads"
+        )
+
+    async def parse_uploaded_file(
         self,
         file_content: bytes,
         file_type: str,
         provider_name: str,
-        tracker: "ProgressTracker" = None,
+        tracker: "ProgressTracker | None" = None,
     ) -> pd.DataFrame:
         """
         Parse uploaded file and return DataFrame with provider metadata.
+
+        Note: This method has a different signature from the base class
+        fetch_raw_data because diagnostic panels are uploaded rather than
+        fetched from an API.
 
         Args:
             file_content: Raw file bytes
@@ -101,7 +117,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             DataFrame with gene panel data
         """
         logger.sync_info(
-            "DiagnosticPanels.fetch_raw_data START",
+            "DiagnosticPanels.parse_uploaded_file START",
             file_type=file_type,
             provider_name=provider_name,
             content_size=len(file_content),
@@ -130,14 +146,14 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             df["provider"] = provider_name
 
             logger.sync_info(
-                "DiagnosticPanels.fetch_raw_data COMPLETE",
+                "DiagnosticPanels.parse_uploaded_file COMPLETE",
                 entry_count=len(df),
                 provider_name=provider_name,
             )
             return df
 
         except Exception as e:
-            logger.sync_error("Failed to parse file", provider_name=provider_name, error=str(e))
+            logger.sync_error("Failed to parse file", provider_name=provider_name, error_detail=str(e))
             raise
 
     def _parse_json(self, content: bytes) -> pd.DataFrame:
@@ -193,7 +209,9 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             has_provider=("provider" in df.columns),
         )
 
-        gene_data = defaultdict(lambda: {"panels": set(), "providers": set(), "hgnc_ids": set()})
+        gene_data: dict[str, dict[str, set[str]]] = defaultdict(
+            lambda: {"panels": set(), "providers": set(), "hgnc_ids": set()}
+        )
 
         for idx, row in df.iterrows():
             try:
@@ -222,7 +240,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                         gene_data[symbol]["hgnc_ids"].add(str(hgnc_val))
 
             except Exception as e:
-                logger.sync_warning("Error processing row", row_index=idx, error=str(e))
+                logger.sync_warning("Error processing row", row_index=idx, error_detail=str(e))
                 continue
 
         # Convert to serializable format
@@ -587,7 +605,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
 
     def _extract_panels(self, row: pd.Series) -> set[str]:
         """Extract panel names from row."""
-        panels = set()
+        panels: set[str] = set()
 
         if "panels" in row.index and row["panels"] is not None:
             panel_data = row["panels"]

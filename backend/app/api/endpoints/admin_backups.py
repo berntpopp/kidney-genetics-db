@@ -182,7 +182,7 @@ async def download_backup(
     backup_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
-):
+) -> FileResponse:
     """Download backup file"""
     backup_job = db.query(BackupJob).get(backup_id)
     if not backup_job:

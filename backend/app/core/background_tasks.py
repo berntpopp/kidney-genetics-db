@@ -5,6 +5,7 @@ Background task manager for concurrent data source updates with unified architec
 import asyncio
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 from app.core.database import get_db
 from app.core.logging import get_logger
@@ -17,17 +18,17 @@ logger = get_logger(__name__)
 class BackgroundTaskManager(TaskMixin):
     """Manages background tasks for all data sources"""
 
-    def __init__(self):
-        self.running_tasks: dict[str, asyncio.Task] = {}
+    def __init__(self) -> None:
+        self.running_tasks: dict[str, asyncio.Task[Any]] = {}
         self.executor = ThreadPoolExecutor(max_workers=4)
-        self.broadcast_callback = None
+        self.broadcast_callback: Callable[..., Any] | None = None
         self._shutdown = False
 
-    def set_broadcast_callback(self, callback: Callable):
+    def set_broadcast_callback(self, callback: Callable[..., Any]) -> None:
         """Set the callback for broadcasting updates"""
         self.broadcast_callback = callback
 
-    async def start_auto_updates(self):
+    async def start_auto_updates(self) -> None:
         """Start automatic updates for all sources marked with auto_update=true"""
         logger.sync_info("Starting automatic data source updates...")
 
@@ -53,7 +54,7 @@ class BackgroundTaskManager(TaskMixin):
         finally:
             db.close()
 
-    async def run_source(self, source_name: str, resume: bool = False, mode: str = "smart"):
+    async def run_source(self, source_name: str, resume: bool = False, mode: str = "smart") -> None:
         """
         Run update for a specific data source using dynamic dispatch.
 
@@ -162,7 +163,7 @@ class BackgroundTaskManager(TaskMixin):
                 del self.running_tasks[source_name]
         return False
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """Gracefully shutdown all running tasks"""
         logger.sync_info("Shutting down background tasks...")
         self._shutdown = True

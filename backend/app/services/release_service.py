@@ -10,7 +10,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -36,8 +36,8 @@ class ReleaseService:
     - Export to JSON with metadata
     """
 
-    def __init__(self, db_session: Session | None = None):
-        self.db = db_session
+    def __init__(self, db_session: Session):
+        self.db: Session = db_session
         self._executor = get_thread_pool_executor()
         self.export_dir = Path("exports")
 
@@ -120,9 +120,10 @@ class ReleaseService:
         Raises:
             ValueError: If release not found or already published
         """
-        release = self.db.query(DataRelease).get(release_id)
-        if not release:
+        release_result = self.db.query(DataRelease).get(release_id)
+        if not release_result:
             raise ValueError(f"Release {release_id} not found")
+        release = cast(DataRelease, release_result)
 
         if release.status == "published":
             raise ValueError(f"Release {release.version} already published")
@@ -207,9 +208,9 @@ class ReleaseService:
             self.db.rollback()
             await logger.error(
                 "Release publish failed",
+                error=e,
                 version=release.version,
                 release_id=release_id,
-                error=str(e)
             )
             raise
 
@@ -373,7 +374,8 @@ class ReleaseService:
                 WHERE valid_to = 'infinity'::timestamptz
             """)
         )
-        return result.scalar()
+        count = result.scalar()
+        return int(count) if count is not None else 0
 
     def _count_genes(self, timestamp: datetime) -> int:
         """
@@ -393,7 +395,8 @@ class ReleaseService:
             """),
             {"timestamp": timestamp}
         )
-        return result.scalar()
+        count = result.scalar()
+        return int(count) if count is not None else 0
 
     async def update_release(
         self,
@@ -415,9 +418,10 @@ class ReleaseService:
         Raises:
             ValueError: If release not found, already published, or version exists
         """
-        release = self.db.query(DataRelease).get(release_id)
-        if not release:
+        release_result = self.db.query(DataRelease).get(release_id)
+        if not release_result:
             raise ValueError(f"Release {release_id} not found")
+        release = cast(DataRelease, release_result)
 
         if release.status == "published":
             raise ValueError("Cannot update published release")

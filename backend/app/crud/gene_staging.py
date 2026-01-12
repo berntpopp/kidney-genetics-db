@@ -60,13 +60,14 @@ class GeneNormalizationStagingCRUD:
         if source_filter:
             query = query.filter(GeneNormalizationStaging.source_name == source_filter)
 
-        return (
+        result: list[GeneNormalizationStaging] = (
             query.order_by(
                 desc(GeneNormalizationStaging.priority_score), GeneNormalizationStaging.created_at
             )
             .limit(limit)
             .all()
         )
+        return result
 
     def approve_staging_record(
         self,
@@ -80,7 +81,7 @@ class GeneNormalizationStagingCRUD:
     ) -> GeneNormalizationStaging:
         """Approve a staging record with manual corrections"""
 
-        staging_record = (
+        staging_record: GeneNormalizationStaging | None = (
             db.query(GeneNormalizationStaging)
             .filter(GeneNormalizationStaging.id == staging_id)
             .first()
@@ -109,7 +110,7 @@ class GeneNormalizationStagingCRUD:
     ) -> GeneNormalizationStaging:
         """Reject a staging record (not a valid gene)"""
 
-        staging_record = (
+        staging_record: GeneNormalizationStaging | None = (
             db.query(GeneNormalizationStaging)
             .filter(GeneNormalizationStaging.id == staging_id)
             .first()

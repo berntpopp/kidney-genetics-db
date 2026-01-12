@@ -42,7 +42,7 @@ class YamlConfigSettingsSource(PydanticBaseSettingsSource):
         """
         super().__init__(settings_cls)
         self.yaml_file = yaml_file
-        self._data = None  # Lazy loading
+        self._data: dict[str, Any] | None = None  # Lazy loading
 
     def _load_yaml(self) -> dict[str, Any]:
         """
@@ -134,7 +134,7 @@ class MultiYamlConfigSource(PydanticBaseSettingsSource):
         """
         super().__init__(settings_cls)
         self.yaml_files = yaml_files
-        self._data = None
+        self._data: dict[str, Any] | None = None
 
     def _deep_merge(self, base: dict, override: dict) -> dict:
         """
@@ -162,7 +162,7 @@ class MultiYamlConfigSource(PydanticBaseSettingsSource):
         Returns:
             Merged configuration from all YAML files
         """
-        merged_data = {}
+        merged_data: dict[str, Any] = {}
 
         for yaml_file in self.yaml_files:
             if yaml_file.exists():

@@ -190,7 +190,7 @@ class AnnotationPipeline:
                     sources_completed.append("hgnc")
                     sources_to_update.remove("hgnc")
                 except Exception as e:
-                    logger.sync_error("HGNC update failed - critical dependency", error=str(e))
+                    logger.sync_error(f"HGNC update failed - critical dependency: {e}")
                     errors.append({"source": "hgnc", "error": str(e), "critical": True})
                     # HGNC failure may impact other sources
 
@@ -463,7 +463,7 @@ class AnnotationPipeline:
             self.db.commit()
             logger.sync_debug("Checkpoint saved", state=state)
         except Exception as e:
-            logger.sync_error("Failed to save checkpoint", error=str(e))
+            logger.sync_error(f"Failed to save checkpoint: {e}")
 
     async def _load_checkpoint(self) -> dict | None:
         """Load pipeline checkpoint if exists."""
@@ -482,7 +482,7 @@ class AnnotationPipeline:
                 )
                 return progress.progress_metadata
         except Exception as e:
-            logger.sync_error("Failed to load checkpoint", error=str(e))
+            logger.sync_error(f"Failed to load checkpoint: {e}")
         return None
 
     async def _update_sources_parallel(
@@ -507,7 +507,7 @@ class AnnotationPipeline:
                     result = await self._update_source_with_recovery(source_name, genes, force)
                     return (source_name, result)
                 except Exception as e:
-                    logger.sync_error(f"Error in parallel update for {source_name}", error=str(e))
+                    logger.sync_error(f"Error in parallel update for {source_name}: {e}")
                     return (source_name, {"error": str(e)})
 
         # Create tasks for all sources
@@ -589,7 +589,7 @@ class AnnotationPipeline:
                         return (gene, success)
                     except Exception as e:
                         logger.sync_warning(
-                            f"Failed to update {gene.approved_symbol}", error=str(e)
+                            f"Failed to update {gene.approved_symbol}: {e}"
                         )
                         return (gene, False)
 
@@ -623,7 +623,7 @@ class AnnotationPipeline:
                         failed -= 1
                         logger.sync_info(f"Successfully retried {gene.approved_symbol}")
                 except Exception as e:
-                    logger.sync_error(f"Failed to retry {gene.approved_symbol}", error=str(e))
+                    logger.sync_error(f"Failed to retry {gene.approved_symbol}: {e}")
 
         # Disable batch mode
         source.batch_mode = False

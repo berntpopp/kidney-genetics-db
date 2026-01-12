@@ -69,7 +69,7 @@ class SystemSetting(Base, TimestampMixin):
     )
 
     @validates("key")
-    def validate_key(self, key, value):
+    def validate_key(self, key: str, value: str) -> str:
         """Validate setting key format - lowercase alphanumeric + dots + underscores"""
         if not re.match(r"^[a-z][a-z0-9_.]*$", value):
             raise ValueError(

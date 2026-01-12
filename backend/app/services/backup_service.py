@@ -14,7 +14,7 @@ import hashlib
 import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -30,8 +30,8 @@ logger = get_logger(__name__)
 class BackupService:
     """Production-grade PostgreSQL backup service"""
 
-    def __init__(self, db_session: Session | None = None):
-        self.db = db_session
+    def __init__(self, db_session: Session):
+        self.db: Session = db_session
         self.backup_dir = Path(settings.BACKUP_DIR)
         self.backup_dir.mkdir(parents=True, exist_ok=True)
         # Use singleton thread pool to prevent resource exhaustion
@@ -152,8 +152,8 @@ class BackupService:
 
             await logger.error(
                 "Backup failed",
+                error=e,
                 backup_id=backup_job.id,
-                error=str(e)
             )
             raise
 
@@ -323,9 +323,9 @@ class BackupService:
         except Exception as e:
             await logger.error(
                 "Database restore failed",
+                error=e,
                 backup_id=backup_id,
-                error=str(e),
-                safety_backup_id=safety_backup_job.id if safety_backup_job else None
+                safety_backup_id=safety_backup_job.id if safety_backup_job else None,
             )
             raise
 
@@ -386,7 +386,7 @@ class BackupService:
 
         return result
 
-    def _recreate_database(self):
+    def _recreate_database(self) -> None:
         """Drop and recreate database (for hybrid mode via docker exec)"""
         # Find container dynamically
         find_container = subprocess.run(
@@ -431,7 +431,7 @@ class BackupService:
         subprocess.run(cmd_drop, check=True, capture_output=True)
         subprocess.run(cmd_create, check=True, capture_output=True)
 
-    def _run_analyze(self):
+    def _run_analyze(self) -> None:
         """Run ANALYZE on all tables (BEST PRACTICE after restore)"""
         # Find container dynamically
         find_container = subprocess.run(
@@ -512,8 +512,8 @@ class BackupService:
             except Exception as e:
                 logger.sync_error(
                     "Failed to delete backup",
+                    error=e,
                     backup_id=backup.id,
-                    error=str(e)
                 )
 
         self.db.commit()
@@ -538,7 +538,7 @@ class BackupService:
         if status:
             query = query.filter(BackupJob.status == status)
 
-        return query.limit(limit).all()
+        return cast(list[BackupJob], query.limit(limit).all())
 
     async def list_backups(
         self,

@@ -35,10 +35,10 @@ class CacheMonitoringService:
         self.db_session = db_session
 
         # Data source clients for individual monitoring
-        self.data_source_clients = {}
+        self.data_source_clients: dict[str, Any] = {}
         self._initialize_clients()
 
-    def _initialize_clients(self):
+    def _initialize_clients(self) -> None:
         """Initialize cached clients for monitoring."""
         try:
             self.data_source_clients = {
@@ -416,7 +416,7 @@ class CacheMonitoringService:
         """
         logger.sync_info("Starting cache warming for all data sources...")
 
-        results = {
+        results: dict[str, Any] = {
             "started_at": datetime.now(timezone.utc).isoformat(),
             "sources": {},
             "total_entries_cached": 0,
@@ -424,7 +424,7 @@ class CacheMonitoringService:
         }
 
         # Create warming tasks for all sources
-        warming_tasks = {}
+        warming_tasks: dict[str, Any] = {}
         for source_name, client in self.data_source_clients.items():
             if hasattr(client, "warm_cache"):
                 warming_tasks[source_name] = client.warm_cache()
@@ -436,7 +436,7 @@ class CacheMonitoringService:
             for i, (source_name, _task) in enumerate(warming_tasks.items()):
                 result = task_results[i]
 
-                if isinstance(result, Exception):
+                if isinstance(result, Exception | BaseException):
                     logger.sync_error(
                         "Error warming cache", source_name=source_name, error=str(result)
                     )
@@ -454,9 +454,11 @@ class CacheMonitoringService:
                     results["total_entries_cached"] += result
 
         results["completed_at"] = datetime.now(timezone.utc).isoformat()
+        started_at_str = str(results["started_at"])
+        completed_at_str = str(results["completed_at"])
         duration = (
-            datetime.fromisoformat(results["completed_at"])
-            - datetime.fromisoformat(results["started_at"])
+            datetime.fromisoformat(completed_at_str)
+            - datetime.fromisoformat(started_at_str)
         ).total_seconds()
         results["duration_seconds"] = round(duration, 2)
 
@@ -477,7 +479,7 @@ class CacheMonitoringService:
         """
         logger.sync_info("Starting cache clearing for all data sources...")
 
-        results = {
+        results: dict[str, Any] = {
             "started_at": datetime.now(timezone.utc).isoformat(),
             "sources": {},
             "total_entries_cleared": 0,

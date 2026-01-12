@@ -130,31 +130,33 @@ class ResponseBuilder:
         if not error_id:
             error_id = ResponseBuilder.generate_error_id()
 
-        error_body = {
-            "error": {
-                "status": str(status_code),
-                "code": error_code,
-                "title": title,
-                "detail": detail,
-                "meta": {
-                    "error_id": error_id,
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                },
-            }
+        error_meta: dict[str, Any] = {
+            "error_id": error_id,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+
+        error_obj: dict[str, Any] = {
+            "status": str(status_code),
+            "code": error_code,
+            "title": title,
+            "detail": detail,
+            "meta": error_meta,
         }
 
         if source:
-            error_body["error"]["source"] = source
+            error_obj["source"] = source
 
         if request:
-            error_body["error"]["meta"]["path"] = str(request.url.path)
+            error_meta["path"] = str(request.url.path)
             # WebSocket connections don't have a method attribute
             if hasattr(request, "method"):
-                error_body["error"]["meta"]["method"] = request.method
+                error_meta["method"] = request.method
 
         # Add debug context in development (when context is provided)
         if context:
-            error_body["error"]["meta"]["debug_context"] = context
+            error_meta["debug_context"] = context
+
+        error_body: dict[str, Any] = {"error": error_obj}
 
         return JSONResponse(status_code=status_code, content=error_body)
 
@@ -236,11 +238,14 @@ class ResponseBuilder:
 
         This preserves existing JSON:API format for endpoints that need it.
         """
-        return build_jsonapi_response(
+        result = build_jsonapi_response(
             data=data,
             total=total,
             page_number=page_number,
             page_size=page_size,
             base_url=base_url,
-            additional_meta=additional_meta,
         )
+        # Merge additional_meta into the response meta if provided
+        if additional_meta:
+            result["meta"].update(additional_meta)
+        return result

@@ -2,7 +2,7 @@
 CRUD operations for statistics and data analysis
 """
 
-from typing import Any
+from typing import Any, TypedDict
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -12,6 +12,15 @@ from app.core.gene_filters import (
 )
 from app.core.logging import get_logger
 from app.crud.statistics_handlers import SourceDistributionHandlerFactory
+
+
+class IntersectionDict(TypedDict):
+    """Type for intersection data in source overlaps."""
+
+    sets: list[str]
+    size: int
+    genes: list[str]
+
 
 logger = get_logger(__name__)
 
@@ -96,7 +105,7 @@ class CRUDStatistics:
 
             # Calculate all possible intersections using set theory
             source_names = list(source_gene_map.keys())
-            intersections = []
+            intersections: list[IntersectionDict] = []
 
             # Generate all possible combinations (2^n - 1, excluding empty set)
             from itertools import combinations
