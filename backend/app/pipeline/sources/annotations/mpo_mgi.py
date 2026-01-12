@@ -56,8 +56,8 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         self.kidney_root_node = config.get("kidney_root_node", 117579)
 
         # Cache for MPO terms (24-hour TTL)
-        self._mpo_terms_cache = None
-        self._mpo_cache_timestamp = None
+        self._mpo_terms_cache: set[str] | None = None
+        self._mpo_cache_timestamp: datetime | None = None
         self.mpo_cache_ttl = timedelta(hours=24)
 
         # Update source configuration
@@ -82,7 +82,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         try:
             response = await client.get(f"{self.mousemine_url}/version", timeout=10.0)
             if response.status_code == 200:
-                return response.text.strip()
+                return str(response.text.strip())
         except Exception as e:
             logger.sync_warning(f"Failed to fetch MouseMine version: {e}")
 
@@ -98,7 +98,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         all_terms.add(self.kidney_root_term)  # Include root term
 
         @retry_with_backoff(config=RetryConfig(max_retries=3))
-        async def fetch_children(term_id: str, node_id: int, depth: int = 0):
+        async def fetch_children(term_id: str, node_id: int, depth: int = 0) -> None:
             """Recursive function to fetch all children of a term"""
             if depth > 20:  # Safety limit for recursion depth
                 logger.sync_warning(f"Max recursion depth reached for term {term_id}")
@@ -209,7 +209,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
             # Process results by zygosity
             # Column indices: 0=primaryId, 1=symbol, 2=background, 3=zygosity, 4=mpo_id, 5=mpo_name
-            zygosity_data = {
+            zygosity_data: dict[str, list[dict[str, Any]]] = {
                 "hm": [],  # homozygous
                 "ht": [],  # heterozygous
                 "cn": [],  # conditional
@@ -450,34 +450,40 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
                 if cache_file.exists():
                     # Read file in thread pool (non-blocking)
-                    def read_json_file(path: Path) -> set:
+                    def read_json_file(path: Path) -> set[str]:
                         """Read and parse JSON file synchronously."""
                         with open(path, encoding="utf-8") as f:
-                            return set(json.load(f))
+                            data = json.load(f)
+                            return {str(item) for item in data}
 
-                    self._mpo_terms_cache = await asyncio.to_thread(read_json_file, cache_file)
+                    loaded_terms: set[str] = await asyncio.to_thread(read_json_file, cache_file)
+                    self._mpo_terms_cache = loaded_terms
                     logger.sync_info(
-                        f"Loaded {len(self._mpo_terms_cache)} MPO terms from cache file (non-blocking)"
+                        f"Loaded {len(loaded_terms)} MPO terms from cache file (non-blocking)"
                     )
                 else:
                     # Fetch terms from API and create cache file
                     logger.sync_info("MPO terms cache not found, fetching from API...")
-                    self._mpo_terms_cache = await self.fetch_kidney_mpo_terms()
+                    fetched_terms = await self.fetch_kidney_mpo_terms()
+                    self._mpo_terms_cache = fetched_terms
 
                     # Write file in thread pool (non-blocking)
-                    def write_json_file(path: Path, data: set) -> None:
+                    def write_json_file(path: Path, data: set[str]) -> None:
                         """Write JSON file synchronously."""
                         path.parent.mkdir(exist_ok=True, parents=True)
                         with open(path, "w", encoding="utf-8") as f:
                             json.dump(sorted(data), f, indent=2)
 
-                    await asyncio.to_thread(write_json_file, cache_file, self._mpo_terms_cache)
+                    await asyncio.to_thread(write_json_file, cache_file, fetched_terms)
                     logger.sync_info(
-                        f"Fetched {len(self._mpo_terms_cache)} MPO terms and saved to cache (non-blocking)"
+                        f"Fetched {len(fetched_terms)} MPO terms and saved to cache (non-blocking)"
                     )
                 self._mpo_cache_timestamp = datetime.now(timezone.utc)
 
+            # At this point, _mpo_terms_cache is guaranteed to be set
             mpo_terms = self._mpo_terms_cache
+            if mpo_terms is None:
+                raise RuntimeError("MPO terms cache should be loaded at this point")
 
             # Query MouseMine for this gene with zygosity information
             result = await self.query_mousemine_zygosity_phenotypes(gene.approved_symbol, mpo_terms)
@@ -536,7 +542,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         Returns:
             Dictionary mapping gene_id to annotation data
         """
-        results = {}
+        results: dict[int, dict[str, Any]] = {}
 
         # Pre-fetch MPO terms once for the batch
         if self._mpo_terms_cache is None or self._is_mpo_cache_expired():
@@ -556,15 +562,16 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
             # Execute batch
             batch_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            # Process results
+            # Process results - only store successful results
             for gene, result in zip(batch, batch_results, strict=False):
                 if isinstance(result, Exception):
                     logger.sync_error(
                         f"Failed to fetch MPO/MGI for {gene.approved_symbol}: {result}"
                     )
-                    results[gene.id] = None
-                else:
+                    # Skip failed results to match parent return type
+                elif isinstance(result, dict):
                     results[gene.id] = result
+                # Skip None results to match parent return type
 
             # Small delay between batches to avoid overwhelming MouseMine
             if i + batch_size < len(genes):

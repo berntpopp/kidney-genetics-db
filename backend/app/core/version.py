@@ -31,7 +31,7 @@ def get_package_version() -> str:
 
         with open(pyproject_path, "rb") as f:  # tomllib requires binary mode
             data = tomllib.load(f)
-            version = data["project"]["version"]
+            version: str = data["project"]["version"]
             logger.sync_debug("Backend version loaded from pyproject.toml", version=version)
             return version
 

@@ -16,6 +16,7 @@ from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationSource, GeneAnnotation
 from app.models.progress import DataSourceProgress
+from app.pipeline.sources.annotations.base import BaseAnnotationSource
 from app.pipeline.sources.annotations.clinvar import ClinVarAnnotationSource
 from app.pipeline.sources.annotations.descartes import DescartesAnnotationSource
 from app.pipeline.sources.annotations.ensembl import EnsemblAnnotationSource
@@ -47,7 +48,7 @@ class AnnotationPipeline:
     tracks progress, and manages update strategies.
     """
 
-    def __init__(self, db_session: Session):
+    def __init__(self, db_session: Session) -> None:
         """
         Initialize the annotation pipeline.
 
@@ -55,12 +56,13 @@ class AnnotationPipeline:
             db_session: Database session for operations
         """
         self.db = db_session
-        self.progress_tracker = None
+        self.progress_tracker: ProgressTracker | None = None
         self.source_name = "annotation_pipeline"  # For progress tracking
-        self.checkpoint_data = None  # For storing checkpoint state
+        self.checkpoint_data: dict[str, Any] | None = None  # For storing checkpoint state
 
         # Register available annotation sources
-        self.sources = {
+        # These are class types that will be instantiated when needed
+        self.sources: dict[str, type[BaseAnnotationSource]] = {
             "hgnc": HGNCAnnotationSource,
             "gnomad": GnomADAnnotationSource,
             "gtex": GTExAnnotationSource,
@@ -360,17 +362,19 @@ class AnnotationPipeline:
         """
         from sqlalchemy import func
 
+        genes: list[Gene] = []
+
         if gene_ids:
             # Specific genes requested - simple query
             query = self.db.query(Gene).filter(Gene.id.in_(gene_ids))
-            genes = query.order_by(Gene.id).all()
+            genes = list(query.order_by(Gene.id).all())
         elif strategy == UpdateStrategy.INCREMENTAL:
             # Get genes with incomplete annotations, ordered by clinical importance
             # Using SQLAlchemy ORM to avoid SQL errors
             from app.models.gene import GeneCuration
 
             # Get genes with fewer annotations than sources
-            genes = (
+            genes = list(
                 self.db.query(Gene)
                 .outerjoin(Gene.annotations)
                 .group_by(Gene.id)
@@ -379,14 +383,14 @@ class AnnotationPipeline:
             )
 
             # Get scores for prioritization using ORM
-            gene_ids = [g.id for g in genes]
-            if gene_ids:
+            gene_ids_for_scores = [g.id for g in genes]
+            if gene_ids_for_scores:
                 scores = (
                     self.db.query(GeneCuration.gene_id, GeneCuration.evidence_score)
-                    .filter(GeneCuration.gene_id.in_(gene_ids))
+                    .filter(GeneCuration.gene_id.in_(gene_ids_for_scores))
                     .all()
                 )
-                score_dict = dict(scores)
+                score_dict: dict[int, Any] = dict(scores)
             else:
                 score_dict = {}
 
@@ -410,8 +414,9 @@ class AnnotationPipeline:
                 .all()
             )
 
-            # Extract just the Gene objects
-            genes = [gene for gene, score in genes_with_scores]
+            # Extract just the Gene objects - these are already Gene instances from ORM
+            for gene, _score in genes_with_scores:
+                genes.append(gene)  # type: ignore[arg-type]
         else:
             # FULL or FORCED - get all genes ordered by clinical importance
             # Use ORM to avoid SQL errors
@@ -425,8 +430,9 @@ class AnnotationPipeline:
                 .all()
             )
 
-            # Extract just the Gene objects
-            genes = [gene for gene, score in genes_with_scores]
+            # Extract just the Gene objects - these are already Gene instances from ORM
+            for gene, _score in genes_with_scores:
+                genes.append(gene)  # type: ignore[arg-type]
 
         logger.sync_info(
             "Genes selected for annotation update",
@@ -465,7 +471,7 @@ class AnnotationPipeline:
         except Exception as e:
             logger.sync_error(f"Failed to save checkpoint: {e}")
 
-    async def _load_checkpoint(self) -> dict | None:
+    async def _load_checkpoint(self) -> dict[str, Any] | None:
         """Load pipeline checkpoint if exists."""
         try:
             progress = (
@@ -475,12 +481,13 @@ class AnnotationPipeline:
             )
 
             if progress and progress.progress_metadata:
+                metadata: dict[str, Any] = dict(progress.progress_metadata)
                 logger.sync_info(
                     "Checkpoint found",
-                    sources_remaining=progress.progress_metadata.get("sources_remaining"),
-                    sources_completed=progress.progress_metadata.get("sources_completed"),
+                    sources_remaining=metadata.get("sources_remaining"),
+                    sources_completed=metadata.get("sources_completed"),
                 )
-                return progress.progress_metadata
+                return metadata
         except Exception as e:
             logger.sync_error(f"Failed to load checkpoint: {e}")
         return None
@@ -611,7 +618,7 @@ class AnnotationPipeline:
             )
 
             @retry_with_backoff(config=retry_config)
-            async def retry_gene(gene: Gene):
+            async def retry_gene(gene: Gene) -> bool:
                 return await source.update_gene(gene)
 
             for gene in failed_genes:
@@ -637,7 +644,7 @@ class AnnotationPipeline:
                 self._executor = ThreadPoolExecutor(max_workers=2)
 
             # Clear cache in background thread (non-blocking)
-            def clear_cache_sync():
+            def clear_cache_sync() -> None:
                 cache_service = get_cache_service(self.db)
                 if cache_service:
                     # Use sync methods since we're in thread
@@ -665,10 +672,10 @@ class AnnotationPipeline:
             "recovery_attempted": len(failed_genes) > 0,
         }
 
-    async def _refresh_materialized_view(self):
+    async def _refresh_materialized_view(self) -> bool:
         """Refresh the gene_annotations_summary materialized view without blocking."""
 
-        def refresh_sync():
+        def refresh_sync() -> bool:
             try:
                 # Try concurrent refresh first
                 self.db.execute(

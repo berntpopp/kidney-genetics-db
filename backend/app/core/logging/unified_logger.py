@@ -89,13 +89,20 @@ class UnifiedLogger:
         combined_extra = {**context, **(extra_data or {})}
 
         try:
+            # Convert string errors to Exception for database logger
+            exception_error: Exception | None = None
+            if isinstance(error, Exception):
+                exception_error = error
+            elif isinstance(error, str):
+                exception_error = Exception(error)
+
             await self._database_logger.log(
                 level=level,
                 message=message,
                 source=self.name,
                 request_id=context.get("request_id"),
                 extra_data=combined_extra,
-                error=error,
+                error=exception_error,
             )
         except Exception as e:
             # Fallback to console logging if database logging fails

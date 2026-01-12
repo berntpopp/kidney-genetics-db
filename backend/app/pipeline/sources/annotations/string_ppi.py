@@ -53,13 +53,13 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         super().__init__(session)
 
         # Cache for protein mappings and interaction data
-        self._protein_to_gene = None
-        self._gene_to_protein = None
-        self._interactions = None
-        self._kidney_genes = None
-        self._gene_evidence_scores = None
+        self._protein_to_gene: dict[str, str] | None = None
+        self._gene_to_protein: dict[str, list[str]] | None = None
+        self._interactions: pd.DataFrame | None = None
+        self._kidney_genes: set[str] | None = None
+        self._gene_evidence_scores: dict[str, float] | None = None
 
-    async def _load_data(self):
+    async def _load_data(self) -> None:
         """Load and prepare STRING data files."""
         if self._protein_to_gene is not None:
             return  # Already loaded
@@ -124,7 +124,7 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         self._interactions = df_links
         logger.sync_info(f"Loaded {len(self._interactions)} interactions above threshold")
 
-    async def _load_kidney_genes(self):
+    async def _load_kidney_genes(self) -> None:
         """Load kidney genes and their evidence scores from database."""
         if self._kidney_genes is not None:
             return
@@ -180,10 +180,18 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         await self._load_data()
         await self._load_kidney_genes()
 
+        # After loading, these are guaranteed to be set
+        if (
+            self._kidney_genes is None
+            or self._interactions is None
+            or self._gene_evidence_scores is None
+        ):
+            raise RuntimeError("Data should be loaded at this point")
+
         logger.sync_info(f"Processing {len(genes)} genes for PPI scores")
 
-        results = {}
-        raw_scores = {}
+        results: dict[int, dict[str, Any]] = {}
+        raw_scores: dict[int, float] = {}
 
         for gene in genes:
             gene_symbol = gene.approved_symbol
@@ -222,11 +230,12 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
                 continue
 
             # Aggregate interactions by partner gene (handling multiple isoforms)
-            partner_interactions = {}
+            partner_interactions: dict[str, dict[str, Any]] = {}
 
             for _, interaction in gene_interactions.iterrows():
                 partner = interaction["partner"]
                 string_score = interaction["combined_score"]
+                # _gene_evidence_scores is guaranteed to be loaded at this point (checked above)
                 partner_evidence = self._gene_evidence_scores.get(partner, 0)
 
                 # If we already have this partner, keep the highest scoring interaction
@@ -396,7 +405,7 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
 
         return True
 
-    async def recalculate_global_percentiles(self):
+    async def recalculate_global_percentiles(self) -> None:
         """
         Trigger global percentile recalculation after batch updates.
         Should be called after annotation pipeline runs.

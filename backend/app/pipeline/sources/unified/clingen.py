@@ -6,7 +6,7 @@ async-first implementation using the unified data source architecture.
 """
 
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy.orm import Session
 
@@ -47,8 +47,8 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         cache_service: CacheService | None = None,
         http_client: CachedHttpClient | None = None,
         db_session: Session | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """Initialize ClinGen client with gene validity assessment capabilities."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
 
@@ -102,7 +102,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
 
     def _get_default_ttl(self) -> int:
         """Get default TTL for ClinGen data."""
-        return get_source_parameter("ClinGen", "cache_ttl", 86400)
+        return cast(int, get_source_parameter("ClinGen", "cache_ttl", 86400))
 
     async def fetch_raw_data(
         self, tracker: "ProgressTracker | None" = None, mode: str = "smart"
@@ -149,16 +149,21 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             List of gene validity records
         """
 
-        async def _fetch_panel():
+        async def _fetch_panel() -> list[dict[str, Any]]:
             """Internal function to fetch panel data."""
             url = f"{self.base_url}/affiliates/{affiliate_id}"
 
             try:
+                if self.http_client is None:
+                    logger.sync_error("HTTP client not initialized")
+                    return []
+
                 response = await self.http_client.get(url, timeout=30)
 
                 if response.status_code == 200:
                     data = response.json()
-                    return data.get("rows", [])
+                    rows = data.get("rows", [])
+                    return cast(list[dict[str, Any]], rows)
                 else:
                     logger.sync_error(
                         "Failed to fetch affiliate",

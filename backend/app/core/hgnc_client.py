@@ -14,7 +14,7 @@ Improvements over the original:
 """
 
 import asyncio
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -107,7 +107,8 @@ class HGNCClientCached:
             )
 
             response.raise_for_status()
-            return response.json()
+            result: dict[str, Any] = response.json()
+            return result
 
         except Exception as e:
             logger.sync_error("HGNC API request failed", url=url, error=str(e))
@@ -125,12 +126,13 @@ class HGNCClientCached:
         """
         cache_key = f"symbol_to_hgnc_id:{symbol.strip().upper()}"
 
-        async def fetch_hgnc_id():
+        async def fetch_hgnc_id() -> str | None:
             try:
                 response = await self._make_request("search/symbol", {"symbol": symbol})
                 docs = response.get("response", {}).get("docs", [])
                 if docs:
-                    return docs[0].get("hgnc_id")
+                    hgnc_id = docs[0].get("hgnc_id")
+                    return cast(str | None, hgnc_id)
                 return None
             except Exception as e:
                 logger.sync_warning(
@@ -154,12 +156,12 @@ class HGNCClientCached:
         """
         cache_key = f"gene_info:{symbol.strip().upper()}"
 
-        async def fetch_gene_info():
+        async def fetch_gene_info() -> dict[str, Any] | None:
             try:
                 response = await self._make_request("search/symbol", {"symbol": symbol})
                 docs = response.get("response", {}).get("docs", [])
                 if docs:
-                    return docs[0]
+                    return cast(dict[str, Any], docs[0])
                 return None
             except Exception as e:
                 logger.sync_warning(
@@ -189,13 +191,13 @@ class HGNCClientCached:
         normalized_symbol = symbol.strip().upper()
         cache_key = f"standardize_symbol:{normalized_symbol}"
 
-        async def fetch_standardized_symbol():
+        async def fetch_standardized_symbol() -> str:
             # Try direct symbol lookup
             try:
                 response = await self._make_request(f"search/symbol/{normalized_symbol}")
                 docs = response.get("response", {}).get("docs", [])
                 if docs:
-                    return docs[0].get("symbol", symbol)
+                    return str(docs[0].get("symbol", symbol))
             except Exception:
                 pass
 
@@ -204,7 +206,7 @@ class HGNCClientCached:
                 response = await self._make_request(f"search/prev_symbol/{normalized_symbol}")
                 docs = response.get("response", {}).get("docs", [])
                 if docs:
-                    return docs[0].get("symbol", symbol)
+                    return str(docs[0].get("symbol", symbol))
             except Exception:
                 pass
 
@@ -213,7 +215,7 @@ class HGNCClientCached:
                 response = await self._make_request(f"search/alias_symbol/{normalized_symbol}")
                 docs = response.get("response", {}).get("docs", [])
                 if docs:
-                    return docs[0].get("symbol", symbol)
+                    return str(docs[0].get("symbol", symbol))
             except Exception:
                 pass
 
@@ -392,9 +394,9 @@ class HGNCClientCached:
         batch_results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Combine results
-        standardized = {}
+        standardized: dict[str, dict[str, str | None]] = {}
         for i, batch_result in enumerate(batch_results):
-            if isinstance(batch_result, Exception):
+            if isinstance(batch_result, BaseException):
                 logger.sync_error("Batch failed", batch_index=i, error=str(batch_result))
                 # Fallback to individual processing for failed batch
                 for symbol in batches[i]:

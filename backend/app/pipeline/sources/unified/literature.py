@@ -59,8 +59,8 @@ class LiteratureSource(UnifiedDataSource):
         cache_service: CacheService | None = None,
         http_client: CachedHttpClient | None = None,
         db_session: Session | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """Initialize literature source."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
 
@@ -84,11 +84,23 @@ class LiteratureSource(UnifiedDataSource):
         return 86400 * 365  # 1 year
 
     async def fetch_raw_data(
+        self, tracker: "ProgressTracker | None" = None, mode: str = "smart"
+    ) -> Any:
+        """
+        Not used for Literature source - use parse_uploaded_file instead.
+
+        This source receives file uploads rather than fetching from an API.
+        """
+        raise NotImplementedError(
+            "Literature source uses parse_uploaded_file() for file uploads"
+        )
+
+    async def parse_uploaded_file(
         self,
         file_content: bytes,
         file_type: str,
         publication_id: str,
-        tracker: "ProgressTracker" = None,
+        tracker: "ProgressTracker | None" = None,
     ) -> pd.DataFrame:
         """
         Parse uploaded file and return DataFrame with publication metadata.
@@ -175,9 +187,11 @@ class LiteratureSource(UnifiedDataSource):
         Returns:
             Dictionary mapping gene symbols to aggregated evidence
         """
-        gene_data = defaultdict(
-            lambda: {"publications": set(), "publication_details": {}, "hgnc_ids": set()}
-        )
+
+        def make_default_entry() -> dict[str, Any]:
+            return {"publications": set(), "publication_details": {}, "hgnc_ids": set()}
+
+        gene_data: dict[str, dict[str, Any]] = defaultdict(make_default_entry)
 
         for idx, row in df.iterrows():
             try:
@@ -189,18 +203,21 @@ class LiteratureSource(UnifiedDataSource):
                 # Track publication ID
                 if "publication_id" in row.index:
                     pub_id = str(row["publication_id"])
-                    gene_data[symbol]["publications"].add(pub_id)
+                    pubs: set[str] = gene_data[symbol]["publications"]
+                    pubs.add(pub_id)
 
                 # Extract and store publication metadata
                 pub_details = self._extract_publication_metadata(row)
                 if pub_details:
-                    gene_data[symbol]["publication_details"].update(pub_details)
+                    details: dict[str, dict[str, Any]] = gene_data[symbol]["publication_details"]
+                    details.update(pub_details)
 
                 # Track HGNC ID if available
                 if "hgnc_id" in row.index:
                     hgnc_val = row["hgnc_id"]
                     if hgnc_val is not None and not isinstance(hgnc_val, list | dict):
-                        gene_data[symbol]["hgnc_ids"].add(str(hgnc_val))
+                        hgnc_ids: set[str] = gene_data[symbol]["hgnc_ids"]
+                        hgnc_ids.add(str(hgnc_val))
 
             except Exception as e:
                 logger.sync_warning(
@@ -279,7 +296,7 @@ class LiteratureSource(UnifiedDataSource):
         source_detail: str | None = None,
         file_hash: str | None = None,
         original_filename: str | None = None,
-        uploaded_by: str | None = None,
+        uploaded_by: int | None = None,
         mode: str = "merge",
     ) -> dict[str, Any]:
         """Store evidence with MERGE semantics and filtering for literature sources."""
@@ -299,11 +316,13 @@ class LiteratureSource(UnifiedDataSource):
             if static_source:
                 upload_record = StaticEvidenceUpload(
                     source_id=static_source.id,
+                    file_name=original_filename or "unknown",
+                    file_path=f"uploads/{self.source_name}/{original_filename or 'unknown'}",
                     evidence_name=source_detail or "unknown",
                     file_hash=file_hash,
                     original_filename=original_filename,
                     upload_status="processing",
-                    uploaded_by=uploaded_by or "system",
+                    uploaded_by=uploaded_by,
                     upload_metadata={"mode": mode},
                 )
                 db.add(upload_record)
@@ -484,15 +503,15 @@ class LiteratureSource(UnifiedDataSource):
 
         return stats
 
-    def _extract_publication_metadata(self, row: pd.Series) -> dict[str, dict]:
+    def _extract_publication_metadata(self, row: pd.Series) -> dict[str, dict[str, Any]]:
         """Extract publication metadata from row."""
-        metadata = {}
+        metadata: dict[str, dict[str, Any]] = {}
 
         if "publication_id" in row.index and row["publication_id"] is not None:
             pub_id = str(row["publication_id"])
 
             # Extract available publication fields
-            pub_data = {}
+            pub_data: dict[str, Any] = {}
             pub_fields = {
                 "pmid": "pmid",
                 "title": "title",

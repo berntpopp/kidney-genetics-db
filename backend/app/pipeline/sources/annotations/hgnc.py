@@ -2,7 +2,7 @@
 HGNC annotation source for gene annotations.
 """
 
-from typing import Any
+from typing import Any, cast
 
 from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, retry_with_backoff
@@ -74,7 +74,7 @@ class HGNCAnnotationSource(BaseAnnotationSource):
         return self._extract_annotations(hgnc_data)
 
     @retry_with_backoff(config=RetryConfig(max_retries=3))
-    async def _fetch_by_hgnc_id(self, hgnc_id: str) -> dict | None:
+    async def _fetch_by_hgnc_id(self, hgnc_id: str) -> dict[str, Any] | None:
         """Fetch HGNC data by HGNC ID."""
         # Clean HGNC ID (remove "HGNC:" prefix if present)
         clean_id = hgnc_id.replace("HGNC:", "")
@@ -90,7 +90,7 @@ class HGNCAnnotationSource(BaseAnnotationSource):
             if response.status_code == 200:
                 data = response.json()
                 if data.get("response", {}).get("docs"):
-                    return data["response"]["docs"][0]
+                    return cast(dict[str, Any], data["response"]["docs"][0])
 
         except Exception as e:
             logger.sync_error(f"Error fetching HGNC by ID: {str(e)}", hgnc_id=hgnc_id)
@@ -99,7 +99,7 @@ class HGNCAnnotationSource(BaseAnnotationSource):
         return None
 
     @retry_with_backoff(config=RetryConfig(max_retries=3))
-    async def _fetch_by_symbol(self, symbol: str) -> dict | None:
+    async def _fetch_by_symbol(self, symbol: str) -> dict[str, Any] | None:
         """Fetch HGNC data by gene symbol."""
         await self.apply_rate_limit()
         client = await self.get_http_client()
@@ -112,7 +112,7 @@ class HGNCAnnotationSource(BaseAnnotationSource):
             if response.status_code == 200:
                 data = response.json()
                 if data.get("response", {}).get("docs"):
-                    return data["response"]["docs"][0]
+                    return cast(dict[str, Any], data["response"]["docs"][0])
 
         except Exception as e:
             logger.sync_error(f"Error fetching HGNC by symbol: {str(e)}", symbol=symbol)
@@ -121,7 +121,7 @@ class HGNCAnnotationSource(BaseAnnotationSource):
         return None
 
     @retry_with_backoff(config=RetryConfig(max_retries=3))
-    async def _fetch_by_ensembl_id(self, ensembl_id: str) -> dict | None:
+    async def _fetch_by_ensembl_id(self, ensembl_id: str) -> dict[str, Any] | None:
         """Fetch HGNC data by Ensembl gene ID."""
         await self.apply_rate_limit()
         client = await self.get_http_client()
@@ -136,7 +136,7 @@ class HGNCAnnotationSource(BaseAnnotationSource):
             if response.status_code == 200:
                 data = response.json()
                 if data.get("response", {}).get("docs"):
-                    return data["response"]["docs"][0]
+                    return cast(dict[str, Any], data["response"]["docs"][0])
 
         except Exception as e:
             logger.sync_error(f"Error fetching HGNC by Ensembl ID: {str(e)}", ensembl_id=ensembl_id)
@@ -244,7 +244,7 @@ class HGNCAnnotationSource(BaseAnnotationSource):
         """
         import asyncio
 
-        results = {}
+        results: dict[int, dict[str, Any]] = {}
 
         # Create tasks for all genes
         tasks = []
@@ -256,9 +256,9 @@ class HGNCAnnotationSource(BaseAnnotationSource):
 
         # Map results back to gene IDs
         for gene, annotation in zip(genes, annotations, strict=False):
-            if annotation and not isinstance(annotation, Exception):
+            if annotation and not isinstance(annotation, BaseException):
                 results[gene.id] = annotation
-            elif isinstance(annotation, Exception):
+            elif isinstance(annotation, BaseException):
                 logger.sync_error(
                     "Error fetching annotation for gene",
                     gene_symbol=gene.approved_symbol,
@@ -268,7 +268,7 @@ class HGNCAnnotationSource(BaseAnnotationSource):
         return results
 
     @retry_with_backoff(config=RetryConfig(max_retries=3))
-    async def search_genes(self, query: str, limit: int = 10) -> list[dict]:
+    async def search_genes(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """
         Search for genes in HGNC by query string.
 
@@ -292,7 +292,8 @@ class HGNCAnnotationSource(BaseAnnotationSource):
 
             if response.status_code == 200:
                 data = response.json()
-                return data.get("response", {}).get("docs", [])
+                docs = data.get("response", {}).get("docs", [])
+                return cast(list[dict[str, Any]], docs)
 
         except Exception as e:
             logger.sync_error(f"Error searching HGNC: {str(e)}", query=query)

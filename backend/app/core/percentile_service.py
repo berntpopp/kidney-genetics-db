@@ -10,7 +10,7 @@ import asyncio
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -45,7 +45,7 @@ class PercentileService:
         self.cache_service = get_cache_service(session)
 
         # Frequency limiting
-        self._last_calculation = {}
+        self._last_calculation: dict[str, float] = {}
         self._min_interval = 300  # 5 minutes between calculations
 
         # Check if disabled via environment
@@ -80,12 +80,13 @@ class PercentileService:
                     f"Skipping percentile calculation for {source} - too frequent",
                     time_since_last=time.time() - last_calc,
                 )
-                return await self.get_cached_percentiles_only(source)
+                return await self.get_cached_percentiles_only(source) or {}
 
-        # Try with timeout
+        # Try with timeout (5 second max)
         try:
-            async with asyncio.timeout(5.0):  # 5 second max
-                return await self._calculate_with_fallback(source, score_field)
+            return await asyncio.wait_for(
+                self._calculate_with_fallback(source, score_field), timeout=5.0
+            )
         except asyncio.TimeoutError:
             await self.logger.error(f"Percentile calculation timed out for {source}")
             return await self.get_cached_percentiles_only(source) or {}
@@ -100,7 +101,7 @@ class PercentileService:
 
         if cached and isinstance(cached, dict):
             await self.logger.info(f"Using cached percentiles for {source}", gene_count=len(cached))
-            return cached
+            return cast(dict[int, float], cached)
 
         # Calculate from database view
         try:
@@ -218,7 +219,7 @@ class PercentileService:
 
             # Validate structure
             if cached and isinstance(cached, dict):
-                return cached
+                return cast(dict[int, float], cached)
 
         except Exception as e:
             self.logger.sync_debug(f"Cache error getting percentiles: {e}")
@@ -307,6 +308,6 @@ class PercentileService:
             },
         }
 
-    async def cleanup(self):
+    async def cleanup(self) -> None:
         """Cleanup resources."""
         self._percentile_executor.shutdown(wait=False)

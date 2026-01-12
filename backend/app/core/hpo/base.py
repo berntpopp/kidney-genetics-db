@@ -79,7 +79,9 @@ class HPOAPIBase:
             )
 
             @retry_with_backoff(config=retry_config)
-            async def fetch_with_retry():
+            async def fetch_with_retry() -> Any:
+                # self.http_client is guaranteed to be non-None here due to outer if check
+                assert self.http_client is not None
                 response = await self.http_client.get(
                     url,
                     params=params,

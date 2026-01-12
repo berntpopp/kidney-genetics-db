@@ -47,8 +47,8 @@ class HPOUnifiedSource(UnifiedDataSource):
         cache_service: CacheService | None = None,
         http_client: CachedHttpClient | None = None,
         db_session: Session | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """Initialize HPO client with phenotype ontology capabilities."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
 
@@ -118,18 +118,21 @@ class HPOUnifiedSource(UnifiedDataSource):
             List of HPO term IDs including root and descendants
         """
 
-        async def _fetch_descendants():
+        async def _fetch_descendants() -> list[str]:
             """Internal function to fetch term hierarchy."""
             url = f"{self.api_url}/hpo/terms/{root_term}"
 
             try:
+                if self.http_client is None:
+                    return [root_term]
+
                 response = await self.http_client.get(url, timeout=30)
 
                 if response.status_code == 200:
                     data = response.json()
 
                     # Extract descendant terms
-                    descendants = [root_term]
+                    descendants: list[str] = [root_term]
 
                     # Get children recursively
                     children = data.get("children", [])
@@ -177,16 +180,20 @@ class HPOUnifiedSource(UnifiedDataSource):
             List of gene associations
         """
 
-        async def _fetch_associations():
+        async def _fetch_associations() -> list[dict[str, Any]]:
             """Internal function to fetch associations."""
             url = f"{self.api_url}/hpo/terms/{hpo_term}/genes"
 
             try:
+                if self.http_client is None:
+                    return []
+
                 response = await self.http_client.get(url, timeout=30)
 
                 if response.status_code == 200:
                     data = response.json()
-                    return data.get("associations", [])
+                    result: list[dict[str, Any]] = data.get("associations", [])
+                    return result
                 else:
                     logger.sync_debug(
                         "No gene associations for HPO term",
@@ -267,21 +274,22 @@ class HPOUnifiedSource(UnifiedDataSource):
         Returns:
             Calculated score (0-100)
         """
+        import math
+
         # Score based on number of HPO terms
         # Using a logarithmic scale to avoid oversaturation
         hpo_count = len(evidence_data.get("hpo_terms", []))
 
+        score: float
         if hpo_count == 0:
             return 0.0
         elif hpo_count <= 5:
-            score = hpo_count * 20  # 1-5 terms: 20-100 points
+            score = float(hpo_count * 20)  # 1-5 terms: 20-100 points
         elif hpo_count <= 10:
-            score = 100 + (hpo_count - 5) * 10  # 6-10 terms: 100-150 points
+            score = 100.0 + (hpo_count - 5) * 10.0  # 6-10 terms: 100-150 points
         else:
             # Diminishing returns for many terms
-            import math
-
-            score = 150 + math.log(hpo_count - 9) * 20
+            score = 150.0 + math.log(hpo_count - 9) * 20.0
 
         # Cap at 100 - actual normalization happens via percentile ranking
         return min(score, 100.0)
@@ -319,15 +327,19 @@ class HPOUnifiedSource(UnifiedDataSource):
             Disease information or None
         """
 
-        async def _fetch_disease():
+        async def _fetch_disease() -> dict[str, Any] | None:
             """Internal function to fetch disease data."""
             url = f"{self.api_url}/diseases/{disease_id}"
 
             try:
+                if self.http_client is None:
+                    return None
+
                 response = await self.http_client.get(url, timeout=30)
 
                 if response.status_code == 200:
-                    return response.json()
+                    result: dict[str, Any] = response.json()
+                    return result
                 else:
                     logger.sync_debug(
                         "Disease not found", disease_id=disease_id, status_code=response.status_code
@@ -342,7 +354,7 @@ class HPOUnifiedSource(UnifiedDataSource):
 
         # Use unified caching
         cache_key = f"disease:{disease_id}"
-        disease_info = await self.fetch_with_cache(
+        disease_info: dict[str, Any] | None = await self.fetch_with_cache(
             cache_key=cache_key,
             fetch_func=_fetch_disease,
             ttl=self.cache_ttl * 7,  # Cache for a week

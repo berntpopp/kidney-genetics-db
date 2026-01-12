@@ -104,7 +104,7 @@ class HPOPipeline:
             )
 
         # Step 3: Aggregate gene evidence
-        gene_evidence = {}
+        gene_evidence: dict[str, Any] = {}
 
         total_terms = len(annotations_map)
         processed = 0

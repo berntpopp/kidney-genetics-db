@@ -8,6 +8,7 @@ import hashlib
 import inspect
 import json
 from collections.abc import Callable
+from typing import Any
 
 from app.core.cache_service import get_cache_service
 from app.core.logging import get_logger
@@ -15,7 +16,9 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-def cache(namespace: str = "default", ttl: int | None = None, key_builder: Callable | None = None):
+def cache(
+    namespace: str = "default", ttl: int | None = None, key_builder: Callable[..., str] | None = None
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Cache decorator for async functions.
 
@@ -30,9 +33,9 @@ def cache(namespace: str = "default", ttl: int | None = None, key_builder: Calla
             return expensive_operation(gene_id)
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Get db session from kwargs if available
             db_session = kwargs.get("db")
             cache_service = get_cache_service(db_session)
@@ -88,7 +91,12 @@ def cache(namespace: str = "default", ttl: int | None = None, key_builder: Calla
 
 
 def cache_key_builder(
-    func: Callable, namespace: str = "", request=None, response=None, *args, **kwargs
+    func: Callable[..., Any],
+    namespace: str = "",
+    request: Any = None,
+    response: Any = None,
+    *args: Any,
+    **kwargs: Any,
 ) -> str:
     """
     Build a cache key based on function and request parameters.

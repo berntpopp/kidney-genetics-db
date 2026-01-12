@@ -7,6 +7,7 @@ This script ensures all annotation sources are properly registered and configure
 import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, cast
 
 import yaml
 
@@ -17,7 +18,7 @@ from app.models.gene_annotation import AnnotationSource
 logger = get_logger(__name__)
 
 
-def load_annotation_config():
+def load_annotation_config() -> dict[str, Any]:
     """Load annotation source configuration from YAML file."""
     config_path = Path(__file__).parent.parent.parent / "config" / "annotations.yaml"
 
@@ -27,10 +28,11 @@ def load_annotation_config():
     with open(config_path, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
-    return config.get("annotations", {})
+    annotations = config.get("annotations", {}) if config else {}
+    return cast(dict[str, Any], annotations)
 
 
-def prepare_annotation_sources(config):
+def prepare_annotation_sources(config: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Prepare annotation source configurations from YAML data.
 
@@ -90,7 +92,7 @@ def prepare_annotation_sources(config):
     return sources
 
 
-async def init_annotation_sources():
+async def init_annotation_sources() -> dict[str, Any]:
     """Initialize all annotation sources in the database from YAML configuration."""
 
     # Get database session
@@ -167,7 +169,7 @@ async def init_annotation_sources():
         db.close()
 
 
-async def clear_corrupted_cache():
+async def clear_corrupted_cache() -> None:
     """Clear any corrupted cache entries to prevent deserialization errors."""
 
     db = next(get_db())
@@ -193,7 +195,7 @@ async def clear_corrupted_cache():
         db.close()
 
 
-async def main():
+async def main() -> None:
     """Main entry point for the script."""
 
     # Clear cache first to prevent issues

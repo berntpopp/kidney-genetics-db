@@ -3,6 +3,7 @@ Kidney Genetics Database API
 Main FastAPI application
 """
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -48,7 +49,7 @@ Base.metadata.create_all(bind=engine)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application lifecycle - start/stop background tasks and event bus"""
     # Startup
     logger.sync_info("Starting application...")

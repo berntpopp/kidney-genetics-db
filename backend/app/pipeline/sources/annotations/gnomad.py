@@ -291,7 +291,8 @@ class GnomADAnnotationSource(BaseAnnotationSource):
                 )
                 return None
 
-            return data.get("data")
+            result: dict[Any, Any] | None = data.get("data")
+            return result
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:

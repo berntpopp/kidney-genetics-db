@@ -71,8 +71,10 @@ class StaticEvidenceUpload(Base):
 
     id = Column(BigInteger, primary_key=True, index=True)
     source_id = Column(Integer, ForeignKey("static_sources.id"), nullable=False, index=True)
-    evidence_name = Column(String(255), nullable=False)
-    file_hash = Column(String(64), nullable=False, index=True)  # SHA256 hash
+    file_name = Column(Text, nullable=False)  # Required by DB schema
+    file_path = Column(Text, nullable=False)  # Required by DB schema
+    evidence_name = Column(String(255), nullable=True)
+    file_hash = Column(String(64), nullable=True, index=True)  # SHA256 hash
     original_filename = Column(String(255), nullable=True)
     content_type = Column(String(50), nullable=True)
     upload_status = Column(String(50), nullable=True, index=True)
@@ -83,7 +85,7 @@ class StaticEvidenceUpload(Base):
     genes_staged = Column(Integer, nullable=True)
     upload_metadata = Column(JSONB, nullable=True)
     processed_at = Column(DateTime, nullable=True)  # No timezone in DB
-    uploaded_by = Column(String(255), nullable=True)  # nullable=True in DB
+    uploaded_by = Column(BigInteger, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)  # No timezone in DB
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
