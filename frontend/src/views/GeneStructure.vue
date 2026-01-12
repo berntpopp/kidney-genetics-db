@@ -86,6 +86,8 @@
               v-else
               :gene-symbol="gene.approved_symbol"
               :ensembl-data="ensemblData"
+              :clinvar-data="clinvarData"
+              :uniprot-data="uniprotData"
             />
           </v-card-text>
         </v-card>
@@ -121,7 +123,11 @@
                 Retry
               </v-btn>
             </div>
-            <ProteinDomainVisualization v-else :uniprot-data="uniprotData" />
+            <ProteinDomainVisualization
+              v-else
+              :uniprot-data="uniprotData"
+              :clinvar-data="clinvarData"
+            />
           </v-card-text>
         </v-card>
 
@@ -274,6 +280,12 @@ const uniprotData = computed(() => {
   if (!annotations.value?.annotations?.uniprot) return null
   const uniprotAnnotations = annotations.value.annotations.uniprot
   return uniprotAnnotations.length > 0 ? uniprotAnnotations[0].data : null
+})
+
+const clinvarData = computed(() => {
+  if (!annotations.value?.annotations?.clinvar) return null
+  const clinvarAnnotations = annotations.value.annotations.clinvar
+  return clinvarAnnotations.length > 0 ? clinvarAnnotations[0].data : null
 })
 
 // Methods

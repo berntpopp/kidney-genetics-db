@@ -157,6 +157,9 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             "review_status": "No data",
             "traits": [],
             "molecular_consequences": variant_data.get("molecular_consequence_list", []),
+            "chromosome": None,
+            "genomic_start": None,
+            "genomic_end": None,
         }
 
         # Extract germline classification
@@ -187,11 +190,29 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             var = variant_data["variation_set"][0]
             result["cdna_change"] = var.get("cdna_change", "")
 
-            # Extract protein change from title
+            # Extract protein change from title (keep p. prefix for standard HGVS notation)
             import re
 
-            protein_match = re.search(r"\(p\.(.*?)\)", result["title"])
+            protein_match = re.search(r"\((p\..*?)\)", result["title"])
             result["protein_change"] = protein_match.group(1) if protein_match else ""
+
+            # Extract genomic location (prefer GRCh38, fall back to any assembly)
+            if "variation_loc" in var:
+                grch38_loc = None
+                any_loc = None
+                for loc in var["variation_loc"]:
+                    if loc.get("assembly_name") == "GRCh38":
+                        grch38_loc = loc
+                        break
+                    elif any_loc is None:
+                        any_loc = loc
+
+                # Use GRCh38 if available, otherwise use any available location
+                loc_to_use = grch38_loc or any_loc
+                if loc_to_use:
+                    result["chromosome"] = loc_to_use.get("chr")
+                    result["genomic_start"] = loc_to_use.get("start")
+                    result["genomic_end"] = loc_to_use.get("stop")
 
         return result
 
@@ -254,6 +275,28 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             )
             raise
 
+    def _parse_protein_position(self, protein_change: str) -> int | None:
+        """
+        Parse protein position from HGVS protein change notation.
+
+        Args:
+            protein_change: HGVS notation like "Arg4206Trp" or "Gly1234*"
+
+        Returns:
+            Integer position or None if cannot be parsed
+        """
+        import re
+
+        if not protein_change:
+            return None
+
+        # Match patterns like Arg4206Trp, Gly1234*, Ter1234Cys, etc.
+        # Position is the number in the middle
+        match = re.search(r"[A-Za-z]{3}(\d+)", protein_change)
+        if match:
+            return int(match.group(1))
+        return None
+
     def _aggregate_variants(self, variants: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Aggregate variant data into summary statistics.
@@ -277,6 +320,8 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             "variant_type_counts": defaultdict(int),
             "traits_summary": defaultdict(int),
             "molecular_consequences": defaultdict(int),
+            "protein_variants": [],  # Variants with protein positions for protein domain view
+            "genomic_variants": [],  # ALL variants with genomic positions for gene structure view
             "consequence_categories": {
                 "truncating": 0,  # nonsense + frameshift + essential splice
                 "missense": 0,  # missense variants
@@ -296,7 +341,9 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             classification = variant["classification"].lower()
 
             # Count by classification
+            is_pathogenic = False
             if "pathogenic" in classification:
+                is_pathogenic = True
                 if "likely" in classification:
                     stats["likely_pathogenic_count"] += 1
                 elif "/" not in classification:  # Exclude combined classifications
@@ -304,7 +351,112 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                 # Handle combined "Pathogenic/Likely pathogenic"
                 elif "pathogenic/likely pathogenic" in classification:
                     stats["pathogenic_count"] += 1
+
+            # Determine classification category for filtering (used by both arrays)
+            if is_pathogenic:
+                if "likely" in classification:
+                    category = "likely_pathogenic"
+                else:
+                    category = "pathogenic"
             elif "benign" in classification:
+                if "likely" in classification:
+                    category = "likely_benign"
+                else:
+                    category = "benign"
+            elif "uncertain" in classification or "vus" in classification.lower():
+                category = "vus"
+            elif "conflicting" in classification:
+                category = "conflicting"
+            else:
+                category = "other"
+
+            # Get confidence level
+            confidence = confidence_levels.get(variant.get("review_status", ""), 0)
+
+            # Get molecular consequences for this variant
+            mol_consequences = variant.get("molecular_consequences", [])
+
+            # Determine effect category (most severe)
+            # Truncating = only frameshift, stop (nonsense), start_lost
+            TRUNCATING = {
+                "nonsense",
+                "frameshift variant",
+                "start lost",
+            }
+            # Splice includes all splice variants (donor, acceptor, region)
+            SPLICE = {
+                "splice donor variant",
+                "splice acceptor variant",
+                "splice region variant",
+            }
+            effect_category = "other"
+            for conseq in mol_consequences:
+                conseq_lower = conseq.lower()
+                if conseq_lower in TRUNCATING:
+                    effect_category = "truncating"
+                    break  # Most severe, stop checking
+                elif conseq_lower in SPLICE or "splice" in conseq_lower:
+                    if effect_category not in ("truncating",):
+                        effect_category = "splice_region"
+                elif "missense" in conseq_lower:
+                    if effect_category not in ("truncating", "splice_region"):
+                        effect_category = "missense"
+                elif "inframe" in conseq_lower:
+                    if effect_category not in ("truncating", "splice_region", "missense"):
+                        effect_category = "inframe"
+                elif "synonymous" in conseq_lower:
+                    if effect_category == "other":
+                        effect_category = "synonymous"
+
+            # Collect variants with protein positions for protein domain view
+            protein_change = variant.get("protein_change", "")
+            position = self._parse_protein_position(protein_change)
+            if position:
+                stats["protein_variants"].append(
+                    {
+                        "position": position,
+                        "protein_change": protein_change,
+                        "cdna_change": variant.get("cdna_change", ""),
+                        "accession": variant.get("accession", ""),
+                        "classification": variant.get("classification", ""),
+                        "category": category,
+                        "effect_category": effect_category,
+                        "review_status": variant.get("review_status", ""),
+                        "confidence": confidence,
+                        "molecular_consequences": mol_consequences,
+                        "variant_type": variant.get("variant_type", ""),
+                        "title": variant.get("title", ""),
+                        "chromosome": variant.get("chromosome"),
+                        "genomic_start": variant.get("genomic_start"),
+                        "genomic_end": variant.get("genomic_end"),
+                    }
+                )
+
+            # Collect ALL variants with genomic positions for gene structure view
+            # This includes splice variants that don't have protein positions
+            genomic_start = variant.get("genomic_start")
+            if genomic_start is not None:
+                stats["genomic_variants"].append(
+                    {
+                        "position": position,  # May be None for splice variants
+                        "protein_change": protein_change,
+                        "cdna_change": variant.get("cdna_change", ""),
+                        "accession": variant.get("accession", ""),
+                        "classification": variant.get("classification", ""),
+                        "category": category,
+                        "effect_category": effect_category,
+                        "review_status": variant.get("review_status", ""),
+                        "confidence": confidence,
+                        "molecular_consequences": mol_consequences,
+                        "variant_type": variant.get("variant_type", ""),
+                        "title": variant.get("title", ""),
+                        "chromosome": variant.get("chromosome"),
+                        "genomic_start": genomic_start,
+                        "genomic_end": variant.get("genomic_end"),
+                    }
+                )
+
+            if not is_pathogenic and "benign" in classification:
                 if "likely" in classification:
                     stats["likely_benign_count"] += 1
                 elif "/" not in classification:
@@ -332,30 +484,36 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
         # Convert defaultdicts to regular dicts
         stats["variant_type_counts"] = dict(stats["variant_type_counts"])
 
-        # Define truncating consequences
+        # Define truncating consequences (only frameshift, stop, start_lost)
         TRUNCATING_CONSEQUENCES = {
             "nonsense",
             "frameshift variant",
+            "start lost",
+        }
+        # Define splice consequences
+        SPLICE_CONSEQUENCES = {
             "splice donor variant",
             "splice acceptor variant",
+            "splice region variant",
         }
 
         # Process molecular consequences
         for variant in variants:
             for consequence in variant.get("molecular_consequences", []):
                 stats["molecular_consequences"][consequence] += 1
+                consequence_lower = consequence.lower()
 
                 # Categorize (count most severe category per variant)
-                if consequence in TRUNCATING_CONSEQUENCES:
+                if consequence_lower in TRUNCATING_CONSEQUENCES:
                     stats["consequence_categories"]["truncating"] += 1
-                elif "missense" in consequence.lower():
-                    stats["consequence_categories"]["missense"] += 1
-                elif "synonymous" in consequence.lower():
-                    stats["consequence_categories"]["synonymous"] += 1
-                elif "inframe" in consequence.lower():
-                    stats["consequence_categories"]["inframe"] += 1
-                elif "splice" in consequence.lower() and consequence not in TRUNCATING_CONSEQUENCES:
+                elif consequence_lower in SPLICE_CONSEQUENCES or "splice" in consequence_lower:
                     stats["consequence_categories"]["splice_region"] += 1
+                elif "missense" in consequence_lower:
+                    stats["consequence_categories"]["missense"] += 1
+                elif "synonymous" in consequence_lower:
+                    stats["consequence_categories"]["synonymous"] += 1
+                elif "inframe" in consequence_lower:
+                    stats["consequence_categories"]["inframe"] += 1
                 elif "UTR" in consequence:
                     stats["consequence_categories"]["regulatory"] += 1
                 elif "intron" in consequence.lower():
@@ -512,6 +670,8 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                 "truncating_percentage": stats.get("truncating_percentage", 0),
                 "missense_percentage": stats.get("missense_percentage", 0),
                 "synonymous_percentage": stats.get("synonymous_percentage", 0),
+                "protein_variants": stats.get("protein_variants", []),
+                "genomic_variants": stats.get("genomic_variants", []),
                 "last_updated": datetime.now(timezone.utc).isoformat(),
             }
             # Generate summary text

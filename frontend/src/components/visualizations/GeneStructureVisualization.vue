@@ -1,5 +1,88 @@
 <template>
-  <div ref="chartContainer" class="gene-structure-visualization"></div>
+  <div class="gene-structure-visualization">
+    <!-- Filter Controls (only show if we have variants) -->
+    <div v-if="hasVariants" class="filter-controls mb-4">
+      <!-- Classification Filter -->
+      <div class="filter-group mb-2">
+        <span class="filter-label text-caption text-medium-emphasis mr-2">Classification:</span>
+        <v-chip-group
+          v-model="selectedClassifications"
+          multiple
+          selected-class="bg-primary"
+          class="d-inline-flex"
+        >
+          <v-chip
+            v-for="cat in classificationOptions"
+            :key="cat.value"
+            :value="cat.value"
+            size="small"
+            variant="outlined"
+            :color="getClassificationColor(cat.value)"
+            filter
+          >
+            {{ cat.label }} ({{ getClassificationCount(cat.value) }})
+          </v-chip>
+        </v-chip-group>
+      </div>
+
+      <!-- Effect Filter -->
+      <div class="filter-group mb-2">
+        <span class="filter-label text-caption text-medium-emphasis mr-2">Effect:</span>
+        <v-chip-group
+          v-model="selectedEffects"
+          multiple
+          selected-class="bg-primary"
+          class="d-inline-flex"
+        >
+          <v-chip
+            v-for="eff in effectOptions"
+            :key="eff.value"
+            :value="eff.value"
+            size="small"
+            variant="outlined"
+            :color="getEffectColor(eff.value)"
+            filter
+          >
+            {{ eff.label }} ({{ getEffectCount(eff.value) }})
+          </v-chip>
+        </v-chip-group>
+      </div>
+
+      <!-- Variant count summary -->
+      <div class="text-caption text-medium-emphasis mt-2">
+        Showing {{ filteredVariants.length }} of {{ allVariants.length }} variants with genomic
+        positions
+      </div>
+    </div>
+
+    <!-- Zoom Controls -->
+    <div class="zoom-controls mb-2">
+      <v-btn-group density="compact" variant="outlined" divided>
+        <v-btn size="small" :disabled="!canZoomIn" @click="zoomIn">
+          <v-icon icon="mdi-magnify-plus-outline" size="small" />
+        </v-btn>
+        <v-btn size="small" :disabled="!canZoomOut" @click="zoomOut">
+          <v-icon icon="mdi-magnify-minus-outline" size="small" />
+        </v-btn>
+        <v-btn size="small" :disabled="!isZoomed" @click="resetZoom">
+          <v-icon icon="mdi-magnify-remove-outline" size="small" class="mr-1" />
+          Reset
+        </v-btn>
+      </v-btn-group>
+      <span v-if="isZoomed" class="text-caption text-medium-emphasis ml-2">
+        Viewing: {{ Math.round(zoomDomain[0]).toLocaleString() }} -
+        {{ Math.round(zoomDomain[1]).toLocaleString() }} bp ({{ Math.round(zoomLevel * 100) }}%
+        zoom)
+      </span>
+      <span class="text-caption text-medium-emphasis ml-2">
+        <v-icon icon="mdi-gesture-swipe-horizontal" size="x-small" class="mr-1" />
+        Drag to pan, scroll to zoom
+      </span>
+    </div>
+
+    <!-- Visualization Container -->
+    <div ref="chartContainer" class="chart-container"></div>
+  </div>
 </template>
 
 <script setup>
@@ -12,7 +95,14 @@ const theme = useTheme()
 const chartContainer = ref(null)
 let resizeObserver = null
 
-const { show: showTooltip, hide: hideTooltip, remove: removeTooltip } = useD3Tooltip()
+const {
+  show: showTooltip,
+  hide: hideTooltip,
+  pin: pinTooltip,
+  unpin: unpinTooltip,
+  remove: removeTooltip,
+  isPinned
+} = useD3Tooltip()
 
 const props = defineProps({
   geneSymbol: {
@@ -23,33 +113,235 @@ const props = defineProps({
     type: Object,
     required: true
   },
+  clinvarData: {
+    type: Object,
+    default: null
+  },
+  uniprotData: {
+    type: Object,
+    default: null
+  },
   height: {
     type: Number,
-    default: 200
+    default: 280
   }
 })
 
+// Filter state
+const selectedClassifications = ref(['pathogenic', 'likely_pathogenic'])
+const selectedEffects = ref([])
+
+// Zoom state
+const zoomDomain = ref([0, 0]) // Current visible domain [start, end]
+const zoomLevel = ref(1) // Current zoom level (1 = no zoom)
+const isZoomed = computed(() => zoomLevel.value > 1.01)
+const canZoomIn = computed(() => zoomLevel.value < 20)
+const canZoomOut = computed(() => zoomLevel.value > 1.01)
+
+// D3 zoom behavior reference
+let zoomBehavior = null
+let currentTransform = d3.zoomIdentity
+
+// Classification options for filter
+const classificationOptions = [
+  { value: 'pathogenic', label: 'Pathogenic' },
+  { value: 'likely_pathogenic', label: 'Likely Path.' },
+  { value: 'vus', label: 'VUS' },
+  { value: 'conflicting', label: 'Conflicting' },
+  { value: 'likely_benign', label: 'Likely Ben.' },
+  { value: 'benign', label: 'Benign' }
+]
+
+// Effect options for filter
+const effectOptions = [
+  { value: 'truncating', label: 'Truncating' },
+  { value: 'missense', label: 'Missense' },
+  { value: 'inframe', label: 'Inframe' },
+  { value: 'splice_region', label: 'Splice' },
+  { value: 'synonymous', label: 'Synonymous' },
+  { value: 'other', label: 'Other' }
+]
+
+// Colors for clinical classifications
+const classificationColors = {
+  pathogenic: '#D32F2F',
+  likely_pathogenic: '#F57C00',
+  vus: '#FBC02D',
+  conflicting: '#7B1FA2',
+  likely_benign: '#0288D1',
+  benign: '#388E3C',
+  other: '#757575'
+}
+
+// Get color for classification
+const getClassificationColor = category => {
+  return classificationColors[category] || '#757575'
+}
+
+// Get all variants from ClinVar data - use genomic_variants for gene structure view
+// This includes ALL variants with genomic positions (including splice variants)
+const allVariants = computed(() => {
+  if (!props.clinvarData?.genomic_variants) return []
+  return props.clinvarData.genomic_variants
+})
+
+// Check if we have variants to display
+const hasVariants = computed(() => allVariants.value.length > 0)
+
+// Get count by classification
+const getClassificationCount = category => {
+  return allVariants.value.filter(v => v.category === category).length
+}
+
+// Get count by effect
+const getEffectCount = effect => {
+  return allVariants.value.filter(v => v.effect_category === effect).length
+}
+
+// Filter variants based on selected filters
+const filteredVariants = computed(() => {
+  let variants = allVariants.value
+
+  if (selectedClassifications.value.length > 0) {
+    variants = variants.filter(v => selectedClassifications.value.includes(v.category))
+  }
+
+  if (selectedEffects.value.length > 0) {
+    variants = variants.filter(v => selectedEffects.value.includes(v.effect_category))
+  }
+
+  return variants
+})
+
+// Effect colors for variant types
+const effectColors = {
+  truncating: '#B71C1C',
+  missense: '#E65100',
+  inframe: '#F9A825',
+  splice_region: '#6A1B9A',
+  synonymous: '#2E7D32',
+  other: '#757575'
+}
+
+const getEffectColor = effect => {
+  return effectColors[effect] || '#757575'
+}
+
 // Get exons from canonical transcript
+// Sort by transcript order (5'→3'), not genomic position
 const exons = computed(() => {
   const transcript = props.ensemblData?.canonical_transcript
   if (!transcript?.exons) return []
-  return [...transcript.exons].sort((a, b) => a.start - b.start)
+
+  const strand = props.ensemblData.strand
+
+  // Sort exons by genomic position first
+  const sortedByPosition = [...transcript.exons].sort((a, b) => a.start - b.start)
+
+  // For negative strand, exons should be numbered in reverse
+  // The first exon in transcript order is the one with highest genomic position
+  if (strand === '-') {
+    // Assign transcript order number (1 = first exon in 5'→3' direction)
+    return sortedByPosition.map((exon, idx) => ({
+      ...exon,
+      transcript_order: sortedByPosition.length - idx
+    }))
+  } else {
+    // For positive strand, genomic order = transcript order
+    return sortedByPosition.map((exon, idx) => ({
+      ...exon,
+      transcript_order: idx + 1
+    }))
+  }
+})
+
+// Get variants with genomic positions (use actual positions from ClinVar API)
+// No mapping needed - we use the real genomic coordinates from the variant data
+const variantsWithGenomicPos = computed(() => {
+  return filteredVariants.value
+    .filter(v => v.genomic_start !== null && v.genomic_start !== undefined)
+    .map(variant => ({
+      ...variant,
+      genomicPosition: variant.genomic_start
+    }))
 })
 
 // Colors for visualization
 const colors = computed(() => ({
   exon: '#1976D2',
   exonHover: '#1565C0',
-  intron: '#E0E0E0',
-  intronDark: '#9E9E9E',
-  utr: '#90CAF9',
+  intron: theme.global.current.value.dark ? '#424242' : '#E0E0E0',
   text: theme.global.current.value.dark ? '#FFFFFF' : '#333333'
 }))
+
+// Zoom control functions
+const zoomIn = () => {
+  if (!chartContainer.value || !zoomBehavior) return
+  const svg = d3.select(chartContainer.value).select('svg')
+  svg.transition().duration(300).call(zoomBehavior.scaleBy, 1.5)
+}
+
+const zoomOut = () => {
+  if (!chartContainer.value || !zoomBehavior) return
+  const svg = d3.select(chartContainer.value).select('svg')
+  svg.transition().duration(300).call(zoomBehavior.scaleBy, 0.67)
+}
+
+const resetZoom = () => {
+  if (!chartContainer.value || !zoomBehavior) return
+  const svg = d3.select(chartContainer.value).select('svg')
+  svg.transition().duration(300).call(zoomBehavior.transform, d3.zoomIdentity)
+}
+
+// Build variant tooltip content (for both hover and pinned)
+const buildVariantTooltip = (variants, isPinned = false) => {
+  const count = variants.length
+  const firstVariant = variants[0]
+  const color = getClassificationColor(firstVariant.category)
+
+  let tooltipContent = `
+    <div style="font-weight: 600; color: ${color}; margin-bottom: 4px;">
+      ${count} variant${count > 1 ? 's' : ''} in this region
+    </div>
+  `
+
+  // Show all variants if pinned, otherwise limit to 3
+  const displayVariants = isPinned ? variants : variants.slice(0, 3)
+
+  displayVariants.forEach(v => {
+    const effectColor = getEffectColor(v.effect_category)
+    const clinvarId = v.accession ? v.accession.replace('VCV', '').replace(/^0+/, '') : ''
+
+    tooltipContent += `
+      <div style="border-top: 1px solid #eee; padding-top: 6px; margin-top: 6px;">
+        <div style="font-weight: 600;">${v.protein_change || 'Unknown'}</div>
+        ${v.cdna_change ? `<div style="font-size: 11px; color: #666;">${v.cdna_change}</div>` : ''}
+        <div style="font-size: 11px; margin-top: 2px;">
+          <span style="color: ${color}; font-weight: 500;">${v.classification || 'Unknown'}</span>
+          <span style="color: ${effectColor}; margin-left: 6px; background: ${effectColor}22; padding: 1px 4px; border-radius: 3px;">${v.effect_category || 'other'}</span>
+        </div>
+        <div style="font-size: 10px; color: #666; margin-top: 2px;">
+          ${v.review_status || ''} ${clinvarId ? '•' : ''}
+          ${clinvarId ? `<a href="https://www.ncbi.nlm.nih.gov/clinvar/variation/${clinvarId}/" target="_blank" rel="noopener noreferrer" style="color: #1976D2; text-decoration: none;">${v.accession}</a>` : ''}
+        </div>
+      </div>
+    `
+  })
+
+  if (!isPinned && count > 3) {
+    tooltipContent += `<div style="font-size: 11px; color: #666; margin-top: 6px; font-style: italic;">Click to see all ${count} variants</div>`
+  }
+
+  return tooltipContent
+}
 
 const renderChart = () => {
   if (!chartContainer.value || exons.value.length === 0) {
     return
   }
+
+  // Close any pinned tooltip on re-render
+  unpinTooltip()
 
   // Clear previous chart
   d3.select(chartContainer.value).selectAll('*').remove()
@@ -58,8 +350,9 @@ const renderChart = () => {
   const containerWidth = chartContainer.value.clientWidth
   const containerHeight = props.height
 
-  // Margins
-  const margin = { top: 40, right: 40, bottom: 40, left: 40 }
+  // Margins - extra top margin for lollipops
+  const lollipopHeight = hasVariants.value && variantsWithGenomicPos.value.length > 0 ? 60 : 0
+  const margin = { top: 40 + lollipopHeight, right: 50, bottom: 40, left: 40 }
   const width = containerWidth - margin.left - margin.right
   const height = containerHeight - margin.top - margin.bottom
 
@@ -79,6 +372,12 @@ const renderChart = () => {
   // Get gene coordinates
   const geneStart = props.ensemblData.start
   const geneEnd = props.ensemblData.end
+  const strand = props.ensemblData.strand
+
+  // Initialize zoom domain if not set
+  if (zoomDomain.value[0] === 0 && zoomDomain.value[1] === 0) {
+    zoomDomain.value = [geneStart, geneEnd]
+  }
 
   // Create SVG
   const svg = d3
@@ -87,10 +386,27 @@ const renderChart = () => {
     .attr('width', containerWidth)
     .attr('height', containerHeight)
 
+  // Create clip path for zoom
+  svg
+    .append('defs')
+    .append('clipPath')
+    .attr('id', 'gene-clip')
+    .append('rect')
+    .attr('x', 0)
+    .attr('y', -lollipopHeight - 20)
+    .attr('width', width)
+    .attr('height', height + lollipopHeight + 40)
+
   const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
+
+  // Create main content group with clip path
+  const contentGroup = g.append('g').attr('clip-path', 'url(#gene-clip)')
 
   // Create scale
   const xScale = d3.scaleLinear().domain([geneStart, geneEnd]).range([0, width])
+
+  // Create a zoom scale that can be transformed
+  let xScaleZoomed = xScale.copy()
 
   // Draw title
   svg
@@ -102,14 +418,16 @@ const renderChart = () => {
     .style('font-weight', '600')
     .style('fill', colors.value.text)
     .text(
-      `${props.geneSymbol} - ${props.ensemblData.canonical_transcript?.transcript_id || 'Canonical Transcript'}`
+      `${props.geneSymbol} - ${props.ensemblData.canonical_transcript?.transcript_id || 'Canonical Transcript'} (${strand} strand)`
     )
 
   // Draw gene backbone (intron line)
   const backboneY = height / 2
   const backboneHeight = 4
 
-  g.append('rect')
+  contentGroup
+    .append('rect')
+    .attr('class', 'backbone')
     .attr('x', 0)
     .attr('y', backboneY - backboneHeight / 2)
     .attr('width', width)
@@ -117,90 +435,199 @@ const renderChart = () => {
     .attr('fill', colors.value.intron)
     .attr('rx', 2)
 
-  // Draw strand direction arrow
-  const strandSymbol = props.ensemblData.strand === '+' ? '\u25B6' : '\u25C0' // Triangle right or left
+  // Draw strand direction arrow (outside clip)
+  const strandSymbol = strand === '+' ? '\u25B6' : '\u25C0'
   g.append('text')
-    .attr('x', props.ensemblData.strand === '+' ? width + 10 : -10)
+    .attr('class', 'strand-arrow')
+    .attr('x', strand === '+' ? width + 10 : -10)
     .attr('y', backboneY + 5)
-    .attr('text-anchor', props.ensemblData.strand === '+' ? 'start' : 'end')
+    .attr('text-anchor', strand === '+' ? 'start' : 'end')
     .style('font-size', '16px')
     .style('fill', colors.value.text)
     .text(strandSymbol)
 
   // Draw exons
   const exonHeight = 40
+  const exonsGroup = contentGroup.append('g').attr('class', 'exons-group')
+  const exonLabelsGroup = contentGroup.append('g').attr('class', 'exon-labels-group')
 
-  exons.value.forEach(exon => {
-    const x = xScale(exon.start)
-    const exonWidth = Math.max(xScale(exon.end) - xScale(exon.start), 2) // Minimum width of 2px
+  const drawExons = scale => {
+    exonsGroup.selectAll('*').remove()
+    exonLabelsGroup.selectAll('*').remove()
 
-    // Exon rectangle
-    const exonRect = g
-      .append('rect')
-      .attr('x', x)
-      .attr('y', backboneY - exonHeight / 2)
-      .attr('width', exonWidth)
-      .attr('height', exonHeight)
-      .attr('fill', colors.value.exon)
-      .attr('rx', 3)
-      .attr('stroke', '#1565C0')
-      .attr('stroke-width', 1)
-      .style('cursor', 'pointer')
+    exons.value.forEach(exon => {
+      const x = scale(exon.start)
+      const exonWidth = Math.max(scale(exon.end) - scale(exon.start), 2)
 
-    // Hover effects
-    exonRect
-      .on('mouseover', function (event) {
-        d3.select(this)
-          .transition()
-          .duration(150)
-          .attr('fill', colors.value.exonHover)
-          .attr('y', backboneY - exonHeight / 2 - 2)
-          .attr('height', exonHeight + 4)
+      // Skip if outside visible area
+      if (x + exonWidth < 0 || x > width) return
 
-        showTooltip(
-          event,
+      // Exon rectangle
+      const exonRect = exonsGroup
+        .append('rect')
+        .attr('x', x)
+        .attr('y', backboneY - exonHeight / 2)
+        .attr('width', exonWidth)
+        .attr('height', exonHeight)
+        .attr('fill', colors.value.exon)
+        .attr('rx', 3)
+        .attr('stroke', '#1565C0')
+        .attr('stroke-width', 1)
+        .style('cursor', 'pointer')
+
+      // Hover effects
+      exonRect
+        .on('mouseover', function (event) {
+          if (isPinned.value) return
+
+          d3.select(this)
+            .transition()
+            .duration(150)
+            .attr('fill', colors.value.exonHover)
+            .attr('y', backboneY - exonHeight / 2 - 2)
+            .attr('height', exonHeight + 4)
+
+          showTooltip(
+            event,
+            `
+            <div style="font-weight: 600; color: #1976D2; margin-bottom: 4px;">
+              Exon ${exon.transcript_order} (of ${exons.value.length})
+            </div>
+            <div><strong>ID:</strong> ${exon.exon_id}</div>
+            <div><strong>Genomic:</strong> ${exon.start?.toLocaleString()} - ${exon.end?.toLocaleString()}</div>
+            <div><strong>Length:</strong> ${exon.length?.toLocaleString()} bp</div>
+            <div style="font-size: 10px; color: #666; margin-top: 4px;">
+              Transcript order: 5' to 3'
+            </div>
           `
-          <div style="font-weight: 600; color: var(--v-theme-primary); margin-bottom: 4px;">
-            Exon ${exon.exon_number}
-          </div>
-          <div><strong>ID:</strong> ${exon.exon_id}</div>
-          <div><strong>Start:</strong> ${exon.start?.toLocaleString()}</div>
-          <div><strong>End:</strong> ${exon.end?.toLocaleString()}</div>
-          <div><strong>Length:</strong> ${exon.length?.toLocaleString()} bp</div>
-        `
-        )
-      })
-      .on('mouseout', function () {
-        d3.select(this)
-          .transition()
-          .duration(150)
-          .attr('fill', colors.value.exon)
-          .attr('y', backboneY - exonHeight / 2)
-          .attr('height', exonHeight)
+          )
+        })
+        .on('mouseout', function () {
+          d3.select(this)
+            .transition()
+            .duration(150)
+            .attr('fill', colors.value.exon)
+            .attr('y', backboneY - exonHeight / 2)
+            .attr('height', exonHeight)
 
-        hideTooltip()
-      })
+          hideTooltip()
+        })
 
-    // Exon number label (only if wide enough)
-    if (exonWidth > 20) {
-      g.append('text')
-        .attr('x', x + exonWidth / 2)
-        .attr('y', backboneY + 4)
-        .attr('text-anchor', 'middle')
-        .style('font-size', '10px')
-        .style('fill', 'white')
-        .style('pointer-events', 'none')
-        .text(exon.exon_number)
-    }
-  })
+      // Exon number label (use transcript order, only if wide enough)
+      if (exonWidth > 20) {
+        exonLabelsGroup
+          .append('text')
+          .attr('x', x + exonWidth / 2)
+          .attr('y', backboneY + 4)
+          .attr('text-anchor', 'middle')
+          .style('font-size', '10px')
+          .style('fill', 'white')
+          .style('pointer-events', 'none')
+          .text(exon.transcript_order)
+      }
+    })
+  }
 
-  // Draw scale bar at bottom
-  const scaleBarY = height + 10
+  // Draw lollipops for ClinVar variants
+  const lollipopGroup = contentGroup.append('g').attr('class', 'lollipop-group')
+  const lollipopBaseY = backboneY - exonHeight / 2 - 5
+  const lollipopRadius = 4
+  const lollipopStalkHeight = 40
+
+  const drawLollipops = scale => {
+    lollipopGroup.selectAll('*').remove()
+
+    if (!hasVariants.value || variantsWithGenomicPos.value.length === 0) return
+
+    // Group variants by exact genomic position (only truly overlapping variants are grouped)
+    const variantsByPosition = {}
+    variantsWithGenomicPos.value.forEach(variant => {
+      // Use exact genomic position - no rounding
+      const pos = variant.genomicPosition
+      if (!variantsByPosition[pos]) {
+        variantsByPosition[pos] = []
+      }
+      variantsByPosition[pos].push(variant)
+    })
+
+    // Draw each lollipop
+    Object.entries(variantsByPosition).forEach(([position, variants]) => {
+      const x = scale(parseInt(position))
+
+      // Skip if outside visible area
+      if (x < -10 || x > width + 10) return
+
+      const variant = variants[0]
+      const color = getClassificationColor(variant.category)
+      const count = variants.length
+
+      // Stalk line
+      lollipopGroup
+        .append('line')
+        .attr('x1', x)
+        .attr('y1', lollipopBaseY)
+        .attr('x2', x)
+        .attr('y2', lollipopBaseY - lollipopStalkHeight)
+        .attr('stroke', color)
+        .attr('stroke-width', 1.5)
+        .attr('stroke-opacity', 0.7)
+
+      // Lollipop head (larger if multiple variants)
+      const radius = count > 1 ? lollipopRadius + Math.min(Math.log2(count) * 2, 6) : lollipopRadius
+
+      const lollipopHead = lollipopGroup
+        .append('circle')
+        .attr('cx', x)
+        .attr('cy', lollipopBaseY - lollipopStalkHeight - radius)
+        .attr('r', radius)
+        .attr('fill', color)
+        .attr('stroke', d3.color(color).darker(0.5))
+        .attr('stroke-width', 1)
+        .style('cursor', 'pointer')
+
+      // Hover effects for lollipop
+      lollipopHead
+        .on('mouseover', function (event) {
+          if (isPinned.value) return
+
+          d3.select(this)
+            .transition()
+            .duration(150)
+            .attr('r', radius + 2)
+            .attr('stroke-width', 2)
+
+          showTooltip(event, buildVariantTooltip(variants, false))
+        })
+        .on('mouseout', function () {
+          d3.select(this).transition().duration(150).attr('r', radius).attr('stroke-width', 1)
+
+          hideTooltip()
+        })
+        .on('click', function (event) {
+          event.stopPropagation()
+
+          d3.select(this)
+            .transition()
+            .duration(150)
+            .attr('r', radius + 3)
+            .attr('stroke-width', 2)
+
+          // Pin tooltip with full variant list
+          pinTooltip(event, buildVariantTooltip(variants, true))
+        })
+    })
+  }
+
+  // Draw scale bar at bottom (outside clip)
   const geneLengthKb = Math.round((geneEnd - geneStart) / 1000)
+  const scaleBarY = height + 10
   const scaleBarLength = Math.min(width / 4, 100)
   const scaleBarValue = Math.round(((scaleBarLength / width) * (geneEnd - geneStart)) / 1000)
 
-  g.append('line')
+  const scaleBarGroup = g.append('g').attr('class', 'scale-bar')
+
+  scaleBarGroup
+    .append('line')
     .attr('x1', 0)
     .attr('y1', scaleBarY)
     .attr('x2', scaleBarLength)
@@ -208,7 +635,8 @@ const renderChart = () => {
     .attr('stroke', colors.value.text)
     .attr('stroke-width', 2)
 
-  g.append('text')
+  scaleBarGroup
+    .append('text')
     .attr('x', scaleBarLength / 2)
     .attr('y', scaleBarY + 14)
     .attr('text-anchor', 'middle')
@@ -228,6 +656,49 @@ const renderChart = () => {
     .text(
       `chr${props.ensemblData.chromosome}:${geneStart?.toLocaleString()}-${geneEnd?.toLocaleString()} (${geneLengthKb} kb)`
     )
+
+  // Initial draw
+  drawExons(xScaleZoomed)
+  drawLollipops(xScaleZoomed)
+
+  // Setup zoom behavior
+  zoomBehavior = d3
+    .zoom()
+    .scaleExtent([1, 20])
+    .translateExtent([
+      [0, 0],
+      [width, height]
+    ])
+    .extent([
+      [0, 0],
+      [width, height]
+    ])
+    .on('zoom', event => {
+      currentTransform = event.transform
+      xScaleZoomed = event.transform.rescaleX(xScale)
+
+      // Update zoom state
+      zoomLevel.value = event.transform.k
+      zoomDomain.value = xScaleZoomed.domain()
+
+      // Redraw with new scale
+      drawExons(xScaleZoomed)
+      drawLollipops(xScaleZoomed)
+
+      // Update backbone width
+      contentGroup
+        .select('.backbone')
+        .attr('x', xScaleZoomed(geneStart))
+        .attr('width', xScaleZoomed(geneEnd) - xScaleZoomed(geneStart))
+    })
+
+  // Apply zoom to SVG
+  svg.call(zoomBehavior)
+
+  // Apply existing transform if any
+  if (currentTransform !== d3.zoomIdentity) {
+    svg.call(zoomBehavior.transform, currentTransform)
+  }
 }
 
 // Setup resize observer
@@ -246,13 +717,37 @@ onUnmounted(() => {
     resizeObserver.disconnect()
   }
   removeTooltip()
-  // Remove any orphaned tooltips
   d3.selectAll('.visualization-tooltip').remove()
 })
 
 // Re-render on data changes
 watch(
   () => props.ensemblData,
+  () => nextTick(renderChart),
+  { deep: true }
+)
+
+watch(
+  () => props.clinvarData,
+  () => nextTick(renderChart),
+  { deep: true }
+)
+
+watch(
+  () => props.uniprotData,
+  () => nextTick(renderChart),
+  { deep: true }
+)
+
+// Re-render on filter changes
+watch(
+  () => selectedClassifications.value,
+  () => nextTick(renderChart),
+  { deep: true }
+)
+
+watch(
+  () => selectedEffects.value,
   () => nextTick(renderChart),
   { deep: true }
 )
@@ -266,7 +761,39 @@ watch(
 <style scoped>
 .gene-structure-visualization {
   width: 100%;
-  min-height: 200px;
   position: relative;
+}
+
+.chart-container {
+  width: 100%;
+  min-height: 200px;
+  cursor: grab;
+}
+
+.chart-container:active {
+  cursor: grabbing;
+}
+
+.filter-controls {
+  padding: 12px;
+  background: rgba(var(--v-theme-surface-variant), 0.3);
+  border-radius: 8px;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  min-width: 90px;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 </style>

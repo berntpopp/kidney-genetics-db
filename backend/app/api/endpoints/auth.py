@@ -72,11 +72,18 @@ async def get_current_user(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
 
-    # Check if account is locked
-    if user.locked_until and user.locked_until > datetime.now(UTC):
-        raise HTTPException(
-            status_code=status.HTTP_423_LOCKED, detail=f"Account locked until {user.locked_until}"
-        )
+    # Check if account is locked (handle both naive and aware datetimes)
+    if user.locked_until:
+        now = datetime.now(UTC)
+        locked_until = user.locked_until
+        # Make comparison work with naive datetimes from DB
+        if locked_until.tzinfo is None:
+            locked_until = locked_until.replace(tzinfo=UTC)
+        if locked_until > now:
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail=f"Account locked until {user.locked_until}",
+            )
 
     return user
 
@@ -133,11 +140,18 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Check if account is locked
-    if user.locked_until and user.locked_until > datetime.now(UTC):
-        raise HTTPException(
-            status_code=status.HTTP_423_LOCKED, detail=f"Account locked until {user.locked_until}"
-        )
+    # Check if account is locked (handle both naive and aware datetimes)
+    if user.locked_until:
+        now = datetime.now(UTC)
+        locked_until = user.locked_until
+        # Make comparison work with naive datetimes from DB
+        if locked_until.tzinfo is None:
+            locked_until = locked_until.replace(tzinfo=UTC)
+        if locked_until > now:
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail=f"Account locked until {user.locked_until}",
+            )
 
     # Check if account is active
     if not user.is_active:
