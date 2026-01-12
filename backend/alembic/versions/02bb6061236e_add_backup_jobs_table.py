@@ -72,8 +72,8 @@ def upgrade() -> None:
         sa.Column('parallel_jobs', sa.SmallInteger(), server_default='1', nullable=True),
 
         # Status tracking
-        sa.Column('status', sa.Enum('pending', 'running', 'completed', 'failed', 'restored', name='backup_status'), server_default='pending', nullable=True),
-        sa.Column('trigger_source', sa.Enum('manual_api', 'scheduled_cron', 'pre_restore_safety', name='backup_trigger'), server_default='manual_api', nullable=True),
+        sa.Column('status', sa.Enum('pending', 'running', 'completed', 'failed', 'restored', name='backup_status', create_type=False), server_default='pending', nullable=True),
+        sa.Column('trigger_source', sa.Enum('manual_api', 'scheduled_cron', 'pre_restore_safety', name='backup_trigger', create_type=False), server_default='manual_api', nullable=True),
         sa.Column('started_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('duration_seconds', sa.Integer(), nullable=True),
