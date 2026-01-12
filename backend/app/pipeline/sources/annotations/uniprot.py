@@ -19,6 +19,15 @@ from app.pipeline.sources.annotations.base import BaseAnnotationSource
 logger = get_logger(__name__)
 
 
+def _escape_uniprot_query(symbol: str) -> str:
+    """Escape special characters for UniProt search query.
+
+    UniProt uses Lucene query syntax, so special characters like colons,
+    parentheses, and brackets need to be escaped to prevent query injection.
+    """
+    return symbol.replace(":", "\\:").replace("(", "\\(").replace(")", "\\)")
+
+
 class UniProtAnnotationSource(BaseAnnotationSource):
     """
     UniProt protein domain annotation source.
@@ -91,8 +100,10 @@ class UniProtAnnotationSource(BaseAnnotationSource):
             client = await self.get_http_client()
 
             # Search for reviewed human protein by gene name
+            # Escape special characters to prevent query injection
+            escaped_symbol = _escape_uniprot_query(gene.approved_symbol)
             query = (
-                f"(gene_exact:{gene.approved_symbol}) AND "
+                f"(gene_exact:{escaped_symbol}) AND "
                 "(organism_id:9606) AND (reviewed:true)"
             )
             url = f"{self.base_url}/uniprotkb/search"
@@ -362,8 +373,9 @@ class UniProtAnnotationSource(BaseAnnotationSource):
             client = await self.get_http_client()
 
             # Build OR query for gene symbols
+            # Escape special characters to prevent query injection
             gene_clauses = " OR ".join(
-                f"(gene_exact:{g.approved_symbol})" for g in genes
+                f"(gene_exact:{_escape_uniprot_query(g.approved_symbol)})" for g in genes
             )
             query = f"({gene_clauses}) AND (organism_id:9606) AND (reviewed:true)"
 
