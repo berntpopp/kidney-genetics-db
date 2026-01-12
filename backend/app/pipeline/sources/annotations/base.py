@@ -32,10 +32,10 @@ class BaseAnnotationSource(ABC):
     gene annotations from various external sources.
     """
 
-    # Source identification
-    source_name: str = None  # Must be overridden
-    display_name: str = None
-    version: str = None
+    # Source identification (must be overridden in subclasses)
+    source_name: str | None = None
+    display_name: str | None = None
+    version: str | None = None
 
     # Cache configuration
     cache_ttl_days: int = 7
@@ -44,10 +44,10 @@ class BaseAnnotationSource(ABC):
     # Batch processing
     batch_size: int = 50
 
-    # Retry configuration
-    retry_config: RetryConfig = None
-    circuit_breaker: CircuitBreaker = None
-    http_client: RetryableHTTPClient = None
+    # Retry configuration (initialized in __init__)
+    retry_config: RetryConfig | None = None
+    circuit_breaker: CircuitBreaker | None = None
+    http_client: RetryableHTTPClient | None = None
 
     # Rate limiting
     requests_per_second: float = 2.0  # Default 2 req/s
@@ -61,6 +61,7 @@ class BaseAnnotationSource(ABC):
         """
         self.session = session
         self.batch_mode = False  # Flag to disable cache invalidation during batch updates
+        self._update_count = 0  # Track updates for rate-limited source record updates
 
         if not self.source_name:
             raise ValueError("source_name must be defined in subclass")
@@ -102,7 +103,7 @@ class BaseAnnotationSource(ABC):
 
     def _get_or_create_source(self) -> AnnotationSource:
         """Get or create the annotation source record."""
-        source = (
+        source: AnnotationSource | None = (
             self.session.query(AnnotationSource).filter_by(source_name=self.source_name).first()
         )
 
@@ -172,7 +173,7 @@ class BaseAnnotationSource(ABC):
 
         return self.http_client
 
-    async def apply_rate_limit(self):
+    async def apply_rate_limit(self) -> None:
         """Apply rate limiting between requests."""
         delay = 1.0 / self.requests_per_second
         await asyncio.sleep(delay)
@@ -196,12 +197,13 @@ class BaseAnnotationSource(ABC):
             Created or updated GeneAnnotation object
         """
         # Check for existing annotation
-        existing = (
+        existing: GeneAnnotation | None = (
             self.session.query(GeneAnnotation)
             .filter_by(gene_id=gene.id, source=self.source_name, version=self.version)
             .first()
         )
 
+        annotation: GeneAnnotation
         # Track history if updating
         if existing:
             self._record_history(
@@ -236,10 +238,7 @@ class BaseAnnotationSource(ABC):
             self.session.commit()
             # Update source record timestamp only occasionally to avoid excessive DB updates
             # This prevents performance issues when updating many genes
-            if hasattr(self, "_update_count"):
-                self._update_count += 1
-            else:
-                self._update_count = 1
+            self._update_count += 1
 
             # Update timestamp every 10 genes or on first update
             if self._update_count == 1 or self._update_count % 10 == 0:
@@ -257,7 +256,7 @@ class BaseAnnotationSource(ABC):
 
         return annotation
 
-    def _invalidate_api_cache_sync(self, gene_id: int):
+    def _invalidate_api_cache_sync(self, gene_id: int) -> None:
         """
         Synchronously invalidate API cache for a gene's annotations.
         This clears both the specific source cache and the 'all' cache
@@ -292,7 +291,7 @@ class BaseAnnotationSource(ABC):
             # We're in a true sync context - use threading to avoid blocking
             import threading
 
-            def run_async_in_thread():
+            def run_async_in_thread() -> None:
                 # Create a new event loop in this thread
                 new_loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(new_loop)
@@ -314,7 +313,7 @@ class BaseAnnotationSource(ABC):
                 f"Cache invalidation skipped: {str(e)}", source=self.source_name, gene_id=gene_id
             )
 
-    async def _invalidate_api_cache(self, gene_id: int):
+    async def _invalidate_api_cache(self, gene_id: int) -> None:
         """
         Invalidate API cache for a gene's annotations (async version).
         This clears both the specific source cache and the 'all' cache
@@ -327,8 +326,9 @@ class BaseAnnotationSource(ABC):
             cache_key_all = f"{gene_id}:all"
             await cache_service.delete(cache_key_all, namespace="annotations")
 
-            # Invalidate the specific source cache
-            cache_key_source = f"{gene_id}:{self.source_name.lower()}"
+            # Invalidate the specific source cache (source_name is validated in __init__)
+            source_name_lower = self.source_name.lower() if self.source_name else ""
+            cache_key_source = f"{gene_id}:{source_name_lower}"
             await cache_service.delete(cache_key_source, namespace="annotations")
 
             logger.sync_debug(
@@ -348,7 +348,7 @@ class BaseAnnotationSource(ABC):
         operation: str,
         old_data: dict | None = None,
         new_data: dict | None = None,
-    ):
+    ) -> None:
         """Record annotation change in history."""
         history = AnnotationHistory(
             gene_id=gene_id,
@@ -374,10 +374,12 @@ class BaseAnnotationSource(ABC):
         try:
             cache_service = get_cache_service(self.session)
             cache_key = f"{gene.approved_symbol}:{gene.hgnc_id}"
+            # source_name is validated non-None in __init__
+            source_namespace = self.source_name.lower() if self.source_name else "unknown"
 
             # Check cache first
             cached_data = await cache_service.get(
-                key=cache_key, namespace=self.source_name.lower(), default=None
+                key=cache_key, namespace=source_namespace, default=None
             )
 
             # Validate cached data - don't use empty/null responses
@@ -396,7 +398,7 @@ class BaseAnnotationSource(ABC):
                     await cache_service.set(
                         key=cache_key,
                         value=annotation_data,
-                        namespace=self.source_name.lower(),
+                        namespace=source_namespace,
                         ttl=self.cache_ttl_days * 86400,
                     )
                     metadata = {"retrieved_at": datetime.utcnow().isoformat(), "from_cache": False}
@@ -525,7 +527,7 @@ class BaseAnnotationSource(ABC):
 
         return successful, failed
 
-    def _refresh_materialized_view(self):
+    def _refresh_materialized_view(self) -> None:
         """Refresh the gene_annotations_summary materialized view."""
         try:
             self.session.execute(

@@ -19,5 +19,5 @@ class SchemaVersion(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )  # Timestamp when version was applied
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<SchemaVersion(version='{self.version}', revision='{self.alembic_revision}')>"

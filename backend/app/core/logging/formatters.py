@@ -7,6 +7,7 @@ and structured logging (JSON for database storage).
 
 import json
 import logging
+from typing import Any
 
 from .context import get_context
 
@@ -40,7 +41,7 @@ class JSONFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         # Start with basic log data
-        log_data = {
+        log_data: dict[str, Any] = {
             "timestamp": self.formatTime(record),
             "level": record.levelname,
             "message": record.getMessage(),

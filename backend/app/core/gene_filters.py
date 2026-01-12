@@ -59,7 +59,7 @@ def get_gene_evidence_filter_join(hide_zero_scores: bool | None = None) -> tuple
     if should_hide_zero_scores(hide_zero_scores):
         return (
             "INNER JOIN gene_scores gs ON gs.gene_id = gene_evidence.gene_id",
-            "gs.percentage_score > 0"
+            "gs.percentage_score > 0",
         )
     return ("", "1=1")
 

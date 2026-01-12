@@ -17,12 +17,14 @@ from app.models.gene_annotation import AnnotationSource, GeneAnnotation
 from app.models.user import User
 from app.pipeline.sources.annotations.clinvar import ClinVarAnnotationSource
 from app.pipeline.sources.annotations.descartes import DescartesAnnotationSource
+from app.pipeline.sources.annotations.ensembl import EnsemblAnnotationSource
 from app.pipeline.sources.annotations.gnomad import GnomADAnnotationSource
 from app.pipeline.sources.annotations.gtex import GTExAnnotationSource
 from app.pipeline.sources.annotations.hgnc import HGNCAnnotationSource
 from app.pipeline.sources.annotations.hpo import HPOAnnotationSource
 from app.pipeline.sources.annotations.mpo_mgi import MPOMGIAnnotationSource
 from app.pipeline.sources.annotations.string_ppi import StringPPIAnnotationSource
+from app.pipeline.sources.annotations.uniprot import UniProtAnnotationSource
 from app.pipeline.tasks.percentile_updater import (
     update_percentiles_for_source,
     validate_percentiles,
@@ -56,7 +58,9 @@ async def get_gene_annotations(
     # Check cache first
     cache_service = get_cache_service(db)
     cache_key = f"{gene_id}:{source or 'all'}"
-    cached = await cache_service.get(key=cache_key, namespace="annotations", default=None)
+    cached: dict[str, Any] | None = await cache_service.get(
+        key=cache_key, namespace="annotations", default=None
+    )
     if cached:
         logger.sync_debug(f"Cache hit for gene {gene_id}", source=source)
         return cached
@@ -118,7 +122,9 @@ async def get_gene_annotation_summary(
     # Check cache first
     cache_service = get_cache_service(db)
     cache_key = f"summary:{gene_id}"
-    cached = await cache_service.get(key=cache_key, namespace="annotations", default=None)
+    cached: dict[str, Any] | None = await cache_service.get(
+        key=cache_key, namespace="annotations", default=None
+    )
     if cached:
         logger.sync_debug(f"Cache hit for summary of gene {gene_id}")
         return cached
@@ -184,7 +190,8 @@ async def update_gene_annotations(
     gene_id: int,
     background_tasks: BackgroundTasks,
     sources: list[str] = Query(
-        ["hgnc", "gnomad", "gtex", "hpo", "clinvar", "string_ppi"], description="Sources to update"
+        ["hgnc", "gnomad", "gtex", "hpo", "clinvar", "string_ppi", "ensembl", "uniprot"],
+        description="Sources to update",
     ),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
@@ -232,6 +239,10 @@ async def update_gene_annotations(
             background_tasks.add_task(_update_mpo_mgi_annotation, gene, db)
         elif source_name == "string_ppi":
             background_tasks.add_task(_update_string_ppi_annotation, gene, db)
+        elif source_name == "ensembl":
+            background_tasks.add_task(_update_ensembl_annotation, gene, db)
+        elif source_name == "uniprot":
+            background_tasks.add_task(_update_uniprot_annotation, gene, db)
 
     return {
         "status": "update_scheduled",
@@ -241,7 +252,7 @@ async def update_gene_annotations(
     }
 
 
-async def _update_hgnc_annotation(gene: Gene, db: Session):
+async def _update_hgnc_annotation(gene: Gene, db: Session) -> None:
     """Background task to update HGNC annotation."""
     from app.core.cache_service import get_cache_service
 
@@ -265,7 +276,7 @@ async def _update_hgnc_annotation(gene: Gene, db: Session):
         )
 
 
-async def _update_gnomad_annotation(gene: Gene, db: Session):
+async def _update_gnomad_annotation(gene: Gene, db: Session) -> None:
     """Background task to update gnomAD annotation."""
     from app.core.cache_service import get_cache_service
 
@@ -291,7 +302,7 @@ async def _update_gnomad_annotation(gene: Gene, db: Session):
         )
 
 
-async def _update_gtex_annotation(gene: Gene, db: Session):
+async def _update_gtex_annotation(gene: Gene, db: Session) -> None:
     """Background task to update GTEx annotation."""
     from app.core.cache_service import get_cache_service
 
@@ -315,7 +326,7 @@ async def _update_gtex_annotation(gene: Gene, db: Session):
         )
 
 
-async def _update_descartes_annotation(gene: Gene, db: Session):
+async def _update_descartes_annotation(gene: Gene, db: Session) -> None:
     """Background task to update Descartes annotation."""
     from app.core.cache_service import get_cache_service
 
@@ -341,7 +352,7 @@ async def _update_descartes_annotation(gene: Gene, db: Session):
         )
 
 
-async def _update_hpo_annotation(gene: Gene, db: Session):
+async def _update_hpo_annotation(gene: Gene, db: Session) -> None:
     """Background task to update HPO annotation."""
     from app.core.cache_service import get_cache_service
 
@@ -365,7 +376,7 @@ async def _update_hpo_annotation(gene: Gene, db: Session):
         )
 
 
-async def _update_clinvar_annotation(gene: Gene, db: Session):
+async def _update_clinvar_annotation(gene: Gene, db: Session) -> None:
     """Background task to update ClinVar annotation."""
     from app.core.cache_service import get_cache_service
 
@@ -392,7 +403,7 @@ async def _update_clinvar_annotation(gene: Gene, db: Session):
         )
 
 
-async def _update_mpo_mgi_annotation(gene: Gene, db: Session):
+async def _update_mpo_mgi_annotation(gene: Gene, db: Session) -> None:
     """Background task to update MPO/MGI annotation."""
     from app.core.cache_service import get_cache_service
 
@@ -418,7 +429,7 @@ async def _update_mpo_mgi_annotation(gene: Gene, db: Session):
         )
 
 
-async def _update_string_ppi_annotation(gene: Gene, db: Session):
+async def _update_string_ppi_annotation(gene: Gene, db: Session) -> None:
     """Background task to update STRING PPI annotation."""
     from app.core.cache_service import get_cache_service
 
@@ -441,6 +452,58 @@ async def _update_string_ppi_annotation(gene: Gene, db: Session):
     except Exception as e:
         await logger.error(
             f"Error updating STRING PPI annotation: {str(e)}", gene_symbol=gene.approved_symbol
+        )
+
+
+async def _update_ensembl_annotation(gene: Gene, db: Session) -> None:
+    """Background task to update Ensembl annotation."""
+    from app.core.cache_service import get_cache_service
+
+    try:
+        source = EnsemblAnnotationSource(db)
+        success = await source.update_gene(gene)
+
+        if success:
+            # Invalidate cache for this gene
+            cache_service = get_cache_service(db)
+            await cache_service.delete(f"{gene.id}:*", namespace="annotations")
+
+            await logger.info(
+                "Ensembl annotation updated for gene", gene_symbol=gene.approved_symbol
+            )
+        else:
+            await logger.warning(
+                "Failed to update Ensembl annotation", gene_symbol=gene.approved_symbol
+            )
+    except Exception as e:
+        await logger.error(
+            f"Error updating Ensembl annotation: {str(e)}", gene_symbol=gene.approved_symbol
+        )
+
+
+async def _update_uniprot_annotation(gene: Gene, db: Session) -> None:
+    """Background task to update UniProt annotation."""
+    from app.core.cache_service import get_cache_service
+
+    try:
+        source = UniProtAnnotationSource(db)
+        success = await source.update_gene(gene)
+
+        if success:
+            # Invalidate cache for this gene
+            cache_service = get_cache_service(db)
+            await cache_service.delete(f"{gene.id}:*", namespace="annotations")
+
+            await logger.info(
+                "UniProt annotation updated for gene", gene_symbol=gene.approved_symbol
+            )
+        else:
+            await logger.warning(
+                "Failed to update UniProt annotation", gene_symbol=gene.approved_symbol
+            )
+    except Exception as e:
+        await logger.error(
+            f"Error updating UniProt annotation: {str(e)}", gene_symbol=gene.approved_symbol
         )
 
 
@@ -930,8 +993,12 @@ async def update_missing_source(
 
 
 async def _run_pipeline_update(
-    strategy, sources: list[str] | None, gene_ids: list[int] | None, force: bool, task_id: str
-):
+    strategy: Any,
+    sources: list[str] | None,
+    gene_ids: list[int] | None,
+    force: bool,
+    task_id: str,
+) -> None:
     """Background task to run pipeline update."""
     await logger.info(
         "Background pipeline update started",
@@ -978,7 +1045,7 @@ async def _run_pipeline_update(
         await logger.debug("Database session closed", task_id=task_id)
 
 
-async def _run_missing_source_update(source_name: str, task_id: str):
+async def _run_missing_source_update(source_name: str, task_id: str) -> None:
     """Background task to update genes missing a specific source."""
     await logger.info(
         "Background missing source update started", task_id=task_id, source=source_name
@@ -1187,7 +1254,7 @@ async def batch_get_annotations(
     annotations = query.all()
 
     # Group by gene
-    results = {}
+    results: dict[int, dict[str, list[dict[str, Any]]]] = {}
     for ann in annotations:
         if ann.gene_id not in results:
             results[ann.gene_id] = {}
@@ -1271,7 +1338,7 @@ async def reset_gene_annotations(
 
 async def _run_annotation_reset(
     source: str | None, gene_ids: list[int] | None, task_id: str, user_id: int | None
-):
+) -> None:
     """Background task to reset gene annotations."""
     from app.core.database import SessionLocal
 
@@ -1306,17 +1373,10 @@ async def _run_annotation_reset(
 
         cache = get_cache_service(db)
 
-        # Clear relevant cache namespaces
-        if source:
-            await cache.invalidate_pattern(f"annotations:{source}:*")
-        else:
-            # Clear all annotation caches
-            await cache.invalidate_pattern("annotations:*")
-
-        # If specific genes, clear their individual caches
-        if gene_ids:
-            for gene_id in gene_ids:
-                await cache.invalidate_pattern(f"gene:{gene_id}:*")
+        # Clear annotation cache namespace
+        # Note: we clear the entire annotations namespace since pattern-based
+        # invalidation is not supported
+        await cache.clear_namespace("annotations")
 
         await logger.info(
             "Annotation reset completed",

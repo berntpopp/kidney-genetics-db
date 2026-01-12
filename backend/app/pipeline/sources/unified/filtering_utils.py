@@ -25,9 +25,9 @@ class FilteringStats:
         self.total_before = 0
         self.total_after = 0
         self.filtered_count = 0
-        self.filtered_genes = []
+        self.filtered_genes: list[dict[str, Any]] = []
         self.start_time = datetime.now(timezone.utc)
-        self.end_time = None
+        self.end_time: datetime | None = None
 
     @property
     def filter_rate(self) -> float:
@@ -41,11 +41,11 @@ class FilteringStats:
             return 0.0
         return (self.end_time - self.start_time).total_seconds()
 
-    def complete(self):
+    def complete(self) -> None:
         """Mark filtering as complete."""
         self.end_time = datetime.now(timezone.utc)
 
-    def log_summary(self):
+    def log_summary(self) -> None:
         """Log standardized summary across all sources."""
         logger.sync_info(
             f"{self.source_name} filtering complete",
@@ -164,7 +164,7 @@ def apply_database_filter(
 
     except Exception as e:
         logger.sync_error(
-            f"Database filtering failed for {source_name}", error=str(e), threshold=min_threshold
+            f"Database filtering failed for {source_name}: {e}", threshold=min_threshold
         )
         raise
 

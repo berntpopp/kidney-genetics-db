@@ -3,6 +3,8 @@ Custom Alembic operations for managing views and other replaceable database obje
 Based on Alembic cookbook best practices.
 """
 
+from typing import Any
+
 from alembic.operations import MigrateOperation, Operations
 from app.db.replaceable_objects import ReplaceableObject
 
@@ -14,17 +16,23 @@ class ReversibleOp(MigrateOperation):
         self.target = target
 
     @classmethod
-    def invoke_for_target(cls, operations, target):
+    def invoke_for_target(cls, operations: Operations, target: ReplaceableObject) -> Any:
         """Create and invoke this operation for a target object."""
         op = cls(target)
         return operations.invoke(op)
 
-    def reverse(self):
+    def reverse(self) -> "ReversibleOp":
         """Return the reverse operation."""
         raise NotImplementedError()
 
     @classmethod
-    def replace(cls, operations, target, replaces=None, replace_with=None):
+    def replace(
+        cls,
+        operations: Operations,
+        target: ReplaceableObject,
+        replaces: str | None = None,
+        replace_with: str | None = None,
+    ) -> None:
         """Replace an object by dropping old and creating new."""
         if replaces:
             # Replacing old version with new version
@@ -43,11 +51,11 @@ class ReversibleOp(MigrateOperation):
         operations.invoke(create_new)
 
     @classmethod
-    def _get_object_from_version(cls, operations, ident):
+    def _get_object_from_version(cls, operations: Operations, ident: str) -> ReplaceableObject:
         """Get an object definition from a specific migration version."""
         version, objname = ident.split(".")
         module = operations.get_context().script.get_revision(version).module
-        obj = getattr(module, objname)
+        obj: ReplaceableObject = getattr(module, objname)
         return obj
 
 
@@ -59,7 +67,7 @@ class ReversibleOp(MigrateOperation):
 class CreateViewOp(ReversibleOp):
     """Operation to create a database view."""
 
-    def reverse(self):
+    def reverse(self) -> "DropViewOp":
         return DropViewOp(self.target)
 
 
@@ -67,7 +75,7 @@ class CreateViewOp(ReversibleOp):
 class DropViewOp(ReversibleOp):
     """Operation to drop a database view."""
 
-    def reverse(self):
+    def reverse(self) -> CreateViewOp:
         return CreateViewOp(self.target)
 
 
@@ -79,7 +87,7 @@ class DropViewOp(ReversibleOp):
 class CreateFunctionOp(ReversibleOp):
     """Operation to create a database function."""
 
-    def reverse(self):
+    def reverse(self) -> "DropFunctionOp":
         return DropFunctionOp(self.target)
 
 
@@ -87,7 +95,7 @@ class CreateFunctionOp(ReversibleOp):
 class DropFunctionOp(ReversibleOp):
     """Operation to drop a database function."""
 
-    def reverse(self):
+    def reverse(self) -> CreateFunctionOp:
         return CreateFunctionOp(self.target)
 
 
@@ -95,25 +103,25 @@ class DropFunctionOp(ReversibleOp):
 
 
 @Operations.implementation_for(CreateViewOp)
-def create_view(operations, operation):
+def create_view(operations: Operations, operation: CreateViewOp) -> None:
     """Execute CREATE VIEW statement."""
     operations.execute(operation.target.create_statement())
 
 
 @Operations.implementation_for(DropViewOp)
-def drop_view(operations, operation):
+def drop_view(operations: Operations, operation: DropViewOp) -> None:
     """Execute DROP VIEW statement."""
     operations.execute(operation.target.drop_statement())
 
 
 @Operations.implementation_for(CreateFunctionOp)
-def create_function(operations, operation):
+def create_function(operations: Operations, operation: CreateFunctionOp) -> None:
     """Execute CREATE FUNCTION statement."""
     operations.execute(operation.target.create_statement())
 
 
 @Operations.implementation_for(DropFunctionOp)
-def drop_function(operations, operation):
+def drop_function(operations: Operations, operation: DropFunctionOp) -> None:
     """Execute DROP FUNCTION statement."""
     operations.execute(operation.target.drop_statement())
 
@@ -121,7 +129,7 @@ def drop_function(operations, operation):
 # Helper functions for use in migrations
 
 
-def create_all_views(op, views):
+def create_all_views(op: Operations, views: list[ReplaceableObject]) -> None:
     """
     Create multiple views in dependency order.
 
@@ -136,7 +144,7 @@ def create_all_views(op, views):
         op.create_view(view)
 
 
-def drop_all_views(op, views):
+def drop_all_views(op: Operations, views: list[ReplaceableObject]) -> None:
     """
     Drop multiple views in reverse dependency order.
 

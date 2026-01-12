@@ -5,9 +5,11 @@ Implements advisory locks to prevent concurrent refresh conflicts.
 
 import asyncio
 import hashlib
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -223,11 +225,11 @@ class MaterializedViewManager:
                 return True
 
             # Wait and retry with exponential backoff
-            wait_time = 0.1
-            total_wait = 0
+            wait_time: float = 0.1
+            total_wait: float = 0.0
 
             while total_wait < timeout_seconds:
-                asyncio.sleep(wait_time)
+                time.sleep(wait_time)
                 result = self.db.execute(
                     text("SELECT pg_try_advisory_lock(:lock_id)"), {"lock_id": lock_id}
                 ).scalar()
@@ -237,7 +239,7 @@ class MaterializedViewManager:
                     return True
 
                 total_wait += wait_time
-                wait_time = min(wait_time * 2, 1.0)  # Cap at 1 second
+                wait_time = min(wait_time * 2.0, 1.0)  # Cap at 1 second
 
             logger.sync_warning(f"Failed to acquire lock {lock_id} after {timeout_seconds}s")
             return False
@@ -246,7 +248,7 @@ class MaterializedViewManager:
             logger.sync_error(f"Error acquiring advisory lock: {e}")
             return False
 
-    def _release_advisory_lock(self, lock_id: int):
+    def _release_advisory_lock(self, lock_id: int) -> None:
         """
         Release an advisory lock.
 
@@ -259,7 +261,7 @@ class MaterializedViewManager:
         except Exception as e:
             logger.sync_error(f"Error releasing advisory lock: {e}")
 
-    def create_materialized_view(self, config: MaterializedViewConfig):
+    def create_materialized_view(self, config: MaterializedViewConfig) -> None:
         """
         Create a materialized view if it doesn't exist.
 
@@ -408,7 +410,7 @@ class MaterializedViewManager:
 
         return results
 
-    def drop_materialized_view(self, view_name: str):
+    def drop_materialized_view(self, view_name: str) -> None:
         """
         Drop a materialized view.
 
@@ -429,7 +431,7 @@ class MaterializedViewManager:
         finally:
             self._release_advisory_lock(lock_id)
 
-    def get_view_stats(self) -> list[dict]:
+    def get_view_stats(self) -> list[dict[str, Any]]:
         """
         Get statistics for all materialized views.
 
@@ -469,7 +471,7 @@ class MaterializedViewManager:
 
         return stats
 
-    def initialize_all_views(self):
+    def initialize_all_views(self) -> None:
         """Create all materialized views if they don't exist."""
         logger.sync_info("Initializing all materialized views")
 

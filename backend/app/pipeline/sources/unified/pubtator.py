@@ -208,7 +208,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             return stats
 
         except Exception as e:
-            logger.sync_error("Data update failed", source_name=self.source_name, error=str(e))
+            logger.sync_error(
+                "Data update failed", source_name=self.source_name, error_detail=str(e)
+            )
             tracker.error(str(e))
             stats["error"] = str(e)
             stats["completed_at"] = datetime.now(timezone.utc).isoformat()
@@ -541,7 +543,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             except Exception as e:
                 self.db_session.rollback()
                 logger.sync_error(
-                    "Failed to apply final filter", source=self.source_name, error=str(e)
+                    "Failed to apply final filter", source=self.source_name, error_detail=str(e)
                 )
                 raise
         else:
@@ -706,7 +708,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             logger.sync_error(
                 "Error creating/updating evidence for gene",
                 gene_symbol=gene.approved_symbol,
-                error=str(e),
+                error_detail=str(e),
             )
             stats["errors"] += 1
 

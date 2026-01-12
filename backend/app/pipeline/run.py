@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 
 
 @click.group()
-async def cli():
+async def cli() -> None:
     """Kidney Genetics Pipeline CLI - Async version"""
     pass
 
@@ -37,7 +37,7 @@ async def cli():
     default="all",
     help="Which data source to update",
 )
-async def update(source: str):
+async def update(source: str) -> None:
     """Update gene data from external sources - now fully async"""
     await logger.info("Starting pipeline update", source=source)
 
@@ -61,8 +61,8 @@ async def update(source: str):
             await logger.info("Updating PanelApp data")
             # Create tracker specific to this source
             tracker = ProgressTracker(db=db, source_name="PanelApp")
-            source_obj = PanelAppUnifiedSource(db_session=db)
-            stats = await source_obj.update_data(db, tracker)
+            panelapp_source = PanelAppUnifiedSource(db_session=db)
+            stats = await panelapp_source.update_data(db, tracker)
             all_stats.append(stats)
             await logger.info("PanelApp update complete", stats=stats)
 
@@ -70,8 +70,8 @@ async def update(source: str):
             await logger.info("Updating HPO data")
             # Create tracker specific to this source
             tracker = ProgressTracker(db=db, source_name="HPO")
-            source_obj = HPOUnifiedSource(db_session=db)
-            stats = await source_obj.update_data(db, tracker)
+            hpo_source = HPOUnifiedSource(db_session=db)
+            stats = await hpo_source.update_data(db, tracker)
             all_stats.append(stats)
             await logger.info("HPO update complete", stats=stats)
 
@@ -79,8 +79,8 @@ async def update(source: str):
             await logger.info("Updating PubTator data")
             # Create tracker specific to this source
             tracker = ProgressTracker(db=db, source_name="PubTator")
-            source_obj = PubTatorUnifiedSource(db_session=db)
-            stats = await source_obj.update_data(db, tracker)
+            pubtator_source = PubTatorUnifiedSource(db_session=db)
+            stats = await pubtator_source.update_data(db, tracker)
             all_stats.append(stats)
             await logger.info("PubTator update complete", stats=stats)
 
@@ -88,8 +88,8 @@ async def update(source: str):
             await logger.info("Updating ClinGen data")
             # Create tracker specific to this source
             tracker = ProgressTracker(db=db, source_name="ClinGen")
-            source_obj = ClinGenUnifiedSource(db_session=db)
-            stats = await source_obj.update_data(db, tracker)
+            clingen_source = ClinGenUnifiedSource(db_session=db)
+            stats = await clingen_source.update_data(db, tracker)
             all_stats.append(stats)
             await logger.info("ClinGen update complete", stats=stats)
 
@@ -97,8 +97,8 @@ async def update(source: str):
             await logger.info("Updating GenCC data")
             # Create tracker specific to this source
             tracker = ProgressTracker(db=db, source_name="GenCC")
-            source_obj = GenCCUnifiedSource(db_session=db)
-            stats = await source_obj.update_data(db, tracker)
+            gencc_source = GenCCUnifiedSource(db_session=db)
+            stats = await gencc_source.update_data(db, tracker)
             all_stats.append(stats)
             await logger.info("GenCC update complete", stats=stats)
 
@@ -130,7 +130,7 @@ async def update(source: str):
 
 
 @cli.command()
-async def list_runs():
+async def list_runs() -> None:
     """List recent pipeline runs"""
     db: Session = next(get_db())
 

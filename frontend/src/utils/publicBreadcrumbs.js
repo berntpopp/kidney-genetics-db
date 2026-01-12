@@ -73,3 +73,16 @@ export const getGeneDetailBreadcrumbs = geneSymbol => {
     { title: geneSymbol, to: `/genes/${geneSymbol}` }
   ])
 }
+
+/**
+ * Generate breadcrumbs for gene structure page
+ * @param {string} geneSymbol - The gene symbol
+ * @returns {Array} Breadcrumb items
+ */
+export const getGeneStructureBreadcrumbs = geneSymbol => {
+  return getPublicBreadcrumbsWithParents([
+    { title: 'Genes', to: '/genes' },
+    { title: geneSymbol, to: `/genes/${geneSymbol}` },
+    { title: 'Structure', to: `/genes/${geneSymbol}/structure` }
+  ])
+}

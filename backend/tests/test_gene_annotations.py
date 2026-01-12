@@ -2,6 +2,7 @@
 Test gene annotation models and functionality.
 """
 
+import uuid
 from datetime import datetime
 
 import pytest
@@ -9,6 +10,11 @@ from sqlalchemy.orm import Session
 
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationHistory, AnnotationSource, GeneAnnotation
+
+
+def unique_hgnc_id():
+    """Generate a unique HGNC ID for testing."""
+    return f"HGNC:TEST{uuid.uuid4().hex[:8].upper()}"
 
 
 def test_annotation_source_creation(db_session: Session):
@@ -34,8 +40,8 @@ def test_annotation_source_creation(db_session: Session):
 
 def test_gene_annotation_creation(db_session: Session):
     """Test creating a gene annotation."""
-    # First create a gene
-    gene = Gene(approved_symbol="TEST1", hgnc_id="HGNC:12345", ensembl_gene_id="ENSG00000000001")
+    # First create a gene with unique ID
+    gene = Gene(approved_symbol=f"TEST{uuid.uuid4().hex[:6].upper()}", hgnc_id=unique_hgnc_id())
     db_session.add(gene)
     db_session.commit()
 
@@ -72,8 +78,8 @@ def test_gene_annotation_creation(db_session: Session):
 
 def test_gnomad_annotation(db_session: Session):
     """Test gnomAD constraint annotation."""
-    # Create a gene
-    gene = Gene(approved_symbol="TEST2", hgnc_id="HGNC:54321", ensembl_gene_id="ENSG00000000002")
+    # Create a gene with unique ID
+    gene = Gene(approved_symbol=f"TEST{uuid.uuid4().hex[:6].upper()}", hgnc_id=unique_hgnc_id())
     db_session.add(gene)
     db_session.commit()
 
@@ -109,7 +115,7 @@ def test_gnomad_annotation(db_session: Session):
 
 def test_annotation_history(db_session: Session):
     """Test annotation history tracking."""
-    gene = Gene(approved_symbol="TEST3", hgnc_id="HGNC:11111")
+    gene = Gene(approved_symbol=f"TEST{uuid.uuid4().hex[:6].upper()}", hgnc_id=unique_hgnc_id())
     db_session.add(gene)
     db_session.commit()
 
@@ -133,7 +139,7 @@ def test_annotation_history(db_session: Session):
 
 def test_unique_constraint(db_session: Session):
     """Test unique constraint on gene_id, source, version."""
-    gene = Gene(approved_symbol="TEST4", hgnc_id="HGNC:22222")
+    gene = Gene(approved_symbol=f"TEST{uuid.uuid4().hex[:6].upper()}", hgnc_id=unique_hgnc_id())
     db_session.add(gene)
     db_session.commit()
 

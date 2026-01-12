@@ -36,7 +36,7 @@ class ProgressTracker:
         self.progress_record = self._get_or_create_progress()
         self._update_interval = 1.0  # Update database every second
         self._last_update_time = datetime.now(timezone.utc)
-        self._start_time = None
+        self._start_time: datetime | None = None
 
     def _get_or_create_progress(self) -> DataSourceProgress:
         """Get or create progress record for this source"""
@@ -98,7 +98,7 @@ class ProgressTracker:
         return progress
 
     @contextmanager
-    def track_operation(self, operation_name: str):
+    def track_operation(self, operation_name: str) -> Any:
         """Context manager for tracking an operation"""
         self.start(operation_name)
         try:
@@ -110,7 +110,7 @@ class ProgressTracker:
             if self.progress_record.status == SourceStatus.running:
                 self.complete()
 
-    def start(self, operation: str = "Starting update"):
+    def start(self, operation: str = "Starting update") -> None:
         """Mark source as running"""
         logger.sync_debug(
             "ProgressTracker.start() called",
@@ -149,7 +149,7 @@ class ProgressTracker:
         items_updated: int | None = None,
         items_failed: int | None = None,
         force: bool = False,
-    ):
+    ) -> None:
         """
         Update progress information
 
@@ -245,7 +245,7 @@ class ProgressTracker:
             self._commit_and_broadcast()
             self._last_update_time = now
 
-    def complete(self, operation: str = "Update completed"):
+    def complete(self, operation: str = "Update completed") -> None:
         """Mark source as completed"""
         self.progress_record.status = SourceStatus.completed
         self.progress_record.current_operation = operation
@@ -254,7 +254,7 @@ class ProgressTracker:
         self.progress_record.estimated_completion = None
         self._commit_and_broadcast()
 
-    def error(self, error_message: str):
+    def error(self, error_message: str) -> None:
         """Mark source as failed with error"""
         self.progress_record.status = SourceStatus.failed
         self.progress_record.error_message = error_message
@@ -262,14 +262,14 @@ class ProgressTracker:
         self.progress_record.estimated_completion = None
         self._commit_and_broadcast()
 
-    def pause(self):
+    def pause(self) -> None:
         """Mark source as paused"""
         self.progress_record.status = SourceStatus.paused
         self.progress_record.current_operation = "Paused"
         self.progress_record.estimated_completion = None
         self._commit_and_broadcast()
 
-    def resume(self):
+    def resume(self) -> None:
         """Resume from paused state"""
         logger.sync_debug(
             "ProgressTracker.resume() called",
@@ -292,12 +292,12 @@ class ProgressTracker:
         """Check if the source is currently paused"""
         return self.progress_record.status == SourceStatus.paused
 
-    def set_metadata(self, metadata: dict[str, Any]):
+    def set_metadata(self, metadata: dict[str, Any]) -> None:
         """Update metadata"""
         self.progress_record.progress_metadata = metadata
         self._commit_and_broadcast()
 
-    def _commit_and_broadcast(self):
+    def _commit_and_broadcast(self) -> None:
         """Commit to database and publish update to event bus - NO MORE DIRECT CALLBACKS!"""
         from sqlalchemy.exc import DisconnectionError, OperationalError
 
@@ -436,7 +436,7 @@ class ProgressTracker:
             self.db.rollback()
             raise  # Re-raise to see what's failing
 
-    async def _broadcast_update(self):
+    async def _broadcast_update(self) -> None:
         """Broadcast update via callback"""
         try:
             if self.broadcast_callback:
@@ -458,7 +458,7 @@ class ProgressTracker:
         """Get current status as dictionary"""
         return self.progress_record.to_dict()
 
-    def log_progress(self, level: str = "INFO"):
+    def log_progress(self, level: str = "INFO") -> None:
         """Log current progress"""
         status = self.get_status()
 

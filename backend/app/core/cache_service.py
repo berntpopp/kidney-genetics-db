@@ -681,7 +681,7 @@ class CacheService:
                     logger.sync_warning(
                         "Database connection lost during cache write, session invalidated",
                         cache_key=cache_key,
-                        namespace=entry.namespace
+                        namespace=entry.namespace,
                     )
                 except Exception:
                     pass  # Session already in bad state
@@ -710,7 +710,7 @@ class CacheService:
                 value_type=type(entry.value).__name__,
                 data_size=calc_data_size,
                 session_type=type(self.db_session).__name__,
-                connection_error=is_connection_error
+                connection_error=is_connection_error,
             )
             return False
 

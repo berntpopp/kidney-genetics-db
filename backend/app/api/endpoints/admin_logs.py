@@ -41,7 +41,7 @@ async def query_logs(
     try:
         # Build query
         query = "SELECT * FROM system_logs WHERE 1=1"
-        params = {"limit": limit, "offset": offset}
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
 
         if level:
             query += " AND level = :level"
@@ -131,7 +131,7 @@ async def query_logs(
 
         # Get total count
         count_query = "SELECT COUNT(*) FROM system_logs WHERE 1=1"
-        count_params = {}
+        count_params: dict[str, Any] = {}
 
         if level:
             count_query += " AND level = :level"

@@ -1,118 +1,131 @@
 """
 Test configuration and fixtures.
 
-Using pytest-postgresql for proper database isolation in tests.
+Uses the existing PostgreSQL database from Docker/hybrid development setup.
+Each test uses a transaction that is rolled back after the test for isolation.
 """
 
 import asyncio
+import os
 from typing import Any
 
 import pytest
-from pytest_postgresql import factories
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
-from app.models.base import Base
 
+def get_test_database_url() -> str:
+    """
+    Get the database URL for testing.
+    Uses the existing PostgreSQL instance from Docker/hybrid setup.
+    Falls back to the default development database URL.
+    """
+    # Allow override via environment variable for CI/CD
+    test_url = os.environ.get("TEST_DATABASE_URL")
+    if test_url:
+        return test_url
 
-def load_test_schema(**kwargs):
-    """
-    Load the test database schema.
-    This function is called once to create the template database.
-    """
-    connection_string = (
-        f"postgresql://{kwargs['user']}@{kwargs['host']}:{kwargs['port']}/{kwargs['dbname']}"
+    # Use the main DATABASE_URL if available (hybrid/docker mode)
+    db_url = os.environ.get(
+        "DATABASE_URL",
+        "postgresql://kidney_user:kidney_pass@localhost:5432/kidney_genetics",
     )
-    engine = create_engine(connection_string, poolclass=NullPool)
+    return db_url
 
-    # Create cache_entries table for cache testing
-    with engine.connect() as conn:
-        conn.execute(text("COMMIT"))
-        conn.execute(
-            text("""
-            CREATE TABLE IF NOT EXISTS cache_entries (
-                id SERIAL PRIMARY KEY,
-                cache_key VARCHAR(255) NOT NULL UNIQUE,
-                namespace VARCHAR(100) NOT NULL,
-                value JSONB,
-                data JSONB,
-                expires_at TIMESTAMP,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+# Create engine once for all tests - uses existing PostgreSQL from Docker
+_test_engine = None
+_TestingSessionLocal = None
+
+
+def get_test_engine():
+    """Get or create the test database engine (singleton)."""
+    global _test_engine, _TestingSessionLocal
+
+    if _test_engine is None:
+        database_url = get_test_database_url()
+        _test_engine = create_engine(
+            database_url,
+            poolclass=NullPool,  # Don't pool connections for tests
+            echo=False,
+        )
+        _TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_test_engine)
+
+        # Verify connection works
+        try:
+            with _test_engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+        except Exception as e:
+            pytest.skip(
+                f"Database not available at {database_url}. "
+                f"Start the database with 'make hybrid-up' or 'make dev-up'. Error: {e}"
             )
-        """)
-        )
-        conn.execute(
-            text("""
-            CREATE INDEX IF NOT EXISTS idx_cache_namespace ON cache_entries(namespace)
-        """)
-        )
-        conn.execute(
-            text("""
-            CREATE INDEX IF NOT EXISTS idx_cache_expires ON cache_entries(expires_at)
-        """)
-        )
-        conn.execute(
-            text("""
-            CREATE INDEX IF NOT EXISTS idx_cache_key_namespace ON cache_entries(cache_key, namespace)
-        """)
-        )
-        conn.commit()
 
-    # Create all other tables from models
-    Base.metadata.create_all(engine)
-    engine.dispose()
+    return _test_engine, _TestingSessionLocal
 
 
-# Create PostgreSQL process fixture with schema loading
-postgresql_proc = factories.postgresql_proc(
-    port=None,  # Use random available port
-    load=[load_test_schema],  # Load schema once for all tests
-)
-
-# Create PostgreSQL client fixture
-postgresql = factories.postgresql(
-    "postgresql_proc",
-    dbname="test_kidney_genetics",
-)
+@pytest.fixture(scope="session")
+def test_engine():
+    """
+    Session-scoped fixture for the test database engine.
+    Uses the existing PostgreSQL from Docker/hybrid setup.
+    """
+    engine, _ = get_test_engine()
+    yield engine
 
 
 @pytest.fixture(scope="function")
-def db_session(postgresql):
+def db_session(test_engine):
     """
-    Create a test database session using pytest-postgresql.
+    Create a test database session with transaction rollback.
     Each test gets its own database transaction that's rolled back after the test.
+    This provides isolation without requiring pg_config or spawning new PostgreSQL instances.
     """
-    # Create connection string
-    connection_string = (
-        f"postgresql://{postgresql.info.user}@"
-        f"{postgresql.info.host}:{postgresql.info.port}/"
-        f"{postgresql.info.dbname}"
-    )
+    _, TestingSessionLocal = get_test_engine()
 
-    # Create engine and session
-    engine = create_engine(connection_string, poolclass=NullPool)
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-    session = TestingSessionLocal()
+    # Create a new connection for this test
+    connection = test_engine.connect()
 
     # Begin a transaction that we'll roll back at the end
-    trans = session.begin()
+    transaction = connection.begin()
+
+    # Create a session bound to this connection
+    session = TestingSessionLocal(bind=connection)
+
+    # Begin a nested transaction (savepoint) for the test
+    nested = connection.begin_nested()
 
     yield session
 
-    # Rollback the transaction and close session
-    trans.rollback()
+    # Rollback the nested transaction (test's changes)
+    if nested.is_active:
+        nested.rollback()
+
+    # Rollback the outer transaction
+    if transaction.is_active:
+        transaction.rollback()
+
+    # Close session and connection
     session.close()
-    engine.dispose()
+    connection.close()
 
 
 @pytest.fixture(scope="session")
 def event_loop():
-    """Create an event loop for the test session."""
+    """Create an event loop for the test session with proper cleanup."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
+    # Cancel all pending tasks to prevent hanging
+    # See: https://github.com/pytest-dev/pytest-asyncio/issues/81
+    try:
+        pending = asyncio.all_tasks(loop)
+        for task in pending:
+            task.cancel()
+        if pending:
+            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+    except Exception:
+        pass  # Ignore errors during cleanup
     loop.close()
 
 

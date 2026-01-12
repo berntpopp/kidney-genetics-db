@@ -124,7 +124,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
 
         except Exception as e:
             logger.sync_error(
-                "Error searching for NCBI Gene ID", gene_symbol=gene_symbol, error=str(e)
+                "Error searching for NCBI Gene ID", gene_symbol=gene_symbol, error_detail=str(e)
             )
             return None
 
@@ -189,7 +189,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
 
         except Exception as e:
             logger.sync_error(
-                "Error fetching HPO annotations", ncbi_gene_id=ncbi_gene_id, error=str(e)
+                "Error fetching HPO annotations", ncbi_gene_id=ncbi_gene_id, error_detail=str(e)
             )
             return None
 
@@ -345,7 +345,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
                 except Exception as e:
                     logger.sync_error(
                         f"Failed to get descendants for {term} in {group_key}",
-                        error=str(e),
+                        error_detail=str(e),
                         classification_type=classification_type,
                     )
                     # Continue with other terms

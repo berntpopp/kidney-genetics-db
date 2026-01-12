@@ -31,12 +31,10 @@ def update_all_curations(db: Session) -> dict[str, Any]:
     """
     logger.sync_info("Starting gene curation update (evidence aggregation only)")
 
-    stats = {
-        "genes_processed": 0,
-        "curations_created": 0,
-        "curations_updated": 0,
-        "started_at": datetime.now(timezone.utc),
-    }
+    genes_processed = 0
+    curations_created = 0
+    curations_updated = 0
+    started_at = datetime.now(timezone.utc)
 
     # Get all genes with evidence
     genes_with_evidence = db.query(Gene).join(GeneEvidence).distinct().all()
@@ -44,7 +42,7 @@ def update_all_curations(db: Session) -> dict[str, Any]:
     logger.sync_info("Processing genes with evidence", gene_count=len(genes_with_evidence))
 
     for gene in genes_with_evidence:
-        stats["genes_processed"] += 1
+        genes_processed += 1
 
         # Get all evidence for this gene
         evidence_records = db.query(GeneEvidence).filter(GeneEvidence.gene_id == gene.id).all()
@@ -58,26 +56,33 @@ def update_all_curations(db: Session) -> dict[str, Any]:
         if curation:
             # Update existing curation
             _update_curation_with_evidence(curation, evidence_data)
-            stats["curations_updated"] += 1
+            curations_updated += 1
         else:
             # Create new curation
             curation = GeneCuration(gene_id=gene.id, **evidence_data)
             db.add(curation)
-            stats["curations_created"] += 1
+            curations_created += 1
 
     db.commit()
 
-    stats["completed_at"] = datetime.now(timezone.utc)
-    stats["duration"] = (stats["completed_at"] - stats["started_at"]).total_seconds()
+    completed_at = datetime.now(timezone.utc)
+    duration = (completed_at - started_at).total_seconds()
 
     logger.sync_info(
         "Curation update complete",
-        curations_created=stats["curations_created"],
-        curations_updated=stats["curations_updated"],
-        duration_seconds=stats["duration"],
+        curations_created=curations_created,
+        curations_updated=curations_updated,
+        duration_seconds=duration,
     )
 
-    return stats
+    return {
+        "genes_processed": genes_processed,
+        "curations_created": curations_created,
+        "curations_updated": curations_updated,
+        "started_at": started_at,
+        "completed_at": completed_at,
+        "duration": duration,
+    }
 
 
 def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[str, Any]:
@@ -97,12 +102,12 @@ def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[s
     source_count = len({record.source_name for record in evidence_records})
 
     # Aggregate arrays from each source
-    panelapp_panels = []
-    literature_refs = []
-    hpo_terms = []
-    pubtator_pmids = []
-    omim_data = {}
-    clinvar_data = {}
+    panelapp_panels: list[Any] = []
+    literature_refs: list[Any] = []
+    hpo_terms: list[Any] = []
+    pubtator_pmids: list[Any] = []
+    omim_data: dict[str, Any] = {}
+    clinvar_data: dict[str, Any] = {}
 
     for evidence in evidence_records:
         evidence_data = evidence.evidence_data or {}

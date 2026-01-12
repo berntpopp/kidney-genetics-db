@@ -126,7 +126,9 @@ class LiteratureSource(UnifiedDataSource):
 
         except Exception as e:
             logger.sync_error(
-                "Failed to parse literature file", publication_id=publication_id, error=str(e)
+                "Failed to parse literature file",
+                publication_id=publication_id,
+                error_detail=str(e),
             )
             raise
 
@@ -201,7 +203,9 @@ class LiteratureSource(UnifiedDataSource):
                         gene_data[symbol]["hgnc_ids"].add(str(hgnc_val))
 
             except Exception as e:
-                logger.sync_warning("Error processing literature row", row_index=idx, error=str(e))
+                logger.sync_warning(
+                    "Error processing literature row", row_index=idx, error_detail=str(e)
+                )
                 continue
 
         # Convert to serializable format
@@ -288,9 +292,9 @@ class LiteratureSource(UnifiedDataSource):
 
         upload_record = None
         if file_hash:
-            static_source = db.query(StaticSource).filter(
-                StaticSource.source_name == self.source_name
-            ).first()
+            static_source = (
+                db.query(StaticSource).filter(StaticSource.source_name == self.source_name).first()
+            )
 
             if static_source:
                 upload_record = StaticEvidenceUpload(

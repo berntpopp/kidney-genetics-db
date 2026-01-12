@@ -18,7 +18,9 @@ class SystemLog(Base):
     level = Column(Text, nullable=False)
     logger = Column(Text, nullable=False)  # Changed from logger_name
     message = Column(Text, nullable=False)
-    context = Column(JSONB, server_default=text("'{}'::jsonb"), nullable=False)  # Changed from extra_data
+    context = Column(
+        JSONB, server_default=text("'{}'::jsonb"), nullable=False
+    )  # Changed from extra_data
 
     # Request context
     request_id = Column(Text, nullable=True)
@@ -38,5 +40,5 @@ class SystemLog(Base):
     # Relationships
     user = relationship("User", back_populates="logs")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<SystemLog {self.id}: {self.level} - {self.message[:50]}>"

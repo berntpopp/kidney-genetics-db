@@ -10,7 +10,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -22,7 +22,7 @@ from app.models.data_release import DataRelease
 logger = get_logger(__name__)
 
 # CalVer validation pattern (YYYY.MM format)
-CALVER_PATTERN = re.compile(r'^\d{4}\.\d{1,2}$')
+CALVER_PATTERN = re.compile(r"^\d{4}\.\d{1,2}$")
 
 
 class ReleaseService:
@@ -36,16 +36,13 @@ class ReleaseService:
     - Export to JSON with metadata
     """
 
-    def __init__(self, db_session: Session | None = None):
-        self.db = db_session
+    def __init__(self, db_session: Session):
+        self.db: Session = db_session
         self._executor = get_thread_pool_executor()
         self.export_dir = Path("exports")
 
     async def create_release(
-        self,
-        version: str,
-        user_id: int,
-        release_notes: str = ""
+        self, version: str, user_id: int, release_notes: str = ""
     ) -> DataRelease:
         """
         Create a draft release.
@@ -61,11 +58,7 @@ class ReleaseService:
         Raises:
             ValueError: If version format is invalid or already exists
         """
-        await logger.info(
-            "Creating draft release",
-            version=version,
-            user_id=user_id
-        )
+        await logger.info("Creating draft release", version=version, user_id=user_id)
 
         # Validate CalVer format
         if not CALVER_PATTERN.match(version):
@@ -76,28 +69,16 @@ class ReleaseService:
         if existing:
             raise ValueError(f"Release version {version} already exists")
 
-        release = DataRelease(
-            version=version,
-            status="draft",
-            release_notes=release_notes
-        )
+        release = DataRelease(version=version, status="draft", release_notes=release_notes)
         self.db.add(release)
         self.db.commit()
         self.db.refresh(release)
 
-        await logger.info(
-            "Draft release created",
-            version=version,
-            release_id=release.id
-        )
+        await logger.info("Draft release created", version=version, release_id=release.id)
 
         return release
 
-    async def publish_release(
-        self,
-        release_id: int,
-        user_id: int
-    ) -> DataRelease:
+    async def publish_release(self, release_id: int, user_id: int) -> DataRelease:
         """
         Publish a release by closing temporal ranges and exporting data.
 
@@ -120,18 +101,16 @@ class ReleaseService:
         Raises:
             ValueError: If release not found or already published
         """
-        release = self.db.query(DataRelease).get(release_id)
-        if not release:
+        release_result = self.db.query(DataRelease).get(release_id)
+        if not release_result:
             raise ValueError(f"Release {release_id} not found")
+        release = cast(DataRelease, release_result)
 
         if release.status == "published":
             raise ValueError(f"Release {release.version} already published")
 
         await logger.info(
-            "Publishing release",
-            version=release.version,
-            release_id=release_id,
-            user_id=user_id
+            "Publishing release", version=release.version, release_id=release_id, user_id=user_id
         )
 
         # Use timezone-aware timestamp
@@ -144,21 +123,16 @@ class ReleaseService:
             logger.sync_info(
                 "Exporting current genes",
                 version=release.version,
-                publish_time=publish_time.isoformat()
+                publish_time=publish_time.isoformat(),
             )
 
             export_path = await loop.run_in_executor(
-                self._executor,
-                self._export_release_sync,
-                release.version,
-                publish_time
+                self._executor, self._export_release_sync, release.version, publish_time
             )
 
             # Step 2: Calculate checksum in thread pool
             checksum = await loop.run_in_executor(
-                self._executor,
-                self._calculate_checksum,
-                export_path
+                self._executor, self._calculate_checksum, export_path
             )
 
             # Step 3: Count genes before closing (still at infinity)
@@ -169,7 +143,7 @@ class ReleaseService:
                 "Closing temporal ranges",
                 version=release.version,
                 publish_time=publish_time.isoformat(),
-                gene_count=gene_count
+                gene_count=gene_count,
             )
 
             self.db.execute(
@@ -178,7 +152,7 @@ class ReleaseService:
                     SET valid_to = :publish_time
                     WHERE valid_to = 'infinity'::timestamptz
                 """),
-                {"publish_time": publish_time}
+                {"publish_time": publish_time},
             )
 
             # Step 5: Update release record
@@ -197,7 +171,7 @@ class ReleaseService:
                 "Release published successfully",
                 version=release.version,
                 gene_count=gene_count,
-                checksum=checksum[:16] + "..."
+                checksum=checksum[:16] + "...",
             )
 
             return release
@@ -207,9 +181,9 @@ class ReleaseService:
             self.db.rollback()
             await logger.error(
                 "Release publish failed",
+                error=e,
                 version=release.version,
                 release_id=release_id,
-                error=str(e)
             )
             raise
 
@@ -231,11 +205,7 @@ class ReleaseService:
         self.export_dir.mkdir(exist_ok=True, parents=True)
         export_file = self.export_dir / f"kidney-genetics-db_{version}.json"
 
-        logger.sync_info(
-            "Exporting release to JSON",
-            version=version,
-            file_path=str(export_file)
-        )
+        logger.sync_info("Exporting release to JSON", version=version, file_path=str(export_file))
 
         # Query current genes (valid_to = 'infinity') with comprehensive data
         # This is called BEFORE we close the temporal ranges
@@ -297,7 +267,7 @@ class ReleaseService:
             "metadata": {
                 "format": "CalVer",
                 "schema_version": "2.0",
-                "description": "Kidney Genetics Database - Point-in-time snapshot with comprehensive evidence"
+                "description": "Kidney Genetics Database - Point-in-time snapshot with comprehensive evidence",
             },
             "genes": [
                 {
@@ -306,31 +276,37 @@ class ReleaseService:
                     "aliases": row.aliases,
                     "scores": {
                         "raw_score": float(row.raw_score) if row.raw_score else None,
-                        "percentage_score": float(row.percentage_score) if row.percentage_score else None,
+                        "percentage_score": float(row.percentage_score)
+                        if row.percentage_score
+                        else None,
                         "evidence_tier": row.evidence_tier,
                         "evidence_group": row.evidence_group,
-                        "source_scores": row.source_scores
-                    } if row.raw_score is not None else None,
+                        "source_scores": row.source_scores,
+                    }
+                    if row.raw_score is not None
+                    else None,
                     "evidence": row.evidence,
                     "annotations": row.annotations,
                     "temporal": {
                         "valid_from": row.valid_from.isoformat() if row.valid_from else None,
-                        "valid_to": row.valid_to.isoformat() if (row.valid_to and str(row.valid_to) != "infinity") else "infinity"
-                    }
+                        "valid_to": row.valid_to.isoformat()
+                        if (row.valid_to and str(row.valid_to) != "infinity")
+                        else "infinity",
+                    },
                 }
                 for row in genes
-            ]
+            ],
         }
 
         # Write to file
-        with open(export_file, 'w', encoding='utf-8') as f:
+        with open(export_file, "w", encoding="utf-8") as f:
             json.dump(export_data, f, indent=2, ensure_ascii=False)
 
         logger.sync_info(
             "Export completed",
             version=version,
             gene_count=len(genes),
-            file_size_bytes=export_file.stat().st_size
+            file_size_bytes=export_file.stat().st_size,
         )
 
         return export_file
@@ -348,7 +324,7 @@ class ReleaseService:
         logger.sync_debug(f"Calculating checksum for {file_path}")
 
         sha256 = hashlib.sha256()
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             # Read in chunks to handle large files
             for chunk in iter(lambda: f.read(8192), b""):
                 sha256.update(chunk)
@@ -373,7 +349,8 @@ class ReleaseService:
                 WHERE valid_to = 'infinity'::timestamptz
             """)
         )
-        return result.scalar()
+        count = result.scalar()
+        return int(count) if count is not None else 0
 
     def _count_genes(self, timestamp: datetime) -> int:
         """
@@ -391,15 +368,13 @@ class ReleaseService:
                 FROM genes
                 WHERE tstzrange(valid_from, valid_to) @> :timestamp
             """),
-            {"timestamp": timestamp}
+            {"timestamp": timestamp},
         )
-        return result.scalar()
+        count = result.scalar()
+        return int(count) if count is not None else 0
 
     async def update_release(
-        self,
-        release_id: int,
-        version: str | None = None,
-        release_notes: str | None = None
+        self, release_id: int, version: str | None = None, release_notes: str | None = None
     ) -> DataRelease:
         """
         Update a draft release.
@@ -415,18 +390,15 @@ class ReleaseService:
         Raises:
             ValueError: If release not found, already published, or version exists
         """
-        release = self.db.query(DataRelease).get(release_id)
-        if not release:
+        release_result = self.db.query(DataRelease).get(release_id)
+        if not release_result:
             raise ValueError(f"Release {release_id} not found")
+        release = cast(DataRelease, release_result)
 
         if release.status == "published":
             raise ValueError("Cannot update published release")
 
-        await logger.info(
-            "Updating draft release",
-            version=release.version,
-            release_id=release_id
-        )
+        await logger.info("Updating draft release", version=release.version, release_id=release_id)
 
         # Update version if provided and validate uniqueness
         if version is not None and version != release.version:
@@ -448,11 +420,7 @@ class ReleaseService:
         self.db.commit()
         self.db.refresh(release)
 
-        await logger.info(
-            "Draft release updated",
-            version=release.version,
-            release_id=release_id
-        )
+        await logger.info("Draft release updated", version=release.version, release_id=release_id)
 
         return release
 
@@ -471,28 +439,19 @@ class ReleaseService:
             raise ValueError(f"Release {release_id} not found")
 
         if release.status == "published":
-            raise ValueError("Cannot delete published release - they are immutable for data integrity")
+            raise ValueError(
+                "Cannot delete published release - they are immutable for data integrity"
+            )
 
-        await logger.info(
-            "Deleting draft release",
-            version=release.version,
-            release_id=release_id
-        )
+        await logger.info("Deleting draft release", version=release.version, release_id=release_id)
 
         self.db.delete(release)
         self.db.commit()
 
-        await logger.info(
-            "Draft release deleted",
-            version=release.version,
-            release_id=release_id
-        )
+        await logger.info("Draft release deleted", version=release.version, release_id=release_id)
 
     async def get_release_genes(
-        self,
-        version: str,
-        limit: int = 100,
-        offset: int = 0
+        self, version: str, limit: int = 100, offset: int = 0
     ) -> dict[str, Any]:
         """
         Get genes from a specific release.
@@ -527,11 +486,7 @@ class ReleaseService:
                 ORDER BY approved_symbol
                 LIMIT :limit OFFSET :offset
             """),
-            {
-                "timestamp": release.published_at,
-                "limit": limit,
-                "offset": offset
-            }
+            {"timestamp": release.published_at, "limit": limit, "offset": offset},
         )
         genes = result.fetchall()
 
@@ -545,8 +500,8 @@ class ReleaseService:
                 {
                     "approved_symbol": row.approved_symbol,
                     "hgnc_id": row.hgnc_id,
-                    "aliases": row.aliases
+                    "aliases": row.aliases,
                 }
                 for row in genes
-            ]
+            ],
         }

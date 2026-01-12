@@ -115,7 +115,7 @@ class AnnotationSource(Base, TimestampMixin):
         """Check if this source needs updating based on next_update time."""
         if not self.next_update:
             return True
-        return datetime.now(timezone.utc) >= self.next_update
+        return bool(datetime.now(timezone.utc) >= self.next_update)
 
 
 class AnnotationHistory(Base):

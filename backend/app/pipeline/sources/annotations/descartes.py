@@ -211,7 +211,7 @@ class DescartesAnnotationSource(BaseAnnotationSource):
         except httpx.TimeoutException:
             logger.sync_error("Timeout downloading Descartes data")
         except Exception as e:
-            logger.sync_error("Error downloading Descartes data", error=str(e))
+            logger.sync_error("Error downloading Descartes data", error_detail=str(e))
 
     def _parse_csv(self, csv_text: str) -> dict[str, float]:
         """
@@ -247,7 +247,7 @@ class DescartesAnnotationSource(BaseAnnotationSource):
             logger.sync_debug(f"Parsed Descartes CSV: {len(data)} genes")
 
         except Exception as e:
-            logger.sync_error("Error parsing Descartes CSV", error=str(e))
+            logger.sync_error("Error parsing Descartes CSV", error_detail=str(e))
 
         return data
 
@@ -293,7 +293,7 @@ class DescartesAnnotationSource(BaseAnnotationSource):
             return True
 
         except Exception as e:
-            logger.sync_error("Error loading Descartes data from local files", error=str(e))
+            logger.sync_error("Error loading Descartes data from local files", error_detail=str(e))
             return False
 
     async def _load_from_cache(self) -> dict[str, Any] | None:

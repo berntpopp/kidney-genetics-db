@@ -63,19 +63,19 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
         # Log at appropriate level based on exception type
         if isinstance(exception, GeneNotFoundError | ValidationError):
             logger.sync_warning(
-                "Domain exception", exception_type=type(exception).__name__, message=str(exception)
+                "Domain exception", exception_type=type(exception).__name__, detail=str(exception)
             )
         elif isinstance(exception, AuthenticationError | PermissionDeniedError):
             logger.sync_warning(
                 "Security exception",
                 exception_type=type(exception).__name__,
-                message=str(exception),
+                detail=str(exception),
             )
         else:
             logger.sync_error(
                 "Domain exception",
                 exception_type=type(exception).__name__,
-                message=str(exception),
+                detail=str(exception),
                 error=exception,
             )
 
@@ -169,7 +169,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
         return ResponseBuilder.build_internal_error(error_id, request)
 
 
-def register_error_handlers(app: FastAPI):
+def register_error_handlers(app: FastAPI) -> None:
     """Register exception handlers with FastAPI application.
 
     Args:
@@ -177,7 +177,7 @@ def register_error_handlers(app: FastAPI):
     """
 
     @app.exception_handler(HTTPException)
-    async def http_exception_handler(request: Request, exc: HTTPException):
+    async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
         """Handle HTTP exceptions with standardized format."""
         return ResponseBuilder.build_error_response(
             status_code=exc.status_code,
@@ -188,7 +188,9 @@ def register_error_handlers(app: FastAPI):
         )
 
     @app.exception_handler(RequestValidationError)
-    async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
+    async def request_validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
         """Handle request validation errors with standardized format."""
         errors = exc.errors()
         if errors:
@@ -202,7 +204,7 @@ def register_error_handlers(app: FastAPI):
             return ResponseBuilder.build_validation_error(request=request)
 
     @app.exception_handler(SQLAlchemyError)
-    async def database_exception_handler(request: Request, exc: SQLAlchemyError):
+    async def database_exception_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
         """Handle database errors."""
         error_id = log_exception(exc, {"request_path": str(request.url)})
 
@@ -216,7 +218,9 @@ def register_error_handlers(app: FastAPI):
         )
 
     @app.exception_handler(ResponseValidationError)
-    async def response_validation_exception_handler(request: Request, exc: ResponseValidationError):
+    async def response_validation_exception_handler(
+        request: Request, exc: ResponseValidationError
+    ) -> JSONResponse:
         """Handle response validation errors (500 - internal server error)."""
         error_id = log_exception(
             exc, {"request_path": str(request.url), "validation_errors": exc.errors()}

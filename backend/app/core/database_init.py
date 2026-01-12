@@ -116,7 +116,9 @@ async def create_database_views(db: Session) -> None:
             if view_def.name not in existing_views:
                 try:
                     # Use CREATE OR REPLACE for safer operation
-                    db.execute(text(f"CREATE OR REPLACE VIEW {view_def.name} AS {view_def.sqltext}"))
+                    db.execute(
+                        text(f"CREATE OR REPLACE VIEW {view_def.name} AS {view_def.sqltext}")
+                    )
                     db.commit()  # Commit each view independently
                     created_count += 1
                     await logger.info(f"Created view: {view_def.name}")

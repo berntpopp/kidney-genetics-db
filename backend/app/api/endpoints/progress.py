@@ -32,47 +32,47 @@ router = APIRouter()
 
 # Store active WebSocket connections with event-driven updates
 class ConnectionManager:
-    def __init__(self):
+    def __init__(self) -> None:
         self.active_connections: list[WebSocket] = []
         # Subscribe to progress events on initialization
         self._setup_event_subscriptions()
 
-    def _setup_event_subscriptions(self):
+    def _setup_event_subscriptions(self) -> None:
         """Setup subscriptions to event bus"""
         event_bus.subscribe(EventTypes.PROGRESS_UPDATE, self._handle_progress_update)
         event_bus.subscribe(EventTypes.TASK_STARTED, self._handle_task_started)
         event_bus.subscribe(EventTypes.TASK_COMPLETED, self._handle_task_completed)
         event_bus.subscribe(EventTypes.TASK_FAILED, self._handle_task_failed)
 
-    async def _handle_progress_update(self, data: dict):
+    async def _handle_progress_update(self, data: dict[str, Any]) -> None:
         """Handle progress updates from event bus - NO MORE POLLING!"""
         # Wrap single update in array for frontend compatibility
         data_array = [data] if isinstance(data, dict) else data
         await self.broadcast({"type": "progress_update", "data": data_array})
 
-    async def _handle_task_started(self, data: dict):
+    async def _handle_task_started(self, data: dict[str, Any]) -> None:
         """Handle task started events"""
         await self.broadcast({"type": "task_started", "data": data})
 
-    async def _handle_task_completed(self, data: dict):
+    async def _handle_task_completed(self, data: dict[str, Any]) -> None:
         """Handle task completed events"""
         await self.broadcast({"type": "task_completed", "data": data})
 
-    async def _handle_task_failed(self, data: dict):
+    async def _handle_task_failed(self, data: dict[str, Any]) -> None:
         """Handle task failed events"""
         await self.broadcast({"type": "task_failed", "data": data})
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket) -> None:
         await websocket.accept()
         self.active_connections.append(websocket)
         await logger.info("WebSocket connected", total_connections=len(self.active_connections))
 
-    def disconnect(self, websocket: WebSocket):
+    def disconnect(self, websocket: WebSocket) -> None:
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
         logger.sync_info("WebSocket disconnected", total_connections=len(self.active_connections))
 
-    async def broadcast(self, message: dict):
+    async def broadcast(self, message: dict[str, Any]) -> None:
         """Broadcast message to all connected clients"""
         if not self.active_connections:
             return  # No connections to broadcast to
@@ -90,15 +90,14 @@ class ConnectionManager:
                 # Client disconnected gracefully
                 await logger.warning(
                     "Client disconnected during broadcast",
-                    total_connections=len(self.active_connections) - 1
+                    total_connections=len(self.active_connections) - 1,
                 )
                 disconnected.append(connection)
             except RuntimeError as e:
                 # WebSocket already closed or in invalid state
                 if "websocket.send" in str(e).lower() or "websocket.close" in str(e).lower():
                     await logger.warning(
-                        "Attempted to send to closed websocket",
-                        message_type=message.get("type")
+                        "Attempted to send to closed websocket", message_type=message.get("type")
                     )
                 else:
                     await logger.error("Unexpected runtime error in websocket broadcast", error=e)
@@ -106,9 +105,7 @@ class ConnectionManager:
             except Exception as e:
                 # Unexpected error
                 await logger.error(
-                    "Unexpected error sending to websocket",
-                    error=e,
-                    error_type=type(e).__name__
+                    "Unexpected error sending to websocket", error=e, error_type=type(e).__name__
                 )
                 disconnected.append(connection)
 
@@ -121,7 +118,7 @@ class ConnectionManager:
             await logger.info(
                 "Cleaned up disconnected websockets",
                 cleaned=len(disconnected),
-                remaining=len(self.active_connections)
+                remaining=len(self.active_connections),
             )
 
 
@@ -129,7 +126,7 @@ manager = ConnectionManager()
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
+async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)) -> None:
     """
     WebSocket endpoint for real-time progress updates
 
@@ -470,5 +467,5 @@ async def get_dashboard_data(db: Session = Depends(get_db)) -> dict[str, Any]:
 
 
 # Export the connection manager for use by background tasks
-def get_connection_manager():
+def get_connection_manager() -> ConnectionManager:
     return manager

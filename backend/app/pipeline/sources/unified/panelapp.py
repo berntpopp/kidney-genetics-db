@@ -89,7 +89,9 @@ class PanelAppUnifiedSource(UnifiedDataSource):
         """Get default TTL for PanelApp data."""
         return get_source_parameter("PanelApp", "cache_ttl", 21600)
 
-    async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> dict[str, Any]:
+    async def fetch_raw_data(
+        self, tracker: "ProgressTracker | None" = None, mode: str = "smart"
+    ) -> dict[str, Any]:
         """
         Fetch all kidney-related panels from configured regions.
 

@@ -25,7 +25,7 @@ async def get_source_overlaps(
     hide_zero_scores: bool = Query(
         True,
         alias="filter[hide_zero_scores]",
-        description="Hide genes with percentage_score = 0 (default: true, matching /genes endpoint)"
+        description="Hide genes with percentage_score = 0 (default: true, matching /genes endpoint)",
     ),
     filter_tier: str | None = Query(
         None,
@@ -52,25 +52,28 @@ async def get_source_overlaps(
         requested_tiers = None
         if filter_tier:
             valid_tiers = [
-                'comprehensive_support',
-                'multi_source_support',
-                'established_support',
-                'preliminary_evidence',
-                'minimal_evidence'
+                "comprehensive_support",
+                "multi_source_support",
+                "established_support",
+                "preliminary_evidence",
+                "minimal_evidence",
             ]
             # Parse comma-separated tiers
-            requested_tiers = [t.strip() for t in filter_tier.split(',') if t.strip()]
+            requested_tiers = [t.strip() for t in filter_tier.split(",") if t.strip()]
 
             # Validate all requested tiers
             invalid_tiers = [t for t in requested_tiers if t not in valid_tiers]
             if invalid_tiers:
                 raise ValidationError(
                     field="filter[tier]",
-                    reason=f"Invalid tier(s): {', '.join(invalid_tiers)}. Must be one of: {', '.join(valid_tiers)}"
+                    reason=f"Invalid tier(s): {', '.join(invalid_tiers)}. Must be one of: {', '.join(valid_tiers)}",
                 )
 
         overlap_data = statistics_crud.get_source_overlaps(
-            db, selected_sources=sources, hide_zero_scores=hide_zero_scores, filter_tiers=requested_tiers
+            db,
+            selected_sources=sources,
+            hide_zero_scores=hide_zero_scores,
+            filter_tiers=requested_tiers,
         )
 
         query_duration_ms = round((time.time() - start_time) * 1000, 2)
@@ -97,14 +100,14 @@ async def get_source_distributions(
     hide_zero_scores: bool = Query(
         True,
         alias="filter[hide_zero_scores]",
-        description="Hide genes with percentage_score = 0 (default: true, matching /genes endpoint)"
+        description="Hide genes with percentage_score = 0 (default: true, matching /genes endpoint)",
     ),
     filter_tier: str | None = Query(
         None,
         alias="filter[tier]",
         description="Filter by evidence tier (comma-separated for multiple: comprehensive_support,multi_source_support,established_support,preliminary_evidence,minimal_evidence)",
     ),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
     Get source count distributions for bar chart visualizations.
@@ -123,21 +126,21 @@ async def get_source_distributions(
         requested_tiers = None
         if filter_tier:
             valid_tiers = [
-                'comprehensive_support',
-                'multi_source_support',
-                'established_support',
-                'preliminary_evidence',
-                'minimal_evidence'
+                "comprehensive_support",
+                "multi_source_support",
+                "established_support",
+                "preliminary_evidence",
+                "minimal_evidence",
             ]
             # Parse comma-separated tiers
-            requested_tiers = [t.strip() for t in filter_tier.split(',') if t.strip()]
+            requested_tiers = [t.strip() for t in filter_tier.split(",") if t.strip()]
 
             # Validate all requested tiers
             invalid_tiers = [t for t in requested_tiers if t not in valid_tiers]
             if invalid_tiers:
                 raise ValidationError(
                     field="filter[tier]",
-                    reason=f"Invalid tier(s): {', '.join(invalid_tiers)}. Must be one of: {', '.join(valid_tiers)}"
+                    reason=f"Invalid tier(s): {', '.join(invalid_tiers)}. Must be one of: {', '.join(valid_tiers)}",
                 )
 
         distribution_data = statistics_crud.get_source_distributions(
@@ -170,7 +173,7 @@ async def get_evidence_composition(
     hide_zero_scores: bool = Query(
         True,
         alias="filter[hide_zero_scores]",
-        description="Hide genes with percentage_score = 0 (default: true, matching /genes endpoint)"
+        description="Hide genes with percentage_score = 0 (default: true, matching /genes endpoint)",
     ),
     filter_tier: str | None = Query(
         None,
@@ -199,27 +202,25 @@ async def get_evidence_composition(
         requested_tiers = None
         if filter_tier:
             valid_tiers = [
-                'comprehensive_support',
-                'multi_source_support',
-                'established_support',
-                'preliminary_evidence',
-                'minimal_evidence'
+                "comprehensive_support",
+                "multi_source_support",
+                "established_support",
+                "preliminary_evidence",
+                "minimal_evidence",
             ]
             # Parse comma-separated tiers
-            requested_tiers = [t.strip() for t in filter_tier.split(',') if t.strip()]
+            requested_tiers = [t.strip() for t in filter_tier.split(",") if t.strip()]
 
             # Validate all requested tiers
             invalid_tiers = [t for t in requested_tiers if t not in valid_tiers]
             if invalid_tiers:
                 raise ValidationError(
                     field="filter[tier]",
-                    reason=f"Invalid tier(s): {', '.join(invalid_tiers)}. Must be one of: {', '.join(valid_tiers)}"
+                    reason=f"Invalid tier(s): {', '.join(invalid_tiers)}. Must be one of: {', '.join(valid_tiers)}",
                 )
 
         composition_data = statistics_crud.get_evidence_composition(
-            db,
-            filter_tiers=requested_tiers,
-            hide_zero_scores=hide_zero_scores
+            db, filter_tiers=requested_tiers, hide_zero_scores=hide_zero_scores
         )
 
         query_duration_ms = round((time.time() - start_time) * 1000, 2)

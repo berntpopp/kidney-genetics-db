@@ -37,9 +37,7 @@ enrichment_service = EnrichmentService()
 
 
 def igraph_to_cytoscape(
-    graph: ig.Graph,
-    gene_id_to_symbol: dict[int, str],
-    cluster_colors: dict[int, str] | None = None
+    graph: ig.Graph, gene_id_to_symbol: dict[int, str], cluster_colors: dict[int, str] | None = None
 ) -> dict[str, Any]:
     """
     Convert igraph to Cytoscape.js JSON format.
@@ -88,7 +86,9 @@ def igraph_to_cytoscape(
                 "source": str(source_id),
                 "target": str(target_id),
                 "weight": edge["weight"] if "weight" in edge.attributes() else 1.0,
-                "string_score": edge["string_score"] if "string_score" in edge.attributes() else None,
+                "string_score": edge["string_score"]
+                if "string_score" in edge.attributes()
+                else None,
             }
         }
 
@@ -156,8 +156,7 @@ async def build_network(
     # Validate max nodes
     if len(request.gene_ids) > 2000:
         raise ValidationError(
-            field="gene_ids",
-            reason=f"Maximum 2000 genes allowed, got {len(request.gene_ids)}"
+            field="gene_ids", reason=f"Maximum 2000 genes allowed, got {len(request.gene_ids)}"
         )
 
     # Get gene symbols for Cytoscape labels
@@ -168,23 +167,19 @@ async def build_network(
         raise HTTPException(status_code=404, detail="No valid genes found")
 
     await logger.info(
-        "Building network",
-        gene_count=len(request.gene_ids),
-        min_score=request.min_string_score
+        "Building network", gene_count=len(request.gene_ids), min_score=request.min_string_score
     )
 
     # Build network using service
     graph = await network_service.build_network_from_string_data(
-        gene_ids=request.gene_ids,
-        session=db,
-        min_string_score=request.min_string_score
+        gene_ids=request.gene_ids, session=db, min_string_score=request.min_string_score
     )
 
     await logger.info(
         "Initial network built",
         nodes=graph.vcount(),
         edges=graph.ecount(),
-        components=len(graph.connected_components())
+        components=len(graph.connected_components()),
     )
 
     # Apply filtering if requested
@@ -193,19 +188,17 @@ async def build_network(
             "Applying network filters",
             min_degree=request.min_degree,
             remove_isolated=request.remove_isolated,
-            largest_component_only=request.largest_component_only
+            largest_component_only=request.largest_component_only,
         )
         graph = await network_service.filter_network(
             graph=graph,
             session=db,
             min_degree=request.min_degree,
             remove_isolated=request.remove_isolated,
-            largest_component_only=request.largest_component_only
+            largest_component_only=request.largest_component_only,
         )
         await logger.info(
-            "Network filtering applied",
-            final_nodes=graph.vcount(),
-            final_edges=graph.ecount()
+            "Network filtering applied", final_nodes=graph.vcount(), final_edges=graph.ecount()
         )
 
     # Convert to Cytoscape.js format
@@ -218,14 +211,14 @@ async def build_network(
         nodes=graph.vcount(),
         edges=graph.ecount(),
         components=len(graph.connected_components()),
-        elapsed_ms=round(elapsed_ms, 2)
+        elapsed_ms=round(elapsed_ms, 2),
     )
 
     return NetworkBuildResponse(
         nodes=graph.vcount(),
         edges=graph.ecount(),
         components=len(graph.connected_components()),
-        cytoscape_json=cytoscape_json
+        cytoscape_json=cytoscape_json,
     )
 
 
@@ -247,8 +240,7 @@ async def cluster_network(
     # Validate max nodes
     if len(request.gene_ids) > 2000:
         raise ValidationError(
-            field="gene_ids",
-            reason=f"Maximum 2000 genes allowed, got {len(request.gene_ids)}"
+            field="gene_ids", reason=f"Maximum 2000 genes allowed, got {len(request.gene_ids)}"
         )
 
     # Get gene symbols
@@ -265,21 +257,15 @@ async def cluster_network(
         remove_isolated=request.remove_isolated,
         min_degree=request.min_degree,
         min_cluster_size=request.min_cluster_size,
-        largest_component_only=request.largest_component_only
+        largest_component_only=request.largest_component_only,
     )
 
     # Build network
     graph = await network_service.build_network_from_string_data(
-        gene_ids=request.gene_ids,
-        session=db,
-        min_string_score=request.min_string_score
+        gene_ids=request.gene_ids, session=db, min_string_score=request.min_string_score
     )
 
-    await logger.info(
-        "Initial network for clustering",
-        nodes=graph.vcount(),
-        edges=graph.ecount()
-    )
+    await logger.info("Initial network for clustering", nodes=graph.vcount(), edges=graph.ecount())
 
     # Apply node filtering if requested
     if request.min_degree > 0 or request.remove_isolated or request.largest_component_only:
@@ -287,26 +273,22 @@ async def cluster_network(
             "Applying node filters before clustering",
             min_degree=request.min_degree,
             remove_isolated=request.remove_isolated,
-            largest_component_only=request.largest_component_only
+            largest_component_only=request.largest_component_only,
         )
         graph = await network_service.filter_network(
             graph=graph,
             session=db,
             min_degree=request.min_degree,
             remove_isolated=request.remove_isolated,
-            largest_component_only=request.largest_component_only
+            largest_component_only=request.largest_component_only,
         )
         await logger.info(
-            "Node filtering complete",
-            filtered_nodes=graph.vcount(),
-            filtered_edges=graph.ecount()
+            "Node filtering complete", filtered_nodes=graph.vcount(), filtered_edges=graph.ecount()
         )
 
     # Detect communities
     gene_to_cluster, modularity = await network_service.detect_communities(
-        graph=graph,
-        session=db,
-        algorithm=request.algorithm
+        graph=graph, session=db, algorithm=request.algorithm
     )
 
     # Apply cluster size filtering if requested
@@ -314,20 +296,15 @@ async def cluster_network(
         await logger.info(
             "Filtering clusters by size",
             original_clusters=len(set(gene_to_cluster.values())),
-            min_cluster_size=request.min_cluster_size
+            min_cluster_size=request.min_cluster_size,
         )
         gene_to_cluster = await network_service.filter_clusters_by_size(
-            gene_to_cluster=gene_to_cluster,
-            session=db,
-            min_cluster_size=request.min_cluster_size
+            gene_to_cluster=gene_to_cluster, session=db, min_cluster_size=request.min_cluster_size
         )
 
         # CRITICAL: Filter graph to only include genes in filtered clusters
         genes_in_clusters = set(gene_to_cluster.keys())
-        vertices_to_keep = [
-            v.index for v in graph.vs
-            if v["gene_id"] in genes_in_clusters
-        ]
+        vertices_to_keep = [v.index for v in graph.vs if v["gene_id"] in genes_in_clusters]
 
         if vertices_to_keep:
             graph = graph.subgraph(vertices_to_keep)
@@ -335,7 +312,7 @@ async def cluster_network(
                 "Filtered graph to clustered genes only",
                 original_nodes=len(gene_id_to_symbol),
                 filtered_nodes=graph.vcount(),
-                removed_nodes=len(gene_id_to_symbol) - graph.vcount()
+                removed_nodes=len(gene_id_to_symbol) - graph.vcount(),
             )
         else:
             await logger.warning("All genes filtered out - returning empty graph")
@@ -360,7 +337,7 @@ async def cluster_network(
         num_clusters=num_clusters,
         modularity=round(modularity, 3),
         algorithm=request.algorithm,
-        elapsed_ms=round(elapsed_ms, 2)
+        elapsed_ms=round(elapsed_ms, 2),
     )
 
     return NetworkClusterResponse(
@@ -368,7 +345,7 @@ async def cluster_network(
         num_clusters=num_clusters,
         modularity=round(modularity, 3),
         algorithm=request.algorithm,
-        cytoscape_json=cytoscape_json
+        cytoscape_json=cytoscape_json,
     )
 
 
@@ -390,24 +367,17 @@ async def extract_subgraph(
     gene_id_to_symbol = {g.id: g.approved_symbol for g in genes}
 
     await logger.info(
-        "Extracting subgraph",
-        seed_count=len(request.seed_gene_ids),
-        k_hops=request.k
+        "Extracting subgraph", seed_count=len(request.seed_gene_ids), k_hops=request.k
     )
 
     # Build full network
     full_graph = await network_service.build_network_from_string_data(
-        gene_ids=request.gene_ids,
-        session=db,
-        min_string_score=request.min_string_score
+        gene_ids=request.gene_ids, session=db, min_string_score=request.min_string_score
     )
 
     # Extract k-hop subgraph
     subgraph = await network_service.get_k_hop_subgraph(
-        graph=full_graph,
-        seed_gene_ids=request.seed_gene_ids,
-        session=db,
-        k=request.k
+        graph=full_graph, seed_gene_ids=request.seed_gene_ids, session=db, k=request.k
     )
 
     # Convert to Cytoscape.js
@@ -419,14 +389,14 @@ async def extract_subgraph(
         "Subgraph extracted",
         nodes=subgraph.vcount(),
         edges=subgraph.ecount(),
-        elapsed_ms=round(elapsed_ms, 2)
+        elapsed_ms=round(elapsed_ms, 2),
     )
 
     return NetworkBuildResponse(
         nodes=subgraph.vcount(),
         edges=subgraph.ecount(),
         components=len(subgraph.connected_components()),
-        cytoscape_json=cytoscape_json
+        cytoscape_json=cytoscape_json,
     )
 
 
@@ -447,7 +417,7 @@ async def enrich_hpo(
     await logger.info(
         "Starting HPO enrichment",
         cluster_size=len(request.cluster_genes),
-        fdr_threshold=request.fdr_threshold
+        fdr_threshold=request.fdr_threshold,
     )
 
     # Perform enrichment
@@ -455,22 +425,20 @@ async def enrich_hpo(
         cluster_genes=request.cluster_genes,
         session=db,
         background_genes=request.background_genes,
-        fdr_threshold=request.fdr_threshold
+        fdr_threshold=request.fdr_threshold,
     )
 
     elapsed_ms = (time.time() - start_time) * 1000
 
     await logger.info(
-        "HPO enrichment complete",
-        significant_terms=len(results),
-        elapsed_ms=round(elapsed_ms, 2)
+        "HPO enrichment complete", significant_terms=len(results), elapsed_ms=round(elapsed_ms, 2)
     )
 
     return HPOEnrichmentResponse(
         results=results,
         total_terms=len(results),
         cluster_size=len(request.cluster_genes),
-        fdr_threshold=request.fdr_threshold
+        fdr_threshold=request.fdr_threshold,
     )
 
 
@@ -500,7 +468,7 @@ async def enrich_go(
         "Starting GO enrichment",
         cluster_size=len(request.cluster_genes),
         gene_set=request.gene_set,
-        timeout_seconds=request.timeout_seconds
+        timeout_seconds=request.timeout_seconds,
     )
 
     # Perform enrichment
@@ -509,15 +477,13 @@ async def enrich_go(
         session=db,
         gene_set=request.gene_set,
         fdr_threshold=request.fdr_threshold,
-        timeout_seconds=request.timeout_seconds
+        timeout_seconds=request.timeout_seconds,
     )
 
     elapsed_ms = (time.time() - start_time) * 1000
 
     await logger.info(
-        "GO enrichment complete",
-        significant_terms=len(results),
-        elapsed_ms=round(elapsed_ms, 2)
+        "GO enrichment complete", significant_terms=len(results), elapsed_ms=round(elapsed_ms, 2)
     )
 
     return GOEnrichmentResponse(
@@ -525,5 +491,5 @@ async def enrich_go(
         total_terms=len(results),
         cluster_size=len(request.cluster_genes),
         gene_set=request.gene_set,
-        fdr_threshold=request.fdr_threshold
+        fdr_threshold=request.fdr_threshold,
     )

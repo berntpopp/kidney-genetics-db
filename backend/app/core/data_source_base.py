@@ -58,7 +58,9 @@ class DataSourceClient(ABC):
         pass
 
     @abstractmethod
-    async def fetch_raw_data(self, tracker: "ProgressTracker" = None, mode: str = "smart") -> Any:
+    async def fetch_raw_data(
+        self, tracker: "ProgressTracker | None" = None, mode: str = "smart"
+    ) -> Any:
         """
         Fetch raw data from the external source.
 

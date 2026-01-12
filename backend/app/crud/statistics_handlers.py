@@ -19,10 +19,7 @@ class DistributionHandler(ABC):
 
     @abstractmethod
     def get_distribution(
-        self,
-        db: Session,
-        join_clause: str,
-        filter_clause: str
+        self, db: Session, join_clause: str, filter_clause: str
     ) -> tuple[list[Any], dict[str, Any]]:
         """
         Get distribution data and metadata for a source.
@@ -36,7 +33,9 @@ class DistributionHandler(ABC):
 class DiagnosticPanelsHandler(DistributionHandler):
     """Provider count distribution for DiagnosticPanels - shows histogram of genes by provider count"""
 
-    def get_distribution(self, db, join_clause, filter_clause):
+    def get_distribution(
+        self, db: Session, join_clause: str, filter_clause: str
+    ) -> tuple[list[Any], dict[str, Any]]:
         logger.sync_info("Calculating provider count distribution", source="DiagnosticPanels")
 
         # Count how many providers each gene appears in (histogram like PubTator)
@@ -68,7 +67,7 @@ class DiagnosticPanelsHandler(DistributionHandler):
             "Provider count distribution calculated",
             source="DiagnosticPanels",
             max_providers=metadata["max_providers"],
-            genes=metadata["total_genes"]
+            genes=metadata["total_genes"],
         )
 
         return distribution_data, metadata
@@ -77,7 +76,9 @@ class DiagnosticPanelsHandler(DistributionHandler):
 class ClinGenHandler(DistributionHandler):
     """Classification distribution for ClinGen"""
 
-    def get_distribution(self, db, join_clause, filter_clause):
+    def get_distribution(
+        self, db: Session, join_clause: str, filter_clause: str
+    ) -> tuple[list[Any], dict[str, Any]]:
         logger.sync_info("Calculating classification distribution", source="ClinGen")
 
         # ClinGen stores classifications as array of strings
@@ -122,7 +123,7 @@ class ClinGenHandler(DistributionHandler):
             "Classification distribution calculated",
             source="ClinGen",
             classifications=len(distribution_data),
-            genes=total_genes
+            genes=total_genes,
         )
 
         return distribution_data, metadata
@@ -131,7 +132,9 @@ class ClinGenHandler(DistributionHandler):
 class GenCCHandler(DistributionHandler):
     """Classification distribution for GenCC"""
 
-    def get_distribution(self, db, join_clause, filter_clause):
+    def get_distribution(
+        self, db: Session, join_clause: str, filter_clause: str
+    ) -> tuple[list[Any], dict[str, Any]]:
         logger.sync_info("Calculating classification distribution", source="GenCC")
 
         # GenCC stores classifications in submissions array
@@ -179,7 +182,7 @@ class GenCCHandler(DistributionHandler):
             "Classification distribution calculated",
             source="GenCC",
             classifications=len(distribution_data),
-            genes=total_genes
+            genes=total_genes,
         )
 
         return distribution_data, metadata
@@ -188,7 +191,9 @@ class GenCCHandler(DistributionHandler):
 class HPOHandler(DistributionHandler):
     """HPO term count distribution for HPO"""
 
-    def get_distribution(self, db, join_clause, filter_clause):
+    def get_distribution(
+        self, db: Session, join_clause: str, filter_clause: str
+    ) -> tuple[list[Any], dict[str, Any]]:
         logger.sync_info("Calculating HPO term count distribution", source="HPO")
 
         # Fixed: use 'hpo_terms' not 'phenotypes' - that's the actual field name in evidence_data
@@ -230,7 +235,7 @@ class HPOHandler(DistributionHandler):
             "HPO term count distribution calculated",
             source="HPO",
             ranges=len(distribution_data),
-            genes=total_genes
+            genes=total_genes,
         )
 
         return distribution_data, metadata
@@ -239,7 +244,9 @@ class HPOHandler(DistributionHandler):
 class PanelAppHandler(DistributionHandler):
     """Panel count distribution for PanelApp"""
 
-    def get_distribution(self, db, join_clause, filter_clause):
+    def get_distribution(
+        self, db: Session, join_clause: str, filter_clause: str
+    ) -> tuple[list[Any], dict[str, Any]]:
         logger.sync_info("Calculating panel distribution", source="PanelApp")
 
         distribution_data = db.execute(
@@ -272,7 +279,9 @@ class PanelAppHandler(DistributionHandler):
 class PubTatorHandler(DistributionHandler):
     """Publication count distribution for PubTator"""
 
-    def get_distribution(self, db, join_clause, filter_clause):
+    def get_distribution(
+        self, db: Session, join_clause: str, filter_clause: str
+    ) -> tuple[list[Any], dict[str, Any]]:
         logger.sync_info("Calculating publication distribution", source="PubTator")
 
         distribution_data = db.execute(
@@ -294,7 +303,9 @@ class PubTatorHandler(DistributionHandler):
         ).fetchall()
 
         metadata = {
-            "max_publications": max(row[0] for row in distribution_data) if distribution_data else 0,
+            "max_publications": max(row[0] for row in distribution_data)
+            if distribution_data
+            else 0,
             "total_genes": sum(row[1] for row in distribution_data) if distribution_data else 0,
             "visualization_type": "publication_histogram",
         }
@@ -305,7 +316,9 @@ class PubTatorHandler(DistributionHandler):
 class LiteratureHandler(DistributionHandler):
     """Publication count distribution for Literature"""
 
-    def get_distribution(self, db, join_clause, filter_clause):
+    def get_distribution(
+        self, db: Session, join_clause: str, filter_clause: str
+    ) -> tuple[list[Any], dict[str, Any]]:
         logger.sync_info("Calculating publication distribution", source="Literature")
 
         distribution_data = db.execute(
@@ -327,7 +340,9 @@ class LiteratureHandler(DistributionHandler):
         ).fetchall()
 
         metadata = {
-            "max_publications": max(row[0] for row in distribution_data) if distribution_data else 0,
+            "max_publications": max(row[0] for row in distribution_data)
+            if distribution_data
+            else 0,
             "total_genes": sum(row[1] for row in distribution_data) if distribution_data else 0,
             "visualization_type": "publication_histogram",
         }
@@ -338,7 +353,9 @@ class LiteratureHandler(DistributionHandler):
 class DefaultHandler(DistributionHandler):
     """Default handler for sources without specific logic"""
 
-    def get_distribution(self, db, join_clause, filter_clause):
+    def get_distribution(
+        self, db: Session, join_clause: str, filter_clause: str
+    ) -> tuple[list[Any], dict[str, Any]]:
         logger.sync_warning("Using default handler - no specific distribution logic")
         return [], {"note": "No distribution available"}
 

@@ -168,7 +168,14 @@ async def upload_evidence_file(
             file_extension=file_extension,
             provider_name=provider_name,
         )
-        raw_data = await source.fetch_raw_data(file_content, file_extension, provider_name)
+        # For file-based sources like DiagnosticPanels, use parse_uploaded_file
+        from app.pipeline.sources.unified.diagnostic_panels import DiagnosticPanelsSource
+
+        if isinstance(source, DiagnosticPanelsSource):
+            raw_data = await source.parse_uploaded_file(file_content, file_extension, provider_name)
+        else:
+            # For other sources, fall back to standard fetch (shouldn't happen for file uploads)
+            raw_data = await source.fetch_raw_data()
 
         await logger.info(
             "Raw data fetched",
@@ -180,9 +187,6 @@ async def upload_evidence_file(
         processed_data = await source.process_data(raw_data)
 
         await logger.info("Data processed", gene_count=len(processed_data) if processed_data else 0)
-
-        # Set provider context for evidence creation
-        source._current_provider = provider_name
 
         await logger.info("Starting hybrid gene creation/evidence merging", provider=provider_name)
 
@@ -266,6 +270,10 @@ async def upload_evidence_file(
         await logger.info(
             "Starting evidence storage", gene_count=len(processed_data), provider=provider_name
         )
+
+        # Store evidence - DiagnosticPanelsSource has store_evidence method
+        if not isinstance(source, DiagnosticPanelsSource):
+            raise DataSourceError(source_name, "store", "Source does not support evidence storage")
 
         evidence_stats = await source.store_evidence(
             db,
@@ -462,7 +470,9 @@ async def delete_by_identifier(
 
         db.commit()
 
-        await logger.info("Deletion complete", source=source_name, identifier=identifier, stats=stats)
+        await logger.info(
+            "Deletion complete", source=source_name, identifier=identifier, stats=stats
+        )
 
         return ResponseBuilder.build_success_response(
             data={
@@ -480,7 +490,7 @@ async def delete_by_identifier(
             "Failed to delete by identifier",
             source=source_name,
             identifier=identifier,
-            error=str(e),
+            error=e,
         )
         raise DataSourceError(source_name, "delete", f"Deletion failed: {str(e)}") from e
 
@@ -716,9 +726,7 @@ async def get_audit_trail(
 
 
 @router.get("/{source_name}/identifiers")
-async def list_identifiers(
-    source_name: str, db: Session = Depends(get_db)
-) -> dict[str, Any]:
+async def list_identifiers(source_name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     List all providers (DiagnosticPanels) or PMIDs (Literature) for a source.
 

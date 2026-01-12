@@ -607,36 +607,51 @@ v_literature_publications = ReplaceableObject(
     dependencies=[],
 )
 
-# List of all views in dependency order
-ALL_VIEWS = [
-    # Tier 1 (no dependencies)
+# Initial views for base migration (001_modern_complete_schema.py)
+# IMPORTANT: Only include views that are NOT created by dedicated migrations
+INITIAL_VIEWS = [
+    # Core infrastructure views
     cache_stats,
     evidence_source_counts,
     evidence_classification_weights,
-    string_ppi_percentiles,  # New view for STRING PPI percentiles
+    string_ppi_percentiles,
     admin_logs_filtered,
     datasource_metadata_panelapp,
     datasource_metadata_gencc,
-    genes_current,  # Temporal versioning: current genes only
-    gene_hpo_classifications,  # HPO clinical classifications for network coloring
-    # Dashboard source distribution views
+    # Hybrid source management views (managed by view system, not dedicated migration)
+    v_diagnostic_panel_providers,
+    v_literature_publications,
+    # Scoring pipeline views (Tier 2-5)
+    evidence_count_percentiles,
+    evidence_normalized_scores,
+    combined_evidence_scores,
+    evidence_summary_view,
+    gene_scores,
+    gene_list_detailed,
+]
+
+# Dashboard source distribution views
+# Created by migration: 8f42e6080805_add_dashboard_source_distribution_views.py
+DASHBOARD_VIEWS = [
     source_distribution_hpo,
     source_distribution_gencc,
     source_distribution_clingen,
     source_distribution_diagnosticpanels,
     source_distribution_panelapp,
     source_distribution_pubtator,
-    # Hybrid source management views
-    v_diagnostic_panel_providers,
-    v_literature_publications,
-    # Tier 2 (depend on Tier 1)
-    evidence_count_percentiles,
-    evidence_normalized_scores,
-    # Tier 3 (depend on Tier 2)
-    combined_evidence_scores,
-    evidence_summary_view,
-    # Tier 4 (final aggregation)
-    gene_scores,
-    # Tier 5 (composite views that depend on multiple tiers)
-    gene_list_detailed,
 ]
+
+# HPO classification view
+# Created by migration: d2f24d1ed798_add_gene_hpo_classifications_view_for_.py
+HPO_CLASSIFICATION_VIEWS = [
+    gene_hpo_classifications,
+]
+
+# Views that depend on temporal versioning columns (valid_to)
+# Created by migration: f5ee05ff38aa_add_genes_current_view.py
+TEMPORAL_VIEWS = [
+    genes_current,
+]
+
+# List of all views in dependency order (for runtime use after all migrations)
+ALL_VIEWS = INITIAL_VIEWS + DASHBOARD_VIEWS + HPO_CLASSIFICATION_VIEWS + TEMPORAL_VIEWS

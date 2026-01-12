@@ -104,7 +104,9 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         """Get default TTL for ClinGen data."""
         return get_source_parameter("ClinGen", "cache_ttl", 86400)
 
-    async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> dict[str, Any]:
+    async def fetch_raw_data(
+        self, tracker: "ProgressTracker | None" = None, mode: str = "smart"
+    ) -> dict[str, Any]:
         """
         Fetch gene validity assessments from kidney expert panels.
 
@@ -167,7 +169,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
 
             except Exception as e:
                 logger.sync_error(
-                    "Error fetching affiliate", affiliate_id=affiliate_id, error=str(e)
+                    "Error fetching affiliate", affiliate_id=affiliate_id, error_detail=str(e)
                 )
                 return []
 

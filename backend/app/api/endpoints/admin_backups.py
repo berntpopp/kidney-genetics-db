@@ -24,6 +24,7 @@ router = APIRouter()
 # Request/Response Models
 class CreateBackupRequest(BaseModel):
     """Request model for creating a backup"""
+
     description: str = Field(default="", description="Optional description for the backup")
     include_logs: bool = Field(default=False, description="Include system log tables")
     include_cache: bool = Field(default=False, description="Include cache tables")
@@ -33,13 +34,17 @@ class CreateBackupRequest(BaseModel):
 
 class RestoreBackupRequest(BaseModel):
     """Request model for restoring a backup"""
-    create_safety_backup: bool = Field(default=True, description="Create safety backup before restore")
+
+    create_safety_backup: bool = Field(
+        default=True, description="Create safety backup before restore"
+    )
     drop_existing: bool = Field(default=True, description="Drop existing database")
     run_analyze: bool = Field(default=True, description="Run ANALYZE after restore")
 
 
 class BackupJobResponse(BaseModel):
     """Response model for backup job"""
+
     id: int
     filename: str
     file_size_mb: float
@@ -60,7 +65,7 @@ async def create_backup(
     request: CreateBackupRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(require_admin),
 ) -> dict[str, Any]:
     """
     Create a database backup (admin only).
@@ -79,7 +84,7 @@ async def create_backup(
         include_logs=request.include_logs,
         include_cache=request.include_cache,
         compression_level=request.compression_level,
-        parallel_jobs=request.parallel_jobs
+        parallel_jobs=request.parallel_jobs,
     )
 
     return {
@@ -87,7 +92,7 @@ async def create_backup(
         "filename": backup_job.filename,
         "status": backup_job.status.value,
         "created_at": backup_job.created_at.isoformat() if backup_job.created_at else None,
-        "message": "Backup created successfully"
+        "message": "Backup created successfully",
     }
 
 
@@ -96,7 +101,7 @@ async def restore_backup(
     backup_id: int,
     request: RestoreBackupRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(require_admin),
 ) -> dict[str, Any]:
     """
     Restore database from backup (admin only).
@@ -115,7 +120,7 @@ async def restore_backup(
         user_id=current_user.id,
         create_safety_backup=request.create_safety_backup,
         drop_existing=request.drop_existing,
-        run_analyze=request.run_analyze
+        run_analyze=request.run_analyze,
     )
 
     return result
@@ -123,8 +128,7 @@ async def restore_backup(
 
 @router.get("/stats")
 async def get_backup_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ) -> dict[str, Any]:
     """Get backup statistics"""
     service = BackupService(db)
@@ -133,17 +137,13 @@ async def get_backup_stats(
 
 @router.post("/cleanup")
 async def cleanup_old_backups(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ) -> dict[str, Any]:
     """Manually trigger cleanup of old backups"""
     service = BackupService(db)
     deleted_count = await service.cleanup_old_backups()
 
-    return {
-        "message": f"Deleted {deleted_count} expired backup(s)",
-        "deleted_count": deleted_count
-    }
+    return {"message": f"Deleted {deleted_count} expired backup(s)", "deleted_count": deleted_count}
 
 
 @router.get("")
@@ -151,7 +151,7 @@ async def list_backups(
     limit: int = Query(50, ge=1, le=200, description="Maximum results"),
     status: BackupStatus | None = Query(None, description="Filter by status"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(require_admin),
 ) -> dict[str, Any]:
     """List all backups with optional status filter"""
     service = BackupService(db)
@@ -169,20 +169,18 @@ async def list_backups(
                 "duration_seconds": b.duration_seconds,
                 "description": b.description,
                 "trigger_source": b.trigger_source.value,
-                "checksum_sha256": b.checksum_sha256
+                "checksum_sha256": b.checksum_sha256,
             }
             for b in backups
         ],
-        "total": len(backups)
+        "total": len(backups),
     }
 
 
 @router.get("/{backup_id}/download")
 async def download_backup(
-    backup_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
-):
+    backup_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)
+) -> FileResponse:
     """Download backup file"""
     backup_job = db.query(BackupJob).get(backup_id)
     if not backup_job:
@@ -193,17 +191,13 @@ async def download_backup(
         raise HTTPException(404, "Backup file not found")
 
     return FileResponse(
-        path=file_path,
-        filename=backup_job.filename,
-        media_type="application/octet-stream"
+        path=file_path, filename=backup_job.filename, media_type="application/octet-stream"
     )
 
 
 @router.get("/{backup_id}")
 async def get_backup(
-    backup_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    backup_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ) -> dict[str, Any]:
     """Get details of a specific backup"""
     backup_job = db.query(BackupJob).get(backup_id)
@@ -234,15 +228,13 @@ async def get_backup(
         "tables_count": backup_job.tables_count,
         "created_at": backup_job.created_at.isoformat() if backup_job.created_at else None,
         "expires_at": backup_job.expires_at.isoformat() if backup_job.expires_at else None,
-        "description": backup_job.description
+        "description": backup_job.description,
     }
 
 
 @router.delete("/{backup_id}")
 async def delete_backup(
-    backup_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    backup_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ) -> dict[str, Any]:
     """Delete a backup"""
     service = BackupService(db)

@@ -46,21 +46,11 @@ async def list_releases(
     total = query.count()
     releases = query.order_by(DataRelease.version.desc()).limit(limit).offset(offset).all()
 
-    return {
-        "data": releases,
-        "meta": {
-            "total": total,
-            "limit": limit,
-            "offset": offset
-        }
-    }
+    return {"data": releases, "meta": {"total": total, "limit": limit, "offset": offset}}
 
 
 @router.get("/{version}", response_model=ReleaseResponse)
-async def get_release(
-    version: str,
-    db: Session = Depends(get_db)
-) -> DataRelease:
+async def get_release(version: str, db: Session = Depends(get_db)) -> DataRelease:
     """
     Get release metadata by version.
 
@@ -75,7 +65,7 @@ async def get_release(
     """
     await logger.info("Getting release", version=version)
 
-    release = db.query(DataRelease).filter_by(version=version).first()
+    release: DataRelease | None = db.query(DataRelease).filter_by(version=version).first()
     if not release:
         raise HTTPException(status_code=404, detail=f"Release {version} not found")
 
@@ -87,7 +77,7 @@ async def get_release_genes(
     version: str,
     db: Session = Depends(get_db),
     limit: int = Query(100, ge=1, le=1000),
-    offset: int = Query(0, ge=0)
+    offset: int = Query(0, ge=0),
 ) -> dict[str, Any]:
     """
     Get genes from a specific release.
@@ -117,8 +107,8 @@ async def get_release_genes(
                 "version": version,
                 "total": result["total"],
                 "limit": limit,
-                "offset": offset
-            }
+                "offset": offset,
+            },
         }
     except ValueError as e:
         if "not found" in str(e):
@@ -128,10 +118,7 @@ async def get_release_genes(
 
 
 @router.get("/{version}/export")
-async def download_export(
-    version: str,
-    db: Session = Depends(get_db)
-) -> FileResponse:
+async def download_export(version: str, db: Session = Depends(get_db)) -> FileResponse:
     """
     Download JSON export file for a release.
 
@@ -152,17 +139,14 @@ async def download_export(
 
     if not release.export_file_path:
         raise HTTPException(
-            status_code=404,
-            detail=f"Export file not available for release {version}"
+            status_code=404, detail=f"Export file not available for release {version}"
         )
 
     return FileResponse(
         path=release.export_file_path,
         media_type="application/json",
         filename=f"kidney-genetics-db_{version}.json",
-        headers={
-            "X-Checksum-SHA256": release.export_checksum
-        }
+        headers={"X-Checksum-SHA256": release.export_checksum},
     )
 
 
@@ -171,7 +155,7 @@ async def create_release(
     version: str = Query(..., description="CalVer version (e.g., 2025.10)"),
     release_notes: str = Query("", description="Optional release notes"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(require_admin),
 ) -> DataRelease:
     """
     Create a draft release (admin only).
@@ -191,20 +175,18 @@ async def create_release(
 
     try:
         release = await service.create_release(
-            version=version,
-            user_id=current_user.id,
-            release_notes=release_notes
+            version=version, user_id=current_user.id, release_notes=release_notes
         )
         return release
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.post("/{release_id}/publish", response_model=ReleaseResponse, dependencies=[Depends(require_admin)])
+@router.post(
+    "/{release_id}/publish", response_model=ReleaseResponse, dependencies=[Depends(require_admin)]
+)
 async def publish_release(
-    release_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    release_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ) -> DataRelease:
     """
     Publish a release (admin only).
@@ -229,10 +211,7 @@ async def publish_release(
     service = ReleaseService(db)
 
     try:
-        release = await service.publish_release(
-            release_id=release_id,
-            user_id=current_user.id
-        )
+        release = await service.publish_release(release_id=release_id, user_id=current_user.id)
         return release
     except ValueError as e:
         if "not found" in str(e):
@@ -241,12 +220,14 @@ async def publish_release(
             raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.patch("/{release_id}", response_model=ReleaseResponse, dependencies=[Depends(require_admin)])
+@router.patch(
+    "/{release_id}", response_model=ReleaseResponse, dependencies=[Depends(require_admin)]
+)
 async def update_release(
     release_id: int,
     update_data: ReleaseUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(require_admin),
 ) -> DataRelease:
     """
     Update a draft release (admin only).
@@ -271,7 +252,7 @@ async def update_release(
         release = await service.update_release(
             release_id=release_id,
             version=update_data.version,
-            release_notes=update_data.release_notes
+            release_notes=update_data.release_notes,
         )
         return release
     except ValueError as e:
@@ -283,9 +264,7 @@ async def update_release(
 
 @router.delete("/{release_id}", dependencies=[Depends(require_admin)])
 async def delete_release(
-    release_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    release_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ) -> dict[str, str]:
     """
     Delete a draft release (admin only).

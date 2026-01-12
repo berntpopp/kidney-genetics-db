@@ -50,7 +50,7 @@ async def get_all_settings(
     total = await service.count_settings(category=category)
 
     # Group by category for easier UI rendering
-    grouped = {}
+    grouped: dict[str, list[dict[str, Any]]] = {}
     for setting in settings:
         cat = setting["category"]
         if cat not in grouped:

@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
+from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, retry_with_backoff
@@ -35,7 +36,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
     # Cache configuration
     cache_ttl_days = 90
 
-    def __init__(self, session):
+    def __init__(self, session: Session) -> None:
         """Initialize the MPO/MGI annotation source."""
         super().__init__(session)
 

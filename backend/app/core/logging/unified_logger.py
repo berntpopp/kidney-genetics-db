@@ -79,10 +79,10 @@ class UnifiedLogger:
         self,
         level: str,
         message: str,
-        error: Exception | None = None,
+        error: str | Exception | None = None,
         extra_data: dict[str, Any] | None = None,
         background_tasks: BackgroundTasks | None = None,
-    ):
+    ) -> None:
         """Log to database using the database logger."""
         # Get current context and merge with extra data
         context = self._get_current_context()
@@ -101,13 +101,15 @@ class UnifiedLogger:
             # Fallback to console logging if database logging fails
             self._console_logger.error(f"Database logging failed: {e}. Original message: {message}")
 
-    def _log_to_console(self, level: str, message: str, extra_data: dict[str, Any] | None = None):
+    def _log_to_console(
+        self, level: str, message: str, extra_data: dict[str, Any] | None = None
+    ) -> None:
         """Log to console using standard Python logging."""
         formatted_message = self._format_console_message(level, message, extra_data)
         log_method = getattr(self._console_logger, level.lower())
         log_method(formatted_message)
 
-    def bind(self, **kwargs) -> "UnifiedLogger":
+    def bind(self, **kwargs: Any) -> "UnifiedLogger":
         """
         Create a new logger with additional bound context.
 
@@ -137,7 +139,7 @@ class UnifiedLogger:
         new_logger._bound_context = {k: v for k, v in self._bound_context.items() if k not in keys}
         return new_logger
 
-    def new(self, **kwargs) -> "UnifiedLogger":
+    def new(self, **kwargs: Any) -> "UnifiedLogger":
         """
         Create a new logger with fresh context.
 
@@ -160,11 +162,11 @@ class UnifiedLogger:
         level: str,
         message: str,
         *,
-        error: Exception | None = None,
+        error: str | Exception | None = None,
         background_tasks: BackgroundTasks | None = None,
         extra: dict[str, Any] | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """
         Log a message at the specified level (async version).
 
@@ -196,23 +198,27 @@ class UnifiedLogger:
                 # Don't let database logging failures break the application
                 self._console_logger.error(f"Async database logging failed: {e}")
 
-    async def debug(self, message: str, **kwargs):
+    async def debug(self, message: str, **kwargs: Any) -> None:
         """Log a debug message (async)."""
         await self.log("DEBUG", message, **kwargs)
 
-    async def info(self, message: str, **kwargs):
+    async def info(self, message: str, **kwargs: Any) -> None:
         """Log an info message (async)."""
         await self.log("INFO", message, **kwargs)
 
-    async def warning(self, message: str, **kwargs):
+    async def warning(self, message: str, **kwargs: Any) -> None:
         """Log a warning message (async)."""
         await self.log("WARNING", message, **kwargs)
 
-    async def error(self, message: str, error: Exception | None = None, **kwargs):
+    async def error(
+        self, message: str, error: str | Exception | None = None, **kwargs: Any
+    ) -> None:
         """Log an error message (async)."""
         await self.log("ERROR", message, error=error, **kwargs)
 
-    async def critical(self, message: str, error: Exception | None = None, **kwargs):
+    async def critical(
+        self, message: str, error: str | Exception | None = None, **kwargs: Any
+    ) -> None:
         """Log a critical message (async)."""
         await self.log("CRITICAL", message, error=error, **kwargs)
 
@@ -223,10 +229,10 @@ class UnifiedLogger:
         level: str,
         message: str,
         *,
-        error: Exception | None = None,
+        error: str | Exception | None = None,
         extra: dict[str, Any] | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """
         Synchronous logging method for non-async contexts.
 
@@ -251,23 +257,25 @@ class UnifiedLogger:
             # This can happen during application startup/shutdown
             pass
 
-    def sync_debug(self, message: str, **kwargs):
+    def sync_debug(self, message: str, **kwargs: Any) -> None:
         """Synchronous debug logging."""
         self.sync_log("DEBUG", message, **kwargs)
 
-    def sync_info(self, message: str, **kwargs):
+    def sync_info(self, message: str, **kwargs: Any) -> None:
         """Synchronous info logging."""
         self.sync_log("INFO", message, **kwargs)
 
-    def sync_warning(self, message: str, **kwargs):
+    def sync_warning(self, message: str, **kwargs: Any) -> None:
         """Synchronous warning logging."""
         self.sync_log("WARNING", message, **kwargs)
 
-    def sync_error(self, message: str, error: Exception | None = None, **kwargs):
+    def sync_error(self, message: str, error: str | Exception | None = None, **kwargs: Any) -> None:
         """Synchronous error logging."""
         self.sync_log("ERROR", message, error=error, **kwargs)
 
-    def sync_critical(self, message: str, error: Exception | None = None, **kwargs):
+    def sync_critical(
+        self, message: str, error: str | Exception | None = None, **kwargs: Any
+    ) -> None:
         """Synchronous critical logging."""
         self.sync_log("CRITICAL", message, error=error, **kwargs)
 

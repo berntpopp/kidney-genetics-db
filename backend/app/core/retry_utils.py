@@ -81,7 +81,7 @@ class CircuitBreaker:
         self.last_failure_time: float | None = None
         self.state = "closed"  # closed, open, half-open
 
-    def call(self, func: Callable, *args, **kwargs) -> Any:
+    def call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute function with circuit breaker protection."""
         if self.state == "open":
             if self._should_attempt_reset():
@@ -97,7 +97,7 @@ class CircuitBreaker:
             self._on_failure()
             raise e
 
-    async def async_call(self, func: Callable, *args, **kwargs) -> Any:
+    async def async_call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute async function with circuit breaker protection."""
         if self.state == "open":
             if self._should_attempt_reset():
@@ -120,12 +120,12 @@ class CircuitBreaker:
             and time.time() - self.last_failure_time >= self.recovery_timeout
         )
 
-    def _on_success(self):
+    def _on_success(self) -> None:
         """Reset circuit breaker on successful call."""
         self.failure_count = 0
         self.state = "closed"
 
-    def _on_failure(self):
+    def _on_failure(self) -> None:
         """Record failure and potentially open circuit."""
         self.failure_count += 1
         self.last_failure_time = time.time()
@@ -137,7 +137,7 @@ class CircuitBreaker:
 
 def retry_with_backoff(
     config: RetryConfig | None = None, circuit_breaker: CircuitBreaker | None = None
-):
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator for retrying functions with exponential backoff.
 
@@ -146,9 +146,9 @@ def retry_with_backoff(
     if config is None:
         config = RetryConfig()
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             last_exception = None
 
             for attempt in range(config.max_retries + 1):
@@ -165,7 +165,9 @@ def retry_with_backoff(
                     # Check if it's an HTTP status error with retryable status code
                     if isinstance(e, httpx.HTTPStatusError):
                         if e.response.status_code not in config.retry_on_status_codes:
-                            logger.debug(f"Status code {e.response.status_code} is not retryable")
+                            logger.sync_debug(
+                                f"Status code {e.response.status_code} is not retryable"
+                            )
                             raise
 
                         # Special handling for rate limiting
@@ -190,7 +192,7 @@ def retry_with_backoff(
 
                     # Don't retry if this was the last attempt
                     if attempt < config.max_retries:
-                        await logger.warning(
+                        logger.sync_warning(
                             "Attempt failed, retrying",
                             attempt=attempt + 1,
                             max_attempts=config.max_retries + 1,
@@ -208,7 +210,7 @@ def retry_with_backoff(
                 raise last_exception
 
         @wraps(func)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             last_exception = None
 
             for attempt in range(config.max_retries + 1):
@@ -275,7 +277,7 @@ class RetryStrategy:
             jitter=jitter,
         )
 
-    async def execute_async(self, func: Callable, *args, **kwargs) -> Any:
+    async def execute_async(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """
         Execute an async function with retry logic.
 
@@ -311,7 +313,7 @@ class RetryStrategy:
         if last_exception:
             raise last_exception
 
-    def execute(self, func: Callable, *args, **kwargs) -> Any:
+    def execute(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """
         Execute a sync function with retry logic.
 
@@ -364,20 +366,20 @@ class RetryableHTTPClient:
         self.circuit_breaker = circuit_breaker
 
     @retry_with_backoff()
-    async def get(self, url: str, **kwargs) -> httpx.Response:
+    async def get(self, url: str, **kwargs: Any) -> httpx.Response:
         """GET request with retry logic."""
         response = await self.client.get(url, **kwargs)
         response.raise_for_status()
         return response
 
     @retry_with_backoff()
-    async def post(self, url: str, **kwargs) -> httpx.Response:
+    async def post(self, url: str, **kwargs: Any) -> httpx.Response:
         """POST request with retry logic."""
         response = await self.client.post(url, **kwargs)
         response.raise_for_status()
         return response
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the underlying client."""
         await self.client.aclose()
 
@@ -398,9 +400,9 @@ class SimpleRateLimiter:
             requests_per_second: Maximum requests per second (e.g., 3.0 for PubTator)
         """
         self.min_interval = 1.0 / requests_per_second
-        self.last_request = 0
+        self.last_request: float = 0.0
 
-    async def wait(self):
+    async def wait(self) -> None:
         """Wait if needed to maintain rate limit."""
         now = time.monotonic()
         elapsed = now - self.last_request

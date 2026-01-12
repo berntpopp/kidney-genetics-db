@@ -2,7 +2,8 @@
 Authentication endpoints for user login, registration, and token management
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -59,12 +60,12 @@ async def get_current_user(
         raise credentials_exception
 
     # Get user from database
-    username: str = payload.get("sub")
-    if username is None:
+    username = payload.get("sub")
+    if username is None or not isinstance(username, str):
         raise credentials_exception
 
     result = db.execute(select(User).where(User.username == username))
-    user = result.scalar_one_or_none()
+    user: User | None = result.scalar_one_or_none()
 
     if user is None:
         raise credentials_exception
@@ -72,11 +73,18 @@ async def get_current_user(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
 
-    # Check if account is locked
-    if user.locked_until and user.locked_until > datetime.now(UTC):
-        raise HTTPException(
-            status_code=status.HTTP_423_LOCKED, detail=f"Account locked until {user.locked_until}"
-        )
+    # Check if account is locked (handle both naive and aware datetimes)
+    if user.locked_until:
+        now = datetime.now(timezone.utc)
+        locked_until = user.locked_until
+        # Make comparison work with naive datetimes from DB
+        if locked_until.tzinfo is None:
+            locked_until = locked_until.replace(tzinfo=timezone.utc)
+        if locked_until > now:
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail=f"Account locked until {user.locked_until}",
+            )
 
     return user
 
@@ -98,7 +106,9 @@ async def get_current_user_optional(
 
 
 @router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+) -> dict[str, Any]:
     """
     Login with username/email and password.
     Returns access and refresh tokens.
@@ -117,7 +127,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
         if user:
             user.failed_login_attempts += 1
             if user.failed_login_attempts >= settings.MAX_LOGIN_ATTEMPTS:
-                user.locked_until = datetime.now(UTC) + timedelta(
+                user.locked_until = datetime.now(timezone.utc) + timedelta(
                     minutes=settings.ACCOUNT_LOCKOUT_MINUTES
                 )
                 await logger.warning(
@@ -133,11 +143,18 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Check if account is locked
-    if user.locked_until and user.locked_until > datetime.now(UTC):
-        raise HTTPException(
-            status_code=status.HTTP_423_LOCKED, detail=f"Account locked until {user.locked_until}"
-        )
+    # Check if account is locked (handle both naive and aware datetimes)
+    if user.locked_until:
+        now = datetime.now(timezone.utc)
+        locked_until = user.locked_until
+        # Make comparison work with naive datetimes from DB
+        if locked_until.tzinfo is None:
+            locked_until = locked_until.replace(tzinfo=timezone.utc)
+        if locked_until > now:
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail=f"Account locked until {user.locked_until}",
+            )
 
     # Check if account is active
     if not user.is_active:
@@ -157,7 +174,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     refresh_token = create_refresh_token(subject=user.username)
 
     # Update user login info
-    user.last_login = datetime.now(UTC)
+    user.last_login = datetime.now(timezone.utc)
     user.failed_login_attempts = 0
     user.locked_until = None
     user.refresh_token = refresh_token
@@ -174,7 +191,9 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
 
 
 @router.post("/refresh", response_model=Token)
-async def refresh_token(request: RefreshTokenRequest, db: Session = Depends(get_db)):
+async def refresh_token(
+    request: RefreshTokenRequest, db: Session = Depends(get_db)
+) -> dict[str, Any]:
     """
     Refresh access token using refresh token.
     """
@@ -212,7 +231,9 @@ async def refresh_token(request: RefreshTokenRequest, db: Session = Depends(get_
 
 
 @router.post("/logout")
-async def logout(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def logout(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> dict[str, str]:
     """
     Logout current user (invalidate refresh token).
     """
@@ -225,7 +246,7 @@ async def logout(current_user: User = Depends(get_current_user), db: Session = D
 
 
 @router.post("/forgot-password")
-async def forgot_password(request: PasswordReset, db: Session = Depends(get_db)):
+async def forgot_password(request: PasswordReset, db: Session = Depends(get_db)) -> dict[str, str]:
     """
     Request password reset token.
     Always returns success to prevent email enumeration.
@@ -238,7 +259,7 @@ async def forgot_password(request: PasswordReset, db: Session = Depends(get_db))
         # Generate reset token
         reset_token = generate_password_reset_token()
         user.password_reset_token = reset_token
-        user.password_reset_expires = datetime.now(UTC) + timedelta(hours=1)
+        user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
         db.commit()
 
         # TODO: Send email with reset token
@@ -251,7 +272,9 @@ async def forgot_password(request: PasswordReset, db: Session = Depends(get_db))
 
 
 @router.post("/reset-password")
-async def reset_password(request: PasswordResetConfirm, db: Session = Depends(get_db)):
+async def reset_password(
+    request: PasswordResetConfirm, db: Session = Depends(get_db)
+) -> dict[str, str]:
     """
     Reset password using reset token.
     """
@@ -259,7 +282,7 @@ async def reset_password(request: PasswordResetConfirm, db: Session = Depends(ge
     result = db.execute(
         select(User).where(
             User.password_reset_token == request.token,
-            User.password_reset_expires > datetime.now(UTC),
+            User.password_reset_expires > datetime.now(timezone.utc),
         )
     )
     user = result.scalar_one_or_none()
@@ -294,7 +317,9 @@ async def reset_password(request: PasswordResetConfirm, db: Session = Depends(ge
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: User = Depends(get_current_user)):
+async def get_current_user_info(
+    current_user: User = Depends(get_current_user),
+) -> UserResponse:
     """
     Get current user information.
     """
@@ -318,7 +343,7 @@ async def change_password(
     request: PasswordChange,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-):
+) -> dict[str, str]:
     """
     Change password for current user.
     """
@@ -353,7 +378,7 @@ async def register_user(
     user_data: UserRegister,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-):
+) -> UserResponse:
     """
     Register a new user (admin only).
     """
@@ -425,7 +450,9 @@ async def register_user(
 
 
 @router.get("/users", response_model=list[UserResponse])
-async def list_users(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def list_users(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[UserResponse]:
     """
     List all users (admin only).
     """
@@ -461,7 +488,7 @@ async def update_user(
     user_update: UserUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-):
+) -> UserResponse:
     """
     Update user information (admin only).
     """
@@ -529,7 +556,7 @@ async def update_user(
 @router.delete("/users/{user_id}")
 async def delete_user(
     user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
-):
+) -> dict[str, str]:
     """
     Delete a user (admin only).
     """

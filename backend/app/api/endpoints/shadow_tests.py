@@ -152,7 +152,7 @@ class AdminLogsShadowTest:
         """Original implementation with inline SQL."""
         # Build query dynamically
         query = "SELECT * FROM system_logs WHERE 1=1"
-        params = {"limit": limit, "offset": offset}
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
 
         if level:
             query += " AND level = :level"
@@ -221,17 +221,17 @@ async def run_single_shadow_test(
     shadow_tester = get_shadow_tester()
 
     # Map endpoint to test class
-    test_classes = {
+    test_classes: dict[str, type[GeneListShadowTest] | type[AdminLogsShadowTest]] = {
         "gene_list": GeneListShadowTest,
         "admin_logs": AdminLogsShadowTest,
     }
 
     test_class = test_classes.get(endpoint)
-    if not test_class:
+    if test_class is None:
         return {"error": f"Unknown endpoint: {endpoint}"}
 
     # Create test instance
-    test_instance = test_class(db)
+    test_instance: GeneListShadowTest | AdminLogsShadowTest = test_class(db)
 
     # Run shadow test
     result = await shadow_tester.run_shadow_test(

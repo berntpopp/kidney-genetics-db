@@ -21,12 +21,12 @@ class AnnotationScheduler:
     Runs periodic updates based on configured intervals for each source.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the scheduler."""
         self.scheduler = AsyncIOScheduler()
         self.is_running = False
 
-    def start(self):
+    def start(self) -> None:
         """Start the scheduler."""
         if not self.is_running:
             # Schedule daily incremental updates at 2 AM
@@ -54,20 +54,20 @@ class AnnotationScheduler:
             self.is_running = True
             logger.sync_info("Annotation scheduler started")
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the scheduler."""
         if self.is_running:
             self.scheduler.shutdown(wait=False)
             self.is_running = False
             logger.sync_info("Annotation scheduler stopped")
 
-    def _schedule_source_updates(self):
+    def _schedule_source_updates(self) -> None:
         """Schedule updates for each source based on their configuration."""
         # Skip source-specific scheduling for now since the model doesn't have these fields
         # This will be handled by the daily/weekly general updates
         pass
 
-    async def _run_incremental_update(self):
+    async def _run_incremental_update(self) -> None:
         """Run incremental update for all sources."""
         logger.sync_info("Starting scheduled incremental update")
 
@@ -82,7 +82,7 @@ class AnnotationScheduler:
         finally:
             db.close()
 
-    async def _run_full_update(self):
+    async def _run_full_update(self) -> None:
         """Run full update for all sources."""
         logger.sync_info("Starting scheduled full update")
 
@@ -97,7 +97,7 @@ class AnnotationScheduler:
         finally:
             db.close()
 
-    async def _run_source_update(self, source_name: str):
+    async def _run_source_update(self, source_name: str) -> None:
         """Run update for a specific source."""
         logger.sync_info(f"Starting scheduled update for {source_name}")
 
@@ -114,7 +114,7 @@ class AnnotationScheduler:
         finally:
             db.close()
 
-    def get_jobs(self):
+    def get_jobs(self) -> list[dict[str, str | None]]:
         """Get list of scheduled jobs."""
         jobs = []
         for job in self.scheduler.get_jobs():
@@ -128,7 +128,7 @@ class AnnotationScheduler:
             )
         return jobs
 
-    def trigger_job(self, job_id: str):
+    def trigger_job(self, job_id: str) -> bool:
         """Manually trigger a scheduled job."""
         job = self.scheduler.get_job(job_id)
         if job:

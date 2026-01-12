@@ -30,7 +30,7 @@ class DatabaseLogger:
     request correlation, and performance metrics.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.enabled = True
 
     async def log(
@@ -132,20 +132,12 @@ class DatabaseLogger:
                     user_id = getattr(request.state.current_user, "id", None)
 
             # Prepare error data
-            error_type = None
-            error_traceback = None
+            error_type: str | None = None
+            error_traceback: str | None = None
             if error:
-                # Check if error is an exception object (has __traceback__) or just a string
-                if hasattr(error, "__traceback__"):
-                    error_type = type(error).__name__
-                    error_traceback = traceback.format_exception(
-                        type(error), error, error.__traceback__
-                    )
-                    error_traceback = "".join(error_traceback)
-                else:
-                    # If error is a string, use it as error_type
-                    error_type = "Error"
-                    error_traceback = str(error)
+                error_type = type(error).__name__
+                tb_lines = traceback.format_exception(type(error), error, error.__traceback__)
+                error_traceback = "".join(tb_lines)
 
             # Prepare extra data as JSONB - serialize to JSON string for PostgreSQL
             jsonb_data = json.dumps(extra_data or {})
@@ -202,27 +194,27 @@ class DatabaseLogger:
             fallback_logger.error(f"Unexpected error writing log: {e}")
 
         finally:
-            if "db" in locals():
+            if db is not None:
                 db.close()
 
     # Convenience methods for different log levels
-    async def debug(self, message: str, **kwargs):
+    async def debug(self, message: str, **kwargs: Any) -> None:
         """Log a debug message."""
         await self.log("DEBUG", message, **kwargs)
 
-    async def info(self, message: str, **kwargs):
+    async def info(self, message: str, **kwargs: Any) -> None:
         """Log an info message."""
         await self.log("INFO", message, **kwargs)
 
-    async def warning(self, message: str, **kwargs):
+    async def warning(self, message: str, **kwargs: Any) -> None:
         """Log a warning message."""
         await self.log("WARNING", message, **kwargs)
 
-    async def error(self, message: str, error: Exception = None, **kwargs):
+    async def error(self, message: str, error: Exception | None = None, **kwargs: Any) -> None:
         """Log an error message."""
         await self.log("ERROR", message, error=error, **kwargs)
 
-    async def critical(self, message: str, error: Exception = None, **kwargs):
+    async def critical(self, message: str, error: Exception | None = None, **kwargs: Any) -> None:
         """Log a critical message."""
         await self.log("CRITICAL", message, error=error, **kwargs)
 

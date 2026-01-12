@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import httpx
+from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, retry_with_backoff
@@ -46,7 +47,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
     # Review status confidence levels (loaded from configuration)
     _review_confidence_levels = None
 
-    def __init__(self, session):
+    def __init__(self, session: Session) -> None:
         """Initialize the ClinVar annotation source."""
         super().__init__(session)
 
@@ -87,7 +88,9 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                     "no classification provided": 0,
                 },
             )
-        return self._review_confidence_levels
+        # Cast to ensure we return the correct type (not Any from config)
+        result: dict[str, int] = self._review_confidence_levels  # type: ignore[assignment]
+        return result
 
     @retry_with_backoff(config=RetryConfig(max_retries=5))
     async def _search_variants(self, gene_symbol: str) -> list[str]:
@@ -105,9 +108,12 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
 
         try:
             search_url = f"{self.base_url}/esearch.fcgi"
+            # Note: Removed single_gene[prop] filter because it excludes variants
+            # that are annotated for overlapping genes (e.g., PKD1 and PKD1-AS1).
+            # This was causing ~900 PKD1 variants to be missing from our database.
             params = {
                 "db": "clinvar",
-                "term": f"{gene_symbol}[gene] AND single_gene[prop]",
+                "term": f"{gene_symbol}[gene]",
                 "retmax": self.search_batch_size,
                 "retmode": "json",
             }
@@ -115,7 +121,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             response = await client.get(search_url, params=params)
             data = response.json()
 
-            id_list = data.get("esearchresult", {}).get("idlist", [])
+            id_list: list[str] = data.get("esearchresult", {}).get("idlist", [])
 
             logger.sync_debug(  # Changed from info to debug for less noise
                 f"Found {len(id_list)} ClinVar variants", gene_symbol=gene_symbol
@@ -133,9 +139,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             raise  # Let retry decorator handle it
 
         except Exception as e:
-            logger.sync_error(
-                "Error searching ClinVar variants", gene_symbol=gene_symbol, error=str(e)
-            )
+            logger.sync_error(f"Error searching ClinVar variants for {gene_symbol}: {e}")
             raise
 
     def _parse_variant(self, variant_data: dict[str, Any]) -> dict[str, Any]:
@@ -157,6 +161,9 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             "review_status": "No data",
             "traits": [],
             "molecular_consequences": variant_data.get("molecular_consequence_list", []),
+            "chromosome": None,
+            "genomic_start": None,
+            "genomic_end": None,
         }
 
         # Extract germline classification
@@ -187,11 +194,29 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             var = variant_data["variation_set"][0]
             result["cdna_change"] = var.get("cdna_change", "")
 
-            # Extract protein change from title
+            # Extract protein change from title (keep p. prefix for standard HGVS notation)
             import re
 
-            protein_match = re.search(r"\(p\.(.*?)\)", result["title"])
+            protein_match = re.search(r"\((p\..*?)\)", result["title"])
             result["protein_change"] = protein_match.group(1) if protein_match else ""
+
+            # Extract genomic location (prefer GRCh38, fall back to any assembly)
+            if "variation_loc" in var:
+                grch38_loc = None
+                any_loc = None
+                for loc in var["variation_loc"]:
+                    if loc.get("assembly_name") == "GRCh38":
+                        grch38_loc = loc
+                        break
+                    elif any_loc is None:
+                        any_loc = loc
+
+                # Use GRCh38 if available, otherwise use any available location
+                loc_to_use = grch38_loc or any_loc
+                if loc_to_use:
+                    result["chromosome"] = loc_to_use.get("chr")
+                    result["genomic_start"] = loc_to_use.get("start")
+                    result["genomic_end"] = loc_to_use.get("stop")
 
         return result
 
@@ -250,9 +275,31 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
 
         except Exception as e:
             logger.sync_error(
-                "Error fetching ClinVar variant batch", error=str(e), batch_size=len(variant_ids)
+                f"Error fetching ClinVar variant batch ({len(variant_ids)} variants): {e}"
             )
             raise
+
+    def _parse_protein_position(self, protein_change: str) -> int | None:
+        """
+        Parse protein position from HGVS protein change notation.
+
+        Args:
+            protein_change: HGVS notation like "Arg4206Trp" or "Gly1234*"
+
+        Returns:
+            Integer position or None if cannot be parsed
+        """
+        import re
+
+        if not protein_change:
+            return None
+
+        # Match patterns like Arg4206Trp, Gly1234*, Ter1234Cys, etc.
+        # Position is the number in the middle
+        match = re.search(r"[A-Za-z]{3}(\d+)", protein_change)
+        if match:
+            return int(match.group(1))
+        return None
 
     def _aggregate_variants(self, variants: list[dict[str, Any]]) -> dict[str, Any]:
         """
@@ -264,29 +311,30 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
         Returns:
             Aggregated statistics dictionary
         """
-        stats = {
-            "total_count": len(variants),
-            "pathogenic_count": 0,
-            "likely_pathogenic_count": 0,
-            "vus_count": 0,
-            "benign_count": 0,
-            "likely_benign_count": 0,
-            "conflicting_count": 0,
-            "not_provided_count": 0,
-            "high_confidence_count": 0,
-            "variant_type_counts": defaultdict(int),
-            "traits_summary": defaultdict(int),
-            "molecular_consequences": defaultdict(int),
-            "consequence_categories": {
-                "truncating": 0,  # nonsense + frameshift + essential splice
-                "missense": 0,  # missense variants
-                "inframe": 0,  # inframe insertions/deletions
-                "splice_region": 0,  # non-essential splice variants
-                "regulatory": 0,  # UTR variants
-                "intronic": 0,  # intronic variants
-                "synonymous": 0,  # synonymous variants
-                "other": 0,  # everything else
-            },
+        # Initialize stats with explicit typing to help mypy
+        total_count = len(variants)
+        pathogenic_count = 0
+        likely_pathogenic_count = 0
+        vus_count = 0
+        benign_count = 0
+        likely_benign_count = 0
+        conflicting_count = 0
+        not_provided_count = 0
+        high_confidence_count = 0
+        variant_type_counts: dict[str, int] = defaultdict(int)
+        traits_summary: dict[str, int] = defaultdict(int)
+        molecular_consequences: dict[str, int] = defaultdict(int)
+        protein_variants: list[dict[str, Any]] = []
+        genomic_variants: list[dict[str, Any]] = []
+        consequence_categories: dict[str, int] = {
+            "truncating": 0,  # nonsense + frameshift + essential splice
+            "missense": 0,  # missense variants
+            "inframe": 0,  # inframe insertions/deletions
+            "splice_region": 0,  # non-essential splice variants
+            "regulatory": 0,  # UTR variants
+            "intronic": 0,  # intronic variants
+            "synonymous": 0,  # synonymous variants
+            "other": 0,  # everything else
         }
 
         # Get confidence levels
@@ -296,114 +344,239 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             classification = variant["classification"].lower()
 
             # Count by classification
+            is_pathogenic = False
             if "pathogenic" in classification:
+                is_pathogenic = True
                 if "likely" in classification:
-                    stats["likely_pathogenic_count"] += 1
+                    likely_pathogenic_count += 1
                 elif "/" not in classification:  # Exclude combined classifications
-                    stats["pathogenic_count"] += 1
+                    pathogenic_count += 1
                 # Handle combined "Pathogenic/Likely pathogenic"
                 elif "pathogenic/likely pathogenic" in classification:
-                    stats["pathogenic_count"] += 1
+                    pathogenic_count += 1
+
+            # Determine classification category for filtering (used by both arrays)
+            if is_pathogenic:
+                if "likely" in classification:
+                    category = "likely_pathogenic"
+                else:
+                    category = "pathogenic"
             elif "benign" in classification:
                 if "likely" in classification:
-                    stats["likely_benign_count"] += 1
-                elif "/" not in classification:
-                    stats["benign_count"] += 1
+                    category = "likely_benign"
+                else:
+                    category = "benign"
             elif "uncertain" in classification or "vus" in classification.lower():
-                stats["vus_count"] += 1
+                category = "vus"
             elif "conflicting" in classification:
-                stats["conflicting_count"] += 1
+                category = "conflicting"
+            else:
+                category = "other"
+
+            # Get confidence level
+            confidence = confidence_levels.get(variant.get("review_status", ""), 0)
+
+            # Get molecular consequences for this variant
+            mol_consequences = variant.get("molecular_consequences", [])
+
+            # Determine effect category (most severe)
+            # Truncating = only frameshift, stop (nonsense), start_lost
+            TRUNCATING = {
+                "nonsense",
+                "frameshift variant",
+                "start lost",
+            }
+            # Splice includes all splice variants (donor, acceptor, region)
+            SPLICE = {
+                "splice donor variant",
+                "splice acceptor variant",
+                "splice region variant",
+            }
+            effect_category = "other"
+            for conseq in mol_consequences:
+                conseq_lower = conseq.lower()
+                if conseq_lower in TRUNCATING:
+                    effect_category = "truncating"
+                    break  # Most severe, stop checking
+                elif conseq_lower in SPLICE or "splice" in conseq_lower:
+                    if effect_category not in ("truncating",):
+                        effect_category = "splice_region"
+                elif "missense" in conseq_lower:
+                    if effect_category not in ("truncating", "splice_region"):
+                        effect_category = "missense"
+                elif "inframe" in conseq_lower:
+                    if effect_category not in ("truncating", "splice_region", "missense"):
+                        effect_category = "inframe"
+                elif "synonymous" in conseq_lower:
+                    if effect_category == "other":
+                        effect_category = "synonymous"
+
+            # Collect variants with protein positions for protein domain view
+            protein_change = variant.get("protein_change", "")
+            position = self._parse_protein_position(protein_change)
+            if position:
+                protein_variants.append(
+                    {
+                        "position": position,
+                        "protein_change": protein_change,
+                        "cdna_change": variant.get("cdna_change", ""),
+                        "accession": variant.get("accession", ""),
+                        "classification": variant.get("classification", ""),
+                        "category": category,
+                        "effect_category": effect_category,
+                        "review_status": variant.get("review_status", ""),
+                        "confidence": confidence,
+                        "molecular_consequences": mol_consequences,
+                        "variant_type": variant.get("variant_type", ""),
+                        "title": variant.get("title", ""),
+                        "chromosome": variant.get("chromosome"),
+                        "genomic_start": variant.get("genomic_start"),
+                        "genomic_end": variant.get("genomic_end"),
+                    }
+                )
+
+            # Collect ALL variants with genomic positions for gene structure view
+            # This includes splice variants that don't have protein positions
+            genomic_start = variant.get("genomic_start")
+            if genomic_start is not None:
+                genomic_variants.append(
+                    {
+                        "position": position,  # May be None for splice variants
+                        "protein_change": protein_change,
+                        "cdna_change": variant.get("cdna_change", ""),
+                        "accession": variant.get("accession", ""),
+                        "classification": variant.get("classification", ""),
+                        "category": category,
+                        "effect_category": effect_category,
+                        "review_status": variant.get("review_status", ""),
+                        "confidence": confidence,
+                        "molecular_consequences": mol_consequences,
+                        "variant_type": variant.get("variant_type", ""),
+                        "title": variant.get("title", ""),
+                        "chromosome": variant.get("chromosome"),
+                        "genomic_start": genomic_start,
+                        "genomic_end": variant.get("genomic_end"),
+                    }
+                )
+
+            if not is_pathogenic and "benign" in classification:
+                if "likely" in classification:
+                    likely_benign_count += 1
+                elif "/" not in classification:
+                    benign_count += 1
+            elif "uncertain" in classification or "vus" in classification.lower():
+                vus_count += 1
+            elif "conflicting" in classification:
+                conflicting_count += 1
             elif "not provided" in classification:
-                stats["not_provided_count"] += 1
+                not_provided_count += 1
 
             # Count high confidence variants (level 3+)
             confidence = confidence_levels.get(variant["review_status"], 0)
             if confidence >= 3:
-                stats["high_confidence_count"] += 1
+                high_confidence_count += 1
 
             # Count variant types
-            stats["variant_type_counts"][variant["variant_type"]] += 1
+            variant_type_counts[variant["variant_type"]] += 1
 
             # Aggregate traits
             for trait in variant["traits"]:
                 if trait["name"]:
-                    stats["traits_summary"][trait["name"]] += 1
+                    traits_summary[trait["name"]] += 1
 
-        # Convert defaultdicts to regular dicts
-        stats["variant_type_counts"] = dict(stats["variant_type_counts"])
-
-        # Define truncating consequences
+        # Define truncating consequences (only frameshift, stop, start_lost)
         TRUNCATING_CONSEQUENCES = {
             "nonsense",
             "frameshift variant",
+            "start lost",
+        }
+        # Define splice consequences
+        SPLICE_CONSEQUENCES = {
             "splice donor variant",
             "splice acceptor variant",
+            "splice region variant",
         }
 
         # Process molecular consequences
         for variant in variants:
             for consequence in variant.get("molecular_consequences", []):
-                stats["molecular_consequences"][consequence] += 1
+                molecular_consequences[consequence] += 1
+                consequence_lower = consequence.lower()
 
                 # Categorize (count most severe category per variant)
-                if consequence in TRUNCATING_CONSEQUENCES:
-                    stats["consequence_categories"]["truncating"] += 1
-                elif "missense" in consequence.lower():
-                    stats["consequence_categories"]["missense"] += 1
-                elif "synonymous" in consequence.lower():
-                    stats["consequence_categories"]["synonymous"] += 1
-                elif "inframe" in consequence.lower():
-                    stats["consequence_categories"]["inframe"] += 1
-                elif "splice" in consequence.lower() and consequence not in TRUNCATING_CONSEQUENCES:
-                    stats["consequence_categories"]["splice_region"] += 1
+                if consequence_lower in TRUNCATING_CONSEQUENCES:
+                    consequence_categories["truncating"] += 1
+                elif consequence_lower in SPLICE_CONSEQUENCES or "splice" in consequence_lower:
+                    consequence_categories["splice_region"] += 1
+                elif "missense" in consequence_lower:
+                    consequence_categories["missense"] += 1
+                elif "synonymous" in consequence_lower:
+                    consequence_categories["synonymous"] += 1
+                elif "inframe" in consequence_lower:
+                    consequence_categories["inframe"] += 1
                 elif "UTR" in consequence:
-                    stats["consequence_categories"]["regulatory"] += 1
+                    consequence_categories["regulatory"] += 1
                 elif "intron" in consequence.lower():
-                    stats["consequence_categories"]["intronic"] += 1
+                    consequence_categories["intronic"] += 1
                 else:
-                    stats["consequence_categories"]["other"] += 1
+                    consequence_categories["other"] += 1
 
         # Get top 10 molecular consequences
-        top_consequences = sorted(
-            stats["molecular_consequences"].items(), key=lambda x: x[1], reverse=True
-        )[:10]
-        stats["top_molecular_consequences"] = [
+        top_consequences = sorted(molecular_consequences.items(), key=lambda x: x[1], reverse=True)[
+            :10
+        ]
+        top_molecular_consequences = [
             {"consequence": c[0], "count": c[1]} for c in top_consequences
         ]
 
         # Calculate percentages
-        if stats["total_count"] > 0:
-            for category in stats["consequence_categories"]:
-                stats[f"{category}_percentage"] = round(
-                    (stats["consequence_categories"][category] / stats["total_count"]) * 100, 1
+        percentages: dict[str, float] = {}
+        if total_count > 0:
+            for cat_name in consequence_categories:
+                percentages[f"{cat_name}_percentage"] = round(
+                    (consequence_categories[cat_name] / total_count) * 100, 1
                 )
 
         # Get top 5 traits
-        top_traits = sorted(stats["traits_summary"].items(), key=lambda x: x[1], reverse=True)[:5]
-        stats["top_traits"] = [{"trait": t[0], "count": t[1]} for t in top_traits]
-        del stats["traits_summary"]
+        top_traits_sorted = sorted(traits_summary.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_traits = [{"trait": t[0], "count": t[1]} for t in top_traits_sorted]
 
         # Calculate derived metrics
-        if stats["total_count"] > 0:
-            stats["high_confidence_percentage"] = round(
-                (stats["high_confidence_count"] / stats["total_count"]) * 100, 1
+        high_confidence_percentage = 0.0
+        pathogenic_percentage = 0.0
+        if total_count > 0:
+            high_confidence_percentage = round((high_confidence_count / total_count) * 100, 1)
+            pathogenic_percentage = round(
+                ((pathogenic_count + likely_pathogenic_count) / total_count) * 100, 1
             )
-            stats["pathogenic_percentage"] = round(
-                (
-                    (stats["pathogenic_count"] + stats["likely_pathogenic_count"])
-                    / stats["total_count"]
-                )
-                * 100,
-                1,
-            )
-        else:
-            stats["high_confidence_percentage"] = 0
-            stats["pathogenic_percentage"] = 0
 
         # Add summary flags
-        stats["has_pathogenic"] = (
-            stats["pathogenic_count"] > 0 or stats["likely_pathogenic_count"] > 0
-        )
+        has_pathogenic = pathogenic_count > 0 or likely_pathogenic_count > 0
+
+        # Build the stats dictionary to return
+        stats: dict[str, Any] = {
+            "total_count": total_count,
+            "pathogenic_count": pathogenic_count,
+            "likely_pathogenic_count": likely_pathogenic_count,
+            "vus_count": vus_count,
+            "benign_count": benign_count,
+            "likely_benign_count": likely_benign_count,
+            "conflicting_count": conflicting_count,
+            "not_provided_count": not_provided_count,
+            "high_confidence_count": high_confidence_count,
+            "variant_type_counts": dict(variant_type_counts),
+            "molecular_consequences": dict(molecular_consequences),
+            "protein_variants": protein_variants,
+            "genomic_variants": genomic_variants,
+            "consequence_categories": consequence_categories,
+            "top_molecular_consequences": top_molecular_consequences,
+            "top_traits": top_traits,
+            "high_confidence_percentage": high_confidence_percentage,
+            "pathogenic_percentage": pathogenic_percentage,
+            "has_pathogenic": has_pathogenic,
+        }
+        # Add percentages
+        stats.update(percentages)
 
         return stats
 
@@ -449,7 +622,9 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             # Use semaphore to limit concurrent requests to NCBI API
             semaphore = asyncio.Semaphore(self.max_concurrent_variant_fetches)
 
-            async def fetch_batch_with_semaphore(batch_ids, batch_num):
+            async def fetch_batch_with_semaphore(
+                batch_ids: list[str], batch_num: int
+            ) -> list[dict[str, Any]]:
                 async with semaphore:
                     try:
                         if batch_num % 5 == 0:  # Log every 5th batch
@@ -459,13 +634,11 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                                 batch=f"{batch_num + 1}/{total_batches}",
                                 variants=f"{batch_num * self.variant_batch_size}/{len(variant_ids)}",
                             )
-                        return await self._fetch_variant_batch(batch_ids)
+                        result: list[dict[str, Any]] = await self._fetch_variant_batch(batch_ids)
+                        return result
                     except Exception as e:
                         logger.sync_error(
-                            "Failed to fetch variant batch",
-                            gene_symbol=gene.approved_symbol,
-                            batch=batch_num,
-                            error=str(e),
+                            f"Failed to fetch variant batch {batch_num} for {gene.approved_symbol}: {e}"
                         )
                         # Continue with partial data rather than failing completely
                         if self.circuit_breaker and self.circuit_breaker.state == "open":
@@ -512,6 +685,8 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
                 "truncating_percentage": stats.get("truncating_percentage", 0),
                 "missense_percentage": stats.get("missense_percentage", 0),
                 "synonymous_percentage": stats.get("synonymous_percentage", 0),
+                "protein_variants": stats.get("protein_variants", []),
+                "genomic_variants": stats.get("genomic_variants", []),
                 "last_updated": datetime.now(timezone.utc).isoformat(),
             }
             # Generate summary text
@@ -534,9 +709,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             return annotation
 
         except Exception as e:
-            logger.sync_error(
-                "Error fetching ClinVar annotation", gene_symbol=gene.approved_symbol, error=str(e)
-            )
+            logger.sync_error(f"Error fetching ClinVar annotation for {gene.approved_symbol}: {e}")
             return None
 
     def _is_valid_annotation(self, annotation_data: dict) -> bool:
@@ -565,7 +738,7 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
         # Process genes concurrently but with a limit
         semaphore = asyncio.Semaphore(3)  # Limit concurrent requests
 
-        async def fetch_with_semaphore(gene):
+        async def fetch_with_semaphore(gene: Gene) -> None:
             async with semaphore:
                 annotation = await self.fetch_annotation(gene)
                 if annotation:

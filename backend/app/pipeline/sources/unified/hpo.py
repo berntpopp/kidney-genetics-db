@@ -82,7 +82,9 @@ class HPOUnifiedSource(UnifiedDataSource):
         """Get default TTL for HPO data."""
         return get_source_cache_ttl("HPO")
 
-    async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> dict[str, Any]:
+    async def fetch_raw_data(
+        self, tracker: "ProgressTracker | None" = None, mode: str = "smart"
+    ) -> dict[str, Any]:
         """
         Fetch kidney-related phenotypes and associated genes from HPO.
 
@@ -149,7 +151,9 @@ class HPOUnifiedSource(UnifiedDataSource):
                     return [root_term]
 
             except Exception as e:
-                logger.sync_error("Error fetching HPO hierarchy", root_term=root_term, error=str(e))
+                logger.sync_error(
+                    "Error fetching HPO hierarchy", root_term=root_term, error_detail=str(e)
+                )
                 return [root_term]
 
         # Use unified caching
@@ -192,7 +196,9 @@ class HPOUnifiedSource(UnifiedDataSource):
                     return []
 
             except Exception as e:
-                logger.sync_error("Error fetching associations", hpo_term=hpo_term, error=str(e))
+                logger.sync_error(
+                    "Error fetching associations", hpo_term=hpo_term, error_detail=str(e)
+                )
                 return []
 
         # Use unified caching
@@ -329,7 +335,9 @@ class HPOUnifiedSource(UnifiedDataSource):
                     return None
 
             except Exception as e:
-                logger.sync_error("Error fetching disease", disease_id=disease_id, error=str(e))
+                logger.sync_error(
+                    "Error fetching disease", disease_id=disease_id, error_detail=str(e)
+                )
                 return None
 
         # Use unified caching

@@ -6,6 +6,8 @@ eliminating code duplication and providing consistent patterns for caching,
 retrying, and error handling.
 """
 
+from typing import Any
+
 from app.pipeline.sources.unified.base import UnifiedDataSource
 from app.pipeline.sources.unified.clingen import ClinGenUnifiedSource
 from app.pipeline.sources.unified.diagnostic_panels import DiagnosticPanelsSource
@@ -28,7 +30,7 @@ __all__ = [
 ]
 
 # Source name to class mapping for factory function
-SOURCE_MAP = {
+SOURCE_MAP: dict[str, type[UnifiedDataSource]] = {
     "GenCC": GenCCUnifiedSource,
     "PanelApp": PanelAppUnifiedSource,
     "PubTator": PubTatorUnifiedSource,
@@ -39,7 +41,7 @@ SOURCE_MAP = {
 }
 
 
-def get_unified_source(source_name: str, **kwargs) -> UnifiedDataSource:
+def get_unified_source(source_name: str, **kwargs: Any) -> UnifiedDataSource:
     """
     Factory function to get appropriate unified data source client.
 
@@ -56,5 +58,5 @@ def get_unified_source(source_name: str, **kwargs) -> UnifiedDataSource:
     if source_name not in SOURCE_MAP:
         raise ValueError(f"Unknown data source: {source_name}")
 
-    source_class = SOURCE_MAP[source_name]
+    source_class: type[UnifiedDataSource] = SOURCE_MAP[source_name]
     return source_class(**kwargs)

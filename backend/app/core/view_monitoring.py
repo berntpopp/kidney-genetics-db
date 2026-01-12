@@ -7,6 +7,7 @@ import asyncio
 import time
 from collections.abc import Callable
 from functools import wraps
+from typing import Any
 
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
@@ -118,7 +119,7 @@ performance_comparison = Gauge(
 )
 
 
-def track_view_performance(view_name: str):
+def track_view_performance(view_name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator to track database view query performance.
 
@@ -128,9 +129,9 @@ def track_view_performance(view_name: str):
             ...
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             start_time = time.time()
             status = "success"
 
@@ -141,7 +142,7 @@ def track_view_performance(view_name: str):
                 status = "error"
                 error_type = type(e).__name__
                 view_query_errors.labels(view_name=view_name, error_type=error_type).inc()
-                logger.error(f"View query failed: {view_name}", error=str(e), view_name=view_name)
+                logger.sync_error(f"View query failed: {view_name}", error=e, view_name=view_name)
                 raise
             finally:
                 duration = time.time() - start_time
@@ -150,7 +151,7 @@ def track_view_performance(view_name: str):
 
                 # Log slow queries for alerting
                 if duration > 0.1:  # 100ms threshold
-                    logger.warning(
+                    logger.sync_warning(
                         "Slow view query detected",
                         view_name=view_name,
                         duration_ms=duration * 1000,
@@ -158,7 +159,7 @@ def track_view_performance(view_name: str):
                     )
 
         @wraps(func)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             start_time = time.time()
             status = "success"
 
@@ -169,9 +170,7 @@ def track_view_performance(view_name: str):
                 status = "error"
                 error_type = type(e).__name__
                 view_query_errors.labels(view_name=view_name, error_type=error_type).inc()
-                logger.sync_error(
-                    f"View query failed: {view_name}", error=str(e), view_name=view_name
-                )
+                logger.sync_error(f"View query failed: {view_name}", error=e, view_name=view_name)
                 raise
             finally:
                 duration = time.time() - start_time
@@ -192,7 +191,7 @@ def track_view_performance(view_name: str):
     return decorator
 
 
-def track_shadow_test(endpoint: str):
+def track_shadow_test(endpoint: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator to track shadow test execution.
 
@@ -202,9 +201,9 @@ def track_shadow_test(endpoint: str):
             ...
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 result = await func(*args, **kwargs)
 
@@ -243,7 +242,7 @@ def track_shadow_test(endpoint: str):
 
             except Exception as e:
                 shadow_test_total.labels(endpoint=endpoint, result="error").inc()
-                logger.error(f"Shadow test failed for {endpoint}", error=str(e))
+                logger.sync_error(f"Shadow test failed for {endpoint}", error=e)
                 raise
 
         return wrapper
@@ -251,14 +250,16 @@ def track_shadow_test(endpoint: str):
     return decorator
 
 
-def track_materialized_view_refresh(view_name: str):
+def track_materialized_view_refresh(
+    view_name: str,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator to track materialized view refresh operations.
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             start_time = time.time()
             status = "success"
 
@@ -267,7 +268,7 @@ def track_materialized_view_refresh(view_name: str):
                 return result
             except Exception as e:
                 status = "error"
-                logger.error(f"Materialized view refresh failed: {view_name}", error=str(e))
+                logger.sync_error(f"Materialized view refresh failed: {view_name}", error=e)
                 raise
             finally:
                 duration = time.time() - start_time
@@ -282,7 +283,7 @@ def track_materialized_view_refresh(view_name: str):
                 materialized_view_refresh_total.labels(view_name=view_name, status=status).inc()
 
                 if duration > 30:  # 30 second threshold
-                    logger.warning(
+                    logger.sync_warning(
                         f"Slow materialized view refresh: {view_name}", duration_s=duration
                     )
 
@@ -291,7 +292,7 @@ def track_materialized_view_refresh(view_name: str):
     return decorator
 
 
-def track_feature_flag_evaluation(flag_name: str, enabled: bool):
+def track_feature_flag_evaluation(flag_name: str, enabled: bool) -> None:
     """
     Track feature flag evaluation.
 
@@ -303,7 +304,7 @@ def track_feature_flag_evaluation(flag_name: str, enabled: bool):
     feature_flag_evaluations.labels(flag_name=flag_name, result=result).inc()
 
 
-def update_rollout_percentage(flag_name: str, percentage: float):
+def update_rollout_percentage(flag_name: str, percentage: float) -> None:
     """
     Update the rollout percentage metric.
 
@@ -314,7 +315,7 @@ def update_rollout_percentage(flag_name: str, percentage: float):
     feature_flag_rollout_percentage.labels(flag_name=flag_name).set(percentage)
 
 
-def track_cache_invalidation(table_name: str, namespace: str):
+def track_cache_invalidation(table_name: str, namespace: str) -> None:
     """
     Track cache invalidation operations.
 
@@ -339,10 +340,11 @@ class ViewMetricsManager:
         Returns:
             Metrics data in Prometheus text format
         """
-        return generate_latest(view_registry)
+        result: bytes = generate_latest(view_registry)
+        return result
 
     @staticmethod
-    def get_metrics_summary() -> dict:
+    def get_metrics_summary() -> dict[str, Any]:
         """
         Get summary of key metrics.
 
@@ -350,7 +352,7 @@ class ViewMetricsManager:
             Dictionary with key metric values
         """
         # Get sample values from collectors
-        summary = {
+        summary: dict[str, Any] = {
             "view_queries": {},
             "shadow_tests": {},
             "feature_flags": {},
@@ -363,14 +365,14 @@ class ViewMetricsManager:
         return summary
 
     @staticmethod
-    async def check_health_thresholds() -> dict:
+    async def check_health_thresholds() -> dict[str, Any]:
         """
         Check if metrics are within healthy thresholds.
 
         Returns:
             Health status based on metric thresholds
         """
-        health = {"healthy": True, "checks": {}}
+        health: dict[str, Any] = {"healthy": True, "checks": {}}
 
         # Check error rate (should be < 1%)
         # In production, calculate from actual metrics
@@ -398,7 +400,8 @@ class ViewMetricsManager:
         }
 
         # Overall health
-        health["healthy"] = all(check.get("healthy", True) for check in health["checks"].values())
+        checks: dict[str, Any] = health["checks"]
+        health["healthy"] = all(check.get("healthy", True) for check in checks.values())
 
         return health
 
@@ -407,10 +410,10 @@ class ViewMetricsManager:
 class ViewMetricsMiddleware:
     """FastAPI middleware for view metrics endpoint."""
 
-    def __init__(self, app):
+    def __init__(self, app: Any) -> None:
         self.app = app
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         """
         Handle metrics endpoint requests.
         """

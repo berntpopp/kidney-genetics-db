@@ -3,6 +3,8 @@ Property-based tests for validation functions using Hypothesis.
 These tests explore edge cases and validate invariants automatically.
 """
 
+import math
+
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
@@ -169,10 +171,20 @@ class TestScoreAggregation:
         """Test that average scores stay within bounds."""
         if scores:
             avg_score = sum(scores) / len(scores)
+            min_score = min(scores)
+            max_score = max(scores)
 
             # Property: average should be within min and max of inputs
-            assert min(scores) <= avg_score <= max(scores), "Average should be within bounds"
-            assert 0 <= avg_score <= 1, "Average should be in [0, 1]"
+            # Use math.isclose for floating-point comparisons to handle precision issues
+            assert (
+                min_score <= avg_score or math.isclose(min_score, avg_score, rel_tol=1e-9)
+            ), "Average should be >= min"
+            assert (
+                avg_score <= max_score or math.isclose(avg_score, max_score, rel_tol=1e-9)
+            ), "Average should be <= max"
+            assert 0 <= avg_score <= 1 or math.isclose(avg_score, 0, rel_tol=1e-9) or math.isclose(
+                avg_score, 1, rel_tol=1e-9
+            ), "Average should be in [0, 1]"
 
     @given(
         st.lists(st.floats(min_value=0.0, max_value=1.0, allow_nan=False), min_size=2, max_size=10)
@@ -186,10 +198,22 @@ class TestScoreAggregation:
 
         if total_weight > 0:
             weighted_avg = weighted_sum / total_weight
+            min_score = min(scores)
+            max_score = max(scores)
 
             # Property: weighted average should be in range
-            assert 0 <= weighted_avg <= 1
-            assert min(scores) <= weighted_avg <= max(scores)
+            # Use math.isclose for floating-point comparisons to handle precision issues
+            assert (
+                0 <= weighted_avg <= 1
+                or math.isclose(weighted_avg, 0, rel_tol=1e-9)
+                or math.isclose(weighted_avg, 1, rel_tol=1e-9)
+            ), "Weighted average should be in [0, 1]"
+            assert (
+                min_score <= weighted_avg or math.isclose(min_score, weighted_avg, rel_tol=1e-9)
+            ), "Weighted average should be >= min"
+            assert (
+                weighted_avg <= max_score or math.isclose(weighted_avg, max_score, rel_tol=1e-9)
+            ), "Weighted average should be <= max"
 
 
 @pytest.mark.unit
@@ -207,25 +231,49 @@ class TestStringCleaning:
         # Property: cleaning should be idempotent
         assert cleaned_once == cleaned_twice, "Cleaning should be idempotent"
 
-    @given(st.text(min_size=1))
+    @given(st.text(min_size=1, alphabet=st.characters(blacklist_categories=("Cs",))))
     def test_clean_text_no_longer(self, text: str):
-        """Test that cleaning never makes text longer."""
+        """Test that cleaning never makes text longer (excluding Unicode case expansion).
+
+        Note: Some Unicode characters expand when uppercased (e.g., ß → SS),
+        which is correct behavior. We account for this by comparing against
+        the uppercased original length.
+        """
         cleaned = clean_gene_text(text)
 
-        # Property: cleaned text should not be longer than original
-        assert len(cleaned) <= len(text), "Cleaning should not increase length"
+        # Property: cleaned text should not be longer than uppercased original
+        # (uppercasing can expand some chars like ß → SS, which is expected)
+        assert len(cleaned) <= len(text.upper()), "Cleaning should not increase length beyond case expansion"
 
     @given(st.text())
     def test_clean_text_preserves_alphanumeric(self, text: str):
-        """Test that cleaning preserves alphanumeric characters."""
+        """Test that cleaning preserves alphanumeric characters from the preserved portion.
+
+        Note: clean_gene_text removes everything after separators (;,|/\\) and
+        parenthetical content, so we only check that alphanumeric chars from the
+        portion that would be preserved are actually preserved.
+        """
+        import re
+
         cleaned = clean_gene_text(text)
 
-        # All alphanumeric chars from original should be in cleaned (uppercase)
-        original_alnum = "".join(c.upper() for c in text if c.isalnum())
+        # Simulate the separator removal to get the portion that should be preserved
+        # First, get uppercase version like clean_gene_text does
+        text_upper = text.strip().upper()
+        # Remove prefixes (like clean_gene_text does)
+        text_upper = re.sub(r"^(GENE:|SYMBOL:|PROTEIN:)", "", text_upper)
+        text_upper = re.sub(r"(GENE|PROTEIN|_HUMAN)$", "", text_upper)
+        # Get only the part before separators (like clean_gene_text does)
+        preserved_part = re.sub(r"[;,|/\\].*$", "", text_upper)
+        # Remove parenthetical content
+        preserved_part = re.sub(r"\s*\([^)]*\)", "", preserved_part)
 
-        if original_alnum:
-            # Check that alphanumeric content is preserved
-            assert all(c in cleaned for c in original_alnum if c.isalnum())
+        # Get alphanumeric characters from the preserved portion only
+        preserved_alnum = "".join(c for c in preserved_part if c.isalnum())
+
+        if preserved_alnum:
+            # Check that alphanumeric content from preserved portion is in cleaned
+            assert all(c in cleaned for c in preserved_alnum if c.isalnum())
 
 
 @pytest.mark.unit

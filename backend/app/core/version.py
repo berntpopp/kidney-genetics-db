@@ -27,9 +27,7 @@ def get_package_version() -> str:
         import tomllib  # Built-in module in Python 3.11+
 
         # Path to pyproject.toml
-        pyproject_path = os.path.join(
-            os.path.dirname(__file__), "..", "..", "pyproject.toml"
-        )
+        pyproject_path = os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml")
 
         with open(pyproject_path, "rb") as f:  # tomllib requires binary mode
             data = tomllib.load(f)

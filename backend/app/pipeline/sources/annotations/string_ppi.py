@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -47,7 +48,7 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
     # Class-level flag for one-time warnings
     _percentile_warning_shown = False
 
-    def __init__(self, session):
+    def __init__(self, session: Session) -> None:
         """Initialize STRING PPI annotation source."""
         super().__init__(session)
 

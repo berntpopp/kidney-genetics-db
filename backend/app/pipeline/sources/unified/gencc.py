@@ -95,7 +95,9 @@ class GenCCUnifiedSource(UnifiedDataSource):
         """Get default TTL for GenCC data."""
         return get_source_parameter("GenCC", "cache_ttl", 43200)
 
-    async def fetch_raw_data(self, tracker: "ProgressTracker" = None) -> pd.DataFrame:
+    async def fetch_raw_data(
+        self, tracker: "ProgressTracker | None" = None, mode: str = "smart"
+    ) -> pd.DataFrame:
         """
         Fetch GenCC submissions Excel file with intelligent caching.
 
@@ -376,7 +378,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
             }
 
         except Exception as e:
-            logger.sync_error("Error extracting gene info from GenCC row", error=str(e))
+            logger.sync_error("Error extracting gene info from GenCC row", error_detail=str(e))
             return None
 
     def _calculate_evidence_score(self, classifications: list) -> float:

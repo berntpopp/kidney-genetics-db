@@ -12,7 +12,9 @@ from typing import Any
 from fastapi import Request
 
 # Context variables for request-scoped logging context
-_request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default=None)
+_request_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "request_id", default=None
+)
 _user_id_var: contextvars.ContextVar[int | None] = contextvars.ContextVar("user_id", default=None)
 _username_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("username", default=None)
 _ip_address_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
@@ -25,7 +27,7 @@ _endpoint_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("endp
 _method_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("method", default=None)
 
 
-def bind_context(**kwargs) -> None:
+def bind_context(**kwargs: Any) -> None:
     """
     Bind values to the current logging context.
 
@@ -65,7 +67,7 @@ def clear_context() -> None:
 
 def get_context() -> dict[str, Any]:
     """Get the current logging context."""
-    context = {}
+    context: dict[str, Any] = {}
 
     if request_id := _request_id_var.get(None):
         context["request_id"] = request_id
