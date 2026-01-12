@@ -127,7 +127,9 @@ jobs:
           JWT_SECRET: test-secret-key-for-ci
           SECRET_KEY: test-secret-key-for-ci
           TESTING: "true"
-        run: uv run pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
+        # Timeout after 10 minutes to prevent hanging
+        timeout-minutes: 10
+        run: uv run pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing --timeout=300
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

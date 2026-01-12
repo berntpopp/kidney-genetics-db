@@ -113,9 +113,19 @@ def db_session(test_engine):
 
 @pytest.fixture(scope="session")
 def event_loop():
-    """Create an event loop for the test session."""
+    """Create an event loop for the test session with proper cleanup."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
+    # Cancel all pending tasks to prevent hanging
+    # See: https://github.com/pytest-dev/pytest-asyncio/issues/81
+    try:
+        pending = asyncio.all_tasks(loop)
+        for task in pending:
+            task.cancel()
+        if pending:
+            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+    except Exception:
+        pass  # Ignore errors during cleanup
     loop.close()
 
 
