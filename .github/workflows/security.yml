@@ -58,9 +58,7 @@ jobs:
 
       - name: Run pip-audit
         working-directory: backend
-        run: |
-          uv pip install pip-audit
-          uv run pip-audit --vulnerability-service pypi --progress-spinner off || true
+        run: uv run pip-audit --vulnerability-service pypi --progress-spinner off || true
         continue-on-error: true
 
   # =============================================================================
@@ -88,8 +86,9 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install Bandit
-        run: uv pip install bandit[sarif]
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --group dev
 
       - name: Run Bandit Security Scan
         working-directory: backend
