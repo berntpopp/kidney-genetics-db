@@ -91,9 +91,7 @@ class LiteratureSource(UnifiedDataSource):
 
         This source receives file uploads rather than fetching from an API.
         """
-        raise NotImplementedError(
-            "Literature source uses parse_uploaded_file() for file uploads"
-        )
+        raise NotImplementedError("Literature source uses parse_uploaded_file() for file uploads")
 
     async def parse_uploaded_file(
         self,

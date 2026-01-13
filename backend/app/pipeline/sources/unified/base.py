@@ -341,7 +341,9 @@ class UnifiedDataSource(DataSourceClient, ABC):
 
         try:
             # Store with long TTL (30 days)
-            await self.cache_service.set(cache_key, timestamp, namespace="default", ttl=30 * 24 * 3600)
+            await self.cache_service.set(
+                cache_key, timestamp, namespace="default", ttl=30 * 24 * 3600
+            )
         except Exception as e:
             logger.sync_warning("Failed to set last update time", error=e)
 

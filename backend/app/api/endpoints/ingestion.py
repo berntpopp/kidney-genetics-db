@@ -177,7 +177,9 @@ async def upload_evidence_file(
         elif isinstance(source, LiteratureSource):
             # For Literature, extract publication_id from filename (e.g., literature_pmid_26862157.json)
             publication_id = provider_name
-            raw_data = await source.parse_uploaded_file(file_content, file_extension, publication_id)
+            raw_data = await source.parse_uploaded_file(
+                file_content, file_extension, publication_id
+            )
         else:
             # For other sources, fall back to standard fetch (shouldn't happen for file uploads)
             raise DataSourceError(
@@ -414,9 +416,7 @@ async def get_source_status(source_name: str, db: Session = Depends(get_db)) -> 
 
     return cast(
         dict[str, Any],
-        ResponseBuilder.build_success_response(
-            data=status_data, meta={"source_name": source_name}
-        ),
+        ResponseBuilder.build_success_response(data=status_data, meta={"source_name": source_name}),
     )
 
 

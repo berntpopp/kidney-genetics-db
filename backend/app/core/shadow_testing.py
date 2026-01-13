@@ -365,9 +365,7 @@ class ShadowTestDecorator:
             else:
                 return result.old_result
 
-        def sync_wrapper(
-            old_implementation: Callable[..., Any], *args: Any, **kwargs: Any
-        ) -> Any:
+        def sync_wrapper(old_implementation: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
             """Sync wrapper for shadow testing."""
             # For sync functions, run async in event loop
             loop = asyncio.new_event_loop()

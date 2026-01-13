@@ -143,7 +143,9 @@ async def run_annotation_pipeline_task(
                 from app.models.progress import DataSourceProgress
 
                 progress = (
-                    db.query(DataSourceProgress).filter_by(source_name="annotation_pipeline").first()
+                    db.query(DataSourceProgress)
+                    .filter_by(source_name="annotation_pipeline")
+                    .first()
                 )
                 if progress and progress.progress_metadata:
                     checkpoint_sources = progress.progress_metadata.get("sources")

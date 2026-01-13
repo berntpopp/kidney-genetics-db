@@ -89,9 +89,7 @@ class FeatureFlags:
             if not user_id:
                 return False
             # Consistent hash for user (MD5 for distribution, not security)
-            user_hash = int(
-                hashlib.md5(user_id.encode(), usedforsecurity=False).hexdigest(), 16
-            )
+            user_hash = int(hashlib.md5(user_id.encode(), usedforsecurity=False).hexdigest(), 16)
             percentage = int(flag.get("percentage", 0))
             return bool((user_hash % 100) < percentage)
 

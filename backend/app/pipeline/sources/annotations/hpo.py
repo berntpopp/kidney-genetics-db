@@ -402,9 +402,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
             Classification results with scores and confidence
         """
         # Build set of phenotype IDs, filtering out None values and ensuring str type
-        phenotype_ids: set[str] = {
-            str(p.get("id")) for p in phenotypes if p.get("id") is not None
-        }
+        phenotype_ids: set[str] = {str(p.get("id")) for p in phenotypes if p.get("id") is not None}
 
         classification = {
             "clinical_group": await self._classify_clinical_group(phenotype_ids),

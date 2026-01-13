@@ -50,9 +50,9 @@ class ProgressTracker:
                 progress_metadata={"upload_type": "manual"},
             )
 
-        progress: DataSourceProgress | None = self.db.query(DataSourceProgress).filter_by(
-            source_name=self.source_name
-        ).first()
+        progress: DataSourceProgress | None = (
+            self.db.query(DataSourceProgress).filter_by(source_name=self.source_name).first()
+        )
 
         if not progress:
             logger.sync_info(

@@ -520,9 +520,7 @@ class AnnotationPipeline:
                         self.db.execute(text("SELECT 1"))
 
                     logger.sync_info(f"Starting parallel update for {source_name}")
-                    result = await self._update_source_with_recovery(
-                        source_name, gene_ids, force
-                    )
+                    result = await self._update_source_with_recovery(source_name, gene_ids, force)
                     return (source_name, result)
                 except Exception as e:
                     logger.sync_error(f"Error in parallel update for {source_name}: {e}")
@@ -700,9 +698,7 @@ class AnnotationPipeline:
             for view_name in views_to_refresh:
                 try:
                     # Try concurrent refresh first
-                    self.db.execute(
-                        text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}")
-                    )
+                    self.db.execute(text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}"))
                     self.db.commit()
                     logger.sync_info(f"Materialized view {view_name} refreshed concurrently")
                 except Exception:
@@ -710,7 +706,9 @@ class AnnotationPipeline:
                     try:
                         self.db.execute(text(f"REFRESH MATERIALIZED VIEW {view_name}"))
                         self.db.commit()
-                        logger.sync_info(f"Materialized view {view_name} refreshed (non-concurrent)")
+                        logger.sync_info(
+                            f"Materialized view {view_name} refreshed (non-concurrent)"
+                        )
                     except Exception as e:
                         logger.sync_error(f"Failed to refresh materialized view {view_name}: {e}")
                         self.db.rollback()

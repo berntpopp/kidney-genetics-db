@@ -533,9 +533,7 @@ class BaseAnnotationSource(ABC):
 
         for view_name in views_to_refresh:
             try:
-                self.session.execute(
-                    text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}")
-                )
+                self.session.execute(text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}"))
                 self.session.commit()
                 logger.sync_info(f"Materialized view {view_name} refreshed")
             except Exception:

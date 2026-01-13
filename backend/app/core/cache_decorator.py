@@ -17,7 +17,9 @@ logger = get_logger(__name__)
 
 
 def cache(
-    namespace: str = "default", ttl: int | None = None, key_builder: Callable[..., str] | None = None
+    namespace: str = "default",
+    ttl: int | None = None,
+    key_builder: Callable[..., str] | None = None,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Cache decorator for async functions.

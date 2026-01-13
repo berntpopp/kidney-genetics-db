@@ -257,7 +257,11 @@ class CacheMonitoringService:
                 cache_stats = await self.cache_service.get_stats()
                 hit_rate = cache_stats.get("hit_rate", 0.0)
 
-                cache_health: dict[str, Any] = {"status": "healthy", "hit_rate": hit_rate, "issues": []}
+                cache_health: dict[str, Any] = {
+                    "status": "healthy",
+                    "hit_rate": hit_rate,
+                    "issues": [],
+                }
 
                 if hit_rate < 0.3:
                     cache_health["status"] = "warning"

@@ -327,7 +327,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 # Force immediate update to ensure status is persisted
                 tracker.update(operation=f"Resumed from page {start_page - 1}", force=True)
                 # Log status after resume
-                logger.sync_info("Status after resume", new_status=str(tracker.progress_record.status))
+                logger.sync_info(
+                    "Status after resume", new_status=str(tracker.progress_record.status)
+                )
         # MD5 used for cache key fingerprinting, not security
         query_hash = hashlib.md5(query.encode(), usedforsecurity=False).hexdigest()[:8]
 
@@ -582,7 +584,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         return stats
 
-    def _accumulate_gene_data(self, article: dict[str, Any], gene_buffer: dict[str, dict[str, Any]]) -> None:
+    def _accumulate_gene_data(
+        self, article: dict[str, Any], gene_buffer: dict[str, dict[str, Any]]
+    ) -> None:
         """Accumulate gene data from article into buffer."""
         genes = self._extract_genes_from_highlight(article.get("text_hl"))
 
@@ -927,11 +931,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         Returns:
             Number of deleted entries
         """
-        deleted = (
-            db.query(GeneEvidence)
-            .filter(GeneEvidence.source_name == "PubTator")
-            .delete()
-        )
+        deleted = db.query(GeneEvidence).filter(GeneEvidence.source_name == "PubTator").delete()
         db.commit()
         logger.sync_info(f"Cleared {deleted} existing PubTator entries")
         return int(deleted)
