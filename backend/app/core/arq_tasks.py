@@ -3,6 +3,12 @@ ARQ task definitions for background pipeline jobs.
 
 These tasks run in a separate worker process, isolated from the web server.
 They reuse the existing pipeline logic but are immune to web server restarts.
+
+Per-job timeouts are configured using arq.worker.func() wrapper:
+- run_pipeline_task: 2 hours (single source updates)
+- run_annotation_pipeline_task: 6 hours (full pipeline with rate-limited APIs)
+
+See: https://arq-docs.helpmanual.io/ for ARQ documentation.
 """
 
 from typing import Any
@@ -14,6 +20,10 @@ from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
 
 logger = get_logger(__name__)
+
+# Per-job timeout constants (in seconds)
+SINGLE_SOURCE_TIMEOUT = 7200  # 2 hours for single source updates
+FULL_PIPELINE_TIMEOUT = 21600  # 6 hours for full annotation pipeline
 
 
 async def run_pipeline_task(

@@ -3,14 +3,30 @@ ARQ Worker configuration for background pipeline tasks.
 
 This module defines the worker settings and lifecycle hooks.
 Run with: arq app.core.arq_worker.WorkerSettings
+
+Deployment:
+    1. Ensure Redis is running (see docker-compose.services.yml)
+    2. Set USE_ARQ_WORKER=true in environment
+    3. Start worker: cd backend && uv run arq app.core.arq_worker.WorkerSettings
+
+Timeouts:
+    - Default job timeout: 6 hours (configurable via ARQ_JOB_TIMEOUT)
+    - Single source updates: 2 hours
+    - Full annotation pipeline: 6 hours (rate-limited APIs like ClinVar need this)
 """
 
 from typing import Any
 
 from arq.connections import RedisSettings
+from arq.worker import func
 from sqlalchemy import text
 
-from app.core.arq_tasks import run_annotation_pipeline_task, run_pipeline_task
+from app.core.arq_tasks import (
+    FULL_PIPELINE_TIMEOUT,
+    SINGLE_SOURCE_TIMEOUT,
+    run_annotation_pipeline_task,
+    run_pipeline_task,
+)
 from app.core.config import settings
 from app.core.logging import get_logger
 
@@ -75,10 +91,19 @@ class WorkerSettings:
     ARQ Worker configuration.
 
     This class defines all settings for the ARQ worker process.
+
+    Per-job timeouts are set using func() wrapper:
+    - run_pipeline_task: 2 hours (single source like ClinVar, Ensembl)
+    - run_annotation_pipeline_task: 6 hours (full pipeline with all sources)
     """
 
-    # Task functions (imported at module level to avoid class-scoped import)
-    functions = [run_pipeline_task, run_annotation_pipeline_task]
+    # Task functions with per-job timeouts
+    # Using func() wrapper allows different timeouts per task type
+    # See: https://arq-docs.helpmanual.io/
+    functions = [
+        func(run_pipeline_task, timeout=SINGLE_SOURCE_TIMEOUT),  # 2 hours
+        func(run_annotation_pipeline_task, timeout=FULL_PIPELINE_TIMEOUT),  # 6 hours
+    ]
 
     # Redis connection settings
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)
@@ -89,8 +114,8 @@ class WorkerSettings:
     # Concurrency settings
     max_jobs = settings.ARQ_MAX_JOBS  # Max concurrent jobs
 
-    # Timeout settings
-    job_timeout = settings.ARQ_JOB_TIMEOUT  # 2 hours max per job
+    # Timeout settings (default fallback, per-job timeouts override this)
+    job_timeout = settings.ARQ_JOB_TIMEOUT  # 6 hours default
 
     # Retry settings
     max_tries = 3  # Retry failed jobs up to 3 times
@@ -104,5 +129,5 @@ class WorkerSettings:
     # Health check settings
     health_check_interval = 30  # Seconds between health checks
 
-    # Keep alive settings
-    keep_result = 3600  # Keep job results for 1 hour
+    # Keep alive settings - match the longest job timeout
+    keep_result = FULL_PIPELINE_TIMEOUT  # Keep results for 6 hours

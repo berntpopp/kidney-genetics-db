@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     ARQ_QUEUE_NAME: str = "kidney_genetics_tasks"
     ARQ_MAX_JOBS: int = 3  # Max concurrent jobs per worker
-    ARQ_JOB_TIMEOUT: int = 7200  # 2 hours max per job
+    ARQ_JOB_TIMEOUT: int = 21600  # 6 hours max per job (annotation pipelines need this)
     USE_ARQ_WORKER: bool = False  # Feature flag: True = use ARQ, False = use in-process tasks
 
     # STRING-DB Configuration
