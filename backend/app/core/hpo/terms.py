@@ -116,7 +116,7 @@ class HPOTerms(HPOAPIBase):
         descendants = set()
         visited = set()
 
-        async def collect_children(term_id: str, depth: int):
+        async def collect_children(term_id: str, depth: int) -> None:
             """Recursive helper to collect children."""
             if depth >= max_depth or term_id in visited:
                 return

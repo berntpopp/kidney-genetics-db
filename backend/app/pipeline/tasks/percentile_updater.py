@@ -72,7 +72,7 @@ async def update_percentiles_for_source(db: Session, source: str) -> dict:
     return result
 
 
-async def update_all_percentiles(db: Session) -> dict:
+async def update_all_percentiles(db: Session) -> dict[str, int | list[dict[str, str | int]]]:
     """
     Update percentiles for all supported sources.
 
@@ -86,30 +86,38 @@ async def update_all_percentiles(db: Session) -> dict:
     """
     sources = ["string_ppi"]  # Add more as needed
 
-    summary = {"total_sources": len(sources), "successful": 0, "failed": 0, "results": []}
+    total_sources = len(sources)
+    successful = 0
+    failed = 0
+    results: list[dict[str, str | int]] = []
 
     for source in sources:
         try:
             result = await update_percentiles_for_source(db, source)
-            summary["results"].append(result)
+            results.append(result)
 
             if result["status"] == "success":
-                summary["successful"] += 1
+                successful += 1
             else:
-                summary["failed"] += 1
+                failed += 1
 
         except Exception as e:
             await logger.error(f"Unexpected error updating {source}: {e}")
-            summary["failed"] += 1
-            summary["results"].append({"source": source, "status": "error", "message": str(e)})
+            failed += 1
+            results.append({"source": source, "status": "error", "message": str(e)})
 
     await logger.info(
         "Bulk percentile update completed",
-        successful=summary["successful"],
-        failed=summary["failed"],
+        successful=successful,
+        failed=failed,
     )
 
-    return summary
+    return {
+        "total_sources": total_sources,
+        "successful": successful,
+        "failed": failed,
+        "results": results,
+    }
 
 
 async def validate_percentiles(db: Session, source: str) -> dict:

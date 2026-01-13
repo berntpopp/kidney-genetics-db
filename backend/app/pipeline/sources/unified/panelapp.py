@@ -6,7 +6,7 @@ with a single, async-first implementation using the unified data source architec
 """
 
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy.orm import Session
 
@@ -48,8 +48,8 @@ class PanelAppUnifiedSource(UnifiedDataSource):
         http_client: CachedHttpClient | None = None,
         db_session: Session | None = None,
         regions: list[str] | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """Initialize PanelApp client with multi-region support."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
 
@@ -87,7 +87,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
 
     def _get_default_ttl(self) -> int:
         """Get default TTL for PanelApp data."""
-        return get_source_parameter("PanelApp", "cache_ttl", 21600)
+        return cast(int, get_source_parameter("PanelApp", "cache_ttl", 21600))
 
     async def fetch_raw_data(
         self, tracker: "ProgressTracker | None" = None, mode: str = "smart"
@@ -119,7 +119,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
 
         return all_data
 
-    async def _fetch_region_panels(self, base_url: str, region: str) -> list[dict]:
+    async def _fetch_region_panels(self, base_url: str, region: str) -> list[dict[str, Any]]:
         """
         Fetch all kidney-related panels from a specific region.
 
@@ -131,13 +131,15 @@ class PanelAppUnifiedSource(UnifiedDataSource):
             List of panel data with genes
         """
 
-        async def _fetch_panels():
+        async def _fetch_panels() -> list[dict[str, Any]]:
             """Internal function to fetch panels."""
-            all_panels = []
+            all_panels: list[dict[str, Any]] = []
 
             # Search for panels with each keyword
             for keyword in self.kidney_keywords:
                 try:
+                    if self.http_client is None:
+                        continue
                     url = f"{base_url}/panels/"
                     params = {"name": keyword, "format": "json"}
 
@@ -155,8 +157,8 @@ class PanelAppUnifiedSource(UnifiedDataSource):
                     logger.sync_error("Error searching panels", keyword=keyword, error=e)
 
             # Deduplicate panels by ID
-            seen_ids = set()
-            unique_panels = []
+            seen_ids: set[Any] = set()
+            unique_panels: list[dict[str, Any]] = []
 
             for panel in all_panels:
                 panel_id = panel.get("id")
@@ -182,7 +184,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
 
     async def _fetch_panel_details(
         self, base_url: str, panel_id: str, panel_name: str
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """
         Fetch detailed panel information including genes.
 
@@ -198,10 +200,15 @@ class PanelAppUnifiedSource(UnifiedDataSource):
             url = f"{base_url}/panels/{panel_id}/"
             params = {"format": "json"}
 
+            if self.http_client is None:
+                logger.sync_error("HTTP client not initialized")
+                return None
+
             response = await self.http_client.get(url, params=params, timeout=30)
 
             if response.status_code == 200:
-                return response.json()
+                result: dict[str, Any] = response.json()
+                return result
             else:
                 logger.sync_warning(
                     "Failed to fetch panel", panel_id=panel_id, status_code=response.status_code

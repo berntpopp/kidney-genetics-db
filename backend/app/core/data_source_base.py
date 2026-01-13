@@ -105,7 +105,7 @@ class DataSourceClient(ABC):
         Returns:
             Number of deleted entries
         """
-        deleted = (
+        deleted: int = (
             db.query(GeneEvidence).filter(GeneEvidence.source_name == self.source_name).delete()
         )
         db.commit()
@@ -519,7 +519,7 @@ class DataSourceClient(ABC):
         return f"Data from {self.source_name}"
 
 
-def get_data_source_client(source_name: str, **kwargs) -> DataSourceClient:
+def get_data_source_client(source_name: str, **kwargs: Any) -> DataSourceClient:
     """
     Factory function to get appropriate data source client.
 
@@ -550,9 +550,10 @@ def get_data_source_client(source_name: str, **kwargs) -> DataSourceClient:
 
     try:
         import importlib
+        from typing import cast
 
         module = importlib.import_module(module_path)
         client_class = getattr(module, class_name)
-        return client_class(**kwargs)
+        return cast(DataSourceClient, client_class(**kwargs))
     except (ImportError, AttributeError) as e:
         raise ValueError(f"Could not import {source_name} client: {e}") from e

@@ -6,6 +6,8 @@ Ensures dashboard statistics, gene lists, and all other endpoints respect the sa
 filtering configuration without requiring manual coordination.
 """
 
+from typing import Any
+
 from app.core.datasource_config import API_DEFAULTS_CONFIG
 
 
@@ -22,7 +24,8 @@ def should_hide_zero_scores(explicit_value: bool | None = None) -> bool:
     if explicit_value is not None:
         return explicit_value
 
-    return API_DEFAULTS_CONFIG.get("hide_zero_scores", True)
+    result = API_DEFAULTS_CONFIG.get("hide_zero_scores", True)
+    return bool(result)
 
 
 def get_gene_score_filter_clause(hide_zero_scores: bool | None = None) -> str:
@@ -151,7 +154,7 @@ def get_tier_filter_join_clause(min_tier: str | None = None) -> tuple[str, str]:
         return (base_join, f"{base_where} AND {tier_clause}")
 
 
-def get_tier_ranges() -> list[dict]:
+def get_tier_ranges() -> list[dict[Any, Any]]:
     """
     Get evidence tier configuration from config.
 
@@ -159,4 +162,5 @@ def get_tier_ranges() -> list[dict]:
         List of tier range dictionaries with range, label, threshold, and color.
     """
     tier_config = API_DEFAULTS_CONFIG.get("evidence_tiers", {})
-    return tier_config.get("ranges", [])
+    result: list[dict[Any, Any]] = tier_config.get("ranges", [])
+    return result

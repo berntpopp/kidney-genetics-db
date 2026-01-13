@@ -118,6 +118,55 @@ def register_data_sources() -> None:
         db.close()
 
 
+def reset_stale_running_status() -> None:
+    """
+    Reset any data sources with 'running' status to 'paused' on startup.
+
+    This handles the case where the server was restarted while a data source
+    was actively running. Since tasks don't survive restarts, we need to
+    reset the status so users know the task needs to be manually resumed.
+    """
+    logger.sync_info("Checking for stale running statuses...")
+
+    db = next(get_db())
+    try:
+        # Find all sources with 'running' status
+        running_sources = (
+            db.query(DataSourceProgress)
+            .filter(DataSourceProgress.status == SourceStatus.running)
+            .all()
+        )
+
+        if running_sources:
+            for source in running_sources:
+                logger.sync_warning(
+                    "Found stale running status, resetting to paused",
+                    source_name=source.source_name,
+                    old_status=str(source.status),
+                    current_page=source.current_page,
+                    progress_percentage=source.progress_percentage,
+                )
+                source.status = SourceStatus.paused
+                source.current_operation = "Paused (server restarted)"
+                source.updated_at = datetime.now(timezone.utc)
+
+            db.commit()
+            logger.sync_info(
+                "Reset stale running statuses",
+                count=len(running_sources),
+                sources=[s.source_name for s in running_sources],
+            )
+        else:
+            logger.sync_info("No stale running statuses found")
+
+    except Exception as e:
+        logger.sync_error("Failed to reset stale running statuses", error=e)
+        db.rollback()
+        # Don't re-raise - this is a non-critical cleanup task
+    finally:
+        db.close()
+
+
 def cleanup_orphaned_sources() -> None:
     """
     Remove progress records for data sources that are no longer configured.
@@ -264,6 +313,9 @@ def run_startup_tasks() -> None:
 
         # Register data sources
         register_data_sources()
+
+        # Reset any stale 'running' statuses (from interrupted tasks)
+        reset_stale_running_status()
 
         # Cleanup orphaned records
         cleanup_orphaned_sources()

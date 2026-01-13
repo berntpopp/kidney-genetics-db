@@ -58,7 +58,7 @@ class CacheMonitoringService:
         Returns:
             Dictionary with detailed cache statistics
         """
-        stats = {
+        stats: dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "overall": {},
             "namespaces": {},
@@ -152,7 +152,7 @@ class CacheMonitoringService:
                 "largest_entries": "SELECT cache_key, namespace, data_size FROM cache_entries WHERE data_size IS NOT NULL ORDER BY data_size DESC LIMIT 10",
             }
 
-            results = {}
+            results: dict[str, Any] = {}
 
             if isinstance(self.db_session, AsyncSession):
                 # Async session
@@ -244,7 +244,7 @@ class CacheMonitoringService:
 
     async def _get_health_stats(self) -> dict[str, Any]:
         """Get health status of all cache components."""
-        health = {
+        health: dict[str, Any] = {
             "overall_status": "healthy",
             "components": {},
             "issues": [],
@@ -257,7 +257,11 @@ class CacheMonitoringService:
                 cache_stats = await self.cache_service.get_stats()
                 hit_rate = cache_stats.get("hit_rate", 0.0)
 
-                cache_health = {"status": "healthy", "hit_rate": hit_rate, "issues": []}
+                cache_health: dict[str, Any] = {
+                    "status": "healthy",
+                    "hit_rate": hit_rate,
+                    "issues": [],
+                }
 
                 if hit_rate < 0.3:
                     cache_health["status"] = "warning"
@@ -278,7 +282,7 @@ class CacheMonitoringService:
                 http_stats = await self.http_client.get_cache_stats()
                 circuit_breakers = http_stats.get("circuit_breakers", {})
 
-                http_health = {
+                http_health: dict[str, Any] = {
                     "status": "healthy",
                     "circuit_breakers": len(circuit_breakers),
                     "open_circuits": 0,
@@ -308,7 +312,7 @@ class CacheMonitoringService:
                     if hasattr(client, "get_cache_stats"):
                         source_stats = await client.get_cache_stats()
 
-                        source_health = {
+                        source_health: dict[str, Any] = {
                             "status": "healthy",
                             "cached_entries": source_stats.get("db_entries", 0),
                             "issues": [],

@@ -464,8 +464,8 @@ async def get_genes(
     else:
         sort_clause = " ORDER BY gs.percentage_score DESC NULLS LAST, g.approved_symbol ASC"
 
-    # Data query - optimized to extract sources from existing JSONB
-    # Note: No longer uses array_agg or GROUP BY - extracts from gene_scores.source_scores
+    # Data query - sources and evidence_count fetched from gene_evidence table for accuracy
+    # Note: Uses correlated subqueries to get actual data (not cached gene_scores values)
     data_query = f"""
         SELECT
             g.id,
@@ -474,7 +474,10 @@ async def get_genes(
             g.aliases,
             g.created_at,
             g.updated_at,
-            COALESCE(gs.evidence_count, 0) as evidence_count,
+            COALESCE(
+                (SELECT COUNT(*) FROM gene_evidence WHERE gene_id = g.id),
+                0
+            ) as evidence_count,
             gs.percentage_score as evidence_score,
             gs.evidence_tier,
             gs.evidence_group,
@@ -492,7 +495,9 @@ async def get_genes(
                 ELSE 999
             END as group_sort_order,
             COALESCE(
-                array(SELECT jsonb_object_keys(gs.source_scores) ORDER BY 1),
+                (SELECT array_agg(DISTINCT source_name ORDER BY source_name)
+                 FROM gene_evidence
+                 WHERE gene_id = g.id),
                 ARRAY[]::text[]
             ) as sources
         FROM genes g
@@ -635,7 +640,8 @@ async def get_gene(
                 "aliases": gene.aliases or [],
                 "created_at": gene.created_at.isoformat() if gene.created_at else None,
                 "updated_at": gene.updated_at.isoformat() if gene.updated_at else None,
-                "evidence_count": score_result[0] if score_result else 0,
+                # Use actual count from gene_evidence (sources already fetched from there)
+                "evidence_count": len(sources),
                 "evidence_score": float(score_result[1])
                 if score_result and score_result[1]
                 else None,

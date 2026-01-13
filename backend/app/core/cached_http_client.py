@@ -97,7 +97,7 @@ class CachedHttpClient:
             if time.time() - breaker.get("opened_at", 0) > 60:  # 1 minute cooldown
                 breaker["state"] = "half_open"
                 logger.sync_info("Circuit breaker moved to half-open state", domain=domain)
-            return breaker["state"] == "open"
+            return bool(breaker["state"] == "open")
 
         return False
 
@@ -131,7 +131,7 @@ class CachedHttpClient:
         cache_key: str | None = None,
         fallback_ttl: int = 3600,
         force_refresh: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> httpx.Response:
         """
         Perform GET request with intelligent caching.
@@ -215,7 +215,7 @@ class CachedHttpClient:
             raise httpx.RequestError(f"Request failed after {self.max_retries} retries")
 
     async def post(
-        self, url: str, namespace: str = "http", cache_response: bool = False, **kwargs
+        self, url: str, namespace: str = "http", cache_response: bool = False, **kwargs: Any
     ) -> httpx.Response:
         """
         Perform POST request with optional response caching.
@@ -260,7 +260,7 @@ class CachedHttpClient:
         namespace: str = "files",
         cache_key: str | None = None,
         etag_check: bool = True,
-        **kwargs,
+        **kwargs: Any,
     ) -> bytes:
         """
         Download file with intelligent caching using ETags.
@@ -276,14 +276,16 @@ class CachedHttpClient:
             cache_key = f"file:{url}"
 
         # Check if we have cached file with ETag
-        cached_data = None
-        cached_etag = None
+        cached_data: bytes | None = None
+        cached_etag: str | None = None
 
         if etag_check:
             cached_entry = await self.cache_service.get(f"{cache_key}:metadata", namespace)
             if cached_entry:
                 cached_etag = cached_entry.get("etag")
-                cached_data = await self.cache_service.get(cache_key, namespace)
+                raw_cached = await self.cache_service.get(cache_key, namespace)
+                if isinstance(raw_cached, bytes):
+                    cached_data = raw_cached
 
         # Prepare conditional request headers
         headers = kwargs.get("headers", {})
@@ -303,7 +305,7 @@ class CachedHttpClient:
 
             # Download and cache new content
             if response.status_code == 200:
-                content = response.content
+                content: bytes = response.content
 
                 # Cache the file content
                 await self.cache_service.set(
@@ -327,7 +329,15 @@ class CachedHttpClient:
                 logger.sync_info("Downloaded and cached file", url=url, size_bytes=len(content))
                 return content
 
+            # This will raise an exception for non-200/304 status codes
             response.raise_for_status()
+            # The line below should never be reached because raise_for_status will raise
+            # an exception for any non-successful status code, but we need it for mypy
+            raise httpx.HTTPStatusError(
+                f"Unexpected status code {response.status_code}",
+                request=response.request,
+                response=response,
+            )
 
         except Exception as e:
             logger.sync_error("Error downloading file", url=url, error=str(e))
@@ -468,7 +478,7 @@ class CachedHttpClient:
 
     async def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
-        stats = {}
+        stats: dict[str, Any] = {}
 
         # HTTP cache file stats
         try:
@@ -497,15 +507,20 @@ class CachedHttpClient:
 
         return stats
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "CachedHttpClient":
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
         """Async context manager exit."""
         await self.close()
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the HTTP client."""
         if hasattr(self.http_client, "aclose"):
             await self.http_client.aclose()
@@ -533,7 +548,7 @@ def get_cached_http_client(
 
 
 async def cached_get(
-    url: str, namespace: str = "http", cache_key: str | None = None, **kwargs
+    url: str, namespace: str = "http", cache_key: str | None = None, **kwargs: Any
 ) -> httpx.Response:
     """Perform cached GET request."""
     client = get_cached_http_client()
@@ -541,7 +556,7 @@ async def cached_get(
 
 
 async def cached_download(
-    url: str, namespace: str = "files", cache_key: str | None = None, **kwargs
+    url: str, namespace: str = "files", cache_key: str | None = None, **kwargs: Any
 ) -> bytes:
     """Download file with caching."""
     client = get_cached_http_client()

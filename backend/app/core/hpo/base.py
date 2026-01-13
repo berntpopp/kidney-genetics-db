@@ -79,7 +79,9 @@ class HPOAPIBase:
             )
 
             @retry_with_backoff(config=retry_config)
-            async def fetch_with_retry():
+            async def fetch_with_retry() -> Any:
+                # self.http_client is guaranteed to be non-None here due to outer if check
+                assert self.http_client is not None
                 response = await self.http_client.get(
                     url,
                     params=params,
@@ -110,8 +112,9 @@ class HPOAPIBase:
         # Fallback to basic HTTP request if no cached client
         import httpx
 
+        # Use longer timeout for HPO API - descendants endpoint returns large data (3+ MB)
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params, timeout=30.0)
+            response = await client.get(url, params=params, timeout=90.0)
             response.raise_for_status()
             data = response.json()
 

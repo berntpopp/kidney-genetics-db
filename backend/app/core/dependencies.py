@@ -3,11 +3,15 @@ FastAPI dependencies for authentication and authorization
 """
 
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from fastapi import Depends, HTTPException, status
 
 from app.api.endpoints.auth import get_current_user, get_current_user_optional
 from app.models.user import User
+
+if TYPE_CHECKING:
+    from app.core.cache_invalidation import CacheInvalidationManager
 
 # Role-based dependencies
 
@@ -95,6 +99,26 @@ def get_optional_user(
     return current_user
 
 
+# Cache invalidation dependency (used by cache_invalidation decorator)
+
+
+async def get_cache_invalidation_manager() -> "CacheInvalidationManager":
+    """
+    Get the cache invalidation manager instance.
+
+    This is a dependency injection helper for the @invalidates_cache decorator.
+    """
+    from app.core.cache_invalidation import (
+        CacheInvalidationManager as CIM,
+    )
+    from app.core.cache_invalidation import (
+        get_invalidation_manager,
+    )
+
+    manager: CIM = get_invalidation_manager()
+    return manager
+
+
 # Export commonly used dependencies for convenience
 __all__ = [
     "require_admin",
@@ -105,4 +129,5 @@ __all__ = [
     "get_optional_user",
     "get_current_user",
     "get_current_user_optional",
+    "get_cache_invalidation_manager",
 ]

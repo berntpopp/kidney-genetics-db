@@ -16,7 +16,7 @@ import threading
 from typing import Any
 
 import igraph as ig
-from cachetools import TTLCache
+from cachetools import TTLCache  # type: ignore[import-untyped]
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db_context, get_thread_pool_executor

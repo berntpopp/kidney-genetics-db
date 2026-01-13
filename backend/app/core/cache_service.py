@@ -12,11 +12,11 @@ import asyncio
 import hashlib
 import json
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
-import cachetools
+import cachetools  # type: ignore[import-untyped]
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -66,7 +66,7 @@ class CacheEntry:
 class CacheStats:
     """Cache statistics container."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.hits = 0
         self.misses = 0
         self.sets = 0
@@ -788,7 +788,7 @@ class CacheService:
             else:
                 result = self.db_session.execute(query, {"namespace": namespace})
                 self.db_session.commit()
-            return result.rowcount
+            return cast(int, result.rowcount)
 
         except Exception as e:
             from sqlalchemy.ext.asyncio import AsyncSession
@@ -821,7 +821,7 @@ class CacheService:
             else:
                 result = self.db_session.execute(query)
                 self.db_session.commit()
-            return result.rowcount
+            return cast(int, result.rowcount)
 
         except Exception as e:
             from sqlalchemy.ext.asyncio import AsyncSession
@@ -933,7 +933,7 @@ def get_cache_service(db_session: Session | AsyncSession | None = None) -> Cache
 
 async def cached(
     key: str,
-    fetch_func: Callable[[], T],
+    fetch_func: Callable[[], T] | Callable[[], Awaitable[T]],
     namespace: str = "default",
     ttl: int | None = None,
     db_session: Session | AsyncSession | None = None,
@@ -945,7 +945,7 @@ async def cached(
         result = await cached("my_key", lambda: expensive_operation(), "my_namespace")
     """
     cache = get_cache_service(db_session)
-    return await cache.get_or_set(key, fetch_func, namespace, ttl)
+    return cast(T, await cache.get_or_set(key, fetch_func, namespace, ttl))
 
 
 async def cache_get(
@@ -986,7 +986,10 @@ async def get_annotation(
     """Get cached annotation for a gene (compatibility method)."""
     cache = get_cache_service(db_session)
     key = f"{gene_id}:{source or 'all'}"
-    return await cache.get(key, namespace="annotations")
+    result = await cache.get(key, namespace="annotations")
+    if result is None:
+        return None
+    return cast(dict[str, Any], result)
 
 
 async def set_annotation(
@@ -1030,7 +1033,10 @@ async def get_summary(
 ) -> dict[str, Any] | None:
     """Get cached annotation summary."""
     cache = get_cache_service(db_session)
-    return await cache.get(f"summary:{gene_id}", namespace="annotations")
+    result = await cache.get(f"summary:{gene_id}", namespace="annotations")
+    if result is None:
+        return None
+    return cast(dict[str, Any], result)
 
 
 async def set_summary(

@@ -47,9 +47,9 @@ class ShadowTestResult:
     old_duration_ms: float
     new_duration_ms: float
     performance_ratio: float  # new/old duration
-    differences: dict | None = None
+    differences: dict[str, Any] | None = None
     error: str | None = None
-    metadata: dict = None
+    metadata: dict[str, Any] | None = None
 
 
 class ShadowTester:
@@ -74,12 +74,12 @@ class ShadowTester:
     async def run_shadow_test(
         self,
         endpoint: str,
-        old_implementation: Callable,
-        new_implementation: Callable,
-        args: tuple = (),
-        kwargs: dict = None,
+        old_implementation: Callable[..., Any],
+        new_implementation: Callable[..., Any],
+        args: tuple[Any, ...] = (),
+        kwargs: dict[str, Any] | None = None,
         comparison_fields: list[str] | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ShadowTestResult:
         """
         Run both implementations and compare results.
@@ -122,7 +122,7 @@ class ShadowTester:
                 result.old_result = old_implementation(*args, **kwargs)
         except Exception as e:
             old_error = str(e)
-            logger.error(f"Old implementation error in {endpoint}: {e}")
+            logger.sync_error(f"Old implementation error in {endpoint}: {e}")
         result.old_duration_ms = (time.time() - old_start) * 1000
 
         # Run new implementation
@@ -135,7 +135,7 @@ class ShadowTester:
                 result.new_result = new_implementation(*args, **kwargs)
         except Exception as e:
             new_error = str(e)
-            logger.error(f"New implementation error in {endpoint}: {e}")
+            logger.sync_error(f"New implementation error in {endpoint}: {e}")
         result.new_duration_ms = (time.time() - new_start) * 1000
 
         # Calculate performance ratio
@@ -227,7 +227,7 @@ class ShadowTester:
             return False, diff.to_dict()
 
         except Exception as e:
-            logger.error(f"Error comparing results: {e}")
+            logger.sync_error(f"Error comparing results: {e}")
             return False, {"error": str(e)}
 
     def _filter_fields(self, data: Any, fields: list[str]) -> Any:
@@ -250,7 +250,7 @@ class ShadowTester:
         else:
             return data
 
-    def _track_metrics(self, result: ShadowTestResult):
+    def _track_metrics(self, result: ShadowTestResult) -> None:
         """
         Track shadow test metrics.
 
@@ -277,7 +277,7 @@ class ShadowTester:
                 endpoint=result.endpoint, mismatch_type=mismatch_type
             ).inc()
 
-    async def _log_result(self, result: ShadowTestResult):
+    async def _log_result(self, result: ShadowTestResult) -> None:
         """
         Log shadow test result.
 
@@ -337,7 +337,9 @@ class ShadowTestDecorator:
         """
 
         @track_shadow_test(self.endpoint)
-        async def async_wrapper(old_implementation: Callable, *args, **kwargs):
+        async def async_wrapper(
+            old_implementation: Callable[..., Any], *args: Any, **kwargs: Any
+        ) -> Any:
             """Async wrapper for shadow testing."""
             # Check if shadow testing is enabled
             if not self.shadow_tester.feature_flags.is_enabled("shadow_testing"):
@@ -363,7 +365,7 @@ class ShadowTestDecorator:
             else:
                 return result.old_result
 
-        def sync_wrapper(old_implementation: Callable, *args, **kwargs):
+        def sync_wrapper(old_implementation: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
             """Sync wrapper for shadow testing."""
             # For sync functions, run async in event loop
             loop = asyncio.new_event_loop()
@@ -419,10 +421,10 @@ class BatchShadowTester:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Handle any exceptions
-        final_results = []
+        final_results: list[ShadowTestResult] = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                logger.error(f"Batch test failed for {test_cases[i]['endpoint']}: {result}")
+                logger.sync_error(f"Batch test failed for {test_cases[i]['endpoint']}: {result}")
                 # Create error result
                 error_result = ShadowTestResult(
                     endpoint=test_cases[i]["endpoint"],
@@ -437,11 +439,12 @@ class BatchShadowTester:
                 )
                 final_results.append(error_result)
             else:
-                final_results.append(result)
+                # result is ShadowTestResult here (not an exception)
+                final_results.append(result)  # type: ignore[arg-type]
 
         return final_results
 
-    def generate_report(self, results: list[ShadowTestResult]) -> dict:
+    def generate_report(self, results: list[ShadowTestResult]) -> dict[str, Any]:
         """
         Generate summary report from batch test results.
 

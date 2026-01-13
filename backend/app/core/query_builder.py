@@ -34,14 +34,14 @@ class QueryBuilder(Generic[T]):
         self.session = session
         self.model = model
         self.query = session.query(model)
-        self._filters = []
-        self._joins = []
-        self._aggregations = []
-        self._group_by = []
-        self._raw_select = None
-        self._view_name = None
+        self._filters: list[Any] = []
+        self._joins: list[tuple[str, Any, Any]] = []
+        self._aggregations: list[dict[str, Any]] = []
+        self._group_by: list[Any] = []
+        self._raw_select: str | None = None
+        self._view_name: str | None = None
 
-    def search(self, search_term: str | None, *fields) -> "QueryBuilder[T]":
+    def search(self, search_term: str | None, *fields: str) -> "QueryBuilder[T]":
         """
         Add search filter across multiple fields.
 
@@ -62,7 +62,7 @@ class QueryBuilder(Generic[T]):
                 self.query = self.query.filter(or_(*conditions))
         return self
 
-    def filter_by(self, **kwargs) -> "QueryBuilder[T]":
+    def filter_by(self, **kwargs: Any) -> "QueryBuilder[T]":
         """
         Add exact match filters.
 
@@ -148,7 +148,7 @@ class QueryBuilder(Generic[T]):
             self.query = self.query.filter(self.model.evidence_score >= min_score)
         return self
 
-    def join_related(self, *relationships) -> "QueryBuilder[T]":
+    def join_related(self, *relationships: str) -> "QueryBuilder[T]":
         """
         Add joins for related tables.
 
@@ -178,7 +178,7 @@ class QueryBuilder(Generic[T]):
         self._joins.append(("view", view_name, on_clause))
         return self
 
-    def left_join(self, target, condition) -> "QueryBuilder[T]":
+    def left_join(self, target: Any, condition: Any) -> "QueryBuilder[T]":
         """
         Add left outer join.
 
@@ -213,7 +213,7 @@ class QueryBuilder(Generic[T]):
         )
         return self
 
-    def group_by(self, *fields) -> "QueryBuilder[T]":
+    def group_by(self, *fields: Any) -> "QueryBuilder[T]":
         """
         Add GROUP BY clause.
 
@@ -247,14 +247,15 @@ class QueryBuilder(Generic[T]):
         """
         return self.query
 
-    def all(self) -> list:
+    def all(self) -> list[Any]:
         """
         Execute query and return all results.
 
         Returns:
             List of results
         """
-        return self.query.all()
+        result: list[Any] = self.query.all()
+        return result
 
     def first(self) -> Any | None:
         """
@@ -272,7 +273,8 @@ class QueryBuilder(Generic[T]):
         Returns:
             Number of matching records
         """
-        return self.query.count()
+        result: int = self.query.count()
+        return result
 
     def exists(self) -> bool:
         """
@@ -281,9 +283,10 @@ class QueryBuilder(Generic[T]):
         Returns:
             True if records exist, False otherwise
         """
-        return self.session.query(self.query.exists()).scalar()
+        result: bool = bool(self.session.query(self.query.exists()).scalar())
+        return result
 
-    def build_raw_sql(self) -> tuple[str, dict]:
+    def build_raw_sql(self) -> tuple[str, dict[str, Any]]:
         """
         Build raw SQL string for complex queries with views and aggregations.
 
@@ -298,7 +301,7 @@ class QueryBuilder(Generic[T]):
         compiled = self.query.statement.compile(compile_kwargs={"literal_binds": True})
         return str(compiled), {}
 
-    def _build_complex_sql(self) -> tuple[str, dict]:
+    def _build_complex_sql(self) -> tuple[str, dict[str, Any]]:
         """
         Build complex SQL with view joins and aggregations.
 
@@ -306,10 +309,10 @@ class QueryBuilder(Generic[T]):
             Tuple of (SQL string, parameters dictionary)
         """
         # Start with SELECT clause
-        select_fields = []
+        select_fields: list[str] = []
 
         # Add regular fields from model
-        table_name = self.model.__tablename__
+        table_name: str = getattr(self.model, "__tablename__", str(self.model))
         select_fields.extend(
             [
                 f"{table_name}.id",
@@ -357,7 +360,7 @@ class QueryBuilder(Generic[T]):
                 sql += f" LEFT JOIN {target_name} ON {condition}"
 
         # WHERE clause
-        params = {}
+        params: dict[str, Any] = {}
 
         # Add filters from the query
         # This is simplified - in production you'd need more sophisticated filter extraction
@@ -396,7 +399,7 @@ class QueryBuilder(Generic[T]):
         results = self.query.all()
         return [self._model_to_dict(r) for r in results]
 
-    def _model_to_dict(self, model_instance) -> dict[str, Any]:
+    def _model_to_dict(self, model_instance: Any) -> dict[str, Any]:
         """
         Convert model instance to dictionary.
 
@@ -532,7 +535,7 @@ def get_genes_optimized(
     limit: int = 100,
     sort_by: str = "approved_symbol",
     sort_desc: bool = False,
-):
+) -> list[Any]:
     """
     Example of using QueryBuilder for gene queries.
 
@@ -546,7 +549,7 @@ def get_genes_optimized(
     return builder.paginate(skip, limit).sort(sort_by, sort_desc).all()
 
 
-def analyze_slow_query(db: Session, query: Query) -> dict:
+def analyze_slow_query(db: Session, query: Query) -> dict[str, Any]:
     """
     Analyze a slow query and provide optimization suggestions.
     """

@@ -7,7 +7,7 @@ import asyncio
 from collections.abc import Callable
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy.orm import Session
 
@@ -50,7 +50,9 @@ class ProgressTracker:
                 progress_metadata={"upload_type": "manual"},
             )
 
-        progress = self.db.query(DataSourceProgress).filter_by(source_name=self.source_name).first()
+        progress: DataSourceProgress | None = (
+            self.db.query(DataSourceProgress).filter_by(source_name=self.source_name).first()
+        )
 
         if not progress:
             logger.sync_info(
@@ -84,7 +86,7 @@ class ProgressTracker:
                 )
                 # Store the current status before merge
                 current_status = progress.status
-                progress = self.db.merge(progress)
+                progress = cast(DataSourceProgress, self.db.merge(progress))
                 # Restore status if it was changed by merge
                 if progress.status != current_status:
                     logger.sync_warning(
@@ -95,7 +97,9 @@ class ProgressTracker:
                     )
                     progress.status = current_status
 
-        return progress
+        # At this point progress is guaranteed to be DataSourceProgress
+        # (either found, created, or merged)
+        return cast(DataSourceProgress, progress)
 
     @contextmanager
     def track_operation(self, operation_name: str) -> Any:
@@ -290,7 +294,7 @@ class ProgressTracker:
 
     def is_paused(self) -> bool:
         """Check if the source is currently paused"""
-        return self.progress_record.status == SourceStatus.paused
+        return bool(self.progress_record.status == SourceStatus.paused)
 
     def set_metadata(self, metadata: dict[str, Any]) -> None:
         """Update metadata"""

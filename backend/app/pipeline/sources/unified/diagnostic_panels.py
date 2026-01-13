@@ -59,8 +59,8 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         cache_service: CacheService | None = None,
         http_client: CachedHttpClient | None = None,
         db_session: Session | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """Initialize diagnostic panels source."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
 
@@ -256,11 +256,21 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 "hgnc_ids": sorted(data["hgnc_ids"]),  # Keep for reference
             }
 
+        total_panels = 0
+        for d in result.values():
+            panels_val = d["panels"]
+            if isinstance(panels_val, list):
+                total_panels += len(panels_val)
+        all_providers: set[str] = set()
+        for d in result.values():
+            providers_val = d.get("providers", [])
+            if isinstance(providers_val, list):
+                all_providers.update(providers_val)
         logger.sync_info(
             "DiagnosticPanels.process_data COMPLETE",
             unique_gene_count=len(result),
-            total_panels=sum(len(data["panels"]) for data in result.values()),
-            total_providers=len({p for data in result.values() for p in data.get("providers", [])}),
+            total_panels=total_panels,
+            total_providers=len(all_providers),
         )
         return result
 
@@ -321,7 +331,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         source_detail: str | None = None,
         file_hash: str | None = None,
         original_filename: str | None = None,
-        uploaded_by: str | None = None,
+        uploaded_by: int | None = None,
         mode: str = "merge",
     ) -> dict[str, Any]:
         """Store evidence with MERGE semantics and filtering for diagnostic panels."""
@@ -351,11 +361,13 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             if static_source:
                 upload_record = StaticEvidenceUpload(
                     source_id=static_source.id,
+                    file_name=original_filename or "unknown",
+                    file_path=f"uploads/{self.source_name}/{original_filename or 'unknown'}",
                     evidence_name=source_detail or "unknown",
                     file_hash=file_hash,
                     original_filename=original_filename,
                     upload_status="processing",
-                    uploaded_by=uploaded_by or "system",
+                    uploaded_by=uploaded_by,
                     upload_metadata={"mode": mode},
                 )
                 db.add(upload_record)

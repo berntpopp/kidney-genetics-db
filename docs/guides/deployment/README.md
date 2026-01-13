@@ -6,6 +6,10 @@
 
 Deployment documentation is under development. The project is currently in alpha stage with development-focused documentation.
 
+## Available Guides
+
+- [ARQ Worker Deployment](arq-worker-deployment.md) - Background job processing with Redis
+
 ## Coming Soon
 
 - Production deployment guide

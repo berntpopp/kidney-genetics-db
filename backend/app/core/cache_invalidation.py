@@ -4,8 +4,10 @@ Ensures cache coherency when underlying data changes.
 """
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import wraps
+from typing import Any
 
 from app.core.cache_service import CacheService
 from app.core.logging import get_logger
@@ -93,7 +95,7 @@ class CacheInvalidationManager:
         self.cache_service = cache_service
         self._build_reverse_mapping()
 
-    def _build_reverse_mapping(self):
+    def _build_reverse_mapping(self) -> None:
         """Build reverse mapping of tables to dependent views."""
         self._table_to_views = {}
 
@@ -103,7 +105,7 @@ class CacheInvalidationManager:
                     self._table_to_views[table] = set()
                 self._table_to_views[table].add(view_name)
 
-        logger.info(
+        logger.sync_info(
             "Built cache dependency mapping",
             view_count=len(self.VIEW_DEPENDENCIES),
             table_count=len(self._table_to_views),
@@ -119,12 +121,14 @@ class CacheInvalidationManager:
         Returns:
             List of invalidated cache namespaces
         """
-        invalidated = []
+        invalidated: list[str] = []
 
         # Find all views that depend on this table
+        if self._table_to_views is None:
+            return invalidated
         affected_views = self._table_to_views.get(table_name, set())
 
-        logger.info(
+        logger.sync_info(
             f"Invalidating caches for table {table_name}", affected_views=list(affected_views)
         )
 
@@ -139,13 +143,13 @@ class CacheInvalidationManager:
                         # Track invalidation in metrics
                         track_cache_invalidation(table_name, namespace)
 
-                        logger.info(
+                        logger.sync_info(
                             f"Invalidated cache namespace {namespace}",
                             table=table_name,
                             view=view_name,
                         )
                     except Exception as e:
-                        logger.error(
+                        logger.sync_error(
                             f"Failed to invalidate cache for {namespace}",
                             error=str(e),
                             table=table_name,
@@ -164,11 +168,11 @@ class CacheInvalidationManager:
         Returns:
             List of invalidated cache namespaces
         """
-        invalidated = []
+        invalidated: list[str] = []
 
         dep = self.VIEW_DEPENDENCIES.get(view_name)
         if dep:
-            logger.info(f"Invalidating caches for view {view_name}")
+            logger.sync_info(f"Invalidating caches for view {view_name}")
 
             for namespace in dep.cache_namespaces:
                 try:
@@ -178,13 +182,13 @@ class CacheInvalidationManager:
                     # Track invalidation
                     track_cache_invalidation(view_name, namespace)
 
-                    logger.info(f"Invalidated cache namespace {namespace}", view=view_name)
+                    logger.sync_info(f"Invalidated cache namespace {namespace}", view=view_name)
                 except Exception as e:
-                    logger.error(
+                    logger.sync_error(
                         f"Failed to invalidate cache for {namespace}", view=view_name, error=str(e)
                     )
         else:
-            logger.warning(f"No cache dependencies found for view {view_name}")
+            logger.sync_warning(f"No cache dependencies found for view {view_name}")
 
         return invalidated
 
@@ -195,8 +199,8 @@ class CacheInvalidationManager:
         Returns:
             List of all invalidated cache namespaces
         """
-        logger.info("Invalidating all view caches")
-        invalidated = []
+        logger.sync_info("Invalidating all view caches")
+        invalidated: list[str] = []
 
         for view_name in self.VIEW_DEPENDENCIES:
             view_invalidated = await self.invalidate_view(view_name)
@@ -204,7 +208,9 @@ class CacheInvalidationManager:
 
         return invalidated
 
-    def register_view_dependency(self, view_name: str, tables: set[str], namespaces: set[str]):
+    def register_view_dependency(
+        self, view_name: str, tables: set[str], namespaces: set[str]
+    ) -> None:
         """
         Register a new view dependency dynamically.
 
@@ -218,12 +224,14 @@ class CacheInvalidationManager:
         )
 
         # Update reverse mapping
+        if self._table_to_views is None:
+            self._table_to_views = {}
         for table in tables:
             if table not in self._table_to_views:
                 self._table_to_views[table] = set()
             self._table_to_views[table].add(view_name)
 
-        logger.info(
+        logger.sync_info(
             f"Registered view dependency: {view_name}",
             tables=list(tables),
             namespaces=list(namespaces),
@@ -239,6 +247,8 @@ class CacheInvalidationManager:
         Returns:
             Set of view names that depend on the table
         """
+        if self._table_to_views is None:
+            return set()
         return self._table_to_views.get(table_name, set()).copy()
 
     def get_dependencies_for_view(self, view_name: str) -> ViewDependency | None:
@@ -255,7 +265,7 @@ class CacheInvalidationManager:
 
 
 # Decorator for automatic cache invalidation
-def invalidates_cache(*tables: str):
+def invalidates_cache(*tables: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator to automatically invalidate caches when tables are modified.
 
@@ -265,9 +275,9 @@ def invalidates_cache(*tables: str):
             ...
     """
 
-    def decorator(func):
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        async def async_wrapper(*args, **kwargs):
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             # Execute the function
             result = await func(*args, **kwargs)
 
@@ -282,7 +292,7 @@ def invalidates_cache(*tables: str):
             return result
 
         @wraps(func)
-        def sync_wrapper(*args, **kwargs):
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
             # Execute the function
             result = func(*args, **kwargs)
 
@@ -291,7 +301,7 @@ def invalidates_cache(*tables: str):
 
             return result
 
-        async def _invalidate_sync(table_names):
+        async def _invalidate_sync(table_names: tuple[str, ...]) -> None:
             """Helper to invalidate caches from sync context."""
             from app.core.dependencies import get_cache_invalidation_manager
 
@@ -317,26 +327,28 @@ class BatchInvalidation:
     when the context exits.
     """
 
-    def __init__(self, manager: CacheInvalidationManager):
+    def __init__(self, manager: CacheInvalidationManager) -> None:
         self.manager = manager
         self.pending_tables: set[str] = set()
         self.pending_views: set[str] = set()
 
-    def add_table(self, table_name: str):
+    def add_table(self, table_name: str) -> None:
         """Add a table to the pending invalidation list."""
         self.pending_tables.add(table_name)
 
-    def add_view(self, view_name: str):
+    def add_view(self, view_name: str) -> None:
         """Add a view to the pending invalidation list."""
         self.pending_views.add(view_name)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "BatchInvalidation":
         """Enter the batch context."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any
+    ) -> bool:
         """Execute all pending invalidations."""
-        invalidated = []
+        invalidated: list[str] = []
 
         # Invalidate by table
         for table in self.pending_tables:
@@ -349,7 +361,7 @@ class BatchInvalidation:
             invalidated.extend(result)
 
         if invalidated:
-            logger.info(
+            logger.sync_info(
                 "Batch invalidation complete",
                 namespaces_invalidated=len(set(invalidated)),
                 tables=list(self.pending_tables),
@@ -357,3 +369,27 @@ class BatchInvalidation:
             )
 
         return False  # Don't suppress exceptions
+
+
+# Singleton instance for global access
+_invalidation_manager: CacheInvalidationManager | None = None
+
+
+def get_invalidation_manager(cache_service: CacheService | None = None) -> CacheInvalidationManager:
+    """
+    Get or create the global CacheInvalidationManager instance.
+
+    Args:
+        cache_service: Optional cache service to use. If None, creates a new one.
+
+    Returns:
+        The global CacheInvalidationManager instance.
+    """
+    global _invalidation_manager
+
+    if _invalidation_manager is None:
+        if cache_service is None:
+            cache_service = CacheService()
+        _invalidation_manager = CacheInvalidationManager(cache_service)
+
+    return _invalidation_manager

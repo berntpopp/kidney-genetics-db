@@ -51,7 +51,8 @@ class GTExAnnotationSource(BaseAnnotationSource):
             logger.sync_debug("No GTEx data found for gene", gene_symbol=gene.approved_symbol)
             return None
 
-        return expression_data
+        result: dict[str, Any] = expression_data
+        return result
 
     @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _fetch_by_symbol(self, symbol: str) -> dict | None:
@@ -159,9 +160,9 @@ class GTExAnnotationSource(BaseAnnotationSource):
             annotations = await asyncio.gather(*tasks, return_exceptions=True)
 
             for gene, annotation in zip(batch, annotations, strict=False):
-                if annotation and not isinstance(annotation, Exception):
+                if annotation and not isinstance(annotation, Exception | BaseException):
                     results[gene.id] = annotation
-                elif isinstance(annotation, Exception):
+                elif isinstance(annotation, Exception | BaseException):
                     logger.sync_error(
                         "Error fetching GTEx for gene",
                         gene_symbol=gene.approved_symbol,
@@ -172,4 +173,5 @@ class GTExAnnotationSource(BaseAnnotationSource):
             if i + batch_size < len(genes):
                 await asyncio.sleep(1)
 
-        return results
+        # Ensure the return type is correct (no BaseException values)
+        return {k: v for k, v in results.items() if isinstance(v, dict)}

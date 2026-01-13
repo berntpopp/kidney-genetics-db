@@ -268,9 +268,10 @@ class UnifiedDataSource(DataSourceClient, ABC):
         cache_pattern = f"{self.namespace}:{pattern or '*'}"
 
         try:
-            count = await self.cache_service.delete_pattern(cache_pattern)
+            # Use clear_namespace which is available on CacheService
+            count = await self.cache_service.clear_namespace(self.namespace)
             logger.sync_info("Invalidated cache entries", count=count, pattern=cache_pattern)
-            return count
+            return int(count)
         except Exception as e:
             logger.sync_error("Failed to invalidate cache", pattern=cache_pattern, error=e)
             return 0
@@ -340,7 +341,9 @@ class UnifiedDataSource(DataSourceClient, ABC):
 
         try:
             # Store with long TTL (30 days)
-            await self.cache_service.set(cache_key, timestamp, 30 * 24 * 3600)
+            await self.cache_service.set(
+                cache_key, timestamp, namespace="default", ttl=30 * 24 * 3600
+            )
         except Exception as e:
             logger.sync_warning("Failed to set last update time", error=e)
 
@@ -365,14 +368,14 @@ class UnifiedDataSource(DataSourceClient, ABC):
         age = datetime.now(timezone.utc) - last_update
         return age > timedelta(hours=max_age_hours)
 
-    def get_statistics(self) -> dict:
+    def get_statistics(self) -> dict[str, Any]:
         """
         Get statistics for this data source session.
 
         Returns:
             Dictionary of statistics
         """
-        stats = self.stats.copy()
+        stats: dict[str, Any] = dict(self.stats)
 
         # Calculate hit rate
         total_requests = stats["cache_hits"] + stats["cache_misses"]
@@ -393,7 +396,7 @@ class UnifiedDataSource(DataSourceClient, ABC):
             "errors": 0,
         }
 
-    async def warmup_cache(self, items: list | None = None) -> dict:
+    async def warmup_cache(self, items: list[Any] | None = None) -> dict[str, Any]:
         """
         Pre-populate cache with commonly accessed data.
 
@@ -403,11 +406,11 @@ class UnifiedDataSource(DataSourceClient, ABC):
         Returns:
             Statistics about warmup process
         """
-        warmup_stats = {
+        warmup_stats: dict[str, Any] = {
             "items_processed": 0,
             "items_cached": 0,
             "errors": 0,
-            "duration_seconds": 0,
+            "duration_seconds": 0.0,
         }
 
         start_time = datetime.now(timezone.utc)

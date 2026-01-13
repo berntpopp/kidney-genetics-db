@@ -49,8 +49,8 @@ class GenCCUnifiedSource(UnifiedDataSource):
         cache_service: CacheService | None = None,
         http_client: CachedHttpClient | None = None,
         db_session: Session | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """Initialize GenCC client with caching and HTTP services."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
 
@@ -93,7 +93,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
 
     def _get_default_ttl(self) -> int:
         """Get default TTL for GenCC data."""
-        return get_source_parameter("GenCC", "cache_ttl", 43200)
+        return int(get_source_parameter("GenCC", "cache_ttl", 43200))
 
     async def fetch_raw_data(
         self, tracker: "ProgressTracker | None" = None, mode: str = "smart"
@@ -107,12 +107,15 @@ class GenCCUnifiedSource(UnifiedDataSource):
             Pandas DataFrame with GenCC submissions
         """
 
-        async def _fetch_gencc_data():
+        async def _fetch_gencc_data() -> pd.DataFrame:
             """Internal function to fetch GenCC data."""
             logger.sync_info("Downloading GenCC submissions", download_url=self.download_url)
             logger.sync_info(
                 "Starting download", estimated_time="30-60 seconds", file_size="~3.6MB"
             )
+
+            if self.http_client is None:
+                raise RuntimeError("HTTP client not initialized")
 
             # Use cached HTTP client for download
             response = await self.http_client.get(
@@ -124,19 +127,20 @@ class GenCCUnifiedSource(UnifiedDataSource):
                 raise ValueError(f"HTTP {response.status_code}: Failed to download GenCC file")
 
             # Parse Excel file from response content
-            df = pd.read_excel(BytesIO(response.content))
-            logger.sync_info("Parsed GenCC Excel file", total_submissions=len(df))
+            result: pd.DataFrame = pd.read_excel(BytesIO(response.content))
+            logger.sync_info("Parsed GenCC Excel file", total_submissions=len(result))
 
             # Log column structure for debugging
-            logger.sync_info("GenCC columns preview", columns=list(df.columns)[:10])
+            logger.sync_info("GenCC columns preview", columns=list(result.columns)[:10])
 
-            return df
+            return result
 
         # Use unified caching pattern
         cache_key = "excel_file"
-        df = await self.fetch_with_cache(
+        cached_data = await self.fetch_with_cache(
             cache_key=cache_key, fetch_func=_fetch_gencc_data, ttl=self.cache_ttl
         )
+        df: pd.DataFrame = cached_data
 
         logger.sync_info("GenCC data ready", submission_count=len(df))
         return df
@@ -211,18 +215,18 @@ class GenCCUnifiedSource(UnifiedDataSource):
 
         return gene_data_map
 
-    def is_kidney_related(self, row: pd.Series) -> bool:
+    def is_kidney_related(self, record: dict[str, Any] | pd.Series) -> bool:
         """
         Check if a GenCC submission is kidney-related.
 
         Args:
-            row: DataFrame row with GenCC submission
+            record: DataFrame row (Series) or dict with GenCC submission
 
         Returns:
             True if kidney-related
         """
         # Fields to check for kidney keywords
-        text_fields = []
+        text_fields: list[str] = []
 
         # GenCC-specific field names for disease information
         disease_fields = [
@@ -236,14 +240,26 @@ class GenCCUnifiedSource(UnifiedDataSource):
             "disorder",
         ]
 
-        for field in disease_fields:
-            if field in row.index and pd.notna(row[field]):
-                text_fields.append(str(row[field]).lower())
+        # Handle both pd.Series and dict
+        if isinstance(record, pd.Series):
+            for field in disease_fields:
+                if field in record.index and pd.notna(record[field]):
+                    text_fields.append(str(record[field]).lower())
 
-        # Also check description fields
-        for field in row.index:
-            if "description" in field.lower() and pd.notna(row[field]):
-                text_fields.append(str(row[field]).lower())
+            # Also check description fields
+            for field in record.index:
+                if "description" in str(field).lower() and pd.notna(record[field]):
+                    text_fields.append(str(record[field]).lower())
+        else:
+            # Handle dict case
+            for field in disease_fields:
+                if field in record and record[field] is not None:
+                    text_fields.append(str(record[field]).lower())
+
+            # Also check description fields
+            for field in record.keys():
+                if "description" in str(field).lower() and record[field] is not None:
+                    text_fields.append(str(record[field]).lower())
 
         # Combine all text
         combined_text = " ".join(text_fields)
@@ -425,7 +441,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
         )
 
 
-def get_gencc_client(**kwargs) -> GenCCUnifiedSource:
+def get_gencc_client(**kwargs: Any) -> GenCCUnifiedSource:
     """
     Factory function for GenCC client.
 
@@ -436,7 +452,7 @@ def get_gencc_client(**kwargs) -> GenCCUnifiedSource:
 
 
 # Backwards compatibility function
-async def update_gencc_async(db: Session, tracker) -> dict[str, Any]:
+async def update_gencc_async(db: Session, tracker: Any) -> dict[str, Any]:
     """
     Backwards compatibility function for async GenCC updates.
 

@@ -6,7 +6,7 @@ Handles file uploads for DiagnosticPanels source.
 """
 
 import time
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy import func, select
@@ -112,7 +112,7 @@ async def upload_evidence_file(
         filename=file.filename,
         file_size=file_size,
         provider_name=provider_name,
-        uploaded_by=current_user.username,
+        uploaded_by=current_user.id,
         user_role=current_user.role,
         mode=mode,
     )
@@ -168,14 +168,25 @@ async def upload_evidence_file(
             file_extension=file_extension,
             provider_name=provider_name,
         )
-        # For file-based sources like DiagnosticPanels, use parse_uploaded_file
+        # For file-based sources, use their specific parsing methods
         from app.pipeline.sources.unified.diagnostic_panels import DiagnosticPanelsSource
+        from app.pipeline.sources.unified.literature import LiteratureSource
 
         if isinstance(source, DiagnosticPanelsSource):
             raw_data = await source.parse_uploaded_file(file_content, file_extension, provider_name)
+        elif isinstance(source, LiteratureSource):
+            # For Literature, extract publication_id from filename (e.g., literature_pmid_26862157.json)
+            publication_id = provider_name
+            raw_data = await source.parse_uploaded_file(
+                file_content, file_extension, publication_id
+            )
         else:
             # For other sources, fall back to standard fetch (shouldn't happen for file uploads)
-            raw_data = await source.fetch_raw_data()
+            raise DataSourceError(
+                source_name,
+                "file_processing",
+                f"Source '{source_name}' does not support file uploads",
+            )
 
         await logger.info(
             "Raw data fetched",
@@ -271,8 +282,8 @@ async def upload_evidence_file(
             "Starting evidence storage", gene_count=len(processed_data), provider=provider_name
         )
 
-        # Store evidence - DiagnosticPanelsSource has store_evidence method
-        if not isinstance(source, DiagnosticPanelsSource):
+        # Store evidence - DiagnosticPanelsSource and LiteratureSource have store_evidence method
+        if not isinstance(source, DiagnosticPanelsSource | LiteratureSource):
             raise DataSourceError(source_name, "store", "Source does not support evidence storage")
 
         evidence_stats = await source.store_evidence(
@@ -281,7 +292,7 @@ async def upload_evidence_file(
             provider_name,
             file_hash=file_hash,
             original_filename=file.filename,
-            uploaded_by=current_user.username,
+            uploaded_by=current_user.id,
             mode=mode,
         )
 
@@ -313,9 +324,12 @@ async def upload_evidence_file(
             "message": f"Successfully processed {len(processed_data)} genes. Created: {stats.get('created', 0)}, Merged: {stats.get('merged', 0)}",
         }
 
-        return ResponseBuilder.build_success_response(
-            data=upload_result,
-            meta={"upload_id": f"upload_{int(time.time())}", "processing_time_ms": None},
+        return cast(
+            dict[str, Any],
+            ResponseBuilder.build_success_response(
+                data=upload_result,
+                meta={"upload_id": f"upload_{int(time.time())}", "processing_time_ms": None},
+            ),
         )
 
     except ValueError as e:
@@ -400,8 +414,9 @@ async def get_source_status(source_name: str, db: Session = Depends(get_db)) -> 
         **additional_stats,
     }
 
-    return ResponseBuilder.build_success_response(
-        data=status_data, meta={"source_name": source_name}
+    return cast(
+        dict[str, Any],
+        ResponseBuilder.build_success_response(data=status_data, meta={"source_name": source_name}),
     )
 
 
@@ -428,8 +443,11 @@ async def list_hybrid_sources() -> dict[str, Any]:
 
         sources.append(source_info)
 
-    return ResponseBuilder.build_success_response(
-        data={"sources": sources}, meta={"total": len(sources)}
+    return cast(
+        dict[str, Any],
+        ResponseBuilder.build_success_response(
+            data={"sources": sources}, meta={"total": len(sources)}
+        ),
     )
 
 
@@ -474,14 +492,17 @@ async def delete_by_identifier(
             "Deletion complete", source=source_name, identifier=identifier, stats=stats
         )
 
-        return ResponseBuilder.build_success_response(
-            data={
-                "source": source_name,
-                "identifier": identifier,
-                "deletion_stats": stats,
-                "message": f"Successfully deleted {stats.get('deleted_evidence', 0)} evidence records",
-            },
-            meta={"deleted_by": current_user.username},
+        return cast(
+            dict[str, Any],
+            ResponseBuilder.build_success_response(
+                data={
+                    "source": source_name,
+                    "identifier": identifier,
+                    "deletion_stats": stats,
+                    "message": f"Successfully deleted {stats.get('deleted_evidence', 0)} evidence records",
+                },
+                meta={"deleted_by": current_user.username},
+            ),
         )
 
     except Exception as e:
@@ -563,14 +584,17 @@ async def soft_delete_upload(
 
     await logger.info("Upload soft deleted", upload_id=upload_id, source=source_name)
 
-    return ResponseBuilder.build_success_response(
-        data={
-            "upload_id": upload_id,
-            "source": source_name,
-            "status": "deleted",
-            "message": f"Upload {upload_id} marked as deleted",
-        },
-        meta={"deleted_by": current_user.username},
+    return cast(
+        dict[str, Any],
+        ResponseBuilder.build_success_response(
+            data={
+                "upload_id": upload_id,
+                "source": source_name,
+                "status": "deleted",
+                "message": f"Upload {upload_id} marked as deleted",
+            },
+            meta={"deleted_by": current_user.username},
+        ),
     )
 
 
@@ -643,9 +667,12 @@ async def list_uploads(
             }
         )
 
-    return ResponseBuilder.build_success_response(
-        data={"uploads": upload_list},
-        meta={"total": total, "limit": limit, "offset": offset, "source_name": source_name},
+    return cast(
+        dict[str, Any],
+        ResponseBuilder.build_success_response(
+            data={"uploads": upload_list},
+            meta={"total": total, "limit": limit, "offset": offset, "source_name": source_name},
+        ),
     )
 
 
@@ -719,9 +746,12 @@ async def get_audit_trail(
             }
         )
 
-    return ResponseBuilder.build_success_response(
-        data={"audit_records": audit_list},
-        meta={"total": total, "limit": limit, "offset": offset, "source_name": source_name},
+    return cast(
+        dict[str, Any],
+        ResponseBuilder.build_success_response(
+            data={"audit_records": audit_list},
+            meta={"total": total, "limit": limit, "offset": offset, "source_name": source_name},
+        ),
     )
 
 
@@ -776,7 +806,10 @@ async def list_identifiers(source_name: str, db: Session = Depends(get_db)) -> d
             }
         )
 
-    return ResponseBuilder.build_success_response(
-        data={"identifiers": identifiers},
-        meta={"total": len(identifiers), "source_name": source_name},
+    return cast(
+        dict[str, Any],
+        ResponseBuilder.build_success_response(
+            data={"identifiers": identifiers},
+            meta={"total": len(identifiers), "source_name": source_name},
+        ),
     )

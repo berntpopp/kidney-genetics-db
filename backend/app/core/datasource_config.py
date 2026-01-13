@@ -9,7 +9,7 @@ Maintains 100% backward compatibility with all existing APIs.
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -49,12 +49,12 @@ class DataSourceConfig(BaseSettings):
     @classmethod
     def settings_customise_sources(
         cls,
-        settings_cls,
-        init_settings,
-        env_settings,
-        dotenv_settings,
-        file_secret_settings,
-    ):
+        settings_cls: type["DataSourceConfig"],
+        init_settings: Any,
+        env_settings: Any,
+        dotenv_settings: Any,
+        file_secret_settings: Any,
+    ) -> tuple[Any, ...]:
         """
         Define source priority: environment variables override YAML files.
 
@@ -113,7 +113,7 @@ def get_config() -> DataSourceConfig:
 
 
 # Apply keyword configuration to data sources
-def _apply_keywords_to_sources():
+def _apply_keywords_to_sources() -> None:
     """Apply shared keyword configuration to relevant data sources."""
     config = get_config()
     kidney_keywords = config.keywords.get("kidney", [])
@@ -246,7 +246,7 @@ def get_source_cache_ttl(source_name: str) -> int:
     Returns:
         Cache TTL in seconds, defaults to 3600 (1 hour)
     """
-    return get_source_parameter(source_name, "cache_ttl", 3600)
+    return cast(int, get_source_parameter(source_name, "cache_ttl", 3600))
 
 
 def get_source_api_url(source_name: str) -> str | None:
@@ -259,7 +259,10 @@ def get_source_api_url(source_name: str) -> str | None:
     Returns:
         API URL or None
     """
-    return get_source_parameter(source_name, "api_url")
+    result = get_source_parameter(source_name, "api_url")
+    if result is None:
+        return None
+    return cast(str, result)
 
 
 def get_annotation_config(source_name: str) -> dict[str, Any] | None:

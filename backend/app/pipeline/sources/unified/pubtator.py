@@ -63,8 +63,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         cache_service: CacheService | None = None,
         http_client: CachedHttpClient | None = None,
         db_session: Session | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """Initialize PubTator client with streaming capabilities."""
         super().__init__(cache_service, http_client, db_session, **kwargs)
 
@@ -112,10 +112,10 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
     def _get_default_ttl(self) -> int:
         """Get default TTL for PubTator data."""
-        return get_source_parameter("PubTator", "cache_ttl", 604800)  # 7 days
+        return int(get_source_parameter("PubTator", "cache_ttl", 604800))  # 7 days
 
     async def fetch_raw_data(
-        self, tracker: "ProgressTracker" = None, mode: str = "smart"
+        self, tracker: "ProgressTracker | None" = None, mode: str = "smart"
     ) -> dict[str, Any]:
         """
         Stream-process PubTator data directly to database.
@@ -146,7 +146,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         return {}  # Already processed during fetch
 
     async def update_data(
-        self, db: Session, tracker: "ProgressTracker", mode: str = "smart"
+        self, db: Session, tracker: "ProgressTracker | None", mode: str = "smart"
     ) -> dict[str, Any]:
         """
         Override base class to handle PubTator's streaming architecture.
@@ -157,11 +157,13 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         stats = self._initialize_stats()
 
         try:
-            tracker.start(f"Starting {self.source_name} update")
+            if tracker:
+                tracker.start(f"Starting {self.source_name} update")
             logger.sync_info("Starting data update", source_name=self.source_name)
 
             # Stream and process data directly
-            tracker.update(operation="Streaming and processing PubTator data")
+            if tracker:
+                tracker.update(operation="Streaming and processing PubTator data")
             stream_stats = await self._stream_process_pubtator(self.kidney_query, tracker, mode)
 
             # Merge stats
@@ -200,10 +202,11 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 evidence_created=stats.get("evidence_created", 0),
             )
 
-            tracker.complete(
-                f"{self.source_name}: {total_genes} genes, {total_evidence} evidence "
-                f"(+{stats.get('genes_created', 0)} new genes, +{stats.get('evidence_created', 0)} new evidence)"
-            )
+            if tracker:
+                tracker.complete(
+                    f"{self.source_name}: {total_genes} genes, {total_evidence} evidence "
+                    f"(+{stats.get('genes_created', 0)} new genes, +{stats.get('evidence_created', 0)} new evidence)"
+                )
 
             return stats
 
@@ -211,7 +214,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             logger.sync_error(
                 "Data update failed", source_name=self.source_name, error_detail=str(e)
             )
-            tracker.error(str(e))
+            if tracker:
+                tracker.error(str(e))
             stats["error"] = str(e)
             stats["completed_at"] = datetime.now(timezone.utc).isoformat()
             raise
@@ -253,6 +257,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         # Don't catch exceptions here - let retry_with_backoff handle them!
         # CachedHttpClient handles all caching automatically!
+        if self.http_client is None:
+            raise RuntimeError("HTTP client not initialized")
+
         response = await self.http_client.get(
             f"{self.base_url}/search/",
             params=params,
@@ -267,10 +274,11 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             # For retryable status codes, raise an exception to trigger retry
             raise Exception(f"HTTP {response.status_code} error on page {page}")
 
-        return response.json()
+        result: dict[Any, Any] = response.json()
+        return result
 
     async def _stream_process_pubtator(
-        self, query: str, tracker: "ProgressTracker", mode: str
+        self, query: str, tracker: "ProgressTracker | None", mode: str
     ) -> dict[str, Any]:
         """
         Main streaming processor - fetches, processes, and stores data in chunks.
@@ -296,29 +304,32 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         start_page = checkpoint.get("last_page", 0) + 1 if checkpoint else 1
 
         # Debug tracker status
-        logger.sync_info(
-            "Tracker status check",
-            current_status=str(tracker.progress_record.status),
-            status_value=str(tracker.progress_record.status.value)
-            if hasattr(tracker.progress_record.status, "value")
-            else "No value",
-            status_type=type(tracker.progress_record.status).__name__,
-            has_checkpoint=bool(checkpoint),
-        )
-
-        # Ensure tracker is in running state when resuming
-        from app.models.progress import SourceStatus
-
-        if checkpoint and tracker.progress_record.status != SourceStatus.running:
+        if tracker:
             logger.sync_info(
-                "Resuming from checkpoint - setting status to running",
-                old_status=str(tracker.progress_record.status),
+                "Tracker status check",
+                current_status=str(tracker.progress_record.status),
+                status_value=str(tracker.progress_record.status.value)
+                if hasattr(tracker.progress_record.status, "value")
+                else "No value",
+                status_type=type(tracker.progress_record.status).__name__,
+                has_checkpoint=bool(checkpoint),
             )
-            tracker.resume()  # This sets status to running
-            # Force immediate update to ensure status is persisted
-            tracker.update(operation=f"Resumed from page {start_page - 1}", force=True)
-            # Log status after resume
-            logger.sync_info("Status after resume", new_status=str(tracker.progress_record.status))
+
+            # Ensure tracker is in running state when resuming
+            from app.models.progress import SourceStatus
+
+            if checkpoint and tracker.progress_record.status != SourceStatus.running:
+                logger.sync_info(
+                    "Resuming from checkpoint - setting status to running",
+                    old_status=str(tracker.progress_record.status),
+                )
+                tracker.resume()  # This sets status to running
+                # Force immediate update to ensure status is persisted
+                tracker.update(operation=f"Resumed from page {start_page - 1}", force=True)
+                # Log status after resume
+                logger.sync_info(
+                    "Status after resume", new_status=str(tracker.progress_record.status)
+                )
         # MD5 used for cache key fingerprinting, not security
         query_hash = hashlib.md5(query.encode(), usedforsecurity=False).hexdigest()[:8]
 
@@ -338,7 +349,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             if mode == "full":
                 # Full mode: clear existing entries and start from beginning
                 logger.sync_info("Full mode requested - clearing existing entries and resetting")
-                await self._clear_existing_entries()
+                if self.db_session is not None:
+                    await self._clear_existing_entries(self.db_session)
                 start_page = 1
             else:
                 # Smart mode: continue from checkpoint
@@ -350,9 +362,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             start_page = 1
 
         # Initialize streaming state
-        article_buffer = []
-        gene_data_buffer = {}
-        stats = {
+        article_buffer: list[dict[str, Any]] = []
+        gene_data_buffer: dict[str, dict[str, Any]] = {}
+        stats: dict[str, Any] = {
             "processed_articles": 0,
             "processed_genes": 0,
             "current_page": start_page - 1,
@@ -472,7 +484,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
                     # Commit transaction periodically
                     if stats["processed_articles"] % self.transaction_size == 0:
-                        self.db_session.commit()
+                        if self.db_session is not None:
+                            self.db_session.commit()
                         logger.sync_info(
                             f"Transaction committed at {stats['processed_articles']} articles"
                         )
@@ -502,10 +515,12 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         # Flush remaining buffers
         if article_buffer or gene_data_buffer:
             await self._flush_buffers(article_buffer, gene_data_buffer, stats, tracker)
-            await self._save_checkpoint(stats["current_page"], mode, query_hash)
+            current_page = int(stats["current_page"]) if stats["current_page"] is not None else 0
+            await self._save_checkpoint(current_page, mode, query_hash)
 
         # Final commit before filtering
-        self.db_session.commit()
+        if self.db_session is not None:
+            self.db_session.commit()
 
         # Apply final filtering if enabled
         if self.filtering_enabled and self.filter_after_complete:
@@ -515,6 +530,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             )
 
             try:
+                if self.db_session is None:
+                    raise RuntimeError("Database session not initialized")
                 # Apply filter on complete database
                 filter_stats = apply_database_filter(
                     db=self.db_session,
@@ -542,7 +559,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 )
 
             except Exception as e:
-                self.db_session.rollback()
+                if self.db_session is not None:
+                    self.db_session.rollback()
                 logger.sync_error(
                     "Failed to apply final filter", source=self.source_name, error_detail=str(e)
                 )
@@ -566,7 +584,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         return stats
 
-    def _accumulate_gene_data(self, article: dict, gene_buffer: dict):
+    def _accumulate_gene_data(
+        self, article: dict[str, Any], gene_buffer: dict[str, dict[str, Any]]
+    ) -> None:
         """Accumulate gene data from article into buffer."""
         genes = self._extract_genes_from_highlight(article.get("text_hl"))
 
@@ -603,11 +623,11 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
     async def _flush_buffers(
         self,
-        article_buffer: list,
-        gene_buffer: dict,
-        stats: dict,
-        tracker: "ProgressTracker" = None,
-    ):
+        article_buffer: list[dict[str, Any]],
+        gene_buffer: dict[str, dict[str, Any]],
+        stats: dict[str, Any],
+        tracker: "ProgressTracker | None" = None,
+    ) -> None:
         """
         Flush buffers to database with MERGE logic to prevent data loss.
 
@@ -647,12 +667,20 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         # Use parent class method to store genes
         # We'll override _create_or_update_evidence to handle merging
-        await self._store_genes_in_database(
-            self.db_session,
-            processed_genes,
-            stats,
-            tracker,  # Pass the tracker
-        )
+        if tracker is not None and self.db_session is not None:
+            await self._store_genes_in_database(
+                self.db_session,
+                processed_genes,
+                stats,
+                tracker,  # Pass the tracker
+            )
+        elif self.db_session is not None:
+            # No tracker, process without progress updates
+            await self._store_genes_without_tracker(
+                self.db_session,
+                processed_genes,
+                stats,
+            )
 
         # Update stats
         stats["processed_articles"] += len(article_buffer)
@@ -662,6 +690,50 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             f"Flushed buffers: {len(article_buffer)} articles, "
             f"{len(processed_genes)} genes processed (filtering will be applied after all chunks)"
         )
+
+    async def _store_genes_without_tracker(
+        self,
+        db: Session,
+        gene_data: dict[str, dict[str, Any]],
+        stats: dict[str, Any],
+    ) -> None:
+        """
+        Store genes without progress tracking.
+
+        Used when tracker is None.
+        """
+        from app.core.gene_normalizer import normalize_genes_batch_async
+
+        gene_symbols = list(gene_data.keys())
+        batch_size = 50
+        total_batches = (len(gene_symbols) + batch_size - 1) // batch_size
+
+        for batch_num in range(total_batches):
+            start_idx = batch_num * batch_size
+            end_idx = min(start_idx + batch_size, len(gene_symbols))
+            batch_symbols = gene_symbols[start_idx:end_idx]
+
+            normalization_results = await normalize_genes_batch_async(
+                db, batch_symbols, self.source_name
+            )
+
+            for symbol in batch_symbols:
+                try:
+                    stats["genes_processed"] += 1
+                    data = gene_data[symbol]
+
+                    norm_result = normalization_results.get(symbol, {})
+                    if norm_result.get("status") != "normalized":
+                        continue
+
+                    gene = await self._get_or_create_gene(db, norm_result, symbol, stats)
+                    if gene:
+                        await self._create_or_update_evidence(db, gene, data, stats)
+                except Exception as e:
+                    logger.sync_error("Error processing gene", symbol=symbol, error=str(e))
+                    stats["errors"] += 1
+
+            db.commit()
 
     async def _create_or_update_evidence(
         self, db: Session, gene: Gene, evidence_data: dict[str, Any], stats: dict[str, Any]
@@ -781,9 +853,12 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         return merged
 
-    async def _load_checkpoint(self) -> dict:
+    async def _load_checkpoint(self) -> dict[str, Any]:
         """Load checkpoint from DataSourceProgress table."""
         logger.sync_debug("Starting checkpoint load for PubTator")
+
+        if self.db_session is None:
+            return {}
 
         progress = (
             self.db_session.query(DataSourceProgress).filter_by(source_name="PubTator").first()
@@ -807,13 +882,14 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
             if progress.progress_metadata:
                 checkpoint = progress.progress_metadata
+                checkpoint_data: dict[str, Any] = checkpoint
                 logger.sync_info(
                     "Checkpoint loaded successfully",
-                    last_page=checkpoint.get("last_page"),
-                    mode=checkpoint.get("mode"),
-                    query_hash=checkpoint.get("query_hash"),
+                    last_page=checkpoint_data.get("last_page"),
+                    mode=checkpoint_data.get("mode"),
+                    query_hash=checkpoint_data.get("query_hash"),
                 )
-                return checkpoint
+                return checkpoint_data
             else:
                 logger.sync_warning("Progress record exists but metadata is empty")
         else:
@@ -821,8 +897,11 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         return {}
 
-    async def _save_checkpoint(self, page: int, mode: str, query_hash: str):
+    async def _save_checkpoint(self, page: int, mode: str, query_hash: str) -> None:
         """Save checkpoint to DataSourceProgress table."""
+        if self.db_session is None:
+            return
+
         progress = (
             self.db_session.query(DataSourceProgress).filter_by(source_name="PubTator").first()
         )
@@ -843,15 +922,19 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         self.db_session.commit()
         logger.sync_debug(f"Checkpoint saved at page {page}")
 
-    async def _clear_existing_entries(self):
-        """Clear existing PubTator entries for full mode."""
-        deleted = (
-            self.db_session.query(GeneEvidence)
-            .filter(GeneEvidence.source_name == "PubTator")
-            .delete()
-        )
-        self.db_session.commit()
+    async def _clear_existing_entries(self, db: Session) -> int:
+        """Clear existing PubTator entries for full mode.
+
+        Args:
+            db: Database session (required by base class signature)
+
+        Returns:
+            Number of deleted entries
+        """
+        deleted = db.query(GeneEvidence).filter(GeneEvidence.source_name == "PubTator").delete()
+        db.commit()
         logger.sync_info(f"Cleared {deleted} existing PubTator entries")
+        return int(deleted)
 
     async def _check_pmids_exist_batch(self, pmids: list[str]) -> set[str]:
         """
@@ -870,6 +953,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         if not pmids:
             return set()
 
+        if self.db_session is None:
+            return set()
+
         from sqlalchemy import text
 
         # Use PostgreSQL's efficient JSONB operations
@@ -884,7 +970,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             {"pmid_list": pmids},
         ).fetchall()
 
-        return {row[0] for row in result}
+        return {str(row[0]) for row in result}
 
     def _extract_genes_from_highlight(self, text_hl: str | None) -> list[dict]:
         """Extract gene annotations from PubTator3's highlighted text."""

@@ -9,6 +9,8 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy.orm import Session
+
 from app.core.datasource_config import ANNOTATION_COMMON_CONFIG
 from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, retry_with_backoff
@@ -46,7 +48,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
     _syndromic_descendants_cache = None
     _classification_cache_time = None
 
-    def __init__(self, session):
+    def __init__(self, session: "Session") -> None:
         """Initialize the HPO annotation source."""
         super().__init__(session)
 
@@ -100,17 +102,17 @@ class HPOAnnotationSource(BaseAnnotationSource):
                 if gene_result.get("name") == gene_symbol:
                     # Extract NCBI Gene ID from the id field
                     # Format is "NCBIGene:12345"
-                    gene_id = gene_result.get("id", "")
+                    gene_id = str(gene_result.get("id", ""))
                     if gene_id.startswith("NCBIGene:"):
-                        ncbi_id = gene_id.replace("NCBIGene:", "")
+                        ncbi_id: str = gene_id.replace("NCBIGene:", "")
                         logger.sync_info(f"Found NCBI Gene ID for {gene_symbol}", ncbi_id=ncbi_id)
                         return ncbi_id
 
             # If no exact match, try case-insensitive match
             gene_symbol_upper = gene_symbol.upper()
             for gene_result in results:
-                if gene_result.get("name", "").upper() == gene_symbol_upper:
-                    gene_id = gene_result.get("id", "")
+                if str(gene_result.get("name", "")).upper() == gene_symbol_upper:
+                    gene_id = str(gene_result.get("id", ""))
                     if gene_id.startswith("NCBIGene:"):
                         ncbi_id = gene_id.replace("NCBIGene:", "")
                         logger.sync_info(
@@ -212,9 +214,22 @@ class HPOAnnotationSource(BaseAnnotationSource):
             return self._kidney_terms_cache
 
         # Use the existing HPO pipeline to get kidney terms
+        # Use longer timeout (90s) for HPO API - descendants endpoint returns large data (3+ MB)
+        from app.core.cache_service import get_cache_service
+        from app.core.cached_http_client import CachedHttpClient
         from app.core.hpo.pipeline import HPOPipeline
 
-        pipeline = HPOPipeline()
+        try:
+            cache_service = get_cache_service(self.session) if self.session else None
+            http_client = (
+                CachedHttpClient(cache_service=cache_service, timeout=90.0)
+                if cache_service
+                else None
+            )
+            pipeline = HPOPipeline(cache_service=cache_service, http_client=http_client)
+        except Exception as e:
+            logger.sync_warning(f"Could not initialize full pipeline, using basic: {e}")
+            pipeline = HPOPipeline()
 
         # Get ALL configured kidney root terms from configuration
         kidney_root_terms = get_source_parameter("HPO", "kidney_terms", [])
@@ -302,9 +317,14 @@ class HPOAnnotationSource(BaseAnnotationSource):
         from app.core.hpo.pipeline import HPOPipeline
 
         # Ensure proper pipeline initialization with cache and http client
+        # Use longer timeout (90s) for HPO API - descendants endpoint returns large data (3+ MB)
         try:
             cache_service = get_cache_service(self.session) if self.session else None
-            http_client = CachedHttpClient(cache_service=cache_service) if cache_service else None
+            http_client = (
+                CachedHttpClient(cache_service=cache_service, timeout=90.0)
+                if cache_service
+                else None
+            )
             pipeline = HPOPipeline(cache_service=cache_service, http_client=http_client)
         except Exception as e:
             logger.sync_warning(f"Could not initialize full pipeline, using basic: {e}")
@@ -381,7 +401,8 @@ class HPOAnnotationSource(BaseAnnotationSource):
         Returns:
             Classification results with scores and confidence
         """
-        phenotype_ids = {p.get("id") for p in phenotypes if p.get("id")}
+        # Build set of phenotype IDs, filtering out None values and ensuring str type
+        phenotype_ids: set[str] = {str(p.get("id")) for p in phenotypes if p.get("id") is not None}
 
         classification = {
             "clinical_group": await self._classify_clinical_group(phenotype_ids),
@@ -391,7 +412,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
 
         return classification
 
-    async def _classify_clinical_group(self, phenotype_ids: set[str]) -> dict:
+    async def _classify_clinical_group(self, phenotype_ids: set[str]) -> dict[str, Any]:
         """
         Classify into clinical kidney disease groups based on signature terms.
         """
@@ -399,8 +420,8 @@ class HPOAnnotationSource(BaseAnnotationSource):
 
         config = get_source_parameter("HPO", "clinical_groups", {})
 
-        scores = {}
-        all_matches = {}
+        scores: dict[str, float] = {}
+        all_matches: dict[str, list[str]] = {}
 
         for group_key, group_config in config.items():
             signature_terms = set(group_config.get("signature_terms", []))
@@ -425,7 +446,11 @@ class HPOAnnotationSource(BaseAnnotationSource):
             scores = {k: round(v / total_score, 3) for k, v in scores.items()}
 
         # Determine primary group (highest score)
-        primary = max(scores, key=scores.get) if scores and max(scores.values()) > 0 else None
+        primary: str | None = (
+            max(scores, key=lambda k: scores.get(k, 0.0))
+            if scores and max(scores.values()) > 0
+            else None
+        )
 
         return {
             "primary": primary,
@@ -433,28 +458,35 @@ class HPOAnnotationSource(BaseAnnotationSource):
             "supporting_terms": all_matches.get(primary, []) if primary else [],
         }
 
-    async def _classify_onset_group(self, phenotype_ids: set[str]) -> dict:
+    async def _classify_onset_group(self, phenotype_ids: set[str]) -> dict[str, Any]:
         """
         Classify based on age of onset using HPO term hierarchy.
         """
         # Get cached descendants for onset groups
         onset_descendants = await self.get_classification_term_descendants("onset_groups")
 
-        scores = {}
+        scores: dict[str, int] = {}
         for group_key, descendant_terms in onset_descendants.items():
             matches = phenotype_ids.intersection(descendant_terms)
             scores[group_key] = len(matches)
 
         # Normalize scores to probabilities
         total = sum(scores.values())
+        normalized_scores: dict[str, float] = {}
         if total > 0:
-            scores = {k: round(v / total, 3) for k, v in scores.items()}
+            normalized_scores = {k: round(v / total, 3) for k, v in scores.items()}
+        else:
+            normalized_scores = dict.fromkeys(scores, 0.0)
 
-        primary = max(scores, key=scores.get) if scores and max(scores.values()) > 0 else None
+        primary: str | None = (
+            max(normalized_scores, key=lambda k: normalized_scores.get(k, 0.0))
+            if normalized_scores and max(normalized_scores.values()) > 0
+            else None
+        )
 
         return {
             "primary": primary,
-            "scores": scores,
+            "scores": normalized_scores,
         }
 
     async def _assess_syndromic_features(self, phenotype_ids: set[str]) -> dict:
@@ -609,7 +641,7 @@ class HPOAnnotationSource(BaseAnnotationSource):
         Returns:
             Dictionary mapping gene_id to annotation data
         """
-        results = {}
+        results: dict[int, dict[str, Any]] = {}
 
         # Process genes in parallel (limit concurrency)
         batch_size = 10  # HPO API can handle moderate concurrency
@@ -623,13 +655,14 @@ class HPOAnnotationSource(BaseAnnotationSource):
             # Execute batch
             batch_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            # Process results
+            # Process results - only store successful results
             for gene, result in zip(batch, batch_results, strict=False):
                 if isinstance(result, Exception):
                     logger.sync_error(f"Failed to fetch HPO for {gene.approved_symbol}: {result}")
-                    results[gene.id] = None
-                else:
+                    # Skip failed results to match parent return type
+                elif isinstance(result, dict):
                     results[gene.id] = result
+                # Skip None results to match parent return type
 
             # Small delay between batches to be respectful to the API
             if i + batch_size < len(genes):

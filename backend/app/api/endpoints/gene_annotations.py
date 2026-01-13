@@ -571,23 +571,27 @@ async def refresh_materialized_view(
         username=current_user.username,
     )
 
-    try:
-        # Try concurrent refresh first
-        db.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY gene_annotations_summary"))
-        db.commit()
+    views_to_refresh = ["gene_scores", "gene_annotations_summary"]
+    results = []
 
-        return {"status": "success", "message": "Materialized view refreshed successfully"}
-    except Exception:
-        # Fall back to non-concurrent refresh
+    for view_name in views_to_refresh:
         try:
-            db.execute(text("REFRESH MATERIALIZED VIEW gene_annotations_summary"))
+            # Try concurrent refresh first
+            db.execute(text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}"))
             db.commit()
+            results.append(f"{view_name}: refreshed concurrently")
+        except Exception:
+            # Fall back to non-concurrent refresh
+            try:
+                db.execute(text(f"REFRESH MATERIALIZED VIEW {view_name}"))
+                db.commit()
+                results.append(f"{view_name}: refreshed (non-concurrent)")
+            except Exception as e2:
+                raise HTTPException(
+                    status_code=500, detail=f"Failed to refresh {view_name}: {str(e2)}"
+                ) from e2
 
-            return {"status": "success", "message": "Materialized view refreshed (non-concurrent)"}
-        except Exception as e2:
-            raise HTTPException(
-                status_code=500, detail=f"Failed to refresh materialized view: {str(e2)}"
-            ) from e2
+    return {"status": "success", "message": "; ".join(results)}
 
 
 @router.post("/percentiles/refresh", dependencies=[Depends(require_admin)])

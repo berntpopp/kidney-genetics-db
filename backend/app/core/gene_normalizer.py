@@ -225,7 +225,7 @@ class GeneNormalizer:
                 )
 
         # Log summary
-        status_counts = {}
+        status_counts: dict[str, int] = {}
         for info in results.values():
             status = info.get("status", "unknown")
             status_counts[status] = status_counts.get(status, 0) + 1
@@ -343,7 +343,7 @@ async def get_normalization_stats(db: Session) -> dict[str, Any]:
         return {"error": str(e)}
 
 
-async def clear_normalization_cache():
+async def clear_normalization_cache() -> None:
     """Clear HGNC client cache."""
     normalizer = get_gene_normalizer()
     await normalizer.hgnc_client.clear_cache()

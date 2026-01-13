@@ -361,15 +361,16 @@ class DescartesAnnotationSource(BaseAnnotationSource):
 
         return results
 
-    async def get_statistics(self) -> dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """
         Get statistics about the cached Descartes data.
 
         Returns:
-            Dictionary with cache statistics
+            Dictionary with cache statistics - returns base statistics only
+            since this is a sync method that can't await data loading.
         """
-        await self._ensure_data_loaded()
-
+        # Note: This is a sync method (override of BaseAnnotationSource.get_statistics)
+        # We return what's available in memory without async data loading
         return {
             "source": self.source_name,
             "version": self.version,

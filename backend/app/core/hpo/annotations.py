@@ -108,7 +108,7 @@ class HPOAnnotations(HPOAPIBase):
         Returns:
             Dictionary mapping HPO IDs to their annotations
         """
-        results = {}
+        results: dict[str, TermAnnotations] = {}
         total = len(hpo_ids)
 
         for i in range(0, total, batch_size):
@@ -131,7 +131,7 @@ class HPOAnnotations(HPOAPIBase):
 
             # Process results
             for hpo_id, result in zip(batch, batch_results, strict=False):
-                if isinstance(result, Exception):
+                if isinstance(result, BaseException):
                     logger.sync_warning(
                         "Failed to get annotations for HPO term", hpo_id=hpo_id, error=str(result)
                     )
@@ -192,7 +192,8 @@ class HPOAnnotations(HPOAPIBase):
         Returns:
             Dictionary mapping gene symbols to their data including inheritance
         """
-        genes_data = {}
+        # Use typed intermediate structure for collecting data
+        genes_data: dict[str, dict[str, Any]] = {}
 
         # Get term annotations
         annotations = await self.get_term_annotations(hpo_id)
@@ -210,7 +211,8 @@ class HPOAnnotations(HPOAPIBase):
                     "inheritance_patterns": set(),
                 }
             else:
-                genes_data[gene_symbol]["hpo_terms"].add(hpo_id)
+                hpo_terms_set: set[str] = genes_data[gene_symbol]["hpo_terms"]
+                hpo_terms_set.add(hpo_id)
 
         # Process diseases for inheritance if requested
         if include_disease_details:
@@ -226,16 +228,21 @@ class HPOAnnotations(HPOAPIBase):
                         for gene in disease_details.genes:
                             gene_symbol = gene.name
                             if gene_symbol in genes_data:
-                                genes_data[gene_symbol]["diseases"].add(disease.id)
+                                diseases_set: set[str] = genes_data[gene_symbol]["diseases"]
+                                diseases_set.add(disease.id)
+                                inheritance_set: set[str] = genes_data[gene_symbol][
+                                    "inheritance_patterns"
+                                ]
                                 for pattern in inheritance:
-                                    genes_data[gene_symbol]["inheritance_patterns"].add(
-                                        pattern.name
-                                    )
+                                    inheritance_set.add(pattern.name)
 
         # Convert sets to lists for JSON serialization
         for gene_data in genes_data.values():
-            gene_data["hpo_terms"] = list(gene_data["hpo_terms"])
-            gene_data["diseases"] = list(gene_data["diseases"])
-            gene_data["inheritance_patterns"] = list(gene_data["inheritance_patterns"])
+            hpo_terms_set_final: set[str] = gene_data["hpo_terms"]
+            diseases_set_final: set[str] = gene_data["diseases"]
+            inheritance_set_final: set[str] = gene_data["inheritance_patterns"]
+            gene_data["hpo_terms"] = list(hpo_terms_set_final)
+            gene_data["diseases"] = list(diseases_set_final)
+            gene_data["inheritance_patterns"] = list(inheritance_set_final)
 
         return genes_data

@@ -528,21 +528,22 @@ class BaseAnnotationSource(ABC):
         return successful, failed
 
     def _refresh_materialized_view(self) -> None:
-        """Refresh the gene_annotations_summary materialized view."""
-        try:
-            self.session.execute(
-                text("REFRESH MATERIALIZED VIEW CONCURRENTLY gene_annotations_summary")
-            )
-            self.session.commit()
-            logger.sync_info("Materialized view refreshed")
-        except Exception:
-            # Try without CONCURRENTLY if it fails
+        """Refresh all materialized views (gene_scores, gene_annotations_summary)."""
+        views_to_refresh = ["gene_scores", "gene_annotations_summary"]
+
+        for view_name in views_to_refresh:
             try:
-                self.session.execute(text("REFRESH MATERIALIZED VIEW gene_annotations_summary"))
+                self.session.execute(text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}"))
                 self.session.commit()
-                logger.sync_info("Materialized view refreshed (non-concurrent)")
-            except Exception as e2:
-                logger.sync_error(f"Failed to refresh materialized view: {str(e2)}")
+                logger.sync_info(f"Materialized view {view_name} refreshed")
+            except Exception:
+                # Try without CONCURRENTLY if it fails
+                try:
+                    self.session.execute(text(f"REFRESH MATERIALIZED VIEW {view_name}"))
+                    self.session.commit()
+                    logger.sync_info(f"Materialized view {view_name} refreshed (non-concurrent)")
+                except Exception as e2:
+                    logger.sync_error(f"Failed to refresh materialized view {view_name}: {e2}")
 
     def _is_valid_annotation(self, annotation_data: dict) -> bool:
         """

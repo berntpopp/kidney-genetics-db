@@ -9,6 +9,7 @@ This module handles all database initialization tasks including:
 """
 
 import asyncio
+from typing import Any, cast
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -35,7 +36,7 @@ async def initialize_database(db: Session) -> dict:
     Returns:
         dict: Status of initialization steps
     """
-    status = {
+    status: dict[str, Any] = {
         "views_created": False,
         "admin_created": False,
         "cache_cleared": False,
@@ -278,7 +279,7 @@ async def clear_cache(db: Session) -> int:
     """
     try:
         # Count existing cache entries
-        count = db.query(CacheEntry).count()
+        count: int = db.query(CacheEntry).count()
 
         if count > 0:
             # Clear all cache
@@ -310,11 +311,13 @@ async def check_aggregation_needed(db: Session) -> bool:
     """
     try:
         # Check if we have genes but no curations
-        genes_count = db.execute(text("SELECT COUNT(*) FROM genes")).scalar()
-        curations_count = db.execute(text("SELECT COUNT(*) FROM gene_curations")).scalar()
+        genes_count = cast(int, db.execute(text("SELECT COUNT(*) FROM genes")).scalar() or 0)
+        curations_count = cast(
+            int, db.execute(text("SELECT COUNT(*) FROM gene_curations")).scalar() or 0
+        )
 
         # Need aggregation if we have genes but no curations
-        return genes_count > 0 and curations_count == 0
+        return bool(genes_count > 0 and curations_count == 0)
 
     except Exception as e:
         db.rollback()
@@ -336,7 +339,7 @@ async def verify_database_ready(db: Session) -> dict:
     Returns:
         dict: Verification status
     """
-    status = {
+    status: dict[str, Any] = {
         "ready": True,
         "genes_count": 0,
         "curations_count": 0,

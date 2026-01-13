@@ -8,7 +8,7 @@ in background task management, following DRY principles.
 import asyncio
 from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import Any, cast
 
 from app.core.database import get_db_context
 from app.core.logging import get_logger
@@ -45,7 +45,7 @@ def managed_task(source_name: str) -> Callable[[Callable[..., Any]], Callable[..
 
                     sig = inspect.signature(func)
                     if "mode" in sig.parameters:
-                        result = await func(self, db, tracker, resume, mode)
+                        result: dict[str, Any] = await func(self, db, tracker, resume, mode)
                     else:
                         result = await func(self, db, tracker, resume)
 
@@ -91,7 +91,7 @@ def executor_task(source_name: str) -> Callable[[Callable[..., Any]], Callable[.
 
                     # Execute the actual task in thread executor
                     loop = asyncio.get_event_loop()
-                    result = await loop.run_in_executor(
+                    result: dict[str, Any] = await loop.run_in_executor(
                         self.executor, func, self, db, tracker, resume
                     )
 
@@ -209,7 +209,7 @@ class TaskMixin:
 
         def run_aggregation() -> dict[str, Any]:
             with get_db_context() as agg_db:
-                return update_all_curations(agg_db)
+                return cast(dict[str, Any], update_all_curations(agg_db))
 
         result: dict[str, Any] = await loop.run_in_executor(self.executor, run_aggregation)
 
@@ -252,11 +252,14 @@ class TaskMixin:
             sources = None  # Will use all sources
 
         # Run the pipeline update
-        result = await pipeline.run_update(
-            strategy=strategy,
-            sources=sources,
-            force=False,
-            task_id=tracker.task_id if hasattr(tracker, "task_id") else None,
+        result: dict[str, Any] = cast(
+            dict[str, Any],
+            await pipeline.run_update(
+                strategy=strategy,
+                sources=sources,
+                force=False,
+                task_id=tracker.task_id if hasattr(tracker, "task_id") else None,
+            ),
         )
 
         # Update progress based on results

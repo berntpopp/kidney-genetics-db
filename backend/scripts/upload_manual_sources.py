@@ -26,7 +26,7 @@ def upload_file(token: str, source: str, file_path: Path):
 
     with open(file_path, "rb") as f:
         files = {"file": (file_path.name, f, "application/json")}
-        data = {"mode": "full"}
+        data = {"mode": "merge"}
 
         response = httpx.post(
             f"{BASE_URL}/api/ingestion/{source}/upload",
