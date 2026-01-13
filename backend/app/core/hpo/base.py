@@ -112,8 +112,9 @@ class HPOAPIBase:
         # Fallback to basic HTTP request if no cached client
         import httpx
 
+        # Use longer timeout for HPO API - descendants endpoint returns large data (3+ MB)
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params, timeout=30.0)
+            response = await client.get(url, params=params, timeout=90.0)
             response.raise_for_status()
             data = response.json()
 

@@ -42,6 +42,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Event loop protection**: Never block the event loop (target: <5ms blocking)
 - **WebSocket stability**: Real-time updates without disconnections during heavy processing
 
+### 🚨 Pipeline Operations: ALWAYS Use the API
+**NEVER run annotation pipelines via manual Python scripts.** Always use the REST API endpoints:
+- **Update missing annotations**: `POST /api/annotations/pipeline/update-missing/{source_name}`
+- **Full pipeline update**: `POST /api/annotations/pipeline/update`
+- **Update failed genes**: `POST /api/annotations/pipeline/update-failed`
+- **Update new genes**: `POST /api/annotations/pipeline/update-new`
+- **Check status**: `GET /api/annotations/pipeline/status`
+
+These endpoints handle proper session management, connection pooling, progress tracking, and error recovery. Manual scripts cause connection pool exhaustion and session state issues.
+
 ## Project Architecture
 
 ### Core Components (Implemented)

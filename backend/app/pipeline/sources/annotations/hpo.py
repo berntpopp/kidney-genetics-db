@@ -214,9 +214,22 @@ class HPOAnnotationSource(BaseAnnotationSource):
             return self._kidney_terms_cache
 
         # Use the existing HPO pipeline to get kidney terms
+        # Use longer timeout (90s) for HPO API - descendants endpoint returns large data (3+ MB)
+        from app.core.cache_service import get_cache_service
+        from app.core.cached_http_client import CachedHttpClient
         from app.core.hpo.pipeline import HPOPipeline
 
-        pipeline = HPOPipeline()
+        try:
+            cache_service = get_cache_service(self.session) if self.session else None
+            http_client = (
+                CachedHttpClient(cache_service=cache_service, timeout=90.0)
+                if cache_service
+                else None
+            )
+            pipeline = HPOPipeline(cache_service=cache_service, http_client=http_client)
+        except Exception as e:
+            logger.sync_warning(f"Could not initialize full pipeline, using basic: {e}")
+            pipeline = HPOPipeline()
 
         # Get ALL configured kidney root terms from configuration
         kidney_root_terms = get_source_parameter("HPO", "kidney_terms", [])
@@ -304,9 +317,14 @@ class HPOAnnotationSource(BaseAnnotationSource):
         from app.core.hpo.pipeline import HPOPipeline
 
         # Ensure proper pipeline initialization with cache and http client
+        # Use longer timeout (90s) for HPO API - descendants endpoint returns large data (3+ MB)
         try:
             cache_service = get_cache_service(self.session) if self.session else None
-            http_client = CachedHttpClient(cache_service=cache_service) if cache_service else None
+            http_client = (
+                CachedHttpClient(cache_service=cache_service, timeout=90.0)
+                if cache_service
+                else None
+            )
             pipeline = HPOPipeline(cache_service=cache_service, http_client=http_client)
         except Exception as e:
             logger.sync_warning(f"Could not initialize full pipeline, using basic: {e}")

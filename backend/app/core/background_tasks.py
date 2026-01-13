@@ -1,5 +1,11 @@
 """
 Background task manager for concurrent data source updates with unified architecture.
+
+Supports two modes:
+1. In-process tasks (asyncio.Task) - default, runs in web server process
+2. ARQ worker tasks - runs in separate process, immune to web server restarts
+
+Set USE_ARQ_WORKER=true in environment to use ARQ mode.
 """
 
 import asyncio
@@ -7,6 +13,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.logging import get_logger
 from app.core.task_decorator import TaskMixin
@@ -54,23 +61,86 @@ class BackgroundTaskManager(TaskMixin):
         finally:
             db.close()
 
-    async def run_source(self, source_name: str, resume: bool = False, mode: str = "smart") -> None:
+    async def run_source(
+        self, source_name: str, resume: bool = False, mode: str = "smart"
+    ) -> str | None:
         """
-        Run update for a specific data source using dynamic dispatch.
+        Run update for a specific data source.
+
+        Uses ARQ worker if USE_ARQ_WORKER is enabled, otherwise runs in-process.
 
         Args:
             source_name: Name of the data source
             resume: Whether to resume from previous position
             mode: Update mode - "smart" (incremental) or "full" (complete refresh)
+
+        Returns:
+            Job ID if using ARQ, None if using in-process task
         """
         logger.sync_info(
             "Task manager run_source() called",
             source_name=source_name,
             resume=resume,
             mode=mode,
+            use_arq=settings.USE_ARQ_WORKER,
             running_tasks=list(self.running_tasks.keys()),
         )
 
+        # Use ARQ worker if enabled
+        if settings.USE_ARQ_WORKER:
+            return await self._run_source_arq(source_name, resume, mode)
+
+        # Otherwise use in-process task
+        await self._run_source_in_process(source_name, resume, mode)
+        return None
+
+    async def _run_source_arq(
+        self, source_name: str, resume: bool = False, mode: str = "smart"
+    ) -> str:
+        """
+        Enqueue source update to ARQ worker.
+
+        Args:
+            source_name: Name of the data source
+            resume: Whether to resume from previous position
+            mode: Update mode
+
+        Returns:
+            Job ID from ARQ
+        """
+        from app.core.arq_client import enqueue_pipeline_job, is_job_running
+
+        # Check if already running in ARQ
+        if await is_job_running(source_name):
+            logger.sync_warning(
+                "Source is already queued or running in ARQ",
+                source_name=source_name,
+            )
+            raise ValueError(f"Source {source_name} is already running")
+
+        job_id = await enqueue_pipeline_job(source_name, mode, resume)
+
+        logger.sync_info(
+            "Source update enqueued to ARQ",
+            source_name=source_name,
+            job_id=job_id,
+            mode=mode,
+            resume=resume,
+        )
+
+        return job_id
+
+    async def _run_source_in_process(
+        self, source_name: str, resume: bool = False, mode: str = "smart"
+    ) -> None:
+        """
+        Run source update as in-process asyncio task (legacy mode).
+
+        Args:
+            source_name: Name of the data source
+            resume: Whether to resume from previous position
+            mode: Update mode
+        """
         # Check if already running
         if source_name in self.running_tasks and not self.running_tasks[source_name].done():
             logger.sync_warning(

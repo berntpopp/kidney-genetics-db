@@ -1,7 +1,7 @@
 # Kidney Genetics Database - Development Makefile
 # Usage: make [command]
 
-.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend lint lint-frontend format-check test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check security bandit pip-audit npm-audit ci
+.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend worker lint lint-frontend format-check test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check security bandit pip-audit npm-audit ci
 
 # Detect docker compose command (v2 vs v1)
 DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
@@ -26,6 +26,7 @@ help:
 	@echo "  make services-down   - Stop Docker services"
 	@echo "  make backend         - Run backend API locally"
 	@echo "  make frontend        - Run frontend locally"
+	@echo "  make worker          - Run ARQ background worker"
 	@echo ""
 	@echo "🗄️  DATABASE MANAGEMENT:"
 	@echo "  make db-drop         - Drop and recreate database (disconnects users)"
@@ -94,6 +95,7 @@ hybrid-down:
 	@echo "Stopping hybrid development environment..."
 	@-pkill -f "uvicorn app.main:app" 2>/dev/null || true
 	@-pkill -f "vite.*5173" 2>/dev/null || true
+	@-pkill -f "arq app.core.arq_worker" 2>/dev/null || true
 	@$(MAKE) services-down
 	@echo "✅ Hybrid environment stopped"
 
@@ -132,13 +134,16 @@ dev-logs:
 services-up:
 	@echo "Starting database services in Docker..."
 	@$(DOCKER_COMPOSE) -f docker-compose.services.yml up -d
-	@echo "⏳ Waiting for database to be ready..."
+	@echo "⏳ Waiting for services to be ready..."
 	@sleep 3
 	@docker exec kidney_genetics_postgres pg_isready -U kidney_user -d kidney_genetics >/dev/null 2>&1 && \
 		echo "✅ PostgreSQL is ready" || echo "⚠️  PostgreSQL is starting..."
+	@docker exec kidney_genetics_redis redis-cli ping >/dev/null 2>&1 && \
+		echo "✅ Redis is ready" || echo "⚠️  Redis is starting..."
 	@echo ""
 	@echo "📍 Services:"
 	@echo "   PostgreSQL: localhost:5432"
+	@echo "   Redis:      localhost:6379"
 
 # Stop Docker services
 services-down:
@@ -155,6 +160,17 @@ backend:
 frontend:
 	@echo "Starting frontend..."
 	@cd frontend && npm run dev
+
+# Run ARQ background worker
+worker:
+	@echo "Starting ARQ background worker..."
+	@echo "⚠️  Requires Redis to be running (make services-up)"
+	@cd backend && uv run arq app.core.arq_worker.WorkerSettings
+
+# Run ARQ worker with verbose logging
+worker-debug:
+	@echo "Starting ARQ background worker (debug mode)..."
+	@cd backend && uv run arq app.core.arq_worker.WorkerSettings --verbose
 
 # ════════════════════════════════════════════════════════════════════
 # DATABASE MANAGEMENT
