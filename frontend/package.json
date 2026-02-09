@@ -15,7 +15,7 @@
   "dependencies": {
     "@mdi/font": "^7.4.47",
     "@upsetjs/bundle": "^1.11.0",
-    "axios": "^1.11.0",
+    "axios": "^1.13.5",
     "cytoscape": "^3.33.1",
     "cytoscape-cose-bilkent": "^4.1.0",
     "d3": "^7.9.0",
@@ -27,12 +27,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
-    "@vitejs/plugin-vue": "^6.0.3",
+    "@vitejs/plugin-vue": "^6.0.4",
     "@vue/eslint-config-prettier": "^10.2.0",
     "eslint": "^9.39.2",
-    "eslint-plugin-vue": "^10.6.2",
-    "playwright": "^1.57.0",
-    "prettier": "^3.7.4",
+    "eslint-plugin-vue": "^10.7.0",
+    "playwright": "^1.58.2",
+    "prettier": "^3.8.1",
     "vite": "^7.1.2"
   }
 }
