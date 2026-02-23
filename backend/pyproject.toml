@@ -32,7 +32,7 @@ classifiers = [
 dependencies = [
     # Core Framework
     "fastapi>=0.104.0,<0.129.0",
-    "uvicorn[standard]>=0.24.0,<0.41.0",
+    "uvicorn[standard]>=0.24.0,<0.42.0",
     "pydantic[email]>=2.0,<3.0",
     "pydantic-settings>=2.0.0,<3.0.0",
     # Database
