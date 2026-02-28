@@ -1,444 +1,432 @@
 <template>
-  <v-container>
+  <div class="container mx-auto px-4 py-6">
     <AdminHeader
       title="Gene Staging"
       subtitle="Review genes that couldn't be automatically normalized to HGNC symbols"
-      icon="mdi-dna"
+      :icon="Dna"
       icon-color="red"
       :breadcrumbs="ADMIN_BREADCRUMBS.staging"
     >
       <template #actions>
-        <v-btn
-          color="primary"
-          variant="elevated"
-          prepend-icon="mdi-refresh"
-          :loading="loading"
-          @click="loadData"
-        >
+        <Button :disabled="loading" @click="loadData">
+          <RefreshCw class="size-4 mr-2" :class="{ 'animate-spin': loading }" />
           Refresh
-        </v-btn>
+        </Button>
       </template>
     </AdminHeader>
 
     <!-- Process Explanation -->
-    <v-alert type="info" variant="tonal" class="mb-6" prominent>
-      <template #prepend>
-        <Info class="size-5" />
-      </template>
-      <div class="text-body-1">
+    <Alert class="mb-6">
+      <Info class="size-4" />
+      <AlertDescription>
         <strong>Gene Staging Process:</strong> When data sources provide gene names that can't be
         automatically matched to official HGNC symbols, they're sent here for manual review. Your
         job is to either <strong>approve</strong> them with the correct HGNC symbol, or
         <strong>reject</strong> them if they're not real genes.
-      </div>
-    </v-alert>
+      </AlertDescription>
+    </Alert>
 
     <!-- Stats Overview -->
-    <v-row class="mb-6">
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Needs Your Review"
-          :value="stagingStats.total_pending"
-          :loading="statsLoading"
-          icon="mdi-account-search"
-          color="warning"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Successfully Approved"
-          :value="stagingStats.total_approved"
-          :loading="statsLoading"
-          icon="mdi-check-circle"
-          color="success"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Rejected (Not Genes)"
-          :value="stagingStats.total_rejected"
-          :loading="statsLoading"
-          icon="mdi-close-circle"
-          color="error"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Auto-Normalization Rate"
-          :value="`${(normalizationStats.success_rate * 100).toFixed(1)}%`"
-          :loading="statsLoading"
-          icon="mdi-robot"
-          color="info"
-        />
-      </v-col>
-    </v-row>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <AdminStatsCard
+        title="Needs Your Review"
+        :value="stagingStats.total_pending"
+        :loading="statsLoading"
+        icon="mdi-account-search"
+        color="warning"
+      />
+      <AdminStatsCard
+        title="Successfully Approved"
+        :value="stagingStats.total_approved"
+        :loading="statsLoading"
+        icon="mdi-check-circle"
+        color="success"
+      />
+      <AdminStatsCard
+        title="Rejected (Not Genes)"
+        :value="stagingStats.total_rejected"
+        :loading="statsLoading"
+        icon="mdi-close-circle"
+        color="error"
+      />
+      <AdminStatsCard
+        title="Auto-Normalization Rate"
+        :value="`${(normalizationStats.success_rate * 100).toFixed(1)}%`"
+        :loading="statsLoading"
+        icon="mdi-robot"
+        color="info"
+      />
+    </div>
 
     <!-- Test Normalization Tool -->
-    <v-card class="mb-6">
-      <v-card-title class="d-flex align-center">
-        <TestTube class="size-5 mr-2" />
-        Test Gene Normalization
-        <v-tooltip activator="parent" location="top">
-          Test if a gene symbol can be automatically normalized before reviewing similar cases
-        </v-tooltip>
-      </v-card-title>
-      <v-card-text>
-        <p class="text-body-2 text-medium-emphasis mb-4">
+    <Card class="mb-6">
+      <CardHeader>
+        <CardTitle class="flex items-center">
+          <TestTube class="size-5 mr-2" />
+          Test Gene Normalization
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p class="text-sm text-muted-foreground mb-4">
           Use this tool to test how the automatic normalization system would handle a gene symbol.
           This helps when reviewing similar cases below.
         </p>
-        <v-row>
-          <v-col cols="12" md="8">
-            <v-text-field
-              v-model="testGeneText"
-              label="Gene symbol to test"
-              placeholder="e.g., BRCA1, PKD1, WT1, MS6HM"
-              density="compact"
-              variant="outlined"
-              hide-details
-            />
-          </v-col>
-          <v-col cols="12" md="4">
-            <v-btn
-              color="primary"
-              block
-              :loading="testLoading"
-              :disabled="!testGeneText.trim()"
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div class="md:col-span-8 space-y-2">
+            <Label>Gene symbol to test</Label>
+            <Input v-model="testGeneText" placeholder="e.g., BRCA1, PKD1, WT1, MS6HM" />
+          </div>
+          <div class="md:col-span-4 flex items-end">
+            <Button
+              class="w-full"
+              :disabled="testLoading || !testGeneText.trim()"
               @click="testNormalization"
             >
-              <Search class="size-5 mr-1" />
+              <Search class="size-4 mr-1" />
               Test Now
-            </v-btn>
-          </v-col>
-        </v-row>
-        <v-alert
+            </Button>
+          </div>
+        </div>
+        <Alert
           v-if="testResult"
-          :type="testResult.success ? 'success' : 'warning'"
+          :variant="testResult.success ? 'default' : 'destructive'"
           class="mt-4"
-          variant="tonal"
         >
-          <div v-if="testResult.success">
-            <strong>✓ This gene can be automatically normalized!</strong><br />
-            <div class="mt-2">
-              <code>{{ JSON.stringify(testResult.result, null, 2) }}</code>
+          <AlertDescription>
+            <div v-if="testResult.success">
+              <strong>This gene can be automatically normalized!</strong><br />
+              <div class="mt-2">
+                <code>{{ JSON.stringify(testResult.result, null, 2) }}</code>
+              </div>
             </div>
-          </div>
-          <div v-else>
-            <strong>⚠ This gene failed automatic normalization</strong><br />
-            <span class="text-body-2">This is why it would appear in the staging queue below.</span
-            ><br />
-            <div class="mt-1 text-caption">Error: {{ testResult.error }}</div>
-          </div>
-        </v-alert>
-      </v-card-text>
-    </v-card>
+            <div v-else>
+              <strong>This gene failed automatic normalization</strong><br />
+              <span class="text-sm">This is why it would appear in the staging queue below.</span
+              ><br />
+              <div class="mt-1 text-xs">Error: {{ testResult.error }}</div>
+            </div>
+          </AlertDescription>
+        </Alert>
+      </CardContent>
+    </Card>
 
     <!-- Filters -->
-    <v-card class="mb-4">
-      <v-card-text>
-        <v-row>
-          <v-col cols="12" md="4">
-            <v-select
-              v-model="filters.sourceFilter"
-              label="Data Source"
-              :items="sourceOptions"
-              density="compact"
-              variant="outlined"
-              clearable
-              hide-details
-            />
-          </v-col>
-          <v-col cols="12" md="4">
-            <v-select
-              v-model="filters.limit"
-              label="Results per page"
-              :items="[10, 25, 50, 100]"
-              density="compact"
-              variant="outlined"
-              hide-details
-            />
-          </v-col>
-          <v-col cols="12" md="4">
-            <v-switch
-              v-model="filters.expertReviewOnly"
-              label="Expert review only"
-              density="compact"
-              hide-details
-            />
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+    <Card class="mb-4">
+      <CardContent class="pt-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="space-y-2">
+            <Label>Data Source</Label>
+            <Select v-model="filters.sourceFilter">
+              <SelectTrigger>
+                <SelectValue placeholder="All sources" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All sources</SelectItem>
+                <SelectItem
+                  v-for="source in sourceOptions"
+                  :key="source.value"
+                  :value="source.value"
+                >
+                  {{ source.title }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div class="space-y-2">
+            <Label>Results per page</Label>
+            <Select v-model="filtersLimitStr" @update:model-value="updateFilterLimit">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="n in [10, 25, 50, 100]" :key="n" :value="String(n)">
+                  {{ n }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div class="flex items-end">
+            <div class="flex items-center gap-2">
+              <Switch
+                :checked="filters.expertReviewOnly"
+                @update:checked="filters.expertReviewOnly = $event"
+              />
+              <Label>Expert review only</Label>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
 
     <!-- Pending Reviews Table -->
-    <v-card>
-      <v-card-title class="d-flex align-center justify-space-between">
-        <div class="d-flex align-center">
+    <Card>
+      <CardHeader class="flex flex-row items-center justify-between">
+        <CardTitle class="flex items-center">
           <List class="size-5 mr-2" />
           Pending Reviews ({{ pendingReviews.length }})
-        </div>
-        <v-chip v-if="selectedItems.length > 0" color="primary" variant="elevated">
-          {{ selectedItems.length }} selected
-        </v-chip>
-      </v-card-title>
-
-      <v-data-table
-        v-model="selectedItems"
-        :headers="tableHeaders"
-        :items="pendingReviews"
-        :loading="loading"
-        show-select
-        item-value="id"
-        density="compact"
-        class="elevation-0"
-      >
-        <template #item.original_text="{ item }">
-          <code class="text-caption">{{ item.original_text }}</code>
-        </template>
-
-        <template #item.source_name="{ item }">
-          <v-chip size="small" variant="outlined">
-            {{ item.source_name }}
-          </v-chip>
-        </template>
-
-        <template #item.priority_score="{ item }">
-          <div class="d-flex align-center">
-            <v-chip
-              :color="getPriorityColor(item.priority_score)"
-              size="small"
-              :text="item.priority_score.toString()"
-            />
-            <v-tooltip activator="parent" location="top">
-              Priority {{ item.priority_score }}/200. Higher scores = more important to review
-              first.
-              {{ getPriorityDescription(item.priority_score) }}
-            </v-tooltip>
-          </div>
-        </template>
-
-        <template #item.requires_expert_review="{ item }">
-          <component
-            :is="item.requires_expert_review ? BriefcaseBusiness : Check"
-            class="size-4"
-            :class="
-              item.requires_expert_review ? 'text-orange-500' : 'text-green-600 dark:text-green-400'
-            "
-          />
-        </template>
-
-        <template #item.created_at="{ item }">
-          <span class="text-caption">
-            {{ formatDate(item.created_at) }}
-          </span>
-        </template>
-
-        <template #item.actions="{ item }">
-          <div class="d-flex ga-1">
-            <v-tooltip text="Approve: This IS a valid gene - provide the correct HGNC symbol">
-              <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  icon="mdi-check-circle"
-                  size="small"
-                  color="success"
-                  variant="tonal"
-                  @click="approveItem(item)"
+        </CardTitle>
+        <Badge v-if="selectedItems.length > 0"> {{ selectedItems.length }} selected </Badge>
+      </CardHeader>
+      <CardContent class="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead class="w-[40px]">
+                <Checkbox :checked="allSelected" @update:checked="toggleAllSelection" />
+              </TableHead>
+              <TableHead class="w-[180px]">Gene Symbol</TableHead>
+              <TableHead class="w-[120px]">Data Source</TableHead>
+              <TableHead class="w-[140px]">Review Priority</TableHead>
+              <TableHead class="w-[120px]">Expert Needed</TableHead>
+              <TableHead class="w-[120px]">Submitted</TableHead>
+              <TableHead class="w-[140px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-if="loading">
+              <TableCell colspan="7" class="text-center py-8 text-muted-foreground">
+                Loading...
+              </TableCell>
+            </TableRow>
+            <TableRow v-else-if="pendingReviews.length === 0">
+              <TableCell colspan="7" class="text-center py-8 text-muted-foreground">
+                No pending reviews
+              </TableCell>
+            </TableRow>
+            <TableRow v-for="item in pendingReviews" :key="item.id">
+              <TableCell>
+                <Checkbox
+                  :checked="selectedItems.includes(item.id)"
+                  @update:checked="toggleItemSelection(item.id, $event)"
                 />
-              </template>
-            </v-tooltip>
-            <v-tooltip text="Reject: This is NOT a valid gene symbol">
-              <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  icon="mdi-close-circle"
-                  size="small"
-                  color="error"
-                  variant="tonal"
-                  @click="rejectItem(item)"
+              </TableCell>
+              <TableCell>
+                <code class="text-xs">{{ item.original_text }}</code>
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline">{{ item.source_name }}</Badge>
+              </TableCell>
+              <TableCell>
+                <Badge :variant="getPriorityVariant(item.priority_score)">
+                  {{ item.priority_score }}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <component
+                  :is="item.requires_expert_review ? BriefcaseBusiness : Check"
+                  class="size-4"
+                  :class="
+                    item.requires_expert_review
+                      ? 'text-orange-500'
+                      : 'text-green-600 dark:text-green-400'
+                  "
                 />
-              </template>
-            </v-tooltip>
-            <v-tooltip text="View details: See why normalization failed">
-              <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  icon="mdi-information"
-                  size="small"
-                  color="info"
-                  variant="text"
-                  @click="showItemDetails(item)"
-                />
-              </template>
-            </v-tooltip>
-          </div>
-        </template>
-      </v-data-table>
+              </TableCell>
+              <TableCell>
+                <span class="text-xs">{{ formatDate(item.created_at) }}</span>
+              </TableCell>
+              <TableCell>
+                <div class="flex gap-1">
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 text-green-600"
+                        @click="approveItem(item)"
+                      >
+                        <CircleCheck class="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Approve: This IS a valid gene</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 text-destructive"
+                        @click="rejectItem(item)"
+                      >
+                        <CircleX class="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Reject: This is NOT a valid gene</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8"
+                        @click="showItemDetails(item)"
+                      >
+                        <Info class="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>View details</TooltipContent>
+                  </Tooltip>
+                </div>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </CardContent>
 
       <!-- Bulk Actions -->
-      <v-card-actions v-if="selectedItems.length > 0">
-        <v-btn
-          color="success"
-          variant="tonal"
-          prepend-icon="mdi-check-all"
-          :loading="bulkActionLoading"
+      <div v-if="selectedItems.length > 0" class="flex items-center gap-2 p-4 border-t">
+        <Button
+          variant="outline"
+          class="border-green-500 text-green-600"
+          :disabled="bulkActionLoading"
           @click="bulkApprove"
         >
+          <CheckCheck class="size-4 mr-2" />
           Bulk Approve ({{ selectedItems.length }})
-        </v-btn>
-        <v-btn
-          color="error"
-          variant="tonal"
-          prepend-icon="mdi-close-octagon"
-          :loading="bulkActionLoading"
+        </Button>
+        <Button
+          variant="outline"
+          class="border-red-500 text-red-600"
+          :disabled="bulkActionLoading"
           @click="bulkReject"
         >
+          <Ban class="size-4 mr-2" />
           Bulk Reject ({{ selectedItems.length }})
-        </v-btn>
-        <v-spacer />
-        <v-btn variant="text" @click="selectedItems = []"> Clear Selection </v-btn>
-      </v-card-actions>
-    </v-card>
+        </Button>
+        <div class="flex-1" />
+        <Button variant="ghost" @click="selectedItems = []">Clear Selection</Button>
+      </div>
+    </Card>
 
     <!-- Approve Dialog -->
-    <v-dialog v-model="approveDialog" max-width="700">
-      <v-card>
-        <v-card-title class="d-flex align-center">
-          <CircleCheck class="size-5 text-green-600 dark:text-green-400 mr-2" />
-          Approve Gene: {{ selectedItem?.original_text }}
-        </v-card-title>
-        <v-card-text>
-          <v-alert type="info" variant="tonal" class="mb-4">
-            <strong>You're confirming this IS a valid gene.</strong> Please provide the correct,
-            official HGNC gene symbol. The system will create a new gene record or link to an
-            existing one.
-          </v-alert>
+    <Dialog v-model:open="approveDialog">
+      <DialogContent class="max-w-[700px]">
+        <DialogHeader>
+          <DialogTitle class="flex items-center">
+            <CircleCheck class="size-5 text-green-600 dark:text-green-400 mr-2" />
+            Approve Gene: {{ selectedItem?.original_text }}
+          </DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <Alert>
+            <AlertDescription>
+              <strong>You're confirming this IS a valid gene.</strong> Please provide the correct,
+              official HGNC gene symbol. The system will create a new gene record or link to an
+              existing one.
+            </AlertDescription>
+          </Alert>
 
-          <div class="mb-4">
+          <div>
             <strong>Original text from {{ selectedItem?.source_name }}:</strong>
-            <code class="text-h6 ml-2">{{ selectedItem?.original_text }}</code>
+            <code class="text-lg ml-2">{{ selectedItem?.original_text }}</code>
           </div>
 
-          <div class="mb-4">
+          <div>
             <strong>Why it failed:</strong>
-            <span class="text-body-2 text-medium-emphasis ml-2">
+            <span class="text-sm text-muted-foreground ml-2">
               {{ selectedItem?.normalization_log?.failure_reason || 'Unknown error' }}
             </span>
           </div>
 
-          <v-text-field
-            v-model="approveForm.approved_symbol"
-            label="Correct HGNC Gene Symbol *"
-            variant="outlined"
-            density="compact"
-            placeholder="e.g., PKD1, BRCA1, WT1"
-            hint="Enter the official HGNC gene symbol (usually all caps)"
-            persistent-hint
-            required
-          />
+          <div class="space-y-2">
+            <Label>Correct HGNC Gene Symbol *</Label>
+            <Input v-model="approveForm.approved_symbol" placeholder="e.g., PKD1, BRCA1, WT1" />
+            <p class="text-xs text-muted-foreground">
+              Enter the official HGNC gene symbol (usually all caps)
+            </p>
+          </div>
 
-          <v-text-field
-            v-model="approveForm.hgnc_id"
-            label="HGNC ID (if known)"
-            variant="outlined"
-            density="compact"
-            placeholder="e.g., HGNC:1234"
-            hint="Optional - system will look this up if not provided"
-            persistent-hint
-          />
+          <div class="space-y-2">
+            <Label>HGNC ID (if known)</Label>
+            <Input v-model="approveForm.hgnc_id" placeholder="e.g., HGNC:1234" />
+            <p class="text-xs text-muted-foreground">
+              Optional - system will look this up if not provided
+            </p>
+          </div>
 
-          <v-textarea
-            v-model="approveForm.notes"
-            label="Review Notes (optional)"
-            variant="outlined"
-            density="compact"
-            rows="2"
-            placeholder="Any additional notes about this approval..."
-            hint="Optional notes for the audit trail"
-            persistent-hint
-          />
+          <div class="space-y-2">
+            <Label>Review Notes (optional)</Label>
+            <textarea
+              v-model="approveForm.notes"
+              class="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              rows="2"
+              placeholder="Any additional notes about this approval..."
+            />
+            <p class="text-xs text-muted-foreground">Optional notes for the audit trail</p>
+          </div>
 
-          <v-text-field
-            v-model="approveForm.reviewer"
-            label="Your Name/ID *"
-            variant="outlined"
-            density="compact"
-            required
-            hint="This will be recorded for the audit trail"
-            persistent-hint
-          />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="approveDialog = false">
-            <Ban class="size-5 mr-1" />
+          <div class="space-y-2">
+            <Label>Your Name/ID *</Label>
+            <Input v-model="approveForm.reviewer" placeholder="Your name or ID" />
+            <p class="text-xs text-muted-foreground">This will be recorded for the audit trail</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="approveDialog = false">
+            <Ban class="size-4 mr-1" />
             Cancel
-          </v-btn>
-          <v-btn
-            color="success"
-            variant="elevated"
-            :loading="actionLoading"
-            :disabled="!approveForm.approved_symbol?.trim() || !approveForm.reviewer?.trim()"
+          </Button>
+          <Button
+            :disabled="
+              actionLoading || !approveForm.approved_symbol?.trim() || !approveForm.reviewer?.trim()
+            "
             @click="confirmApprove"
           >
-            <CircleCheck class="size-5 mr-1" />
-            Approve as Valid Gene
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+            <CircleCheck class="size-4 mr-1" />
+            {{ actionLoading ? 'Approving...' : 'Approve as Valid Gene' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <!-- Reject Dialog -->
-    <v-dialog v-model="rejectDialog" max-width="600">
-      <v-card>
-        <v-card-title class="d-flex align-center">
-          <CircleX class="size-5 text-destructive mr-2" />
-          Reject: {{ selectedItem?.original_text }}
-        </v-card-title>
-        <v-card-text>
-          <v-alert type="warning" variant="tonal" class="mb-4">
-            <strong>You're marking this as NOT a valid gene.</strong> This could be a typo,
-            abbreviation, protein name, or other non-gene text that was mistakenly identified as a
-            gene symbol.
-          </v-alert>
-
-          <div class="mb-4">
+    <AlertDialog v-model:open="rejectDialog">
+      <AlertDialogContent class="max-w-[600px]">
+        <AlertDialogHeader>
+          <AlertDialogTitle class="flex items-center">
+            <CircleX class="size-5 text-destructive mr-2" />
+            Reject: {{ selectedItem?.original_text }}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            You're marking this as NOT a valid gene. This could be a typo, abbreviation, protein
+            name, or other non-gene text.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div class="space-y-4">
+          <div>
             <strong>Text from {{ selectedItem?.source_name }}:</strong>
-            <code class="text-h6 ml-2">{{ selectedItem?.original_text }}</code>
+            <code class="text-lg ml-2">{{ selectedItem?.original_text }}</code>
           </div>
 
-          <div class="mb-4">
+          <div>
             <strong>Why it failed normalization:</strong>
-            <span class="text-body-2 text-medium-emphasis ml-2">
+            <span class="text-sm text-muted-foreground ml-2">
               {{ selectedItem?.normalization_log?.failure_reason || 'Unknown error' }}
             </span>
           </div>
 
-          <v-textarea
-            v-model="rejectForm.notes"
-            label="Why are you rejecting this? *"
-            variant="outlined"
-            density="compact"
-            rows="3"
-            placeholder="e.g., 'Not a gene - appears to be a protein complex name' or 'Typo in source data' or 'Abbreviation for a condition, not a gene'"
-            hint="Please explain why this is not a valid gene symbol"
-            persistent-hint
-            required
-          />
+          <div class="space-y-2">
+            <Label>Why are you rejecting this? *</Label>
+            <textarea
+              v-model="rejectForm.notes"
+              class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              rows="3"
+              placeholder="e.g., 'Not a gene - appears to be a protein complex name'"
+            />
+            <p class="text-xs text-muted-foreground">
+              Please explain why this is not a valid gene symbol
+            </p>
+          </div>
 
-          <v-text-field
-            v-model="rejectForm.reviewer"
-            label="Your Name/ID *"
-            variant="outlined"
-            density="compact"
-            required
-            hint="This will be recorded for the audit trail"
-            persistent-hint
-          />
+          <div class="space-y-2">
+            <Label>Your Name/ID *</Label>
+            <Input v-model="rejectForm.reviewer" placeholder="Your name or ID" />
+            <p class="text-xs text-muted-foreground">This will be recorded for the audit trail</p>
+          </div>
 
-          <div class="mt-3">
-            <strong class="text-body-2">Common reasons to reject:</strong>
-            <ul class="text-caption text-medium-emphasis mt-1">
+          <div>
+            <strong class="text-sm">Common reasons to reject:</strong>
+            <ul class="text-xs text-muted-foreground mt-1 list-disc list-inside">
               <li>Protein or complex names (e.g., "MS6HM complex")</li>
               <li>Disease or condition names</li>
               <li>Typos or garbled text from data sources</li>
@@ -446,112 +434,144 @@
               <li>Chemical compound names</li>
             </ul>
           </div>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="rejectDialog = false">
-            <Ban class="size-5 mr-1" />
-            Cancel
-          </v-btn>
-          <v-btn
-            color="error"
-            variant="elevated"
-            :loading="actionLoading"
-            :disabled="!rejectForm.notes?.trim() || !rejectForm.reviewer?.trim()"
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :disabled="actionLoading || !rejectForm.notes?.trim() || !rejectForm.reviewer?.trim()"
             @click="confirmReject"
           >
-            <CircleX class="size-5 mr-1" />
-            Reject as Invalid
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+            <CircleX class="size-4 mr-1" />
+            {{ actionLoading ? 'Rejecting...' : 'Reject as Invalid' }}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <!-- Details Dialog -->
-    <v-dialog v-model="detailsDialog" max-width="800">
-      <v-card>
-        <v-card-title>Gene Staging Details</v-card-title>
-        <v-card-text>
-          <v-row v-if="selectedItem">
-            <v-col cols="12" md="6">
-              <div class="mb-3">
+    <Dialog v-model:open="detailsDialog">
+      <DialogContent class="max-w-[800px]">
+        <DialogHeader>
+          <DialogTitle>Gene Staging Details</DialogTitle>
+        </DialogHeader>
+        <div v-if="selectedItem" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-3">
+              <div>
                 <strong>Original Text:</strong><br />
-                <code class="text-body-2">{{ selectedItem.original_text }}</code>
+                <code class="text-sm">{{ selectedItem.original_text }}</code>
               </div>
-              <div class="mb-3"><strong>Source:</strong> {{ selectedItem.source_name }}</div>
-              <div class="mb-3">
+              <div><strong>Source:</strong> {{ selectedItem.source_name }}</div>
+              <div>
                 <strong>Priority Score:</strong>
                 {{ (selectedItem.priority_score * 100).toFixed(1) }}%
               </div>
-              <div class="mb-3">
+              <div>
                 <strong>Expert Review Required:</strong>
                 {{ selectedItem.requires_expert_review ? 'Yes' : 'No' }}
               </div>
-            </v-col>
-            <v-col cols="12" md="6">
-              <div class="mb-3">
-                <strong>Created:</strong> {{ formatDate(selectedItem.created_at) }}
-              </div>
-              <div class="mb-3">
-                <strong>Updated:</strong> {{ formatDate(selectedItem.updated_at) }}
-              </div>
-              <div class="mb-3">
+            </div>
+            <div class="space-y-3">
+              <div><strong>Created:</strong> {{ formatDate(selectedItem.created_at) }}</div>
+              <div><strong>Updated:</strong> {{ formatDate(selectedItem.updated_at) }}</div>
+              <div>
                 <strong>Status:</strong>
-                <v-chip size="small" :color="getStatusColor(selectedItem.status)">
+                <Badge :variant="getStatusVariant(selectedItem.status)" class="ml-1">
                   {{ selectedItem.status }}
-                </v-chip>
+                </Badge>
               </div>
-            </v-col>
-          </v-row>
+            </div>
+          </div>
 
-          <v-divider class="my-4" />
+          <Separator />
 
-          <div class="mb-3">
+          <div>
             <strong>Original Data:</strong>
-            <v-card variant="outlined" class="mt-2">
-              <v-card-text>
-                <pre class="text-caption">{{
-                  JSON.stringify(selectedItem?.original_data, null, 2)
-                }}</pre>
-              </v-card-text>
-            </v-card>
+            <div class="mt-2 rounded-md border p-3">
+              <pre class="text-xs overflow-x-auto">{{
+                JSON.stringify(selectedItem?.original_data, null, 2)
+              }}</pre>
+            </div>
           </div>
 
-          <div class="mb-3">
+          <div>
             <strong>Normalization Log:</strong>
-            <v-card variant="outlined" class="mt-2">
-              <v-card-text>
-                <pre class="text-caption">{{
-                  JSON.stringify(selectedItem?.normalization_log, null, 2)
-                }}</pre>
-              </v-card-text>
-            </v-card>
+            <div class="mt-2 rounded-md border p-3">
+              <pre class="text-xs overflow-x-auto">{{
+                JSON.stringify(selectedItem?.normalization_log, null, 2)
+              }}</pre>
+            </div>
           </div>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="detailsDialog = false">Close</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-  </v-container>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="detailsDialog = false">Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as stagingApi from '@/api/admin/staging'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import { toast } from 'vue-sonner'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Separator } from '@/components/ui/separator'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Ban,
   BriefcaseBusiness,
   Check,
+  CheckCheck,
   CircleCheck,
   CircleX,
+  Dna,
   Info,
   List,
+  RefreshCw,
   Search,
   TestTube
 } from 'lucide-vue-next'
@@ -588,6 +608,7 @@ const filters = reactive({
   limit: 50,
   expertReviewOnly: false
 })
+const filtersLimitStr = ref('50')
 
 // Data
 const pendingReviews = ref([])
@@ -618,16 +639,33 @@ const sourceOptions = computed(() => {
   return sources.map(source => ({ title: source, value: source }))
 })
 
-const tableHeaders = [
-  { title: 'Gene Symbol', key: 'original_text', width: '180px' },
-  { title: 'Data Source', key: 'source_name', width: '120px' },
-  { title: 'Review Priority', key: 'priority_score', width: '140px' },
-  { title: 'Expert Needed', key: 'requires_expert_review', width: '120px' },
-  { title: 'Submitted', key: 'created_at', width: '120px' },
-  { title: 'Actions', key: 'actions', sortable: false, width: '140px' }
-]
+const allSelected = computed(() => {
+  return (
+    pendingReviews.value.length > 0 && selectedItems.value.length === pendingReviews.value.length
+  )
+})
 
 // Methods
+const toggleAllSelection = checked => {
+  if (checked) {
+    selectedItems.value = pendingReviews.value.map(item => item.id)
+  } else {
+    selectedItems.value = []
+  }
+}
+
+const toggleItemSelection = (id, checked) => {
+  if (checked) {
+    selectedItems.value = [...selectedItems.value, id]
+  } else {
+    selectedItems.value = selectedItems.value.filter(i => i !== id)
+  }
+}
+
+const updateFilterLimit = val => {
+  filters.limit = parseInt(val)
+  filtersLimitStr.value = val
+}
 
 const loadStats = async () => {
   statsLoading.value = true
@@ -755,9 +793,6 @@ const confirmReject = async () => {
 
 const bulkApprove = async () => {
   if (selectedItems.value.length === 0) return
-
-  // For bulk operations, we'd need to implement a different approach
-  // For now, show a message that this feature needs implementation
   toast.warning('Bulk approve not yet implemented - please approve items individually', {
     duration: 5000
   })
@@ -765,8 +800,6 @@ const bulkApprove = async () => {
 
 const bulkReject = async () => {
   if (selectedItems.value.length === 0) return
-
-  // For bulk operations, we'd need to implement a different approach
   toast.warning('Bulk reject not yet implemented - please reject items individually', {
     duration: 5000
   })
@@ -778,35 +811,27 @@ const formatDate = dateString => {
   return new Date(dateString).toLocaleString()
 }
 
-const getPriorityColor = score => {
-  if (score >= 80) return 'error' // High priority (clinical sources)
-  if (score >= 50) return 'warning' // Medium priority
-  if (score >= 30) return 'info' // Low-medium priority
-  return 'success' // Low priority (literature mining)
+const getPriorityVariant = score => {
+  if (score >= 80) return 'destructive'
+  if (score >= 50) return 'outline'
+  if (score >= 30) return 'secondary'
+  return 'default'
 }
 
-const getPriorityDescription = score => {
-  if (score >= 80) return 'High priority - from clinical/expert sources'
-  if (score >= 50) return 'Medium priority - likely important gene'
-  if (score >= 30) return 'Low-medium priority - some matching hints'
-  return 'Low priority - from automated literature mining'
-}
-
-const getStatusColor = status => {
+const getStatusVariant = status => {
   switch (status?.toLowerCase()) {
     case 'pending':
-      return 'warning'
+      return 'outline'
     case 'approved':
-      return 'success'
+      return 'default'
     case 'rejected':
-      return 'error'
+      return 'destructive'
     default:
-      return 'grey'
+      return 'secondary'
   }
 }
 
 // Watchers for filters
-import { watch } from 'vue'
 watch(
   [() => filters.sourceFilter, () => filters.limit, () => filters.expertReviewOnly],
   () => {
