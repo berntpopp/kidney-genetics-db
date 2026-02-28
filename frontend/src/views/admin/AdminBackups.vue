@@ -87,8 +87,10 @@
                 size="icon"
                 :disabled="currentPage <= 1"
                 @click="
-                  currentPage--
-                  loadBackups()
+                  () => {
+                    currentPage--
+                    loadBackups()
+                  }
                 "
               >
                 <ChevronLeft class="size-4" />
@@ -101,8 +103,10 @@
                 size="icon"
                 :disabled="currentPage >= pageCount"
                 @click="
-                  currentPage++
-                  loadBackups()
+                  () => {
+                    currentPage++
+                    loadBackups()
+                  }
                 "
               >
                 <ChevronRight class="size-4" />
