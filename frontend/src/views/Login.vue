@@ -1,148 +1,55 @@
-<template>
-  <v-container class="fill-height" fluid>
-    <v-row align="center" justify="center" class="fill-height">
-      <v-col cols="12" sm="8" md="4" lg="3">
-        <v-card elevation="8" class="mx-auto">
-          <!-- Logo and Title -->
-          <v-card-text class="text-center pt-8 pb-4">
-            <div class="d-flex align-center justify-center mb-4">
-              <KidneyGeneticsLogo :size="64" variant="kidneys" :animated="false" />
-            </div>
-            <h1 class="text-h4 font-weight-medium mb-2">Welcome Back</h1>
-            <p class="text-body-2 text-medium-emphasis">
-              Sign in to access curator and admin features
-            </p>
-          </v-card-text>
-
-          <!-- Login Form -->
-          <v-card-text class="px-6 pb-2">
-            <v-form ref="form" v-model="valid" @submit.prevent="handleLogin">
-              <v-text-field
-                v-model="username"
-                label="Username or Email"
-                density="compact"
-                variant="outlined"
-                prepend-inner-icon="mdi-account"
-                :rules="[rules.required]"
-                :disabled="authStore.isLoading"
-                class="mb-3"
-                autofocus
-              />
-
-              <v-text-field
-                v-model="password"
-                label="Password"
-                density="compact"
-                variant="outlined"
-                prepend-inner-icon="mdi-lock"
-                :type="showPassword ? 'text' : 'password'"
-                :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
-                :rules="[rules.required]"
-                :disabled="authStore.isLoading"
-                @click:append-inner="showPassword = !showPassword"
-                @keyup.enter="handleLogin"
-              />
-
-              <div class="d-flex align-center justify-space-between mb-4">
-                <v-checkbox
-                  v-model="rememberMe"
-                  label="Remember me"
-                  density="compact"
-                  hide-details
-                  class="flex-grow-0"
-                />
-                <v-btn
-                  variant="text"
-                  size="small"
-                  color="primary"
-                  :to="'/forgot-password'"
-                  :disabled="authStore.isLoading"
-                >
-                  Forgot Password?
-                </v-btn>
-              </div>
-
-              <v-alert
-                v-if="authStore.error"
-                type="error"
-                density="compact"
-                variant="tonal"
-                closable
-                class="mb-4"
-                @click:close="authStore.clearError()"
-              >
-                {{ authStore.error }}
-              </v-alert>
-
-              <v-btn
-                block
-                color="primary"
-                size="large"
-                variant="flat"
-                :loading="authStore.isLoading"
-                :disabled="!valid"
-                class="mb-2"
-                @click="handleLogin"
-              >
-                Sign In
-              </v-btn>
-            </v-form>
-          </v-card-text>
-
-          <!-- Footer -->
-          <v-card-text class="text-center pb-6 pt-0">
-            <v-btn variant="text" size="small" :to="'/'" prepend-icon="mdi-arrow-left">
-              Back to Home
-            </v-btn>
-          </v-card-text>
-        </v-card>
-
-        <!-- Additional Info -->
-        <div class="text-center mt-6">
-          <p class="text-caption text-medium-emphasis">
-            This is a public database. Authentication is only required for data curation and
-            administration.
-          </p>
-        </div>
-      </v-col>
-    </v-row>
-  </v-container>
-</template>
-
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { z } from 'zod'
+import { toTypedSchema } from '@vee-validate/zod'
+import { useForm } from 'vee-validate'
 import { useAuthStore } from '@/stores/auth'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter, useRoute, RouterLink } from 'vue-router'
 import KidneyGeneticsLogo from '@/components/KidneyGeneticsLogo.vue'
+import { Card, CardContent, CardFooter } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Eye, EyeOff, ArrowLeft } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
-const form = ref(null)
-const valid = ref(false)
-const username = ref('')
-const password = ref('')
+// Same Zod schema as LoginModal
+const loginSchema = toTypedSchema(
+  z.object({
+    username: z.string().min(1, 'Username or email is required'),
+    password: z.string().min(1, 'Password is required')
+  })
+)
+
+const { handleSubmit, defineField, errors } = useForm({
+  validationSchema: loginSchema
+})
+
+const [username, usernameAttrs] = defineField('username', {
+  validateOnBlur: true,
+  validateOnInput: true
+})
+const [password, passwordAttrs] = defineField('password', {
+  validateOnBlur: true,
+  validateOnInput: true
+})
+
 const showPassword = ref(false)
 const rememberMe = ref(false)
 
-const rules = {
-  required: value => !!value || 'Required'
-}
-
-const handleLogin = async () => {
-  if (!valid.value) return
-
-  const success = await authStore.login(username.value, password.value)
+const onSubmit = handleSubmit(async values => {
+  const success = await authStore.login(values.username, values.password)
 
   if (success) {
-    // Redirect to the page they came from, or home
-    const redirectTo = route.query.redirect || '/'
+    const redirectTo = (route.query.redirect as string) || '/'
     router.push(redirectTo)
   }
-}
+})
 
-// Check if already logged in
+// If already authenticated, redirect home
 onMounted(() => {
   if (authStore.isAuthenticated) {
     router.push('/')
@@ -150,8 +57,116 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.fill-height {
-  min-height: calc(100vh - 64px - 100px);
-}
-</style>
+<template>
+  <div class="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4">
+    <div class="w-full max-w-sm">
+      <Card>
+        <!-- Logo and Title -->
+        <CardContent class="pt-8 pb-4 text-center">
+          <div class="mb-4 flex items-center justify-center">
+            <KidneyGeneticsLogo :size="64" variant="kidneys" :animated="false" />
+          </div>
+          <h1 class="mb-2 text-2xl font-medium">Welcome Back</h1>
+          <p class="text-sm text-muted-foreground">Sign in to access curator and admin features</p>
+        </CardContent>
+
+        <!-- Login Form -->
+        <CardContent class="px-6 pb-2">
+          <form class="space-y-4" @submit.prevent="onSubmit">
+            <div class="space-y-2">
+              <Label for="page-login-username">Username or Email</Label>
+              <Input
+                id="page-login-username"
+                v-model="username"
+                v-bind="usernameAttrs"
+                type="text"
+                placeholder="Enter username or email"
+                :disabled="authStore.isLoading"
+                autofocus
+                :class="{ 'border-destructive': errors.username }"
+              />
+              <p v-if="errors.username" class="text-sm text-destructive">
+                {{ errors.username }}
+              </p>
+            </div>
+
+            <div class="space-y-2">
+              <Label for="page-login-password">Password</Label>
+              <div class="relative">
+                <Input
+                  id="page-login-password"
+                  v-model="password"
+                  v-bind="passwordAttrs"
+                  :type="showPassword ? 'text' : 'password'"
+                  placeholder="Enter password"
+                  :disabled="authStore.isLoading"
+                  class="pr-10"
+                  :class="{ 'border-destructive': errors.password }"
+                  @keyup.enter="onSubmit"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  :disabled="authStore.isLoading"
+                  @click="showPassword = !showPassword"
+                >
+                  <EyeOff v-if="showPassword" class="size-4 text-muted-foreground" />
+                  <Eye v-else class="size-4 text-muted-foreground" />
+                </Button>
+              </div>
+              <p v-if="errors.password" class="text-sm text-destructive">
+                {{ errors.password }}
+              </p>
+            </div>
+
+            <div class="flex items-center justify-between">
+              <label class="flex items-center gap-2 text-sm">
+                <input v-model="rememberMe" type="checkbox" class="size-4 rounded border-input" />
+                Remember me
+              </label>
+              <RouterLink to="/forgot-password" class="text-sm text-primary hover:underline">
+                Forgot Password?
+              </RouterLink>
+            </div>
+
+            <div
+              v-if="authStore.error"
+              class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
+            >
+              {{ authStore.error }}
+            </div>
+
+            <Button type="submit" class="w-full" size="lg" :disabled="authStore.isLoading">
+              <span v-if="authStore.isLoading" class="flex items-center gap-2">
+                <span
+                  class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                />
+                Signing in...
+              </span>
+              <span v-else>Sign In</span>
+            </Button>
+          </form>
+        </CardContent>
+
+        <!-- Footer -->
+        <CardFooter class="justify-center pb-6 pt-0">
+          <RouterLink
+            to="/"
+            class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft class="size-4" />
+            Back to Home
+          </RouterLink>
+        </CardFooter>
+      </Card>
+
+      <!-- Info text -->
+      <p class="mt-6 text-center text-xs text-muted-foreground">
+        This is a public database. Authentication is only required for data curation and
+        administration.
+      </p>
+    </div>
+  </div>
+</template>

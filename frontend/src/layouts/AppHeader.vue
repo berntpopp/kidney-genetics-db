@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 import { KGDBLogo } from '@/components/branding'
 import UserMenu from '@/components/auth/UserMenu.vue'
+import LoginModal from '@/components/auth/LoginModal.vue'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Separator } from '@/components/ui/separator'
@@ -29,6 +31,12 @@ const authStore = useAuthStore()
 const { isDark, toggleTheme } = useAppTheme()
 
 const drawerOpen = ref(false)
+const loginModalOpen = ref(false)
+
+const handleLoginSuccess = (username: string) => {
+  loginModalOpen.value = false
+  toast.success(`Logged in as ${username}`, { duration: 5000 })
+}
 
 const navLinks = [
   { to: '/genes', label: 'Gene Browser', icon: Dna },
@@ -51,6 +59,11 @@ const handleLogout = async () => {
 const navigateMobile = (to: string) => {
   drawerOpen.value = false
   router.push(to)
+}
+
+const openLoginFromDrawer = () => {
+  drawerOpen.value = false
+  loginModalOpen.value = true
 }
 </script>
 
@@ -94,11 +107,9 @@ const navigateMobile = (to: string) => {
         <UserMenu v-if="authStore.isAuthenticated" />
 
         <!-- Login Button -->
-        <Button v-else variant="default" size="sm" as-child>
-          <RouterLink to="/login">
-            <LogIn class="mr-2 size-4" />
-            Login
-          </RouterLink>
+        <Button v-else variant="default" size="sm" @click="loginModalOpen = true">
+          <LogIn class="mr-2 size-4" />
+          Login
         </Button>
 
         <!-- Theme Toggle -->
@@ -176,7 +187,7 @@ const navigateMobile = (to: string) => {
       <div v-else class="px-4 py-3">
         <button
           class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent w-full"
-          @click="navigateMobile('/login')"
+          @click="openLoginFromDrawer"
         >
           <LogIn class="size-4" />
           Login
@@ -214,4 +225,6 @@ const navigateMobile = (to: string) => {
       </div>
     </SheetContent>
   </Sheet>
+
+  <LoginModal v-model:open="loginModalOpen" @login-success="handleLoginSuccess" />
 </template>

@@ -1,121 +1,127 @@
-<template>
-  <v-container class="fill-height" fluid>
-    <v-row align="center" justify="center" class="fill-height">
-      <v-col cols="12" sm="8" md="4" lg="3">
-        <v-card elevation="8" class="mx-auto">
-          <!-- Logo and Title -->
-          <v-card-text class="text-center pt-8 pb-4">
-            <div class="d-flex align-center justify-center mb-4">
-              <KidneyGeneticsLogo :size="64" variant="kidneys" :animated="false" />
-            </div>
-            <h1 class="text-h4 font-weight-medium mb-2">Reset Password</h1>
-            <p class="text-body-2 text-medium-emphasis">
-              Enter your email address and we'll send you instructions to reset your password
-            </p>
-          </v-card-text>
-
-          <!-- Reset Form -->
-          <v-card-text class="px-6 pb-2">
-            <v-form ref="form" v-model="valid" @submit.prevent="handleSubmit">
-              <v-text-field
-                v-model="email"
-                label="Email Address"
-                density="compact"
-                variant="outlined"
-                prepend-inner-icon="mdi-email"
-                :rules="[rules.required, rules.email]"
-                :disabled="authStore.isLoading || successMessage"
-                class="mb-4"
-                autofocus
-              />
-
-              <v-alert
-                v-if="successMessage"
-                type="success"
-                density="compact"
-                variant="tonal"
-                class="mb-4"
-              >
-                {{ successMessage }}
-              </v-alert>
-
-              <v-alert
-                v-if="authStore.error"
-                type="error"
-                density="compact"
-                variant="tonal"
-                closable
-                class="mb-4"
-                @click:close="authStore.clearError()"
-              >
-                {{ authStore.error }}
-              </v-alert>
-
-              <v-btn
-                block
-                color="primary"
-                size="large"
-                variant="flat"
-                :loading="authStore.isLoading"
-                :disabled="!valid || successMessage"
-                class="mb-2"
-                @click="handleSubmit"
-              >
-                Send Reset Email
-              </v-btn>
-            </v-form>
-          </v-card-text>
-
-          <!-- Footer -->
-          <v-card-text class="text-center pb-6 pt-0">
-            <v-btn variant="text" size="small" :to="'/login'" prepend-icon="mdi-arrow-left">
-              Back to Login
-            </v-btn>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
-</template>
-
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
+import { z } from 'zod'
+import { toTypedSchema } from '@vee-validate/zod'
+import { useForm } from 'vee-validate'
 import { useAuthStore } from '@/stores/auth'
-import { useRouter } from 'vue-router'
+import { useRouter, RouterLink } from 'vue-router'
 import KidneyGeneticsLogo from '@/components/KidneyGeneticsLogo.vue'
+import { Card, CardContent, CardFooter } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { ArrowLeft } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 const router = useRouter()
 
-const form = ref(null)
-const valid = ref(false)
-const email = ref('')
-const successMessage = ref('')
+// Same Zod schema as ForgotPasswordModal
+const forgotPasswordSchema = toTypedSchema(
+  z.object({
+    email: z.string().min(1, 'Email is required').email('Invalid email address')
+  })
+)
 
-const rules = {
-  required: value => !!value || 'Required',
-  email: value => {
-    const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return pattern.test(value) || 'Invalid email address'
-  }
-}
+const { handleSubmit, defineField, errors } = useForm({
+  validationSchema: forgotPasswordSchema
+})
 
-const handleSubmit = async () => {
-  if (!valid.value) return
+const [email, emailAttrs] = defineField('email', {
+  validateOnBlur: true,
+  validateOnInput: true
+})
 
-  const success = await authStore.requestPasswordReset(email.value)
+const submitted = ref(false)
+
+const onSubmit = handleSubmit(async values => {
+  const success = await authStore.requestPasswordReset(values.email)
 
   if (success) {
-    successMessage.value = 'Password reset instructions have been sent to your email.'
+    submitted.value = true
     setTimeout(() => {
       router.push('/login')
     }, 3000)
   }
-}
+})
 </script>
 
-<style scoped>
-.fill-height {
-  min-height: calc(100vh - 64px - 100px);
-}
-</style>
+<template>
+  <div class="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4">
+    <div class="w-full max-w-sm">
+      <Card>
+        <!-- Logo and Title -->
+        <CardContent class="pt-8 pb-4 text-center">
+          <div class="mb-4 flex items-center justify-center">
+            <KidneyGeneticsLogo :size="64" variant="kidneys" :animated="false" />
+          </div>
+          <h1 class="mb-2 text-2xl font-medium">Reset Password</h1>
+          <p class="text-sm text-muted-foreground">
+            Enter your email address and we'll send you instructions to reset your password
+          </p>
+        </CardContent>
+
+        <!-- Reset Form -->
+        <CardContent class="px-6 pb-2">
+          <form class="space-y-4" @submit.prevent="onSubmit">
+            <div class="space-y-2">
+              <Label for="page-forgot-email">Email Address</Label>
+              <Input
+                id="page-forgot-email"
+                v-model="email"
+                v-bind="emailAttrs"
+                type="email"
+                placeholder="Enter your email"
+                :disabled="authStore.isLoading || submitted"
+                autofocus
+                :class="{ 'border-destructive': errors.email }"
+              />
+              <p v-if="errors.email" class="text-sm text-destructive">
+                {{ errors.email }}
+              </p>
+            </div>
+
+            <div
+              v-if="submitted"
+              class="rounded-md border border-green-500/50 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400"
+            >
+              Password reset instructions have been sent to your email.
+            </div>
+
+            <div
+              v-if="authStore.error"
+              class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
+            >
+              {{ authStore.error }}
+            </div>
+
+            <Button
+              type="submit"
+              class="w-full"
+              size="lg"
+              :disabled="authStore.isLoading || submitted"
+            >
+              <span v-if="authStore.isLoading" class="flex items-center gap-2">
+                <span
+                  class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                />
+                Sending...
+              </span>
+              <span v-else>Send Reset Email</span>
+            </Button>
+          </form>
+        </CardContent>
+
+        <!-- Footer -->
+        <CardFooter class="justify-center pb-6 pt-0">
+          <RouterLink
+            to="/login"
+            class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft class="size-4" />
+            Back to Login
+          </RouterLink>
+        </CardFooter>
+      </Card>
+    </div>
+  </div>
+</template>
