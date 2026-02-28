@@ -1,227 +1,59 @@
-<template>
-  <v-container>
-    <AdminHeader
-      title="User Management"
-      subtitle="Manage user accounts, roles, and permissions"
-      icon="mdi-account-group"
-      icon-color="primary"
-      :breadcrumbs="ADMIN_BREADCRUMBS.users"
-    />
-
-    <!-- Actions Bar -->
-    <v-row class="mb-4">
-      <v-col cols="12" md="6">
-        <v-text-field
-          v-model="search"
-          prepend-inner-icon="mdi-magnify"
-          label="Search users by name, email, or username"
-          density="compact"
-          variant="outlined"
-          clearable
-          hide-details
-        />
-      </v-col>
-      <v-col cols="12" md="6" class="text-right">
-        <v-btn
-          color="primary"
-          prepend-icon="mdi-account-plus"
-          size="small"
-          @click="showCreateDialog = true"
-        >
-          Add User
-        </v-btn>
-      </v-col>
-    </v-row>
-
-    <!-- User Table -->
-    <v-card>
-      <v-data-table
-        :headers="headers"
-        :items="filteredUsers"
-        :loading="loading"
-        :search="search"
-        density="compact"
-        item-value="id"
-        hover
-      >
-        <!-- Status column -->
-        <template #item.is_active="{ item }">
-          <v-chip :color="item.is_active ? 'success' : 'error'" size="small" label>
-            {{ item.is_active ? 'Active' : 'Inactive' }}
-          </v-chip>
-        </template>
-
-        <!-- Verified column -->
-        <template #item.is_verified="{ item }">
-          <component
-            :is="item.is_verified ? CircleCheck : CircleX"
-            class="size-4"
-            :class="item.is_verified ? 'text-green-600 dark:text-green-400' : 'text-destructive'"
-          />
-        </template>
-
-        <!-- Role column -->
-        <template #item.role="{ item }">
-          <v-chip :color="getRoleColor(item.role)" size="small" label>
-            {{ item.role }}
-          </v-chip>
-        </template>
-
-        <!-- Last login column -->
-        <template #item.last_login="{ item }">
-          <span v-if="item.last_login">
-            {{ formatDate(item.last_login) }}
-          </span>
-          <span v-else class="text-medium-emphasis">Never</span>
-        </template>
-
-        <!-- Actions column -->
-        <template #item.actions="{ item }">
-          <v-btn
-            icon="mdi-pencil"
-            size="x-small"
-            variant="text"
-            title="Edit user"
-            @click="editUser(item)"
-          />
-          <v-btn
-            :icon="item.is_active ? 'mdi-account-off' : 'mdi-account-check'"
-            size="x-small"
-            variant="text"
-            :title="item.is_active ? 'Deactivate user' : 'Activate user'"
-            @click="toggleUserStatus(item)"
-          />
-          <v-btn
-            icon="mdi-delete"
-            size="x-small"
-            variant="text"
-            color="error"
-            title="Delete user"
-            :disabled="item.id === authStore.user?.id"
-            @click="confirmDelete(item)"
-          />
-        </template>
-      </v-data-table>
-    </v-card>
-
-    <!-- Create/Edit Dialog -->
-    <v-dialog v-model="showCreateDialog" max-width="600">
-      <v-card>
-        <v-card-title>
-          {{ editingUser ? 'Edit User' : 'Create New User' }}
-        </v-card-title>
-
-        <v-card-text>
-          <v-form ref="userForm" v-model="formValid">
-            <v-text-field
-              v-model="userFormData.username"
-              label="Username"
-              required
-              :rules="[v => !!v || 'Username is required']"
-              density="compact"
-              variant="outlined"
-            />
-
-            <v-text-field
-              v-model="userFormData.email"
-              label="Email"
-              type="email"
-              required
-              :rules="[
-                v => !!v || 'Email is required',
-                v => /.+@.+\..+/.test(v) || 'Email must be valid'
-              ]"
-              density="compact"
-              variant="outlined"
-            />
-
-            <v-text-field
-              v-model="userFormData.full_name"
-              label="Full Name"
-              density="compact"
-              variant="outlined"
-            />
-
-            <v-text-field
-              v-if="!editingUser"
-              v-model="userFormData.password"
-              label="Password"
-              type="password"
-              required
-              :rules="[
-                v => !!v || 'Password is required',
-                v => v.length >= 8 || 'Password must be at least 8 characters'
-              ]"
-              density="compact"
-              variant="outlined"
-            />
-
-            <v-select
-              v-model="userFormData.role"
-              label="Role"
-              :items="roles"
-              density="compact"
-              variant="outlined"
-            />
-
-            <v-checkbox v-model="userFormData.is_active" label="Active" density="compact" />
-
-            <v-checkbox
-              v-model="userFormData.is_verified"
-              label="Email Verified"
-              density="compact"
-            />
-          </v-form>
-        </v-card-text>
-
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="closeDialog"> Cancel </v-btn>
-          <v-btn
-            color="primary"
-            variant="flat"
-            :loading="saving"
-            :disabled="!formValid"
-            @click="saveUser"
-          >
-            {{ editingUser ? 'Update' : 'Create' }}
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <!-- Delete Confirmation Dialog -->
-    <v-dialog v-model="showDeleteDialog" max-width="400">
-      <v-card>
-        <v-card-title>Confirm Delete</v-card-title>
-        <v-card-text>
-          Are you sure you want to delete user "{{ deletingUser?.username }}"? This action cannot be
-          undone.
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="showDeleteDialog = false">Cancel</v-btn>
-          <v-btn color="error" variant="flat" :loading="deleting" @click="deleteUser">
-            Delete
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-  </v-container>
-</template>
-
 <script setup>
 /**
  * User Management View
  * Full CRUD operations for user accounts with role management
  */
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, h } from 'vue'
+import { useVueTable, getCoreRowModel, getSortedRowModel } from '@tanstack/vue-table'
 import { useAuthStore } from '@/stores/auth'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import { toast } from 'vue-sonner'
-import { CircleCheck, CircleX } from 'lucide-vue-next'
+import {
+  CircleCheck,
+  CircleX,
+  Pencil,
+  UserX,
+  UserCheck,
+  Trash2,
+  UserPlus,
+  Search,
+  Loader2
+} from 'lucide-vue-next'
+import { DataTable } from '@/components/ui/data-table'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const authStore = useAuthStore()
 
@@ -235,8 +67,13 @@ const editingUser = ref(null)
 const deletingUser = ref(null)
 const saving = ref(false)
 const deleting = ref(false)
-const formValid = ref(false)
-const userForm = ref(null)
+const formValid = computed(() => {
+  const d = userFormData.value
+  if (!d.username || !d.email) return false
+  if (!/.+@.+\..+/.test(d.email)) return false
+  if (!editingUser.value && (!d.password || d.password.length < 8)) return false
+  return true
+})
 
 // Form data
 const userFormData = ref({
@@ -248,18 +85,6 @@ const userFormData = ref({
   is_active: true,
   is_verified: false
 })
-
-// Table configuration
-const headers = [
-  { title: 'Username', key: 'username', align: 'start' },
-  { title: 'Email', key: 'email' },
-  { title: 'Full Name', key: 'full_name' },
-  { title: 'Role', key: 'role' },
-  { title: 'Status', key: 'is_active' },
-  { title: 'Verified', key: 'is_verified', align: 'center' },
-  { title: 'Last Login', key: 'last_login' },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'center' }
-]
 
 const roles = ['admin', 'curator', 'viewer']
 
@@ -274,6 +99,161 @@ const filteredUsers = computed(() => {
       user.email?.toLowerCase().includes(searchLower) ||
       user.full_name?.toLowerCase().includes(searchLower)
   )
+})
+
+// Role color helpers
+const getRoleVariant = role => {
+  switch (role) {
+    case 'admin':
+      return 'destructive'
+    case 'curator':
+      return 'default'
+    case 'viewer':
+      return 'secondary'
+    default:
+      return 'outline'
+  }
+}
+
+const formatDate = dateString => {
+  if (!dateString) return 'Never'
+  const date = new Date(dateString)
+  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+}
+
+// Column definitions for TanStack Table
+const columns = [
+  {
+    accessorKey: 'username',
+    header: 'Username',
+    cell: ({ row }) => h('span', { class: 'font-medium' }, row.getValue('username'))
+  },
+  {
+    accessorKey: 'email',
+    header: 'Email'
+  },
+  {
+    accessorKey: 'full_name',
+    header: 'Full Name',
+    cell: ({ row }) => h('span', null, row.getValue('full_name') || '-')
+  },
+  {
+    accessorKey: 'role',
+    header: 'Role',
+    cell: ({ row }) =>
+      h(Badge, { variant: getRoleVariant(row.getValue('role')) }, () => row.getValue('role'))
+  },
+  {
+    accessorKey: 'is_active',
+    header: 'Status',
+    cell: ({ row }) =>
+      h(Badge, { variant: row.getValue('is_active') ? 'default' : 'secondary' }, () =>
+        row.getValue('is_active') ? 'Active' : 'Inactive'
+      )
+  },
+  {
+    accessorKey: 'is_verified',
+    header: 'Verified',
+    cell: ({ row }) =>
+      h(row.getValue('is_verified') ? CircleCheck : CircleX, {
+        class: `size-4 ${row.getValue('is_verified') ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`
+      }),
+    size: 80
+  },
+  {
+    accessorKey: 'last_login',
+    header: 'Last Login',
+    cell: ({ row }) => {
+      const val = row.getValue('last_login')
+      return h(
+        'span',
+        { class: val ? '' : 'text-muted-foreground' },
+        val ? formatDate(val) : 'Never'
+      )
+    }
+  },
+  {
+    id: 'actions',
+    header: '',
+    cell: ({ row }) => {
+      const user = row.original
+      return h('div', { class: 'flex items-center gap-1' }, [
+        h(TooltipProvider, null, () =>
+          h(Tooltip, null, {
+            default: () => [
+              h(TooltipTrigger, { asChild: true }, () =>
+                h(
+                  Button,
+                  {
+                    variant: 'ghost',
+                    size: 'icon',
+                    class: 'h-8 w-8',
+                    onClick: () => editUser(user)
+                  },
+                  () => h(Pencil, { class: 'size-4' })
+                )
+              ),
+              h(TooltipContent, null, () => 'Edit user')
+            ]
+          })
+        ),
+        h(TooltipProvider, null, () =>
+          h(Tooltip, null, {
+            default: () => [
+              h(TooltipTrigger, { asChild: true }, () =>
+                h(
+                  Button,
+                  {
+                    variant: 'ghost',
+                    size: 'icon',
+                    class: 'h-8 w-8',
+                    onClick: () => toggleUserStatus(user)
+                  },
+                  () =>
+                    h(user.is_active ? UserX : UserCheck, {
+                      class: 'size-4'
+                    })
+                )
+              ),
+              h(TooltipContent, null, () => `${user.is_active ? 'Deactivate' : 'Activate'} user`)
+            ]
+          })
+        ),
+        h(TooltipProvider, null, () =>
+          h(Tooltip, null, {
+            default: () => [
+              h(TooltipTrigger, { asChild: true }, () =>
+                h(
+                  Button,
+                  {
+                    variant: 'ghost',
+                    size: 'icon',
+                    class: 'h-8 w-8 text-destructive',
+                    disabled: user.id === authStore.user?.id,
+                    onClick: () => confirmDelete(user)
+                  },
+                  () => h(Trash2, { class: 'size-4' })
+                )
+              ),
+              h(TooltipContent, null, () => 'Delete user')
+            ]
+          })
+        )
+      ])
+    },
+    enableSorting: false,
+    size: 120
+  }
+]
+
+// TanStack Table
+const table = useVueTable({
+  get data() {
+    return filteredUsers.value
+  },
+  columns,
+  getCoreRowModel: getCoreRowModel(),
+  getSortedRowModel: getSortedRowModel()
 })
 
 // Methods
@@ -296,25 +276,6 @@ const loadUsers = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const getRoleColor = role => {
-  switch (role) {
-    case 'admin':
-      return 'error'
-    case 'curator':
-      return 'warning'
-    case 'viewer':
-      return 'info'
-    default:
-      return 'grey'
-  }
-}
-
-const formatDate = dateString => {
-  if (!dateString) return 'Never'
-  const date = new Date(dateString)
-  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
 }
 
 const editUser = user => {
@@ -439,7 +400,6 @@ const closeDialog = () => {
     is_active: true,
     is_verified: false
   }
-  userForm.value?.reset()
 }
 
 // Lifecycle
@@ -447,3 +407,158 @@ onMounted(() => {
   loadUsers()
 })
 </script>
+
+<template>
+  <div class="container mx-auto px-4 py-6">
+    <AdminHeader
+      title="User Management"
+      subtitle="Manage user accounts, roles, and permissions"
+      icon="mdi-account-group"
+      icon-color="primary"
+      :breadcrumbs="ADMIN_BREADCRUMBS.users"
+    />
+
+    <!-- Actions Bar -->
+    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
+      <div class="relative w-full md:w-1/2">
+        <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          v-model="search"
+          placeholder="Search users by name, email, or username"
+          class="pl-9"
+        />
+      </div>
+      <Button size="sm" @click="showCreateDialog = true">
+        <UserPlus class="size-4 mr-2" />
+        Add User
+      </Button>
+    </div>
+
+    <!-- User Table -->
+    <Card>
+      <CardContent class="p-0">
+        <div v-if="loading" class="flex items-center justify-center py-12">
+          <Loader2 class="size-6 animate-spin text-muted-foreground" />
+          <span class="ml-2 text-sm text-muted-foreground">Loading users...</span>
+        </div>
+        <DataTable v-else :table="table" />
+      </CardContent>
+    </Card>
+
+    <!-- Create/Edit Dialog -->
+    <Dialog v-model:open="showCreateDialog">
+      <DialogContent class="max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>{{ editingUser ? 'Edit User' : 'Create New User' }}</DialogTitle>
+          <DialogDescription>
+            {{
+              editingUser ? 'Update user details below.' : 'Fill in the details for the new user.'
+            }}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div class="space-y-4">
+          <div class="space-y-2">
+            <Label for="username">Username</Label>
+            <Input
+              id="username"
+              v-model="userFormData.username"
+              :disabled="!!editingUser"
+              placeholder="Enter username"
+            />
+          </div>
+
+          <div class="space-y-2">
+            <Label for="email">Email</Label>
+            <Input
+              id="email"
+              v-model="userFormData.email"
+              type="email"
+              placeholder="user@example.com"
+            />
+          </div>
+
+          <div class="space-y-2">
+            <Label for="full_name">Full Name</Label>
+            <Input id="full_name" v-model="userFormData.full_name" placeholder="Enter full name" />
+          </div>
+
+          <div v-if="!editingUser" class="space-y-2">
+            <Label for="password">Password</Label>
+            <Input
+              id="password"
+              v-model="userFormData.password"
+              type="password"
+              placeholder="Minimum 8 characters"
+            />
+          </div>
+
+          <div class="space-y-2">
+            <Label for="role">Role</Label>
+            <Select v-model="userFormData.role">
+              <SelectTrigger>
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="role in roles" :key="role" :value="role">
+                  {{ role }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2">
+              <Checkbox
+                id="is_active"
+                :checked="userFormData.is_active"
+                @update:checked="val => (userFormData.is_active = val)"
+              />
+              <Label for="is_active" class="cursor-pointer">Active</Label>
+            </div>
+            <div class="flex items-center gap-2">
+              <Checkbox
+                id="is_verified"
+                :checked="userFormData.is_verified"
+                @update:checked="val => (userFormData.is_verified = val)"
+              />
+              <Label for="is_verified" class="cursor-pointer">Email Verified</Label>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" @click="closeDialog">Cancel</Button>
+          <Button :disabled="!formValid || saving" @click="saveUser">
+            <Loader2 v-if="saving" class="size-4 mr-2 animate-spin" />
+            {{ editingUser ? 'Update' : 'Create' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Delete Confirmation Dialog -->
+    <AlertDialog v-model:open="showDeleteDialog">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirm Delete</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete user "{{ deletingUser?.username }}"? This action cannot
+            be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="showDeleteDialog = false">Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :disabled="deleting"
+            @click="deleteUser"
+          >
+            <Loader2 v-if="deleting" class="size-4 mr-2 animate-spin" />
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </div>
+</template>
