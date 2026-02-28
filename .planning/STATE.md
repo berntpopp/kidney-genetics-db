@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Researchers and clinicians can quickly find, explore, and evaluate kidney disease gene evidence
-**Current focus:** v0.2.0 Frontend Migration — Phase 2 COMPLETE
+**Current focus:** v0.2.0 Frontend Migration — Phase 3 in progress
 
 ## Current Position
 
-Phase: 2 of 9 (02-typescript-migration) — VERIFIED ✓
-Plan: 3 of 3 in phase (all plans complete, verification passed)
-Status: Phase 2 verified — ready to plan Phase 3
-Last activity: 2026-02-28 - Completed 02-03-PLAN.md (stores + composables + router + main.ts migrated, 50 tests added, TSML-08 verified)
+Phase: 3 of 9 (03-app-shell-nav-auth-icons)
+Plan: 1 of 5 in phase (03-01 complete)
+Status: Executing Phase 3 plans
+Last activity: 2026-02-28 - Completed 03-01-PLAN.md (app shell migrated to Tailwind, 15 shadcn-vue components added, toast provider wired)
 
-Progress: [█████░░░░░] ~25%
+Progress: [██████░░░░] ~30%
 
 ## Performance Metrics
 
@@ -29,6 +29,7 @@ Progress: [█████░░░░░] ~25%
 |-------|-------|-------|----------|
 | 01-foundation-setup | 3 | 12m 0s | 4m 0s |
 | 02-typescript-migration | 3 (complete) | 35m 29s | 11m 50s |
+| 03-app-shell-nav-auth-icons | 1 of 5 | ~20m | ~20m |
 
 *Updated after each plan completion*
 
@@ -73,6 +74,10 @@ Progress: [█████░░░░░] ~25%
 - **02-03:** hasPermission/hasRole computed<(arg) => R> pattern: eslint-disable-next-line on the computed wrapping to suppress false-positive no-unused-vars
 - **02-03:** ESLint globals extended for TypeScript files: MouseEvent, HTMLElement, HTMLDivElement, DOMRect, RequestInit, MessageEvent, Event, Element, Node, FormData, File
 - **02-03:** ESLint errors in debounce.ts (@typescript-eslint comments) and client.spec.ts (global) fixed during verification
+- **03-01:** zod resolved to ^3.25.76 (v3.x, not v4) - satisfies @vee-validate/zod peer dep
+- **03-01:** Dialog component created manually after shadcn-vue CLI interactive prompt blocked automation
+- **03-01:** Added @radix-icons/vue as dependency (required by shadcn-vue dialog/sheet close icons)
+- **03-01:** Added KeyboardEvent to ESLint Vue globals for TypeScript type annotations in Vue SFCs
 
 ### Pending Todos
 
@@ -88,8 +93,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-28T11:40:36Z
-Stopped at: Completed 02-03-PLAN.md — Phase 2 TypeScript migration complete (stores + composables + router migrated, TSML-08 verified)
+Last session: 2026-02-28T18:00:00Z
+Stopped at: Completed 03-01-PLAN.md — App shell migrated to Tailwind layout with shadcn-vue components
 Resume file: None
 
 Config:
