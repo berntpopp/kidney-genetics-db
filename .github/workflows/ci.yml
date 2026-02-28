@@ -180,6 +180,11 @@ jobs:
         env:
           VITE_API_URL: /api
 
+      # Tests - matches npm run test:run
+      - name: Run frontend tests (Vitest)
+        working-directory: frontend
+        run: npx vitest run
+
   # =============================================================================
   # CI Summary - aggregates all results
   # =============================================================================

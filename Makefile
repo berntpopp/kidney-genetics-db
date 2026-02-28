@@ -1,7 +1,7 @@
 # Kidney Genetics Database - Development Makefile
 # Usage: make [command]
 
-.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend worker lint lint-frontend format-check test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check security bandit pip-audit npm-audit ci
+.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend worker lint lint-frontend format-check test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed test-frontend prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check security bandit pip-audit npm-audit ci
 
 # Detect docker compose command (v2 vs v1)
 DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
@@ -351,19 +351,29 @@ ci-frontend:
 	@echo "║                    FRONTEND CI CHECKS                          ║"
 	@echo "╚════════════════════════════════════════════════════════════════╝"
 	@echo ""
-	@echo "🔍 Step 1/3: Linting with eslint..."
+	@echo "🔍 Step 1/4: Linting with eslint..."
 	@cd frontend && npm run lint:check
 	@echo "✅ ESLint passed"
 	@echo ""
-	@echo "🔍 Step 2/3: Format check with prettier..."
+	@echo "🔍 Step 2/4: Format check with prettier..."
 	@cd frontend && npm run format:check
 	@echo "✅ Prettier check passed"
 	@echo ""
-	@echo "🔨 Step 3/3: Building frontend..."
+	@echo "🔨 Step 3/4: Building frontend..."
 	@cd frontend && npm run build
 	@echo "✅ Build passed"
 	@echo ""
+	@echo "🧪 Step 4/4: Running frontend tests (vitest)..."
+	@cd frontend && npm run test:run
+	@echo "✅ Vitest passed"
+	@echo ""
 	@echo "✅ Frontend CI complete!"
+
+# Run frontend tests (Vitest)
+test-frontend:
+	@echo "🧪 Running frontend component tests (vitest)..."
+	@cd frontend && npm run test:run
+	@echo "✅ Frontend tests complete!"
 
 # ════════════════════════════════════════════════════════════════════
 # TESTING
