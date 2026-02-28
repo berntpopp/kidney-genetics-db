@@ -7,7 +7,7 @@ export default [
   ...pluginVue.configs['flat/recommended'],
   prettierConfig,
   {
-    files: ['**/*.{js,mjs,cjs,vue}'],
+    files: ['**/*.{js,mjs,cjs,ts,vue}'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -41,6 +41,6 @@ export default [
     }
   },
   {
-    ignores: ['dist/*', 'node_modules/*', '*.config.js']
+    ignores: ['dist/*', 'node_modules/*', '*.config.js', '*.config.ts']
   }
 ]

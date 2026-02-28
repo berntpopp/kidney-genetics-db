@@ -9,8 +9,8 @@
     "preview": "vite preview",
     "lint": "eslint . --fix",
     "lint:check": "eslint .",
-    "format": "prettier --write \"src/**/*.{js,vue,css,md}\"",
-    "format:check": "prettier --check \"src/**/*.{js,vue,css,md}\""
+    "format": "prettier --write \"src/**/*.{js,ts,mjs,vue,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{js,ts,mjs,vue,css,md}\""
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
@@ -27,12 +27,17 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@tsconfig/node22": "^22.0.5",
+    "@types/node": "^22.19.13",
     "@vitejs/plugin-vue": "^6.0.4",
     "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/tsconfig": "^0.8.1",
     "eslint": "^9.39.2",
     "eslint-plugin-vue": "^10.7.0",
     "playwright": "^1.58.2",
     "prettier": "^3.8.1",
-    "vite": "^7.1.2"
+    "typescript": "^5.9.3",
+    "vite": "^7.1.2",
+    "vue-tsc": "^2.2.12"
   }
 }
