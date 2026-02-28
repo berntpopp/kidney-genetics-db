@@ -1,338 +1,3 @@
-<template>
-  <v-container>
-    <AdminHeader
-      title="Data Pipeline Control"
-      subtitle="Monitor and control data ingestion pipelines"
-      icon="mdi-pipe"
-      icon-color="green"
-      :breadcrumbs="ADMIN_BREADCRUMBS.pipeline"
-    >
-      <template #actions>
-        <v-chip :color="wsConnected ? 'success' : 'error'" size="small" label>
-          <component :is="wsConnected ? Wifi : WifiOff" class="size-3 mr-1" />
-          {{ wsConnected ? 'Live' : 'Offline' }}
-        </v-chip>
-      </template>
-    </AdminHeader>
-
-    <!-- Summary Stats -->
-    <v-row class="mb-6">
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Data Sources"
-          :value="dataSources.length"
-          icon="mdi-database"
-          color="info"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Running"
-          :value="runningSources"
-          icon="mdi-play-circle"
-          color="success"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Completed"
-          :value="completedSources"
-          icon="mdi-check-circle"
-          color="primary"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Failed"
-          :value="failedSources"
-          icon="mdi-alert-circle"
-          color="error"
-        />
-      </v-col>
-    </v-row>
-
-    <!-- Quick Actions -->
-    <v-card class="mb-4 pa-4">
-      <div class="d-flex flex-wrap gap-2">
-        <v-btn
-          color="success"
-          size="small"
-          prepend-icon="mdi-play"
-          :loading="triggeringAll"
-          :disabled="runningSources > 0"
-          @click="triggerAll"
-        >
-          Run All Data Sources
-        </v-btn>
-        <v-btn
-          color="warning"
-          size="small"
-          prepend-icon="mdi-pause"
-          :disabled="runningSources === 0"
-          @click="pauseAll"
-        >
-          Pause All
-        </v-btn>
-        <v-btn
-          color="info"
-          size="small"
-          prepend-icon="mdi-refresh"
-          :loading="loading"
-          @click="loadSources"
-        >
-          Refresh Status
-        </v-btn>
-      </div>
-    </v-card>
-
-    <!-- Data Sources Grid -->
-    <h3 class="text-h5 mb-4">Data Sources</h3>
-    <v-row>
-      <v-col v-for="source in dataSources" :key="source.source_name" cols="12" md="6" lg="4">
-        <v-card class="h-100">
-          <v-card-title class="d-flex align-center">
-            <component :is="getSourceIcon(source)" class="size-5 mr-2" />
-            {{ source.source_name }}
-            <v-spacer />
-            <v-chip :color="getStatusColor(source.status)" size="small" label>
-              {{ source.status }}
-            </v-chip>
-          </v-card-title>
-
-          <v-card-text>
-            <!-- Progress Bar -->
-            <div v-if="source.status === 'running'" class="mb-3">
-              <v-progress-linear
-                :model-value="source.progress_percentage || 0"
-                :color="getStatusColor(source.status)"
-                height="20"
-                rounded
-              >
-                <template #default>
-                  <strong>{{ Math.round(source.progress_percentage || 0) }}%</strong>
-                </template>
-              </v-progress-linear>
-              <p class="text-caption mt-1">
-                {{ source.current_operation || 'Processing...' }}
-              </p>
-            </div>
-
-            <!-- Statistics -->
-            <v-list density="compact" class="pa-0">
-              <v-list-item class="px-0">
-                <template #prepend>
-                  <Hash class="size-4" />
-                </template>
-                <v-list-item-title>Items Processed</v-list-item-title>
-                <template #append>
-                  <span class="font-weight-medium">
-                    {{ source.items_processed || 0 }}
-                  </span>
-                </template>
-              </v-list-item>
-
-              <v-list-item class="px-0">
-                <template #prepend>
-                  <Plus class="size-4 text-green-600 dark:text-green-400" />
-                </template>
-                <v-list-item-title>Added</v-list-item-title>
-                <template #append>
-                  <span class="font-weight-medium text-success">
-                    {{ source.items_added || 0 }}
-                  </span>
-                </template>
-              </v-list-item>
-
-              <v-list-item class="px-0">
-                <template #prepend>
-                  <RefreshCw class="size-4 text-blue-600 dark:text-blue-400" />
-                </template>
-                <v-list-item-title>Updated</v-list-item-title>
-                <template #append>
-                  <span class="font-weight-medium text-info">
-                    {{ source.items_updated || 0 }}
-                  </span>
-                </template>
-              </v-list-item>
-
-              <v-list-item v-if="source.items_failed > 0" class="px-0">
-                <template #prepend>
-                  <AlertTriangle class="size-4 text-destructive" />
-                </template>
-                <v-list-item-title>Failed</v-list-item-title>
-                <template #append>
-                  <span class="font-weight-medium text-error">
-                    {{ source.items_failed || 0 }}
-                  </span>
-                </template>
-              </v-list-item>
-            </v-list>
-
-            <!-- Timing Info -->
-            <div v-if="source.started_at" class="mt-3 text-caption">
-              <div v-if="source.status === 'running'">
-                Started: {{ formatTime(source.started_at) }}
-              </div>
-              <div v-else-if="source.completed_at">
-                Completed: {{ formatTime(source.completed_at) }}
-              </div>
-              <div v-if="source.estimated_completion && source.status === 'running'">
-                ETA: {{ formatTime(source.estimated_completion) }}
-              </div>
-            </div>
-
-            <!-- Error Message -->
-            <v-alert v-if="source.last_error" type="error" density="compact" class="mt-3">
-              {{ source.last_error }}
-            </v-alert>
-          </v-card-text>
-
-          <v-card-actions>
-            <v-btn
-              v-if="
-                source.status === 'idle' ||
-                source.status === 'failed' ||
-                source.status === 'completed'
-              "
-              color="primary"
-              size="small"
-              variant="tonal"
-              :loading="triggering[source.source_name]"
-              @click="triggerSource(source.source_name)"
-            >
-              <Play class="size-5 mr-1" />
-              Run
-            </v-btn>
-
-            <v-btn
-              v-else-if="source.status === 'running'"
-              color="warning"
-              size="small"
-              variant="tonal"
-              :loading="pausing[source.source_name]"
-              @click="pauseSource(source.source_name)"
-            >
-              <Pause class="size-5 mr-1" />
-              Pause
-            </v-btn>
-
-            <v-btn
-              v-else-if="source.status === 'paused'"
-              color="success"
-              size="small"
-              variant="tonal"
-              :loading="resuming[source.source_name]"
-              @click="resumeSource(source.source_name)"
-            >
-              <Play class="size-5 mr-1" />
-              Resume
-            </v-btn>
-
-            <v-spacer />
-
-            <v-btn
-              icon="mdi-information"
-              size="small"
-              variant="text"
-              @click="showSourceDetails(source)"
-            />
-          </v-card-actions>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <!-- Internal Processes Section -->
-    <div v-if="internalProcesses.length > 0" class="mt-8">
-      <h3 class="text-h5 mb-4">Internal Processes</h3>
-      <v-row>
-        <v-col
-          v-for="process in internalProcesses"
-          :key="process.source_name"
-          cols="12"
-          md="6"
-          lg="4"
-        >
-          <v-card class="h-100" variant="outlined">
-            <v-card-title class="d-flex align-center">
-              <component
-                :is="resolveMdiIcon(process.icon || 'mdi-cog') || Cog"
-                class="size-5 mr-2"
-              />
-              {{ process.display_name || process.source_name }}
-              <v-spacer />
-              <v-chip :color="getStatusColor(process.status)" size="small" label>
-                {{ process.status }}
-              </v-chip>
-            </v-card-title>
-
-            <v-card-text>
-              <p class="text-body-2 text-medium-emphasis mb-3">
-                {{ process.description }}
-              </p>
-
-              <!-- Progress Bar -->
-              <div v-if="process.status === 'running'" class="mb-3">
-                <v-progress-linear
-                  :model-value="process.progress_percentage || 0"
-                  :color="getStatusColor(process.status)"
-                  height="20"
-                  rounded
-                >
-                  <template #default>
-                    <strong>{{ Math.round(process.progress_percentage || 0) }}%</strong>
-                  </template>
-                </v-progress-linear>
-                <p class="text-caption mt-1">
-                  {{ process.current_operation || 'Processing...' }}
-                </p>
-              </div>
-
-              <!-- Timing Info -->
-              <div v-if="process.started_at" class="text-caption">
-                <div v-if="process.status === 'running'">
-                  Started: {{ formatTime(process.started_at) }}
-                </div>
-                <div v-else-if="process.completed_at">
-                  Completed: {{ formatTime(process.completed_at) }}
-                </div>
-              </div>
-
-              <!-- Error Message -->
-              <v-alert v-if="process.last_error" type="error" density="compact" class="mt-3">
-                {{ process.last_error }}
-              </v-alert>
-            </v-card-text>
-
-            <v-card-actions>
-              <v-spacer />
-              <v-btn
-                icon="mdi-information"
-                size="small"
-                variant="text"
-                @click="showSourceDetails(process)"
-              />
-            </v-card-actions>
-          </v-card>
-        </v-col>
-      </v-row>
-    </div>
-
-    <!-- Source Details Dialog -->
-    <v-dialog v-model="showDetailsDialog" max-width="800">
-      <v-card v-if="selectedSource">
-        <v-card-title> {{ selectedSource.source_name }} Details </v-card-title>
-        <v-card-text>
-          <pre>{{ JSON.stringify(selectedSource, null, 2) }}</pre>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="showDetailsDialog = false">Close</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-  </v-container>
-</template>
-
 <script setup>
 /**
  * Pipeline Control View
@@ -340,7 +5,6 @@
  */
 
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-// import { useAuthStore } from '@/stores/auth'
 import { useWebSocket } from '@/services/websocket'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
@@ -357,7 +21,9 @@ import {
   FileText,
   Hash,
   Hospital,
+  Info,
   LayoutList,
+  Loader2,
   Pause,
   Play,
   Plus,
@@ -367,8 +33,20 @@ import {
   WifiOff
 } from 'lucide-vue-next'
 import { resolveMdiIcon } from '@/utils/icons'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 
-// const authStore = useAuthStore()
 const { connected: wsConnected, connect, disconnect, subscribe } = useWebSocket()
 
 // State
@@ -499,18 +177,18 @@ const getSourceIcon = source => {
   }
 }
 
-const getStatusColor = status => {
+const getStatusVariant = status => {
   switch (status) {
     case 'running':
-      return 'success'
+      return 'default'
     case 'completed':
-      return 'primary'
+      return 'secondary'
     case 'failed':
-      return 'error'
+      return 'destructive'
     case 'paused':
-      return 'warning'
+      return 'outline'
     default:
-      return 'grey'
+      return 'secondary'
   }
 }
 
@@ -601,8 +279,288 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped>
-.gap-2 {
-  gap: 0.5rem;
-}
-</style>
+<template>
+  <div class="container mx-auto px-4 py-6">
+    <AdminHeader
+      title="Data Pipeline Control"
+      subtitle="Monitor and control data ingestion pipelines"
+      icon="mdi-pipe"
+      icon-color="green"
+      :breadcrumbs="ADMIN_BREADCRUMBS.pipeline"
+    >
+      <template #actions>
+        <Badge :variant="wsConnected ? 'default' : 'destructive'" class="flex items-center gap-1">
+          <component :is="wsConnected ? Wifi : WifiOff" class="size-3" />
+          {{ wsConnected ? 'Live' : 'Offline' }}
+        </Badge>
+      </template>
+    </AdminHeader>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <AdminStatsCard
+        title="Data Sources"
+        :value="dataSources.length"
+        icon="mdi-database"
+        color="info"
+      />
+      <AdminStatsCard
+        title="Running"
+        :value="runningSources"
+        icon="mdi-play-circle"
+        color="success"
+      />
+      <AdminStatsCard
+        title="Completed"
+        :value="completedSources"
+        icon="mdi-check-circle"
+        color="primary"
+      />
+      <AdminStatsCard title="Failed" :value="failedSources" icon="mdi-alert-circle" color="error" />
+    </div>
+
+    <!-- Quick Actions -->
+    <Card class="mb-4">
+      <CardContent class="p-4">
+        <div class="flex flex-wrap gap-2">
+          <Button size="sm" :disabled="triggeringAll || runningSources > 0" @click="triggerAll">
+            <Loader2 v-if="triggeringAll" class="size-4 mr-2 animate-spin" />
+            <Play v-else class="size-4 mr-2" />
+            Run All Data Sources
+          </Button>
+          <Button variant="outline" size="sm" :disabled="runningSources === 0" @click="pauseAll">
+            <Pause class="size-4 mr-2" />
+            Pause All
+          </Button>
+          <Button variant="outline" size="sm" :disabled="loading" @click="loadSources">
+            <Loader2 v-if="loading" class="size-4 mr-2 animate-spin" />
+            <RefreshCw v-else class="size-4 mr-2" />
+            Refresh Status
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+
+    <!-- Data Sources Grid -->
+    <h3 class="text-lg font-semibold mb-4">Data Sources</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <Card v-for="source in dataSources" :key="source.source_name" class="flex flex-col">
+        <CardHeader class="pb-2">
+          <div class="flex items-center justify-between">
+            <CardTitle class="text-sm flex items-center gap-2">
+              <component :is="getSourceIcon(source)" class="size-5" />
+              {{ source.source_name }}
+            </CardTitle>
+            <Badge :variant="getStatusVariant(source.status)">
+              {{ source.status }}
+            </Badge>
+          </div>
+        </CardHeader>
+
+        <CardContent class="flex-1">
+          <!-- Progress Bar -->
+          <div v-if="source.status === 'running'" class="mb-3">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-muted-foreground">
+                {{ source.current_operation || 'Processing...' }}
+              </span>
+              <span class="text-xs font-medium">
+                {{ Math.round(source.progress_percentage || 0) }}%
+              </span>
+            </div>
+            <Progress :model-value="source.progress_percentage || 0" class="h-2" />
+          </div>
+
+          <!-- Statistics -->
+          <div class="space-y-2 text-sm">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-muted-foreground">
+                <Hash class="size-4" />
+                <span>Items Processed</span>
+              </div>
+              <span class="font-medium">{{ source.items_processed || 0 }}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-green-600 dark:text-green-400">
+                <Plus class="size-4" />
+                <span>Added</span>
+              </div>
+              <span class="font-medium text-green-600 dark:text-green-400">
+                {{ source.items_added || 0 }}
+              </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                <RefreshCw class="size-4" />
+                <span>Updated</span>
+              </div>
+              <span class="font-medium text-blue-600 dark:text-blue-400">
+                {{ source.items_updated || 0 }}
+              </span>
+            </div>
+            <div v-if="source.items_failed > 0" class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-destructive">
+                <AlertTriangle class="size-4" />
+                <span>Failed</span>
+              </div>
+              <span class="font-medium text-destructive">
+                {{ source.items_failed || 0 }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Timing Info -->
+          <div v-if="source.started_at" class="mt-3 text-xs text-muted-foreground">
+            <div v-if="source.status === 'running'">
+              Started: {{ formatTime(source.started_at) }}
+            </div>
+            <div v-else-if="source.completed_at">
+              Completed: {{ formatTime(source.completed_at) }}
+            </div>
+            <div v-if="source.estimated_completion && source.status === 'running'">
+              ETA: {{ formatTime(source.estimated_completion) }}
+            </div>
+          </div>
+
+          <!-- Error Message -->
+          <Alert v-if="source.last_error" variant="destructive" class="mt-3">
+            <AlertTriangle class="size-4" />
+            <AlertDescription class="text-xs">{{ source.last_error }}</AlertDescription>
+          </Alert>
+        </CardContent>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-between px-6 pb-4">
+          <div>
+            <Button
+              v-if="
+                source.status === 'idle' ||
+                source.status === 'failed' ||
+                source.status === 'completed'
+              "
+              size="sm"
+              variant="outline"
+              :disabled="triggering[source.source_name]"
+              @click="triggerSource(source.source_name)"
+            >
+              <Loader2 v-if="triggering[source.source_name]" class="size-4 mr-1 animate-spin" />
+              <Play v-else class="size-4 mr-1" />
+              Run
+            </Button>
+
+            <Button
+              v-else-if="source.status === 'running'"
+              size="sm"
+              variant="outline"
+              :disabled="pausing[source.source_name]"
+              @click="pauseSource(source.source_name)"
+            >
+              <Loader2 v-if="pausing[source.source_name]" class="size-4 mr-1 animate-spin" />
+              <Pause v-else class="size-4 mr-1" />
+              Pause
+            </Button>
+
+            <Button
+              v-else-if="source.status === 'paused'"
+              size="sm"
+              variant="outline"
+              :disabled="resuming[source.source_name]"
+              @click="resumeSource(source.source_name)"
+            >
+              <Loader2 v-if="resuming[source.source_name]" class="size-4 mr-1 animate-spin" />
+              <Play v-else class="size-4 mr-1" />
+              Resume
+            </Button>
+          </div>
+
+          <Button variant="ghost" size="icon" class="h-8 w-8" @click="showSourceDetails(source)">
+            <Info class="size-4" />
+          </Button>
+        </div>
+      </Card>
+    </div>
+
+    <!-- Internal Processes Section -->
+    <div v-if="internalProcesses.length > 0" class="mt-8">
+      <h3 class="text-lg font-semibold mb-4">Internal Processes</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card
+          v-for="process in internalProcesses"
+          :key="process.source_name"
+          class="flex flex-col border-dashed"
+        >
+          <CardHeader class="pb-2">
+            <div class="flex items-center justify-between">
+              <CardTitle class="text-sm flex items-center gap-2">
+                <component :is="resolveMdiIcon(process.icon || 'mdi-cog') || Cog" class="size-5" />
+                {{ process.display_name || process.source_name }}
+              </CardTitle>
+              <Badge :variant="getStatusVariant(process.status)">
+                {{ process.status }}
+              </Badge>
+            </div>
+          </CardHeader>
+
+          <CardContent class="flex-1">
+            <p class="text-sm text-muted-foreground mb-3">
+              {{ process.description }}
+            </p>
+
+            <!-- Progress Bar -->
+            <div v-if="process.status === 'running'" class="mb-3">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs text-muted-foreground">
+                  {{ process.current_operation || 'Processing...' }}
+                </span>
+                <span class="text-xs font-medium">
+                  {{ Math.round(process.progress_percentage || 0) }}%
+                </span>
+              </div>
+              <Progress :model-value="process.progress_percentage || 0" class="h-2" />
+            </div>
+
+            <!-- Timing Info -->
+            <div v-if="process.started_at" class="text-xs text-muted-foreground">
+              <div v-if="process.status === 'running'">
+                Started: {{ formatTime(process.started_at) }}
+              </div>
+              <div v-else-if="process.completed_at">
+                Completed: {{ formatTime(process.completed_at) }}
+              </div>
+            </div>
+
+            <!-- Error Message -->
+            <Alert v-if="process.last_error" variant="destructive" class="mt-3">
+              <AlertTriangle class="size-4" />
+              <AlertDescription class="text-xs">{{ process.last_error }}</AlertDescription>
+            </Alert>
+          </CardContent>
+
+          <div class="flex items-center justify-end px-6 pb-4">
+            <Button variant="ghost" size="icon" class="h-8 w-8" @click="showSourceDetails(process)">
+              <Info class="size-4" />
+            </Button>
+          </div>
+        </Card>
+      </div>
+    </div>
+
+    <!-- Source Details Dialog -->
+    <Dialog v-model:open="showDetailsDialog">
+      <DialogContent class="max-w-[700px]">
+        <DialogHeader>
+          <DialogTitle>{{ selectedSource?.source_name }} Details</DialogTitle>
+          <DialogDescription>Raw data for the selected source</DialogDescription>
+        </DialogHeader>
+        <div v-if="selectedSource" class="max-h-[400px] overflow-auto">
+          <pre class="text-xs bg-muted p-4 rounded whitespace-pre-wrap break-words">{{
+            JSON.stringify(selectedSource, null, 2)
+          }}</pre>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="showDetailsDialog = false">Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>
+</template>
