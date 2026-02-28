@@ -185,6 +185,7 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | FNDN-08 | Phase 1 | Pending |
 | FNDN-09 | Phase 1 | Pending |
 | FNDN-10 | Phase 1 | Pending |
+| TEST-01 | Phase 1 | Pending |
 | TSML-01 | Phase 2 | Pending |
 | TSML-02 | Phase 2 | Pending |
 | TSML-03 | Phase 2 | Pending |
@@ -193,6 +194,8 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | TSML-06 | Phase 2 | Pending |
 | TSML-07 | Phase 2 | Pending |
 | TSML-08 | Phase 2 | Pending |
+| TEST-04 | Phase 2 | Pending |
+| TEST-05 | Phase 2 | Pending |
 | LNAV-01 | Phase 3 | Pending |
 | LNAV-02 | Phase 3 | Pending |
 | LNAV-03 | Phase 3 | Pending |
@@ -211,6 +214,7 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | ICON-02 | Phase 3 | Pending |
 | ICON-03 | Phase 3 | Pending |
 | ICON-04 | Phase 3 | Pending |
+| TEST-02 | Phase 3 (ongoing through Phase 8) | Pending |
 | SPGE-01 | Phase 4 | Pending |
 | SPGE-02 | Phase 4 | Pending |
 | SPGE-03 | Phase 4 | Pending |
@@ -223,6 +227,7 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | GDEV-05 | Phase 5 | Pending |
 | GDEV-06 | Phase 5 | Pending |
 | GDEV-07 | Phase 5 | Pending |
+| TEST-03 | Phase 5 (ongoing through Phase 7) | Pending |
 | DTBL-01 | Phase 6 | Pending |
 | DTBL-02 | Phase 6 | Pending |
 | DTBL-03 | Phase 6 | Pending |
@@ -259,18 +264,15 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | CLNP-06 | Phase 9 | Pending |
 | CLNP-07 | Phase 9 | Pending |
 | CLNP-08 | Phase 9 | Pending |
-| TEST-01 | Phase 1 | Pending |
-| TEST-02 | Phases 3-8 | Pending |
-| TEST-03 | Phases 5-7 | Pending |
-| TEST-04 | Phase 2 | Pending |
-| TEST-05 | Phase 2 | Pending |
 | TEST-06 | Phase 9 | Pending |
 
 **Coverage:**
-- v1 requirements: 76 total
-- Mapped to phases: 76
-- Unmapped: 0 ✓
+- v1 requirements: 90 total
+- Mapped to phases: 90
+- Unmapped: 0
+
+**Note on spanning requirements:** TEST-02 (UI component tests) and TEST-03 (domain component tests) are written continuously as components are migrated. Primary phase assignment reflects where each begins; tests are written and committed within each migration phase.
 
 ---
 *Requirements defined: 2026-02-28*
-*Last updated: 2026-02-28 after initial definition*
+*Last updated: 2026-02-28 — Roadmap created, traceability finalized*
