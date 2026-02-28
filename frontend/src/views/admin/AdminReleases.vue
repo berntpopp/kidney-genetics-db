@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <div class="container mx-auto px-4 py-6">
     <AdminHeader
       title="Data Releases"
       subtitle="Create and manage CalVer data releases"
@@ -9,362 +9,365 @@
     />
 
     <!-- Stats Overview -->
-    <v-row class="mb-6">
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Total Releases"
-          :value="stats.total"
-          :loading="statsLoading"
-          icon="mdi-package-variant"
-          color="indigo"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Published"
-          :value="stats.published"
-          :loading="statsLoading"
-          icon="mdi-check-circle"
-          color="success"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Draft"
-          :value="stats.draft"
-          :loading="statsLoading"
-          icon="mdi-pencil"
-          color="warning"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Latest Version"
-          :value="stats.latest || 'None'"
-          :loading="statsLoading"
-          icon="mdi-new-box"
-          color="info"
-        />
-      </v-col>
-    </v-row>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <AdminStatsCard
+        title="Total Releases"
+        :value="stats.total"
+        :loading="statsLoading"
+        icon="mdi-package-variant"
+        color="indigo"
+      />
+      <AdminStatsCard
+        title="Published"
+        :value="stats.published"
+        :loading="statsLoading"
+        icon="mdi-check-circle"
+        color="success"
+      />
+      <AdminStatsCard
+        title="Draft"
+        :value="stats.draft"
+        :loading="statsLoading"
+        icon="mdi-pencil"
+        color="warning"
+      />
+      <AdminStatsCard
+        title="Latest Version"
+        :value="stats.latest || 'None'"
+        :loading="statsLoading"
+        icon="mdi-new-box"
+        color="info"
+      />
+    </div>
 
     <!-- Actions Bar -->
-    <v-row class="mb-4">
-      <v-col cols="12" md="6">
-        <v-text-field
-          v-model="search"
-          prepend-inner-icon="mdi-magnify"
-          label="Search releases by version or notes"
-          density="compact"
-          variant="outlined"
-          clearable
-          hide-details
-        />
-      </v-col>
-      <v-col cols="12" md="6" class="text-right">
-        <v-btn color="indigo" prepend-icon="mdi-plus" size="small" @click="showCreateDialog = true">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div class="space-y-2">
+        <Input v-model="search" placeholder="Search releases by version or notes..." />
+      </div>
+      <div class="flex justify-end items-end">
+        <Button @click="showCreateDialog = true">
+          <PlusCircle class="size-4 mr-2" />
           Create Release
-        </v-btn>
-      </v-col>
-    </v-row>
+        </Button>
+      </div>
+    </div>
 
     <!-- Releases Table -->
-    <v-card>
-      <v-data-table
-        :headers="headers"
-        :items="filteredReleases"
-        :loading="loading"
-        :search="search"
-        density="compact"
-        item-value="id"
-        hover
-        @click:row="viewReleaseDetails"
-      >
-        <!-- Version column -->
-        <template #item.version="{ item }">
-          <code class="text-caption">{{ item.version }}</code>
-        </template>
-
-        <!-- Status column -->
-        <template #item.status="{ item }">
-          <v-chip :color="item.status === 'published' ? 'success' : 'warning'" size="small" label>
-            {{ item.status }}
-          </v-chip>
-        </template>
-
-        <!-- Gene count column -->
-        <template #item.gene_count="{ item }">
-          <span v-if="item.gene_count">{{ item.gene_count.toLocaleString() }}</span>
-          <span v-else class="text-medium-emphasis">—</span>
-        </template>
-
-        <!-- Published date column -->
-        <template #item.published_at="{ item }">
-          <span v-if="item.published_at">
-            {{ formatDate(item.published_at) }}
-          </span>
-          <span v-else class="text-medium-emphasis">Not published</span>
-        </template>
-
-        <!-- Actions column -->
-        <template #item.actions="{ item }">
-          <v-btn
-            v-if="item.status === 'draft'"
-            icon="mdi-pencil"
-            size="x-small"
-            variant="text"
-            color="primary"
-            title="Edit release"
-            @click.stop="editRelease(item)"
-          />
-          <v-btn
-            v-if="item.status === 'draft'"
-            icon="mdi-publish"
-            size="x-small"
-            variant="text"
-            color="success"
-            title="Publish release"
-            @click.stop="confirmPublish(item)"
-          />
-          <v-btn
-            v-if="item.status === 'draft'"
-            icon="mdi-delete"
-            size="x-small"
-            variant="text"
-            color="error"
-            title="Delete release"
-            @click.stop="confirmDelete(item)"
-          />
-          <v-btn
-            v-if="item.status === 'published'"
-            icon="mdi-download"
-            size="x-small"
-            variant="text"
-            color="primary"
-            title="Download export"
-            @click.stop="downloadExport(item)"
-          />
-          <v-btn
-            icon="mdi-information"
-            size="x-small"
-            variant="text"
-            title="View details"
-            @click.stop="viewReleaseDetails(null, { item })"
-          />
-        </template>
-      </v-data-table>
-    </v-card>
+    <Card>
+      <CardContent class="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Version</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead class="text-right">Gene Count</TableHead>
+              <TableHead>Published</TableHead>
+              <TableHead>Release Notes</TableHead>
+              <TableHead class="text-center">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-if="loading">
+              <TableCell colspan="6" class="text-center py-8 text-muted-foreground">
+                Loading...
+              </TableCell>
+            </TableRow>
+            <TableRow v-else-if="filteredReleases.length === 0">
+              <TableCell colspan="6" class="text-center py-8 text-muted-foreground">
+                No releases found
+              </TableCell>
+            </TableRow>
+            <TableRow
+              v-for="item in filteredReleases"
+              :key="item.id"
+              class="cursor-pointer hover:bg-muted/50"
+              @click="viewReleaseDetails(item)"
+            >
+              <TableCell>
+                <code class="text-xs">{{ item.version }}</code>
+              </TableCell>
+              <TableCell>
+                <Badge :variant="item.status === 'published' ? 'default' : 'secondary'">
+                  {{ item.status }}
+                </Badge>
+              </TableCell>
+              <TableCell class="text-right">
+                <span v-if="item.gene_count">{{ item.gene_count.toLocaleString() }}</span>
+                <span v-else class="text-muted-foreground">&mdash;</span>
+              </TableCell>
+              <TableCell>
+                <span v-if="item.published_at">{{ formatDate(item.published_at) }}</span>
+                <span v-else class="text-muted-foreground">Not published</span>
+              </TableCell>
+              <TableCell>
+                <span class="text-sm truncate block max-w-[200px]">{{ item.release_notes }}</span>
+              </TableCell>
+              <TableCell class="text-center" @click.stop>
+                <Button
+                  v-if="item.status === 'draft'"
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7"
+                  title="Edit release"
+                  @click="editRelease(item)"
+                >
+                  <Pencil class="size-4" />
+                </Button>
+                <Button
+                  v-if="item.status === 'draft'"
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7 text-green-600"
+                  title="Publish release"
+                  @click="confirmPublish(item)"
+                >
+                  <Send class="size-4" />
+                </Button>
+                <Button
+                  v-if="item.status === 'draft'"
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7 text-destructive"
+                  title="Delete release"
+                  @click="confirmDelete(item)"
+                >
+                  <Trash2 class="size-4" />
+                </Button>
+                <Button
+                  v-if="item.status === 'published'"
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7"
+                  title="Download export"
+                  @click="downloadExport(item)"
+                >
+                  <Download class="size-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7"
+                  title="View details"
+                  @click="viewReleaseDetails(item)"
+                >
+                  <Info class="size-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
 
     <!-- Create/Edit Release Dialog -->
-    <v-dialog v-model="showCreateDialog" max-width="600">
-      <v-card>
-        <v-card-title>{{ editingRelease ? 'Edit Release' : 'Create New Release' }}</v-card-title>
+    <Dialog v-model:open="showCreateDialog">
+      <DialogContent class="max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>{{ editingRelease ? 'Edit Release' : 'Create New Release' }}</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="space-y-2">
+            <Label>Version (CalVer: YYYY.MM)</Label>
+            <Input v-model="releaseFormData.version" placeholder="2025.10" />
+            <p class="text-xs text-muted-foreground">
+              Format: YYYY.MM (e.g., 2025.10 for October 2025)
+            </p>
+            <p v-if="versionError" class="text-xs text-destructive">{{ versionError }}</p>
+          </div>
 
-        <v-card-text>
-          <v-form ref="releaseForm" v-model="formValid">
-            <v-text-field
-              v-model="releaseFormData.version"
-              label="Version (CalVer: YYYY.MM)"
-              required
-              :rules="calverRules"
-              density="compact"
-              variant="outlined"
-              placeholder="2025.10"
-              hint="Format: YYYY.MM (e.g., 2025.10 for October 2025)"
-              persistent-hint
-            />
-
-            <v-textarea
+          <div class="space-y-2">
+            <Label>Release Notes</Label>
+            <textarea
               v-model="releaseFormData.release_notes"
-              label="Release Notes"
-              density="compact"
-              variant="outlined"
+              class="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               rows="4"
-              class="mt-4"
               placeholder="Describe what's new in this release..."
             />
-          </v-form>
-        </v-card-text>
-
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="closeCreateDialog">Cancel</v-btn>
-          <v-btn
-            color="indigo"
-            variant="flat"
-            :loading="creating"
-            :disabled="!formValid"
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="closeCreateDialog">Cancel</Button>
+          <Button
+            :disabled="creating || !isFormValid"
             @click="editingRelease ? updateRelease() : createRelease()"
           >
-            {{ editingRelease ? 'Update' : 'Create Draft' }}
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+            {{ creating ? 'Saving...' : editingRelease ? 'Update' : 'Create Draft' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <!-- Delete Confirmation Dialog -->
-    <v-dialog v-model="showDeleteDialog" max-width="400">
-      <v-card>
-        <v-card-title>Delete Release?</v-card-title>
-        <v-card-text>
-          Are you sure you want to delete draft release
-          <strong>{{ deletingRelease?.version }}</strong
-          >? This action cannot be undone.
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="showDeleteDialog = false">Cancel</v-btn>
-          <v-btn color="error" variant="flat" :loading="deleting" @click="deleteRelease">
-            Delete
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <AlertDialog v-model:open="showDeleteDialog">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Release?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete draft release
+            <strong>{{ deletingRelease?.version }}</strong
+            >? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :disabled="deleting"
+            @click="deleteRelease"
+          >
+            {{ deleting ? 'Deleting...' : 'Delete' }}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <!-- Publish Confirmation Dialog -->
-    <v-dialog v-model="showPublishDialog" max-width="500">
-      <v-card>
-        <v-card-title>Publish Release {{ publishingRelease?.version }}?</v-card-title>
-        <v-card-text>
-          <v-alert type="warning" variant="tonal" class="mb-4">
-            <strong>This action will:</strong>
-            <ul class="mt-2">
-              <li>Close all current gene temporal ranges</li>
-              <li>Export genes to JSON file</li>
-              <li>Calculate SHA256 checksum</li>
-              <li>Mark release as published</li>
-            </ul>
-          </v-alert>
-          <p class="text-body-2">
-            This operation cannot be undone. Are you sure you want to publish this release?
-          </p>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="showPublishDialog = false">Cancel</v-btn>
-          <v-btn color="success" variant="flat" :loading="publishing" @click="publishRelease">
-            Publish Release
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <AlertDialog v-model:open="showPublishDialog">
+      <AlertDialogContent class="max-w-[500px]">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Publish Release {{ publishingRelease?.version }}?</AlertDialogTitle>
+          <AlertDialogDescription as="div">
+            <Alert variant="destructive" class="mb-4">
+              <AlertDescription>
+                <strong>This action will:</strong>
+                <ul class="mt-2 list-disc list-inside">
+                  <li>Close all current gene temporal ranges</li>
+                  <li>Export genes to JSON file</li>
+                  <li>Calculate SHA256 checksum</li>
+                  <li>Mark release as published</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
+            <p class="text-sm">
+              This operation cannot be undone. Are you sure you want to publish this release?
+            </p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction :disabled="publishing" @click="publishRelease">
+            {{ publishing ? 'Publishing...' : 'Publish Release' }}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <!-- Release Details Dialog -->
-    <v-dialog v-model="showDetailsDialog" max-width="700">
-      <v-card v-if="selectedRelease">
-        <v-card-title>
-          Release {{ selectedRelease.version }}
-          <v-chip
-            :color="selectedRelease.status === 'published' ? 'success' : 'warning'"
-            size="small"
-            label
-            class="ml-2"
-          >
-            {{ selectedRelease.status }}
-          </v-chip>
-        </v-card-title>
+    <Dialog v-model:open="showDetailsDialog">
+      <DialogContent class="max-w-[700px]">
+        <DialogHeader>
+          <DialogTitle class="flex items-center gap-2">
+            Release {{ selectedRelease?.version }}
+            <Badge
+              v-if="selectedRelease"
+              :variant="selectedRelease.status === 'published' ? 'default' : 'secondary'"
+            >
+              {{ selectedRelease.status }}
+            </Badge>
+          </DialogTitle>
+        </DialogHeader>
 
-        <v-card-text>
+        <div v-if="selectedRelease" class="space-y-4">
           <!-- Release Information -->
-          <v-list density="compact">
-            <v-list-item>
-              <template #prepend>
-                <Package class="size-5 text-indigo-600 dark:text-indigo-400" />
-              </template>
-              <v-list-item-title>Version</v-list-item-title>
-              <v-list-item-subtitle>
+          <div class="space-y-3">
+            <div class="flex items-center gap-3 border-b pb-2">
+              <Package class="size-5 text-indigo-600 dark:text-indigo-400" />
+              <div>
+                <div class="text-xs text-muted-foreground">Version</div>
                 <code>{{ selectedRelease.version }}</code>
-              </v-list-item-subtitle>
-            </v-list-item>
+              </div>
+            </div>
 
-            <v-list-item>
-              <template #prepend>
-                <Calendar class="size-5" />
-              </template>
-              <v-list-item-title>Created</v-list-item-title>
-              <v-list-item-subtitle>
-                {{ formatDate(selectedRelease.created_at) }}
-              </v-list-item-subtitle>
-            </v-list-item>
+            <div class="flex items-center gap-3 border-b pb-2">
+              <Calendar class="size-5" />
+              <div>
+                <div class="text-xs text-muted-foreground">Created</div>
+                <span class="text-sm">{{ formatDate(selectedRelease.created_at) }}</span>
+              </div>
+            </div>
 
-            <v-list-item v-if="selectedRelease.published_at">
-              <template #prepend>
-                <CalendarCheck class="size-5 text-green-600 dark:text-green-400" />
-              </template>
-              <v-list-item-title>Published</v-list-item-title>
-              <v-list-item-subtitle>
-                {{ formatDate(selectedRelease.published_at) }}
-              </v-list-item-subtitle>
-            </v-list-item>
+            <div v-if="selectedRelease.published_at" class="flex items-center gap-3 border-b pb-2">
+              <CalendarCheck class="size-5 text-green-600 dark:text-green-400" />
+              <div>
+                <div class="text-xs text-muted-foreground">Published</div>
+                <span class="text-sm">{{ formatDate(selectedRelease.published_at) }}</span>
+              </div>
+            </div>
 
-            <v-list-item v-if="selectedRelease.gene_count">
-              <template #prepend>
-                <Dna class="size-5" />
-              </template>
-              <v-list-item-title>Gene Count</v-list-item-title>
-              <v-list-item-subtitle>
-                {{ selectedRelease.gene_count.toLocaleString() }} genes
-              </v-list-item-subtitle>
-            </v-list-item>
+            <div v-if="selectedRelease.gene_count" class="flex items-center gap-3 border-b pb-2">
+              <Dna class="size-5" />
+              <div>
+                <div class="text-xs text-muted-foreground">Gene Count</div>
+                <span class="text-sm">{{ selectedRelease.gene_count.toLocaleString() }} genes</span>
+              </div>
+            </div>
 
-            <v-list-item v-if="selectedRelease.export_checksum">
-              <template #prepend>
-                <ShieldCheck class="size-5 text-green-600 dark:text-green-400" />
-              </template>
-              <v-list-item-title>Checksum (SHA256)</v-list-item-title>
-              <v-list-item-subtitle>
-                <code class="text-caption">{{ selectedRelease.export_checksum }}</code>
-                <v-btn
-                  icon="mdi-content-copy"
-                  size="x-small"
-                  variant="text"
-                  title="Copy checksum"
-                  @click="copyToClipboard(selectedRelease.export_checksum)"
-                />
-              </v-list-item-subtitle>
-            </v-list-item>
-          </v-list>
+            <div
+              v-if="selectedRelease.export_checksum"
+              class="flex items-center gap-3 border-b pb-2"
+            >
+              <ShieldCheck class="size-5 text-green-600 dark:text-green-400" />
+              <div class="flex-1">
+                <div class="text-xs text-muted-foreground">Checksum (SHA256)</div>
+                <div class="flex items-center gap-1">
+                  <code class="text-xs">{{ selectedRelease.export_checksum }}</code>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-6 w-6"
+                    title="Copy checksum"
+                    @click="copyToClipboard(selectedRelease.export_checksum)"
+                  >
+                    <Copy class="size-3" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <!-- Release Notes -->
-          <v-divider class="my-4" />
-          <h4 class="text-subtitle-1 mb-2">Release Notes</h4>
-          <p v-if="selectedRelease.release_notes" class="text-body-2">
-            {{ selectedRelease.release_notes }}
-          </p>
-          <p v-else class="text-body-2 text-medium-emphasis">No release notes provided.</p>
+          <Separator />
+          <div>
+            <h4 class="text-sm font-semibold mb-2">Release Notes</h4>
+            <p v-if="selectedRelease.release_notes" class="text-sm">
+              {{ selectedRelease.release_notes }}
+            </p>
+            <p v-else class="text-sm text-muted-foreground">No release notes provided.</p>
+          </div>
 
           <!-- Citation -->
-          <v-divider class="my-4" />
-          <h4 class="text-subtitle-1 mb-2">Citation</h4>
-          <v-card variant="outlined" class="pa-3">
-            <code class="text-caption">{{ generateCitation(selectedRelease) }}</code>
-            <v-btn
-              icon="mdi-content-copy"
-              size="x-small"
-              variant="text"
-              title="Copy citation"
-              class="float-right"
-              @click="copyToClipboard(generateCitation(selectedRelease))"
-            />
-          </v-card>
-        </v-card-text>
+          <Separator />
+          <div>
+            <h4 class="text-sm font-semibold mb-2">Citation</h4>
+            <div class="rounded-md border p-3 relative">
+              <code class="text-xs">{{ generateCitation(selectedRelease) }}</code>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-6 w-6 absolute top-2 right-2"
+                title="Copy citation"
+                @click="copyToClipboard(generateCitation(selectedRelease))"
+              >
+                <Copy class="size-3" />
+              </Button>
+            </div>
+          </div>
+        </div>
 
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="showDetailsDialog = false">Close</v-btn>
-          <v-btn
-            v-if="selectedRelease.status === 'published'"
-            color="primary"
-            variant="flat"
-            prepend-icon="mdi-download"
+        <DialogFooter>
+          <Button variant="outline" @click="showDetailsDialog = false">Close</Button>
+          <Button
+            v-if="selectedRelease?.status === 'published'"
             @click="downloadExport(selectedRelease)"
           >
+            <Download class="size-4 mr-2" />
             Download Export
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-  </v-container>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>
 </template>
 
 <script setup>
@@ -379,7 +382,52 @@ import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import { toast } from 'vue-sonner'
-import { Calendar, CalendarCheck, Dna, Package, ShieldCheck } from 'lucide-vue-next'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Separator } from '@/components/ui/separator'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import {
+  Calendar,
+  CalendarCheck,
+  Copy,
+  Dna,
+  Download,
+  Info,
+  Package,
+  Pencil,
+  PlusCircle,
+  Send,
+  ShieldCheck,
+  Trash2
+} from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 
@@ -399,8 +447,6 @@ const deletingRelease = ref(null)
 const creating = ref(false)
 const publishing = ref(false)
 const deleting = ref(false)
-const formValid = ref(false)
-const releaseForm = ref(null)
 
 // Stats
 const stats = ref({
@@ -416,21 +462,18 @@ const releaseFormData = ref({
   release_notes: ''
 })
 
-// CalVer validation rules
-const calverRules = [
-  v => !!v || 'Version is required',
-  v => /^\d{4}\.\d{1,2}$/.test(v) || 'Version must be CalVer format YYYY.MM (e.g., 2025.10)'
-]
+// CalVer validation
+const versionError = computed(() => {
+  if (!releaseFormData.value.version) return 'Version is required'
+  if (!/^\d{4}\.\d{1,2}$/.test(releaseFormData.value.version)) {
+    return 'Version must be CalVer format YYYY.MM (e.g., 2025.10)'
+  }
+  return null
+})
 
-// Table configuration
-const headers = [
-  { title: 'Version', key: 'version', align: 'start' },
-  { title: 'Status', key: 'status' },
-  { title: 'Gene Count', key: 'gene_count', align: 'end' },
-  { title: 'Published', key: 'published_at' },
-  { title: 'Release Notes', key: 'release_notes' },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'center' }
-]
+const isFormValid = computed(() => {
+  return releaseFormData.value.version && !versionError.value
+})
 
 // Computed
 const filteredReleases = computed(() => {
@@ -488,7 +531,7 @@ const formatDate = dateString => {
 }
 
 const createRelease = async () => {
-  if (!formValid.value) return
+  if (!isFormValid.value) return
 
   creating.value = true
   try {
@@ -528,7 +571,6 @@ const closeCreateDialog = () => {
     version: '',
     release_notes: ''
   }
-  releaseForm.value?.reset()
 }
 
 const editRelease = release => {
@@ -541,7 +583,7 @@ const editRelease = release => {
 }
 
 const updateRelease = async () => {
-  if (!formValid.value || !editingRelease.value) return
+  if (!isFormValid.value || !editingRelease.value) return
 
   creating.value = true
   try {
@@ -662,7 +704,7 @@ const publishRelease = async () => {
   }
 }
 
-const viewReleaseDetails = (event, { item }) => {
+const viewReleaseDetails = item => {
   selectedRelease.value = item
   showDetailsDialog.value = true
 }
