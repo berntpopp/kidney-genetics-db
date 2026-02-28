@@ -1,338 +1,333 @@
 <template>
-  <v-container>
-    <!-- Page Header with Breadcrumbs -->
-    <div class="mb-6">
-      <!-- Breadcrumbs -->
-      <v-breadcrumbs :items="breadcrumbs" density="compact" class="pa-0 mb-2">
-        <template #divider>
-          <ChevronRight class="size-4" />
-        </template>
-      </v-breadcrumbs>
+  <div class="container mx-auto px-4 py-6">
+    <!-- Breadcrumb -->
+    <Breadcrumb class="mb-2">
+      <BreadcrumbList>
+        <BreadcrumbItem v-for="(crumb, index) in breadcrumbs" :key="index">
+          <BreadcrumbLink v-if="!crumb.disabled && crumb.to" as-child>
+            <RouterLink :to="crumb.to">{{ crumb.title }}</RouterLink>
+          </BreadcrumbLink>
+          <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
+          <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
+        </BreadcrumbItem>
+      </BreadcrumbList>
+    </Breadcrumb>
 
-      <!-- Header -->
-      <div class="d-flex align-center">
-        <CircleUser class="size-6 text-primary mr-3" />
-        <div class="flex-grow-1">
-          <h1 class="text-h4 font-weight-bold">User Profile</h1>
-          <p class="text-body-2 text-medium-emphasis ma-0">Manage your account settings</p>
-        </div>
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-6">
+      <CircleUser class="size-6 text-primary" />
+      <div>
+        <h1 class="text-2xl font-bold">User Profile</h1>
+        <p class="text-sm text-muted-foreground">Manage your account settings</p>
       </div>
     </div>
 
-    <v-row>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <!-- Left Column - User Info -->
-      <v-col cols="12" md="4">
-        <v-card>
-          <v-card-text class="text-center pt-6">
-            <!-- Avatar -->
-            <v-avatar size="96" color="primary" class="mb-4">
-              <User class="size-12" />
-            </v-avatar>
+      <div class="md:col-span-1 space-y-4">
+        <Card>
+          <CardContent class="pt-6">
+            <div class="flex flex-col items-center text-center">
+              <Avatar class="h-24 w-24 mb-4">
+                <AvatarFallback class="text-2xl bg-primary text-primary-foreground">
+                  <User class="size-12" />
+                </AvatarFallback>
+              </Avatar>
 
-            <!-- User Info -->
-            <h2 class="text-h5 font-weight-medium mb-1">{{ authStore.user?.username }}</h2>
-            <p class="text-body-2 text-medium-emphasis mb-3">{{ authStore.user?.email }}</p>
+              <h2 class="text-xl font-medium mb-1">{{ authStore.user?.username }}</h2>
+              <p class="text-sm text-muted-foreground mb-3">{{ authStore.user?.email }}</p>
 
-            <!-- Role Badge -->
-            <v-chip :color="roleColor" label class="mb-4">
-              {{ authStore.userRole }}
-            </v-chip>
+              <Badge :variant="roleColor === 'error' ? 'destructive' : 'secondary'" class="mb-4">
+                {{ authStore.userRole }}
+              </Badge>
 
-            <!-- User Stats -->
-            <v-divider class="my-4" />
-            <div class="text-left">
-              <div class="d-flex justify-space-between mb-2">
-                <span class="text-body-2 text-medium-emphasis">Member Since</span>
-                <span class="text-body-2">{{ formatDate(authStore.user?.created_at) }}</span>
-              </div>
-              <div class="d-flex justify-space-between mb-2">
-                <span class="text-body-2 text-medium-emphasis">Last Login</span>
-                <span class="text-body-2">{{ formatDate(authStore.user?.last_login) }}</span>
-              </div>
-              <div v-if="authStore.user?.is_active" class="d-flex justify-space-between">
-                <span class="text-body-2 text-medium-emphasis">Status</span>
-                <v-chip color="success" size="x-small" label>Active</v-chip>
+              <Separator class="my-4" />
+
+              <div class="w-full text-left space-y-2">
+                <div class="flex justify-between text-sm">
+                  <span class="text-muted-foreground">Member Since</span>
+                  <span>{{ formatDate(authStore.user?.created_at) }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-muted-foreground">Last Login</span>
+                  <span>{{ formatDate(authStore.user?.last_login) }}</span>
+                </div>
+                <div v-if="authStore.user?.is_active" class="flex justify-between text-sm">
+                  <span class="text-muted-foreground">Status</span>
+                  <Badge
+                    variant="secondary"
+                    class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                  >
+                    Active
+                  </Badge>
+                </div>
               </div>
             </div>
-          </v-card-text>
-        </v-card>
+          </CardContent>
+        </Card>
 
         <!-- Quick Actions -->
-        <v-card v-if="authStore.isAdmin" class="mt-4">
-          <v-card-title class="text-h6">Admin Actions</v-card-title>
-          <v-list density="compact">
-            <v-list-item :to="'/admin'" prepend-icon="mdi-shield-crown">
-              <v-list-item-title>Admin Panel</v-list-item-title>
-            </v-list-item>
-            <v-list-item :to="'/admin/users'" prepend-icon="mdi-account-group">
-              <v-list-item-title>Manage Users</v-list-item-title>
-            </v-list-item>
-          </v-list>
-        </v-card>
-      </v-col>
+        <Card v-if="authStore.isAdmin">
+          <CardHeader class="pb-2">
+            <CardTitle class="text-lg">Admin Actions</CardTitle>
+          </CardHeader>
+          <CardContent class="space-y-1">
+            <RouterLink
+              to="/admin"
+              class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+            >
+              <ShieldCheck :size="16" />
+              Admin Panel
+            </RouterLink>
+            <RouterLink
+              to="/admin/users"
+              class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+            >
+              <Users :size="16" />
+              Manage Users
+            </RouterLink>
+          </CardContent>
+        </Card>
+      </div>
 
       <!-- Right Column - Settings -->
-      <v-col cols="12" md="8">
+      <div class="md:col-span-2 space-y-4">
         <!-- Account Information -->
-        <v-card class="mb-4">
-          <v-card-title>
-            <UserCog class="size-5 mr-2" />
-            Account Information
-          </v-card-title>
-          <v-card-text>
-            <v-form ref="accountForm" v-model="accountFormValid">
-              <v-row>
-                <v-col cols="12" md="6">
-                  <v-text-field
+        <Card>
+          <CardHeader>
+            <CardTitle class="flex items-center gap-2">
+              <UserCog class="size-5" />
+              Account Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form @submit.prevent="saveAccount">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="space-y-2">
+                  <Label for="username">Username</Label>
+                  <Input
+                    id="username"
                     v-model="accountData.username"
-                    label="Username"
-                    density="compact"
-                    variant="outlined"
                     :disabled="!editingAccount"
-                    :rules="editingAccount ? [rules.required] : []"
+                    placeholder="Username"
                   />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field
+                </div>
+                <div class="space-y-2">
+                  <Label for="email">Email</Label>
+                  <Input
+                    id="email"
                     v-model="accountData.email"
-                    label="Email"
-                    density="compact"
-                    variant="outlined"
+                    type="email"
                     :disabled="!editingAccount"
-                    :rules="editingAccount ? [rules.required, rules.email] : []"
+                    placeholder="Email"
                   />
-                </v-col>
-                <v-col cols="12">
-                  <v-text-field
+                </div>
+                <div class="space-y-2 md:col-span-2">
+                  <Label for="full_name">Full Name</Label>
+                  <Input
+                    id="full_name"
                     v-model="accountData.full_name"
-                    label="Full Name"
-                    density="compact"
-                    variant="outlined"
                     :disabled="!editingAccount"
+                    placeholder="Full Name"
                   />
-                </v-col>
-              </v-row>
+                </div>
+              </div>
 
-              <v-alert
+              <Alert
                 v-if="accountSuccess"
-                type="success"
-                density="compact"
-                variant="tonal"
-                class="mb-4"
+                class="mb-4 border-green-500 bg-green-50 dark:bg-green-950"
               >
-                {{ accountSuccess }}
-              </v-alert>
+                <AlertDescription>{{ accountSuccess }}</AlertDescription>
+              </Alert>
+              <Alert v-if="accountError" variant="destructive" class="mb-4">
+                <AlertDescription>{{ accountError }}</AlertDescription>
+              </Alert>
 
-              <v-alert
-                v-if="accountError"
-                type="error"
-                density="compact"
-                variant="tonal"
-                closable
-                class="mb-4"
-                @click:close="accountError = ''"
-              >
-                {{ accountError }}
-              </v-alert>
-
-              <div class="d-flex justify-end ga-2">
-                <v-btn v-if="!editingAccount" variant="outlined" @click="startEditAccount">
+              <div class="flex justify-end gap-2">
+                <Button v-if="!editingAccount" variant="outline" @click="startEditAccount">
                   Edit
-                </v-btn>
+                </Button>
                 <template v-else>
-                  <v-btn variant="text" @click="cancelEditAccount"> Cancel </v-btn>
-                  <v-btn
-                    color="primary"
-                    variant="flat"
-                    :loading="accountLoading"
-                    :disabled="!accountFormValid"
-                    @click="saveAccount"
-                  >
-                    Save Changes
-                  </v-btn>
+                  <Button variant="ghost" @click="cancelEditAccount">Cancel</Button>
+                  <Button type="submit" :disabled="accountLoading">
+                    {{ accountLoading ? 'Saving...' : 'Save Changes' }}
+                  </Button>
                 </template>
               </div>
-            </v-form>
-          </v-card-text>
-        </v-card>
+            </form>
+          </CardContent>
+        </Card>
 
         <!-- Change Password -->
-        <v-card class="mb-4">
-          <v-card-title>
-            <KeyRound class="size-5 mr-2" />
-            Change Password
-          </v-card-title>
-          <v-card-text>
-            <v-form ref="passwordForm" v-model="passwordFormValid">
-              <v-row>
-                <v-col cols="12">
-                  <v-text-field
+        <Card>
+          <CardHeader>
+            <CardTitle class="flex items-center gap-2">
+              <KeyRound class="size-5" />
+              Change Password
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form @submit.prevent="changePassword">
+              <div class="space-y-4 mb-4">
+                <div class="space-y-2">
+                  <Label for="current-password">Current Password</Label>
+                  <Input
+                    id="current-password"
                     v-model="passwordData.currentPassword"
-                    label="Current Password"
                     type="password"
-                    density="compact"
-                    variant="outlined"
-                    :rules="[rules.required]"
+                    placeholder="Current password"
                   />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field
-                    v-model="passwordData.newPassword"
-                    label="New Password"
-                    :type="showNewPassword ? 'text' : 'password'"
-                    density="compact"
-                    variant="outlined"
-                    :append-inner-icon="showNewPassword ? 'mdi-eye' : 'mdi-eye-off'"
-                    :rules="[rules.required, rules.minLength, rules.complexity]"
-                    @click:append-inner="showNewPassword = !showNewPassword"
-                  />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field
-                    v-model="passwordData.confirmPassword"
-                    label="Confirm New Password"
-                    type="password"
-                    density="compact"
-                    variant="outlined"
-                    :rules="[rules.required, rules.passwordMatch]"
-                  />
-                </v-col>
-              </v-row>
-
-              <v-alert
-                v-if="passwordSuccess"
-                type="success"
-                density="compact"
-                variant="tonal"
-                class="mb-4"
-              >
-                {{ passwordSuccess }}
-              </v-alert>
-
-              <v-alert
-                v-if="passwordError"
-                type="error"
-                density="compact"
-                variant="tonal"
-                closable
-                class="mb-4"
-                @click:close="passwordError = ''"
-              >
-                {{ passwordError }}
-              </v-alert>
-
-              <div class="d-flex justify-end">
-                <v-btn
-                  color="primary"
-                  variant="flat"
-                  :loading="passwordLoading"
-                  :disabled="!passwordFormValid"
-                  @click="changePassword"
-                >
-                  Change Password
-                </v-btn>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-2">
+                    <Label for="new-password">New Password</Label>
+                    <div class="relative">
+                      <Input
+                        id="new-password"
+                        v-model="passwordData.newPassword"
+                        :type="showNewPassword ? 'text' : 'password'"
+                        placeholder="New password"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        class="absolute right-0 top-0 h-full px-3"
+                        @click="showNewPassword = !showNewPassword"
+                      >
+                        <Eye v-if="!showNewPassword" :size="16" />
+                        <EyeOff v-else :size="16" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="confirm-password">Confirm New Password</Label>
+                    <Input
+                      id="confirm-password"
+                      v-model="passwordData.confirmPassword"
+                      type="password"
+                      placeholder="Confirm password"
+                    />
+                  </div>
+                </div>
               </div>
-            </v-form>
-          </v-card-text>
-        </v-card>
+
+              <Alert
+                v-if="passwordSuccess"
+                class="mb-4 border-green-500 bg-green-50 dark:bg-green-950"
+              >
+                <AlertDescription>{{ passwordSuccess }}</AlertDescription>
+              </Alert>
+              <Alert v-if="passwordError" variant="destructive" class="mb-4">
+                <AlertDescription>{{ passwordError }}</AlertDescription>
+              </Alert>
+
+              <div class="flex justify-end">
+                <Button type="submit" :disabled="passwordLoading">
+                  {{ passwordLoading ? 'Changing...' : 'Change Password' }}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
 
         <!-- Preferences -->
-        <v-card>
-          <v-card-title>
-            <Cog class="size-5 mr-2" />
-            Preferences
-          </v-card-title>
-          <v-card-text>
-            <v-switch
-              v-model="preferences.emailNotifications"
-              label="Email Notifications"
-              density="compact"
-              color="primary"
-              hide-details
-              class="mb-3"
-            />
-            <v-switch
-              v-model="preferences.twoFactorAuth"
-              label="Two-Factor Authentication"
-              density="compact"
-              color="primary"
-              hide-details
-              disabled
-            />
-            <p class="text-caption text-medium-emphasis mt-1">
-              Two-factor authentication coming soon
-            </p>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+        <Card>
+          <CardHeader>
+            <CardTitle class="flex items-center gap-2">
+              <Cog class="size-5" />
+              Preferences
+            </CardTitle>
+          </CardHeader>
+          <CardContent class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <Label>Email Notifications</Label>
+                <p class="text-xs text-muted-foreground">Receive email notifications</p>
+              </div>
+              <Switch v-model:checked="preferences.emailNotifications" />
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <Label class="text-muted-foreground">Two-Factor Authentication</Label>
+                <p class="text-xs text-muted-foreground">Coming soon</p>
+              </div>
+              <Switch :checked="preferences.twoFactorAuth" disabled />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  </div>
 </template>
 
-<script setup>
-import { ChevronRight, CircleUser, User, UserCog, KeyRound, Cog } from 'lucide-vue-next'
+<script setup lang="ts">
+import { RouterLink } from 'vue-router'
+import {
+  CircleUser,
+  User,
+  UserCog,
+  KeyRound,
+  Cog,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  Users
+} from 'lucide-vue-next'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator
+} from '@/components/ui/breadcrumb'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const authStore = useAuthStore()
 const router = useRouter()
 
-// Breadcrumbs
 const breadcrumbs = [
-  {
-    title: 'Home',
-    to: '/',
-    disabled: false
-  },
-  {
-    title: 'Profile',
-    disabled: true
-  }
+  { title: 'Home', to: '/', disabled: false },
+  { title: 'Profile', disabled: true }
 ]
 
-// Check authentication
 onMounted(() => {
   if (!authStore.isAuthenticated) {
     router.push('/login?redirect=/profile')
   }
+  if (authStore.user) {
+    accountData.username = authStore.user.username || ''
+    accountData.email = authStore.user.email || ''
+    accountData.full_name = (authStore.user as Record<string, string>).full_name || ''
+  }
 })
 
-// Form refs
-const accountForm = ref(null)
-const passwordForm = ref(null)
-
-// Account data
 const editingAccount = ref(false)
-const accountFormValid = ref(false)
 const accountLoading = ref(false)
 const accountSuccess = ref('')
 const accountError = ref('')
-const accountData = reactive({
-  username: '',
-  email: '',
-  full_name: ''
-})
+const accountData = reactive({ username: '', email: '', full_name: '' })
 
-// Password data
-const passwordFormValid = ref(false)
 const passwordLoading = ref(false)
 const passwordSuccess = ref('')
 const passwordError = ref('')
 const showNewPassword = ref(false)
-const passwordData = reactive({
-  currentPassword: '',
-  newPassword: '',
-  confirmPassword: ''
-})
+const passwordData = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
 
-// Preferences
-const preferences = reactive({
-  emailNotifications: true,
-  twoFactorAuth: false
-})
+const preferences = reactive({ emailNotifications: true, twoFactorAuth: false })
 
-// Computed
 const roleColor = computed(() => {
   switch (authStore.userRole) {
     case 'admin':
@@ -344,43 +339,16 @@ const roleColor = computed(() => {
   }
 })
 
-// Validation rules
-const rules = {
-  required: value => !!value || 'Required',
-  email: value => {
-    const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return pattern.test(value) || 'Invalid email address'
-  },
-  minLength: value => value.length >= 8 || 'Minimum 8 characters',
-  complexity: value => {
-    const hasUpper = /[A-Z]/.test(value)
-    const hasLower = /[a-z]/.test(value)
-    const hasNumber = /[0-9]/.test(value)
-    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(value)
-
-    return (
-      (hasUpper && hasLower && hasNumber && hasSpecial) ||
-      'Password must contain uppercase, lowercase, number, and special character'
-    )
-  },
-  passwordMatch: value => value === passwordData.newPassword || 'Passwords must match'
-}
-
-// Methods
-const formatDate = dateString => {
+const formatDate = (dateString: string | undefined | null) => {
   if (!dateString) return 'Never'
   const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 const startEditAccount = () => {
   accountData.username = authStore.user?.username || ''
   accountData.email = authStore.user?.email || ''
-  accountData.full_name = authStore.user?.full_name || ''
+  accountData.full_name = (authStore.user as Record<string, string>)?.full_name || ''
   editingAccount.value = true
   accountSuccess.value = ''
   accountError.value = ''
@@ -388,11 +356,17 @@ const startEditAccount = () => {
 
 const cancelEditAccount = () => {
   editingAccount.value = false
-  accountForm.value?.reset()
 }
 
 const saveAccount = async () => {
-  if (!accountFormValid.value) return
+  if (!accountData.username) {
+    accountError.value = 'Username is required'
+    return
+  }
+  if (!accountData.email || !accountData.email.includes('@')) {
+    accountError.value = 'Valid email is required'
+    return
+  }
 
   accountLoading.value = true
   accountError.value = ''
@@ -400,28 +374,32 @@ const saveAccount = async () => {
 
   try {
     // TODO: Implement API call to update user profile
-    // await authStore.updateProfile(accountData)
-
-    // Simulated success
     await new Promise(resolve => setTimeout(resolve, 1000))
 
     accountSuccess.value = 'Profile updated successfully!'
     editingAccount.value = false
 
-    // Update local user data
-    authStore.user = {
-      ...authStore.user,
-      ...accountData
-    }
+    authStore.user = { ...authStore.user, ...accountData } as typeof authStore.user
   } catch (error) {
-    accountError.value = error.message || 'Failed to update profile'
+    accountError.value = (error as Error).message || 'Failed to update profile'
   } finally {
     accountLoading.value = false
   }
 }
 
 const changePassword = async () => {
-  if (!passwordFormValid.value) return
+  if (!passwordData.currentPassword || !passwordData.newPassword) {
+    passwordError.value = 'All password fields are required'
+    return
+  }
+  if (passwordData.newPassword !== passwordData.confirmPassword) {
+    passwordError.value = 'Passwords do not match'
+    return
+  }
+  if (passwordData.newPassword.length < 8) {
+    passwordError.value = 'Password must be at least 8 characters'
+    return
+  }
 
   passwordLoading.value = true
   passwordError.value = ''
@@ -434,7 +412,6 @@ const changePassword = async () => {
 
   if (success) {
     passwordSuccess.value = 'Password changed successfully!'
-    passwordForm.value?.reset()
     passwordData.currentPassword = ''
     passwordData.newPassword = ''
     passwordData.confirmPassword = ''
@@ -444,13 +421,4 @@ const changePassword = async () => {
 
   passwordLoading.value = false
 }
-
-// Initialize account data
-onMounted(() => {
-  if (authStore.user) {
-    accountData.username = authStore.user.username || ''
-    accountData.email = authStore.user.email || ''
-    accountData.full_name = authStore.user.full_name || ''
-  }
-})
 </script>
