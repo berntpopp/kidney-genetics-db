@@ -74,9 +74,9 @@ Plans:
 **Plans:** 3 plans in 3 waves (sequential — dependency-ordered by import tiers)
 
 Plans:
-- [ ] 02-01-PLAN.md — Evidence/log types, env.d.ts Window augmentations, all utilities, config files, vuetify plugin (TSML-05)
-- [ ] 02-02-PLAN.md — API client, all 12 API modules, logService, websocket service, API tests (TSML-03, TSML-07, TEST-05)
-- [ ] 02-03-PLAN.md — Both stores, router, main.ts, all composables, store/composable tests, vue-tsc verification (TSML-01, TSML-02, TSML-04, TSML-06, TSML-08, TEST-04)
+- [x] 02-01-PLAN.md — Evidence/log types, env.d.ts Window augmentations, all utilities, config files, vuetify plugin (TSML-05)
+- [x] 02-02-PLAN.md — API client, all 12 API modules, logService, websocket service, API tests (TSML-03, TSML-07, TEST-05)
+- [x] 02-03-PLAN.md — Both stores, router, main.ts, all composables, store/composable tests, vue-tsc verification (TSML-01, TSML-02, TSML-04, TSML-06, TSML-08, TEST-04)
 
 ---
 
@@ -276,7 +276,7 @@ Plans:
 | Phase | Goal | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
 | 1. Foundation Setup | Install TypeScript, Tailwind v4, shadcn-vue, Vitest; icon audit | 3 plans | ✓ Complete | 2026-02-28 |
-| 2. TypeScript Migration | Migrate stores, API modules, composables, utils to TS | 3 plans | Not started | - |
+| 2. TypeScript Migration | Migrate stores, API modules, composables, utils to TS | 3 plans | ✓ Complete | 2026-02-28 |
 | 3. App Shell + Navigation + Auth + Icons | Migrate app skeleton, auth, toast, all icons | TBD | Not started | - |
 | 4. Simple Public Pages | Migrate Home, About, DataSources, Profile, Dashboard | TBD | Not started | - |
 | 5. Gene Detail + Evidence | Migrate GeneDetail and 16 domain components | TBD | Not started | - |

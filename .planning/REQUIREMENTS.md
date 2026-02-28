@@ -22,14 +22,14 @@ Requirements for milestone v0.2.0 — Frontend Migration. Each maps to roadmap p
 
 ### TypeScript Migration (TSML)
 
-- [ ] **TSML-01**: main.js migrated to main.ts with typed app creation and plugin registration
-- [ ] **TSML-02**: Both Pinia stores (auth, logStore) migrated to TypeScript with typed state, getters, and actions
-- [ ] **TSML-03**: All 12 API modules migrated to TypeScript with typed request/response interfaces
-- [ ] **TSML-04**: All 6 composables migrated to TypeScript with typed return values
-- [ ] **TSML-05**: All 11 utility files migrated to TypeScript
-- [ ] **TSML-06**: Router migrated to TypeScript with typed route meta fields and navigation guards
-- [ ] **TSML-07**: WebSocket and logging services migrated to TypeScript
-- [ ] **TSML-08**: vue-tsc type checking passes with zero errors
+- [x] **TSML-01**: main.js migrated to main.ts with typed app creation and plugin registration
+- [x] **TSML-02**: Both Pinia stores (auth, logStore) migrated to TypeScript with typed state, getters, and actions
+- [x] **TSML-03**: All 12 API modules migrated to TypeScript with typed request/response interfaces
+- [x] **TSML-04**: All 6 composables migrated to TypeScript with typed return values
+- [x] **TSML-05**: All 11 utility files migrated to TypeScript
+- [x] **TSML-06**: Router migrated to TypeScript with typed route meta fields and navigation guards
+- [x] **TSML-07**: WebSocket and logging services migrated to TypeScript
+- [x] **TSML-08**: vue-tsc type checking passes with zero errors
 
 ### Layout & Navigation (LNAV)
 
@@ -132,8 +132,8 @@ Requirements for milestone v0.2.0 — Frontend Migration. Each maps to roadmap p
 - [x] **TEST-01**: Vitest configured with Vue Test Utils and happy-dom/jsdom
 - [ ] **TEST-02**: Component tests written for all migrated shadcn-vue UI wrapper components
 - [ ] **TEST-03**: Component tests written for key domain components (GeneTable, EvidenceCard, LoginModal)
-- [ ] **TEST-04**: Composable tests written for all 6 migrated composables
-- [ ] **TEST-05**: API module tests written for typed API client and interceptors
+- [x] **TEST-04**: Composable tests written for all 6 migrated composables
+- [x] **TEST-05**: API module tests written for typed API client and interceptors
 - [ ] **TEST-06**: All Vitest tests pass in CI pipeline
 
 ## v2 Requirements
@@ -186,16 +186,16 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | FNDN-09 | Phase 1 | Complete |
 | FNDN-10 | Phase 1 | Complete |
 | TEST-01 | Phase 1 | Complete |
-| TSML-01 | Phase 2 | Pending |
-| TSML-02 | Phase 2 | Pending |
-| TSML-03 | Phase 2 | Pending |
-| TSML-04 | Phase 2 | Pending |
-| TSML-05 | Phase 2 | Pending |
-| TSML-06 | Phase 2 | Pending |
-| TSML-07 | Phase 2 | Pending |
-| TSML-08 | Phase 2 | Pending |
-| TEST-04 | Phase 2 | Pending |
-| TEST-05 | Phase 2 | Pending |
+| TSML-01 | Phase 2 | Complete |
+| TSML-02 | Phase 2 | Complete |
+| TSML-03 | Phase 2 | Complete |
+| TSML-04 | Phase 2 | Complete |
+| TSML-05 | Phase 2 | Complete |
+| TSML-06 | Phase 2 | Complete |
+| TSML-07 | Phase 2 | Complete |
+| TSML-08 | Phase 2 | Complete |
+| TEST-04 | Phase 2 | Complete |
+| TEST-05 | Phase 2 | Complete |
 | LNAV-01 | Phase 3 | Pending |
 | LNAV-02 | Phase 3 | Pending |
 | LNAV-03 | Phase 3 | Pending |
@@ -275,4 +275,4 @@ Deferred to future milestones. Tracked but not in current roadmap.
 
 ---
 *Requirements defined: 2026-02-28*
-*Last updated: 2026-02-28 — Phase 1 requirements marked Complete*
+*Last updated: 2026-02-28 — Phase 2 requirements marked Complete*
