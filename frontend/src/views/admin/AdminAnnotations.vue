@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <div class="container mx-auto px-4 py-6">
     <AdminHeader
       title="Annotations Management"
       subtitle="Control gene annotation pipeline and manage enrichment data sources"
@@ -8,533 +8,537 @@
       :breadcrumbs="ADMIN_BREADCRUMBS.annotations"
     >
       <template #actions>
-        <v-btn
-          color="primary"
-          variant="elevated"
-          prepend-icon="mdi-refresh"
-          :loading="loading"
-          @click="loadData"
-        >
+        <Button :disabled="loading" @click="loadData">
+          <RefreshCw class="size-4 mr-2" :class="{ 'animate-spin': loading }" />
           Refresh
-        </v-btn>
+        </Button>
       </template>
     </AdminHeader>
 
     <!-- Process Explanation -->
-    <v-alert type="info" variant="tonal" class="mb-6" prominent>
-      <template #prepend>
-        <Info class="size-5" />
-      </template>
-      <div class="text-body-1">
+    <Alert class="mb-6">
+      <Info class="size-4" />
+      <AlertDescription>
         <strong>Annotation System:</strong> This pipeline enriches our curated genes with additional
         data from external sources like gnomAD (constraint scores), GTEx (tissue expression), HGNC
         (official symbols), ClinVar (clinical variants), and others. This data helps researchers
         understand gene function and disease relevance.
-      </div>
-    </v-alert>
+      </AlertDescription>
+    </Alert>
 
     <!-- Statistics Overview -->
-    <v-row class="mb-6">
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Annotated Genes"
-          :value="statistics.total_genes_with_annotations"
-          :loading="statsLoading"
-          icon="mdi-dna"
-          color="primary"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Data Sources"
-          :value="annotationSources.length"
-          :loading="statsLoading"
-          icon="mdi-database"
-          color="info"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Scheduled Jobs"
-          :value="activeJobs"
-          :loading="statsLoading"
-          icon="mdi-clock-time-four"
-          color="warning"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Full Coverage"
-          :value="statistics.genes_with_both_sources"
-          :loading="statsLoading"
-          icon="mdi-check-all"
-          color="success"
-        />
-      </v-col>
-    </v-row>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <AdminStatsCard
+        title="Annotated Genes"
+        :value="statistics.total_genes_with_annotations"
+        :loading="statsLoading"
+        icon="mdi-dna"
+        color="primary"
+      />
+      <AdminStatsCard
+        title="Data Sources"
+        :value="annotationSources.length"
+        :loading="statsLoading"
+        icon="mdi-database"
+        color="info"
+      />
+      <AdminStatsCard
+        title="Scheduled Jobs"
+        :value="activeJobs"
+        :loading="statsLoading"
+        icon="mdi-clock-time-four"
+        color="warning"
+      />
+      <AdminStatsCard
+        title="Full Coverage"
+        :value="statistics.genes_with_both_sources"
+        :loading="statsLoading"
+        icon="mdi-check-all"
+        color="success"
+      />
+    </div>
 
     <!-- Pipeline Management -->
-    <v-card class="mb-6">
-      <v-card-title class="d-flex align-center">
-        <Workflow class="size-5 mr-2" />
-        Annotation Pipeline Control
-      </v-card-title>
-      <v-card-text>
-        <div class="text-body-2 text-medium-emphasis mb-4">
+    <Card class="mb-6">
+      <CardHeader>
+        <CardTitle class="flex items-center">
+          <Workflow class="size-5 mr-2" />
+          Annotation Pipeline Control
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p class="text-sm text-muted-foreground mb-4">
           The annotation pipeline enriches genes with data from external sources. Run updates to
           pull the latest information from gnomAD, GTEx, ClinVar, and other databases.
-        </div>
+        </p>
 
-        <v-row>
-          <v-col cols="12" md="6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
             <div class="mb-4">
-              <strong>Pipeline Status:</strong>
-              <v-chip
-                :color="pipelineStatus.pipeline_ready ? 'success' : 'error'"
-                size="small"
+              <span class="font-semibold">Pipeline Status:</span>
+              <Badge
+                :variant="pipelineStatus.pipeline_ready ? 'default' : 'destructive'"
                 class="ml-2"
               >
                 {{ pipelineStatus.pipeline_ready ? 'All Sources Ready' : 'Issues Detected' }}
-              </v-chip>
+              </Badge>
             </div>
 
             <div
               v-if="pipelineStatus.updates_due && pipelineStatus.updates_due.length > 0"
               class="mb-4"
             >
-              <strong>Sources Needing Updates:</strong>
-              <div class="d-flex flex-wrap ga-1 mt-1">
-                <v-chip
+              <span class="font-semibold">Sources Needing Updates:</span>
+              <div class="flex flex-wrap gap-1 mt-1">
+                <Badge
                   v-for="source in pipelineStatus.updates_due"
                   :key="source"
-                  size="small"
-                  color="warning"
-                  variant="tonal"
+                  variant="outline"
+                  class="bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300"
                 >
                   {{ source }}
-                </v-chip>
+                </Badge>
               </div>
             </div>
 
             <div v-else class="mb-4">
               <CircleCheck class="size-4 text-green-600 dark:text-green-400 mr-1 inline-block" />
-              <span class="text-body-2 text-medium-emphasis">All sources are up to date</span>
+              <span class="text-sm text-muted-foreground">All sources are up to date</span>
             </div>
-          </v-col>
-          <v-col cols="12" md="6">
-            <v-select
-              v-model="pipelineForm.strategy"
-              label="Update Strategy"
-              :items="strategyOptions"
-              density="compact"
-              variant="outlined"
-              hint="Incremental = update stale/missing data only | Full = update all genes | Selective = update selected sources only | Forced = full update ignoring cache"
-              persistent-hint
-              class="mb-3"
-            />
-            <v-switch
-              v-model="pipelineForm.force"
-              label="Force update (ignore cache TTL)"
-              density="compact"
-              color="warning"
-              hint="Bypass cache timeouts - use for urgent updates"
-              persistent-hint
-            />
-          </v-col>
-        </v-row>
+          </div>
+          <div class="space-y-4">
+            <div class="space-y-2">
+              <Label>Update Strategy</Label>
+              <Select v-model="pipelineForm.strategy">
+                <SelectTrigger>
+                  <SelectValue placeholder="Select strategy" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="option in strategyOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.title }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p class="text-xs text-muted-foreground">
+                Incremental = update stale/missing data only | Full = update all genes | Selective =
+                update selected sources only | Forced = full update ignoring cache
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <Switch :checked="pipelineForm.force" @update:checked="pipelineForm.force = $event" />
+              <Label>Force update (ignore cache TTL)</Label>
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Bypass cache timeouts - use for urgent updates
+            </p>
+          </div>
+        </div>
 
         <!-- Source Selection for SELECTIVE Strategy -->
-        <v-expand-transition>
-          <v-row v-if="pipelineForm.strategy === 'selective'" class="mt-4">
-            <v-col cols="12">
-              <v-card variant="outlined" color="primary">
-                <v-card-text>
-                  <div class="d-flex align-center mb-3">
+        <Collapsible :open="pipelineForm.strategy === 'selective'">
+          <CollapsibleContent>
+            <Card class="mt-4 border-primary">
+              <CardContent class="pt-4">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center">
                     <DatabaseZap class="size-4 text-primary mr-2 inline-block" />
-                    <span class="text-subtitle-2 font-weight-medium">Select Sources to Update</span>
-                    <v-spacer />
-                    <v-btn
-                      variant="text"
-                      size="x-small"
+                    <span class="text-sm font-medium">Select Sources to Update</span>
+                  </div>
+                  <div class="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       @click="pipelineForm.sources = sourceFilterOptions.map(s => s.value)"
                     >
                       Select All
-                    </v-btn>
-                    <v-btn variant="text" size="x-small" @click="pipelineForm.sources = []">
+                    </Button>
+                    <Button variant="ghost" size="sm" @click="pipelineForm.sources = []">
                       Clear All
-                    </v-btn>
+                    </Button>
                   </div>
-                  <v-chip-group
-                    v-model="pipelineForm.sources"
-                    column
-                    multiple
-                    filter
-                    variant="outlined"
-                    selected-class="text-primary"
+                </div>
+                <div class="flex flex-wrap gap-2 p-3 rounded-md border">
+                  <Badge
+                    v-for="source in sourceFilterOptions"
+                    :key="source.value"
+                    :variant="pipelineForm.sources.includes(source.value) ? 'default' : 'outline'"
+                    class="cursor-pointer"
+                    @click="toggleSource(source.value)"
                   >
-                    <v-chip
-                      v-for="source in sourceFilterOptions"
-                      :key="source.value"
-                      :value="source.value"
-                      size="small"
-                      label
-                    >
-                      <CircleCheck
-                        v-if="pipelineForm.sources.includes(source.value)"
-                        class="size-3 mr-1"
-                      />
-                      {{ source.title }}
-                    </v-chip>
-                  </v-chip-group>
-                  <div
-                    v-if="pipelineForm.sources.length === 0"
-                    class="text-warning text-caption mt-2"
-                  >
-                    <AlertTriangle class="size-3 mr-1 inline-block" />
-                    Please select at least one source to update
-                  </div>
-                </v-card-text>
-              </v-card>
-            </v-col>
-          </v-row>
-        </v-expand-transition>
+                    <CircleCheck
+                      v-if="pipelineForm.sources.includes(source.value)"
+                      class="size-3 mr-1"
+                    />
+                    {{ source.title }}
+                  </Badge>
+                </div>
+                <div
+                  v-if="pipelineForm.sources.length === 0"
+                  class="text-yellow-600 dark:text-yellow-400 text-xs mt-2"
+                >
+                  <AlertTriangle class="size-3 mr-1 inline-block" />
+                  Please select at least one source to update
+                </div>
+              </CardContent>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
 
-        <v-divider class="my-4" />
+        <Separator class="my-4" />
 
         <!-- Main Pipeline Controls -->
-        <div class="d-flex ga-2 flex-wrap mb-3">
-          <v-btn
+        <div class="flex gap-2 flex-wrap mb-3">
+          <Button
             v-if="!pipelineStatus?.status || pipelineStatus?.status !== 'running'"
-            color="primary"
-            variant="elevated"
-            prepend-icon="mdi-rocket-launch"
-            :loading="pipelineLoading"
+            :disabled="pipelineLoading"
             @click="triggerPipelineUpdate"
           >
-            Run Full Update
-          </v-btn>
+            <Rocket class="size-4 mr-2" />
+            {{ pipelineLoading ? 'Running...' : 'Run Full Update' }}
+          </Button>
 
-          <v-btn
+          <Button
             v-else-if="pipelineStatus?.status === 'running'"
-            color="warning"
-            variant="elevated"
-            prepend-icon="mdi-pause"
-            :loading="pauseLoading"
+            variant="outline"
+            class="border-yellow-500 text-yellow-600"
+            :disabled="pauseLoading"
             @click="pauseUpdate"
           >
-            Pause Pipeline
-          </v-btn>
+            <Pause class="size-4 mr-2" />
+            {{ pauseLoading ? 'Pausing...' : 'Pause Pipeline' }}
+          </Button>
 
-          <v-btn
+          <Button
             v-if="pipelineStatus?.status === 'paused'"
-            color="success"
-            variant="elevated"
-            prepend-icon="mdi-play-pause"
-            :loading="resumeLoading"
+            variant="outline"
+            class="border-green-500 text-green-600"
+            :disabled="resumeLoading"
             @click="resumeUpdate"
           >
-            Resume Pipeline
-          </v-btn>
+            <Play class="size-4 mr-2" />
+            {{ resumeLoading ? 'Resuming...' : 'Resume Pipeline' }}
+          </Button>
 
-          <v-btn
-            color="info"
-            variant="tonal"
-            prepend-icon="mdi-check-decagram"
-            :loading="pipelineLoading"
-            @click="validateAnnotations"
-          >
+          <Button variant="secondary" :disabled="pipelineLoading" @click="validateAnnotations">
+            <BadgeCheck class="size-4 mr-2" />
             Validate Data
-          </v-btn>
-          <v-btn
-            color="success"
-            variant="tonal"
-            prepend-icon="mdi-cached"
-            :loading="pipelineLoading"
-            @click="refreshMaterializedView"
-          >
+          </Button>
+          <Button variant="secondary" :disabled="pipelineLoading" @click="refreshMaterializedView">
+            <RefreshCw class="size-4 mr-2" />
             Refresh Cache
-          </v-btn>
+          </Button>
         </div>
 
         <!-- Smart Update Actions -->
-        <div class="d-flex ga-2 flex-wrap">
-          <v-btn
-            color="error"
-            variant="tonal"
-            prepend-icon="mdi-alert-circle"
-            :loading="failedLoading"
-            :disabled="pipelineStatus?.status === 'running'"
-            size="small"
+        <div class="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            class="border-red-300 text-red-600 dark:border-red-700 dark:text-red-400"
+            :disabled="failedLoading || pipelineStatus?.status === 'running'"
             @click="updateFailed"
           >
-            Retry Failed
-          </v-btn>
+            <CircleAlert class="size-4 mr-2" />
+            {{ failedLoading ? 'Retrying...' : 'Retry Failed' }}
+          </Button>
 
-          <v-btn
-            color="info"
-            variant="tonal"
-            prepend-icon="mdi-new-box"
-            :loading="newLoading"
-            :disabled="pipelineStatus?.status === 'running'"
-            size="small"
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="newLoading || pipelineStatus?.status === 'running'"
             @click="updateNew"
           >
-            Update New Genes
-          </v-btn>
+            <SquarePlus class="size-4 mr-2" />
+            {{ newLoading ? 'Updating...' : 'Update New Genes' }}
+          </Button>
         </div>
-      </v-card-text>
-    </v-card>
+      </CardContent>
+    </Card>
 
     <!-- Gene Annotation Lookup -->
-    <v-card class="mb-6">
-      <v-card-title class="d-flex align-center">
-        <FileSearch class="size-5 mr-2" />
-        Test Gene Annotation Lookup
-      </v-card-title>
-      <v-card-text>
-        <p class="text-body-2 text-medium-emphasis mb-4">
+    <Card class="mb-6">
+      <CardHeader>
+        <CardTitle class="flex items-center">
+          <FileSearch class="size-5 mr-2" />
+          Test Gene Annotation Lookup
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p class="text-sm text-muted-foreground mb-4">
           Look up annotations for any gene in the database to verify annotation coverage and data
           quality.
         </p>
 
-        <v-row>
-          <v-col cols="12" md="6">
-            <v-text-field
-              v-model="lookupGeneId"
-              label="Gene Database ID"
-              type="number"
-              density="compact"
-              variant="outlined"
-              placeholder="e.g., 1, 123, 456"
-              hint="Enter the internal database ID for a gene"
-              persistent-hint
-            />
-          </v-col>
-          <v-col cols="12" md="4">
-            <v-select
-              v-model="lookupSource"
-              label="Filter by Source (optional)"
-              :items="sourceFilterOptions"
-              density="compact"
-              variant="outlined"
-              clearable
-              hint="Show annotations from specific source only"
-              persistent-hint
-            />
-          </v-col>
-          <v-col cols="12" md="2">
-            <v-btn
-              color="primary"
-              block
-              :loading="lookupLoading"
-              :disabled="!lookupGeneId"
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div class="md:col-span-6 space-y-2">
+            <Label>Gene Database ID</Label>
+            <Input v-model="lookupGeneId" type="number" placeholder="e.g., 1, 123, 456" />
+            <p class="text-xs text-muted-foreground">Enter the internal database ID for a gene</p>
+          </div>
+          <div class="md:col-span-4 space-y-2">
+            <Label>Filter by Source (optional)</Label>
+            <Select v-model="lookupSource">
+              <SelectTrigger>
+                <SelectValue placeholder="All sources" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All sources</SelectItem>
+                <SelectItem v-for="src in sourceFilterOptions" :key="src.value" :value="src.value">
+                  {{ src.title }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p class="text-xs text-muted-foreground">Show annotations from specific source only</p>
+          </div>
+          <div class="md:col-span-2 flex items-end">
+            <Button
+              class="w-full"
+              :disabled="lookupLoading || !lookupGeneId"
               @click="lookupGeneAnnotations"
             >
-              <Search class="size-5 mr-1" />
+              <Search class="size-4 mr-1" />
               Lookup
-            </v-btn>
-          </v-col>
-        </v-row>
-
-        <v-alert v-if="lookupResult" class="mt-4" variant="tonal" color="info">
-          <div class="mb-3">
-            <Dna class="size-4 text-green-600 dark:text-green-400 mr-1 inline-block" />
-            <strong>Gene:</strong> {{ lookupResult.gene?.symbol }} ({{
-              lookupResult.gene?.hgnc_id
-            }})
+            </Button>
           </div>
+        </div>
 
-          <div class="mb-3">
-            <Database class="size-4 text-blue-600 dark:text-blue-400 mr-1 inline-block" />
-            <strong>Annotation Coverage:</strong>
-            {{ Object.keys(lookupResult.annotations || {}).length }} data sources
-          </div>
-
-          <div v-if="Object.keys(lookupResult.annotations || {}).length > 0">
-            <strong>Available Annotations:</strong>
-            <div class="d-flex flex-wrap ga-1 mt-2">
-              <v-chip
-                v-for="source in Object.keys(lookupResult.annotations || {})"
-                :key="source"
-                size="small"
-                color="primary"
-                variant="tonal"
-              >
-                <Check class="size-3 mr-1 inline-block" />
-                {{ source.toUpperCase() }} ({{ lookupResult.annotations[source].length }} records)
-              </v-chip>
+        <Alert v-if="lookupResult" class="mt-4">
+          <AlertDescription>
+            <div class="mb-3">
+              <Dna class="size-4 text-green-600 dark:text-green-400 mr-1 inline-block" />
+              <strong>Gene:</strong> {{ lookupResult.gene?.symbol }} ({{
+                lookupResult.gene?.hgnc_id
+              }})
             </div>
-          </div>
 
-          <div v-else class="mt-2">
-            <AlertTriangle class="size-4 text-yellow-600 dark:text-yellow-400 mr-1 inline-block" />
-            <span class="text-body-2">No annotations found for this gene</span>
-          </div>
-        </v-alert>
-      </v-card-text>
-    </v-card>
+            <div class="mb-3">
+              <Database class="size-4 text-blue-600 dark:text-blue-400 mr-1 inline-block" />
+              <strong>Annotation Coverage:</strong>
+              {{ Object.keys(lookupResult.annotations || {}).length }} data sources
+            </div>
+
+            <div v-if="Object.keys(lookupResult.annotations || {}).length > 0">
+              <strong>Available Annotations:</strong>
+              <div class="flex flex-wrap gap-1 mt-2">
+                <Badge
+                  v-for="source in Object.keys(lookupResult.annotations || {})"
+                  :key="source"
+                  variant="secondary"
+                >
+                  <Check class="size-3 mr-1 inline-block" />
+                  {{ source.toUpperCase() }} ({{ lookupResult.annotations[source].length }} records)
+                </Badge>
+              </div>
+            </div>
+
+            <div v-else class="mt-2">
+              <AlertTriangle
+                class="size-4 text-yellow-600 dark:text-yellow-400 mr-1 inline-block"
+              />
+              <span class="text-sm">No annotations found for this gene</span>
+            </div>
+          </AlertDescription>
+        </Alert>
+      </CardContent>
+    </Card>
 
     <!-- Annotation Sources -->
-    <v-card class="mb-6">
-      <v-card-title class="d-flex align-center justify-space-between">
-        <div class="d-flex align-center">
+    <Card class="mb-6">
+      <CardHeader>
+        <CardTitle class="flex items-center">
           <RefreshCw class="size-5 mr-2" />
           Annotation Sources ({{ annotationSources.length }})
-        </div>
-      </v-card-title>
-
-      <v-data-table
-        :headers="sourcesHeaders"
-        :items="annotationSources"
-        :loading="loading"
-        density="compact"
-        class="elevation-0"
-      >
-        <template #item.source_name="{ item }">
-          <div class="d-flex align-center">
-            <component
-              :is="item.is_active ? CircleCheck : CircleX"
-              class="size-4 mr-2"
-              :class="item.is_active ? 'text-green-600 dark:text-green-400' : 'text-destructive'"
-            />
-            <strong>{{ item.display_name || item.source_name }}</strong>
-          </div>
-        </template>
-
-        <template #item.description="{ item }">
-          <span class="text-caption">{{ item.description || 'No description' }}</span>
-        </template>
-
-        <template #item.last_update="{ item }">
-          <span class="text-caption">
-            {{ item.last_update ? formatDate(item.last_update) : 'Never' }}
-          </span>
-        </template>
-
-        <template #item.next_update="{ item }">
-          <span class="text-caption">
-            {{ item.next_update ? formatDate(item.next_update) : 'Not scheduled' }}
-          </span>
-        </template>
-
-        <template #item.update_frequency="{ item }">
-          <v-chip size="small" variant="outlined">
-            {{ item.update_frequency || 'Manual' }}
-          </v-chip>
-        </template>
-
-        <template #item.actions="{ item }">
-          <div class="d-flex ga-1">
-            <v-btn
-              icon="mdi-play"
-              size="small"
-              color="primary"
-              variant="text"
-              :loading="sourceUpdateLoading[item.source_name]"
-              @click="updateSource(item.source_name)"
-            />
-            <v-btn
-              icon="mdi-information"
-              size="small"
-              color="info"
-              variant="text"
-              @click="showSourceDetails(item)"
-            />
-          </div>
-        </template>
-      </v-data-table>
-    </v-card>
+        </CardTitle>
+      </CardHeader>
+      <CardContent class="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead class="w-[200px]">Source</TableHead>
+              <TableHead class="w-[300px]">Description</TableHead>
+              <TableHead class="w-[150px]">Last Update</TableHead>
+              <TableHead class="w-[150px]">Next Update</TableHead>
+              <TableHead class="w-[120px]">Frequency</TableHead>
+              <TableHead class="w-[100px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-if="loading">
+              <TableCell colspan="6" class="text-center py-8 text-muted-foreground">
+                Loading...
+              </TableCell>
+            </TableRow>
+            <TableRow v-else-if="annotationSources.length === 0">
+              <TableCell colspan="6" class="text-center py-8 text-muted-foreground">
+                No annotation sources found
+              </TableCell>
+            </TableRow>
+            <TableRow v-for="item in annotationSources" :key="item.source_name">
+              <TableCell>
+                <div class="flex items-center">
+                  <component
+                    :is="item.is_active ? CircleCheck : CircleX"
+                    class="size-4 mr-2"
+                    :class="
+                      item.is_active ? 'text-green-600 dark:text-green-400' : 'text-destructive'
+                    "
+                  />
+                  <strong>{{ item.display_name || item.source_name }}</strong>
+                </div>
+              </TableCell>
+              <TableCell>
+                <span class="text-xs text-muted-foreground">{{
+                  item.description || 'No description'
+                }}</span>
+              </TableCell>
+              <TableCell>
+                <span class="text-xs">
+                  {{ item.last_update ? formatDate(item.last_update) : 'Never' }}
+                </span>
+              </TableCell>
+              <TableCell>
+                <span class="text-xs">
+                  {{ item.next_update ? formatDate(item.next_update) : 'Not scheduled' }}
+                </span>
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline">
+                  {{ item.update_frequency || 'Manual' }}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <div class="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8"
+                    :disabled="sourceUpdateLoading[item.source_name]"
+                    @click="updateSource(item.source_name)"
+                  >
+                    <Play class="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8"
+                    @click="showSourceDetails(item)"
+                  >
+                    <Info class="size-4" />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
 
     <!-- Real-time Progress Monitor -->
     <DataSourceProgress class="mb-6" />
 
     <!-- Scheduled Jobs -->
-    <v-card class="mb-6">
-      <v-card-title class="d-flex align-center justify-space-between">
-        <div class="d-flex align-center">
+    <Card class="mb-6">
+      <CardHeader class="flex flex-row items-center justify-between">
+        <CardTitle class="flex items-center">
           <Clock class="size-5 mr-2" />
           Scheduled Jobs
-          <v-chip
-            :color="schedulerInfo.scheduler_running ? 'success' : 'error'"
-            size="small"
+          <Badge
+            :variant="schedulerInfo.scheduler_running ? 'default' : 'destructive'"
             class="ml-2"
           >
             {{ schedulerInfo.scheduler_running ? 'Running' : 'Stopped' }}
-          </v-chip>
-        </div>
-        <v-btn
-          size="small"
-          prepend-icon="mdi-refresh"
-          :loading="jobsLoading"
-          @click="loadScheduledJobs"
-        >
+          </Badge>
+        </CardTitle>
+        <Button variant="outline" size="sm" :disabled="jobsLoading" @click="loadScheduledJobs">
+          <RefreshCw class="size-4 mr-2" :class="{ 'animate-spin': jobsLoading }" />
           Refresh Jobs
-        </v-btn>
-      </v-card-title>
-
-      <v-data-table
-        :headers="jobsHeaders"
-        :items="scheduledJobs"
-        :loading="jobsLoading"
-        density="compact"
-        class="elevation-0"
-      >
-        <template #item.id="{ item }">
-          <code class="text-caption">{{ item.id }}</code>
-        </template>
-
-        <template #item.next_run="{ item }">
-          <span class="text-caption">
-            {{ item.next_run ? formatDate(item.next_run) : 'Not scheduled' }}
-          </span>
-        </template>
-
-        <template #item.trigger="{ item }">
-          <span class="text-caption">{{ item.trigger || 'Unknown' }}</span>
-        </template>
-
-        <template #item.actions="{ item }">
-          <v-btn
-            icon="mdi-play"
-            size="small"
-            color="primary"
-            variant="text"
-            :loading="jobTriggerLoading[item.id]"
-            @click="triggerJob(item.id)"
-          />
-        </template>
-      </v-data-table>
-    </v-card>
+        </Button>
+      </CardHeader>
+      <CardContent class="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead class="w-[200px]">Job ID</TableHead>
+              <TableHead class="w-[200px]">Name</TableHead>
+              <TableHead class="w-[150px]">Next Run</TableHead>
+              <TableHead class="w-[150px]">Trigger</TableHead>
+              <TableHead class="w-[100px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-if="jobsLoading">
+              <TableCell colspan="5" class="text-center py-8 text-muted-foreground">
+                Loading...
+              </TableCell>
+            </TableRow>
+            <TableRow v-else-if="scheduledJobs.length === 0">
+              <TableCell colspan="5" class="text-center py-8 text-muted-foreground">
+                No scheduled jobs
+              </TableCell>
+            </TableRow>
+            <TableRow v-for="item in scheduledJobs" :key="item.id">
+              <TableCell>
+                <code class="text-xs">{{ item.id }}</code>
+              </TableCell>
+              <TableCell>{{ item.name }}</TableCell>
+              <TableCell>
+                <span class="text-xs">
+                  {{ item.next_run ? formatDate(item.next_run) : 'Not scheduled' }}
+                </span>
+              </TableCell>
+              <TableCell>
+                <span class="text-xs">{{ item.trigger || 'Unknown' }}</span>
+              </TableCell>
+              <TableCell>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8"
+                  :disabled="jobTriggerLoading[item.id]"
+                  @click="triggerJob(item.id)"
+                >
+                  <Play class="size-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
 
     <!-- Source Details Dialog -->
-    <v-dialog v-model="sourceDetailsDialog" max-width="700">
-      <v-card v-if="selectedSource">
-        <v-card-title
-          >{{ selectedSource.display_name || selectedSource.source_name }} Details</v-card-title
-        >
-        <v-card-text>
-          <v-row>
-            <v-col cols="12" md="6">
-              <div class="mb-3"><strong>Source Name:</strong> {{ selectedSource.source_name }}</div>
-              <div class="mb-3">
-                <strong>Display Name:</strong> {{ selectedSource.display_name || 'N/A' }}
-              </div>
-              <div class="mb-3">
+    <Dialog v-model:open="sourceDetailsDialog">
+      <DialogContent class="max-w-[700px]">
+        <DialogHeader>
+          <DialogTitle>
+            {{ selectedSource?.display_name || selectedSource?.source_name }} Details
+          </DialogTitle>
+        </DialogHeader>
+        <div v-if="selectedSource" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-3">
+              <div><strong>Source Name:</strong> {{ selectedSource.source_name }}</div>
+              <div><strong>Display Name:</strong> {{ selectedSource.display_name || 'N/A' }}</div>
+              <div>
                 <strong>Active:</strong>
-                <v-chip size="small" :color="selectedSource.is_active ? 'success' : 'error'">
+                <Badge :variant="selectedSource.is_active ? 'default' : 'destructive'" class="ml-1">
                   {{ selectedSource.is_active ? 'Yes' : 'No' }}
-                </v-chip>
+                </Badge>
               </div>
-              <div class="mb-3">
+              <div>
                 <strong>Update Frequency:</strong> {{ selectedSource.update_frequency || 'Manual' }}
               </div>
-            </v-col>
-            <v-col cols="12" md="6">
-              <div class="mb-3">
+            </div>
+            <div class="space-y-3">
+              <div>
                 <strong>Last Update:</strong>
                 {{ selectedSource.last_update ? formatDate(selectedSource.last_update) : 'Never' }}
               </div>
-              <div class="mb-3">
+              <div>
                 <strong>Next Update:</strong>
                 {{
                   selectedSource.next_update
@@ -542,32 +546,31 @@
                     : 'Not scheduled'
                 }}
               </div>
-            </v-col>
-          </v-row>
+            </div>
+          </div>
 
-          <div class="mb-3">
+          <div>
             <strong>Description:</strong><br />
-            <span class="text-body-2">{{
+            <span class="text-sm">{{
               selectedSource.description || 'No description available'
             }}</span>
           </div>
 
-          <div v-if="selectedSource.config" class="mb-3">
+          <div v-if="selectedSource.config">
             <strong>Configuration:</strong>
-            <v-card variant="outlined" class="mt-2">
-              <v-card-text>
-                <pre class="text-caption">{{ JSON.stringify(selectedSource.config, null, 2) }}</pre>
-              </v-card-text>
-            </v-card>
+            <div class="mt-2 rounded-md border p-3">
+              <pre class="text-xs overflow-x-auto">{{
+                JSON.stringify(selectedSource.config, null, 2)
+              }}</pre>
+            </div>
           </div>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="sourceDetailsDialog = false">Close</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-  </v-container>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="sourceDetailsDialog = false">Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>
 </template>
 
 <script setup>
@@ -578,9 +581,42 @@ import DataSourceProgress from '@/components/DataSourceProgress.vue'
 import * as annotationsApi from '@/api/admin/annotations'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import { toast } from 'vue-sonner'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Separator } from '@/components/ui/separator'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
 import {
   AlertTriangle,
+  BadgeCheck,
   Check,
+  CircleAlert,
   CircleCheck,
   CircleX,
   Clock,
@@ -589,8 +625,12 @@ import {
   Dna,
   FileSearch,
   Info,
+  Pause,
+  Play,
   RefreshCw,
+  Rocket,
   Search,
+  SquarePlus,
   Tags,
   Workflow
 } from 'lucide-vue-next'
@@ -674,23 +714,15 @@ const sourceFilterOptions = computed(() => {
   return sources.map(source => ({ title: source.toUpperCase(), value: source }))
 })
 
-// Table headers
-const sourcesHeaders = [
-  { title: 'Source', key: 'source_name', width: '200px' },
-  { title: 'Description', key: 'description', width: '300px' },
-  { title: 'Last Update', key: 'last_update', width: '150px' },
-  { title: 'Next Update', key: 'next_update', width: '150px' },
-  { title: 'Frequency', key: 'update_frequency', width: '120px' },
-  { title: 'Actions', key: 'actions', sortable: false, width: '100px' }
-]
-
-const jobsHeaders = [
-  { title: 'Job ID', key: 'id', width: '200px' },
-  { title: 'Name', key: 'name', width: '200px' },
-  { title: 'Next Run', key: 'next_run', width: '150px' },
-  { title: 'Trigger', key: 'trigger', width: '150px' },
-  { title: 'Actions', key: 'actions', sortable: false, width: '100px' }
-]
+// Toggle source selection for selective strategy
+const toggleSource = sourceValue => {
+  const idx = pipelineForm.sources.indexOf(sourceValue)
+  if (idx >= 0) {
+    pipelineForm.sources.splice(idx, 1)
+  } else {
+    pipelineForm.sources.push(sourceValue)
+  }
+}
 
 // Methods
 const loadStatistics = async () => {
