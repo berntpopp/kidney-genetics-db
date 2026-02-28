@@ -39,7 +39,7 @@ Migrate the entire frontend from JavaScript + Vuetify 3 to TypeScript + Tailwind
 2. Tailwind utility classes applied to a test element render correctly alongside Vuetify components on the same page (no CSS preflight conflicts)
 3. shadcn-vue `components.json` is initialized and `npx shadcn-vue add button` installs a component into `src/components/ui/` without errors
 4. A Vitest smoke test (`vitest run`) passes with at least one passing test
-5. An MDI icon audit document exists listing all 193 unique icons with Lucide equivalents or gap-resolution decisions for the ~30-40 without direct matches
+5. An MDI icon audit document exists listing all 198 unique icons with Lucide equivalents or gap-resolution decisions for the ~30-40 without direct matches
 
 **Estimated complexity:** MEDIUM
 **Research needed:** No — all tooling setup is precisely specified in research (STACK.md, ARCHITECTURE.md). All configurations are deterministic.
@@ -96,7 +96,7 @@ Plans:
 5. All navigation icons render as Lucide SVG components — no MDI font glyphs visible in the header, footer, or user menu
 
 **Estimated complexity:** HIGH
-**Research needed:** Yes — icon mapping for the 193 unique MDI icons (gap audit from Phase 1) must be finalized before Phase 3 begins. Visual testing at 320px/768px/1280px breakpoints required after completion. Dark mode dual-system synchronization watcher must be manually verified.
+**Research needed:** Yes — icon mapping for the 198 unique MDI icons (gap audit from Phase 1) must be finalized before Phase 3 begins. Visual testing at 320px/768px/1280px breakpoints required after completion. Dark mode dual-system synchronization watcher must be manually verified.
 
 **Plans:** TBD
 

@@ -48,7 +48,7 @@ None yet.
 
 ### Blockers / Concerns
 
-- **Phase 3 prerequisite:** Icon gap resolution (193 MDI icons, ~30-40 without Lucide equivalents) must be completed in Phase 1 before Phase 3 planning can finalize
+- **Phase 3 prerequisite:** Icon gap resolution (198 MDI icons, ~30-40 without Lucide equivalents) must be completed in Phase 1 before Phase 3 planning can finalize
 - **Phase 5 prerequisite:** Evidence tier OKLCH color values require design sign-off before GeneDetail migration
 - **Phase 6 research flag:** Multi-select chip pattern (Combobox + TagsInput) is MEDIUM confidence — build isolated prototype before planning Phase 6
 

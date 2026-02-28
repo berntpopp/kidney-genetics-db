@@ -6,7 +6,7 @@
 <domain>
 ## Phase Boundary
 
-Install and configure TypeScript, Tailwind CSS v4, shadcn-vue, Vitest, and audit all 193 MDI icons for Lucide equivalents. Zero visual changes to the running application. This phase produces the tooling foundation that every subsequent phase builds on.
+Install and configure TypeScript, Tailwind CSS v4, shadcn-vue, Vitest, and audit all 198 MDI icons for Lucide equivalents. Zero visual changes to the running application. This phase produces the tooling foundation that every subsequent phase builds on.
 
 </domain>
 
