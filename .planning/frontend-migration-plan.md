@@ -17,12 +17,12 @@
 | 01 | Foundation Setup | ~10 | — | DONE |
 | 02 | TypeScript Migration | ~40 | — | DONE |
 | 03 | App Shell, Nav, Auth, Icons | ~75 | — | DONE |
-| 04 | Public Pages + Footer | 7 | ~2,110 | NOT STARTED |
-| 05 | Gene Detail & Evidence | 20 | ~3,650 | NOT STARTED |
-| 06 | Data Tables | 4+infra | ~1,400 | NOT STARTED |
-| 07 | Admin Panel | 22 | ~8,740 | NOT STARTED |
-| 08 | Network & Visualizations | 11 | ~6,165 | NOT STARTED |
-| 09 | Cleanup & Vuetify Removal | ~8 | — | NOT STARTED |
+| 04 | Public Pages + Footer | 7 | ~2,110 | DONE |
+| 05 | Gene Detail & Evidence | 20 | ~3,650 | PLANNED (3 plans) |
+| 06 | Data Tables | 4+infra | ~1,400 | PLANNED (2 plans) |
+| 07 | Admin Panel | 22 | ~8,740 | PLANNED (4 plans) |
+| 08 | Network & Visualizations | 11 | ~6,165 | PLANNED (3 plans) |
+| 09 | Cleanup & Vuetify Removal | ~8 | — | PLANNED (1 plan) |
 
 **Critical path:** 03 → 04 → 05 + 06 (parallel) → 07 (needs 06) → 08 → 09
 
@@ -42,7 +42,7 @@
 
 ---
 
-## Phase 04: Public Pages + Footer
+## Phase 04: Public Pages + Footer (DONE)
 
 **Goal:** Migrate 7 simple public-facing pages and the footer from Vuetify layout/cards to Tailwind + shadcn-vue.
 
@@ -501,7 +501,7 @@ npm uninstall vuetify @mdi/font
 | `v-app` | `<div class="min-h-screen bg-background">` | DONE (03-01) |
 | `v-app-bar` | Custom header + NavigationMenu | DONE (03-01) |
 | `v-navigation-drawer` | Sheet | DONE (03-01) |
-| `v-footer` | Custom `<footer>` | Phase 04 |
+| `v-footer` | Custom `<footer>` | DONE (04) |
 | `v-container`/`v-row`/`v-col` | Tailwind grid/flex | Phases 04-08 |
 | `v-btn` | Button | DONE (03-01) |
 | `v-card` + sub | Card + sub | Phases 04-08 |
@@ -510,8 +510,8 @@ npm uninstall vuetify @mdi/font
 | `v-select` | Select | Phase 06 |
 | `v-autocomplete` | Command / Combobox | Phase 07 |
 | `v-chip` | Badge | Phases 04-08 |
-| `v-tabs` | Tabs | Phase 04 (Dashboard), 05 (GeneDetail) |
-| `v-alert` | Alert | Phase 04 |
+| `v-tabs` | Tabs | DONE (04 Dashboard), 05 (GeneDetail) |
+| `v-alert` | Alert | DONE (04) |
 | `v-snackbar` | vue-sonner toast | Phase 03-04 |
 | `v-form` | Form (vee-validate+Zod) | DONE auth (03-03), others 07 |
 | `v-expansion-panel` | Accordion | Phase 05 |
@@ -540,11 +540,11 @@ npm uninstall vuetify @mdi/font
 | breadcrumb, dropdown-menu | DONE (01) | Nav, gene actions |
 | navigation-menu, sheet, separator | DONE (01) | App shell |
 | sonner, tooltip, popover | DONE (01) | Toast, evidence |
-| **tabs** | 04 | Dashboard, GeneDetail |
-| **alert** | 04 | Error states |
-| **accordion** | 04-05 | About, EvidenceCard |
-| **scroll-area** | 04 | Long lists |
-| **switch** | 04 | Profile, admin |
+| **tabs** | DONE (04) | Dashboard, GeneDetail |
+| **alert** | DONE (04) | Error states |
+| **accordion** | DONE (04) | About, EvidenceCard |
+| **scroll-area** | DONE (04) | Long lists |
+| **switch** | DONE (04) | Profile, admin |
 | **table** | 06 | All data tables |
 | **select** | 06 | Filters, admin forms |
 | **slider** | 06 | GeneTable range filters |
@@ -593,7 +593,7 @@ npm uninstall vuetify @mdi/font
 
 1. `src/plugins/vuetify.ts` — DELETE in Phase 09
 2. `src/composables/useAppTheme.ts` — MODIFY in Phase 09
-3. `src/views/Home.vue` — MODIFY in Phase 04 (useDisplay)
+3. ~~`src/views/Home.vue`~~ — DONE in Phase 04 (useDisplay removed)
 4. `src/components/branding/KGDBLogo.vue` — MODIFY in Phase 09
 5. `src/components/KidneyGeneticsLogo.vue` — MODIFY in Phase 09
 6. `src/components/visualizations/D3BarChart.vue` — MODIFY in Phase 08
