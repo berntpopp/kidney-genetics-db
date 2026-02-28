@@ -1,151 +1,149 @@
 <template>
-  <v-footer app class="bg-surface-light py-1">
-    <v-container class="py-0">
-      <v-row align="center" justify="space-between" class="py-0 ma-0">
-        <!-- Left: Version Information -->
-        <v-col cols="auto" class="py-0">
-          <v-menu location="top" :close-on-content-click="false">
-            <template #activator="{ props: menuProps }">
-              <v-btn variant="text" size="small" class="text-caption" v-bind="menuProps">
-                <Info class="size-4 mr-1" />
-                v{{ frontendVersion }}
-              </v-btn>
-            </template>
+  <footer class="border-t bg-card py-2">
+    <div class="container mx-auto px-4">
+      <div class="flex items-center justify-between">
+        <!-- Left: Version info dropdown -->
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button variant="ghost" size="sm" class="text-xs text-muted-foreground">
+              <Info :size="14" class="mr-1" />
+              v{{ frontendVersion }}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" class="w-72">
+            <DropdownMenuLabel>Component Versions</DropdownMenuLabel>
+            <DropdownMenuSeparator />
 
-            <v-card min-width="320" class="pa-0">
-              <v-card-title class="text-subtitle-2 font-weight-bold">
-                Component Versions
-              </v-card-title>
-
-              <v-divider />
-
-              <v-list density="compact" class="pa-0">
-                <!-- Frontend Version -->
-                <v-list-item>
-                  <template #prepend>
-                    <Code class="size-5 text-green-600 dark:text-green-400" />
-                  </template>
-                  <v-list-item-title class="text-caption font-weight-medium">
-                    Frontend
-                  </v-list-item-title>
-                  <v-list-item-subtitle class="text-caption">
-                    v{{ frontendVersion }} • Vue.js
-                  </v-list-item-subtitle>
-                </v-list-item>
-
-                <v-divider />
-
-                <!-- Backend Version -->
-                <v-list-item>
-                  <template #prepend>
-                    <Server
-                      class="size-5"
-                      :class="backendVersion === 'unknown' ? 'text-destructive' : 'text-primary'"
-                    />
-                  </template>
-                  <v-list-item-title class="text-caption font-weight-medium">
-                    Backend
-                  </v-list-item-title>
-                  <v-list-item-subtitle class="text-caption">
-                    v{{ backendVersion }} • FastAPI
-                  </v-list-item-subtitle>
-                </v-list-item>
-
-                <v-divider />
-
-                <!-- Database Version -->
-                <v-list-item>
-                  <template #prepend>
-                    <Database
-                      class="size-5"
-                      :class="
-                        databaseVersion === 'unknown'
-                          ? 'text-destructive'
-                          : 'text-blue-600 dark:text-blue-400'
-                      "
-                    />
-                  </template>
-                  <v-list-item-title class="text-caption font-weight-medium">
-                    Database
-                  </v-list-item-title>
-                  <v-list-item-subtitle class="text-caption">
-                    v{{ databaseVersion }} • PostgreSQL
-                  </v-list-item-subtitle>
-                </v-list-item>
-
-                <v-divider />
-
-                <!-- Environment Badge -->
-                <v-list-item>
-                  <template #prepend>
-                    <Cloud class="size-5" />
-                  </template>
-                  <v-list-item-title class="text-caption font-weight-medium">
-                    Environment
-                  </v-list-item-title>
-                  <v-list-item-subtitle class="text-caption">
-                    {{ environment }}
-                  </v-list-item-subtitle>
-                </v-list-item>
-              </v-list>
-
-              <v-divider />
-
-              <v-card-actions class="pa-2">
-                <v-btn
-                  size="x-small"
-                  variant="text"
-                  prepend-icon="mdi-refresh"
-                  :loading="loading"
-                  @click="refreshVersions"
+            <!-- Frontend Version -->
+            <DropdownMenuItem class="gap-3">
+              <Code :size="16" class="shrink-0 text-green-600 dark:text-green-400" />
+              <div class="flex flex-col">
+                <span class="text-xs font-medium">Frontend</span>
+                <span class="text-xs text-muted-foreground"
+                  >v{{ frontendVersion }} &bull; Vue.js</span
                 >
-                  Refresh
-                </v-btn>
-                <v-spacer />
-                <div class="text-caption text-medium-emphasis">
-                  Updated: {{ formattedTimestamp }}
-                </div>
-              </v-card-actions>
-            </v-card>
-          </v-menu>
-        </v-col>
+              </div>
+            </DropdownMenuItem>
 
-        <!-- Right: Quick Links -->
-        <v-col cols="12" sm="auto" class="text-right py-0">
-          <v-btn
-            icon="mdi-github"
-            size="small"
-            variant="text"
+            <DropdownMenuSeparator />
+
+            <!-- Backend Version -->
+            <DropdownMenuItem class="gap-3">
+              <Server
+                :size="16"
+                class="shrink-0"
+                :class="backendVersion === 'unknown' ? 'text-destructive' : 'text-primary'"
+              />
+              <div class="flex flex-col">
+                <span class="text-xs font-medium">Backend</span>
+                <span class="text-xs text-muted-foreground"
+                  >v{{ backendVersion }} &bull; FastAPI</span
+                >
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            <!-- Database Version -->
+            <DropdownMenuItem class="gap-3">
+              <Database
+                :size="16"
+                class="shrink-0"
+                :class="
+                  databaseVersion === 'unknown'
+                    ? 'text-destructive'
+                    : 'text-blue-600 dark:text-blue-400'
+                "
+              />
+              <div class="flex flex-col">
+                <span class="text-xs font-medium">Database</span>
+                <span class="text-xs text-muted-foreground"
+                  >v{{ databaseVersion }} &bull; PostgreSQL</span
+                >
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            <!-- Environment -->
+            <DropdownMenuItem class="gap-3">
+              <Cloud :size="16" class="shrink-0" />
+              <div class="flex flex-col">
+                <span class="text-xs font-medium">Environment</span>
+                <span class="text-xs text-muted-foreground">{{ environment }}</span>
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            <!-- Refresh + timestamp -->
+            <div class="flex items-center justify-between px-2 py-1.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                class="h-6 text-xs"
+                :disabled="loading"
+                @click="refreshVersions"
+              >
+                <RefreshCw :size="12" class="mr-1" :class="{ 'animate-spin': loading }" />
+                Refresh
+              </Button>
+              <span class="text-xs text-muted-foreground">
+                {{ formattedTimestamp }}
+              </span>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <!-- Right: Quick links -->
+        <div class="flex items-center gap-1">
+          <!-- GitHub link -->
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
+            as="a"
             href="https://github.com"
             target="_blank"
             title="GitHub"
-          />
-          <v-btn
-            size="small"
-            variant="text"
+          >
+            <Github :size="16" />
+          </Button>
+
+          <!-- Log viewer -->
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8 relative"
             :title="`Open Log Viewer (Ctrl+Shift+L) - ${logStore.errorCount} errors`"
             @click="logStore.showViewer"
           >
-            <v-badge
-              :content="logStore.errorCount"
-              :model-value="logStore.errorCount > 0"
-              color="error"
-              dot
-            >
-              <FileSearch class="size-5" />
-            </v-badge>
-          </v-btn>
-        </v-col>
-      </v-row>
-    </v-container>
-  </v-footer>
+            <FileSearch :size="16" />
+            <span
+              v-if="logStore.errorCount > 0"
+              class="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-destructive"
+            />
+          </Button>
+        </div>
+      </div>
+    </div>
+  </footer>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { getAllVersions, getFrontendVersion } from '@/utils/version'
 import { useLogStore } from '@/stores/logStore'
-import { Info, Code, Server, Database, Cloud, FileSearch } from 'lucide-vue-next'
+import { Info, Code, Server, Database, Cloud, FileSearch, RefreshCw, Github } from 'lucide-vue-next'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
 
 const logStore = useLogStore()
 
@@ -155,22 +153,13 @@ const frontendVersion = ref(getFrontendVersion())
 const backendVersion = ref('...')
 const databaseVersion = ref('...')
 const environment = ref('...')
-const timestamp = ref(null)
+const timestamp = ref<string | null>(null)
 
 // Computed properties
 const formattedTimestamp = computed(() => {
   if (!timestamp.value) return 'N/A'
   const date = new Date(timestamp.value)
   return date.toLocaleTimeString()
-})
-
-const environmentColor = computed(() => {
-  const envMap = {
-    production: 'success',
-    staging: 'warning',
-    development: 'info'
-  }
-  return envMap[environment.value?.toLowerCase()] || 'grey'
 })
 
 // Methods
@@ -185,7 +174,7 @@ async function refreshVersions() {
     environment.value = versions.environment
     timestamp.value = versions.timestamp
   } catch (error) {
-    console.error('Failed to refresh versions:', error)
+    window.logService.error('Failed to refresh versions:', error)
     backendVersion.value = 'error'
     databaseVersion.value = 'error'
   } finally {
@@ -198,17 +187,3 @@ onMounted(() => {
   refreshVersions()
 })
 </script>
-
-<style scoped>
-/* Following Style Guide - Compact density for footer */
-.app-footer {
-  min-height: 48px;
-  z-index: 1000;
-}
-
-/* Ensure buttons have proper focus states - Following Style Guide */
-.v-btn:focus-visible {
-  outline: 2px solid rgb(var(--v-theme-primary));
-  outline-offset: 2px;
-}
-</style>
