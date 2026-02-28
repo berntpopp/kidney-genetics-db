@@ -1,41 +1,48 @@
 <template>
-  <div class="gene-basic-info">
-    <!-- Combined Gene Info & MANE Row -->
-    <div class="d-flex align-center flex-wrap ga-2 mb-2">
-      <span class="font-weight-bold text-body-1">{{ gene.approved_symbol }}</span>
-      <span class="text-medium-emphasis">•</span>
+  <div>
+    <div class="flex items-center flex-wrap gap-2 mb-2">
+      <span class="font-bold text-base">{{ gene.approved_symbol }}</span>
+      <span class="text-muted-foreground">•</span>
       <span>{{ gene.hgnc_id }}</span>
       <template v-if="hgncData?.mane_select">
-        <span class="text-medium-emphasis">•</span>
-        <v-tooltip location="bottom">
-          <template #activator="{ props }">
-            <span class="font-mono" v-bind="props" style="cursor: help">
-              {{ hgncData.mane_select.refseq_transcript_id || 'N/A' }}
-            </span>
-          </template>
-          <div class="pa-2">
-            <div class="font-weight-medium mb-1">MANE Select Transcripts</div>
-            <div class="text-caption">
-              <div v-if="hgncData.mane_select.refseq_transcript_id">
-                <span class="text-medium-emphasis">RefSeq:</span>
-                <span class="font-mono">{{ hgncData.mane_select.refseq_transcript_id }}</span>
+        <span class="text-muted-foreground">•</span>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <span class="font-mono cursor-help">
+                {{ hgncData.mane_select.refseq_transcript_id || 'N/A' }}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent class="max-w-xs">
+              <p class="font-medium mb-1">MANE Select Transcripts</p>
+              <div class="text-xs space-y-0.5">
+                <div v-if="hgncData.mane_select.refseq_transcript_id">
+                  <span class="text-muted-foreground">RefSeq:</span>
+                  <span class="font-mono ml-1">{{
+                    hgncData.mane_select.refseq_transcript_id
+                  }}</span>
+                </div>
+                <div v-if="hgncData.mane_select.ensembl_transcript_id">
+                  <span class="text-muted-foreground">Ensembl:</span>
+                  <span class="font-mono ml-1">{{
+                    hgncData.mane_select.ensembl_transcript_id
+                  }}</span>
+                </div>
               </div>
-              <div v-if="hgncData.mane_select.ensembl_transcript_id">
-                <span class="text-medium-emphasis">Ensembl:</span>
-                <span class="font-mono">{{ hgncData.mane_select.ensembl_transcript_id }}</span>
-              </div>
-            </div>
-            <div class="text-caption mt-1 text-medium-emphasis">
-              Matched Annotation from NCBI and EMBL-EBI
-            </div>
-          </div>
-        </v-tooltip>
+              <p class="text-xs mt-1 text-muted-foreground">
+                Matched Annotation from NCBI and EMBL-EBI
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </template>
     </div>
   </div>
 </template>
 
 <script setup>
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+
 defineProps({
   gene: {
     type: Object,
