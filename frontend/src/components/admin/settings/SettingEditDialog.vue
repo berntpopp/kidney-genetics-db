@@ -1,62 +1,83 @@
 <template>
-  <v-dialog
-    :model-value="modelValue"
-    max-width="600"
-    @update:model-value="$emit('update:modelValue', $event)"
-  >
-    <v-card>
-      <v-card-title class="d-flex align-center">
-        <Pencil class="size-5 mr-2" />
-        Edit Setting
-      </v-card-title>
+  <Dialog :open="modelValue" @update:open="$emit('update:modelValue', $event)">
+    <DialogContent class="max-w-[600px]">
+      <DialogHeader>
+        <DialogTitle class="flex items-center gap-2">
+          <Pencil class="size-5" />
+          Edit Setting
+        </DialogTitle>
+        <DialogDescription> Modify the value of this configuration setting. </DialogDescription>
+      </DialogHeader>
 
-      <v-card-text>
-        <v-alert v-if="setting?.is_sensitive" type="warning" density="compact" class="mb-4">
-          <AlertTriangle class="size-5 mr-2 inline-block" />
-          This is a sensitive setting. Value will be masked in logs.
-        </v-alert>
+      <div class="space-y-4">
+        <Alert v-if="setting?.is_sensitive" variant="destructive">
+          <AlertTriangle class="size-4" />
+          <AlertDescription>
+            This is a sensitive setting. Value will be masked in logs.
+          </AlertDescription>
+        </Alert>
 
-        <v-text-field
-          v-if="setting"
-          v-model="editValue"
-          :label="setting.key"
-          :type="getInputType(setting.value_type)"
-          :disabled="setting.is_readonly"
-          :hint="setting.description"
-          persistent-hint
-          variant="outlined"
-          class="mb-4"
-        />
+        <div v-if="setting" class="space-y-2">
+          <Label :for="'setting-' + setting.key">{{ setting.key }}</Label>
+          <Input
+            :id="'setting-' + setting.key"
+            v-model="editValue"
+            :type="getInputType(setting.value_type)"
+            :disabled="setting.is_readonly"
+          />
+          <p v-if="setting.description" class="text-xs text-muted-foreground">
+            {{ setting.description }}
+          </p>
+        </div>
 
-        <v-textarea
-          v-model="changeReason"
-          label="Change Reason (Optional)"
-          rows="3"
-          variant="outlined"
-          hint="Document why this change was made"
-          persistent-hint
-        />
+        <div class="space-y-2">
+          <Label for="change-reason">Change Reason (Optional)</Label>
+          <textarea
+            id="change-reason"
+            v-model="changeReason"
+            rows="3"
+            class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            placeholder="Document why this change was made"
+          />
+        </div>
 
-        <v-alert v-if="setting?.requires_restart" type="warning" class="mt-4">
-          <RotateCw class="size-5 mr-2 inline-block" />
-          This change requires a server restart to take effect.
-        </v-alert>
-      </v-card-text>
+        <Alert v-if="setting?.requires_restart">
+          <RotateCw class="size-4" />
+          <AlertDescription>
+            This change requires a server restart to take effect.
+          </AlertDescription>
+        </Alert>
+      </div>
 
-      <v-card-actions>
-        <v-spacer />
-        <v-btn @click="$emit('update:modelValue', false)">Cancel</v-btn>
-        <v-btn color="primary" :loading="loading" :disabled="!hasChanges" @click="handleSave">
+      <DialogFooter>
+        <Button variant="outline" @click="$emit('update:modelValue', false)">Cancel</Button>
+        <Button :disabled="!hasChanges || loading" @click="handleSave">
+          <span
+            v-if="loading"
+            class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+          />
           Save Changes
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { Pencil, AlertTriangle, RotateCw } from 'lucide-vue-next'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const props = defineProps({
   modelValue: Boolean,
