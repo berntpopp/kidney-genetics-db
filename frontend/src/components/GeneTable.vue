@@ -461,6 +461,20 @@ const exportData = () => {
   window.logService.info('Export functionality to be implemented')
 }
 
+const clearSources = () => {
+  selectedSources.value = []
+  page.value = 1
+  updateUrl()
+  loadGenes()
+}
+
+const clearTiers = () => {
+  selectedTiers.value = []
+  page.value = 1
+  updateUrl()
+  loadGenes()
+}
+
 // Source toggle helper
 const toggleSource = (source: string) => {
   const idx = selectedSources.value.indexOf(source)
@@ -665,12 +679,7 @@ onMounted(async () => {
                   variant="ghost"
                   size="sm"
                   class="w-full"
-                  @click="
-                    selectedSources = []
-                    page = 1
-                    updateUrl()
-                    loadGenes()
-                  "
+                  @click="clearSources"
                 >
                   Clear
                 </Button>
@@ -715,12 +724,7 @@ onMounted(async () => {
                   variant="ghost"
                   size="sm"
                   class="w-full"
-                  @click="
-                    selectedTiers = []
-                    page = 1
-                    updateUrl()
-                    loadGenes()
-                  "
+                  @click="clearTiers"
                 >
                   Clear
                 </Button>
