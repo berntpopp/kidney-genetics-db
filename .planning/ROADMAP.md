@@ -44,12 +44,12 @@ Migrate the entire frontend from JavaScript + Vuetify 3 to TypeScript + Tailwind
 **Estimated complexity:** MEDIUM
 **Research needed:** No — all tooling setup is precisely specified in research (STACK.md, ARCHITECTURE.md). All configurations are deterministic.
 
-**Plans:** TBD
+**Plans:** 3 plans in 3 waves (sequential)
 
 Plans:
-- [ ] 01-01: TypeScript and tsconfig setup (FNDN-01, FNDN-02, FNDN-03)
-- [ ] 01-02: Tailwind CSS v4 + shadcn-vue + CSS coexistence (FNDN-04, FNDN-05, FNDN-06, FNDN-07, FNDN-08)
-- [ ] 01-03: Vitest setup and MDI icon audit (FNDN-09, FNDN-10, TEST-01)
+- [ ] 01-01-PLAN.md — TypeScript packages, tsconfig project references, vite.config.ts rename, domain type interfaces
+- [ ] 01-02-PLAN.md — Tailwind CSS v4 + shadcn-vue initialization + CSS @layer coexistence + cn() utility
+- [ ] 01-03-PLAN.md — Vitest configuration with smoke test + Makefile CI integration + MDI icon audit
 
 ---
 
@@ -275,7 +275,7 @@ Plans:
 
 | Phase | Goal | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
-| 1. Foundation Setup | Install TypeScript, Tailwind v4, shadcn-vue, Vitest; icon audit | TBD | Not started | - |
+| 1. Foundation Setup | Install TypeScript, Tailwind v4, shadcn-vue, Vitest; icon audit | 3 plans | Planned | - |
 | 2. TypeScript Migration | Migrate stores, API modules, composables, utils to TS | TBD | Not started | - |
 | 3. App Shell + Navigation + Auth + Icons | Migrate app skeleton, auth, toast, all icons | TBD | Not started | - |
 | 4. Simple Public Pages | Migrate Home, About, DataSources, Profile, Dashboard | TBD | Not started | - |
