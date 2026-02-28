@@ -5,30 +5,30 @@
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Researchers and clinicians can quickly find, explore, and evaluate kidney disease gene evidence
-**Current focus:** v0.2.0 Frontend Migration — Phase 2 (Plan 1 complete)
+**Current focus:** v0.2.0 Frontend Migration — Phase 2 (Plan 2 complete)
 
 ## Current Position
 
 Phase: 2 of 9 (02-typescript-migration) — In progress
-Plan: 1 of 3 in phase (02-01 complete)
-Status: 02-01 complete — foundation types and utility migration done
-Last activity: 2026-02-28 - Completed 02-01-PLAN.md (types + 14 utility/config/plugin files migrated)
+Plan: 2 of 3 in phase (02-02 complete)
+Status: 02-02 complete — API layer migration done (client + 12 modules + 2 services)
+Last activity: 2026-02-28 - Completed 02-02-PLAN.md (API client + 12 API modules + 2 services migrated, 23 tests added)
 
-Progress: [███░░░░░░░] ~15%
+Progress: [████░░░░░░] ~20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 5m 54s
-- Total execution time: 21m 36s (Phase 01: 12m 0s, Phase 02 so far: 9m 36s)
+- Total plans completed: 5
+- Average duration: 6m 22s
+- Total execution time: 30m 48s (Phase 01: 12m 0s, Phase 02 so far: 18m 48s)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation-setup | 3 | 12m 0s | 4m 0s |
-| 02-typescript-migration | 1 (of 3) | 9m 36s | 9m 36s |
+| 02-typescript-migration | 2 (of 3) | 18m 48s | 9m 24s |
 
 *Updated after each plan completion*
 
@@ -61,6 +61,11 @@ Progress: [███░░░░░░░] ~15%
 - **02-01:** EvidenceData union includes Record<string, unknown> fallback for HGNC/gnomAD/GTEx (not rendered by frontend views)
 - **02-01:** debounce.ts flush() accepts args for type compat but uses lastArgs internally (documented)
 - **02-01:** 4 pre-existing JS silent bugs fixed by TypeScript strict mode (warning→warn, 3-arg error, undefined vs null, index access)
+- **02-02:** LogService exported as class so Window.logService in env.d.ts uses actual class type (import() syntax avoids top-level import in declaration file)
+- **02-02:** Admin modules return Promise<AxiosResponse<T>> (raw response) — callers use .data, preserving existing behavior without component changes
+- **02-02:** getCacheNamespaces exception: returns processed CacheNamespacesResult (not raw AxiosResponse) to preserve async aggregation logic
+- **02-02:** LogLevel as const for literal string type inference on _log() level parameter
+- **02-02:** LOG_LEVEL_PRIORITY lookup uses ?? 0 for TypeScript strict no-unchecked-indexed-access compliance
 
 ### Pending Todos
 
@@ -71,10 +76,10 @@ None yet.
 - **Phase 3 prerequisite: RESOLVED** — Icon audit complete (01-icon-audit.md). All 198 MDI icons mapped. 1 dropped (mdi-vuejs). Phase 3 planning can now finalize.
 - **Phase 5 prerequisite:** Evidence tier OKLCH color values require design sign-off before GeneDetail migration
 - **Phase 6 research flag:** Multi-select chip pattern (Combobox + TagsInput) is MEDIUM confidence — build isolated prototype before planning Phase 6
-- **02-02 note:** WindowLogService interface in env.d.ts should be refined once logService.ts is migrated (replace inline interface with exported class type)
+- **02-02: RESOLVED** — Window.logService now uses actual LogService class type (inline interface removed)
 
 ## Session Continuity
 
-Last session: 2026-02-28T11:07:17Z
-Stopped at: Completed 02-01-PLAN.md — foundation types and utility migration done
+Last session: 2026-02-28T11:20:18Z
+Stopped at: Completed 02-02-PLAN.md — API layer (client + 12 modules + 2 services) migrated to TypeScript
 Resume file: None
