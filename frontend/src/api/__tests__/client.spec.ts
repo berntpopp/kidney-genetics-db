@@ -60,8 +60,10 @@ describe('apiClient', () => {
     // Verify interceptors exist on the apiClient instance
     // Axios stores handlers in an internal array accessible via interceptors.request.handlers
     // We check that interceptors were added (length > 0 means handlers are registered)
-    const requestHandlers = (apiClient.interceptors.request as unknown as { handlers: unknown[] }).handlers
-    const responseHandlers = (apiClient.interceptors.response as unknown as { handlers: unknown[] }).handlers
+    const requestHandlers = (apiClient.interceptors.request as unknown as { handlers: unknown[] })
+      .handlers
+    const responseHandlers = (apiClient.interceptors.response as unknown as { handlers: unknown[] })
+      .handlers
 
     expect(requestHandlers).toBeDefined()
     expect(requestHandlers.length).toBeGreaterThan(0)
@@ -74,9 +76,11 @@ describe('apiClient', () => {
     localStorageMock.setItem('access_token', 'test-jwt-token')
 
     // Manually invoke the request interceptor
-    const requestInterceptor = (apiClient.interceptors.request as unknown as {
-      handlers: Array<{ fulfilled: (config: Record<string, unknown>) => Record<string, unknown> }>
-    }).handlers[0]
+    const requestInterceptor = (
+      apiClient.interceptors.request as unknown as {
+        handlers: Array<{ fulfilled: (config: Record<string, unknown>) => Record<string, unknown> }>
+      }
+    ).handlers[0]
 
     if (!requestInterceptor) {
       // If running in environment where interceptors aren't accessible, skip
@@ -87,6 +91,8 @@ describe('apiClient', () => {
     const result = requestInterceptor.fulfilled(config)
 
     expect(result.headers).toBeDefined()
-    expect((result.headers as Record<string, string>)['Authorization']).toBe('Bearer test-jwt-token')
+    expect((result.headers as Record<string, string>)['Authorization']).toBe(
+      'Bearer test-jwt-token'
+    )
   })
 })

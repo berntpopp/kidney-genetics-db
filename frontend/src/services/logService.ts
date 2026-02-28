@@ -214,7 +214,11 @@ export class LogService {
    * @param startTime - Start timestamp from performance.now()
    * @param data - Additional data
    */
-  logPerformance(operation: string, startTime: number, data: Record<string, unknown> | null = null): void {
+  logPerformance(
+    operation: string,
+    startTime: number,
+    data: Record<string, unknown> | null = null
+  ): void {
     const duration = window.performance.now() - startTime
     const level = duration > 1000 ? LogLevel.WARN : LogLevel.DEBUG
 

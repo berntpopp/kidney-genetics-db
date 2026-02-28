@@ -114,10 +114,10 @@ export const geneApi = {
       queryParams.sort = `${sortPrefix}${sortBy}`
     }
 
-    const response = await apiClient.get<{ data: JsonApiItem<Omit<Gene, 'id'>>[], meta: GeneListMeta }>(
-      '/api/genes/',
-      { params: queryParams }
-    )
+    const response = await apiClient.get<{
+      data: JsonApiItem<Omit<Gene, 'id'>>[]
+      meta: GeneListMeta
+    }>('/api/genes/', { params: queryParams })
 
     // Transform JSON:API response to simpler format for Vue components
     return {
@@ -185,9 +185,12 @@ export const geneApi = {
       return { data: [], metadata: { cached: false, gene_count: 0, fetch_time_ms: 0 } }
     }
 
-    const response = await apiClient.post<HPOClassificationsResult>('/api/genes/hpo-classifications', {
-      gene_ids: geneIds
-    })
+    const response = await apiClient.post<HPOClassificationsResult>(
+      '/api/genes/hpo-classifications',
+      {
+        gene_ids: geneIds
+      }
+    )
 
     return response.data
   },

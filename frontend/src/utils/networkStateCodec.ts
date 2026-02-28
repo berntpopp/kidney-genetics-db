@@ -206,9 +206,7 @@ export function decodeNetworkState(query: QueryParams): NetworkState {
   } else {
     if (window.logService) {
       // Fix (Rule 1 - Bug): was logService.warning() which does not exist; correct method is warn()
-      window.logService.warn(
-        `[NetworkStateCodec] Unsupported schema version: ${version}, using v1`
-      )
+      window.logService.warn(`[NetworkStateCodec] Unsupported schema version: ${version}, using v1`)
     }
     return decodeNetworkStateV1(query)
   }

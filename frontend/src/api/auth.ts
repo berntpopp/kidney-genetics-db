@@ -84,7 +84,10 @@ export const requestPasswordReset = async (email: string): Promise<{ detail: str
 /**
  * Reset password with token
  */
-export const resetPassword = async (token: string, newPassword: string): Promise<{ detail: string }> => {
+export const resetPassword = async (
+  token: string,
+  newPassword: string
+): Promise<{ detail: string }> => {
   const response = await apiClient.post<{ detail: string }>('/api/auth/reset-password', {
     token,
     new_password: newPassword
@@ -96,7 +99,10 @@ export const resetPassword = async (token: string, newPassword: string): Promise
 /**
  * Change password for current user
  */
-export const changePassword = async (currentPassword: string, newPassword: string): Promise<{ detail: string }> => {
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string
+): Promise<{ detail: string }> => {
   const response = await apiClient.post<{ detail: string }>('/api/auth/change-password', {
     current_password: currentPassword,
     new_password: newPassword

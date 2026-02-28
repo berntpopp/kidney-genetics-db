@@ -137,9 +137,8 @@ export const statisticsApi = {
    * Get summary statistics for dashboard overview
    */
   async getSummaryStatistics(): Promise<StatisticsResult<SummaryStatisticsData>> {
-    const response = await apiClient.get<StatisticsResult<SummaryStatisticsData>>(
-      '/api/statistics/summary'
-    )
+    const response =
+      await apiClient.get<StatisticsResult<SummaryStatisticsData>>('/api/statistics/summary')
     return {
       data: response.data.data,
       meta: response.data.meta

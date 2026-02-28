@@ -110,9 +110,8 @@ export const clearNamespace = (namespace: string): Promise<AxiosResponse<unknown
 /**
  * Warm cache
  */
-export const warmCache = (
-  params: Record<string, unknown> = {}
-): Promise<AxiosResponse<unknown>> => apiClient.post('/api/admin/cache/warm', params)
+export const warmCache = (params: Record<string, unknown> = {}): Promise<AxiosResponse<unknown>> =>
+  apiClient.post('/api/admin/cache/warm', params)
 
 /**
  * Get cache health

@@ -52,7 +52,7 @@ apiClient.interceptors.response.use(
             refresh_token: refreshToken
           })
 
-          const { access_token } = (response.data as { access_token: string; refresh_token?: string })
+          const { access_token } = response.data as { access_token: string; refresh_token?: string }
           localStorage.setItem('access_token', access_token)
 
           // Retry original request with new token

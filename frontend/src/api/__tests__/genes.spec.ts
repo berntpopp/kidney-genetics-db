@@ -150,7 +150,9 @@ describe('geneApi', () => {
     it('should post gene IDs to /api/genes/hpo-classifications', async () => {
       mockApiClient.post.mockResolvedValue({
         data: {
-          data: [{ gene_id: 1, clinical_group: 'nephropathy', onset_group: null, is_syndromic: false }],
+          data: [
+            { gene_id: 1, clinical_group: 'nephropathy', onset_group: null, is_syndromic: false }
+          ],
           metadata: { cached: false, gene_count: 1, fetch_time_ms: 10 }
         }
       } as unknown as AxiosResponse)

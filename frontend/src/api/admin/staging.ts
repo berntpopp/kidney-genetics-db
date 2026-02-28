@@ -57,8 +57,7 @@ export const getPendingStaging = (
 export const approveStaging = (
   id: number,
   data: StagingApprovalData
-): Promise<AxiosResponse<unknown>> =>
-  apiClient.post(`/api/staging/staging/${id}/approve`, data)
+): Promise<AxiosResponse<unknown>> => apiClient.post(`/api/staging/staging/${id}/approve`, data)
 
 /**
  * Reject staging record
