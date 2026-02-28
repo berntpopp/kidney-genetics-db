@@ -9,16 +9,16 @@ Requirements for milestone v0.2.0 — Frontend Migration. Each maps to roadmap p
 
 ### Foundation (FNDN)
 
-- [ ] **FNDN-01**: TypeScript strict mode enabled across the entire frontend codebase
-- [ ] **FNDN-02**: tsconfig.json configured with strict: true, allowJs: true, path aliases (@/)
-- [ ] **FNDN-03**: Type definitions created for all domain interfaces (gene, auth, API responses, pipeline)
-- [ ] **FNDN-04**: Tailwind CSS v4 installed with @tailwindcss/vite plugin (no PostCSS)
-- [ ] **FNDN-05**: Tailwind v4 coexists with Vuetify without visual regressions (CSS @layer strategy, preflight disabled)
-- [ ] **FNDN-06**: shadcn-vue initialized with Reka UI primitives and components.json configured
-- [ ] **FNDN-07**: cn() utility function available at src/lib/utils.ts (clsx + tailwind-merge v3)
-- [ ] **FNDN-08**: Theme CSS variables mapped from Vuetify to shadcn-vue convention (--primary, --background, etc.) with light/dark mode
-- [ ] **FNDN-09**: Vitest installed and configured for component testing
-- [ ] **FNDN-10**: Complete MDI icon audit documenting all 193 unique icons and their Lucide equivalents (or custom solutions for ~30-40 gaps)
+- [x] **FNDN-01**: TypeScript strict mode enabled across the entire frontend codebase
+- [x] **FNDN-02**: tsconfig.json configured with strict: true, allowJs: true, path aliases (@/)
+- [x] **FNDN-03**: Type definitions created for all domain interfaces (gene, auth, API responses, pipeline)
+- [x] **FNDN-04**: Tailwind CSS v4 installed with @tailwindcss/vite plugin (no PostCSS)
+- [x] **FNDN-05**: Tailwind v4 coexists with Vuetify without visual regressions (CSS @layer strategy, preflight disabled)
+- [x] **FNDN-06**: shadcn-vue initialized with Reka UI primitives and components.json configured
+- [x] **FNDN-07**: cn() utility function available at src/lib/utils.ts (clsx + tailwind-merge v3)
+- [x] **FNDN-08**: Theme CSS variables mapped from Vuetify to shadcn-vue convention (--primary, --background, etc.) with light/dark mode
+- [x] **FNDN-09**: Vitest installed and configured for component testing
+- [x] **FNDN-10**: Complete MDI icon audit documenting all 198 unique icons and their Lucide equivalents (or custom solutions for ~30-40 gaps)
 
 ### TypeScript Migration (TSML)
 
@@ -129,7 +129,7 @@ Requirements for milestone v0.2.0 — Frontend Migration. Each maps to roadmap p
 
 ### Testing (TEST)
 
-- [ ] **TEST-01**: Vitest configured with Vue Test Utils and happy-dom/jsdom
+- [x] **TEST-01**: Vitest configured with Vue Test Utils and happy-dom/jsdom
 - [ ] **TEST-02**: Component tests written for all migrated shadcn-vue UI wrapper components
 - [ ] **TEST-03**: Component tests written for key domain components (GeneTable, EvidenceCard, LoginModal)
 - [ ] **TEST-04**: Composable tests written for all 6 migrated composables
@@ -175,17 +175,17 @@ Deferred to future milestones. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FNDN-01 | Phase 1 | Pending |
-| FNDN-02 | Phase 1 | Pending |
-| FNDN-03 | Phase 1 | Pending |
-| FNDN-04 | Phase 1 | Pending |
-| FNDN-05 | Phase 1 | Pending |
-| FNDN-06 | Phase 1 | Pending |
-| FNDN-07 | Phase 1 | Pending |
-| FNDN-08 | Phase 1 | Pending |
-| FNDN-09 | Phase 1 | Pending |
-| FNDN-10 | Phase 1 | Pending |
-| TEST-01 | Phase 1 | Pending |
+| FNDN-01 | Phase 1 | Complete |
+| FNDN-02 | Phase 1 | Complete |
+| FNDN-03 | Phase 1 | Complete |
+| FNDN-04 | Phase 1 | Complete |
+| FNDN-05 | Phase 1 | Complete |
+| FNDN-06 | Phase 1 | Complete |
+| FNDN-07 | Phase 1 | Complete |
+| FNDN-08 | Phase 1 | Complete |
+| FNDN-09 | Phase 1 | Complete |
+| FNDN-10 | Phase 1 | Complete |
+| TEST-01 | Phase 1 | Complete |
 | TSML-01 | Phase 2 | Pending |
 | TSML-02 | Phase 2 | Pending |
 | TSML-03 | Phase 2 | Pending |
@@ -275,4 +275,4 @@ Deferred to future milestones. Tracked but not in current roadmap.
 
 ---
 *Requirements defined: 2026-02-28*
-*Last updated: 2026-02-28 — Roadmap created, traceability finalized*
+*Last updated: 2026-02-28 — Phase 1 requirements marked Complete*

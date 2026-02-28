@@ -14,7 +14,7 @@ Migrate the entire frontend from JavaScript + Vuetify 3 to TypeScript + Tailwind
 - Integer phases (1-9): Planned milestone work in execution order
 - Decimal phases: Urgent insertions via `/gsd:insert-phase` if needed
 
-- [ ] **Phase 1: Foundation Setup** — Install and configure TypeScript, Tailwind v4, shadcn-vue, Vitest, and audit icons without changing any UI
+- [x] **Phase 1: Foundation Setup** — Install and configure TypeScript, Tailwind v4, shadcn-vue, Vitest, and audit icons without changing any UI
 - [ ] **Phase 2: TypeScript Migration** — Migrate all non-component files (stores, API modules, composables, utils, router) to TypeScript
 - [ ] **Phase 3: App Shell, Navigation, Auth, Feedback, Icons** — Migrate the application skeleton, authentication UI, toast system, and replace all icons
 - [ ] **Phase 4: Simple Public Pages** — Migrate five low-complexity public views using established component patterns
@@ -47,9 +47,9 @@ Migrate the entire frontend from JavaScript + Vuetify 3 to TypeScript + Tailwind
 **Plans:** 3 plans in 3 waves (sequential)
 
 Plans:
-- [ ] 01-01-PLAN.md — TypeScript packages, tsconfig project references, vite.config.ts rename, domain type interfaces
-- [ ] 01-02-PLAN.md — Tailwind CSS v4 + shadcn-vue initialization + CSS @layer coexistence + cn() utility
-- [ ] 01-03-PLAN.md — Vitest configuration with smoke test + Makefile CI integration + MDI icon audit
+- [x] 01-01-PLAN.md — TypeScript packages, tsconfig project references, vite.config.ts rename, domain type interfaces
+- [x] 01-02-PLAN.md — Tailwind CSS v4 + shadcn-vue initialization + CSS @layer coexistence + cn() utility
+- [x] 01-03-PLAN.md — Vitest configuration with smoke test + Makefile CI integration + MDI icon audit
 
 ---
 
@@ -275,7 +275,7 @@ Plans:
 
 | Phase | Goal | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
-| 1. Foundation Setup | Install TypeScript, Tailwind v4, shadcn-vue, Vitest; icon audit | 3 plans | Planned | - |
+| 1. Foundation Setup | Install TypeScript, Tailwind v4, shadcn-vue, Vitest; icon audit | 3 plans | ✓ Complete | 2026-02-28 |
 | 2. TypeScript Migration | Migrate stores, API modules, composables, utils to TS | TBD | Not started | - |
 | 3. App Shell + Navigation + Auth + Icons | Migrate app skeleton, auth, toast, all icons | TBD | Not started | - |
 | 4. Simple Public Pages | Migrate Home, About, DataSources, Profile, Dashboard | TBD | Not started | - |
