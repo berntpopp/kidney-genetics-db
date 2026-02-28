@@ -1,214 +1,17 @@
-<template>
-  <v-navigation-drawer
-    v-model="logStore.isViewerVisible"
-    location="right"
-    temporary
-    width="600"
-    class="log-viewer"
-  >
-    <!-- Toolbar -->
-    <v-toolbar color="primary" dark density="compact">
-      <v-toolbar-title class="text-subtitle-1">
-        <FileSearch class="size-5 mr-2" />
-        Application Logs
-        <v-chip
-          v-if="logStore.logCount > 0"
-          size="x-small"
-          color="white"
-          text-color="primary"
-          class="ml-2"
-        >
-          {{ logStore.logCount }}
-        </v-chip>
-      </v-toolbar-title>
-
-      <v-spacer></v-spacer>
-
-      <!-- Toolbar Actions -->
-      <v-btn
-        icon="mdi-download"
-        size="small"
-        variant="text"
-        :disabled="logStore.logCount === 0"
-        title="Download logs as JSON"
-        @click="downloadLogs"
-      ></v-btn>
-
-      <v-btn
-        icon="mdi-delete-sweep"
-        size="small"
-        variant="text"
-        :disabled="logStore.logCount === 0"
-        title="Clear all logs"
-        @click="clearLogs"
-      ></v-btn>
-
-      <v-btn
-        icon="mdi-close"
-        size="small"
-        variant="text"
-        title="Close log viewer"
-        @click="logStore.hideViewer"
-      ></v-btn>
-    </v-toolbar>
-
-    <!-- Filter Controls -->
-    <v-container class="py-2" fluid>
-      <v-row dense>
-        <!-- Search Filter -->
-        <v-col cols="12" md="6">
-          <v-text-field
-            v-model="searchQuery"
-            label="Search logs..."
-            prepend-inner-icon="mdi-magnify"
-            variant="outlined"
-            density="compact"
-            clearable
-            hide-details
-            @update:model-value="updateSearch"
-          ></v-text-field>
-        </v-col>
-
-        <!-- Level Filter -->
-        <v-col cols="12" md="6">
-          <v-select
-            v-model="selectedLevels"
-            :items="logLevelOptions"
-            label="Filter by level"
-            prepend-inner-icon="mdi-filter"
-            variant="outlined"
-            density="compact"
-            multiple
-            chips
-            chip-size="x-small"
-            hide-details
-            @update:model-value="updateLevelFilter"
-          ></v-select>
-        </v-col>
-      </v-row>
-
-      <!-- Log Configuration -->
-      <v-row dense class="mt-2">
-        <v-col cols="12" md="6">
-          <v-select
-            v-model="maxEntries"
-            :items="maxEntriesOptions"
-            label="Max log entries"
-            prepend-inner-icon="mdi-cog"
-            variant="outlined"
-            density="compact"
-            hide-details
-            @update:model-value="updateMaxEntries"
-          ></v-select>
-        </v-col>
-        <v-col cols="12" md="6" class="d-flex align-center">
-          <v-chip color="primary" size="x-small" variant="outlined" class="mr-2">
-            Memory: {{ logStore.memoryUsage.kb }}KB
-          </v-chip>
-          <v-chip
-            :color="logStore.logCount >= maxEntries * 0.8 ? 'warning' : 'success'"
-            size="x-small"
-            variant="outlined"
-          >
-            Usage: {{ logStore.logCount }}/{{ maxEntries }}
-          </v-chip>
-        </v-col>
-      </v-row>
-
-      <!-- Log Statistics -->
-      <v-row v-if="logStore.logCount > 0" dense class="mt-2">
-        <v-col cols="12">
-          <div class="d-flex gap-2 flex-wrap">
-            <template v-for="(count, level) in logStore.logsByLevel" :key="level">
-              <v-chip
-                v-if="count > 0"
-                :color="getLogColor(level)"
-                size="x-small"
-                variant="outlined"
-              >
-                {{ level }}: {{ count }}
-              </v-chip>
-            </template>
-          </div>
-        </v-col>
-      </v-row>
-    </v-container>
-
-    <v-divider></v-divider>
-
-    <!-- Log Entries -->
-    <v-container class="log-entries pa-2" fluid>
-      <div v-if="filteredLogs.length === 0" class="text-center py-8 text-grey">
-        <FileX class="mb-2" :size="48" />
-        <p>{{ logStore.logCount === 0 ? 'No logs available' : 'No logs match your filters' }}</p>
-      </div>
-
-      <v-card
-        v-for="(log, index) in filteredLogs"
-        :key="`${log.timestamp}-${index}`"
-        class="mb-2 log-entry"
-        variant="outlined"
-        :color="getLogColor(log.level)"
-        density="compact"
-      >
-        <v-card-text class="py-2">
-          <!-- Log Header -->
-          <div class="d-flex align-center justify-space-between mb-1">
-            <div class="d-flex align-center gap-2">
-              <v-chip :color="getLogColor(log.level)" size="x-small" variant="flat">
-                {{ log.level }}
-              </v-chip>
-              <span class="text-caption text-grey">
-                {{ formatTimestamp(log.timestamp) }}
-              </span>
-              <v-chip v-if="log.correlationId" size="x-small" variant="outlined" color="grey">
-                {{ log.correlationId.substring(0, 8) }}
-              </v-chip>
-            </div>
-
-            <!-- Copy button -->
-            <v-btn
-              icon="mdi-content-copy"
-              size="x-small"
-              variant="text"
-              title="Copy log entry"
-              @click="copyLogEntry(log)"
-            ></v-btn>
-          </div>
-
-          <!-- Log Message -->
-          <div class="log-message text-body-2 mb-1">
-            {{ log.message }}
-          </div>
-
-          <!-- Log Data (if present) -->
-          <v-expansion-panels v-if="log.data" variant="accordion" class="log-data">
-            <v-expansion-panel>
-              <v-expansion-panel-title class="text-caption py-1">
-                <FileJson class="size-4 mr-2" />
-                Additional Data
-              </v-expansion-panel-title>
-              <v-expansion-panel-text>
-                <pre class="log-data-content">{{ formatLogData(log.data) }}</pre>
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-          </v-expansion-panels>
-        </v-card-text>
-      </v-card>
-    </v-container>
-  </v-navigation-drawer>
-</template>
-
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { FileSearch, FileX, FileJson } from 'lucide-vue-next'
+import { FileSearch, FileX, FileJson, Download, Trash, X, Search, Filter, Copy, Settings } from 'lucide-vue-next'
 import { useLogStore } from '@/stores/logStore'
 import { LogLevel } from '@/services/logService'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Input } from '@/components/ui/input'
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 
-// Store access
 const logStore = useLogStore()
 
-// Local reactive state
 const searchQuery = ref('')
 const selectedLevels = ref([
   LogLevel.DEBUG,
@@ -219,7 +22,6 @@ const selectedLevels = ref([
 ])
 const maxEntries = ref(logStore.getMaxEntries())
 
-// Options for max entries dropdown
 const maxEntriesOptions = [
   { title: '20 entries', value: 20 },
   { title: '50 entries (default)', value: 50 },
@@ -228,7 +30,6 @@ const maxEntriesOptions = [
   { title: '500 entries', value: 500 }
 ]
 
-// Log level options for the filter select
 const logLevelOptions = [
   { title: 'Debug', value: LogLevel.DEBUG },
   { title: 'Info', value: LogLevel.INFO },
@@ -237,16 +38,13 @@ const logLevelOptions = [
   { title: 'Critical', value: LogLevel.CRITICAL }
 ]
 
-// Computed properties
 const filteredLogs = computed(() => {
   let filtered = [...logStore.logs]
 
-  // Apply level filter
   if (selectedLevels.value.length > 0 && selectedLevels.value.length < 5) {
     filtered = filtered.filter(log => selectedLevels.value.includes(log.level))
   }
 
-  // Apply search query
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     filtered = filtered.filter(
@@ -257,25 +55,17 @@ const filteredLogs = computed(() => {
     )
   }
 
-  // Return in reverse chronological order (newest first)
   return filtered.reverse()
 })
 
-// Methods
 function getLogColor(level) {
   switch (level) {
-    case LogLevel.DEBUG:
-      return 'grey'
-    case LogLevel.INFO:
-      return 'info'
-    case LogLevel.WARN:
-      return 'warning'
-    case LogLevel.ERROR:
-      return 'error'
-    case LogLevel.CRITICAL:
-      return 'error'
-    default:
-      return 'grey'
+    case LogLevel.DEBUG: return '#6b7280'
+    case LogLevel.INFO: return '#3b82f6'
+    case LogLevel.WARN: return '#f59e0b'
+    case LogLevel.ERROR: return '#ef4444'
+    case LogLevel.CRITICAL: return '#ef4444'
+    default: return '#6b7280'
   }
 }
 
@@ -304,21 +94,15 @@ function downloadLogs() {
       includeMetadata: true,
       filtered: false
     })
-
     const blob = new Blob([exportData], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
-
-    // Create temporary link and trigger download
     const link = document.createElement('a')
     link.href = url
     link.download = `kidney-genetics-logs-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-
-    // Clean up
     URL.revokeObjectURL(url)
-
     window.logService.info('Logs exported successfully')
   } catch (error) {
     window.logService.error('Failed to download logs:', error)
@@ -337,7 +121,6 @@ function copyLogEntry(log) {
     const logText = `[${log.timestamp}] ${log.level}: ${log.message}${
       log.data ? '\nData: ' + JSON.stringify(log.data, null, 2) : ''
     }`
-
     navigator.clipboard
       .writeText(logText)
       .then(() => {
@@ -351,7 +134,8 @@ function copyLogEntry(log) {
   }
 }
 
-function updateMaxEntries(newValue) {
+function updateMaxEntries(event) {
+  const newValue = Number(event.target.value)
   try {
     logStore.setMaxEntries(newValue)
     maxEntries.value = newValue
@@ -365,11 +149,16 @@ function updateSearch(value) {
   logStore.setSearchQuery(value || '')
 }
 
-function updateLevelFilter(value) {
-  logStore.setLevelFilter(value)
+function toggleLevel(level) {
+  const idx = selectedLevels.value.indexOf(level)
+  if (idx >= 0) {
+    selectedLevels.value.splice(idx, 1)
+  } else {
+    selectedLevels.value.push(level)
+  }
+  logStore.setLevelFilter(selectedLevels.value)
 }
 
-// Watch for store changes
 watch(
   () => logStore.maxEntries,
   newValue => {
@@ -378,54 +167,189 @@ watch(
 )
 </script>
 
-<style scoped>
-.log-viewer {
-  z-index: 1000;
-}
+<template>
+  <Sheet :open="logStore.isViewerVisible" @update:open="val => val ? logStore.showViewer() : logStore.hideViewer()">
+    <SheetContent side="right" class="w-[600px] sm:max-w-[600px] flex flex-col p-0">
+      <!-- Header -->
+      <SheetHeader class="bg-primary text-primary-foreground px-4 py-3">
+        <div class="flex items-center justify-between">
+          <SheetTitle class="text-primary-foreground flex items-center gap-2">
+            <FileSearch :size="18" />
+            Application Logs
+            <Badge
+              v-if="logStore.logCount > 0"
+              variant="secondary"
+              class="text-xs"
+            >
+              {{ logStore.logCount }}
+            </Badge>
+          </SheetTitle>
+          <div class="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
+              :disabled="logStore.logCount === 0"
+              title="Download logs as JSON"
+              @click="downloadLogs"
+            >
+              <Download :size="16" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
+              :disabled="logStore.logCount === 0"
+              title="Clear all logs"
+              @click="clearLogs"
+            >
+              <Trash :size="16" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
+              title="Close log viewer"
+              @click="logStore.hideViewer"
+            >
+              <X :size="16" />
+            </Button>
+          </div>
+        </div>
+      </SheetHeader>
 
-.log-entries {
-  max-height: calc(100vh - 280px);
-  overflow-y: auto;
-}
+      <!-- Filter Controls -->
+      <div class="px-4 py-3 space-y-3 border-b">
+        <!-- Search -->
+        <div class="relative">
+          <Search :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            :model-value="searchQuery"
+            placeholder="Search logs..."
+            class="pl-9"
+            @update:model-value="val => { searchQuery = val; updateSearch(val) }"
+          />
+        </div>
 
-.log-entry {
-  transition: all 0.2s ease;
-}
+        <!-- Level filter -->
+        <div>
+          <div class="flex items-center gap-1 mb-1">
+            <Filter :size="12" class="text-muted-foreground" />
+            <span class="text-xs text-muted-foreground">Filter by level</span>
+          </div>
+          <div class="flex flex-wrap gap-1">
+            <Badge
+              v-for="opt in logLevelOptions"
+              :key="opt.value"
+              :variant="selectedLevels.includes(opt.value) ? 'default' : 'outline'"
+              class="cursor-pointer text-xs"
+              @click="toggleLevel(opt.value)"
+            >
+              {{ opt.title }}
+            </Badge>
+          </div>
+        </div>
 
-.log-entry:hover {
-  transform: translateX(-2px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
+        <!-- Max entries + stats -->
+        <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1">
+            <Settings :size="12" class="text-muted-foreground" />
+            <select
+              :value="maxEntries"
+              class="text-xs rounded border border-input bg-background px-2 py-1"
+              @change="updateMaxEntries"
+            >
+              <option v-for="opt in maxEntriesOptions" :key="opt.value" :value="opt.value">
+                {{ opt.title }}
+              </option>
+            </select>
+          </div>
+          <Badge variant="outline" class="text-xs">
+            Memory: {{ logStore.memoryUsage.kb }}KB
+          </Badge>
+          <Badge variant="outline" class="text-xs">
+            {{ logStore.logCount }}/{{ maxEntries }}
+          </Badge>
+        </div>
 
-.log-message {
-  font-family: 'Roboto Mono', 'Monaco', 'Menlo', monospace;
-  line-height: 1.4;
-  word-break: break-word;
-}
+        <!-- Level stats -->
+        <div v-if="logStore.logCount > 0" class="flex flex-wrap gap-1">
+          <template v-for="(count, level) in logStore.logsByLevel" :key="level">
+            <Badge
+              v-if="count > 0"
+              variant="outline"
+              class="text-[10px]"
+              :style="{ borderColor: getLogColor(level), color: getLogColor(level) }"
+            >
+              {{ level }}: {{ count }}
+            </Badge>
+          </template>
+        </div>
+      </div>
 
-.log-data-content {
-  font-size: 0.75rem;
-  line-height: 1.3;
-  max-height: 200px;
-  overflow-y: auto;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: 4px;
-  padding: 8px;
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
+      <Separator />
 
-.log-data .v-expansion-panel {
-  background: transparent;
-}
+      <!-- Log Entries -->
+      <div class="flex-1 overflow-y-auto p-2 space-y-2">
+        <div v-if="filteredLogs.length === 0" class="text-center py-8 text-muted-foreground">
+          <FileX class="mx-auto mb-2" :size="48" />
+          <p class="text-sm">{{ logStore.logCount === 0 ? 'No logs available' : 'No logs match your filters' }}</p>
+        </div>
 
-.log-data .v-expansion-panel-title {
-  min-height: 32px;
-  padding: 4px 8px;
-}
+        <div
+          v-for="(log, index) in filteredLogs"
+          :key="`${log.timestamp}-${index}`"
+          class="rounded-md border p-2 text-sm hover:shadow-sm transition-all"
+          :style="{ borderLeftColor: getLogColor(log.level), borderLeftWidth: '3px' }"
+        >
+          <!-- Log Header -->
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center gap-2">
+              <Badge
+                class="text-[10px]"
+                :style="{ backgroundColor: getLogColor(log.level), color: 'white' }"
+              >
+                {{ log.level }}
+              </Badge>
+              <span class="text-xs text-muted-foreground">
+                {{ formatTimestamp(log.timestamp) }}
+              </span>
+              <Badge v-if="log.correlationId" variant="outline" class="text-[10px]">
+                {{ log.correlationId.substring(0, 8) }}
+              </Badge>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-6 w-6"
+              title="Copy log entry"
+              @click="copyLogEntry(log)"
+            >
+              <Copy :size="12" />
+            </Button>
+          </div>
 
-.gap-2 {
-  gap: 8px;
-}
-</style>
+          <!-- Log Message -->
+          <div class="font-mono text-xs leading-relaxed break-words mb-1">
+            {{ log.message }}
+          </div>
+
+          <!-- Log Data -->
+          <Accordion v-if="log.data" type="single" collapsible>
+            <AccordionItem :value="`data-${index}`" class="border-0">
+              <AccordionTrigger class="py-1 text-xs hover:no-underline">
+                <div class="flex items-center gap-1">
+                  <FileJson :size="12" />
+                  Additional Data
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <pre class="text-[11px] leading-tight max-h-[200px] overflow-y-auto bg-muted rounded p-2 whitespace-pre-wrap break-words">{{ formatLogData(log.data) }}</pre>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
+      </div>
+    </SheetContent>
+  </Sheet>
+</template>
