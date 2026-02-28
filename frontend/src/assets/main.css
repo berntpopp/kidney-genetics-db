@@ -1,0 +1,201 @@
+/* ============================================================
+   CSS Coexistence Layer — Tailwind v4 + Vuetify
+   Layer order: theme < base < vuetify < components < utilities
+   Vuetify styles are wrapped in @layer(vuetify) so Tailwind
+   utility classes always win in specificity.
+   ============================================================ */
+
+@layer theme, base, vuetify, components, utilities;
+
+/* Vuetify styles inside named layer so Tailwind wins */
+@import "vuetify/styles" layer(vuetify);
+@import "@mdi/font/css/materialdesignicons.css" layer(vuetify);
+
+/* Tailwind v4 — generates @layer base, components, utilities */
+@import "tailwindcss";
+
+/* ============================================================
+   Theme — CSS custom properties for light/dark mode (OKLCH)
+   ============================================================ */
+@layer theme {
+  :root {
+    /* Background / Foreground */
+    --background: oklch(0.985 0 0);
+    --foreground: oklch(0.141 0.005 285.823);
+
+    /* Card */
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.141 0.005 285.823);
+
+    /* Popover */
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.141 0.005 285.823);
+
+    /* Primary — Sky blue (#0EA5E9) */
+    --primary: oklch(0.685 0.169 237.323);
+    --primary-foreground: oklch(0.984 0.003 247.858);
+
+    /* Secondary — Violet (#8B5CF6) */
+    --secondary: oklch(0.606 0.222 292.717);
+    --secondary-foreground: oklch(0.984 0.003 247.858);
+
+    /* Muted */
+    --muted: oklch(0.967 0.001 286.375);
+    --muted-foreground: oklch(0.552 0.016 285.938);
+
+    /* Accent */
+    --accent: oklch(0.967 0.001 286.375);
+    --accent-foreground: oklch(0.21 0.006 285.885);
+
+    /* Destructive */
+    --destructive: oklch(0.637 0.237 25.331);
+    --destructive-foreground: oklch(0.984 0.003 247.858);
+
+    /* Border / Input / Ring */
+    --border: oklch(0.92 0.004 286.32);
+    --input: oklch(0.92 0.004 286.32);
+    --ring: oklch(0.685 0.169 237.323);
+
+    /* Sidebar */
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.141 0.005 285.823);
+    --sidebar-primary: oklch(0.685 0.169 237.323);
+    --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+    --sidebar-accent: oklch(0.967 0.001 286.375);
+    --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+    --sidebar-border: oklch(0.92 0.004 286.32);
+    --sidebar-ring: oklch(0.685 0.169 237.323);
+
+    /* Chart colors */
+    --chart-1: oklch(0.685 0.169 237.323);
+    --chart-2: oklch(0.606 0.222 292.717);
+    --chart-3: oklch(0.621 0.194 149.579);
+    --chart-4: oklch(0.769 0.188 85.872);
+    --chart-5: oklch(0.637 0.237 25.331);
+
+    /* Radius */
+    --radius: 0.625rem;
+
+    /* Domain colors — Kidney/DNA science palette */
+    --kidney-primary: oklch(0.704 0.14 180.72);
+    --kidney-secondary: oklch(0.638 0.148 179.37);
+    --dna-primary: oklch(0.685 0.169 237.323);
+    --dna-secondary: oklch(0.606 0.222 292.717);
+  }
+
+  .dark {
+    /* Background / Foreground */
+    --background: oklch(0.141 0.005 285.823);
+    --foreground: oklch(0.985 0 0);
+
+    /* Card */
+    --card: oklch(0.179 0.006 285.885);
+    --card-foreground: oklch(0.985 0 0);
+
+    /* Popover */
+    --popover: oklch(0.179 0.006 285.885);
+    --popover-foreground: oklch(0.985 0 0);
+
+    /* Primary — lighter sky in dark mode */
+    --primary: oklch(0.779 0.15 237.323);
+    --primary-foreground: oklch(0.141 0.005 285.823);
+
+    /* Secondary — lighter violet in dark mode */
+    --secondary: oklch(0.718 0.189 292.717);
+    --secondary-foreground: oklch(0.141 0.005 285.823);
+
+    /* Muted */
+    --muted: oklch(0.21 0.006 285.885);
+    --muted-foreground: oklch(0.705 0.015 286.067);
+
+    /* Accent */
+    --accent: oklch(0.21 0.006 285.885);
+    --accent-foreground: oklch(0.985 0 0);
+
+    /* Destructive */
+    --destructive: oklch(0.724 0.19 21.555);
+    --destructive-foreground: oklch(0.141 0.005 285.823);
+
+    /* Border / Input / Ring */
+    --border: oklch(0.274 0.006 286.033);
+    --input: oklch(0.274 0.006 286.033);
+    --ring: oklch(0.779 0.15 237.323);
+
+    /* Sidebar */
+    --sidebar: oklch(0.179 0.006 285.885);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.779 0.15 237.323);
+    --sidebar-primary-foreground: oklch(0.141 0.005 285.823);
+    --sidebar-accent: oklch(0.21 0.006 285.885);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(0.274 0.006 286.033);
+    --sidebar-ring: oklch(0.779 0.15 237.323);
+
+    /* Chart colors (dark) */
+    --chart-1: oklch(0.779 0.15 237.323);
+    --chart-2: oklch(0.718 0.189 292.717);
+    --chart-3: oklch(0.721 0.169 149.579);
+    --chart-4: oklch(0.829 0.159 85.872);
+    --chart-5: oklch(0.724 0.19 21.555);
+
+    /* Domain colors — dark mode */
+    --kidney-primary: oklch(0.834 0.1 181.07);
+    --kidney-secondary: oklch(0.763 0.124 179.87);
+    --dna-primary: oklch(0.779 0.15 237.323);
+    --dna-secondary: oklch(0.718 0.189 292.717);
+  }
+}
+
+/* ============================================================
+   Tailwind v4 @theme — map CSS vars to Tailwind color tokens
+   ============================================================ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Charts */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Domain colors */
+  --color-kidney-primary: var(--kidney-primary);
+  --color-kidney-secondary: var(--kidney-secondary);
+  --color-dna-primary: var(--dna-primary);
+  --color-dna-secondary: var(--dna-secondary);
+
+  /* Radius */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
