@@ -15,7 +15,7 @@ export function useAppTheme() {
   watch(
     isDark,
     dark => {
-      vuetifyTheme.global.name.value = dark ? 'dark' : 'light'
+      vuetifyTheme.global.name = dark ? 'dark' : 'light'
     },
     { immediate: true }
   )
