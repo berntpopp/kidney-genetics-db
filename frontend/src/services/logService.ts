@@ -6,9 +6,10 @@
  */
 
 import { sanitizeLogEntry } from '@/utils/logSanitizer'
+import type { LogEntry, LogLevel as LogLevelType } from '@/types/log'
 
 /**
- * Log levels enum
+ * Log levels constant object with literal types
  */
 export const LogLevel = {
   DEBUG: 'DEBUG',
@@ -16,12 +17,12 @@ export const LogLevel = {
   WARN: 'WARN',
   ERROR: 'ERROR',
   CRITICAL: 'CRITICAL'
-}
+} as const
 
 /**
  * Log level priority mapping for filtering
  */
-const LOG_LEVEL_PRIORITY = {
+const LOG_LEVEL_PRIORITY: Record<string, number> = {
   [LogLevel.DEBUG]: 0,
   [LogLevel.INFO]: 1,
   [LogLevel.WARN]: 2,
@@ -36,6 +37,14 @@ const STORAGE_KEYS = {
   MAX_ENTRIES: 'kidney-genetics-log-max-entries',
   LOG_LEVEL: 'kidney-genetics-log-level',
   CONSOLE_ECHO: 'kidney-genetics-console-echo'
+} as const
+
+/** Minimal interface for the Pinia log store used by LogService */
+interface LogStore {
+  logs: LogEntry[]
+  addLogEntry(entry: LogEntry, maxEntries?: number): void
+  trimLogs(maxEntries: number): void
+  clearLogs(): void
 }
 
 /**
@@ -49,7 +58,14 @@ const STORAGE_KEYS = {
  * - Request correlation IDs
  * - Performance tracking capabilities
  */
-class LogService {
+export class LogService {
+  store: LogStore | null
+  consoleEcho: boolean
+  maxEntries: number
+  minLogLevel: string
+  correlationId: string | null
+  metadata: Record<string, unknown>
+
   constructor() {
     this.store = null
     this.consoleEcho = this.loadConsoleEchoFromStorage()
@@ -61,9 +77,8 @@ class LogService {
 
   /**
    * Initialize the log store (called after Pinia is available)
-   * @param {Object} store - The Pinia log store
    */
-  initStore(store) {
+  initStore(store: LogStore): void {
     this.store = store
     this.info('LogService initialized', {
       maxEntries: this.maxEntries,
@@ -74,44 +89,41 @@ class LogService {
 
   /**
    * Set request correlation ID for tracking related logs
-   * @param {string} id - Correlation ID
    */
-  setCorrelationId(id) {
+  setCorrelationId(id: string): void {
     this.correlationId = id
   }
 
   /**
    * Clear correlation ID
    */
-  clearCorrelationId() {
+  clearCorrelationId(): void {
     this.correlationId = null
   }
 
   /**
    * Set global metadata for all logs
-   * @param {Object} metadata - Metadata to include in all logs
    */
-  setMetadata(metadata) {
+  setMetadata(metadata: Record<string, unknown>): void {
     this.metadata = { ...this.metadata, ...metadata }
   }
 
   /**
    * Clear global metadata
    */
-  clearMetadata() {
+  clearMetadata(): void {
     this.metadata = {}
   }
 
   /**
    * Core logging method
    * @private
-   * @param {string} level - Log level
-   * @param {string} message - Log message
-   * @param {any} data - Optional data to log
    */
-  _log(level, message, data = null) {
+  _log(level: LogLevelType, message: string, data: unknown = null): void {
     // Check if log level meets minimum threshold
-    if (LOG_LEVEL_PRIORITY[level] < LOG_LEVEL_PRIORITY[this.minLogLevel]) {
+    const levelPriority = LOG_LEVEL_PRIORITY[level] ?? 0
+    const minLevelPriority = LOG_LEVEL_PRIORITY[this.minLogLevel] ?? 0
+    if (levelPriority < minLevelPriority) {
       return
     }
 
@@ -119,7 +131,7 @@ class LogService {
     const sanitized = sanitizeLogEntry(message, data)
 
     // Create log entry
-    const entry = {
+    const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
       message: sanitized.message,
@@ -150,9 +162,9 @@ class LogService {
    * Echo log to console with appropriate method
    * @private
    */
-  _consoleEcho(level, message, data) {
+  _consoleEcho(level: string, message: string, data: unknown): void {
     const prefix = `[${level}]`
-    const args = data ? [prefix, message, data] : [prefix, message]
+    const args: unknown[] = data ? [prefix, message, data] : [prefix, message]
 
     switch (level) {
       case LogLevel.DEBUG:
@@ -176,33 +188,33 @@ class LogService {
   /**
    * Public logging methods
    */
-  debug(message, data = null) {
+  debug(message: string, data: unknown = null): void {
     this._log(LogLevel.DEBUG, message, data)
   }
 
-  info(message, data = null) {
+  info(message: string, data: unknown = null): void {
     this._log(LogLevel.INFO, message, data)
   }
 
-  warn(message, data = null) {
+  warn(message: string, data: unknown = null): void {
     this._log(LogLevel.WARN, message, data)
   }
 
-  error(message, data = null) {
+  error(message: string, data: unknown = null): void {
     this._log(LogLevel.ERROR, message, data)
   }
 
-  critical(message, data = null) {
+  critical(message: string, data: unknown = null): void {
     this._log(LogLevel.CRITICAL, message, data)
   }
 
   /**
    * Performance tracking helper
-   * @param {string} operation - Operation name
-   * @param {number} startTime - Start timestamp from performance.now()
-   * @param {Object} data - Additional data
+   * @param operation - Operation name
+   * @param startTime - Start timestamp from performance.now()
+   * @param data - Additional data
    */
-  logPerformance(operation, startTime, data = null) {
+  logPerformance(operation: string, startTime: number, data: Record<string, unknown> | null = null): void {
     const duration = window.performance.now() - startTime
     const level = duration > 1000 ? LogLevel.WARN : LogLevel.DEBUG
 
@@ -215,12 +227,12 @@ class LogService {
 
   /**
    * Log API call
-   * @param {string} method - HTTP method
-   * @param {string} url - API endpoint
-   * @param {number} status - Response status
-   * @param {number} duration - Duration in ms
+   * @param method - HTTP method
+   * @param url - API endpoint
+   * @param status - Response status
+   * @param duration - Duration in ms
    */
-  logApiCall(method, url, status, duration) {
+  logApiCall(method: string, url: string, status: number, duration: number): void {
     const level = status >= 400 ? LogLevel.ERROR : LogLevel.DEBUG
     this._log(level, `API ${method} ${url}`, {
       status,
@@ -232,12 +244,12 @@ class LogService {
   /**
    * Configuration methods
    */
-  setConsoleEcho(enabled) {
+  setConsoleEcho(enabled: boolean): void {
     this.consoleEcho = enabled
     localStorage.setItem(STORAGE_KEYS.CONSOLE_ECHO, JSON.stringify(enabled))
   }
 
-  setMaxEntries(maxEntries) {
+  setMaxEntries(maxEntries: number): void {
     this.maxEntries = maxEntries
     localStorage.setItem(STORAGE_KEYS.MAX_ENTRIES, maxEntries.toString())
 
@@ -247,7 +259,7 @@ class LogService {
     }
   }
 
-  setMinLogLevel(level) {
+  setMinLogLevel(level: string): void {
     if (LOG_LEVEL_PRIORITY[level] !== undefined) {
       this.minLogLevel = level
       localStorage.setItem(STORAGE_KEYS.LOG_LEVEL, level)
@@ -258,11 +270,11 @@ class LogService {
    * Storage loading methods
    * @private
    */
-  loadConsoleEchoFromStorage() {
+  loadConsoleEchoFromStorage(): boolean {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.CONSOLE_ECHO)
       if (stored !== null) {
-        return JSON.parse(stored)
+        return JSON.parse(stored) as boolean
       }
     } catch (error) {
       console.error('Failed to load console echo setting:', error)
@@ -271,7 +283,7 @@ class LogService {
     return false
   }
 
-  loadMaxEntriesFromStorage() {
+  loadMaxEntriesFromStorage(): number {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.MAX_ENTRIES)
       if (stored !== null) {
@@ -287,7 +299,7 @@ class LogService {
     return import.meta.env.DEV ? 100 : 50
   }
 
-  loadLogLevelFromStorage() {
+  loadLogLevelFromStorage(): string {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.LOG_LEVEL)
       if (stored && LOG_LEVEL_PRIORITY[stored] !== undefined) {
@@ -303,17 +315,16 @@ class LogService {
   /**
    * Clear all logs
    */
-  clearLogs() {
+  clearLogs(): void {
     if (this.store) {
       this.store.clearLogs()
     }
   }
 
   /**
-   * Export logs as JSON
-   * @returns {Object} Exported logs data
+   * Export logs as JSON object
    */
-  exportLogs() {
+  exportLogs(): Record<string, unknown> {
     if (!this.store) {
       return { logs: [], exportedAt: new Date().toISOString() }
     }

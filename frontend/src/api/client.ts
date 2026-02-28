@@ -3,11 +3,19 @@
  */
 
 import axios from 'axios'
+import type { AxiosInstance, InternalAxiosRequestConfig, AxiosError } from 'axios'
+
+// Augment Axios to support _retry flag on request config
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    _retry?: boolean
+  }
+}
 
 const API_BASE_URL =
   window._env_?.API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-const apiClient = axios.create({
+const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
@@ -16,7 +24,7 @@ const apiClient = axios.create({
 
 // Request interceptor for auth
 apiClient.interceptors.request.use(
-  config => {
+  (config: InternalAxiosRequestConfig) => {
     // Add auth token if available (only for protected endpoints)
     const token = localStorage.getItem('access_token')
     if (token) {
@@ -24,17 +32,17 @@ apiClient.interceptors.request.use(
     }
     return config
   },
-  error => Promise.reject(error)
+  (error: AxiosError) => Promise.reject(error)
 )
 
 // Response interceptor for error handling and token refresh
 apiClient.interceptors.response.use(
   response => response,
-  async error => {
-    const originalRequest = error.config
+  async (error: AxiosError) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig
 
     // If 401 and we have a refresh token, try to refresh
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true
 
       const refreshToken = localStorage.getItem('refresh_token')
@@ -44,7 +52,7 @@ apiClient.interceptors.response.use(
             refresh_token: refreshToken
           })
 
-          const { access_token } = response.data
+          const { access_token } = (response.data as { access_token: string; refresh_token?: string })
           localStorage.setItem('access_token', access_token)
 
           // Retry original request with new token

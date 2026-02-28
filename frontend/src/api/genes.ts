@@ -3,15 +3,75 @@
  */
 
 import apiClient from './client'
+import type { Gene, GeneListParams } from '@/types/gene'
 import { networkAnalysisConfig } from '@/config/networkAnalysis'
+
+/** JSON:API item wrapper returned from the backend */
+interface JsonApiItem<T> {
+  id: number
+  type: string
+  attributes: T
+}
+
+/** JSON:API list response meta from the /genes/ endpoint */
+interface GeneListMeta {
+  total: number
+  page: number
+  per_page: number
+  page_count: number
+  [key: string]: unknown
+}
+
+/** Flattened result returned from getGenes / getGenesByIds */
+export interface GeneListResult {
+  items: Gene[]
+  total: number
+  page: number
+  perPage: number
+  pageCount: number
+  meta: Record<string, unknown>
+}
+
+/** Evidence item returned from getGeneEvidence */
+export interface GeneEvidenceItem {
+  id: number
+  [key: string]: unknown
+}
+
+/** Evidence list result returned from getGeneEvidence */
+export interface GeneEvidenceResult {
+  evidence: GeneEvidenceItem[]
+  meta: Record<string, unknown>
+}
+
+/** HPO classification response */
+export interface HPOClassificationsResult {
+  data: Array<{
+    gene_id: number
+    clinical_group: string | null
+    onset_group: string | null
+    is_syndromic: boolean | null
+    [key: string]: unknown
+  }>
+  metadata: {
+    cached: boolean
+    gene_count: number
+    fetch_time_ms: number
+    [key: string]: unknown
+  }
+}
+
+/** Options for getGenesByIds */
+export interface GetGenesByIdsOptions {
+  sortBy?: string | null
+  sortDesc?: boolean
+}
 
 export const geneApi = {
   /**
    * Get paginated list of genes
-   * @param {Object} params Query parameters
-   * @returns {Promise} JSON:API response with genes
    */
-  async getGenes(params = {}) {
+  async getGenes(params: GeneListParams = {}): Promise<GeneListResult> {
     const {
       page = 1,
       perPage = 20,
@@ -28,7 +88,7 @@ export const geneApi = {
     } = params
 
     // Build JSON:API query parameters
-    const queryParams = {
+    const queryParams: Record<string, unknown> = {
       'page[number]': page,
       'page[size]': perPage
     }
@@ -54,9 +114,10 @@ export const geneApi = {
       queryParams.sort = `${sortPrefix}${sortBy}`
     }
 
-    const response = await apiClient.get('/api/genes/', {
-      params: queryParams
-    })
+    const response = await apiClient.get<{ data: JsonApiItem<Omit<Gene, 'id'>>[], meta: GeneListMeta }>(
+      '/api/genes/',
+      { params: queryParams }
+    )
 
     // Transform JSON:API response to simpler format for Vue components
     return {
@@ -74,11 +135,11 @@ export const geneApi = {
 
   /**
    * Get single gene by symbol
-   * @param {String} symbol Gene symbol
-   * @returns {Promise} Gene data
    */
-  async getGene(symbol) {
-    const response = await apiClient.get(`/api/genes/${symbol}`)
+  async getGene(symbol: string): Promise<Gene> {
+    const response = await apiClient.get<{ data: JsonApiItem<Omit<Gene, 'id'>> }>(
+      `/api/genes/${symbol}`
+    )
 
     // Transform JSON:API response
     return {
@@ -89,11 +150,12 @@ export const geneApi = {
 
   /**
    * Get evidence for a gene
-   * @param {String} symbol Gene symbol
-   * @returns {Promise} Evidence data
    */
-  async getGeneEvidence(symbol) {
-    const response = await apiClient.get(`/api/genes/${symbol}/evidence`)
+  async getGeneEvidence(symbol: string): Promise<GeneEvidenceResult> {
+    const response = await apiClient.get<{
+      data: JsonApiItem<Record<string, unknown>>[]
+      meta: Record<string, unknown>
+    }>(`/api/genes/${symbol}/evidence`)
 
     // Transform JSON:API response
     return {
@@ -107,25 +169,23 @@ export const geneApi = {
 
   /**
    * Get annotations for a gene (including gnomAD data)
-   * @param {Number} geneId Gene ID
-   * @returns {Promise} Annotations data
    */
-  async getGeneAnnotations(geneId) {
-    const response = await apiClient.get(`/api/annotations/genes/${geneId}/annotations`)
+  async getGeneAnnotations(geneId: number): Promise<Record<string, unknown>> {
+    const response = await apiClient.get<Record<string, unknown>>(
+      `/api/annotations/genes/${geneId}/annotations`
+    )
     return response.data
   },
 
   /**
    * Get HPO classifications for multiple genes
-   * @param {Array<Number>} geneIds Array of gene IDs (max 1000)
-   * @returns {Promise} HPO classifications data with clinical_group, onset_group, is_syndromic
    */
-  async getHPOClassifications(geneIds) {
+  async getHPOClassifications(geneIds: number[]): Promise<HPOClassificationsResult> {
     if (!geneIds || geneIds.length === 0) {
       return { data: [], metadata: { cached: false, gene_count: 0, fetch_time_ms: 0 } }
     }
 
-    const response = await apiClient.post('/api/genes/hpo-classifications', {
+    const response = await apiClient.post<HPOClassificationsResult>('/api/genes/hpo-classifications', {
       gene_ids: geneIds
     })
 
@@ -134,11 +194,11 @@ export const geneApi = {
 
   /**
    * Get genes by IDs (for URL state restoration)
-   * @param {Array<Number>} geneIds Array of gene IDs (max 1000)
-   * @param {Object} options Optional parameters (page, perPage, sort)
-   * @returns {Promise} JSON:API response with genes
    */
-  async getGenesByIds(geneIds, options = {}) {
+  async getGenesByIds(
+    geneIds: number[],
+    options: GetGenesByIdsOptions = {}
+  ): Promise<GeneListResult> {
     window.logService?.info('[geneApi.getGenesByIds] Called with', {
       requestedCount: geneIds?.length || 0,
       firstFiveIds: geneIds?.slice(0, 5),
@@ -166,12 +226,12 @@ export const geneApi = {
     const { sortBy = null, sortDesc = false } = options
 
     // Fetch all genes with pagination (API max is 100 per page)
-    const allGenes = []
+    const allGenes: Gene[] = []
     const perPage = 100 // API maximum
     let page = 1
 
     // Build sort parameter (JSON:API spec: prefix with - for descending)
-    let sortParam = null
+    let sortParam: string | null = null
     if (sortBy) {
       const sortPrefix = sortDesc ? '-' : ''
       sortParam = `${sortPrefix}${sortBy}`
@@ -179,7 +239,7 @@ export const geneApi = {
 
     // Fetch pages until we have all genes
     while (true) {
-      const queryParams = {
+      const queryParams: Record<string, unknown> = {
         'filter[ids]': geneIds.join(','),
         'page[number]': page,
         'page[size]': perPage
@@ -195,11 +255,12 @@ export const geneApi = {
         currentTotal: allGenes.length
       })
 
-      const response = await apiClient.get('/api/genes/', {
-        params: queryParams
-      })
+      const response = await apiClient.get<{
+        data: JsonApiItem<Omit<Gene, 'id'>>[]
+        meta: GeneListMeta
+      }>('/api/genes/', { params: queryParams })
 
-      const pageGenes = response.data.data.map(item => ({
+      const pageGenes: Gene[] = response.data.data.map(item => ({
         id: item.id,
         ...item.attributes
       }))
@@ -227,7 +288,7 @@ export const geneApi = {
     }
 
     // Transform JSON:API response to simpler format for Vue components
-    const result = {
+    const result: GeneListResult = {
       items: allGenes,
       total: allGenes.length,
       page: 1,
@@ -239,7 +300,7 @@ export const geneApi = {
     window.logService?.info('[geneApi.getGenesByIds] Returning', {
       returnedCount: result.items.length,
       requestedCount: geneIds.length,
-      match: result.items.length === geneIds.length ? '✅' : '❌ MISMATCH!'
+      match: result.items.length === geneIds.length ? 'ok' : 'MISMATCH!'
     })
 
     return result

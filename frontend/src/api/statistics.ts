@@ -4,15 +4,52 @@
 
 import apiClient from './client'
 
+/** Generic statistics response wrapper */
+export interface StatisticsResult<T = unknown> {
+  data: T
+  meta: Record<string, unknown>
+}
+
+/** Source overlap (UpSet plot) data */
+export interface SourceOverlapData {
+  sets: string[]
+  intersections: Array<{ sets: string[]; size: number }>
+  [key: string]: unknown
+}
+
+/** Source distribution data for a single source */
+export interface SourceDistributionItem {
+  source: string
+  count: number
+  [key: string]: unknown
+}
+
+/** Evidence composition data */
+export interface EvidenceCompositionItem {
+  tier: string
+  count: number
+  percentage: number
+  [key: string]: unknown
+}
+
+/** Summary statistics */
+export interface SummaryStatisticsData {
+  total_genes: number
+  genes_with_evidence: number
+  total_evidence_entries: number
+  sources: string[]
+  [key: string]: unknown
+}
+
 export const statisticsApi = {
   /**
    * Get gene intersections between data sources for UpSet plot
-   * @param {Array<string>} sources - Optional array of source names to filter by
-   * @param {Array<string>} tiers - Optional array of evidence tiers for filtering
-   * @param {boolean} hideZeroScores - Hide genes with percentage_score = 0 (default: true)
-   * @returns {Promise} UpSet plot data with sets and intersections
    */
-  async getSourceOverlaps(sources = null, tiers = null, hideZeroScores = true) {
+  async getSourceOverlaps(
+    sources: string[] | null = null,
+    tiers: string[] | null = null,
+    hideZeroScores: boolean = true
+  ): Promise<StatisticsResult<SourceOverlapData>> {
     const params = new URLSearchParams()
 
     // Add sources as query parameters if provided
@@ -33,7 +70,7 @@ export const statisticsApi = {
       ? `/api/statistics/source-overlaps?${queryString}`
       : '/api/statistics/source-overlaps'
 
-    const response = await apiClient.get(url)
+    const response = await apiClient.get<StatisticsResult<SourceOverlapData>>(url)
     return {
       data: response.data.data,
       meta: response.data.meta
@@ -42,11 +79,11 @@ export const statisticsApi = {
 
   /**
    * Get source count distributions for bar charts
-   * @param {Array<string>} tiers - Optional array of evidence tiers for filtering
-   * @param {boolean} hideZeroScores - Hide genes with percentage_score = 0 (default: true)
-   * @returns {Promise} Distribution data for each source
    */
-  async getSourceDistributions(tiers = null, hideZeroScores = true) {
+  async getSourceDistributions(
+    tiers: string[] | null = null,
+    hideZeroScores: boolean = true
+  ): Promise<StatisticsResult<SourceDistributionItem[]>> {
     const params = new URLSearchParams()
 
     // Add tier filter parameter if provided (comma-separated for multi-select with OR logic)
@@ -62,7 +99,7 @@ export const statisticsApi = {
       ? `/api/statistics/source-distributions?${queryString}`
       : '/api/statistics/source-distributions'
 
-    const response = await apiClient.get(url)
+    const response = await apiClient.get<StatisticsResult<SourceDistributionItem[]>>(url)
     return {
       data: response.data.data,
       meta: response.data.meta
@@ -71,11 +108,11 @@ export const statisticsApi = {
 
   /**
    * Get evidence quality and composition analysis
-   * @param {Array<string>} tiers - Optional array of evidence tiers for filtering
-   * @param {boolean} hideZeroScores - Hide genes with percentage_score = 0 (default: true)
-   * @returns {Promise} Evidence composition data
    */
-  async getEvidenceComposition(tiers = null, hideZeroScores = true) {
+  async getEvidenceComposition(
+    tiers: string[] | null = null,
+    hideZeroScores: boolean = true
+  ): Promise<StatisticsResult<EvidenceCompositionItem[]>> {
     const params = new URLSearchParams()
 
     // Add tier filter parameter if provided (comma-separated for multi-select with OR logic)
@@ -89,7 +126,7 @@ export const statisticsApi = {
     const queryString = params.toString()
     const url = `/api/statistics/evidence-composition?${queryString}`
 
-    const response = await apiClient.get(url)
+    const response = await apiClient.get<StatisticsResult<EvidenceCompositionItem[]>>(url)
     return {
       data: response.data.data,
       meta: response.data.meta
@@ -98,10 +135,11 @@ export const statisticsApi = {
 
   /**
    * Get summary statistics for dashboard overview
-   * @returns {Promise} Summary statistics
    */
-  async getSummaryStatistics() {
-    const response = await apiClient.get('/api/statistics/summary')
+  async getSummaryStatistics(): Promise<StatisticsResult<SummaryStatisticsData>> {
+    const response = await apiClient.get<StatisticsResult<SummaryStatisticsData>>(
+      '/api/statistics/summary'
+    )
     return {
       data: response.data.data,
       meta: response.data.meta

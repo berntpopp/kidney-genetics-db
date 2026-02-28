@@ -21,38 +21,9 @@ interface ImportMeta {
 
 declare const __APP_VERSION__: string
 
-/**
- * Minimal public API of window.logService.
- * Will be refined once logService.js is migrated to TypeScript in Plan 02.
- */
-interface WindowLogService {
-  debug(message: string, data?: unknown): void
-  info(message: string, data?: unknown): void
-  warn(message: string, data?: unknown): void
-  error(message: string, data?: unknown): void
-  critical(message: string, data?: unknown): void
-  logPerformance(operation: string, duration: number, data?: unknown): void
-  logApiCall(
-    method: string,
-    url: string,
-    status: number,
-    duration: number,
-    data?: unknown
-  ): void
-  initStore(store: unknown): void
-  setCorrelationId(id: string): void
-  clearCorrelationId(): void
-  setMetadata(metadata: Record<string, unknown>): void
-  clearMetadata(): void
-  setConsoleEcho(enabled: boolean): void
-  setMaxEntries(max: number): void
-  setMinLogLevel(level: string): void
-  clearLogs(): void
-  exportLogs(): string
-}
-
 interface Window {
-  logService: WindowLogService
+  /** Global logging service — singleton instance of LogService from @/services/logService */
+  logService: import('@/services/logService').LogService
   _env_?: {
     API_BASE_URL?: string
     WS_URL?: string
