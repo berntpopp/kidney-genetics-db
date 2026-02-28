@@ -8,6 +8,7 @@
  */
 
 import { ref, computed, onUnmounted } from 'vue'
+import { toast } from 'vue-sonner'
 import type { Ref, ComputedRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import type { Router, RouteLocationNormalized } from 'vue-router'
@@ -136,11 +137,9 @@ export function useNetworkUrlState(options: NetworkUrlStateOptions = {}): Networ
       }
 
       // Show user-friendly error
-      if (window.snackbar) {
-        window.snackbar.error(`Failed to restore network state from URL: ${msg}`, {
-          timeout: 5000
-        })
-      }
+      toast.error(`Failed to restore network state from URL: ${msg}`, {
+        duration: Infinity
+      })
 
       return null
     } finally {
@@ -294,9 +293,7 @@ export function useNetworkUrlState(options: NetworkUrlStateOptions = {}): Networ
         })
       }
 
-      if (window.snackbar) {
-        window.snackbar.success('Shareable URL copied to clipboard!')
-      }
+      toast.success('Shareable URL copied to clipboard!', { duration: 5000 })
 
       return true
     } catch (error: unknown) {
@@ -304,9 +301,7 @@ export function useNetworkUrlState(options: NetworkUrlStateOptions = {}): Networ
         window.logService.error('[useNetworkUrlState] Failed to copy URL to clipboard:', error)
       }
 
-      if (window.snackbar) {
-        window.snackbar.error('Failed to copy URL to clipboard')
-      }
+      toast.error('Failed to copy URL to clipboard', { duration: Infinity })
 
       return false
     }

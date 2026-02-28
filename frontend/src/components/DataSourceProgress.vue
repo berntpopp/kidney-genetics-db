@@ -257,7 +257,19 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import apiClient from '@/api/client'
-import { RefreshCw, RefreshCcw, ChevronUp, ChevronDown, Circle, Plus, AlertTriangle, Play, Pause, Cog, Check } from 'lucide-vue-next'
+import {
+  RefreshCw,
+  RefreshCcw,
+  ChevronUp,
+  ChevronDown,
+  Circle,
+  Plus,
+  AlertTriangle,
+  Play,
+  Pause,
+  Cog,
+  Check
+} from 'lucide-vue-next'
 
 // Browser globals are already defined in eslint config
 

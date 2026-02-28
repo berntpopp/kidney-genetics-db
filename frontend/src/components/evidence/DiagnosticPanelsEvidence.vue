@@ -3,7 +3,7 @@
     <!-- Providers with Panels -->
     <div v-if="Object.keys(providerPanels).length > 0" class="mb-4">
       <div class="text-subtitle-2 font-weight-medium mb-2">
-        <v-icon icon="mdi-domain" size="small" class="mr-1" />
+        <Building2 class="size-4 mr-1 inline-block align-middle" />
         Providers ({{ uniqueProviders }})
       </div>
 
@@ -15,7 +15,7 @@
         >
           <v-expansion-panel-title class="text-body-2">
             <div class="d-flex align-center">
-              <v-icon icon="mdi-hospital-building" size="small" class="mr-2" />
+              <Building class="size-4 mr-2" />
               <strong>{{ formatProviderName(provider) }}</strong>
               <v-chip size="x-small" variant="outlined" class="ml-2">
                 {{ panelList.length }} panel{{ panelList.length > 1 ? 's' : '' }}
@@ -43,7 +43,7 @@
       <div v-else-if="uniqueProviders === 1">
         <div v-for="(panelList, provider) in providerPanels" :key="provider">
           <div class="text-body-2 font-weight-medium mb-2">
-            <v-icon icon="mdi-hospital-building" size="small" class="mr-1" />
+            <Building class="size-4 mr-1 inline-block align-middle" />
             {{ formatProviderName(provider) }}
           </div>
           <div class="panels-grid">
@@ -64,7 +64,7 @@
     <!-- Gene Information -->
     <div v-if="evidenceData.metadata" class="mb-4">
       <div class="text-subtitle-2 font-weight-medium mb-2">
-        <v-icon icon="mdi-dna" size="small" class="mr-1" />
+        <Dna class="size-4 mr-1 inline-block align-middle" />
         Gene Information
       </div>
       <v-list density="compact" class="bg-transparent">
@@ -87,7 +87,7 @@
               class="text-primary text-decoration-none"
             >
               {{ evidenceData.metadata.hgnc_id }}
-              <v-icon icon="mdi-open-in-new" size="x-small" class="ml-1" />
+              <ExternalLink class="size-3 ml-1 inline-block align-middle" />
             </a>
           </v-list-item-title>
         </v-list-item>
@@ -114,6 +114,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { Building2, Building, Dna, ExternalLink } from 'lucide-vue-next'
 
 const props = defineProps({
   evidenceData: {

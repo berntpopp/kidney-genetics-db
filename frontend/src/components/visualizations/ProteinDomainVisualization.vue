@@ -59,13 +59,13 @@
     <div class="zoom-controls mb-2">
       <v-btn-group density="compact" variant="outlined" divided>
         <v-btn size="small" :disabled="!canZoomIn" @click="zoomIn">
-          <v-icon icon="mdi-magnify-plus-outline" size="small" />
+          <ZoomIn class="size-4" />
         </v-btn>
         <v-btn size="small" :disabled="!canZoomOut" @click="zoomOut">
-          <v-icon icon="mdi-magnify-minus-outline" size="small" />
+          <ZoomOut class="size-4" />
         </v-btn>
         <v-btn size="small" :disabled="!isZoomed" @click="resetZoom">
-          <v-icon icon="mdi-magnify-remove-outline" size="small" class="mr-1" />
+          <SearchX class="size-4 mr-1" />
           Reset
         </v-btn>
       </v-btn-group>
@@ -75,7 +75,7 @@
         }}% zoom)
       </span>
       <span class="text-caption text-medium-emphasis ml-2">
-        <v-icon icon="mdi-gesture-swipe-horizontal" size="x-small" class="mr-1" />
+        <MoveHorizontal class="size-3 mr-1" />
         Drag to pan, scroll to zoom
       </span>
     </div>
@@ -87,6 +87,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
+import { ZoomIn, ZoomOut, SearchX, MoveHorizontal } from 'lucide-vue-next'
 import { useTheme } from 'vuetify'
 import * as d3 from 'd3'
 import { useD3Tooltip } from '@/composables/useD3Tooltip'

@@ -12,10 +12,10 @@
       <v-container fluid class="pa-0">
         <v-breadcrumbs :items="breadcrumbs" density="compact" class="px-6 py-2 bg-surface-light">
           <template #prepend>
-            <v-icon icon="mdi-home" size="small" />
+            <Home class="size-4" />
           </template>
           <template #divider>
-            <v-icon icon="mdi-chevron-right" size="small" />
+            <ChevronRight class="size-4" />
           </template>
         </v-breadcrumbs>
       </v-container>
@@ -163,7 +163,7 @@
             <p class="text-body-2 mt-2 text-medium-emphasis">Loading evidence...</p>
           </div>
           <div v-else class="text-center py-8">
-            <v-icon icon="mdi-information-outline" size="48" color="grey-lighten-1" />
+            <Info class="size-12 text-muted-foreground" />
             <p class="text-body-1 mt-2 text-medium-emphasis">No evidence records available</p>
           </div>
         </div>
@@ -172,7 +172,7 @@
 
     <!-- Error State -->
     <v-container v-else class="text-center py-12">
-      <v-icon icon="mdi-alert-circle" size="64" color="error" class="mb-4" />
+      <CircleAlert class="size-16 text-destructive mb-4" />
       <h2 class="text-h4 mb-2">Gene Not Found</h2>
       <p class="text-body-1 text-medium-emphasis mb-4">
         The gene "{{ $route.params.symbol }}" could not be found in our database.
@@ -185,6 +185,7 @@
 </template>
 
 <script setup>
+import { Home, ChevronRight, Info, CircleAlert } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { geneApi } from '../api/genes'

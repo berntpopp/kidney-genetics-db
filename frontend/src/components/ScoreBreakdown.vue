@@ -11,7 +11,7 @@
             class="font-weight-medium score-chip"
             v-bind="tooltipProps"
           >
-            <v-icon :icon="scoreIcon" size="small" start />
+            <component :is="scoreIcon" class="size-4 mr-1" />
             {{ formattedScore }}
           </v-chip>
         </template>
@@ -28,7 +28,7 @@
       <v-card-item>
         <template #prepend>
           <v-avatar :color="scoreColor" size="40">
-            <v-icon :icon="scoreIcon" color="white" />
+            <component :is="scoreIcon" class="size-5 text-white" />
           </v-avatar>
         </template>
         <v-card-title>Evidence Score</v-card-title>
@@ -88,7 +88,7 @@
           </div>
         </div>
         <div v-else class="text-center py-4">
-          <v-icon icon="mdi-help-circle" size="large" class="text-medium-emphasis mb-2" />
+          <CircleHelp class="size-6 text-muted-foreground mb-2" />
           <p class="text-body-2 text-medium-emphasis">No evidence score available</p>
         </div>
       </v-card-text>
@@ -126,6 +126,7 @@
 <script setup>
 import { computed } from 'vue'
 import { getScoreExplanation } from '@/utils/evidenceTiers'
+import { CircleHelp, CircleCheck, CircleAlert, CircleX } from 'lucide-vue-next'
 
 // Props
 const props = defineProps({
@@ -170,10 +171,10 @@ const scoreColor = computed(() => {
 })
 
 const scoreIcon = computed(() => {
-  if (!props.score) return 'mdi-help-circle'
-  if (props.score >= 80) return 'mdi-check-circle'
-  if (props.score >= 50) return 'mdi-alert-circle'
-  return 'mdi-close-circle'
+  if (!props.score) return CircleHelp
+  if (props.score >= 80) return CircleCheck
+  if (props.score >= 50) return CircleAlert
+  return CircleX
 })
 
 const classification = computed(() => {

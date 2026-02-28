@@ -3,7 +3,7 @@
     <AdminHeader
       title="Hybrid Source Management"
       subtitle="Upload and manage DiagnosticPanels and Literature evidence"
-      icon="mdi-database-import"
+      :icon="DatabaseZap"
       icon-color="cyan"
       :breadcrumbs="ADMIN_BREADCRUMBS.hybridSources"
     />
@@ -44,11 +44,11 @@
       <!-- Source Selector Tabs -->
       <v-tabs v-model="selectedSource" bg-color="primary">
         <v-tab value="DiagnosticPanels">
-          <v-icon start>mdi-medical-bag</v-icon>
+          <BriefcaseMedical class="size-5 mr-1" />
           Diagnostic Panels
         </v-tab>
         <v-tab value="Literature">
-          <v-icon start>mdi-book-open-page-variant</v-icon>
+          <BookOpen class="size-5 mr-1" />
           Literature
         </v-tab>
       </v-tabs>
@@ -56,19 +56,19 @@
       <!-- View Selector Tabs -->
       <v-tabs v-model="activeTab" color="secondary">
         <v-tab value="upload">
-          <v-icon start>mdi-upload</v-icon>
+          <Upload class="size-5 mr-1" />
           Upload
         </v-tab>
         <v-tab value="history">
-          <v-icon start>mdi-history</v-icon>
+          <History class="size-5 mr-1" />
           History
         </v-tab>
         <v-tab value="audit">
-          <v-icon start>mdi-shield-account</v-icon>
+          <ShieldCheck class="size-5 mr-1" />
           Audit Trail
         </v-tab>
         <v-tab value="manage">
-          <v-icon start>mdi-cog</v-icon>
+          <Cog class="size-5 mr-1" />
           Manage
         </v-tab>
       </v-tabs>
@@ -118,7 +118,10 @@
               @dragleave.prevent="isDragging = false"
               @drop.prevent="handleFileDrop"
             >
-              <v-icon size="64" :color="isDragging ? 'primary' : 'grey'"> mdi-cloud-upload </v-icon>
+              <CloudUpload
+                class="size-16"
+                :class="isDragging ? 'text-primary' : 'text-muted-foreground'"
+              />
               <h3 class="text-h6 mt-4">
                 {{ isDragging ? 'Drop file here' : 'Drag & drop file here' }}
               </h3>
@@ -146,7 +149,7 @@
             <!-- Selected File Info -->
             <v-alert v-if="selectedFile" type="info" density="compact" class="mt-4">
               <div class="d-flex align-center">
-                <v-icon start>mdi-file-document</v-icon>
+                <FileText class="size-5 mr-1" />
                 <span>{{ selectedFile.name }} ({{ formatFileSize(selectedFile.size) }})</span>
                 <v-spacer />
                 <v-btn icon="mdi-close" variant="text" size="small" @click="selectedFile = null" />
@@ -191,7 +194,7 @@
               <v-list density="compact" bg-color="transparent">
                 <v-list-item>
                   <template #prepend>
-                    <v-icon>mdi-counter</v-icon>
+                    <Hash class="size-5" />
                   </template>
                   <v-list-item-title>Genes Processed</v-list-item-title>
                   <template #append>
@@ -200,7 +203,7 @@
                 </v-list-item>
                 <v-list-item>
                   <template #prepend>
-                    <v-icon>mdi-plus</v-icon>
+                    <Plus class="size-5" />
                   </template>
                   <v-list-item-title>Created</v-list-item-title>
                   <template #append>
@@ -209,7 +212,7 @@
                 </v-list-item>
                 <v-list-item>
                   <template #prepend>
-                    <v-icon>mdi-merge</v-icon>
+                    <Merge class="size-5" />
                   </template>
                   <v-list-item-title>Merged</v-list-item-title>
                   <template #append>
@@ -353,7 +356,7 @@
     <v-dialog v-model="deleteDialog" max-width="500">
       <v-card>
         <v-card-title class="bg-error">
-          <v-icon start>mdi-alert</v-icon>
+          <AlertTriangle class="size-5 mr-1" />
           Confirm Deletion
         </v-card-title>
         <v-card-text class="pt-4">
@@ -382,7 +385,7 @@
     <v-dialog v-model="softDeleteDialog" max-width="500">
       <v-card>
         <v-card-title class="bg-warning">
-          <v-icon start>mdi-alert</v-icon>
+          <AlertTriangle class="size-5 mr-1" />
           Soft Delete Upload
         </v-card-title>
         <v-card-text class="pt-4">
@@ -402,11 +405,6 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <!-- Snackbar for notifications -->
-    <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="3000" location="top">
-      {{ snackbarText }}
-    </v-snackbar>
   </v-container>
 </template>
 
@@ -421,6 +419,22 @@ import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as ingestionApi from '@/api/admin/ingestion'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
+import { toast } from 'vue-sonner'
+import {
+  AlertTriangle,
+  BookOpen,
+  BriefcaseMedical,
+  CloudUpload,
+  Cog,
+  DatabaseZap,
+  FileText,
+  Hash,
+  History,
+  Merge,
+  Plus,
+  ShieldCheck,
+  Upload
+} from 'lucide-vue-next'
 
 // State
 const selectedSource = ref('DiagnosticPanels')
@@ -455,11 +469,6 @@ const deleteTarget = ref(null)
 const softDeleteDialog = ref(false)
 const softDeleteTarget = ref(null)
 const deleting = ref(false)
-
-// Snackbar
-const snackbar = ref(false)
-const snackbarText = ref('')
-const snackbarColor = ref('success')
 
 // Table headers
 const uploadHeaders = [
@@ -509,7 +518,7 @@ const loadStatistics = async () => {
     literatureStats.value = litStats.data?.data || {}
   } catch (error) {
     window.logService.error('Failed to load statistics:', error)
-    showSnackbar('Failed to load statistics', 'error')
+    toast.error('Failed to load statistics', { duration: Infinity })
   } finally {
     statsLoading.value = false
   }
@@ -522,7 +531,7 @@ const loadUploads = async () => {
     uploads.value = response.data?.data?.uploads || []
   } catch (error) {
     window.logService.error('Failed to load uploads:', error)
-    showSnackbar('Failed to load upload history', 'error')
+    toast.error('Failed to load upload history', { duration: Infinity })
   } finally {
     uploadsLoading.value = false
   }
@@ -535,7 +544,7 @@ const loadAuditTrail = async () => {
     auditRecords.value = response.data?.data?.audit_records || []
   } catch (error) {
     window.logService.error('Failed to load audit trail:', error)
-    showSnackbar('Failed to load audit trail', 'error')
+    toast.error('Failed to load audit trail', { duration: Infinity })
   } finally {
     auditLoading.value = false
   }
@@ -548,7 +557,7 @@ const loadIdentifiers = async () => {
     identifiers.value = response.data?.data?.identifiers || []
   } catch (error) {
     window.logService.error('Failed to load identifiers:', error)
-    showSnackbar('Failed to load identifiers', 'error')
+    toast.error('Failed to load identifiers', { duration: Infinity })
   } finally {
     identifiersLoading.value = false
   }
@@ -568,7 +577,7 @@ const handleFileSelect = event => {
 const validateAndSetFile = file => {
   // Validate file size (50MB limit)
   if (file.size > 50 * 1024 * 1024) {
-    showSnackbar('File too large. Maximum size is 50MB.', 'error')
+    toast.error('File too large. Maximum size is 50MB.', { duration: Infinity })
     return
   }
 
@@ -576,7 +585,9 @@ const validateAndSetFile = file => {
   const validExtensions = ['json', 'csv', 'tsv', 'xlsx', 'xls']
   const extension = file.name.split('.').pop().toLowerCase()
   if (!validExtensions.includes(extension)) {
-    showSnackbar(`Invalid file type. Supported: ${validExtensions.join(', ')}`, 'error')
+    toast.error(`Invalid file type. Supported: ${validExtensions.join(', ')}`, {
+      duration: Infinity
+    })
     return
   }
 
@@ -615,14 +626,16 @@ const uploadFile = async () => {
     // Reload statistics
     await loadStatistics()
 
-    showSnackbar('Upload successful!', 'success')
+    toast.success('Upload successful!', { duration: 5000 })
   } catch (error) {
     window.logService.error('Upload failed:', error)
     uploadResult.value = {
       status: 'failed',
       message: error.response?.data?.detail || 'Upload failed'
     }
-    showSnackbar(`Upload failed: ${error.response?.data?.detail || error.message}`, 'error')
+    toast.error(`Upload failed: ${error.response?.data?.detail || error.message}`, {
+      duration: Infinity
+    })
   } finally {
     uploading.value = false
   }
@@ -639,13 +652,15 @@ const executeDelete = async () => {
   deleting.value = true
   try {
     await ingestionApi.deleteByIdentifier(selectedSource.value, deleteTarget.value.identifier)
-    showSnackbar('Successfully deleted', 'success')
+    toast.success('Successfully deleted', { duration: 5000 })
     deleteDialog.value = false
     await loadIdentifiers()
     await loadStatistics()
   } catch (error) {
     window.logService.error('Delete failed:', error)
-    showSnackbar(`Delete failed: ${error.response?.data?.detail || error.message}`, 'error')
+    toast.error(`Delete failed: ${error.response?.data?.detail || error.message}`, {
+      duration: Infinity
+    })
   } finally {
     deleting.value = false
   }
@@ -662,12 +677,14 @@ const executeSoftDelete = async () => {
   deleting.value = true
   try {
     await ingestionApi.softDeleteUpload(selectedSource.value, softDeleteTarget.value.id)
-    showSnackbar('Upload marked as deleted', 'success')
+    toast.success('Upload marked as deleted', { duration: 5000 })
     softDeleteDialog.value = false
     await loadUploads()
   } catch (error) {
     window.logService.error('Soft delete failed:', error)
-    showSnackbar(`Soft delete failed: ${error.response?.data?.detail || error.message}`, 'error')
+    toast.error(`Soft delete failed: ${error.response?.data?.detail || error.message}`, {
+      duration: Infinity
+    })
   } finally {
     deleting.value = false
   }
@@ -705,12 +722,6 @@ const getActionColor = action => {
     replace: 'warning'
   }
   return colors[action] || 'default'
-}
-
-const showSnackbar = (text, color = 'success') => {
-  snackbarText.value = text
-  snackbarColor.value = color
-  snackbar.value = true
 }
 
 // Watch for source change to reload data

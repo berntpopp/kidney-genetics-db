@@ -3,7 +3,7 @@
     <AdminHeader
       title="Data Releases"
       subtitle="Create and manage CalVer data releases"
-      icon="mdi-package-variant"
+      :icon="Package"
       icon-color="indigo"
       :breadcrumbs="ADMIN_BREADCRUMBS.releases"
     />
@@ -269,7 +269,7 @@
           <v-list density="compact">
             <v-list-item>
               <template #prepend>
-                <v-icon icon="mdi-package-variant" color="indigo" />
+                <Package class="size-5 text-indigo-600 dark:text-indigo-400" />
               </template>
               <v-list-item-title>Version</v-list-item-title>
               <v-list-item-subtitle>
@@ -279,7 +279,7 @@
 
             <v-list-item>
               <template #prepend>
-                <v-icon icon="mdi-calendar" />
+                <Calendar class="size-5" />
               </template>
               <v-list-item-title>Created</v-list-item-title>
               <v-list-item-subtitle>
@@ -289,7 +289,7 @@
 
             <v-list-item v-if="selectedRelease.published_at">
               <template #prepend>
-                <v-icon icon="mdi-calendar-check" color="success" />
+                <CalendarCheck class="size-5 text-green-600 dark:text-green-400" />
               </template>
               <v-list-item-title>Published</v-list-item-title>
               <v-list-item-subtitle>
@@ -299,7 +299,7 @@
 
             <v-list-item v-if="selectedRelease.gene_count">
               <template #prepend>
-                <v-icon icon="mdi-dna" />
+                <Dna class="size-5" />
               </template>
               <v-list-item-title>Gene Count</v-list-item-title>
               <v-list-item-subtitle>
@@ -309,7 +309,7 @@
 
             <v-list-item v-if="selectedRelease.export_checksum">
               <template #prepend>
-                <v-icon icon="mdi-shield-check" color="success" />
+                <ShieldCheck class="size-5 text-green-600 dark:text-green-400" />
               </template>
               <v-list-item-title>Checksum (SHA256)</v-list-item-title>
               <v-list-item-subtitle>
@@ -364,11 +364,6 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <!-- Snackbar for notifications -->
-    <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="3000" location="top">
-      {{ snackbarText }}
-    </v-snackbar>
   </v-container>
 </template>
 
@@ -383,6 +378,8 @@ import { useAuthStore } from '@/stores/auth'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
+import { toast } from 'vue-sonner'
+import { Calendar, CalendarCheck, Dna, Package, ShieldCheck } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 
@@ -404,11 +401,6 @@ const publishing = ref(false)
 const deleting = ref(false)
 const formValid = ref(false)
 const releaseForm = ref(null)
-
-// Snackbar state
-const snackbar = ref(false)
-const snackbarText = ref('')
-const snackbarColor = ref('success')
 
 // Stats
 const stats = ref({
@@ -469,7 +461,7 @@ const loadReleases = async () => {
     updateStats()
   } catch (error) {
     window.logService.error('Failed to load releases:', error)
-    showSnackbar('Failed to load releases', 'error')
+    toast.error('Failed to load releases', { duration: Infinity })
   } finally {
     loading.value = false
   }
@@ -519,11 +511,11 @@ const createRelease = async () => {
     releases.value.push(newRelease)
     updateStats()
 
-    showSnackbar(`Release ${newRelease.version} created successfully`, 'success')
+    toast.success(`Release ${newRelease.version} created successfully`, { duration: 5000 })
     closeCreateDialog()
   } catch (error) {
     window.logService.error('Failed to create release:', error)
-    showSnackbar(error.message || 'Failed to create release', 'error')
+    toast.error(error.message || 'Failed to create release', { duration: Infinity })
   } finally {
     creating.value = false
   }
@@ -579,11 +571,11 @@ const updateRelease = async () => {
     }
     updateStats()
 
-    showSnackbar(`Release ${updated.version} updated successfully`, 'success')
+    toast.success(`Release ${updated.version} updated successfully`, { duration: 5000 })
     closeCreateDialog()
   } catch (error) {
     window.logService.error('Failed to update release:', error)
-    showSnackbar(error.message || 'Failed to update release', 'error')
+    toast.error(error.message || 'Failed to update release', { duration: Infinity })
   } finally {
     creating.value = false
   }
@@ -615,12 +607,14 @@ const deleteRelease = async () => {
     releases.value = releases.value.filter(r => r.id !== deletingRelease.value.id)
     updateStats()
 
-    showSnackbar(`Release ${deletingRelease.value.version} deleted successfully`, 'success')
+    toast.success(`Release ${deletingRelease.value.version} deleted successfully`, {
+      duration: 5000
+    })
     showDeleteDialog.value = false
     deletingRelease.value = null
   } catch (error) {
     window.logService.error('Failed to delete release:', error)
-    showSnackbar(error.message || 'Failed to delete release', 'error')
+    toast.error(error.message || 'Failed to delete release', { duration: Infinity })
   } finally {
     deleting.value = false
   }
@@ -657,12 +651,12 @@ const publishRelease = async () => {
     }
     updateStats()
 
-    showSnackbar(`Release ${published.version} published successfully`, 'success')
+    toast.success(`Release ${published.version} published successfully`, { duration: 5000 })
     showPublishDialog.value = false
     publishingRelease.value = null
   } catch (error) {
     window.logService.error('Failed to publish release:', error)
-    showSnackbar(error.message || 'Failed to publish release', 'error')
+    toast.error(error.message || 'Failed to publish release', { duration: Infinity })
   } finally {
     publishing.value = false
   }
@@ -691,10 +685,10 @@ const downloadExport = async release => {
     a.click()
     URL.revokeObjectURL(url)
 
-    showSnackbar(`Export downloaded: ${release.version}`, 'success')
+    toast.success(`Export downloaded: ${release.version}`, { duration: 5000 })
   } catch (error) {
     window.logService.error('Failed to download export:', error)
-    showSnackbar('Failed to download export', 'error')
+    toast.error('Failed to download export', { duration: Infinity })
   }
 }
 
@@ -706,17 +700,11 @@ const generateCitation = release => {
 const copyToClipboard = async text => {
   try {
     await navigator.clipboard.writeText(text)
-    showSnackbar('Copied to clipboard', 'success')
+    toast.success('Copied to clipboard', { duration: 5000 })
   } catch (error) {
     window.logService.error('Failed to copy to clipboard:', error)
-    showSnackbar('Failed to copy to clipboard', 'error')
+    toast.error('Failed to copy to clipboard', { duration: Infinity })
   }
-}
-
-const showSnackbar = (text, color = 'success') => {
-  snackbarText.value = text
-  snackbarColor.value = color
-  snackbar.value = true
 }
 
 // Lifecycle

@@ -26,7 +26,7 @@
 
       <!-- Help text for wildcards -->
       <div v-if="showHelp" class="text-caption text-medium-emphasis mt-1 mb-2">
-        <v-icon size="x-small" icon="mdi-information" class="mr-1" />
+        <Info class="size-3 mr-1" />
         Use * for multiple chars, ? for single char
       </div>
 
@@ -74,6 +74,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { Info } from 'lucide-vue-next'
 
 // Props
 const props = defineProps({

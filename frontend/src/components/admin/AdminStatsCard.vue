@@ -11,10 +11,10 @@
           {{ subtitle }}
         </p>
       </div>
-      <v-icon :icon="icon" :color="color" size="large" class="ml-3" />
+      <component :is="resolvedIcon" v-if="resolvedIcon" class="size-6 ml-3" />
     </div>
     <div v-if="trend !== null" class="mt-3 d-flex align-center">
-      <v-icon :icon="trendIcon" :color="trendColor" size="small" class="mr-1" />
+      <component :is="resolvedTrendIcon" v-if="resolvedTrendIcon" class="size-4 mr-1" />
       <span class="text-caption" :class="`text-${trendColor}`">
         {{ Math.abs(trend) }}% {{ trend > 0 ? 'increase' : 'decrease' }}
       </span>
@@ -29,6 +29,7 @@
  */
 
 import { computed } from 'vue'
+import { resolveMdiIcon, TrendingUp, TrendingDown } from '@/utils/icons'
 
 const props = defineProps({
   title: {
@@ -96,9 +97,11 @@ const formattedValue = computed(() => {
   return props.value
 })
 
-const trendIcon = computed(() => {
+const resolvedIcon = computed(() => resolveMdiIcon(props.icon))
+
+const resolvedTrendIcon = computed(() => {
   if (props.trend === null) return null
-  return props.trend > 0 ? 'mdi-trending-up' : 'mdi-trending-down'
+  return props.trend > 0 ? TrendingUp : TrendingDown
 })
 
 const trendColor = computed(() => {

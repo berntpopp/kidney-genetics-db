@@ -9,7 +9,7 @@
     <!-- Toolbar -->
     <v-toolbar color="primary" dark density="compact">
       <v-toolbar-title class="text-subtitle-1">
-        <v-icon start>mdi-text-box-search-outline</v-icon>
+        <FileSearch class="size-5 mr-2" />
         Application Logs
         <v-chip
           v-if="logStore.logCount > 0"
@@ -139,7 +139,7 @@
     <!-- Log Entries -->
     <v-container class="log-entries pa-2" fluid>
       <div v-if="filteredLogs.length === 0" class="text-center py-8 text-grey">
-        <v-icon size="48" class="mb-2">mdi-text-box-remove-outline</v-icon>
+        <FileX class="mb-2" :size="48" />
         <p>{{ logStore.logCount === 0 ? 'No logs available' : 'No logs match your filters' }}</p>
       </div>
 
@@ -185,7 +185,7 @@
           <v-expansion-panels v-if="log.data" variant="accordion" class="log-data">
             <v-expansion-panel>
               <v-expansion-panel-title class="text-caption py-1">
-                <v-icon start size="small">mdi-code-json</v-icon>
+                <FileJson class="size-4 mr-2" />
                 Additional Data
               </v-expansion-panel-title>
               <v-expansion-panel-text>
@@ -201,6 +201,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { FileSearch, FileX, FileJson } from 'lucide-vue-next'
 import { useLogStore } from '@/stores/logStore'
 import { LogLevel } from '@/services/logService'
 

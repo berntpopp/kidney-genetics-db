@@ -6,7 +6,7 @@
   >
     <v-card>
       <v-card-title class="d-flex align-center">
-        <v-icon class="mr-2" color="info">mdi-information</v-icon>
+        <Info class="mr-2 size-5 text-blue-500" />
         Backup Details
       </v-card-title>
 
@@ -21,7 +21,7 @@
             <v-list-item-title>Status</v-list-item-title>
             <v-list-item-subtitle>
               <v-chip :color="getStatusColor(backup.status)" size="small" class="mt-1">
-                <v-icon :icon="getStatusIcon(backup.status)" start size="x-small" />
+                <component :is="resolveMdiIcon(getStatusIcon(backup.status))" class="size-3 mr-1" />
                 {{ backup.status }}
               </v-chip>
             </v-list-item-subtitle>
@@ -85,14 +85,14 @@
           <v-list-item>
             <v-list-item-title>Include Logs</v-list-item-title>
             <v-list-item-subtitle>
-              <v-icon :icon="backup.include_logs ? 'mdi-check' : 'mdi-close'" size="small" />
+              <component :is="backup.include_logs ? Check : X" class="size-4" />
             </v-list-item-subtitle>
           </v-list-item>
 
           <v-list-item>
             <v-list-item-title>Include Cache</v-list-item-title>
             <v-list-item-subtitle>
-              <v-icon :icon="backup.include_cache ? 'mdi-check' : 'mdi-close'" size="small" />
+              <component :is="backup.include_cache ? Check : X" class="size-4" />
             </v-list-item-subtitle>
           </v-list-item>
         </v-list>
@@ -110,6 +110,8 @@
 
 <script setup>
 import { useBackupFormatters } from '@/composables/useBackupFormatters'
+import { Info, Check, X } from 'lucide-vue-next'
+import { resolveMdiIcon } from '@/utils/icons'
 
 const { getStatusColor, getStatusIcon, formatSize, formatDate, formatDuration } =
   useBackupFormatters()

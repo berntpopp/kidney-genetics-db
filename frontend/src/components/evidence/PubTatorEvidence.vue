@@ -7,7 +7,7 @@
       <v-list density="compact" class="transparent">
         <v-list-item v-for="mention in topPublications" :key="mention.pmid" class="px-0 mb-3">
           <template #prepend>
-            <v-icon icon="mdi-file-document" size="small" color="teal" />
+            <FileText class="size-4 text-teal-600 dark:text-teal-400" />
           </template>
 
           <div>
@@ -45,7 +45,7 @@
         @click="showAllPublications = !showAllPublications"
       >
         {{ showAllPublications ? 'Show Less' : `View ${remainingCount} More Publications` }}
-        <v-icon :icon="showAllPublications ? 'mdi-chevron-up' : 'mdi-chevron-down'" end />
+        <component :is="showAllPublications ? ChevronUp : ChevronDown" class="size-4 ml-1" />
       </v-btn>
     </div>
 
@@ -102,7 +102,7 @@
 
     <!-- Search query info -->
     <div v-if="searchQuery" class="mt-3 text-caption text-medium-emphasis">
-      <v-icon icon="mdi-magnify" size="x-small" />
+      <Search class="size-3 inline-block align-middle" />
       Search: {{ searchQuery }}
     </div>
   </div>
@@ -110,6 +110,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { FileText, ChevronUp, ChevronDown, Search } from 'lucide-vue-next'
 
 const props = defineProps({
   evidenceData: {

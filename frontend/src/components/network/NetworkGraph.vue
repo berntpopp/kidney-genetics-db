@@ -281,7 +281,7 @@
         :style="{ height: graphHeight }"
       >
         <div class="text-center text-medium-emphasis">
-          <v-icon icon="mdi-graph-outline" size="64" class="mb-4" />
+          <Network class="size-16 mb-4" />
           <p class="text-body-1">No network data available</p>
           <p class="text-caption">Build a network to visualize interactions</p>
         </div>
@@ -331,11 +331,11 @@
             size="x-small"
           >
             <v-btn value="size" title="Sort by cluster size (largest first)">
-              <v-icon size="small">mdi-sort-numeric-descending</v-icon>
+              <ArrowUpDown class="size-4" />
               <span class="ml-1">Size</span>
             </v-btn>
             <v-btn value="spatial" title="Sort by spatial proximity in graph">
-              <v-icon size="small">mdi-map-marker-distance</v-icon>
+              <Route class="size-4" />
               <span class="ml-1">Spatial</span>
             </v-btn>
           </v-btn-toggle>
@@ -385,7 +385,7 @@
 
               <!-- HPO Data Coverage -->
               <div class="text-caption text-medium-emphasis mb-3">
-                <v-icon size="x-small" icon="mdi-database" class="mr-1" />
+                <Database class="size-3 mr-1" />
                 HPO data:
                 {{ clusterStatistics.get(item.id).hpoDataCount }} /
                 {{ clusterStatistics.get(item.id).total }}
@@ -467,6 +467,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ArrowUpDown, Database, Network, Route } from 'lucide-vue-next'
 import cytoscape from 'cytoscape'
 import coseBilkent from 'cytoscape-cose-bilkent'
 import ClusterDetailsDialog from './ClusterDetailsDialog.vue'

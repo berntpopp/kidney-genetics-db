@@ -3,7 +3,7 @@
     <AdminHeader
       title="Annotations Management"
       subtitle="Control gene annotation pipeline and manage enrichment data sources"
-      icon="mdi-tag-multiple"
+      :icon="Tags"
       icon-color="teal"
       :breadcrumbs="ADMIN_BREADCRUMBS.annotations"
     >
@@ -23,7 +23,7 @@
     <!-- Process Explanation -->
     <v-alert type="info" variant="tonal" class="mb-6" prominent>
       <template #prepend>
-        <v-icon>mdi-information</v-icon>
+        <Info class="size-5" />
       </template>
       <div class="text-body-1">
         <strong>Annotation System:</strong> This pipeline enriches our curated genes with additional
@@ -76,7 +76,7 @@
     <!-- Pipeline Management -->
     <v-card class="mb-6">
       <v-card-title class="d-flex align-center">
-        <v-icon class="mr-2">mdi-pipeline</v-icon>
+        <Workflow class="size-5 mr-2" />
         Annotation Pipeline Control
       </v-card-title>
       <v-card-text>
@@ -117,7 +117,7 @@
             </div>
 
             <div v-else class="mb-4">
-              <v-icon color="success" size="small" class="mr-1">mdi-check-circle</v-icon>
+              <CircleCheck class="size-4 text-green-600 dark:text-green-400 mr-1 inline-block" />
               <span class="text-body-2 text-medium-emphasis">All sources are up to date</span>
             </div>
           </v-col>
@@ -150,7 +150,7 @@
               <v-card variant="outlined" color="primary">
                 <v-card-text>
                   <div class="d-flex align-center mb-3">
-                    <v-icon color="primary" size="small" class="mr-2">mdi-database-check</v-icon>
+                    <DatabaseZap class="size-4 text-primary mr-2 inline-block" />
                     <span class="text-subtitle-2 font-weight-medium">Select Sources to Update</span>
                     <v-spacer />
                     <v-btn
@@ -179,13 +179,10 @@
                       size="small"
                       label
                     >
-                      <v-icon
+                      <CircleCheck
                         v-if="pipelineForm.sources.includes(source.value)"
-                        start
-                        size="x-small"
-                      >
-                        mdi-check-circle
-                      </v-icon>
+                        class="size-3 mr-1"
+                      />
                       {{ source.title }}
                     </v-chip>
                   </v-chip-group>
@@ -193,7 +190,7 @@
                     v-if="pipelineForm.sources.length === 0"
                     class="text-warning text-caption mt-2"
                   >
-                    <v-icon size="x-small" class="mr-1">mdi-alert</v-icon>
+                    <AlertTriangle class="size-3 mr-1 inline-block" />
                     Please select at least one source to update
                   </div>
                 </v-card-text>
@@ -291,7 +288,7 @@
     <!-- Gene Annotation Lookup -->
     <v-card class="mb-6">
       <v-card-title class="d-flex align-center">
-        <v-icon class="mr-2">mdi-file-search</v-icon>
+        <FileSearch class="size-5 mr-2" />
         Test Gene Annotation Lookup
       </v-card-title>
       <v-card-text>
@@ -333,7 +330,7 @@
               :disabled="!lookupGeneId"
               @click="lookupGeneAnnotations"
             >
-              <v-icon start>mdi-magnify</v-icon>
+              <Search class="size-5 mr-1" />
               Lookup
             </v-btn>
           </v-col>
@@ -341,14 +338,14 @@
 
         <v-alert v-if="lookupResult" class="mt-4" variant="tonal" color="info">
           <div class="mb-3">
-            <v-icon color="success" size="small" class="mr-1">mdi-dna</v-icon>
+            <Dna class="size-4 text-green-600 dark:text-green-400 mr-1 inline-block" />
             <strong>Gene:</strong> {{ lookupResult.gene?.symbol }} ({{
               lookupResult.gene?.hgnc_id
             }})
           </div>
 
           <div class="mb-3">
-            <v-icon color="info" size="small" class="mr-1">mdi-database</v-icon>
+            <Database class="size-4 text-blue-600 dark:text-blue-400 mr-1 inline-block" />
             <strong>Annotation Coverage:</strong>
             {{ Object.keys(lookupResult.annotations || {}).length }} data sources
           </div>
@@ -363,14 +360,14 @@
                 color="primary"
                 variant="tonal"
               >
-                <v-icon start size="x-small">mdi-check</v-icon>
+                <Check class="size-3 mr-1 inline-block" />
                 {{ source.toUpperCase() }} ({{ lookupResult.annotations[source].length }} records)
               </v-chip>
             </div>
           </div>
 
           <div v-else class="mt-2">
-            <v-icon color="warning" size="small" class="mr-1">mdi-alert</v-icon>
+            <AlertTriangle class="size-4 text-yellow-600 dark:text-yellow-400 mr-1 inline-block" />
             <span class="text-body-2">No annotations found for this gene</span>
           </div>
         </v-alert>
@@ -381,7 +378,7 @@
     <v-card class="mb-6">
       <v-card-title class="d-flex align-center justify-space-between">
         <div class="d-flex align-center">
-          <v-icon class="mr-2">mdi-database-sync</v-icon>
+          <RefreshCw class="size-5 mr-2" />
           Annotation Sources ({{ annotationSources.length }})
         </div>
       </v-card-title>
@@ -395,11 +392,10 @@
       >
         <template #item.source_name="{ item }">
           <div class="d-flex align-center">
-            <v-icon
-              :color="item.is_active ? 'success' : 'error'"
-              :icon="item.is_active ? 'mdi-check-circle' : 'mdi-close-circle'"
-              size="small"
-              class="mr-2"
+            <component
+              :is="item.is_active ? CircleCheck : CircleX"
+              class="size-4 mr-2"
+              :class="item.is_active ? 'text-green-600 dark:text-green-400' : 'text-destructive'"
             />
             <strong>{{ item.display_name || item.source_name }}</strong>
           </div>
@@ -456,7 +452,7 @@
     <v-card class="mb-6">
       <v-card-title class="d-flex align-center justify-space-between">
         <div class="d-flex align-center">
-          <v-icon class="mr-2">mdi-clock-outline</v-icon>
+          <Clock class="size-5 mr-2" />
           Scheduled Jobs
           <v-chip
             :color="schedulerInfo.scheduler_running ? 'success' : 'error'"
@@ -571,14 +567,6 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <!-- Snackbar for notifications -->
-    <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="5000">
-      {{ snackbar.message }}
-      <template #actions>
-        <v-btn icon="mdi-close" @click="snackbar.show = false" />
-      </template>
-    </v-snackbar>
   </v-container>
 </template>
 
@@ -589,6 +577,23 @@ import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import DataSourceProgress from '@/components/DataSourceProgress.vue'
 import * as annotationsApi from '@/api/admin/annotations'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
+import { toast } from 'vue-sonner'
+import {
+  AlertTriangle,
+  Check,
+  CircleCheck,
+  CircleX,
+  Clock,
+  Database,
+  DatabaseZap,
+  Dna,
+  FileSearch,
+  Info,
+  RefreshCw,
+  Search,
+  Tags,
+  Workflow
+} from 'lucide-vue-next'
 
 // Reactive data
 const loading = ref(false)
@@ -641,13 +646,6 @@ const lookupResult = ref(null)
 const sourceDetailsDialog = ref(false)
 const selectedSource = ref(null)
 
-// Snackbar
-const snackbar = reactive({
-  show: false,
-  message: '',
-  color: 'info'
-})
-
 // Computed
 const activeJobs = computed(() => {
   return scheduledJobs.value.length
@@ -695,12 +693,6 @@ const jobsHeaders = [
 ]
 
 // Methods
-const showSnackbar = (message, color = 'info') => {
-  snackbar.message = message
-  snackbar.color = color
-  snackbar.show = true
-}
-
 const loadStatistics = async () => {
   statsLoading.value = true
   try {
@@ -708,7 +700,7 @@ const loadStatistics = async () => {
     Object.assign(statistics, response.data)
   } catch (error) {
     window.logService.error('Failed to load statistics:', error)
-    showSnackbar('Failed to load annotation statistics', 'error')
+    toast.error('Failed to load annotation statistics', { duration: Infinity })
   } finally {
     statsLoading.value = false
   }
@@ -720,7 +712,7 @@ const loadAnnotationSources = async () => {
     annotationSources.value = response.data
   } catch (error) {
     window.logService.error('Failed to load annotation sources:', error)
-    showSnackbar('Failed to load annotation sources', 'error')
+    toast.error('Failed to load annotation sources', { duration: Infinity })
   }
 }
 
@@ -730,7 +722,7 @@ const loadPipelineStatus = async () => {
     Object.assign(pipelineStatus, response.data)
   } catch (error) {
     window.logService.error('Failed to load pipeline status:', error)
-    showSnackbar('Failed to load pipeline status', 'error')
+    toast.error('Failed to load pipeline status', { duration: Infinity })
   }
 }
 
@@ -742,7 +734,7 @@ const loadScheduledJobs = async () => {
     scheduledJobs.value = response.data.jobs || []
   } catch (error) {
     window.logService.error('Failed to load scheduled jobs:', error)
-    showSnackbar('Failed to load scheduled jobs', 'error')
+    toast.error('Failed to load scheduled jobs', { duration: Infinity })
   } finally {
     jobsLoading.value = false
   }
@@ -765,18 +757,18 @@ const loadData = async () => {
 const triggerPipelineUpdate = async () => {
   // Validate SELECTIVE strategy has sources selected
   if (pipelineForm.strategy === 'selective' && pipelineForm.sources.length === 0) {
-    showSnackbar('Please select at least one source for selective update', 'warning')
+    toast.warning('Please select at least one source for selective update', { duration: 5000 })
     return
   }
 
   pipelineLoading.value = true
   try {
     const response = await annotationsApi.triggerPipelineUpdate(pipelineForm)
-    showSnackbar(`Pipeline update scheduled: ${response.data.task_id}`, 'success')
+    toast.success(`Pipeline update scheduled: ${response.data.task_id}`, { duration: 5000 })
     await loadPipelineStatus()
   } catch (error) {
     window.logService.error('Failed to trigger pipeline update:', error)
-    showSnackbar('Failed to trigger pipeline update', 'error')
+    toast.error('Failed to trigger pipeline update', { duration: Infinity })
   } finally {
     pipelineLoading.value = false
   }
@@ -786,11 +778,11 @@ const validateAnnotations = async () => {
   pipelineLoading.value = true
   try {
     const response = await annotationsApi.validateAnnotations()
-    showSnackbar('Validation completed', 'success')
+    toast.success('Validation completed', { duration: 5000 })
     window.logService.info('Validation results:', response.data)
   } catch (error) {
     window.logService.error('Failed to validate annotations:', error)
-    showSnackbar('Failed to validate annotations', 'error')
+    toast.error('Failed to validate annotations', { duration: Infinity })
   } finally {
     pipelineLoading.value = false
   }
@@ -800,10 +792,10 @@ const refreshMaterializedView = async () => {
   pipelineLoading.value = true
   try {
     const response = await annotationsApi.refreshMaterializedView()
-    showSnackbar(response.data.message, 'success')
+    toast.success(response.data.message, { duration: 5000 })
   } catch (error) {
     window.logService.error('Failed to refresh materialized view:', error)
-    showSnackbar('Failed to refresh materialized view', 'error')
+    toast.error('Failed to refresh materialized view', { duration: Infinity })
   } finally {
     pipelineLoading.value = false
   }
@@ -824,9 +816,9 @@ const lookupGeneAnnotations = async () => {
   } catch (error) {
     window.logService.error('Failed to lookup gene annotations:', error)
     if (error.response?.status === 404) {
-      showSnackbar('Gene not found', 'error')
+      toast.error('Gene not found', { duration: Infinity })
     } else {
-      showSnackbar('Failed to lookup gene annotations', 'error')
+      toast.error('Failed to lookup gene annotations', { duration: Infinity })
     }
   } finally {
     lookupLoading.value = false
@@ -838,14 +830,13 @@ const updateSource = async sourceName => {
   try {
     // Use the new update-missing endpoint for source-specific updates
     const response = await annotationsApi.updateMissingForSource(sourceName)
-    showSnackbar(
-      `Updating ${response.data.count} genes missing ${sourceName} annotations`,
-      'success'
-    )
+    toast.success(`Updating ${response.data.count} genes missing ${sourceName} annotations`, {
+      duration: 5000
+    })
     await loadStatistics()
   } catch (error) {
     window.logService.error(`Failed to update source ${sourceName}:`, error)
-    showSnackbar(`Failed to update source ${sourceName}`, 'error')
+    toast.error(`Failed to update source ${sourceName}`, { duration: Infinity })
   } finally {
     sourceUpdateLoading[sourceName] = false
   }
@@ -855,11 +846,11 @@ const pauseUpdate = async () => {
   pauseLoading.value = true
   try {
     await annotationsApi.pausePipeline()
-    showSnackbar('Pipeline paused successfully', 'success')
+    toast.success('Pipeline paused successfully', { duration: 5000 })
     await loadPipelineStatus()
   } catch (error) {
     window.logService.error('Failed to pause pipeline:', error)
-    showSnackbar(`Error pausing pipeline: ${error.message}`, 'error')
+    toast.error(`Error pausing pipeline: ${error.message}`, { duration: Infinity })
   } finally {
     pauseLoading.value = false
   }
@@ -869,11 +860,11 @@ const resumeUpdate = async () => {
   resumeLoading.value = true
   try {
     await annotationsApi.resumePipeline()
-    showSnackbar('Pipeline resumed successfully', 'success')
+    toast.success('Pipeline resumed successfully', { duration: 5000 })
     await loadPipelineStatus()
   } catch (error) {
     window.logService.error('Failed to resume pipeline:', error)
-    showSnackbar(`Error resuming pipeline: ${error.message}`, 'error')
+    toast.error(`Error resuming pipeline: ${error.message}`, { duration: Infinity })
   } finally {
     resumeLoading.value = false
   }
@@ -883,11 +874,11 @@ const updateFailed = async () => {
   failedLoading.value = true
   try {
     const response = await annotationsApi.updateFailedGenes()
-    showSnackbar(`Retrying ${response.data.count} failed genes`, 'info')
+    toast.info(`Retrying ${response.data.count} failed genes`, { duration: 5000 })
     await loadPipelineStatus()
   } catch (error) {
     window.logService.error('Failed to update failed genes:', error)
-    showSnackbar(`Error updating failed genes: ${error.message}`, 'error')
+    toast.error(`Error updating failed genes: ${error.message}`, { duration: Infinity })
   } finally {
     failedLoading.value = false
   }
@@ -897,11 +888,11 @@ const updateNew = async () => {
   newLoading.value = true
   try {
     const response = await annotationsApi.updateNewGenes()
-    showSnackbar(`Processing ${response.data.count} new genes`, 'info')
+    toast.info(`Processing ${response.data.count} new genes`, { duration: 5000 })
     await loadPipelineStatus()
   } catch (error) {
     window.logService.error('Failed to update new genes:', error)
-    showSnackbar(`Error updating new genes: ${error.message}`, 'error')
+    toast.error(`Error updating new genes: ${error.message}`, { duration: Infinity })
   } finally {
     newLoading.value = false
   }
@@ -916,11 +907,11 @@ const triggerJob = async jobId => {
   jobTriggerLoading[jobId] = true
   try {
     const response = await annotationsApi.triggerScheduledJob(jobId)
-    showSnackbar(response.data.message, 'success')
+    toast.success(response.data.message, { duration: 5000 })
     await loadScheduledJobs()
   } catch (error) {
     window.logService.error(`Failed to trigger job ${jobId}:`, error)
-    showSnackbar(`Failed to trigger job ${jobId}`, 'error')
+    toast.error(`Failed to trigger job ${jobId}`, { duration: Infinity })
   } finally {
     jobTriggerLoading[jobId] = false
   }

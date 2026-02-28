@@ -6,7 +6,7 @@
   >
     <v-card>
       <v-card-title class="d-flex align-center">
-        <v-icon class="mr-2" color="error">mdi-delete</v-icon>
+        <Trash2 class="mr-2 size-5 text-destructive" />
         Delete Backup
       </v-card-title>
 
@@ -35,6 +35,7 @@
 </template>
 
 <script setup>
+import { Trash2 } from 'lucide-vue-next'
 import { useBackupFormatters } from '@/composables/useBackupFormatters'
 
 const { formatSize } = useBackupFormatters()

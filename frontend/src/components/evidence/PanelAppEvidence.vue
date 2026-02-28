@@ -46,7 +46,7 @@
         @click="showAllPanels = !showAllPanels"
       >
         {{ showAllPanels ? 'Show Less' : `Show ${remainingPanels} More Panels` }}
-        <v-icon :icon="showAllPanels ? 'mdi-chevron-up' : 'mdi-chevron-down'" end />
+        <component :is="showAllPanels ? ChevronUp : ChevronDown" class="size-4 ml-1" />
       </v-btn>
     </div>
 
@@ -61,7 +61,7 @@
           :color="getRegionColor(region)"
           variant="tonal"
         >
-          <v-icon icon="mdi-map-marker" start size="x-small" />
+          <MapPin class="size-3 mr-1" />
           {{ region }}
         </v-chip>
       </div>
@@ -113,7 +113,7 @@
       <v-list density="compact" class="transparent">
         <v-list-item v-for="mode in modesOfInheritance" :key="mode" class="px-0">
           <template #prepend>
-            <v-icon icon="mdi-family-tree" size="x-small" color="orange" />
+            <GitBranch class="size-3 text-yellow-600 dark:text-yellow-400" />
           </template>
           <v-list-item-title class="text-caption">{{ formatInheritance(mode) }}</v-list-item-title>
         </v-list-item>
@@ -154,6 +154,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { ChevronUp, ChevronDown, MapPin, GitBranch } from 'lucide-vue-next'
 
 const props = defineProps({
   evidenceData: {

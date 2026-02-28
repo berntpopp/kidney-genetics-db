@@ -122,7 +122,7 @@
       >
         <template #item.status="{ item }">
           <v-chip :color="getStatusColor(item.status)" size="small" label>
-            <v-icon :icon="getStatusIcon(item.status)" start size="x-small" />
+            <component :is="resolveMdiIcon(getStatusIcon(item.status))" class="size-3 mr-1" />
             {{ item.status }}
           </v-chip>
         </template>
@@ -241,6 +241,7 @@
  */
 
 import { ref, computed, onMounted } from 'vue'
+import { resolveMdiIcon } from '@/utils/icons'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import BackupCreateDialog from '@/components/admin/backups/BackupCreateDialog.vue'

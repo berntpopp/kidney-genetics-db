@@ -21,6 +21,7 @@
  *   ]"
  * />
  */
+import type { Component } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   Breadcrumb,
@@ -42,14 +43,14 @@ withDefaults(
   defineProps<{
     title: string
     subtitle?: string
-    icon?: string
+    icon?: Component
     iconColor?: string
     showDivider?: boolean
     breadcrumbs?: BreadcrumbItemType[]
   }>(),
   {
     subtitle: '',
-    icon: '',
+    icon: undefined,
     iconColor: 'primary',
     showDivider: false,
     breadcrumbs: () => []
@@ -75,10 +76,7 @@ withDefaults(
     </Breadcrumb>
 
     <div class="flex items-center">
-      <!-- TODO: Phase 7 - replace v-icon with Lucide component lookup -->
-      <v-icon v-if="icon" :color="iconColor" size="large" class="mr-3">
-        {{ icon }}
-      </v-icon>
+      <component :is="icon" v-if="icon" class="size-6 mr-3" />
 
       <!-- Title and subtitle -->
       <div class="flex-1">

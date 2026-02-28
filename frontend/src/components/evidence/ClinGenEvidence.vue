@@ -21,10 +21,9 @@
                   :color="getClassificationColor(validity.classification)"
                   variant="tonal"
                 >
-                  <v-icon
-                    :icon="getClassificationIcon(validity.classification)"
-                    start
-                    size="x-small"
+                  <component
+                    :is="getClassificationIcon(validity.classification)"
+                    class="size-3 mr-1"
                   />
                   {{ validity.classification }}
                 </v-chip>
@@ -37,7 +36,7 @@
             <!-- Details -->
             <div class="pl-4">
               <div v-if="validity.expert_panel" class="text-caption text-medium-emphasis mb-1">
-                <v-icon icon="mdi-account-group" size="x-small" />
+                <Users class="size-3 inline-block align-middle" />
                 {{ validity.expert_panel }}
               </div>
 
@@ -45,12 +44,12 @@
                 v-if="validity.mode_of_inheritance"
                 class="text-caption text-medium-emphasis mb-1"
               >
-                <v-icon icon="mdi-family-tree" size="x-small" />
+                <GitBranch class="size-3 inline-block align-middle" />
                 {{ validity.mode_of_inheritance }}
               </div>
 
               <div v-if="validity.release_date" class="text-caption text-medium-emphasis">
-                <v-icon icon="mdi-calendar" size="x-small" />
+                <Calendar class="size-3 inline-block align-middle" />
                 Released: {{ formatDate(validity.release_date) }}
               </div>
             </div>
@@ -67,7 +66,7 @@
         @click="showAllValidities = !showAllValidities"
       >
         {{ showAllValidities ? 'Show Less' : `Show ${remainingValidities} More Assessments` }}
-        <v-icon :icon="showAllValidities ? 'mdi-chevron-up' : 'mdi-chevron-down'" end />
+        <component :is="showAllValidities ? ChevronUp : ChevronDown" class="size-4 ml-1" />
       </v-btn>
     </div>
 
@@ -82,7 +81,7 @@
           variant="outlined"
           color="green"
         >
-          <v-icon icon="mdi-certificate" start size="x-small" />
+          <Award class="size-3 mr-1" />
           {{ panel }}
         </v-chip>
       </div>
@@ -94,7 +93,7 @@
       <v-list density="compact" class="transparent">
         <v-list-item v-for="disease in diseases" :key="disease" class="px-0">
           <template #prepend>
-            <v-icon icon="mdi-virus-outline" size="x-small" color="green" />
+            <Bug class="size-3 text-green-600 dark:text-green-400" />
           </template>
           <v-list-item-title class="text-body-2">{{ disease }}</v-list-item-title>
         </v-list-item>
@@ -143,6 +142,22 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import {
+  Users,
+  GitBranch,
+  Calendar,
+  ChevronUp,
+  ChevronDown,
+  Award,
+  Bug,
+  CircleCheck,
+  Check,
+  AlertTriangle,
+  CircleMinus,
+  CircleHelp,
+  CircleX,
+  Circle
+} from 'lucide-vue-next'
 
 const props = defineProps({
   evidenceData: {
@@ -230,15 +245,15 @@ const getClassificationColor = classification => {
 
 const getClassificationIcon = classification => {
   const icons = {
-    Definitive: 'mdi-check-circle',
-    Strong: 'mdi-check-bold',
-    Moderate: 'mdi-check',
-    Limited: 'mdi-alert',
-    'No Specified Relationship': 'mdi-minus-circle',
-    Disputed: 'mdi-help-circle',
-    Refuted: 'mdi-close-circle'
+    Definitive: CircleCheck,
+    Strong: Check,
+    Moderate: Check,
+    Limited: AlertTriangle,
+    'No Specified Relationship': CircleMinus,
+    Disputed: CircleHelp,
+    Refuted: CircleX
   }
-  return icons[classification] || 'mdi-circle'
+  return icons[classification] || Circle
 }
 
 const formatDate = dateString => {

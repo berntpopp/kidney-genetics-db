@@ -58,7 +58,11 @@
                   <template #prepend>
                     <Database
                       class="size-5"
-                      :class="databaseVersion === 'unknown' ? 'text-destructive' : 'text-blue-600 dark:text-blue-400'"
+                      :class="
+                        databaseVersion === 'unknown'
+                          ? 'text-destructive'
+                          : 'text-blue-600 dark:text-blue-400'
+                      "
                     />
                   </template>
                   <v-list-item-title class="text-caption font-weight-medium">

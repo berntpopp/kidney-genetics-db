@@ -8,7 +8,7 @@
         class="font-weight-medium tier-chip"
         v-bind="tooltipProps"
       >
-        <v-icon :icon="tierConfig.icon" size="small" start />
+        <component :is="tierConfig.icon" class="size-4 mr-1" />
         {{ tierConfig.label }}
       </v-chip>
     </template>

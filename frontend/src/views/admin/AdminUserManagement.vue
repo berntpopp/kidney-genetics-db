@@ -53,10 +53,10 @@
 
         <!-- Verified column -->
         <template #item.is_verified="{ item }">
-          <v-icon
-            :icon="item.is_verified ? 'mdi-check-circle' : 'mdi-close-circle'"
-            :color="item.is_verified ? 'success' : 'error'"
-            size="small"
+          <component
+            :is="item.is_verified ? CircleCheck : CircleX"
+            class="size-4"
+            :class="item.is_verified ? 'text-green-600 dark:text-green-400' : 'text-destructive'"
           />
         </template>
 
@@ -207,11 +207,6 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <!-- Snackbar for notifications -->
-    <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="3000" location="top">
-      {{ snackbarText }}
-    </v-snackbar>
   </v-container>
 </template>
 
@@ -225,6 +220,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
+import { toast } from 'vue-sonner'
+import { CircleCheck, CircleX } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 
@@ -240,11 +237,6 @@ const saving = ref(false)
 const deleting = ref(false)
 const formValid = ref(false)
 const userForm = ref(null)
-
-// Snackbar state
-const snackbar = ref(false)
-const snackbarText = ref('')
-const snackbarColor = ref('success')
 
 // Form data
 const userFormData = ref({
@@ -295,11 +287,11 @@ const loadUsers = async () => {
 
     // Check if it's an authentication error
     if (error.response?.status === 401) {
-      showSnackbar('Session expired. Please login again.', 'error')
+      toast.error('Session expired. Please login again.', { duration: Infinity })
       // Clear auth and redirect to login
       await authStore.logout()
     } else {
-      showSnackbar('Failed to load users. Check if backend is running.', 'error')
+      toast.error('Failed to load users. Check if backend is running.', { duration: Infinity })
     }
   } finally {
     loading.value = false
@@ -351,13 +343,12 @@ const toggleUserStatus = async user => {
       users.value[index] = updated
     }
 
-    showSnackbar(
-      `User ${user.username} ${updated.is_active ? 'activated' : 'deactivated'}`,
-      'success'
-    )
+    toast.success(`User ${user.username} ${updated.is_active ? 'activated' : 'deactivated'}`, {
+      duration: 5000
+    })
   } catch (error) {
     window.logService.error('Failed to toggle user status:', error)
-    showSnackbar('Failed to update user status', 'error')
+    toast.error('Failed to update user status', { duration: Infinity })
   }
 }
 
@@ -376,12 +367,12 @@ const deleteUser = async () => {
     // Remove from local state
     users.value = users.value.filter(u => u.id !== deletingUser.value.id)
 
-    showSnackbar(`User ${deletingUser.value.username} deleted`, 'success')
+    toast.success(`User ${deletingUser.value.username} deleted`, { duration: 5000 })
     showDeleteDialog.value = false
     deletingUser.value = null
   } catch (error) {
     window.logService.error('Failed to delete user:', error)
-    showSnackbar('Failed to delete user', 'error')
+    toast.error('Failed to delete user', { duration: Infinity })
   } finally {
     deleting.value = false
   }
@@ -410,7 +401,7 @@ const saveUser = async () => {
         users.value[index] = updated
       }
 
-      showSnackbar('User updated successfully', 'success')
+      toast.success('User updated successfully', { duration: 5000 })
     } else {
       // Create new user
       const newUser = await authStore.registerUser({
@@ -424,13 +415,13 @@ const saveUser = async () => {
       })
 
       users.value.push(newUser)
-      showSnackbar('User created successfully', 'success')
+      toast.success('User created successfully', { duration: 5000 })
     }
 
     closeDialog()
   } catch (error) {
     window.logService.error('Failed to save user:', error)
-    showSnackbar(error.response?.data?.detail || 'Failed to save user', 'error')
+    toast.error(error.response?.data?.detail || 'Failed to save user', { duration: Infinity })
   } finally {
     saving.value = false
   }
@@ -449,12 +440,6 @@ const closeDialog = () => {
     is_verified: false
   }
   userForm.value?.reset()
-}
-
-const showSnackbar = (text, color = 'success') => {
-  snackbarText.value = text
-  snackbarColor.value = color
-  snackbar.value = true
 }
 
 // Lifecycle

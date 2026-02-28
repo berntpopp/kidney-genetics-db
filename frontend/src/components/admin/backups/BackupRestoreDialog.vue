@@ -6,7 +6,7 @@
   >
     <v-card>
       <v-card-title class="d-flex align-center">
-        <v-icon class="mr-2" color="warning">mdi-alert</v-icon>
+        <AlertTriangle class="mr-2 size-5 text-yellow-600 dark:text-yellow-400" />
         Restore Database Backup
       </v-card-title>
 
@@ -64,6 +64,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { AlertTriangle } from 'lucide-vue-next'
 import { useBackupFormatters } from '@/composables/useBackupFormatters'
 
 const { formatDate, formatSize } = useBackupFormatters()

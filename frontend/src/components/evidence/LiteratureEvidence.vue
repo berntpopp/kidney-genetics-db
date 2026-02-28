@@ -3,7 +3,7 @@
     <!-- Publication List with Rich Details -->
     <div v-if="publications?.length" class="mb-4">
       <div class="text-subtitle-2 font-weight-medium mb-3 d-flex align-center">
-        <v-icon icon="mdi-bookshelf" size="small" class="mr-2" color="primary" />
+        <Library class="size-4 mr-2 text-primary" />
         Curated Literature Evidence
       </div>
 
@@ -96,7 +96,7 @@
         @click="showAllPublications = !showAllPublications"
       >
         {{ showAllPublications ? 'Show Less' : `View ${remainingCount} More` }}
-        <v-icon :icon="showAllPublications ? 'mdi-chevron-up' : 'mdi-chevron-down'" end />
+        <component :is="showAllPublications ? ChevronUp : ChevronDown" class="size-4 ml-1" />
       </v-btn>
     </div>
 
@@ -124,7 +124,7 @@
 
     <!-- No Data State -->
     <div v-if="!publications?.length" class="text-center py-8">
-      <v-icon icon="mdi-book-open-variant" size="48" class="mb-3 text-medium-emphasis" />
+      <BookOpen class="size-12 mb-3 text-muted-foreground" />
       <p class="text-body-2 text-medium-emphasis">No literature evidence available</p>
     </div>
   </div>
@@ -132,6 +132,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { Library, ChevronUp, ChevronDown, BookOpen } from 'lucide-vue-next'
 
 const props = defineProps({
   evidenceData: {

@@ -3,7 +3,7 @@
     <AdminHeader
       title="System Logs"
       subtitle="View and analyze system logs"
-      icon="mdi-file-document-outline"
+      :icon="FileText"
       icon-color="orange"
       :breadcrumbs="ADMIN_BREADCRUMBS.logs"
     >
@@ -296,7 +296,7 @@
     <v-dialog v-model="showDetailsDialog" max-width="1200" scrollable>
       <v-card v-if="selectedLog">
         <v-card-title class="d-flex align-center">
-          <v-icon icon="mdi-eye" class="mr-2" />
+          <Eye class="size-5 mr-2" />
           Request Details
           <v-chip :color="getLevelColor(selectedLog.level)" size="small" label class="ml-2">
             {{ selectedLog.level }}
@@ -314,23 +314,23 @@
 
         <v-tabs v-model="detailsTab" density="compact">
           <v-tab value="overview">
-            <v-icon icon="mdi-information" class="mr-2" />
+            <Info class="size-4 mr-2" />
             Overview
           </v-tab>
           <v-tab value="request">
-            <v-icon icon="mdi-arrow-right-bold-box" class="mr-2" />
+            <SquareArrowRight class="size-4 mr-2" />
             Request
           </v-tab>
           <v-tab value="response">
-            <v-icon icon="mdi-arrow-left-bold-box" class="mr-2" />
+            <SquareArrowLeft class="size-4 mr-2" />
             Response
           </v-tab>
           <v-tab v-if="selectedLog.error_type" value="error">
-            <v-icon icon="mdi-alert-circle" class="mr-2" />
+            <CircleAlert class="size-4 mr-2" />
             Error
           </v-tab>
           <v-tab value="context">
-            <v-icon icon="mdi-code-json" class="mr-2" />
+            <FileJson class="size-4 mr-2" />
             Context
           </v-tab>
         </v-tabs>
@@ -598,11 +598,6 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <!-- Snackbar -->
-    <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="3000" location="top">
-      {{ snackbarText }}
-    </v-snackbar>
   </v-container>
 </template>
 
@@ -618,6 +613,16 @@ import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as logsApi from '@/api/admin/logs'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
+import { toast } from 'vue-sonner'
+import {
+  FileText,
+  Eye,
+  Info,
+  SquareArrowRight,
+  SquareArrowLeft,
+  CircleAlert,
+  FileJson
+} from 'lucide-vue-next'
 
 // const authStore = useAuthStore()
 
@@ -676,11 +681,6 @@ const stats = ref({
   warningCount: 0,
   storageSize: '0 MB'
 })
-
-// Snackbar
-const snackbar = ref(false)
-const snackbarText = ref('')
-const snackbarColor = ref('success')
 
 // Table configuration
 const headers = [
@@ -791,7 +791,7 @@ const loadLogs = async () => {
     totalLogs.value = data.pagination?.total || 0
   } catch (error) {
     window.logService.error('Failed to load logs:', error)
-    showSnackbar('Failed to load logs', 'error')
+    toast.error('Failed to load logs', { duration: Infinity })
   } finally {
     loading.value = false
   }
@@ -870,10 +870,10 @@ const exportLogs = async () => {
     a.click()
     URL.revokeObjectURL(url)
 
-    showSnackbar('Logs exported successfully', 'success')
+    toast.success('Logs exported successfully', { duration: 5000 })
   } catch (error) {
     window.logService.error('Failed to export logs:', error)
-    showSnackbar('Failed to export logs', 'error')
+    toast.error('Failed to export logs', { duration: Infinity })
   } finally {
     exporting.value = false
   }
@@ -885,14 +885,14 @@ const executeCleanup = async () => {
     const response = await logsApi.cleanupLogs(cleanupDays.value)
     const data = response.data || response
 
-    showSnackbar(`Deleted ${data.logs_deleted || 0} log entries`, 'success')
+    toast.success(`Deleted ${data.logs_deleted || 0} log entries`, { duration: 5000 })
     showCleanupDialog.value = false
 
     // Reload logs and stats
     await Promise.all([loadLogs(), loadStats()])
   } catch (error) {
     window.logService.error('Failed to cleanup logs:', error)
-    showSnackbar('Failed to cleanup logs', 'error')
+    toast.error('Failed to cleanup logs', { duration: Infinity })
   } finally {
     cleaning.value = false
   }
@@ -1009,10 +1009,10 @@ const formatRequestBody = body => {
 const copyToClipboard = async text => {
   try {
     await navigator.clipboard.writeText(text)
-    showSnackbar('Copied to clipboard', 'success')
+    toast.success('Copied to clipboard', { duration: 5000 })
   } catch (error) {
     window.logService.error('Failed to copy:', error)
-    showSnackbar('Failed to copy', 'error')
+    toast.error('Failed to copy', { duration: Infinity })
   }
 }
 
@@ -1030,12 +1030,6 @@ const updateItemsPerPage = newValue => {
   itemsPerPage.value = newValue
   currentPage.value = 1 // Reset to first page when changing items per page
   loadLogs()
-}
-
-const showSnackbar = (text, color = 'success') => {
-  snackbarText.value = text
-  snackbarColor.value = color
-  snackbar.value = true
 }
 
 // Watch filters

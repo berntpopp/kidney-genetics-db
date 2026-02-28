@@ -6,7 +6,7 @@
   >
     <v-card>
       <v-card-title class="d-flex align-center">
-        <v-icon icon="mdi-history" start />
+        <History class="size-5 mr-2" />
         Change History: {{ setting?.key }}
       </v-card-title>
 
@@ -66,6 +66,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { History } from 'lucide-vue-next'
 import { useSettingsApi } from '@/composables/useSettingsApi'
 import { formatDate } from '@/utils/formatters'
 

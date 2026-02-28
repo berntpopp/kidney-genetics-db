@@ -6,13 +6,13 @@
         <!-- Breadcrumbs -->
         <v-breadcrumbs :items="breadcrumbs" density="compact" class="pa-0 mb-2">
           <template #divider>
-            <v-icon size="small">mdi-chevron-right</v-icon>
+            <ChevronRight class="size-4" />
           </template>
         </v-breadcrumbs>
 
         <!-- Header -->
         <div class="d-flex align-center mb-6">
-          <v-icon color="primary" size="large" class="mr-3">mdi-view-dashboard</v-icon>
+          <LayoutDashboard class="size-6 text-primary mr-3" />
           <div>
             <h1 class="text-h4 font-weight-bold">Data Visualization Dashboard</h1>
             <p class="text-body-2 text-medium-emphasis ma-0">
@@ -58,15 +58,15 @@
         <v-card rounded="lg">
           <v-tabs v-model="activeTab" color="primary" align-tabs="start" show-arrows>
             <v-tab value="overlaps">
-              <v-icon class="me-2">mdi-chart-scatter-plot</v-icon>
+              <ChartScatter class="size-5 me-2" />
               Gene Source Overlaps
             </v-tab>
             <v-tab value="distributions">
-              <v-icon class="me-2">mdi-chart-bar</v-icon>
+              <ChartBar class="size-5 me-2" />
               Source Distributions
             </v-tab>
             <v-tab value="composition">
-              <v-icon class="me-2">mdi-chart-donut</v-icon>
+              <Circle class="size-5 me-2" />
               Evidence Composition
             </v-tab>
           </v-tabs>
@@ -103,6 +103,7 @@
 </template>
 
 <script setup>
+import { ChevronRight, LayoutDashboard, ChartScatter, ChartBar, Circle } from 'lucide-vue-next'
 import { ref, watch, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {

@@ -146,10 +146,10 @@
     <!-- Health Status Card -->
     <v-card v-if="healthStatus" class="mt-4">
       <v-card-title>
-        <v-icon
-          :icon="healthStatus.healthy ? 'mdi-check-circle' : 'mdi-alert-circle'"
-          :color="healthStatus.healthy ? 'success' : 'error'"
-          class="mr-2"
+        <component
+          :is="healthStatus.healthy ? CircleCheck : CircleAlert"
+          class="size-5 mr-2"
+          :class="healthStatus.healthy ? 'text-green-600 dark:text-green-400' : 'text-destructive'"
         />
         Cache Health Status
       </v-card-title>
@@ -157,11 +157,14 @@
         <v-row>
           <v-col cols="12" md="6">
             <div class="d-flex align-center mb-2">
-              <v-icon
-                :icon="healthStatus.memory_cache?.available ? 'mdi-check' : 'mdi-close'"
-                :color="healthStatus.memory_cache?.available ? 'success' : 'error'"
-                size="small"
-                class="mr-2"
+              <component
+                :is="healthStatus.memory_cache?.available ? Check : X"
+                class="size-4 mr-2"
+                :class="
+                  healthStatus.memory_cache?.available
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-destructive'
+                "
               />
               <span
                 >Memory Cache:
@@ -174,11 +177,14 @@
           </v-col>
           <v-col cols="12" md="6">
             <div class="d-flex align-center mb-2">
-              <v-icon
-                :icon="healthStatus.db_cache?.available ? 'mdi-check' : 'mdi-close'"
-                :color="healthStatus.db_cache?.available ? 'success' : 'error'"
-                size="small"
-                class="mr-2"
+              <component
+                :is="healthStatus.db_cache?.available ? Check : X"
+                class="size-4 mr-2"
+                :class="
+                  healthStatus.db_cache?.available
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-destructive'
+                "
               />
               <span
                 >Database Cache:
@@ -276,11 +282,6 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <!-- Snackbar -->
-    <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="3000" location="top">
-      {{ snackbarText }}
-    </v-snackbar>
   </v-container>
 </template>
 
@@ -296,6 +297,8 @@ import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as cacheApi from '@/api/admin/cache'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
+import { toast } from 'vue-sonner'
+import { Check, CircleAlert, CircleCheck, X } from 'lucide-vue-next'
 
 // const authStore = useAuthStore()
 
@@ -314,11 +317,6 @@ const clearingNamespace = ref(null)
 const selectedNamespace = ref(null)
 const hitRateTrend = ref(null)
 const refreshInterval = ref(null)
-
-// Snackbar
-const snackbar = ref(false)
-const snackbarText = ref('')
-const snackbarColor = ref('success')
 
 // Table configuration
 const namespaceHeaders = [
@@ -346,7 +344,7 @@ const loadStats = async () => {
     cacheStats.value = data
   } catch (error) {
     window.logService.error('Failed to load cache stats:', error)
-    showSnackbar('Failed to load cache statistics', 'error')
+    toast.error('Failed to load cache statistics', { duration: Infinity })
   } finally {
     statsLoading.value = false
   }
@@ -359,7 +357,7 @@ const loadNamespaces = async () => {
     namespaces.value = response.data || response || []
   } catch (error) {
     window.logService.error('Failed to load namespaces:', error)
-    showSnackbar('Failed to load cache namespaces', 'error')
+    toast.error('Failed to load cache namespaces', { duration: Infinity })
     namespaces.value = [] // Ensure we have an array even on error
   } finally {
     namespacesLoading.value = false
@@ -389,10 +387,10 @@ const checkHealth = async () => {
       },
       last_check: new Date().toISOString()
     }
-    showSnackbar('Health check completed', 'success')
+    toast.success('Health check completed', { duration: 5000 })
   } catch (error) {
     window.logService.error('Failed to check health:', error)
-    showSnackbar('Failed to check cache health', 'error')
+    toast.error('Failed to check cache health', { duration: Infinity })
   } finally {
     checkingHealth.value = false
   }
@@ -402,12 +400,12 @@ const warmCache = async () => {
   warming.value = true
   try {
     await cacheApi.warmCache()
-    showSnackbar('Cache warming initiated', 'success')
+    toast.success('Cache warming initiated', { duration: 5000 })
     // Reload stats after warming
     setTimeout(loadData, 2000)
   } catch (error) {
     window.logService.error('Failed to warm cache:', error)
-    showSnackbar('Failed to warm cache', 'error')
+    toast.error('Failed to warm cache', { duration: Infinity })
   } finally {
     warming.value = false
   }
@@ -428,10 +426,10 @@ const executeClear = async () => {
   try {
     if (clearingNamespace.value) {
       await cacheApi.clearNamespace(clearingNamespace.value.namespace)
-      showSnackbar(`Namespace "${clearingNamespace.value.namespace}" cleared`, 'success')
+      toast.success(`Namespace "${clearingNamespace.value.namespace}" cleared`, { duration: 5000 })
     } else {
       await cacheApi.clearAllCache()
-      showSnackbar('All cache cleared successfully', 'success')
+      toast.success('All cache cleared successfully', { duration: 5000 })
     }
 
     showClearDialog.value = false
@@ -441,7 +439,7 @@ const executeClear = async () => {
     await loadData()
   } catch (error) {
     window.logService.error('Failed to clear cache:', error)
-    showSnackbar('Failed to clear cache', 'error')
+    toast.error('Failed to clear cache', { duration: Infinity })
   } finally {
     clearing.value = false
   }
@@ -454,7 +452,7 @@ const showNamespaceDetails = async namespace => {
     showDetailsDialog.value = true
   } catch (error) {
     window.logService.error('Failed to load namespace details:', error)
-    showSnackbar('Failed to load namespace details', 'error')
+    toast.error('Failed to load namespace details', { duration: Infinity })
   }
 }
 
@@ -481,12 +479,6 @@ const getAge = dateString => {
     const days = Math.floor(hours / 24)
     return `${days} days ago`
   }
-}
-
-const showSnackbar = (text, color = 'success') => {
-  snackbarText.value = text
-  snackbarColor.value = color
-  snackbar.value = true
 }
 
 // Lifecycle

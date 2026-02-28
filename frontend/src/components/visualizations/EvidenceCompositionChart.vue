@@ -1,13 +1,11 @@
 <template>
   <v-card class="evidence-composition-container">
     <v-card-title class="d-flex align-center">
-      <v-icon class="me-2">mdi-chart-donut</v-icon>
+      <Circle class="size-5 me-2" />
       Evidence Composition
       <v-tooltip location="bottom">
         <template #activator="{ props: tooltipProps }">
-          <v-icon v-bind="tooltipProps" class="me-2 text-medium-emphasis" size="small">
-            mdi-help-circle-outline
-          </v-icon>
+          <CircleHelp v-bind="tooltipProps" class="size-4 me-2 text-medium-emphasis" />
         </template>
         <span>{{ getViewDescription() }}</span>
       </v-tooltip>
@@ -107,6 +105,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { Circle, CircleHelp } from 'lucide-vue-next'
 import { statisticsApi } from '@/api/statistics'
 import D3DonutChart from './D3DonutChart.vue'
 import D3BarChart from './D3BarChart.vue'

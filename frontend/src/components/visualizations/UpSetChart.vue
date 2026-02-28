@@ -1,13 +1,11 @@
 <template>
   <v-card class="upset-chart-container">
     <v-card-title class="d-flex align-center">
-      <v-icon class="me-2">mdi-chart-scatter-plot</v-icon>
+      <ChartScatter class="size-5 me-2" />
       Gene Source Overlaps
       <v-tooltip location="bottom">
         <template #activator="{ props: tooltipProps }">
-          <v-icon v-bind="tooltipProps" class="me-2 text-medium-emphasis" size="small">
-            mdi-help-circle-outline
-          </v-icon>
+          <CircleHelp v-bind="tooltipProps" class="size-4 me-2 text-medium-emphasis" />
         </template>
         <span
           >UpSet plot showing intersections between gene data sources. Click bars or dots to see
@@ -98,7 +96,7 @@
         <div class="source-selection-container mb-4">
           <div class="d-flex align-center flex-wrap gap-2">
             <div class="d-flex align-center">
-              <v-icon class="me-2" size="small">mdi-filter-outline</v-icon>
+              <Filter class="size-4 me-2" />
               <span class="text-subtitle-2">Selected Sources ({{ selectedSources.length }}):</span>
             </div>
 
@@ -166,7 +164,7 @@
 
         <!-- Empty state when no sources selected -->
         <div v-show="selectedSources.length === 0" class="empty-state">
-          <v-icon size="64" color="grey-lighten-1">mdi-chart-scatter-plot-hexbin</v-icon>
+          <ChartScatter class="size-16 text-muted-foreground" />
           <h3 class="text-h6 mt-4 mb-2 text-grey-lighten-1">No Sources Selected</h3>
           <p class="text-body-2 text-grey">
             Select one or more data sources above to view the UpSet plot visualization.
@@ -217,6 +215,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ChartScatter, CircleHelp, Filter } from 'lucide-vue-next'
 import { statisticsApi } from '@/api/statistics'
 import { extractCombinations, renderUpSet } from '@upsetjs/bundle'
 

@@ -63,7 +63,7 @@
     <div v-for="(settingsGroup, category) in groupedSettings" :key="category" class="mb-6">
       <v-card rounded="lg">
         <v-card-title class="text-h6 bg-surface-variant">
-          <v-icon :icon="getCategoryIcon(category)" start />
+          <component :is="getCategoryIcon(category)" class="size-5 mr-1" />
           {{ formatCategoryName(category) }}
         </v-card-title>
 
@@ -129,7 +129,7 @@
     <!-- Empty State -->
     <v-card v-if="!loading && Object.keys(groupedSettings).length === 0" rounded="lg">
       <v-card-text class="text-center py-8">
-        <v-icon icon="mdi-cog-outline" size="64" color="grey-lighten-1" />
+        <Settings class="size-16 text-muted-foreground" />
         <div class="text-h6 mt-4">No Settings Found</div>
         <div class="text-body-2 text-medium-emphasis">
           Select a different category or clear filters
@@ -157,6 +157,15 @@ import SettingEditDialog from '@/components/admin/settings/SettingEditDialog.vue
 import SettingHistoryDialog from '@/components/admin/settings/SettingHistoryDialog.vue'
 import { useSettingsApi } from '@/composables/useSettingsApi'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
+import {
+  Cog,
+  DatabaseBackup,
+  RefreshCw,
+  ScanSearch,
+  Settings,
+  ShieldAlert,
+  Workflow
+} from 'lucide-vue-next'
 
 // Composables
 const {
@@ -281,13 +290,13 @@ const handleSaveSetting = async ({ value, reason }) => {
 
 const getCategoryIcon = category => {
   const icons = {
-    cache: 'mdi-database-refresh',
-    security: 'mdi-shield-lock',
-    pipeline: 'mdi-pipe',
-    backup: 'mdi-database-export',
-    features: 'mdi-feature-search'
+    cache: RefreshCw,
+    security: ShieldAlert,
+    pipeline: Workflow,
+    backup: DatabaseBackup,
+    features: ScanSearch
   }
-  return icons[category] || 'mdi-cog'
+  return icons[category] || Cog
 }
 
 const formatCategoryName = category => {

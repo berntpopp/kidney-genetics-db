@@ -12,10 +12,7 @@
               </p>
               <v-tooltip location="bottom" max-width="300">
                 <template #activator="{ props }">
-                  <Info
-                    class="size-3 text-medium-emphasis"
-                    v-bind="props"
-                  />
+                  <Info class="size-3 text-medium-emphasis" v-bind="props" />
                 </template>
                 <div class="pa-2">
                   <strong>Genes with evidence:</strong> {{ totalItems.toLocaleString() }} genes with
@@ -186,10 +183,7 @@
                     Show genes with insufficient evidence
                     <v-tooltip location="bottom">
                       <template #activator="{ props }">
-                        <Info
-                          class="size-3 ml-1 text-medium-emphasis"
-                          v-bind="props"
-                        />
+                        <Info class="size-3 ml-1 text-medium-emphasis" v-bind="props" />
                       </template>
                       <div class="pa-2">
                         Include {{ hiddenGeneCount.toLocaleString() }} genes with evidence score = 0
@@ -288,10 +282,7 @@
             </router-link>
             <v-tooltip v-if="item.aliases?.length" location="bottom">
               <template #activator="{ props }">
-                <Info
-                  class="size-3 ml-1 text-medium-emphasis"
-                  v-bind="props"
-                />
+                <Info class="size-3 ml-1 text-medium-emphasis" v-bind="props" />
               </template>
               <div class="pa-2">
                 <strong>Aliases:</strong><br />

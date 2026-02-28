@@ -1,70 +1,95 @@
 /**
  * Admin Icon Mapping System
  * Provides consistent icon vocabulary for admin sections
- * Following Material Design Icons (mdi) naming convention
+ * Using Lucide Vue components instead of mdi-* strings
  *
  * Usage:
  * import { ADMIN_ICONS } from '@/utils/adminIcons'
- * <AdminHeader :icon="ADMIN_ICONS.users" />
+ * <component :is="ADMIN_ICONS.users" class="size-5" />
  */
 
-export const ADMIN_ICONS: Record<string, string> = {
+import type { Component } from 'vue'
+import {
+  LayoutDashboard,
+  Users,
+  MemoryStick,
+  FileText,
+  Settings,
+  Minus,
+  Dna,
+  Tags,
+  Package,
+  DatabaseBackup,
+  DatabaseZap,
+  RefreshCw,
+  Play,
+  Square,
+  Trash2,
+  Pencil,
+  Plus,
+  CircleCheck,
+  CircleAlert,
+  AlertTriangle,
+  Info
+} from 'lucide-vue-next'
+
+export const ADMIN_ICONS: Record<string, Component> = {
   // Main dashboard
-  dashboard: 'mdi-view-dashboard-variant',
+  dashboard: LayoutDashboard,
 
   // User management
-  users: 'mdi-account-group',
+  users: Users,
 
   // System management
-  cache: 'mdi-memory',
-  logs: 'mdi-file-document-outline',
-  settings: 'mdi-cog',
+  cache: MemoryStick,
+  logs: FileText,
+  settings: Settings,
 
   // Data pipeline
-  pipeline: 'mdi-pipe',
-  staging: 'mdi-dna',
-  annotations: 'mdi-tag-multiple',
+  pipeline: Minus,
+  staging: Dna,
+  annotations: Tags,
 
   // Data management
-  releases: 'mdi-package-variant',
-  backups: 'mdi-database-export',
-  hybridSources: 'mdi-database-import',
+  releases: Package,
+  backups: DatabaseBackup,
+  hybridSources: DatabaseZap,
 
   // Actions
-  refresh: 'mdi-refresh',
-  play: 'mdi-play',
-  stop: 'mdi-stop',
-  delete: 'mdi-delete',
-  edit: 'mdi-pencil',
-  add: 'mdi-plus',
+  refresh: RefreshCw,
+  play: Play,
+  stop: Square,
+  delete: Trash2,
+  edit: Pencil,
+  add: Plus,
 
   // Status indicators
-  success: 'mdi-check-circle',
-  error: 'mdi-alert-circle',
-  warning: 'mdi-alert',
-  info: 'mdi-information'
+  success: CircleCheck,
+  error: CircleAlert,
+  warning: AlertTriangle,
+  info: Info
 }
 
 /**
- * Get icon color based on admin section
- * Maps to Material Design 3 color system
+ * Get Tailwind text color class based on admin section.
+ * Replaces Vuetify color string with Tailwind equivalent.
  */
 export const getAdminIconColor = (section: string): string => {
   const colorMap: Record<string, string> = {
-    dashboard: 'primary',
-    users: 'primary',
-    cache: 'purple',
-    logs: 'orange',
-    pipeline: 'green',
-    staging: 'red',
-    annotations: 'teal',
-    releases: 'indigo',
-    backups: 'blue-grey',
-    settings: 'deep-purple',
-    hybridSources: 'cyan'
+    dashboard: 'text-primary',
+    users: 'text-primary',
+    cache: 'text-purple-600 dark:text-purple-400',
+    logs: 'text-orange-600 dark:text-orange-400',
+    pipeline: 'text-green-600 dark:text-green-400',
+    staging: 'text-red-600 dark:text-red-400',
+    annotations: 'text-teal-600 dark:text-teal-400',
+    releases: 'text-indigo-600 dark:text-indigo-400',
+    backups: 'text-slate-600 dark:text-slate-400',
+    settings: 'text-violet-600 dark:text-violet-400',
+    hybridSources: 'text-cyan-600 dark:text-cyan-400'
   }
 
-  return colorMap[section] ?? 'primary'
+  return colorMap[section] ?? 'text-primary'
 }
 
 export default ADMIN_ICONS

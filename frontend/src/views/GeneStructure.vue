@@ -23,10 +23,10 @@
       <v-container fluid class="pa-0">
         <v-breadcrumbs :items="breadcrumbs" density="compact" class="px-6 py-2 bg-surface-light">
           <template #prepend>
-            <v-icon icon="mdi-home" size="small" />
+            <Home class="size-4" />
           </template>
           <template #divider>
-            <v-icon icon="mdi-chevron-right" size="small" />
+            <ChevronRight class="size-4" />
           </template>
         </v-breadcrumbs>
       </v-container>
@@ -54,7 +54,7 @@
         <!-- Gene Structure Visualization -->
         <v-card class="mb-6">
           <v-card-title class="d-flex align-center">
-            <v-icon icon="mdi-dna" class="mr-2" />
+            <Dna class="size-5 mr-2" />
             Gene Structure
           </v-card-title>
           <v-card-subtitle v-if="ensemblData">
@@ -81,7 +81,7 @@
               </p>
             </div>
             <div v-else-if="!ensemblData" class="text-center py-8">
-              <v-icon icon="mdi-alert-circle-outline" size="48" color="warning" />
+              <CircleAlert class="size-12 text-yellow-600 dark:text-yellow-400" />
               <p class="text-body-1 mt-2 text-medium-emphasis">
                 Gene structure data not available from Ensembl
               </p>
@@ -108,7 +108,7 @@
         <!-- Protein Domain Visualization -->
         <v-card class="mb-6">
           <v-card-title class="d-flex align-center">
-            <v-icon icon="mdi-molecule" class="mr-2" />
+            <Atom class="size-5 mr-2" />
             Protein Domains
           </v-card-title>
           <v-card-subtitle v-if="uniprotData">
@@ -122,7 +122,7 @@
               </p>
             </div>
             <div v-else-if="!uniprotData" class="text-center py-8">
-              <v-icon icon="mdi-alert-circle-outline" size="48" color="warning" />
+              <CircleAlert class="size-12 text-yellow-600 dark:text-yellow-400" />
               <p class="text-body-1 mt-2 text-medium-emphasis">
                 Protein domain data not available from UniProt
               </p>
@@ -150,14 +150,14 @@
           <v-col cols="12" md="6">
             <v-card v-if="ensemblData">
               <v-card-title>
-                <v-icon icon="mdi-information" class="mr-2" />
+                <Info class="size-5 mr-2" />
                 Gene Information
               </v-card-title>
               <v-card-text>
                 <v-list density="compact">
                   <v-list-item v-if="ensemblData.canonical_transcript?.refseq_transcript_id">
                     <template #prepend>
-                      <v-icon icon="mdi-identifier" size="small" />
+                      <IdCard class="size-4" />
                     </template>
                     <v-list-item-title>RefSeq Transcript</v-list-item-title>
                     <v-list-item-subtitle>
@@ -167,13 +167,13 @@
                         rel="noopener noreferrer"
                       >
                         {{ ensemblData.canonical_transcript.refseq_transcript_id }}
-                        <v-icon icon="mdi-open-in-new" size="x-small" />
+                        <ExternalLink class="size-3" />
                       </a>
                     </v-list-item-subtitle>
                   </v-list-item>
                   <v-list-item>
                     <template #prepend>
-                      <v-icon icon="mdi-identifier" size="small" />
+                      <IdCard class="size-4" />
                     </template>
                     <v-list-item-title>Ensembl Gene ID</v-list-item-title>
                     <v-list-item-subtitle>
@@ -183,13 +183,13 @@
                         rel="noopener noreferrer"
                       >
                         {{ ensemblData.gene_id }}
-                        <v-icon icon="mdi-open-in-new" size="x-small" />
+                        <ExternalLink class="size-3" />
                       </a>
                     </v-list-item-subtitle>
                   </v-list-item>
                   <v-list-item v-if="ensemblData.canonical_transcript?.transcript_id">
                     <template #prepend>
-                      <v-icon icon="mdi-dna" size="small" />
+                      <Dna class="size-4" />
                     </template>
                     <v-list-item-title>Ensembl Transcript</v-list-item-title>
                     <v-list-item-subtitle>
@@ -199,13 +199,13 @@
                         rel="noopener noreferrer"
                       >
                         {{ ensemblData.canonical_transcript.transcript_id }}
-                        <v-icon icon="mdi-open-in-new" size="x-small" />
+                        <ExternalLink class="size-3" />
                       </a>
                     </v-list-item-subtitle>
                   </v-list-item>
                   <v-list-item>
                     <template #prepend>
-                      <v-icon icon="mdi-map-marker" size="small" />
+                      <MapPin class="size-4" />
                     </template>
                     <v-list-item-title>Location</v-list-item-title>
                     <v-list-item-subtitle>
@@ -217,7 +217,7 @@
                   </v-list-item>
                   <v-list-item>
                     <template #prepend>
-                      <v-icon icon="mdi-ruler" size="small" />
+                      <Ruler class="size-4" />
                     </template>
                     <v-list-item-title>Gene Length</v-list-item-title>
                     <v-list-item-subtitle>
@@ -226,7 +226,7 @@
                   </v-list-item>
                   <v-list-item>
                     <template #prepend>
-                      <v-icon icon="mdi-numeric" size="small" />
+                      <Hash class="size-4" />
                     </template>
                     <v-list-item-title>Exons</v-list-item-title>
                     <v-list-item-subtitle>
@@ -242,14 +242,14 @@
           <v-col cols="12" md="6">
             <v-card v-if="uniprotData">
               <v-card-title>
-                <v-icon icon="mdi-protein" class="mr-2" />
+                <Dna class="size-5 mr-2" />
                 Protein Information
               </v-card-title>
               <v-card-text>
                 <v-list density="compact">
                   <v-list-item>
                     <template #prepend>
-                      <v-icon icon="mdi-identifier" size="small" />
+                      <IdCard class="size-4" />
                     </template>
                     <v-list-item-title>UniProt Accession</v-list-item-title>
                     <v-list-item-subtitle>
@@ -259,13 +259,13 @@
                         rel="noopener noreferrer"
                       >
                         {{ uniprotData.accession }}
-                        <v-icon icon="mdi-open-in-new" size="x-small" />
+                        <ExternalLink class="size-3" />
                       </a>
                     </v-list-item-subtitle>
                   </v-list-item>
                   <v-list-item>
                     <template #prepend>
-                      <v-icon icon="mdi-ruler" size="small" />
+                      <Ruler class="size-4" />
                     </template>
                     <v-list-item-title>Protein Length</v-list-item-title>
                     <v-list-item-subtitle>
@@ -274,7 +274,7 @@
                   </v-list-item>
                   <v-list-item>
                     <template #prepend>
-                      <v-icon icon="mdi-shape" size="small" />
+                      <Shapes class="size-4" />
                     </template>
                     <v-list-item-title>Domains</v-list-item-title>
                     <v-list-item-subtitle>
@@ -283,7 +283,7 @@
                   </v-list-item>
                   <v-list-item v-if="uniprotData.has_transmembrane">
                     <template #prepend>
-                      <v-icon icon="mdi-transit-connection-variant" size="small" />
+                      <Network class="size-4" />
                     </template>
                     <v-list-item-title>Transmembrane</v-list-item-title>
                     <v-list-item-subtitle>Contains transmembrane domains</v-list-item-subtitle>
@@ -304,6 +304,21 @@ import { geneApi } from '@/api/genes'
 import { getGeneStructureBreadcrumbs } from '@/utils/publicBreadcrumbs'
 import GeneStructureVisualization from '@/components/visualizations/GeneStructureVisualization.vue'
 import ProteinDomainVisualization from '@/components/visualizations/ProteinDomainVisualization.vue'
+import {
+  Atom,
+  ChevronRight,
+  CircleAlert,
+  Dna,
+  ExternalLink,
+  Hash,
+  Home,
+  IdCard,
+  Info,
+  MapPin,
+  Network,
+  Ruler,
+  Shapes
+} from 'lucide-vue-next'
 
 // Props
 const props = defineProps({

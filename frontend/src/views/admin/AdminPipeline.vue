@@ -9,9 +9,7 @@
     >
       <template #actions>
         <v-chip :color="wsConnected ? 'success' : 'error'" size="small" label>
-          <v-icon start size="x-small">
-            {{ wsConnected ? 'mdi-wifi' : 'mdi-wifi-off' }}
-          </v-icon>
+          <component :is="wsConnected ? Wifi : WifiOff" class="size-3 mr-1" />
           {{ wsConnected ? 'Live' : 'Offline' }}
         </v-chip>
       </template>
@@ -93,11 +91,7 @@
       <v-col v-for="source in dataSources" :key="source.source_name" cols="12" md="6" lg="4">
         <v-card class="h-100">
           <v-card-title class="d-flex align-center">
-            <v-icon
-              :icon="getSourceIcon(source)"
-              :color="getStatusColor(source.status)"
-              class="mr-2"
-            />
+            <component :is="getSourceIcon(source)" class="size-5 mr-2" />
             {{ source.source_name }}
             <v-spacer />
             <v-chip :color="getStatusColor(source.status)" size="small" label>
@@ -127,7 +121,7 @@
             <v-list density="compact" class="pa-0">
               <v-list-item class="px-0">
                 <template #prepend>
-                  <v-icon size="small">mdi-counter</v-icon>
+                  <Hash class="size-4" />
                 </template>
                 <v-list-item-title>Items Processed</v-list-item-title>
                 <template #append>
@@ -139,7 +133,7 @@
 
               <v-list-item class="px-0">
                 <template #prepend>
-                  <v-icon size="small" color="success">mdi-plus</v-icon>
+                  <Plus class="size-4 text-green-600 dark:text-green-400" />
                 </template>
                 <v-list-item-title>Added</v-list-item-title>
                 <template #append>
@@ -151,7 +145,7 @@
 
               <v-list-item class="px-0">
                 <template #prepend>
-                  <v-icon size="small" color="info">mdi-update</v-icon>
+                  <RefreshCw class="size-4 text-blue-600 dark:text-blue-400" />
                 </template>
                 <v-list-item-title>Updated</v-list-item-title>
                 <template #append>
@@ -163,7 +157,7 @@
 
               <v-list-item v-if="source.items_failed > 0" class="px-0">
                 <template #prepend>
-                  <v-icon size="small" color="error">mdi-alert</v-icon>
+                  <AlertTriangle class="size-4 text-destructive" />
                 </template>
                 <v-list-item-title>Failed</v-list-item-title>
                 <template #append>
@@ -206,7 +200,7 @@
               :loading="triggering[source.source_name]"
               @click="triggerSource(source.source_name)"
             >
-              <v-icon start>mdi-play</v-icon>
+              <Play class="size-5 mr-1" />
               Run
             </v-btn>
 
@@ -218,7 +212,7 @@
               :loading="pausing[source.source_name]"
               @click="pauseSource(source.source_name)"
             >
-              <v-icon start>mdi-pause</v-icon>
+              <Pause class="size-5 mr-1" />
               Pause
             </v-btn>
 
@@ -230,7 +224,7 @@
               :loading="resuming[source.source_name]"
               @click="resumeSource(source.source_name)"
             >
-              <v-icon start>mdi-play</v-icon>
+              <Play class="size-5 mr-1" />
               Resume
             </v-btn>
 
@@ -260,10 +254,9 @@
         >
           <v-card class="h-100" variant="outlined">
             <v-card-title class="d-flex align-center">
-              <v-icon
-                :icon="process.icon || 'mdi-cog'"
-                :color="getStatusColor(process.status)"
-                class="mr-2"
+              <component
+                :is="resolveMdiIcon(process.icon || 'mdi-cog') || Cog"
+                class="size-5 mr-2"
               />
               {{ process.display_name || process.source_name }}
               <v-spacer />
@@ -337,11 +330,6 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <!-- Snackbar -->
-    <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="3000" location="top">
-      {{ snackbarText }}
-    </v-snackbar>
   </v-container>
 </template>
 
@@ -358,6 +346,27 @@ import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as pipelineApi from '@/api/admin/pipeline'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
+import { toast } from 'vue-sonner'
+import {
+  AlertTriangle,
+  BookOpen,
+  BriefcaseMedical,
+  Cog,
+  Database,
+  Dna,
+  FileText,
+  Hash,
+  Hospital,
+  LayoutList,
+  Pause,
+  Play,
+  Plus,
+  RefreshCw,
+  Users,
+  Wifi,
+  WifiOff
+} from 'lucide-vue-next'
+import { resolveMdiIcon } from '@/utils/icons'
 
 // const authStore = useAuthStore()
 const { connected: wsConnected, connect, disconnect, subscribe } = useWebSocket()
@@ -371,11 +380,6 @@ const resuming = ref({})
 const triggeringAll = ref(false)
 const showDetailsDialog = ref(false)
 const selectedSource = ref(null)
-
-// Snackbar
-const snackbar = ref(false)
-const snackbarText = ref('')
-const snackbarColor = ref('success')
 
 // WebSocket subscriptions
 const unsubscribers = []
@@ -406,7 +410,7 @@ const loadSources = async () => {
     sources.value = response.data?.data || []
   } catch (error) {
     window.logService.error('Failed to load sources:', error)
-    showSnackbar('Failed to load pipeline status', 'error')
+    toast.error('Failed to load pipeline status', { duration: Infinity })
   } finally {
     loading.value = false
   }
@@ -416,10 +420,10 @@ const triggerSource = async sourceName => {
   triggering.value[sourceName] = true
   try {
     await pipelineApi.triggerUpdate(sourceName)
-    showSnackbar(`Started ${sourceName}`, 'success')
+    toast.success(`Started ${sourceName}`, { duration: 5000 })
   } catch (error) {
     window.logService.error(`Failed to trigger ${sourceName}:`, error)
-    showSnackbar(`Failed to start ${sourceName}`, 'error')
+    toast.error(`Failed to start ${sourceName}`, { duration: Infinity })
   } finally {
     triggering.value[sourceName] = false
   }
@@ -429,10 +433,10 @@ const pauseSource = async sourceName => {
   pausing.value[sourceName] = true
   try {
     await pipelineApi.pauseSource(sourceName)
-    showSnackbar(`Paused ${sourceName}`, 'success')
+    toast.success(`Paused ${sourceName}`, { duration: 5000 })
   } catch (error) {
     window.logService.error(`Failed to pause ${sourceName}:`, error)
-    showSnackbar(`Failed to pause ${sourceName}`, 'error')
+    toast.error(`Failed to pause ${sourceName}`, { duration: Infinity })
   } finally {
     pausing.value[sourceName] = false
   }
@@ -442,10 +446,10 @@ const resumeSource = async sourceName => {
   resuming.value[sourceName] = true
   try {
     await pipelineApi.resumeSource(sourceName)
-    showSnackbar(`Resumed ${sourceName}`, 'success')
+    toast.success(`Resumed ${sourceName}`, { duration: 5000 })
   } catch (error) {
     window.logService.error(`Failed to resume ${sourceName}:`, error)
-    showSnackbar(`Failed to resume ${sourceName}`, 'error')
+    toast.error(`Failed to resume ${sourceName}`, { duration: Infinity })
   } finally {
     resuming.value[sourceName] = false
   }
@@ -460,10 +464,10 @@ const triggerAll = async () => {
 
     await Promise.all(triggerable.map(source => triggerSource(source.source_name)))
 
-    showSnackbar('All data sources triggered', 'success')
+    toast.success('All data sources triggered', { duration: 5000 })
   } catch (error) {
     window.logService.error('Failed to trigger all:', error)
-    showSnackbar('Failed to trigger all data sources', 'error')
+    toast.error('Failed to trigger all data sources', { duration: Infinity })
   } finally {
     triggeringAll.value = false
   }
@@ -477,21 +481,21 @@ const pauseAll = async () => {
 const getSourceIcon = source => {
   switch (source.source_name) {
     case 'PanelApp':
-      return 'mdi-view-list'
+      return LayoutList
     case 'HPO':
-      return 'mdi-dna'
+      return Dna
     case 'ClinGen':
-      return 'mdi-hospital'
+      return Hospital
     case 'GenCC':
-      return 'mdi-account-group'
+      return Users
     case 'PubTator':
-      return 'mdi-file-document'
+      return FileText
     case 'DiagnosticPanels':
-      return 'mdi-medical-bag'
+      return BriefcaseMedical
     case 'Literature':
-      return 'mdi-book-open-page-variant'
+      return BookOpen
     default:
-      return 'mdi-database'
+      return Database
   }
 }
 
@@ -537,12 +541,6 @@ const showSourceDetails = source => {
   showDetailsDialog.value = true
 }
 
-const showSnackbar = (text, color = 'success') => {
-  snackbarText.value = text
-  snackbarColor.value = color
-  snackbar.value = true
-}
-
 // WebSocket handlers
 const handleProgressUpdate = data => {
   const index = sources.value.findIndex(s => s.source_name === data.source_name)
@@ -553,17 +551,17 @@ const handleProgressUpdate = data => {
 
 const handleTaskStarted = data => {
   handleProgressUpdate(data)
-  showSnackbar(`${data.source_name} started`, 'info')
+  toast.info(`${data.source_name} started`, { duration: 5000 })
 }
 
 const handleTaskCompleted = data => {
   handleProgressUpdate(data)
-  showSnackbar(`${data.source_name} completed`, 'success')
+  toast.success(`${data.source_name} completed`, { duration: 5000 })
 }
 
 const handleTaskFailed = data => {
   handleProgressUpdate(data)
-  showSnackbar(`${data.source_name} failed`, 'error')
+  toast.error(`${data.source_name} failed`, { duration: Infinity })
 }
 
 const handleInitialStatus = data => {

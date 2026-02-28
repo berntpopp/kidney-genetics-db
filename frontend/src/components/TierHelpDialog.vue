@@ -2,14 +2,14 @@
   <v-dialog v-model="dialog" max-width="700" scrollable>
     <template #activator="{ props }">
       <v-btn v-bind="props" variant="text" size="small" color="primary">
-        <v-icon start>mdi-help-circle-outline</v-icon>
+        <CircleHelp class="size-4 mr-1" />
         Understanding Evidence Tiers
       </v-btn>
     </template>
 
     <v-card>
       <v-card-title class="d-flex align-center">
-        <v-icon color="primary" class="mr-2">mdi-information</v-icon>
+        <Info class="size-5 text-primary mr-2" />
         <span>Evidence Tier Classification</span>
       </v-card-title>
 
@@ -36,7 +36,7 @@
             <v-card variant="outlined" class="pa-3">
               <div class="d-flex align-center mb-2">
                 <v-chip :color="config.color" size="small" variant="flat" class="mr-2">
-                  <v-icon :icon="config.icon" size="small" start />
+                  <component :is="config.icon" class="size-4 mr-1" />
                   {{ config.label }}
                 </v-chip>
               </div>
@@ -53,7 +53,7 @@
             <v-card variant="outlined" class="pa-3">
               <div class="d-flex align-center mb-2">
                 <v-chip :color="config.color" size="small" variant="flat" class="mr-2">
-                  <v-icon :icon="config.icon" size="small" start />
+                  <component :is="config.icon" class="size-4 mr-1" />
                   {{ config.label }}
                 </v-chip>
               </div>
@@ -85,6 +85,7 @@
 <script setup>
 import { ref } from 'vue'
 import { TIER_CONFIG, GROUP_CONFIG } from '@/utils/evidenceTiers'
+import { CircleHelp, Info } from 'lucide-vue-next'
 
 // Dialog state
 const dialog = ref(false)

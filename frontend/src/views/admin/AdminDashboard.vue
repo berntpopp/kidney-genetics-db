@@ -64,7 +64,7 @@
       <v-col v-for="section in adminSections" :key="section.id" cols="12" lg="4" md="6">
         <v-card hover class="pa-4 h-100 d-flex flex-column" @click="navigateTo(section.route)">
           <div class="d-flex align-center mb-3">
-            <v-icon :icon="section.icon" size="x-large" :color="section.color" />
+            <component :is="section.icon" class="size-7" />
             <div class="ml-4 flex-grow-1">
               <h3 class="text-h6 font-weight-medium">{{ section.title }}</h3>
               <p class="text-caption text-medium-emphasis mt-1">
@@ -81,14 +81,14 @@
               :key="feature"
               class="d-flex align-center mb-2"
             >
-              <v-icon icon="mdi-check-circle" size="small" color="success" class="mr-2" />
+              <CircleCheck class="size-4 text-green-600 dark:text-green-400 mr-2" />
               <span>{{ feature }}</span>
             </div>
           </div>
 
           <v-btn :color="section.color" variant="tonal" size="small" class="mt-3" block>
             Manage
-            <v-icon icon="mdi-arrow-right" end />
+            <ArrowRight class="size-5 ml-1" />
           </v-btn>
         </v-card>
       </v-col>
@@ -155,6 +155,20 @@ import { useAuthStore } from '@/stores/auth'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
+import {
+  ArrowRight,
+  CircleCheck,
+  Cog,
+  DatabaseBackup,
+  DatabaseZap,
+  Dna,
+  FileText,
+  MemoryStick,
+  Minus,
+  Package,
+  Tags,
+  Users
+} from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -180,7 +194,7 @@ const adminSections = [
     id: 'users',
     title: 'User Management',
     description: 'Manage user accounts and permissions',
-    icon: 'mdi-account-group',
+    icon: Users,
     color: 'primary',
     route: '/admin/users',
     features: [
@@ -194,7 +208,7 @@ const adminSections = [
     id: 'cache',
     title: 'Cache Management',
     description: 'Monitor and control cache performance',
-    icon: 'mdi-memory',
+    icon: MemoryStick,
     color: 'purple',
     route: '/admin/cache',
     features: [
@@ -208,7 +222,7 @@ const adminSections = [
     id: 'logs',
     title: 'System Logs',
     description: 'View and analyze system logs',
-    icon: 'mdi-file-document-outline',
+    icon: FileText,
     color: 'orange',
     route: '/admin/logs',
     features: ['Filter by severity', 'Search log entries', 'Export log data', 'View error trends']
@@ -217,7 +231,7 @@ const adminSections = [
     id: 'pipeline',
     title: 'Data Pipeline',
     description: 'Control data ingestion pipelines',
-    icon: 'mdi-pipe',
+    icon: Minus,
     color: 'green',
     route: '/admin/pipeline',
     features: [
@@ -231,7 +245,7 @@ const adminSections = [
     id: 'staging',
     title: 'Gene Staging',
     description: 'Review gene normalization attempts',
-    icon: 'mdi-dna',
+    icon: Dna,
     color: 'red',
     route: '/admin/staging',
     features: [
@@ -245,7 +259,7 @@ const adminSections = [
     id: 'annotations',
     title: 'Annotations',
     description: 'Manage gene annotation sources',
-    icon: 'mdi-tag-multiple',
+    icon: Tags,
     color: 'teal',
     route: '/admin/annotations',
     features: ['Configure sources', 'Update annotations', 'View statistics', 'Schedule updates']
@@ -254,7 +268,7 @@ const adminSections = [
     id: 'releases',
     title: 'Data Releases',
     description: 'Create and manage CalVer data releases',
-    icon: 'mdi-package-variant',
+    icon: Package,
     color: 'indigo',
     route: '/admin/releases',
     features: [
@@ -268,7 +282,7 @@ const adminSections = [
     id: 'backups',
     title: 'Database Backups',
     description: 'Create and manage database backups',
-    icon: 'mdi-database-export',
+    icon: DatabaseBackup,
     color: 'blue-grey',
     route: '/admin/backups',
     features: [
@@ -282,7 +296,7 @@ const adminSections = [
     id: 'settings',
     title: 'System Settings',
     description: 'Manage application configuration',
-    icon: 'mdi-cog',
+    icon: Cog,
     color: 'deep-purple',
     route: '/admin/settings',
     features: [
@@ -296,7 +310,7 @@ const adminSections = [
     id: 'hybrid-sources',
     title: 'Hybrid Sources',
     description: 'Upload DiagnosticPanels and Literature data',
-    icon: 'mdi-database-import',
+    icon: DatabaseZap,
     color: 'cyan',
     route: '/admin/hybrid-sources',
     features: [

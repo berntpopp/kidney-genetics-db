@@ -6,13 +6,13 @@
   >
     <v-card>
       <v-card-title class="d-flex align-center">
-        <v-icon icon="mdi-pencil" start />
+        <Pencil class="size-5 mr-2" />
         Edit Setting
       </v-card-title>
 
       <v-card-text>
         <v-alert v-if="setting?.is_sensitive" type="warning" density="compact" class="mb-4">
-          <v-icon icon="mdi-alert" start />
+          <AlertTriangle class="size-5 mr-2 inline-block" />
           This is a sensitive setting. Value will be masked in logs.
         </v-alert>
 
@@ -38,7 +38,7 @@
         />
 
         <v-alert v-if="setting?.requires_restart" type="warning" class="mt-4">
-          <v-icon icon="mdi-restart-alert" start />
+          <RotateCw class="size-5 mr-2 inline-block" />
           This change requires a server restart to take effect.
         </v-alert>
       </v-card-text>
@@ -56,6 +56,7 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
+import { Pencil, AlertTriangle, RotateCw } from 'lucide-vue-next'
 
 const props = defineProps({
   modelValue: Boolean,

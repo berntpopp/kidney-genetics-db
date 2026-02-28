@@ -4,7 +4,7 @@
       <div class="d-flex align-center justify-space-between w-100">
         <div class="d-flex align-center">
           <v-avatar :color="sourceColor" size="32" class="mr-3">
-            <v-icon :icon="sourceIcon" size="small" color="white" />
+            <component :is="sourceIconComponent" class="size-4 text-white" />
           </v-avatar>
           <div>
             <div class="text-subtitle-1 font-weight-medium">{{ evidence.source_name }}</div>
@@ -60,6 +60,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { resolveMdiIcon } from '@/utils/icons'
 import GenCCEvidence from './GenCCEvidence.vue'
 import HPOEvidence from './HPOEvidence.vue'
 import PubTatorEvidence from './PubTatorEvidence.vue'
@@ -197,6 +198,10 @@ const sourceIcon = computed(() => {
     Literature: 'mdi-book-open-variant'
   }
   return icons[props.evidence.source_name] || 'mdi-database'
+})
+
+const sourceIconComponent = computed(() => {
+  return resolveMdiIcon(sourceIcon.value)
 })
 
 // Helper functions

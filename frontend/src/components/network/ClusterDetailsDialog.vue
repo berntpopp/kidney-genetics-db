@@ -5,7 +5,7 @@
       <v-card-title class="d-flex align-center justify-space-between pa-4">
         <div class="d-flex align-center">
           <v-chip :color="clusterColor" size="small" label class="mr-3">
-            <v-icon start>mdi-atom</v-icon>
+            <Atom class="size-5 mr-1" />
             {{ clusterDisplayName || `Cluster ${clusterId + 1}` }}
           </v-chip>
           <div>
@@ -23,10 +23,10 @@
       <!-- HPO Classification Statistics -->
       <v-card-text v-if="clusterStatistics" class="pa-4 bg-surface-variant">
         <div class="d-flex align-center mb-3">
-          <v-icon icon="mdi-chart-box" class="mr-2" color="primary" />
+          <ChartBarBig class="size-5 mr-2 text-primary" />
           <h4 class="text-subtitle-1 font-weight-medium">HPO Classification Summary</h4>
           <v-chip size="x-small" class="ml-auto" label>
-            <v-icon size="x-small" icon="mdi-database" start />
+            <Database class="size-3 mr-1" />
             {{ clusterStatistics.hpoDataCount }} / {{ clusterStatistics.total }} genes ({{
               clusterStatistics.hpoDataPercentage
             }}%)
@@ -117,7 +117,7 @@
           <template #item.symbol="{ item }">
             <router-link :to="`/genes/${item.symbol}`" class="gene-link">
               <v-chip size="small" color="primary" variant="outlined">
-                <v-icon start size="small">mdi-dna</v-icon>
+                <Dna class="size-4 mr-1" />
                 {{ item.symbol }}
               </v-chip>
             </router-link>
@@ -226,6 +226,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { Atom, ChartBarBig, Database, Dna } from 'lucide-vue-next'
 import { networkAnalysisConfig } from '../../config/networkAnalysis'
 
 // Props

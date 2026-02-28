@@ -6,7 +6,7 @@
   >
     <v-card>
       <v-card-title class="d-flex align-center">
-        <v-icon class="mr-2" color="primary">mdi-database-plus</v-icon>
+        <DatabaseZap class="mr-2 size-5 text-primary" />
         Create Database Backup
       </v-card-title>
 
@@ -78,6 +78,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { DatabaseZap } from 'lucide-vue-next'
 
 const props = defineProps({
   modelValue: {

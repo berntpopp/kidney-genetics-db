@@ -3,6 +3,17 @@
  * Used for displaying tier badges and managing tier-related UI
  */
 
+import type { Component } from 'vue'
+import {
+  CircleCheck,
+  CircleCheckBig,
+  Check,
+  CircleAlert,
+  Info,
+  Star,
+  CircleHelp
+} from 'lucide-vue-next'
+
 /** Union of all valid tier name strings */
 export type TierName =
   | 'comprehensive_support'
@@ -18,7 +29,7 @@ export type GroupName = 'well_supported' | 'emerging_evidence'
 export interface TierConfig {
   label: string
   color: string
-  icon: string
+  icon: Component
   description: string
 }
 
@@ -26,7 +37,7 @@ export interface TierConfig {
 export interface GroupConfig {
   label: string
   color: string
-  icon: string
+  icon: Component
   description: string
 }
 
@@ -46,31 +57,31 @@ export const TIER_CONFIG: Record<TierName, TierConfig> = {
   comprehensive_support: {
     label: 'Comprehensive Support',
     color: 'success',
-    icon: 'mdi-check-circle',
+    icon: CircleCheck,
     description: '4+ sources with robust evidence (score ≥50%)'
   },
   multi_source_support: {
     label: 'Multi-Source Support',
     color: 'info',
-    icon: 'mdi-check-circle-outline',
+    icon: CircleCheckBig,
     description: '3+ sources with emerging evidence (score ≥35%)'
   },
   established_support: {
     label: 'Established Support',
     color: 'primary',
-    icon: 'mdi-check',
+    icon: Check,
     description: '2+ sources with moderate evidence (score ≥20%)'
   },
   preliminary_evidence: {
     label: 'Preliminary Evidence',
     color: 'warning',
-    icon: 'mdi-alert-circle-outline',
+    icon: CircleAlert,
     description: 'Initial evidence requiring validation (score ≥10%)'
   },
   minimal_evidence: {
     label: 'Minimal Evidence',
     color: 'grey',
-    icon: 'mdi-information-outline',
+    icon: Info,
     description: 'Limited early-stage evidence (score <10%)'
   }
 }
@@ -82,13 +93,13 @@ export const GROUP_CONFIG: Record<GroupName, GroupConfig> = {
   well_supported: {
     label: 'Well-Supported',
     color: 'success',
-    icon: 'mdi-star',
+    icon: Star,
     description: '2+ sources with strong evidence scores'
   },
   emerging_evidence: {
     label: 'Emerging Evidence',
     color: 'warning',
-    icon: 'mdi-star-outline',
+    icon: Star,
     description: 'Initial evidence, needs further validation'
   }
 }
@@ -103,7 +114,7 @@ export function getTierConfig(tier: string | null | undefined): TierConfig {
     return {
       label: 'No Classification',
       color: 'grey-lighten-2',
-      icon: 'mdi-help-circle-outline',
+      icon: CircleHelp,
       description: 'No evidence tier assigned'
     }
   }
@@ -120,7 +131,7 @@ export function getGroupConfig(group: string | null | undefined): GroupConfig {
     return {
       label: 'Unclassified',
       color: 'grey-lighten-2',
-      icon: 'mdi-help-circle-outline',
+      icon: CircleHelp,
       description: 'No evidence group assigned'
     }
   }

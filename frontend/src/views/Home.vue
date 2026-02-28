@@ -39,7 +39,7 @@
               class="stat-gradient pa-4"
               :style="`background: linear-gradient(135deg, ${getGradientColors(stat.color)});`"
             >
-              <v-icon :icon="stat.icon" size="x-large" color="white" class="mb-2" />
+              <component :is="stat.icon" class="size-8 text-white mb-2" />
               <div class="text-h3 font-weight-bold text-white">
                 {{ stat.value }}
               </div>
@@ -60,7 +60,7 @@
         <v-col v-for="benefit in keyBenefits" :key="benefit.title" cols="12" md="4">
           <div class="text-center pa-4">
             <v-avatar :color="benefit.color" size="64" class="mb-4">
-              <v-icon :icon="benefit.icon" color="white" size="large" />
+              <component :is="benefit.icon" class="size-6 text-white" />
             </v-avatar>
             <h3 class="text-h6 mb-2">{{ benefit.title }}</h3>
             <p class="text-body-2 text-medium-emphasis">{{ benefit.description }}</p>
@@ -72,6 +72,14 @@
 </template>
 
 <script setup>
+import {
+  Dna,
+  DatabaseZap,
+  AlarmClockCheck,
+  ShieldCheck,
+  RefreshCw,
+  Microscope
+} from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { useDisplay } from 'vuetify'
 import { useRouter } from 'vue-router'
@@ -94,21 +102,21 @@ const stats = ref([
     title: 'Genes with Evidence',
     value: 0,
     color: 'primary',
-    icon: 'mdi-dna',
+    icon: Dna,
     route: '/genes'
   },
   {
     title: 'Active Sources',
     value: 0,
     color: 'success',
-    icon: 'mdi-database-check',
+    icon: DatabaseZap,
     route: '/data-sources'
   },
   {
     title: 'Last Update',
     value: 'Loading...',
     color: 'info',
-    icon: 'mdi-clock-check',
+    icon: AlarmClockCheck,
     route: null
   }
 ])
@@ -118,19 +126,19 @@ const keyBenefits = [
     title: 'Evidence-Based',
     description:
       'Curated gene-disease associations with rigorous evidence scoring and quality assessment',
-    icon: 'mdi-shield-check',
+    icon: ShieldCheck,
     color: 'success'
   },
   {
     title: 'Multi-Source',
     description: 'Integrated data from PanelApp, HPO, literature mining, and clinical sources',
-    icon: 'mdi-database-sync',
+    icon: RefreshCw,
     color: 'primary'
   },
   {
     title: 'Research-Grade',
     description: 'Professional-quality curation workflow with complete audit trails and versioning',
-    icon: 'mdi-microscope',
+    icon: Microscope,
     color: 'secondary'
   }
 ]

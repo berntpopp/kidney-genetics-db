@@ -107,7 +107,7 @@
         v-else-if="!results || results.length === 0"
         class="text-center pa-8 text-medium-emphasis"
       >
-        <v-icon icon="mdi-chart-box-outline" size="64" class="mb-4" />
+        <ChartBarBig class="size-16 mb-4" />
         <p class="text-body-1">No significant enrichment found</p>
         <p class="text-caption">Try adjusting the FDR threshold or cluster selection</p>
       </div>
@@ -171,7 +171,7 @@
         <template #item.genes="{ item }">
           <v-chip size="small" variant="outlined" @click="showGenes(item)">
             {{ item.genes.length }} genes
-            <v-icon end icon="mdi-chevron-right" size="small" />
+            <ChevronRight class="size-4 ml-1" />
           </v-chip>
         </template>
       </v-data-table>
@@ -248,6 +248,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { ChartBarBig, ChevronRight } from 'lucide-vue-next'
 
 // Props
 const props = defineProps({

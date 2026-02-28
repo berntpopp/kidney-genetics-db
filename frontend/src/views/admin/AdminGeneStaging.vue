@@ -23,7 +23,7 @@
     <!-- Process Explanation -->
     <v-alert type="info" variant="tonal" class="mb-6" prominent>
       <template #prepend>
-        <v-icon>mdi-information</v-icon>
+        <Info class="size-5" />
       </template>
       <div class="text-body-1">
         <strong>Gene Staging Process:</strong> When data sources provide gene names that can't be
@@ -76,7 +76,7 @@
     <!-- Test Normalization Tool -->
     <v-card class="mb-6">
       <v-card-title class="d-flex align-center">
-        <v-icon class="mr-2">mdi-test-tube</v-icon>
+        <TestTube class="size-5 mr-2" />
         Test Gene Normalization
         <v-tooltip activator="parent" location="top">
           Test if a gene symbol can be automatically normalized before reviewing similar cases
@@ -106,7 +106,7 @@
               :disabled="!testGeneText.trim()"
               @click="testNormalization"
             >
-              <v-icon start>mdi-magnify</v-icon>
+              <Search class="size-5 mr-1" />
               Test Now
             </v-btn>
           </v-col>
@@ -174,7 +174,7 @@
     <v-card>
       <v-card-title class="d-flex align-center justify-space-between">
         <div class="d-flex align-center">
-          <v-icon class="mr-2">mdi-format-list-bulleted</v-icon>
+          <List class="size-5 mr-2" />
           Pending Reviews ({{ pendingReviews.length }})
         </div>
         <v-chip v-if="selectedItems.length > 0" color="primary" variant="elevated">
@@ -218,10 +218,12 @@
         </template>
 
         <template #item.requires_expert_review="{ item }">
-          <v-icon
-            :icon="item.requires_expert_review ? 'mdi-account-tie' : 'mdi-check'"
-            :color="item.requires_expert_review ? 'orange' : 'green'"
-            size="small"
+          <component
+            :is="item.requires_expert_review ? BriefcaseBusiness : Check"
+            class="size-4"
+            :class="
+              item.requires_expert_review ? 'text-orange-500' : 'text-green-600 dark:text-green-400'
+            "
           />
         </template>
 
@@ -302,7 +304,7 @@
     <v-dialog v-model="approveDialog" max-width="700">
       <v-card>
         <v-card-title class="d-flex align-center">
-          <v-icon color="success" class="mr-2">mdi-check-circle</v-icon>
+          <CircleCheck class="size-5 text-green-600 dark:text-green-400 mr-2" />
           Approve Gene: {{ selectedItem?.original_text }}
         </v-card-title>
         <v-card-text>
@@ -369,7 +371,7 @@
         <v-card-actions>
           <v-spacer />
           <v-btn variant="text" @click="approveDialog = false">
-            <v-icon start>mdi-cancel</v-icon>
+            <Ban class="size-5 mr-1" />
             Cancel
           </v-btn>
           <v-btn
@@ -379,7 +381,7 @@
             :disabled="!approveForm.approved_symbol?.trim() || !approveForm.reviewer?.trim()"
             @click="confirmApprove"
           >
-            <v-icon start>mdi-check-circle</v-icon>
+            <CircleCheck class="size-5 mr-1" />
             Approve as Valid Gene
           </v-btn>
         </v-card-actions>
@@ -390,7 +392,7 @@
     <v-dialog v-model="rejectDialog" max-width="600">
       <v-card>
         <v-card-title class="d-flex align-center">
-          <v-icon color="error" class="mr-2">mdi-close-circle</v-icon>
+          <CircleX class="size-5 text-destructive mr-2" />
           Reject: {{ selectedItem?.original_text }}
         </v-card-title>
         <v-card-text>
@@ -448,7 +450,7 @@
         <v-card-actions>
           <v-spacer />
           <v-btn variant="text" @click="rejectDialog = false">
-            <v-icon start>mdi-cancel</v-icon>
+            <Ban class="size-5 mr-1" />
             Cancel
           </v-btn>
           <v-btn
@@ -458,7 +460,7 @@
             :disabled="!rejectForm.notes?.trim() || !rejectForm.reviewer?.trim()"
             @click="confirmReject"
           >
-            <v-icon start>mdi-close-circle</v-icon>
+            <CircleX class="size-5 mr-1" />
             Reject as Invalid
           </v-btn>
         </v-card-actions>
@@ -532,14 +534,6 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <!-- Snackbar for notifications -->
-    <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="5000">
-      {{ snackbar.message }}
-      <template #actions>
-        <v-btn icon="mdi-close" @click="snackbar.show = false" />
-      </template>
-    </v-snackbar>
   </v-container>
 </template>
 
@@ -549,6 +543,18 @@ import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as stagingApi from '@/api/admin/staging'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
+import { toast } from 'vue-sonner'
+import {
+  Ban,
+  BriefcaseBusiness,
+  Check,
+  CircleCheck,
+  CircleX,
+  Info,
+  List,
+  Search,
+  TestTube
+} from 'lucide-vue-next'
 
 // Reactive data
 const loading = ref(false)
@@ -606,13 +612,6 @@ const rejectForm = reactive({
   reviewer: 'Admin User'
 })
 
-// Snackbar
-const snackbar = reactive({
-  show: false,
-  message: '',
-  color: 'info'
-})
-
 // Computed
 const sourceOptions = computed(() => {
   const sources = [...new Set(pendingReviews.value.map(item => item.source_name))]
@@ -629,11 +628,6 @@ const tableHeaders = [
 ]
 
 // Methods
-const showSnackbar = (message, color = 'info') => {
-  snackbar.message = message
-  snackbar.color = color
-  snackbar.show = true
-}
 
 const loadStats = async () => {
   statsLoading.value = true
@@ -647,7 +641,7 @@ const loadStats = async () => {
     Object.assign(normalizationStats, normalizationResponse.data)
   } catch (error) {
     window.logService.error('Failed to load stats:', error)
-    showSnackbar('Failed to load statistics', 'error')
+    toast.error('Failed to load statistics', { duration: Infinity })
   } finally {
     statsLoading.value = false
   }
@@ -666,7 +660,7 @@ const loadPendingReviews = async () => {
     pendingReviews.value = response.data
   } catch (error) {
     window.logService.error('Failed to load pending reviews:', error)
-    showSnackbar('Failed to load pending reviews', 'error')
+    toast.error('Failed to load pending reviews', { duration: Infinity })
   } finally {
     loading.value = false
   }
@@ -727,12 +721,12 @@ const confirmApprove = async () => {
       reviewer: approveForm.reviewer
     })
 
-    showSnackbar('Gene staging approved successfully', 'success')
+    toast.success('Gene staging approved successfully', { duration: 5000 })
     approveDialog.value = false
     await loadData()
   } catch (error) {
     window.logService.error('Failed to approve staging:', error)
-    showSnackbar('Failed to approve gene staging', 'error')
+    toast.error('Failed to approve gene staging', { duration: Infinity })
   } finally {
     actionLoading.value = false
   }
@@ -748,12 +742,12 @@ const confirmReject = async () => {
       reviewer: rejectForm.reviewer
     })
 
-    showSnackbar('Gene staging rejected', 'success')
+    toast.success('Gene staging rejected', { duration: 5000 })
     rejectDialog.value = false
     await loadData()
   } catch (error) {
     window.logService.error('Failed to reject staging:', error)
-    showSnackbar('Failed to reject gene staging', 'error')
+    toast.error('Failed to reject gene staging', { duration: Infinity })
   } finally {
     actionLoading.value = false
   }
@@ -764,14 +758,18 @@ const bulkApprove = async () => {
 
   // For bulk operations, we'd need to implement a different approach
   // For now, show a message that this feature needs implementation
-  showSnackbar('Bulk approve not yet implemented - please approve items individually', 'warning')
+  toast.warning('Bulk approve not yet implemented - please approve items individually', {
+    duration: 5000
+  })
 }
 
 const bulkReject = async () => {
   if (selectedItems.value.length === 0) return
 
   // For bulk operations, we'd need to implement a different approach
-  showSnackbar('Bulk reject not yet implemented - please reject items individually', 'warning')
+  toast.warning('Bulk reject not yet implemented - please reject items individually', {
+    duration: 5000
+  })
 }
 
 // Utility methods

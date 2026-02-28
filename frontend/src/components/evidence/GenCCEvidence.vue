@@ -12,7 +12,7 @@
           variant="tonal"
           size="small"
         >
-          <v-icon :icon="getClassificationIcon(classification)" start size="x-small" />
+          <component :is="getClassificationIcon(classification)" class="size-3 mr-1" />
           {{ classification }}
         </v-chip>
       </div>
@@ -89,7 +89,7 @@
         @click="showAllSubmissions = !showAllSubmissions"
       >
         {{ showAllSubmissions ? 'Show Less' : `Show ${remainingSubmissions} More Submissions` }}
-        <v-icon :icon="showAllSubmissions ? 'mdi-chevron-up' : 'mdi-chevron-down'" end />
+        <component :is="showAllSubmissions ? ChevronUp : ChevronDown" class="size-4 ml-1" />
       </v-btn>
     </div>
 
@@ -109,7 +109,7 @@
       <v-list density="compact" class="transparent">
         <v-list-item v-for="disease in diseases" :key="disease" class="px-0">
           <template #prepend>
-            <v-icon icon="mdi-virus" size="x-small" color="purple" />
+            <Bug class="size-3 text-purple-600 dark:text-purple-400" />
           </template>
           <v-list-item-title class="text-body-2">{{ disease }}</v-list-item-title>
         </v-list-item>
@@ -130,6 +130,19 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import {
+  ChevronUp,
+  ChevronDown,
+  Bug,
+  CircleCheck,
+  Check,
+  Info,
+  AlertTriangle,
+  CircleX,
+  CircleMinus,
+  Ban,
+  Circle
+} from 'lucide-vue-next'
 
 const props = defineProps({
   evidenceData: {
@@ -207,16 +220,16 @@ const getClassificationColor = classification => {
 
 const getClassificationIcon = classification => {
   const icons = {
-    Definitive: 'mdi-check-circle',
-    Strong: 'mdi-check-bold',
-    Moderate: 'mdi-check',
-    Supportive: 'mdi-information',
-    Limited: 'mdi-alert',
-    'Disputed Evidence': 'mdi-close-circle',
-    'No Known Disease Relationship': 'mdi-minus-circle',
-    'Refuted Evidence': 'mdi-cancel'
+    Definitive: CircleCheck,
+    Strong: Check,
+    Moderate: Check,
+    Supportive: Info,
+    Limited: AlertTriangle,
+    'Disputed Evidence': CircleX,
+    'No Known Disease Relationship': CircleMinus,
+    'Refuted Evidence': Ban
   }
-  return icons[classification] || 'mdi-circle'
+  return icons[classification] || Circle
 }
 
 const formatDate = dateString => {

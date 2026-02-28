@@ -6,13 +6,13 @@
         <!-- Breadcrumbs -->
         <v-breadcrumbs :items="breadcrumbs" density="compact" class="pa-0 mb-2">
           <template #divider>
-            <v-icon size="small">mdi-chevron-right</v-icon>
+            <ChevronRight class="size-4" />
           </template>
         </v-breadcrumbs>
 
         <!-- Header -->
         <div class="d-flex align-center mb-6">
-          <v-icon color="primary" size="large" class="mr-3">mdi-database-sync</v-icon>
+          <RefreshCw class="size-6 text-primary mr-3" />
           <div>
             <h1 class="text-h4 font-weight-bold">Data Sources</h1>
             <p class="text-body-2 text-medium-emphasis ma-0">
@@ -51,9 +51,7 @@
           >
             <div class="d-flex align-center justify-space-between">
               <div class="d-flex align-center">
-                <v-icon color="white" size="large" class="mr-3">
-                  {{ getSourceIcon(source.name) }}
-                </v-icon>
+                <component :is="getSourceIcon(source.name)" class="size-6 text-white mr-3" />
                 <div>
                   <h3 class="text-h6 font-weight-bold text-white">{{ source.name }}</h3>
                   <div class="text-caption text-white-darken-1">{{ source.type || 'API' }}</div>
@@ -127,7 +125,7 @@
       <v-col cols="12">
         <v-card>
           <v-card-title class="d-flex align-center">
-            <v-icon color="primary" class="mr-2">mdi-chart-box</v-icon>
+            <ChartBarBig class="size-5 text-primary mr-2" />
             Database Summary
           </v-card-title>
           <v-card-text>
@@ -141,7 +139,7 @@
                       </div>
                       <div class="text-body-2 text-medium-emphasis">
                         Active Sources
-                        <v-icon size="x-small" class="ml-1">mdi-help-circle-outline</v-icon>
+                        <CircleHelp class="size-3 ml-1 inline-block" />
                       </div>
                     </div>
                   </template>
@@ -156,7 +154,7 @@
                       </div>
                       <div class="text-body-2 text-medium-emphasis">
                         Genes with Evidence
-                        <v-icon size="x-small" class="ml-1">mdi-help-circle-outline</v-icon>
+                        <CircleHelp class="size-3 ml-1 inline-block" />
                       </div>
                     </div>
                   </template>
@@ -171,7 +169,7 @@
                       </div>
                       <div class="text-body-2 text-medium-emphasis">
                         Source Coverage
-                        <v-icon size="x-small" class="ml-1">mdi-help-circle-outline</v-icon>
+                        <CircleHelp class="size-3 ml-1 inline-block" />
                       </div>
                     </div>
                   </template>
@@ -186,7 +184,7 @@
                       </div>
                       <div class="text-body-2 text-medium-emphasis">
                         Last Updated
-                        <v-icon size="x-small" class="ml-1">mdi-help-circle-outline</v-icon>
+                        <CircleHelp class="size-3 ml-1 inline-block" />
                       </div>
                     </div>
                   </template>
@@ -201,6 +199,19 @@
 </template>
 
 <script setup>
+import {
+  ChevronRight,
+  RefreshCw,
+  ChartBarBig,
+  CircleHelp,
+  LayoutDashboard,
+  User,
+  FileText,
+  TestTube,
+  Dna,
+  Stethoscope,
+  Database
+} from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { datasourceApi } from '@/api/datasources'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
@@ -257,14 +268,14 @@ const getSourceGradient = sourceName => {
 
 const getSourceIcon = sourceName => {
   const icons = {
-    PanelApp: 'mdi-view-dashboard',
-    HPO: 'mdi-human',
-    PubTator: 'mdi-file-document',
-    ClinGen: 'mdi-test-tube',
-    GenCC: 'mdi-dna',
-    DiagnosticPanels: 'mdi-hospital-box'
+    PanelApp: LayoutDashboard,
+    HPO: User,
+    PubTator: FileText,
+    ClinGen: TestTube,
+    GenCC: Dna,
+    DiagnosticPanels: Stethoscope
   }
-  return icons[sourceName] || 'mdi-database'
+  return icons[sourceName] || Database
 }
 
 const getSourceDescription = sourceName => {

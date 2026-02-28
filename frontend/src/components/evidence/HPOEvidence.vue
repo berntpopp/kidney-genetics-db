@@ -32,7 +32,7 @@
         @click="showAllTerms = !showAllTerms"
       >
         {{ showAllTerms ? 'Show Less' : `Show ${remainingTerms} More Terms` }}
-        <v-icon :icon="showAllTerms ? 'mdi-chevron-up' : 'mdi-chevron-down'" end />
+        <component :is="showAllTerms ? ChevronUp : ChevronDown" class="size-4 ml-1" />
       </v-btn>
     </div>
 
@@ -82,6 +82,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { ChevronUp, ChevronDown } from 'lucide-vue-next'
 
 const props = defineProps({
   evidenceData: {

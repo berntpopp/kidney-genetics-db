@@ -6,12 +6,12 @@
         <!-- Breadcrumbs -->
         <v-breadcrumbs :items="breadcrumbs" density="compact" class="pa-0 mb-2">
           <template #divider>
-            <v-icon size="small">mdi-chevron-right</v-icon>
+            <ChevronRight class="size-4" />
           </template>
         </v-breadcrumbs>
 
         <div class="d-flex align-center mb-6">
-          <v-icon color="primary" size="large" class="mr-3">mdi-graph</v-icon>
+          <Network class="size-8 mr-3 text-primary" />
           <div>
             <h1 class="text-h4 font-weight-bold">Network Analysis & Clustering</h1>
             <p class="text-body-2 text-medium-emphasis ma-0">
@@ -26,7 +26,7 @@
     <!-- Gene Selection Card -->
     <v-card elevation="0" class="mb-6" rounded="lg">
       <v-card-title class="pa-4">
-        <v-icon icon="mdi-filter" class="mr-2" />
+        <Filter class="size-5 mr-2" />
         Gene Selection
       </v-card-title>
       <v-divider />
@@ -125,7 +125,7 @@
     <!-- Network Construction Card -->
     <v-card elevation="0" class="mb-6" rounded="lg">
       <v-card-title class="pa-4">
-        <v-icon icon="mdi-graph" class="mr-2" />
+        <Network class="size-5 mr-2" />
         Network Construction
       </v-card-title>
       <v-divider />
@@ -206,7 +206,7 @@
     <!-- Network Filtering Controls -->
     <v-card elevation="0" class="mb-6" rounded="lg">
       <v-card-title class="pa-4">
-        <v-icon icon="mdi-filter-variant" class="mr-2" />
+        <SlidersHorizontal class="size-5 mr-2" />
         Network Filtering
         <v-spacer />
         <v-chip size="small" color="info" label> Filter network nodes and edges </v-chip>
@@ -301,7 +301,7 @@
     <!-- Cluster Selection & Enrichment -->
     <v-card v-if="clusterStats" elevation="0" class="mb-6" rounded="lg">
       <v-card-title class="pa-4">
-        <v-icon icon="mdi-chart-box" class="mr-2" />
+        <ChartBarBig class="size-5 mr-2" />
         Functional Enrichment Analysis
       </v-card-title>
       <v-divider />
@@ -331,7 +331,7 @@
               <template #item="{ props: itemProps, item }">
                 <v-list-item v-bind="itemProps">
                   <template #prepend>
-                    <v-icon :color="item.raw.color" icon="mdi-circle" />
+                    <Circle class="size-5" :style="{ color: item.raw.color }" />
                   </template>
                   <template #append>
                     <v-chip :color="item.raw.color" size="small" label variant="tonal">
@@ -424,17 +424,20 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <!-- Share Success Snackbar -->
-    <v-snackbar v-model="shareSnackbar" color="success" timeout="3000" location="bottom">
-      <v-icon icon="mdi-check-circle" class="mr-2" />
-      {{ shareSnackbarMessage }}
-    </v-snackbar>
   </v-container>
 </template>
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import {
+  ChartBarBig,
+  ChevronRight,
+  Circle,
+  Filter,
+  Network,
+  SlidersHorizontal
+} from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 import { useRouter, useRoute } from 'vue-router'
 import { geneApi } from '../api/genes'
 import { networkApi } from '../api/network'
@@ -484,8 +487,6 @@ const enrichmentError = ref(null)
 // UI State
 const geneDialog = ref(false)
 const selectedGene = ref(null)
-const shareSnackbar = ref(false)
-const shareSnackbarMessage = ref('')
 
 // URL State Management
 const router = useRouter()
@@ -1013,18 +1014,14 @@ const applyRestoredState = async urlState => {
         }
       } catch (error) {
         window.logService?.error('[NetworkAnalysis] ✗ Failed to restore genes:', error)
-        if (window.snackbar) {
-          window.snackbar.error(`Failed to restore genes from URL: ${error.message}`)
-        }
+        toast.error(`Failed to restore genes from URL: ${error.message}`, { duration: Infinity })
       } finally {
         loadingGenes.value = false
       }
     }
   } catch (error) {
     window.logService?.error('[NetworkAnalysis] ✗ Failed to apply restored state:', error)
-    if (window.snackbar) {
-      window.snackbar.error('Failed to restore network state from URL')
-    }
+    toast.error('Failed to restore network state from URL', { duration: Infinity })
   } finally {
     isRestoringFromUrl.value = false // Re-enable URL sync
   }
@@ -1032,12 +1029,7 @@ const applyRestoredState = async urlState => {
 
 const handleShareNetwork = async () => {
   const state = getStateSnapshot()
-  const success = await copyShareableUrl(state)
-
-  if (success) {
-    shareSnackbarMessage.value = 'Shareable URL copied to clipboard!'
-    shareSnackbar.value = true
-  }
+  await copyShareableUrl(state)
 }
 
 // Lifecycle - Restore state from URL on mount

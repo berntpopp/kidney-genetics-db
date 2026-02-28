@@ -5,13 +5,13 @@
       <!-- Breadcrumbs -->
       <v-breadcrumbs :items="breadcrumbs" density="compact" class="pa-0 mb-2">
         <template #divider>
-          <v-icon size="small">mdi-chevron-right</v-icon>
+          <ChevronRight class="size-4" />
         </template>
       </v-breadcrumbs>
 
       <!-- Header -->
       <div class="d-flex align-center">
-        <v-icon color="primary" size="large" class="mr-3">mdi-account-circle</v-icon>
+        <CircleUser class="size-6 text-primary mr-3" />
         <div class="flex-grow-1">
           <h1 class="text-h4 font-weight-bold">User Profile</h1>
           <p class="text-body-2 text-medium-emphasis ma-0">Manage your account settings</p>
@@ -26,7 +26,7 @@
           <v-card-text class="text-center pt-6">
             <!-- Avatar -->
             <v-avatar size="96" color="primary" class="mb-4">
-              <v-icon size="48">mdi-account</v-icon>
+              <User class="size-12" />
             </v-avatar>
 
             <!-- User Info -->
@@ -76,7 +76,7 @@
         <!-- Account Information -->
         <v-card class="mb-4">
           <v-card-title>
-            <v-icon start>mdi-account-details</v-icon>
+            <UserCog class="size-5 mr-2" />
             Account Information
           </v-card-title>
           <v-card-text>
@@ -159,7 +159,7 @@
         <!-- Change Password -->
         <v-card class="mb-4">
           <v-card-title>
-            <v-icon start>mdi-lock-reset</v-icon>
+            <KeyRound class="size-5 mr-2" />
             Change Password
           </v-card-title>
           <v-card-text>
@@ -239,7 +239,7 @@
         <!-- Preferences -->
         <v-card>
           <v-card-title>
-            <v-icon start>mdi-cog</v-icon>
+            <Cog class="size-5 mr-2" />
             Preferences
           </v-card-title>
           <v-card-text>
@@ -270,6 +270,7 @@
 </template>
 
 <script setup>
+import { ChevronRight, CircleUser, User, UserCog, KeyRound, Cog } from 'lucide-vue-next'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'

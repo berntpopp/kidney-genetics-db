@@ -6,12 +6,12 @@
         <!-- Breadcrumbs -->
         <v-breadcrumbs :items="breadcrumbs" density="compact" class="pa-0 mb-2">
           <template #divider>
-            <v-icon size="small">mdi-chevron-right</v-icon>
+            <ChevronRight class="size-4" />
           </template>
         </v-breadcrumbs>
 
         <div class="d-flex align-center mb-6">
-          <v-icon color="primary" size="large" class="mr-3">mdi-information</v-icon>
+          <Info class="size-6 text-primary mr-3" />
           <div>
             <h1 class="text-h4 font-weight-bold">About This Database</h1>
             <p class="text-body-2 text-medium-emphasis ma-0">
@@ -27,7 +27,7 @@
     <v-row class="mb-8">
       <v-col cols="12">
         <div class="d-flex align-center mb-4">
-          <v-icon icon="mdi-compass" size="small" class="mr-2" color="primary" />
+          <Compass class="size-4 text-primary mr-2" />
           <h2 class="text-h4 font-weight-medium">How to Use This Database</h2>
         </div>
 
@@ -39,7 +39,7 @@
               <v-card-item>
                 <template #prepend>
                   <v-avatar color="primary" size="40">
-                    <v-icon icon="mdi-magnify" color="white" size="small" />
+                    <Search class="size-4 text-white" />
                   </v-avatar>
                 </template>
                 <v-card-title class="text-subtitle-1 font-weight-medium">
@@ -53,11 +53,11 @@
                   to search curated kidney disease genes by symbol, HGNC ID, or disease association.
                 </p>
                 <v-chip size="x-small" color="info" variant="tonal" class="mr-2">
-                  <v-icon icon="mdi-filter" size="x-small" start />
+                  <Filter class="size-3" start />
                   Filter by evidence score
                 </v-chip>
                 <v-chip size="x-small" color="success" variant="tonal">
-                  <v-icon icon="mdi-sort" size="x-small" start />
+                  <ArrowUpDown class="size-3" start />
                   Sort by any column
                 </v-chip>
               </v-card-text>
@@ -70,7 +70,7 @@
               <v-card-item>
                 <template #prepend>
                   <v-avatar color="success" size="40">
-                    <v-icon icon="mdi-chart-line" color="white" size="small" />
+                    <ChartLine class="size-4 text-white" />
                   </v-avatar>
                 </template>
                 <v-card-title class="text-subtitle-1 font-weight-medium">
@@ -113,7 +113,7 @@
               <v-card-item>
                 <template #prepend>
                   <v-avatar color="secondary" size="40">
-                    <v-icon icon="mdi-database" color="white" size="small" />
+                    <Database class="size-4 text-white" />
                   </v-avatar>
                 </template>
                 <v-card-title class="text-subtitle-1 font-weight-medium">
@@ -128,7 +128,7 @@
                   PubTator (literature).
                 </p>
                 <v-chip size="x-small" color="primary" variant="tonal">
-                  <v-icon icon="mdi-check-circle" size="x-small" start />
+                  <CircleCheck class="size-3" start />
                   Multi-source annotations
                 </v-chip>
               </v-card-text>
@@ -141,7 +141,7 @@
               <v-card-item>
                 <template #prepend>
                   <v-avatar color="info" size="40">
-                    <v-icon icon="mdi-api" color="white" size="small" />
+                    <Code class="size-4 text-white" />
                   </v-avatar>
                 </template>
                 <v-card-title class="text-subtitle-1 font-weight-medium">
@@ -155,11 +155,11 @@
                   for interactive API documentation.
                 </p>
                 <v-chip size="x-small" color="success" variant="tonal" class="mr-2">
-                  <v-icon icon="mdi-code-json" size="x-small" start />
+                  <FileJson class="size-3" start />
                   JSON export
                 </v-chip>
                 <v-chip size="x-small" color="warning" variant="tonal">
-                  <v-icon icon="mdi-file-delimited" size="x-small" start />
+                  <FileSpreadsheet class="size-3" start />
                   CSV export
                 </v-chip>
               </v-card-text>
@@ -173,7 +173,7 @@
     <v-row class="mb-8">
       <v-col cols="12">
         <div class="d-flex align-center mb-4">
-          <v-icon icon="mdi-lightbulb" size="small" class="mr-2" color="primary" />
+          <Lightbulb class="size-4 text-primary mr-2" />
           <h2 class="text-h4 font-weight-medium">Core Concepts</h2>
         </div>
 
@@ -186,7 +186,7 @@
                 class="concept-header pa-4"
                 style="background: linear-gradient(135deg, #0ea5e9, #0284c7)"
               >
-                <v-icon color="white" size="large" class="mb-2">mdi-swap-horizontal</v-icon>
+                <ArrowLeftRight class="size-6 text-white mb-2" />
                 <h3 class="text-h6 font-weight-bold text-white">Gene Staging System</h3>
               </div>
               <v-card-text class="pa-4">
@@ -197,11 +197,11 @@
                 </p>
                 <div class="text-caption">
                   <div class="mb-1">
-                    <v-icon icon="mdi-arrow-right" size="x-small" class="mr-1" />
+                    <ArrowRight class="size-3 mr-1" />
                     Staging: Raw data ingestion + HGNC normalization
                   </div>
                   <div>
-                    <v-icon icon="mdi-arrow-right" size="x-small" class="mr-1" />
+                    <ArrowRight class="size-3 mr-1" />
                     Curated: Validated genes with complete annotations
                   </div>
                 </div>
@@ -216,7 +216,7 @@
                 class="concept-header pa-4"
                 style="background: linear-gradient(135deg, #10b981, #059669)"
               >
-                <v-icon color="white" size="large" class="mb-2">mdi-database-sync</v-icon>
+                <RefreshCw class="size-6 text-white mb-2" />
                 <h3 class="text-h6 font-weight-bold text-white">Multi-Source Integration</h3>
               </div>
               <v-card-text class="pa-4">
@@ -228,11 +228,11 @@
                 </p>
                 <div class="text-caption">
                   <div class="mb-1">
-                    <v-icon icon="mdi-check" size="x-small" class="mr-1" color="success" />
+                    <Check class="size-3 text-green-600 dark:text-green-400 mr-1" />
                     Comprehensive annotation coverage
                   </div>
                   <div>
-                    <v-icon icon="mdi-check" size="x-small" class="mr-1" color="success" />
+                    <Check class="size-3 text-green-600 dark:text-green-400 mr-1" />
                     Exponential backoff retry with circuit breaker
                   </div>
                 </div>
@@ -247,7 +247,7 @@
                 class="concept-header pa-4"
                 style="background: linear-gradient(135deg, #8b5cf6, #7c3aed)"
               >
-                <v-icon color="white" size="large" class="mb-2">mdi-chart-bar</v-icon>
+                <ChartBar class="size-6 text-white mb-2" />
                 <h3 class="text-h6 font-weight-bold text-white">Evidence Scoring</h3>
               </div>
               <v-card-text class="pa-4">
@@ -258,11 +258,11 @@
                 </p>
                 <div class="text-caption">
                   <div class="mb-1">
-                    <v-icon icon="mdi-arrow-right" size="x-small" class="mr-1" />
+                    <ArrowRight class="size-3 mr-1" />
                     Configurable source weights
                   </div>
                   <div>
-                    <v-icon icon="mdi-arrow-right" size="x-small" class="mr-1" />
+                    <ArrowRight class="size-3 mr-1" />
                     Transparent calculation methodology
                   </div>
                 </div>
@@ -277,7 +277,7 @@
                 class="concept-header pa-4"
                 style="background: linear-gradient(135deg, #3b82f6, #2563eb)"
               >
-                <v-icon color="white" size="large" class="mb-2">mdi-lightning-bolt</v-icon>
+                <Zap class="size-6 text-white mb-2" />
                 <h3 class="text-h6 font-weight-bold text-white">High-Performance Architecture</h3>
               </div>
               <v-card-text class="pa-4">
@@ -288,11 +288,11 @@
                 </p>
                 <div class="text-caption">
                   <div class="mb-1">
-                    <v-icon icon="mdi-check" size="x-small" class="mr-1" color="success" />
+                    <Check class="size-3 text-green-600 dark:text-green-400 mr-1" />
                     High cache hit rates
                   </div>
                   <div>
-                    <v-icon icon="mdi-check" size="x-small" class="mr-1" color="success" />
+                    <Check class="size-3 text-green-600 dark:text-green-400 mr-1" />
                     WebSocket progress tracking (no polling)
                   </div>
                 </div>
@@ -307,7 +307,7 @@
                 class="concept-header pa-4"
                 style="background: linear-gradient(135deg, #f59e0b, #d97706)"
               >
-                <v-icon color="white" size="large" class="mb-2">mdi-shield-check</v-icon>
+                <ShieldCheck class="size-6 text-white mb-2" />
                 <h3 class="text-h6 font-weight-bold text-white">Quality Assurance</h3>
               </div>
               <v-card-text class="pa-4">
@@ -318,11 +318,11 @@
                 </p>
                 <div class="text-caption">
                   <div class="mb-1">
-                    <v-icon icon="mdi-arrow-right" size="x-small" class="mr-1" />
+                    <ArrowRight class="size-3 mr-1" />
                     Automatic retry with exponential backoff
                   </div>
                   <div>
-                    <v-icon icon="mdi-arrow-right" size="x-small" class="mr-1" />
+                    <ArrowRight class="size-3 mr-1" />
                     Cache validation (no empty responses)
                   </div>
                 </div>
@@ -337,7 +337,7 @@
                 class="concept-header pa-4"
                 style="background: linear-gradient(135deg, #ef4444, #dc2626)"
               >
-                <v-icon color="white" size="large" class="mb-2">mdi-update</v-icon>
+                <RefreshCw class="size-6 text-white mb-2" />
                 <h3 class="text-h6 font-weight-bold text-white">Real-Time Progress Tracking</h3>
               </div>
               <v-card-text class="pa-4">
@@ -348,11 +348,11 @@
                 </p>
                 <div class="text-caption">
                   <div class="mb-1">
-                    <v-icon icon="mdi-check" size="x-small" class="mr-1" color="success" />
+                    <Check class="size-3 text-green-600 dark:text-green-400 mr-1" />
                     Stable WebSocket connections during processing
                   </div>
                   <div>
-                    <v-icon icon="mdi-check" size="x-small" class="mr-1" color="success" />
+                    <Check class="size-3 text-green-600 dark:text-green-400 mr-1" />
                     No blocking, no polling required
                   </div>
                 </div>
@@ -367,7 +367,7 @@
     <v-row class="mb-8">
       <v-col cols="12">
         <div class="d-flex align-center mb-4">
-          <v-icon icon="mdi-code-tags" size="small" class="mr-2" color="primary" />
+          <Code class="size-4 text-primary mr-2" />
           <h2 class="text-h4 font-weight-medium">Open Source & Documentation</h2>
         </div>
 
@@ -377,7 +377,7 @@
               <v-card-item>
                 <template #prepend>
                   <v-avatar color="primary" size="40">
-                    <v-icon icon="mdi-github" color="white" size="small" />
+                    <Github class="size-4 text-white" />
                   </v-avatar>
                 </template>
                 <v-card-title class="text-subtitle-1 font-weight-medium">
@@ -407,7 +407,7 @@
               <v-card-item>
                 <template #prepend>
                   <v-avatar color="info" size="40">
-                    <v-icon icon="mdi-book-open" color="white" size="small" />
+                    <BookOpen class="size-4 text-white" />
                   </v-avatar>
                 </template>
                 <v-card-title class="text-subtitle-1 font-weight-medium">
@@ -439,6 +439,30 @@
 
 <script setup>
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
+import {
+  ArrowLeftRight,
+  ArrowRight,
+  ArrowUpDown,
+  BookOpen,
+  ChartBar,
+  ChartLine,
+  Check,
+  ChevronRight,
+  CircleCheck,
+  Code,
+  Compass,
+  Database,
+  FileJson,
+  FileSpreadsheet,
+  Filter,
+  Github,
+  Info,
+  Lightbulb,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Zap
+} from 'lucide-vue-next'
 
 // Breadcrumbs
 const breadcrumbs = PUBLIC_BREADCRUMBS.about
