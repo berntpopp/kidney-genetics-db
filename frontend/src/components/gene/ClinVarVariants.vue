@@ -8,7 +8,7 @@
       class="d-flex align-center"
     >
       <v-chip color="grey" variant="tonal" size="small">
-        <v-icon size="x-small" start>mdi-information-outline</v-icon>
+        <Info class="size-3 mr-1" />
         No variants available
       </v-chip>
     </div>
@@ -30,7 +30,7 @@
           <div class="text-caption">
             <div class="font-weight-medium mb-1">Review Confidence:</div>
             <div class="d-flex align-center">
-              <v-icon size="x-small" class="mr-1" color="success">mdi-shield-check</v-icon>
+              <ShieldCheck class="size-3 mr-1 text-green-600 dark:text-green-400" />
               <span class="font-weight-medium">{{ clinvarData.high_confidence_percentage }}%</span>
               <span class="ml-1">with high-quality review</span>
             </div>
@@ -126,7 +126,7 @@
       >
         <template #activator="{ props }">
           <v-chip color="deep-purple" variant="tonal" size="small" v-bind="props">
-            <v-icon size="x-small" start>mdi-dna</v-icon>
+            <Dna class="size-3 mr-1" />
             Consequences
           </v-chip>
         </template>
@@ -140,7 +140,7 @@
             style="background-color: rgba(255, 82, 82, 0.1)"
           >
             <div class="d-flex align-center">
-              <v-icon size="small" color="error" class="mr-1">mdi-alert</v-icon>
+              <AlertTriangle class="size-4 mr-1 text-destructive" />
               <strong>{{ clinvarData.consequence_categories.truncating }} Truncating</strong>
             </div>
             <div class="text-caption text-medium-emphasis">
@@ -191,6 +191,8 @@
 </template>
 
 <script setup>
+import { Info, ShieldCheck, Dna, AlertTriangle } from 'lucide-vue-next'
+
 defineProps({
   clinvarData: {
     type: Object,

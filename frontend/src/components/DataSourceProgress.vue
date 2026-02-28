@@ -1,10 +1,10 @@
 <template>
   <v-card class="data-source-progress" elevation="1">
     <v-card-title class="d-flex align-center pa-4">
-      <v-icon class="mr-2" color="primary">mdi-database-sync</v-icon>
+      <RefreshCw class="size-5 mr-2 text-primary" />
       <span class="text-h6">Data Source Updates</span>
       <v-chip v-if="summary.running > 0" size="x-small" color="primary" label class="ml-2 pulse">
-        <v-icon size="x-small" start>mdi-circle</v-icon>
+        <Circle class="size-3 mr-1" />
         Live
       </v-chip>
       <v-spacer />
@@ -21,12 +21,12 @@
             :color="autoRefresh ? 'primary' : 'grey'"
             @click="toggleAutoRefresh"
           >
-            <v-icon>{{ autoRefresh ? 'mdi-refresh-auto' : 'mdi-refresh' }}</v-icon>
+            <component :is="autoRefresh ? RefreshCcw : RefreshCw" class="size-5" />
           </v-btn>
         </template>
       </v-tooltip>
       <v-btn icon variant="text" size="small" @click="toggleExpanded">
-        <v-icon>{{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+        <component :is="expanded ? ChevronUp : ChevronDown" class="size-5" />
       </v-btn>
     </v-card-title>
 
@@ -97,15 +97,15 @@
 
                 <div class="d-flex align-center text-caption">
                   <span v-if="source.items_added > 0" class="mr-3">
-                    <v-icon size="x-small" color="success" class="mr-1">mdi-plus</v-icon>
+                    <Plus class="size-3 mr-1 text-green-600 dark:text-green-400" />
                     {{ source.items_added }}
                   </span>
                   <span v-if="source.items_updated > 0" class="mr-3">
-                    <v-icon size="x-small" color="info" class="mr-1">mdi-update</v-icon>
+                    <RefreshCw class="size-3 mr-1 text-blue-600 dark:text-blue-400" />
                     {{ source.items_updated }}
                   </span>
                   <span v-if="source.items_failed > 0" class="mr-3">
-                    <v-icon size="x-small" color="error" class="mr-1">mdi-alert</v-icon>
+                    <AlertTriangle class="size-3 mr-1 text-destructive" />
                     {{ source.items_failed }}
                   </span>
                   <v-spacer />
@@ -119,7 +119,7 @@
                     :loading="triggering[source.source_name]"
                     @click="triggerUpdate(source.source_name)"
                   >
-                    <v-icon size="small">mdi-play</v-icon>
+                    <Play class="size-4" />
                   </v-btn>
                   <v-btn
                     v-else-if="source.status === 'running'"
@@ -129,7 +129,7 @@
                     color="warning"
                     @click="pauseSource(source.source_name)"
                   >
-                    <v-icon size="small">mdi-pause</v-icon>
+                    <Pause class="size-4" />
                   </v-btn>
                   <v-btn
                     v-else-if="source.status === 'paused'"
@@ -139,7 +139,7 @@
                     color="success"
                     @click="resumeSource(source.source_name)"
                   >
-                    <v-icon size="small">mdi-play</v-icon>
+                    <Play class="size-4" />
                   </v-btn>
                 </div>
 
@@ -187,7 +187,7 @@
 
                 <div class="d-flex align-center text-caption">
                   <span v-if="source.items_processed > 0" class="mr-3">
-                    <v-icon size="x-small" color="info" class="mr-1">mdi-cog</v-icon>
+                    <Cog class="size-3 mr-1 text-blue-600 dark:text-blue-400" />
                     {{ source.items_processed }} processed
                   </span>
                   <v-spacer />
@@ -204,7 +204,7 @@
                     :loading="triggering[source.source_name]"
                     @click="triggerUpdate(source.source_name)"
                   >
-                    <v-icon size="small">mdi-play</v-icon>
+                    <Play class="size-4" />
                   </v-btn>
                   <v-btn
                     v-else-if="
@@ -216,7 +216,7 @@
                     color="warning"
                     @click="pauseSource(source.source_name)"
                   >
-                    <v-icon size="small">mdi-pause</v-icon>
+                    <Pause class="size-4" />
                   </v-btn>
                   <v-btn
                     v-else-if="
@@ -228,7 +228,7 @@
                     color="success"
                     @click="resumeSource(source.source_name)"
                   >
-                    <v-icon size="small">mdi-play</v-icon>
+                    <Play class="size-4" />
                   </v-btn>
                   <v-chip
                     v-else-if="source.status === 'completed'"
@@ -236,7 +236,7 @@
                     color="success"
                     label
                   >
-                    <v-icon size="x-small" start>mdi-check</v-icon>
+                    <Check class="size-3 mr-1" />
                     Complete
                   </v-chip>
                 </div>
@@ -257,6 +257,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import apiClient from '@/api/client'
+import { RefreshCw, RefreshCcw, ChevronUp, ChevronDown, Circle, Plus, AlertTriangle, Play, Pause, Cog, Check } from 'lucide-vue-next'
 
 // Browser globals are already defined in eslint config
 

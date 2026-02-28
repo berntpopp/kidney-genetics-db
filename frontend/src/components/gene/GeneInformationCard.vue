@@ -3,7 +3,7 @@
     <v-card-item>
       <template #prepend>
         <v-avatar color="primary" size="40">
-          <v-icon icon="mdi-dna" color="white" />
+          <Dna class="size-5 text-white" />
         </v-avatar>
       </template>
       <v-card-title class="d-flex align-center flex-wrap">
@@ -44,7 +44,7 @@
         style="min-height: 200px"
       >
         <div class="text-center">
-          <v-icon icon="mdi-database-off-outline" size="56" color="grey-lighten-1" class="mb-3" />
+          <Database class="size-14 text-muted-foreground mb-3" />
           <div class="text-body-1 font-weight-medium">No Additional Annotations</div>
           <div class="text-caption text-medium-emphasis mt-1">
             Additional annotations will appear here when available
@@ -109,6 +109,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { Dna, Database } from 'lucide-vue-next'
 import GeneConstraints from './GeneConstraints.vue'
 import GeneExpression from './GeneExpression.vue'
 import ClinVarVariants from './ClinVarVariants.vue'

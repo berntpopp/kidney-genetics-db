@@ -5,7 +5,7 @@
     <!-- Show special message if constraint data is not available -->
     <div v-if="gnomadData.constraint_not_available" class="d-flex align-center">
       <v-chip color="grey" variant="tonal" size="small">
-        <v-icon size="x-small" start>mdi-information-outline</v-icon>
+        <Info class="size-3 mr-1" />
         No constraint scores available
       </v-chip>
     </div>
@@ -66,6 +66,8 @@
 </template>
 
 <script setup>
+import { Info } from 'lucide-vue-next'
+
 defineProps({
   gnomadData: {
     type: Object,

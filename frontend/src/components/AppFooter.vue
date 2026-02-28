@@ -7,7 +7,7 @@
           <v-menu location="top" :close-on-content-click="false">
             <template #activator="{ props: menuProps }">
               <v-btn variant="text" size="small" class="text-caption" v-bind="menuProps">
-                <v-icon icon="mdi-information-outline" size="small" start />
+                <Info class="size-4 mr-1" />
                 v{{ frontendVersion }}
               </v-btn>
             </template>
@@ -23,7 +23,7 @@
                 <!-- Frontend Version -->
                 <v-list-item>
                   <template #prepend>
-                    <v-icon icon="mdi-vuejs" color="success" />
+                    <Code class="size-5 text-green-600 dark:text-green-400" />
                   </template>
                   <v-list-item-title class="text-caption font-weight-medium">
                     Frontend
@@ -38,9 +38,9 @@
                 <!-- Backend Version -->
                 <v-list-item>
                   <template #prepend>
-                    <v-icon
-                      icon="mdi-server"
-                      :color="backendVersion === 'unknown' ? 'error' : 'primary'"
+                    <Server
+                      class="size-5"
+                      :class="backendVersion === 'unknown' ? 'text-destructive' : 'text-primary'"
                     />
                   </template>
                   <v-list-item-title class="text-caption font-weight-medium">
@@ -56,9 +56,9 @@
                 <!-- Database Version -->
                 <v-list-item>
                   <template #prepend>
-                    <v-icon
-                      icon="mdi-database"
-                      :color="databaseVersion === 'unknown' ? 'error' : 'info'"
+                    <Database
+                      class="size-5"
+                      :class="databaseVersion === 'unknown' ? 'text-destructive' : 'text-blue-600 dark:text-blue-400'"
                     />
                   </template>
                   <v-list-item-title class="text-caption font-weight-medium">
@@ -74,7 +74,7 @@
                 <!-- Environment Badge -->
                 <v-list-item>
                   <template #prepend>
-                    <v-icon icon="mdi-cloud-outline" :color="environmentColor" />
+                    <Cloud class="size-5" />
                   </template>
                   <v-list-item-title class="text-caption font-weight-medium">
                     Environment
@@ -128,7 +128,7 @@
               color="error"
               dot
             >
-              <v-icon>mdi-text-box-search-outline</v-icon>
+              <FileSearch class="size-5" />
             </v-badge>
           </v-btn>
         </v-col>
@@ -141,6 +141,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { getAllVersions, getFrontendVersion } from '@/utils/version'
 import { useLogStore } from '@/stores/logStore'
+import { Info, Code, Server, Database, Cloud, FileSearch } from 'lucide-vue-next'
 
 const logStore = useLogStore()
 

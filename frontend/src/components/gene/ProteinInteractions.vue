@@ -8,7 +8,7 @@
       class="d-flex align-center"
     >
       <v-chip color="grey" variant="tonal" size="small">
-        <v-icon size="x-small" start>mdi-information-outline</v-icon>
+        <Info class="size-3 mr-1" />
         No interactions available
       </v-chip>
     </div>
@@ -49,7 +49,7 @@
       <v-tooltip v-if="stringPpiData.ppi_percentile" location="bottom">
         <template #activator="{ props: tooltipProps }">
           <v-chip color="info" variant="outlined" size="small" v-bind="tooltipProps">
-            <v-icon size="x-small" start>mdi-chart-bell-curve</v-icon>
+            <ChartSpline class="size-3 mr-1" />
             {{ (stringPpiData.ppi_percentile * 100).toFixed(0) }}<sup>th</sup> percentile
           </v-chip>
         </template>
@@ -111,6 +111,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { Info, ChartSpline } from 'lucide-vue-next'
 
 const props = defineProps({
   stringPpiData: {

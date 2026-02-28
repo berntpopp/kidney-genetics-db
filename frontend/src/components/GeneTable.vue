@@ -12,11 +12,9 @@
               </p>
               <v-tooltip location="bottom" max-width="300">
                 <template #activator="{ props }">
-                  <v-icon
-                    icon="mdi-information-outline"
-                    size="x-small"
+                  <Info
+                    class="size-3 text-medium-emphasis"
                     v-bind="props"
-                    class="text-medium-emphasis"
                   />
                 </template>
                 <div class="pa-2">
@@ -188,11 +186,9 @@
                     Show genes with insufficient evidence
                     <v-tooltip location="bottom">
                       <template #activator="{ props }">
-                        <v-icon
-                          icon="mdi-information-outline"
-                          size="x-small"
+                        <Info
+                          class="size-3 ml-1 text-medium-emphasis"
                           v-bind="props"
-                          class="ml-1 text-medium-emphasis"
                         />
                       </template>
                       <div class="pa-2">
@@ -209,7 +205,7 @@
                 variant="tonal"
                 color="warning"
               >
-                <v-icon icon="mdi-eye-off" size="x-small" class="mr-1" />
+                <EyeOff class="size-3 mr-1" />
                 {{ hiddenGeneCount.toLocaleString() }} genes hidden
               </v-chip>
             </div>
@@ -292,11 +288,9 @@
             </router-link>
             <v-tooltip v-if="item.aliases?.length" location="bottom">
               <template #activator="{ props }">
-                <v-icon
-                  icon="mdi-information-outline"
-                  size="x-small"
+                <Info
+                  class="size-3 ml-1 text-medium-emphasis"
                   v-bind="props"
-                  class="ml-1 text-medium-emphasis"
                 />
               </template>
               <div class="pa-2">
@@ -392,7 +386,7 @@
 
     <!-- Empty State -->
     <v-card v-if="!loading && genes.length === 0" class="text-center pa-12" rounded="lg">
-      <v-icon icon="mdi-database-search" size="x-large" class="mb-4 text-medium-emphasis" />
+      <Search class="size-8 mb-4 text-medium-emphasis" />
       <h3 class="text-h6 mb-2">No genes found</h3>
       <p class="text-body-2 text-medium-emphasis mb-4">
         {{ search ? `No results for "${search}"` : 'Try adjusting your filters' }}
@@ -406,6 +400,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { Info, EyeOff, Search } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { geneApi } from '../api/genes'
 import ScoreBreakdown from './ScoreBreakdown.vue'

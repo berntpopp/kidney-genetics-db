@@ -5,7 +5,7 @@
     <!-- Show special message if no expression data available -->
     <div v-if="hasNoData" class="d-flex align-center">
       <v-chip color="grey" variant="tonal" size="small">
-        <v-icon size="x-small" start>mdi-information-outline</v-icon>
+        <Info class="size-3 mr-1" />
         No expression data available
       </v-chip>
     </div>
@@ -137,6 +137,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { Info } from 'lucide-vue-next'
 
 const props = defineProps({
   gtexData: {

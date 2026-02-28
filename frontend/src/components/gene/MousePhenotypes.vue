@@ -8,7 +8,7 @@
       class="d-flex align-center"
     >
       <v-chip color="grey" variant="tonal" size="small">
-        <v-icon size="x-small" start>mdi-information-outline</v-icon>
+        <Info class="size-3 mr-1" />
         No phenotypes available
       </v-chip>
     </div>
@@ -115,6 +115,8 @@
 </template>
 
 <script setup>
+import { Info } from 'lucide-vue-next'
+
 defineProps({
   mouseData: {
     type: Object,
