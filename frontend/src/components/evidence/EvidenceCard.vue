@@ -17,7 +17,10 @@
           <Badge
             v-if="evidence.normalized_score"
             variant="outline"
-            :style="{ backgroundColor: getScoreColorHex(evidence.normalized_score) + '20', color: getScoreColorHex(evidence.normalized_score) }"
+            :style="{
+              backgroundColor: getScoreColorHex(evidence.normalized_score) + '20',
+              color: getScoreColorHex(evidence.normalized_score)
+            }"
           >
             Score: {{ formatScore(evidence.normalized_score) }}
           </Badge>
@@ -36,7 +39,9 @@
       />
 
       <!-- Metadata footer -->
-      <div class="border-t pt-3 mt-4 flex items-center justify-between text-xs text-muted-foreground">
+      <div
+        class="border-t pt-3 mt-4 flex items-center justify-between text-xs text-muted-foreground"
+      >
         <span>Last updated: {{ formatDate(evidence.evidence_date) }}</span>
         <Button
           variant="ghost"

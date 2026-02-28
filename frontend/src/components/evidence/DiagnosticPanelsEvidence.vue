@@ -32,7 +32,7 @@
                 :style="{
                   borderColor: '#0ea5e9',
                   color: '#0ea5e9',
-                  backgroundColor: '#0ea5e920',
+                  backgroundColor: '#0ea5e920'
                 }"
               >
                 {{ panel }}
@@ -50,11 +50,7 @@
             {{ formatProviderName(provider) }}
           </div>
           <div class="flex flex-wrap gap-1">
-            <Badge
-              v-for="(panel, index) in panelList"
-              :key="index"
-              variant="outline"
-            >
+            <Badge v-for="(panel, index) in panelList" :key="index" variant="outline">
               {{ panel }}
             </Badge>
           </div>
@@ -111,7 +107,7 @@ import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
-  AccordionContent,
+  AccordionContent
 } from '@/components/ui/accordion'
 
 const props = defineProps({

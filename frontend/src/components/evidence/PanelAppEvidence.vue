@@ -65,7 +65,7 @@
           :style="{
             borderColor: getRegionColor(region),
             color: getRegionColor(region),
-            backgroundColor: getRegionColor(region) + '15',
+            backgroundColor: getRegionColor(region) + '15'
           }"
         >
           <MapPin class="size-3 mr-1" />
@@ -84,7 +84,7 @@
           variant="outline"
           :style="{
             borderColor: '#f97316',
-            color: '#f97316',
+            color: '#f97316'
           }"
           class="text-xs"
         >
@@ -112,7 +112,7 @@
           :style="{
             borderColor: getEvidenceLevelColor(level),
             color: getEvidenceLevelColor(level),
-            backgroundColor: getEvidenceLevelColor(level) + '15',
+            backgroundColor: getEvidenceLevelColor(level) + '15'
           }"
         >
           Level {{ level }}
@@ -124,11 +124,7 @@
     <div v-if="modesOfInheritance?.length" class="mb-4">
       <div class="text-sm font-medium mb-2">Inheritance</div>
       <div class="space-y-1">
-        <div
-          v-for="mode in modesOfInheritance"
-          :key="mode"
-          class="flex items-center gap-2 py-1"
-        >
+        <div v-for="mode in modesOfInheritance" :key="mode" class="flex items-center gap-2 py-1">
           <GitBranch class="size-3 text-yellow-600 dark:text-yellow-400 shrink-0" />
           <span class="text-xs">{{ formatInheritance(mode) }}</span>
         </div>

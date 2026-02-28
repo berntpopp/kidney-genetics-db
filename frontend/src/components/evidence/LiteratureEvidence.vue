@@ -47,7 +47,7 @@
                 :style="{
                   borderColor: '#0ea5e9',
                   color: '#0ea5e9',
-                  backgroundColor: '#0ea5e915',
+                  backgroundColor: '#0ea5e915'
                 }"
                 as="a"
                 :href="`https://pubmed.ncbi.nlm.nih.gov/${pub.pmid}`"
@@ -66,7 +66,7 @@
                 :style="{
                   borderColor: '#6b7280',
                   color: '#6b7280',
-                  backgroundColor: '#6b728015',
+                  backgroundColor: '#6b728015'
                 }"
                 as="a"
                 :href="`https://doi.org/${pub.doi}`"
@@ -85,7 +85,7 @@
                 :style="{
                   borderColor: '#3b82f6',
                   color: '#3b82f6',
-                  backgroundColor: '#3b82f615',
+                  backgroundColor: '#3b82f615'
                 }"
                 as="a"
                 :href="pub.url"
@@ -126,7 +126,7 @@
           variant="outline"
           :style="{
             borderColor: '#0ea5e9',
-            color: '#0ea5e9',
+            color: '#0ea5e9'
           }"
           as="a"
           :href="getPublicationUrl(pub)"
@@ -156,7 +156,7 @@ import {
   ExternalLink,
   IdCard,
   Link,
-  Globe,
+  Globe
 } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

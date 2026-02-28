@@ -217,9 +217,9 @@
                   <div>
                     <div class="text-xs text-muted-foreground">Location</div>
                     <div class="text-sm">
-                      chr{{ ensemblData.chromosome }}:{{
-                        ensemblData.start?.toLocaleString()
-                      }}-{{ ensemblData.end?.toLocaleString() }}
+                      chr{{ ensemblData.chromosome }}:{{ ensemblData.start?.toLocaleString() }}-{{
+                        ensemblData.end?.toLocaleString()
+                      }}
                       ({{ ensemblData.strand }})
                     </div>
                   </div>
@@ -316,7 +316,7 @@ import {
   BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
-  BreadcrumbSeparator,
+  BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
 import {
   ArrowLeft,
@@ -331,15 +331,15 @@ import {
   MapPin,
   Network,
   Ruler,
-  Shapes,
+  Shapes
 } from 'lucide-vue-next'
 
 // Props
 const props = defineProps({
   symbol: {
     type: String,
-    required: true,
-  },
+    required: true
+  }
 })
 
 // State
