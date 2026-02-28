@@ -2,10 +2,19 @@
  * Vue Router configuration
  */
 
+import 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
+import type { RouteRecordRaw, NavigationGuardNext, RouteLocationNormalized } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-const routes = [
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean
+    requiresAdmin?: boolean
+  }
+}
+
+const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'home',
@@ -27,10 +36,14 @@ const routes = [
     name: 'gene-structure',
     component: () => import('../views/GeneStructure.vue'),
     props: true,
-    beforeEnter: async (to, from, next) => {
+    beforeEnter: async (
+      to: RouteLocationNormalized,
+      _from: RouteLocationNormalized,
+      next: NavigationGuardNext
+    ) => {
       // Validate gene symbol format
-      const symbol = to.params.symbol
-      if (!/^[A-Z0-9][A-Z0-9-]*$/i.test(symbol)) {
+      const symbol = to.params['symbol']
+      if (typeof symbol !== 'string' || !/^[A-Z0-9][A-Z0-9-]*$/i.test(symbol)) {
         next({ name: 'genes' })
         return
       }
@@ -147,7 +160,7 @@ const router = createRouter({
 })
 
 // Navigation guards
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {

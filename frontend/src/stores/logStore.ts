@@ -7,6 +7,46 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import type { LogEntry, LogLevel } from '@/types/log'
+
+/**
+ * Statistics tracked by the log store
+ */
+interface LogStats {
+  totalLogsReceived: number
+  totalLogsDropped: number
+  lastLogTime: string | null
+  sessionStartTime: string
+}
+
+/**
+ * Log level counts by level
+ */
+interface LogsByLevel {
+  DEBUG: number
+  INFO: number
+  WARN: number
+  ERROR: number
+  CRITICAL: number
+}
+
+/**
+ * Memory usage estimate
+ */
+interface MemoryUsage {
+  bytes: number
+  kb: string
+  mb: string
+}
+
+/**
+ * Export options
+ */
+interface ExportOptions {
+  format?: 'json' | 'csv'
+  includeMetadata?: boolean
+  filtered?: boolean
+}
 
 /**
  * Log Store
@@ -21,14 +61,14 @@ import { ref, computed } from 'vue'
  */
 export const useLogStore = defineStore('log', () => {
   // State
-  const logs = ref([])
+  const logs = ref<LogEntry[]>([])
   const isViewerVisible = ref(false)
-  const maxEntries = ref(getDefaultMaxEntries())
-  const searchQuery = ref('')
-  const levelFilter = ref([])
+  const maxEntries = ref<number>(getDefaultMaxEntries())
+  const searchQuery = ref<string>('')
+  const levelFilter = ref<LogLevel[]>([])
 
   // Statistics tracking
-  const stats = ref({
+  const stats = ref<LogStats>({
     totalLogsReceived: 0,
     totalLogsDropped: 0,
     lastLogTime: null,
@@ -36,20 +76,20 @@ export const useLogStore = defineStore('log', () => {
   })
 
   // Computed properties
-  const logCount = computed(() => logs.value.length)
+  const logCount = computed<number>(() => logs.value.length)
 
-  const errorCount = computed(
+  const errorCount = computed<number>(
     () => logs.value.filter(log => log.level === 'ERROR' || log.level === 'CRITICAL').length
   )
 
-  const warningCount = computed(() => logs.value.filter(log => log.level === 'WARN').length)
+  const warningCount = computed<number>(() => logs.value.filter(log => log.level === 'WARN').length)
 
-  const infoCount = computed(() => logs.value.filter(log => log.level === 'INFO').length)
+  const infoCount = computed<number>(() => logs.value.filter(log => log.level === 'INFO').length)
 
-  const debugCount = computed(() => logs.value.filter(log => log.level === 'DEBUG').length)
+  const debugCount = computed<number>(() => logs.value.filter(log => log.level === 'DEBUG').length)
 
-  const logsByLevel = computed(() => {
-    const counts = {
+  const logsByLevel = computed<LogsByLevel>(() => {
+    const counts: LogsByLevel = {
       DEBUG: 0,
       INFO: 0,
       WARN: 0,
@@ -58,7 +98,7 @@ export const useLogStore = defineStore('log', () => {
     }
 
     logs.value.forEach(log => {
-      if (counts[log.level] !== undefined) {
+      if (log.level in counts) {
         counts[log.level]++
       }
     })
@@ -66,7 +106,7 @@ export const useLogStore = defineStore('log', () => {
     return counts
   })
 
-  const filteredLogs = computed(() => {
+  const filteredLogs = computed<LogEntry[]>(() => {
     let filtered = [...logs.value]
 
     // Apply level filter
@@ -89,14 +129,14 @@ export const useLogStore = defineStore('log', () => {
     return filtered
   })
 
-  const recentErrors = computed(() =>
+  const recentErrors = computed<LogEntry[]>(() =>
     logs.value
       .filter(log => log.level === 'ERROR' || log.level === 'CRITICAL')
       .slice(-5)
       .reverse()
   )
 
-  const memoryUsage = computed(() => {
+  const memoryUsage = computed<MemoryUsage>(() => {
     // Rough estimate of memory usage (bytes)
     const jsonSize = JSON.stringify(logs.value).length
     return {
@@ -107,10 +147,10 @@ export const useLogStore = defineStore('log', () => {
   })
 
   // Actions
-  function addLogEntry(entry, maxEntriesOverride = null) {
+  function addLogEntry(entry: LogEntry, maxEntriesOverride: number | null = null): void {
     // Defer to next tick to avoid slot warning during render
     Promise.resolve().then(() => {
-      const max = maxEntriesOverride || maxEntries.value
+      const max = maxEntriesOverride ?? maxEntries.value
 
       // Add timestamp if not present
       if (!entry.timestamp) {
@@ -135,14 +175,14 @@ export const useLogStore = defineStore('log', () => {
     })
   }
 
-  function clearLogs() {
+  function clearLogs(): number {
     const previousCount = logs.value.length
     logs.value = []
     stats.value.totalLogsDropped += previousCount
     return previousCount
   }
 
-  function trimLogs(newMaxEntries) {
+  function trimLogs(newMaxEntries: number): void {
     if (logs.value.length > newMaxEntries) {
       const toRemove = logs.value.length - newMaxEntries
       logs.value = logs.value.slice(toRemove)
@@ -152,42 +192,42 @@ export const useLogStore = defineStore('log', () => {
     saveMaxEntriesToStorage(newMaxEntries)
   }
 
-  function showViewer() {
+  function showViewer(): void {
     isViewerVisible.value = true
   }
 
-  function hideViewer() {
+  function hideViewer(): void {
     isViewerVisible.value = false
   }
 
-  function toggleViewer() {
+  function toggleViewer(): void {
     isViewerVisible.value = !isViewerVisible.value
   }
 
-  function setSearchQuery(query) {
+  function setSearchQuery(query: string): void {
     searchQuery.value = query
   }
 
-  function setLevelFilter(levels) {
+  function setLevelFilter(levels: LogLevel[]): void {
     levelFilter.value = levels
   }
 
-  function getMaxEntries() {
+  function getMaxEntries(): number {
     return maxEntries.value
   }
 
-  function setMaxEntries(value) {
+  function setMaxEntries(value: number): void {
     maxEntries.value = value
     saveMaxEntriesToStorage(value)
     trimLogs(value)
   }
 
-  function exportLogs(options = {}) {
+  function exportLogs(options: ExportOptions = {}): string | Record<string, unknown> {
     const { format = 'json', includeMetadata = true, filtered = false } = options
 
     const logsToExport = filtered ? filteredLogs.value : logs.value
 
-    const exportData = {
+    const exportData: Record<string, unknown> = {
       exportedAt: new Date().toISOString(),
       application: 'Kidney Genetics Database',
       environment: import.meta.env.MODE,
@@ -201,7 +241,7 @@ export const useLogStore = defineStore('log', () => {
     }
 
     if (includeMetadata) {
-      exportData.metadata = {
+      exportData['metadata'] = {
         url: window.location.href,
         userAgent: navigator.userAgent,
         screenResolution: `${window.screen.width}x${window.screen.height}`,
@@ -209,7 +249,7 @@ export const useLogStore = defineStore('log', () => {
       }
     }
 
-    exportData.logs = logsToExport
+    exportData['logs'] = logsToExport
 
     if (format === 'json') {
       return JSON.stringify(exportData, null, 2)
@@ -220,11 +260,11 @@ export const useLogStore = defineStore('log', () => {
     return exportData
   }
 
-  function getLogById(correlationId) {
+  function getLogById(correlationId: string): LogEntry[] {
     return logs.value.filter(log => log.correlationId === correlationId)
   }
 
-  function getLogsByTimeRange(startTime, endTime) {
+  function getLogsByTimeRange(startTime: string, endTime: string): LogEntry[] {
     const start = new Date(startTime).getTime()
     const end = new Date(endTime).getTime()
 
@@ -234,20 +274,20 @@ export const useLogStore = defineStore('log', () => {
     })
   }
 
-  function getStatistics() {
+  function getStatistics(): Record<string, unknown> {
     return {
       ...stats.value,
       currentCount: logs.value.length,
       maxEntries: maxEntries.value,
       memoryUsage: memoryUsage.value,
       levelCounts: logsByLevel.value,
-      oldestLog: logs.value[0]?.timestamp || null,
-      newestLog: logs.value[logs.value.length - 1]?.timestamp || null
+      oldestLog: logs.value[0]?.timestamp ?? null,
+      newestLog: logs.value[logs.value.length - 1]?.timestamp ?? null
     }
   }
 
   // Utility functions
-  function convertToCSV(logsArray) {
+  function convertToCSV(logsArray: LogEntry[]): string {
     if (logsArray.length === 0) return ''
 
     const headers = ['Timestamp', 'Level', 'Message', 'Data', 'Correlation ID', 'URL']
@@ -256,8 +296,8 @@ export const useLogStore = defineStore('log', () => {
       log.level,
       log.message,
       log.data ? JSON.stringify(log.data) : '',
-      log.correlationId || '',
-      log.url || ''
+      log.correlationId ?? '',
+      log.url ?? ''
     ])
 
     const csvContent = [
@@ -268,7 +308,7 @@ export const useLogStore = defineStore('log', () => {
     return csvContent
   }
 
-  function getDefaultMaxEntries() {
+  function getDefaultMaxEntries(): number {
     try {
       const stored = localStorage.getItem('kidney-genetics-log-max-entries')
       if (stored) {
@@ -283,7 +323,7 @@ export const useLogStore = defineStore('log', () => {
     return import.meta.env.DEV ? 100 : 50
   }
 
-  function saveMaxEntriesToStorage(value) {
+  function saveMaxEntriesToStorage(value: number): void {
     try {
       localStorage.setItem('kidney-genetics-log-max-entries', value.toString())
     } catch (error) {

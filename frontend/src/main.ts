@@ -20,7 +20,7 @@ const logStore = useLogStore()
 logService.initStore(logStore)
 
 // Make logService globally available
-app.config.globalProperties.$log = logService
+app.config.globalProperties['$log'] = logService
 // Also make it available on window for non-component code
 window.logService = logService
 
