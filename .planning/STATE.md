@@ -5,29 +5,29 @@
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Researchers and clinicians can quickly find, explore, and evaluate kidney disease gene evidence
-**Current focus:** v0.2.0 Frontend Migration — Phase 1: Foundation Setup
+**Current focus:** v0.2.0 Frontend Migration — Phase 2 (Phase 1 complete)
 
 ## Current Position
 
-Phase: 1 of 9 (01-foundation-setup)
-Plan: 2 of N in phase (01-02 complete)
-Status: In progress
-Last activity: 2026-02-28 - Completed 01-02-PLAN.md (Tailwind and shadcn-vue Configuration)
+Phase: 1 of 9 (01-foundation-setup) — COMPLETE
+Plan: 3 of 3 in phase (all plans complete)
+Status: Phase 1 complete — ready to begin Phase 2
+Last activity: 2026-02-28 - Completed 01-03-PLAN.md (Vitest and Icon Audit)
 
-Progress: [██░░░░░░░░] ~10%
+Progress: [███░░░░░░░] ~15%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 2m 59s
-- Total execution time: 5m 58s
+- Total plans completed: 3
+- Average duration: 4m 40s
+- Total execution time: 12m 0s (01: 2m 0s, 02: 3m 59s, 03: 6m 1s)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation-setup | 2 | 5m 58s | 2m 59s |
+| 01-foundation-setup | 3 | 12m 0s | 4m 0s |
 
 *Updated after each plan completion*
 
@@ -51,6 +51,11 @@ Progress: [██░░░░░░░░] ~10%
 - **01-02:** OKLCH color space for all CSS custom properties
 - **01-02:** components.json uses "config": "" (empty) — correct for Tailwind v4
 - **01-02:** @typescript-eslint/parser added to eslint.config.js (pre-existing ESLint gap fixed)
+- **01-03:** jsdom over happy-dom for Vitest (better DOM spec compliance, plan spec)
+- **01-03:** Separate vitest.config.ts from vite.config.ts (test isolation)
+- **01-03:** No custom SVGs for icon migration (context from labels, not icons)
+- **01-03:** mdi-vuejs dropped (1 icon total) — purely decorative Vue.js logo
+- **01-03:** 198 MDI icons mapped: 92 direct / 68 close / 29 generic / 9 drop
 
 ### Pending Todos
 
@@ -58,12 +63,12 @@ None yet.
 
 ### Blockers / Concerns
 
-- **Phase 3 prerequisite:** Icon gap resolution (198 MDI icons, ~30-40 without Lucide equivalents) must be completed in Phase 1 before Phase 3 planning can finalize
+- **Phase 3 prerequisite: RESOLVED** — Icon audit complete (01-icon-audit.md). All 198 MDI icons mapped. 1 dropped (mdi-vuejs). Phase 3 planning can now finalize.
 - **Phase 5 prerequisite:** Evidence tier OKLCH color values require design sign-off before GeneDetail migration
 - **Phase 6 research flag:** Multi-select chip pattern (Combobox + TagsInput) is MEDIUM confidence — build isolated prototype before planning Phase 6
 
 ## Session Continuity
 
-Last session: 2026-02-28T09:14:37Z
-Stopped at: Completed 01-02-PLAN.md — Tailwind and shadcn-vue Configuration
+Last session: 2026-02-28T09:23:11Z
+Stopped at: Completed 01-03-PLAN.md — Vitest and Icon Audit (Phase 1 complete)
 Resume file: None
