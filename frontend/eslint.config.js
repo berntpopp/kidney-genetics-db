@@ -110,6 +110,7 @@ export default [
         fetch: 'readonly',
         confirm: 'readonly',
         CustomEvent: 'readonly',
+        KeyboardEvent: 'readonly',
         __APP_VERSION__: 'readonly'
       }
     },

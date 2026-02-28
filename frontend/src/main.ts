@@ -32,6 +32,14 @@ logService.info('Kidney Genetics Database application starting', {
   url: window.location.href
 })
 
+// Bridge window.snackbar to vue-sonner toast
+import { toast } from 'vue-sonner'
+
+window.snackbar = {
+  success: (msg: string) => toast.success(msg, { duration: 5000 }),
+  error: (msg: string) => toast.error(msg, { duration: Infinity })
+}
+
 // Continue with other plugins
 app.use(router)
 app.use(vuetify)
