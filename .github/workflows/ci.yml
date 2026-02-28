@@ -9,7 +9,7 @@ on:
       - main
       - develop
     paths-ignore:
-      - 'docs/**'
+      - '.planning/**'
       - '*.md'
       - 'LICENSE'
       - '.github/workflows/trivy-security-scan.yml'
@@ -20,7 +20,7 @@ on:
       - main
       - develop
     paths-ignore:
-      - 'docs/**'
+      - '.planning/**'
       - '*.md'
       - 'LICENSE'
       - '.github/workflows/trivy-security-scan.yml'

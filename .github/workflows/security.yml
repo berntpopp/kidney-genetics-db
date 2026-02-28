@@ -6,7 +6,7 @@ on:
       - main
       - develop
     paths-ignore:
-      - 'docs/**'
+      - '.planning/**'
       - '*.md'
       - 'LICENSE'
   pull_request:
@@ -14,7 +14,7 @@ on:
       - main
       - develop
     paths-ignore:
-      - 'docs/**'
+      - '.planning/**'
       - '*.md'
       - 'LICENSE'
   schedule:

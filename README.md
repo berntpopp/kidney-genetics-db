@@ -50,7 +50,7 @@ make dev-up
 - `backend/` - FastAPI application with data pipeline
 - `backend/config/` - YAML configuration files (datasources, keywords, annotations)
 - `frontend/` - Vue.js/Vuetify web interface
-- `docs/` - Architecture documentation and implementation guides
+- `.planning/archive/docs/` - Historical documentation and implementation notes
 - `docker-compose.services.yml` - PostgreSQL database setup
 
 ## Development
@@ -78,7 +78,7 @@ cd frontend && npm run lint && npm run format
 **Working**: Multi-source gene curation, evidence scoring, admin panel, unified systems
 **In Progress**: Email verification, password reset, comprehensive test coverage
 
-See [docs/project-management/status.md](docs/project-management/status.md) for detailed information.
+See [CLAUDE.md](CLAUDE.md) for development guidance and architecture details.
 
 ## License
 
