@@ -35,29 +35,17 @@
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <Select
-        v-if="data && Object.keys(data).length > 0"
-        v-model="selectedSource"
-      >
+      <Select v-if="data && Object.keys(data).length > 0" v-model="selectedSource">
         <SelectTrigger class="w-[200px] h-8 mr-2">
           <SelectValue placeholder="Select source" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem
-            v-for="option in sourceOptions"
-            :key="option.value"
-            :value="option.value"
-          >
+          <SelectItem v-for="option in sourceOptions" :key="option.value" :value="option.value">
             {{ option.title }}
           </SelectItem>
         </SelectContent>
       </Select>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        :disabled="loading"
-        @click="refreshData"
-      >
+      <Button variant="ghost" size="icon-sm" :disabled="loading" @click="refreshData">
         <RefreshCw class="size-4" :class="{ 'animate-spin': loading }" />
       </Button>
     </CardHeader>
@@ -65,7 +53,9 @@
     <CardContent>
       <!-- Loading state -->
       <div v-if="loading" class="flex items-center justify-center" style="height: 400px">
-        <div class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <div
+          class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"
+        />
       </div>
 
       <!-- Error state -->
@@ -128,7 +118,13 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 

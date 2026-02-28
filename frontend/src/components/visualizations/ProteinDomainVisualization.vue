@@ -11,7 +11,18 @@
             :key="cat.value"
             :variant="selectedClassifications.includes(cat.value) ? 'default' : 'outline'"
             class="cursor-pointer select-none"
-            :style="selectedClassifications.includes(cat.value) ? { backgroundColor: getClassificationColor(cat.value), borderColor: getClassificationColor(cat.value), color: 'white' } : { borderColor: getClassificationColor(cat.value), color: getClassificationColor(cat.value) }"
+            :style="
+              selectedClassifications.includes(cat.value)
+                ? {
+                    backgroundColor: getClassificationColor(cat.value),
+                    borderColor: getClassificationColor(cat.value),
+                    color: 'white'
+                  }
+                : {
+                    borderColor: getClassificationColor(cat.value),
+                    color: getClassificationColor(cat.value)
+                  }
+            "
             @click="toggleFilter(selectedClassifications, cat.value)"
           >
             {{ cat.label }} ({{ getClassificationCount(cat.value) }})
@@ -28,7 +39,15 @@
             :key="eff.value"
             :variant="selectedEffects.includes(eff.value) ? 'default' : 'outline'"
             class="cursor-pointer select-none"
-            :style="selectedEffects.includes(eff.value) ? { backgroundColor: getEffectColor(eff.value), borderColor: getEffectColor(eff.value), color: 'white' } : { borderColor: getEffectColor(eff.value), color: getEffectColor(eff.value) }"
+            :style="
+              selectedEffects.includes(eff.value)
+                ? {
+                    backgroundColor: getEffectColor(eff.value),
+                    borderColor: getEffectColor(eff.value),
+                    color: 'white'
+                  }
+                : { borderColor: getEffectColor(eff.value), color: getEffectColor(eff.value) }
+            "
             @click="toggleFilter(selectedEffects, eff.value)"
           >
             {{ eff.label }} ({{ getEffectCount(eff.value) }})
@@ -46,13 +65,31 @@
     <!-- Zoom Controls -->
     <div class="zoom-controls mb-2">
       <div class="inline-flex rounded-md border">
-        <Button variant="ghost" size="icon" class="h-8 w-8 rounded-none rounded-l-md" :disabled="!canZoomIn" @click="zoomIn">
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-8 w-8 rounded-none rounded-l-md"
+          :disabled="!canZoomIn"
+          @click="zoomIn"
+        >
           <ZoomIn class="size-4" />
         </Button>
-        <Button variant="ghost" size="icon" class="h-8 w-8 rounded-none" :disabled="!canZoomOut" @click="zoomOut">
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-8 w-8 rounded-none"
+          :disabled="!canZoomOut"
+          @click="zoomOut"
+        >
           <ZoomOut class="size-4" />
         </Button>
-        <Button variant="ghost" size="sm" class="h-8 rounded-none rounded-r-md" :disabled="!isZoomed" @click="resetZoom">
+        <Button
+          variant="ghost"
+          size="sm"
+          class="h-8 rounded-none rounded-r-md"
+          :disabled="!isZoomed"
+          @click="resetZoom"
+        >
           <SearchX class="size-4 mr-1" />
           Reset
         </Button>

@@ -62,11 +62,7 @@
 
     <CardContent>
       <!-- Loading state (only on initial load) -->
-      <div
-        v-if="loading && !data"
-        class="flex justify-center items-center"
-        style="height: 400px"
-      >
+      <div v-if="loading && !data" class="flex justify-center items-center" style="height: 400px">
         <div
           class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"
         />
@@ -182,9 +178,7 @@
         <!-- Empty state when no sources selected -->
         <div v-show="selectedSources.length === 0" class="empty-state">
           <ChartScatter class="size-16 text-muted-foreground" />
-          <h3 class="text-lg font-semibold mt-4 mb-2 text-muted-foreground">
-            No Sources Selected
-          </h3>
+          <h3 class="text-lg font-semibold mt-4 mb-2 text-muted-foreground">No Sources Selected</h3>
           <p class="text-sm text-muted-foreground">
             Select one or more data sources above to view the UpSet plot visualization.
           </p>
@@ -201,15 +195,8 @@
             <div class="mb-2">
               <strong>{{ selectedIntersection.cardinality }}</strong> genes in this intersection
             </div>
-            <div
-              v-if="selectedIntersection.elems.length <= 20"
-              class="flex flex-wrap gap-1"
-            >
-              <Badge
-                v-for="elem in selectedIntersection.elems"
-                :key="elem.name"
-                variant="outline"
-              >
+            <div v-if="selectedIntersection.elems.length <= 20" class="flex flex-wrap gap-1">
+              <Badge v-for="elem in selectedIntersection.elems" :key="elem.name" variant="outline">
                 {{ elem.name }}
               </Badge>
             </div>
@@ -237,22 +224,9 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import {
-  ChartScatter,
-  CircleHelp,
-  Filter,
-  RefreshCw,
-  X,
-  Plus,
-  CheckSquare
-} from 'lucide-vue-next'
+import { ChartScatter, CircleHelp, Filter, RefreshCw, X, Plus, CheckSquare } from 'lucide-vue-next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  TooltipProvider,
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent
-} from '@/components/ui/tooltip'
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'

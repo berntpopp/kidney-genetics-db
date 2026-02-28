@@ -20,10 +20,7 @@
         <X class="h-4 w-4" />
       </button>
       <!-- Match count badge appended -->
-      <Badge
-        v-if="matchCount > 0"
-        class="absolute right-8 top-1.5 bg-green-600 text-white text-xs"
-      >
+      <Badge v-if="matchCount > 0" class="absolute right-8 top-1.5 bg-green-600 text-white text-xs">
         {{ matchCount }} {{ matchCount === 1 ? 'match' : 'matches' }}
       </Badge>
     </div>
@@ -64,11 +61,7 @@
     </div>
 
     <!-- Error alert display -->
-    <Alert
-      v-if="error && !errorMessage"
-      variant="destructive"
-      class="mt-2"
-    >
+    <Alert v-if="error && !errorMessage" variant="destructive" class="mt-2">
       <AlertCircle class="h-4 w-4" />
       <AlertDescription class="flex items-center justify-between">
         <span>{{ error }}</span>
