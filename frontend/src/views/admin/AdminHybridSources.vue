@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <div class="container mx-auto px-4 py-6">
     <AdminHeader
       title="Hybrid Source Management"
       subtitle="Upload and manage DiagnosticPanels and Literature evidence"
@@ -9,403 +9,120 @@
     />
 
     <!-- Source Statistics Cards -->
-    <v-row class="mb-6">
-      <v-col cols="12" md="4">
-        <AdminStatsCard
-          title="DiagnosticPanels Genes"
-          :value="diagnosticStats.unique_genes"
-          :loading="statsLoading"
-          icon="mdi-medical-bag"
-          color="cyan"
-        />
-      </v-col>
-      <v-col cols="12" md="4">
-        <AdminStatsCard
-          title="Literature Genes"
-          :value="literatureStats.unique_genes"
-          :loading="statsLoading"
-          icon="mdi-book-open-page-variant"
-          color="purple"
-        />
-      </v-col>
-      <v-col cols="12" md="4">
-        <AdminStatsCard
-          title="Total Evidence Records"
-          :value="totalRecords"
-          :loading="statsLoading"
-          icon="mdi-database"
-          color="primary"
-        />
-      </v-col>
-    </v-row>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <AdminStatsCard
+        title="DiagnosticPanels Genes"
+        :value="diagnosticStats.unique_genes"
+        :loading="statsLoading"
+        icon="mdi-medical-bag"
+        color="cyan"
+      />
+      <AdminStatsCard
+        title="Literature Genes"
+        :value="literatureStats.unique_genes"
+        :loading="statsLoading"
+        icon="mdi-book-open-page-variant"
+        color="purple"
+      />
+      <AdminStatsCard
+        title="Total Evidence Records"
+        :value="totalRecords"
+        :loading="statsLoading"
+        icon="mdi-database"
+        color="primary"
+      />
+    </div>
 
     <!-- Main Tabbed Interface -->
-    <v-card>
+    <Card>
       <!-- Source Selector Tabs -->
-      <v-tabs v-model="selectedSource" bg-color="primary">
-        <v-tab value="DiagnosticPanels">
-          <BriefcaseMedical class="size-5 mr-1" />
-          Diagnostic Panels
-        </v-tab>
-        <v-tab value="Literature">
-          <BookOpen class="size-5 mr-1" />
-          Literature
-        </v-tab>
-      </v-tabs>
+      <Tabs v-model="selectedSource" class="w-full">
+        <div class="border-b px-4 pt-4">
+          <TabsList>
+            <TabsTrigger value="DiagnosticPanels">
+              <BriefcaseMedical class="size-4 mr-1" />
+              Diagnostic Panels
+            </TabsTrigger>
+            <TabsTrigger value="Literature">
+              <BookOpen class="size-4 mr-1" />
+              Literature
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-      <!-- View Selector Tabs -->
-      <v-tabs v-model="activeTab" color="secondary">
-        <v-tab value="upload">
-          <Upload class="size-5 mr-1" />
-          Upload
-        </v-tab>
-        <v-tab value="history">
-          <History class="size-5 mr-1" />
-          History
-        </v-tab>
-        <v-tab value="audit">
-          <ShieldCheck class="size-5 mr-1" />
-          Audit Trail
-        </v-tab>
-        <v-tab value="manage">
-          <Cog class="size-5 mr-1" />
-          Manage
-        </v-tab>
-      </v-tabs>
-
-      <!-- Tab Content -->
-      <v-window v-model="activeTab">
-        <!-- Upload Tab -->
-        <v-window-item value="upload">
-          <v-card-text>
-            <!-- Upload Mode Selection -->
-            <v-radio-group v-model="uploadMode" inline class="mb-4">
-              <template #label>
-                <span class="text-subtitle-2 font-weight-bold">Upload Mode:</span>
-              </template>
-              <v-radio label="Merge (add to existing data)" value="merge" />
-              <v-radio label="Replace (overwrite existing data)" value="replace" color="warning" />
-            </v-radio-group>
-
-            <v-alert v-if="uploadMode === 'replace'" type="warning" density="compact" class="mb-4">
-              <strong>Warning:</strong> Replace mode will delete all existing data for this
-              provider/publication before uploading new data.
-            </v-alert>
-
-            <!-- Provider Name Input -->
-            <v-text-field
-              v-model="providerName"
-              :label="
-                selectedSource === 'DiagnosticPanels'
-                  ? 'Provider Name (optional)'
-                  : 'Publication ID (optional)'
-              "
-              :hint="
-                selectedSource === 'DiagnosticPanels'
-                  ? 'Leave empty to use filename as provider'
-                  : 'Leave empty to use filename as publication ID'
-              "
-              persistent-hint
-              density="compact"
-              class="mb-4"
-            />
-
-            <!-- Drag & Drop Zone -->
-            <div
-              class="upload-zone"
-              :class="{ 'upload-zone--dragging': isDragging }"
-              @dragover.prevent="isDragging = true"
-              @dragleave.prevent="isDragging = false"
-              @drop.prevent="handleFileDrop"
-            >
-              <CloudUpload
-                class="size-16"
-                :class="isDragging ? 'text-primary' : 'text-muted-foreground'"
-              />
-              <h3 class="text-h6 mt-4">
-                {{ isDragging ? 'Drop file here' : 'Drag & drop file here' }}
-              </h3>
-              <p class="text-body-2 text-medium-emphasis mt-2">or</p>
-              <v-btn
-                color="primary"
-                variant="tonal"
-                prepend-icon="mdi-file-search"
-                @click="$refs.fileInput.click()"
-              >
-                Browse Files
-              </v-btn>
-              <input
-                ref="fileInput"
-                type="file"
-                hidden
-                accept=".json,.csv,.tsv,.xlsx,.xls"
-                @change="handleFileSelect"
-              />
-              <p class="text-caption text-medium-emphasis mt-4">
-                Supported: JSON, CSV, TSV, Excel (max 50MB)
-              </p>
-            </div>
-
-            <!-- Selected File Info -->
-            <v-alert v-if="selectedFile" type="info" density="compact" class="mt-4">
-              <div class="d-flex align-center">
-                <FileText class="size-5 mr-1" />
-                <span>{{ selectedFile.name }} ({{ formatFileSize(selectedFile.size) }})</span>
-                <v-spacer />
-                <v-btn icon="mdi-close" variant="text" size="small" @click="selectedFile = null" />
-              </div>
-            </v-alert>
-
-            <!-- Upload Button -->
-            <v-btn
-              :disabled="!selectedFile"
-              :loading="uploading"
-              :color="uploadMode === 'replace' ? 'warning' : 'success'"
-              size="large"
-              block
-              prepend-icon="mdi-upload"
-              class="mt-4"
-              @click="uploadFile"
-            >
-              {{ uploadMode === 'replace' ? 'Replace' : 'Upload' }} {{ selectedSource }} File
-            </v-btn>
-
-            <!-- Upload Progress -->
-            <v-progress-linear
-              v-if="uploading"
-              :model-value="uploadProgress"
-              color="primary"
-              height="20"
-              class="mt-4"
-              rounded
-            >
-              <template #default>
-                <strong>{{ uploadProgress }}%</strong>
-              </template>
-            </v-progress-linear>
-
-            <!-- Upload Results -->
-            <v-alert
-              v-if="uploadResult"
-              :type="uploadResult.status === 'success' ? 'success' : 'error'"
-              class="mt-4"
-            >
-              <div class="text-subtitle-2 font-weight-bold mb-2">Upload Results</div>
-              <v-list density="compact" bg-color="transparent">
-                <v-list-item>
-                  <template #prepend>
-                    <Hash class="size-5" />
-                  </template>
-                  <v-list-item-title>Genes Processed</v-list-item-title>
-                  <template #append>
-                    {{ uploadResult.genes_processed || 0 }}
-                  </template>
-                </v-list-item>
-                <v-list-item>
-                  <template #prepend>
-                    <Plus class="size-5" />
-                  </template>
-                  <v-list-item-title>Created</v-list-item-title>
-                  <template #append>
-                    {{ uploadResult.storage_stats?.created || 0 }}
-                  </template>
-                </v-list-item>
-                <v-list-item>
-                  <template #prepend>
-                    <Merge class="size-5" />
-                  </template>
-                  <v-list-item-title>Merged</v-list-item-title>
-                  <template #append>
-                    {{ uploadResult.storage_stats?.merged || 0 }}
-                  </template>
-                </v-list-item>
-              </v-list>
-              <p v-if="uploadResult.message" class="mt-2 mb-0">{{ uploadResult.message }}</p>
-            </v-alert>
-          </v-card-text>
-        </v-window-item>
-
-        <!-- History Tab -->
-        <v-window-item value="history">
-          <v-card-text>
-            <div class="d-flex justify-end mb-4">
-              <v-btn
-                color="primary"
-                prepend-icon="mdi-refresh"
-                variant="tonal"
-                @click="loadUploads"
-              >
-                Refresh
-              </v-btn>
-            </div>
-
-            <v-data-table
-              :headers="uploadHeaders"
-              :items="uploads"
-              :loading="uploadsLoading"
-              item-value="id"
-            >
-              <template #item.uploaded_at="{ item }">
-                {{ formatDate(item.uploaded_at) }}
-              </template>
-              <template #item.upload_status="{ item }">
-                <v-chip :color="getStatusColor(item.upload_status)" size="small">
-                  {{ item.upload_status }}
-                </v-chip>
-              </template>
-              <template #item.actions="{ item }">
-                <v-btn
-                  v-if="item.upload_status !== 'deleted'"
-                  icon="mdi-delete"
-                  variant="text"
-                  size="small"
-                  color="error"
-                  @click="confirmSoftDelete(item)"
-                />
-              </template>
-              <template #no-data>
-                <div class="text-center pa-4">No upload history found</div>
-              </template>
-            </v-data-table>
-          </v-card-text>
-        </v-window-item>
-
-        <!-- Audit Tab -->
-        <v-window-item value="audit">
-          <v-card-text>
-            <div class="d-flex justify-end mb-4">
-              <v-btn
-                color="primary"
-                prepend-icon="mdi-refresh"
-                variant="tonal"
-                @click="loadAuditTrail"
-              >
-                Refresh
-              </v-btn>
-            </div>
-
-            <v-data-table
-              :headers="auditHeaders"
-              :items="auditRecords"
-              :loading="auditLoading"
-              item-value="id"
-            >
-              <template #item.performed_at="{ item }">
-                {{ formatDate(item.performed_at) }}
-              </template>
-              <template #item.action="{ item }">
-                <v-chip :color="getActionColor(item.action)" size="small">
-                  {{ item.action }}
-                </v-chip>
-              </template>
-              <template #item.details="{ item }">
-                <span class="text-caption">{{ JSON.stringify(item.details) }}</span>
-              </template>
-              <template #no-data>
-                <div class="text-center pa-4">No audit records found</div>
-              </template>
-            </v-data-table>
-          </v-card-text>
-        </v-window-item>
-
-        <!-- Manage Tab -->
-        <v-window-item value="manage">
-          <v-card-text>
-            <div class="d-flex justify-end mb-4">
-              <v-btn
-                color="primary"
-                prepend-icon="mdi-refresh"
-                variant="tonal"
-                @click="loadIdentifiers"
-              >
-                Refresh
-              </v-btn>
-            </div>
-
-            <v-data-table
-              :headers="identifierHeaders"
-              :items="identifiers"
-              :loading="identifiersLoading"
-              item-value="identifier"
-            >
-              <template #item.last_updated="{ item }">
-                {{ formatDate(item.last_updated) }}
-              </template>
-              <template #item.actions="{ item }">
-                <v-btn
-                  icon="mdi-delete"
-                  variant="text"
-                  size="small"
-                  color="error"
-                  @click="confirmDelete(item)"
-                />
-              </template>
-              <template #no-data>
-                <div class="text-center pa-4">
-                  No {{ selectedSource === 'DiagnosticPanels' ? 'providers' : 'publications' }}
-                  found
-                </div>
-              </template>
-            </v-data-table>
-          </v-card-text>
-        </v-window-item>
-      </v-window>
-    </v-card>
+        <TabsContent value="DiagnosticPanels" class="m-0 p-0">
+          <SourceContent />
+        </TabsContent>
+        <TabsContent value="Literature" class="m-0 p-0">
+          <SourceContent />
+        </TabsContent>
+      </Tabs>
+    </Card>
 
     <!-- Delete Confirmation Dialog -->
-    <v-dialog v-model="deleteDialog" max-width="500">
-      <v-card>
-        <v-card-title class="bg-error">
-          <AlertTriangle class="size-5 mr-1" />
-          Confirm Deletion
-        </v-card-title>
-        <v-card-text class="pt-4">
-          <p>
-            Are you sure you want to delete
-            <strong>{{ deleteTarget?.identifier }}</strong
-            >?
-          </p>
-          <p class="text-warning">
-            This will remove <strong>{{ deleteTarget?.gene_count }} genes</strong> from
-            {{ selectedSource }}.
-          </p>
-          <p class="text-error font-weight-bold">This action cannot be undone!</p>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="deleteDialog = false">Cancel</v-btn>
-          <v-btn color="error" variant="flat" :loading="deleting" @click="executeDelete">
-            Delete
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <AlertDialog v-model:open="deleteDialog">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle class="flex items-center text-destructive">
+            <AlertTriangle class="size-5 mr-1" />
+            Confirm Deletion
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            <p>
+              Are you sure you want to delete
+              <strong>{{ deleteTarget?.identifier }}</strong
+              >?
+            </p>
+            <p class="text-yellow-600 dark:text-yellow-400 mt-2">
+              This will remove <strong>{{ deleteTarget?.gene_count }} genes</strong> from
+              {{ selectedSource }}.
+            </p>
+            <p class="text-destructive font-bold mt-2">This action cannot be undone!</p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :disabled="deleting"
+            @click="executeDelete"
+          >
+            {{ deleting ? 'Deleting...' : 'Delete' }}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <!-- Soft Delete Confirmation Dialog -->
-    <v-dialog v-model="softDeleteDialog" max-width="500">
-      <v-card>
-        <v-card-title class="bg-warning">
-          <AlertTriangle class="size-5 mr-1" />
-          Soft Delete Upload
-        </v-card-title>
-        <v-card-text class="pt-4">
-          <p>
-            Mark upload <strong>{{ softDeleteTarget?.evidence_name }}</strong> as deleted?
-          </p>
-          <p class="text-medium-emphasis">
-            This will not delete the actual data, only mark the upload record as deleted.
-          </p>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="softDeleteDialog = false">Cancel</v-btn>
-          <v-btn color="warning" variant="flat" :loading="deleting" @click="executeSoftDelete">
-            Mark as Deleted
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-  </v-container>
+    <AlertDialog v-model:open="softDeleteDialog">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle class="flex items-center text-yellow-600">
+            <AlertTriangle class="size-5 mr-1" />
+            Soft Delete Upload
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            <p>
+              Mark upload <strong>{{ softDeleteTarget?.evidence_name }}</strong> as deleted?
+            </p>
+            <p class="text-muted-foreground mt-2">
+              This will not delete the actual data, only mark the upload record as deleted.
+            </p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-yellow-600 text-white hover:bg-yellow-700"
+            :disabled="deleting"
+            @click="executeSoftDelete"
+          >
+            {{ deleting ? 'Processing...' : 'Mark as Deleted' }}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </div>
 </template>
 
 <script setup>
@@ -414,12 +131,39 @@
  * Complete CRUD interface for DiagnosticPanels and Literature sources
  */
 
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, defineComponent, h } from 'vue'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as ingestionApi from '@/api/admin/ingestion'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import { toast } from 'vue-sonner'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Progress } from '@/components/ui/progress'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
 import {
   AlertTriangle,
   BookOpen,
@@ -432,8 +176,11 @@ import {
   History,
   Merge,
   Plus,
+  RefreshCw,
   ShieldCheck,
-  Upload
+  Trash2,
+  Upload,
+  X
 } from 'lucide-vue-next'
 
 // State
@@ -470,35 +217,37 @@ const softDeleteDialog = ref(false)
 const softDeleteTarget = ref(null)
 const deleting = ref(false)
 
+// File input ref
+const fileInput = ref(null)
+
 // Table headers
 const uploadHeaders = [
-  { title: 'Name', key: 'evidence_name', sortable: true },
-  { title: 'File', key: 'original_filename', sortable: true },
-  { title: 'Status', key: 'upload_status', sortable: true },
-  { title: 'Uploaded By', key: 'uploaded_by', sortable: true },
-  { title: 'Uploaded', key: 'uploaded_at', sortable: true },
-  { title: 'Genes', key: 'gene_count', sortable: true },
-  { title: 'Normalized', key: 'genes_normalized', sortable: true },
-  { title: 'Failed', key: 'genes_failed', sortable: true },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'center' }
+  { title: 'Name', key: 'evidence_name' },
+  { title: 'File', key: 'original_filename' },
+  { title: 'Status', key: 'upload_status' },
+  { title: 'Uploaded By', key: 'uploaded_by' },
+  { title: 'Uploaded', key: 'uploaded_at' },
+  { title: 'Genes', key: 'gene_count' },
+  { title: 'Normalized', key: 'genes_normalized' },
+  { title: 'Failed', key: 'genes_failed' },
+  { title: 'Actions', key: 'actions' }
 ]
 
 const auditHeaders = [
-  { title: 'Action', key: 'action', sortable: true },
-  { title: 'Performed By', key: 'performed_by', sortable: true },
-  { title: 'When', key: 'performed_at', sortable: true },
-  { title: 'Details', key: 'details', sortable: false }
+  { title: 'Action', key: 'action' },
+  { title: 'Performed By', key: 'performed_by' },
+  { title: 'When', key: 'performed_at' },
+  { title: 'Details', key: 'details' }
 ]
 
 const identifierHeaders = computed(() => [
   {
     title: selectedSource.value === 'DiagnosticPanels' ? 'Provider' : 'Publication ID',
-    key: 'identifier',
-    sortable: true
+    key: 'identifier'
   },
-  { title: 'Genes', key: 'gene_count', sortable: true },
-  { title: 'Last Updated', key: 'last_updated', sortable: true },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'center' }
+  { title: 'Genes', key: 'gene_count' },
+  { title: 'Last Updated', key: 'last_updated' },
+  { title: 'Actions', key: 'actions' }
 ])
 
 // Computed
@@ -705,23 +454,23 @@ const formatDate = dateStr => {
 
 const getStatusColor = status => {
   const colors = {
-    completed: 'success',
-    processing: 'info',
-    failed: 'error',
-    deleted: 'grey'
+    completed: 'default',
+    processing: 'secondary',
+    failed: 'destructive',
+    deleted: 'outline'
   }
-  return colors[status] || 'default'
+  return colors[status] || 'outline'
 }
 
 const getActionColor = action => {
   const colors = {
-    upload: 'success',
-    delete: 'error',
-    soft_delete_upload: 'warning',
-    merge: 'info',
-    replace: 'warning'
+    upload: 'default',
+    delete: 'destructive',
+    soft_delete_upload: 'outline',
+    merge: 'secondary',
+    replace: 'outline'
   }
-  return colors[action] || 'default'
+  return colors[action] || 'outline'
 }
 
 // Watch for source change to reload data
@@ -742,26 +491,621 @@ watch(activeTab, newTab => {
 onMounted(() => {
   loadStatistics()
 })
+
+// SourceContent inline component - renders inside each source tab
+const SourceContent = defineComponent({
+  name: 'SourceContent',
+  setup() {
+    return () =>
+      h('div', [
+        // Inner view tabs
+        h(
+          Tabs,
+          {
+            modelValue: activeTab.value,
+            'onUpdate:modelValue': v => {
+              activeTab.value = v
+            }
+          },
+          {
+            default: () => [
+              h('div', { class: 'border-b px-4' }, [
+                h(
+                  TabsList,
+                  { class: 'bg-transparent' },
+                  {
+                    default: () => [
+                      h(
+                        TabsTrigger,
+                        { value: 'upload' },
+                        { default: () => [h(Upload, { class: 'size-4 mr-1' }), 'Upload'] }
+                      ),
+                      h(
+                        TabsTrigger,
+                        { value: 'history' },
+                        { default: () => [h(History, { class: 'size-4 mr-1' }), 'History'] }
+                      ),
+                      h(
+                        TabsTrigger,
+                        { value: 'audit' },
+                        { default: () => [h(ShieldCheck, { class: 'size-4 mr-1' }), 'Audit Trail'] }
+                      ),
+                      h(
+                        TabsTrigger,
+                        { value: 'manage' },
+                        { default: () => [h(Cog, { class: 'size-4 mr-1' }), 'Manage'] }
+                      )
+                    ]
+                  }
+                )
+              ]),
+
+              // Upload tab
+              h(
+                TabsContent,
+                { value: 'upload', class: 'p-6' },
+                {
+                  default: () => [
+                    // Upload mode selection
+                    h('div', { class: 'mb-4' }, [
+                      h('span', { class: 'text-sm font-semibold block mb-2' }, 'Upload Mode:'),
+                      h(
+                        RadioGroup,
+                        {
+                          modelValue: uploadMode.value,
+                          'onUpdate:modelValue': v => {
+                            uploadMode.value = v
+                          },
+                          class: 'flex gap-4'
+                        },
+                        {
+                          default: () => [
+                            h('div', { class: 'flex items-center space-x-2' }, [
+                              h(RadioGroupItem, { value: 'merge', id: 'merge' }),
+                              h(
+                                Label,
+                                { for: 'merge' },
+                                { default: () => 'Merge (add to existing data)' }
+                              )
+                            ]),
+                            h('div', { class: 'flex items-center space-x-2' }, [
+                              h(RadioGroupItem, { value: 'replace', id: 'replace' }),
+                              h(
+                                Label,
+                                { for: 'replace' },
+                                { default: () => 'Replace (overwrite existing data)' }
+                              )
+                            ])
+                          ]
+                        }
+                      )
+                    ]),
+
+                    // Replace warning
+                    uploadMode.value === 'replace'
+                      ? h(
+                          Alert,
+                          { variant: 'destructive', class: 'mb-4' },
+                          {
+                            default: () => [
+                              h(AlertDescription, null, {
+                                default: () =>
+                                  h('span', null, [
+                                    h('strong', null, 'Warning:'),
+                                    ' Replace mode will delete all existing data for this provider/publication before uploading new data.'
+                                  ])
+                              })
+                            ]
+                          }
+                        )
+                      : null,
+
+                    // Provider name
+                    h('div', { class: 'space-y-2 mb-4' }, [
+                      h(Label, null, {
+                        default: () =>
+                          selectedSource.value === 'DiagnosticPanels'
+                            ? 'Provider Name (optional)'
+                            : 'Publication ID (optional)'
+                      }),
+                      h(Input, {
+                        modelValue: providerName.value,
+                        'onUpdate:modelValue': v => {
+                          providerName.value = v
+                        },
+                        placeholder:
+                          selectedSource.value === 'DiagnosticPanels'
+                            ? 'Leave empty to use filename as provider'
+                            : 'Leave empty to use filename as publication ID'
+                      })
+                    ]),
+
+                    // Drag & Drop Zone
+                    h(
+                      'div',
+                      {
+                        class: [
+                          'border-2 border-dashed rounded-lg p-12 text-center transition-colors cursor-pointer',
+                          isDragging.value
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        ],
+                        onDragover: e => {
+                          e.preventDefault()
+                          isDragging.value = true
+                        },
+                        onDragleave: e => {
+                          e.preventDefault()
+                          isDragging.value = false
+                        },
+                        onDrop: e => {
+                          e.preventDefault()
+                          handleFileDrop(e)
+                        }
+                      },
+                      [
+                        h(CloudUpload, {
+                          class: [
+                            'size-16 mx-auto mb-4',
+                            isDragging.value ? 'text-primary' : 'text-muted-foreground'
+                          ]
+                        }),
+                        h(
+                          'h3',
+                          { class: 'text-lg font-medium mt-4' },
+                          isDragging.value ? 'Drop file here' : 'Drag & drop file here'
+                        ),
+                        h('p', { class: 'text-sm text-muted-foreground mt-2' }, 'or'),
+                        h(
+                          Button,
+                          {
+                            variant: 'outline',
+                            class: 'mt-2',
+                            onClick: () => fileInput.value?.click()
+                          },
+                          { default: () => 'Browse Files' }
+                        ),
+                        h('input', {
+                          ref: el => {
+                            fileInput.value = el
+                          },
+                          type: 'file',
+                          class: 'hidden',
+                          accept: '.json,.csv,.tsv,.xlsx,.xls',
+                          onChange: handleFileSelect
+                        }),
+                        h(
+                          'p',
+                          { class: 'text-xs text-muted-foreground mt-4' },
+                          'Supported: JSON, CSV, TSV, Excel (max 50MB)'
+                        )
+                      ]
+                    ),
+
+                    // Selected file info
+                    selectedFile.value
+                      ? h(
+                          Alert,
+                          { class: 'mt-4' },
+                          {
+                            default: () => [
+                              h(AlertDescription, null, {
+                                default: () =>
+                                  h('div', { class: 'flex items-center' }, [
+                                    h(FileText, { class: 'size-4 mr-1' }),
+                                    h(
+                                      'span',
+                                      null,
+                                      `${selectedFile.value.name} (${formatFileSize(selectedFile.value.size)})`
+                                    ),
+                                    h('div', { class: 'flex-1' }),
+                                    h(
+                                      Button,
+                                      {
+                                        variant: 'ghost',
+                                        size: 'icon',
+                                        class: 'h-6 w-6',
+                                        onClick: () => {
+                                          selectedFile.value = null
+                                        }
+                                      },
+                                      { default: () => h(X, { class: 'size-4' }) }
+                                    )
+                                  ])
+                              })
+                            ]
+                          }
+                        )
+                      : null,
+
+                    // Upload button
+                    h(
+                      Button,
+                      {
+                        disabled: !selectedFile.value || uploading.value,
+                        variant: uploadMode.value === 'replace' ? 'destructive' : 'default',
+                        class: 'w-full mt-4',
+                        size: 'lg',
+                        onClick: uploadFile
+                      },
+                      {
+                        default: () => [
+                          h(Upload, { class: 'size-4 mr-2' }),
+                          uploading.value
+                            ? 'Uploading...'
+                            : `${uploadMode.value === 'replace' ? 'Replace' : 'Upload'} ${selectedSource.value} File`
+                        ]
+                      }
+                    ),
+
+                    // Upload progress
+                    uploading.value
+                      ? h('div', { class: 'mt-4 space-y-1' }, [
+                          h(Progress, { modelValue: uploadProgress.value }),
+                          h(
+                            'p',
+                            { class: 'text-xs text-center text-muted-foreground' },
+                            `${uploadProgress.value}%`
+                          )
+                        ])
+                      : null,
+
+                    // Upload results
+                    uploadResult.value
+                      ? h(
+                          Alert,
+                          {
+                            variant:
+                              uploadResult.value.status === 'success' ? 'default' : 'destructive',
+                            class: 'mt-4'
+                          },
+                          {
+                            default: () => [
+                              h(AlertDescription, null, {
+                                default: () => [
+                                  h('div', { class: 'font-semibold mb-2' }, 'Upload Results'),
+                                  h('div', { class: 'space-y-1 text-sm' }, [
+                                    h('div', { class: 'flex items-center gap-2' }, [
+                                      h(Hash, { class: 'size-4' }),
+                                      h(
+                                        'span',
+                                        null,
+                                        `Genes Processed: ${uploadResult.value.genes_processed || 0}`
+                                      )
+                                    ]),
+                                    h('div', { class: 'flex items-center gap-2' }, [
+                                      h(Plus, { class: 'size-4' }),
+                                      h(
+                                        'span',
+                                        null,
+                                        `Created: ${uploadResult.value.storage_stats?.created || 0}`
+                                      )
+                                    ]),
+                                    h('div', { class: 'flex items-center gap-2' }, [
+                                      h(Merge, { class: 'size-4' }),
+                                      h(
+                                        'span',
+                                        null,
+                                        `Merged: ${uploadResult.value.storage_stats?.merged || 0}`
+                                      )
+                                    ])
+                                  ]),
+                                  uploadResult.value.message
+                                    ? h('p', { class: 'mt-2' }, uploadResult.value.message)
+                                    : null
+                                ]
+                              })
+                            ]
+                          }
+                        )
+                      : null
+                  ]
+                }
+              ),
+
+              // History tab
+              h(
+                TabsContent,
+                { value: 'history', class: 'p-6' },
+                {
+                  default: () => [
+                    h('div', { class: 'flex justify-end mb-4' }, [
+                      h(
+                        Button,
+                        { variant: 'outline', onClick: loadUploads },
+                        {
+                          default: () => [h(RefreshCw, { class: 'size-4 mr-2' }), 'Refresh']
+                        }
+                      )
+                    ]),
+                    h(Table, null, {
+                      default: () => [
+                        h(TableHeader, null, {
+                          default: () =>
+                            h(TableRow, null, {
+                              default: () =>
+                                uploadHeaders.map(hdr =>
+                                  h(TableHead, { key: hdr.key }, { default: () => hdr.title })
+                                )
+                            })
+                        }),
+                        h(TableBody, null, {
+                          default: () =>
+                            uploadsLoading.value
+                              ? h(TableRow, null, {
+                                  default: () =>
+                                    h(
+                                      TableCell,
+                                      {
+                                        colspan: 9,
+                                        class: 'text-center py-8 text-muted-foreground'
+                                      },
+                                      {
+                                        default: () => 'Loading...'
+                                      }
+                                    )
+                                })
+                              : uploads.value.length === 0
+                                ? h(TableRow, null, {
+                                    default: () =>
+                                      h(
+                                        TableCell,
+                                        {
+                                          colspan: 9,
+                                          class: 'text-center py-8 text-muted-foreground'
+                                        },
+                                        {
+                                          default: () => 'No upload history found'
+                                        }
+                                      )
+                                  })
+                                : uploads.value.map(item =>
+                                    h(
+                                      TableRow,
+                                      { key: item.id },
+                                      {
+                                        default: () => [
+                                          h(TableCell, null, { default: () => item.evidence_name }),
+                                          h(TableCell, null, {
+                                            default: () => item.original_filename
+                                          }),
+                                          h(TableCell, null, {
+                                            default: () =>
+                                              h(
+                                                Badge,
+                                                { variant: getStatusColor(item.upload_status) },
+                                                {
+                                                  default: () => item.upload_status
+                                                }
+                                              )
+                                          }),
+                                          h(TableCell, null, { default: () => item.uploaded_by }),
+                                          h(TableCell, null, {
+                                            default: () => formatDate(item.uploaded_at)
+                                          }),
+                                          h(TableCell, null, { default: () => item.gene_count }),
+                                          h(TableCell, null, {
+                                            default: () => item.genes_normalized
+                                          }),
+                                          h(TableCell, null, { default: () => item.genes_failed }),
+                                          h(TableCell, null, {
+                                            default: () =>
+                                              item.upload_status !== 'deleted'
+                                                ? h(
+                                                    Button,
+                                                    {
+                                                      variant: 'ghost',
+                                                      size: 'icon',
+                                                      class: 'h-8 w-8 text-destructive',
+                                                      onClick: () => confirmSoftDelete(item)
+                                                    },
+                                                    {
+                                                      default: () => h(Trash2, { class: 'size-4' })
+                                                    }
+                                                  )
+                                                : null
+                                          })
+                                        ]
+                                      }
+                                    )
+                                  )
+                        })
+                      ]
+                    })
+                  ]
+                }
+              ),
+
+              // Audit tab
+              h(
+                TabsContent,
+                { value: 'audit', class: 'p-6' },
+                {
+                  default: () => [
+                    h('div', { class: 'flex justify-end mb-4' }, [
+                      h(
+                        Button,
+                        { variant: 'outline', onClick: loadAuditTrail },
+                        {
+                          default: () => [h(RefreshCw, { class: 'size-4 mr-2' }), 'Refresh']
+                        }
+                      )
+                    ]),
+                    h(Table, null, {
+                      default: () => [
+                        h(TableHeader, null, {
+                          default: () =>
+                            h(TableRow, null, {
+                              default: () =>
+                                auditHeaders.map(hdr =>
+                                  h(TableHead, { key: hdr.key }, { default: () => hdr.title })
+                                )
+                            })
+                        }),
+                        h(TableBody, null, {
+                          default: () =>
+                            auditLoading.value
+                              ? h(TableRow, null, {
+                                  default: () =>
+                                    h(
+                                      TableCell,
+                                      {
+                                        colspan: 4,
+                                        class: 'text-center py-8 text-muted-foreground'
+                                      },
+                                      {
+                                        default: () => 'Loading...'
+                                      }
+                                    )
+                                })
+                              : auditRecords.value.length === 0
+                                ? h(TableRow, null, {
+                                    default: () =>
+                                      h(
+                                        TableCell,
+                                        {
+                                          colspan: 4,
+                                          class: 'text-center py-8 text-muted-foreground'
+                                        },
+                                        {
+                                          default: () => 'No audit records found'
+                                        }
+                                      )
+                                  })
+                                : auditRecords.value.map(item =>
+                                    h(
+                                      TableRow,
+                                      { key: item.id },
+                                      {
+                                        default: () => [
+                                          h(TableCell, null, {
+                                            default: () =>
+                                              h(
+                                                Badge,
+                                                { variant: getActionColor(item.action) },
+                                                {
+                                                  default: () => item.action
+                                                }
+                                              )
+                                          }),
+                                          h(TableCell, null, { default: () => item.performed_by }),
+                                          h(TableCell, null, {
+                                            default: () => formatDate(item.performed_at)
+                                          }),
+                                          h(TableCell, null, {
+                                            default: () =>
+                                              h(
+                                                'span',
+                                                { class: 'text-xs' },
+                                                JSON.stringify(item.details)
+                                              )
+                                          })
+                                        ]
+                                      }
+                                    )
+                                  )
+                        })
+                      ]
+                    })
+                  ]
+                }
+              ),
+
+              // Manage tab
+              h(
+                TabsContent,
+                { value: 'manage', class: 'p-6' },
+                {
+                  default: () => [
+                    h('div', { class: 'flex justify-end mb-4' }, [
+                      h(
+                        Button,
+                        { variant: 'outline', onClick: loadIdentifiers },
+                        {
+                          default: () => [h(RefreshCw, { class: 'size-4 mr-2' }), 'Refresh']
+                        }
+                      )
+                    ]),
+                    h(Table, null, {
+                      default: () => [
+                        h(TableHeader, null, {
+                          default: () =>
+                            h(TableRow, null, {
+                              default: () =>
+                                identifierHeaders.value.map(hdr =>
+                                  h(TableHead, { key: hdr.key }, { default: () => hdr.title })
+                                )
+                            })
+                        }),
+                        h(TableBody, null, {
+                          default: () =>
+                            identifiersLoading.value
+                              ? h(TableRow, null, {
+                                  default: () =>
+                                    h(
+                                      TableCell,
+                                      {
+                                        colspan: 4,
+                                        class: 'text-center py-8 text-muted-foreground'
+                                      },
+                                      {
+                                        default: () => 'Loading...'
+                                      }
+                                    )
+                                })
+                              : identifiers.value.length === 0
+                                ? h(TableRow, null, {
+                                    default: () =>
+                                      h(
+                                        TableCell,
+                                        {
+                                          colspan: 4,
+                                          class: 'text-center py-8 text-muted-foreground'
+                                        },
+                                        {
+                                          default: () =>
+                                            `No ${selectedSource.value === 'DiagnosticPanels' ? 'providers' : 'publications'} found`
+                                        }
+                                      )
+                                  })
+                                : identifiers.value.map(item =>
+                                    h(
+                                      TableRow,
+                                      { key: item.identifier },
+                                      {
+                                        default: () => [
+                                          h(TableCell, null, { default: () => item.identifier }),
+                                          h(TableCell, null, { default: () => item.gene_count }),
+                                          h(TableCell, null, {
+                                            default: () => formatDate(item.last_updated)
+                                          }),
+                                          h(TableCell, null, {
+                                            default: () =>
+                                              h(
+                                                Button,
+                                                {
+                                                  variant: 'ghost',
+                                                  size: 'icon',
+                                                  class: 'h-8 w-8 text-destructive',
+                                                  onClick: () => confirmDelete(item)
+                                                },
+                                                { default: () => h(Trash2, { class: 'size-4' }) }
+                                              )
+                                          })
+                                        ]
+                                      }
+                                    )
+                                  )
+                        })
+                      ]
+                    })
+                  ]
+                }
+              )
+            ]
+          }
+        )
+      ])
+  }
+})
 </script>
-
-<style scoped>
-.upload-zone {
-  border: 2px dashed rgb(var(--v-theme-grey-lighten-2));
-  border-radius: 8px;
-  padding: 48px;
-  text-align: center;
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-
-.upload-zone:hover {
-  border-color: rgb(var(--v-theme-primary));
-  background-color: rgba(var(--v-theme-primary), 0.05);
-}
-
-.upload-zone--dragging {
-  border-color: rgb(var(--v-theme-primary));
-  background-color: rgba(var(--v-theme-primary), 0.1);
-  transform: scale(1.02);
-}
-</style>
