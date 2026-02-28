@@ -1,99 +1,106 @@
 <template>
   <div>
     <!-- Loading State -->
-    <v-container v-if="loading" class="text-center py-12">
-      <v-progress-circular indeterminate color="primary" size="64" />
-      <p class="text-h6 mt-4 text-medium-emphasis">Loading gene structure data...</p>
-    </v-container>
+    <div v-if="loading" class="container mx-auto px-4 py-12 text-center">
+      <div
+        class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"
+      />
+      <p class="text-lg mt-4 text-muted-foreground">Loading gene structure data...</p>
+    </div>
 
     <!-- Error State -->
-    <v-container v-else-if="error">
-      <v-alert type="error" variant="tonal" class="mb-4">
-        <template #title>Error Loading Gene Data</template>
-        {{ error }}
-      </v-alert>
-      <v-btn variant="outlined" prepend-icon="mdi-arrow-left" :to="`/genes/${symbol}`">
-        Back to Gene Details
-      </v-btn>
-    </v-container>
+    <div v-else-if="error" class="container mx-auto px-4 py-6">
+      <Alert variant="destructive" class="mb-4">
+        <AlertTitle>Error Loading Gene Data</AlertTitle>
+        <AlertDescription>{{ error }}</AlertDescription>
+      </Alert>
+      <Button variant="outline" as-child>
+        <router-link :to="`/genes/${symbol}`">
+          <ArrowLeft :size="14" class="mr-1" />
+          Back to Gene Details
+        </router-link>
+      </Button>
+    </div>
 
     <!-- Main Content -->
     <div v-else-if="gene">
       <!-- Breadcrumb Navigation -->
-      <v-container fluid class="pa-0">
-        <v-breadcrumbs :items="breadcrumbs" density="compact" class="px-6 py-2 bg-surface-light">
-          <template #prepend>
-            <Home class="size-4" />
-          </template>
-          <template #divider>
-            <ChevronRight class="size-4" />
-          </template>
-        </v-breadcrumbs>
-      </v-container>
+      <div class="px-6 py-2 bg-muted">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <template v-for="(crumb, index) in breadcrumbs" :key="index">
+              <BreadcrumbItem>
+                <BreadcrumbLink v-if="crumb.to" :href="crumb.to">
+                  <Home v-if="index === 0" class="size-4 mr-1 inline" />
+                  {{ crumb.title }}
+                </BreadcrumbLink>
+                <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
+            </template>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
 
-      <v-container>
+      <div class="container mx-auto px-4 py-6">
         <!-- Page Header -->
-        <div class="d-flex align-start justify-space-between mb-6">
-          <div class="flex-grow-1">
-            <div class="d-flex align-center mb-2">
-              <v-btn
-                icon="mdi-arrow-left"
-                variant="text"
-                size="small"
-                :to="`/genes/${symbol}`"
-                class="mr-3"
-              />
+        <div class="flex items-start justify-between mb-6">
+          <div class="flex-1">
+            <div class="flex items-center mb-2">
+              <Button variant="ghost" size="icon" as-child class="mr-3">
+                <router-link :to="`/genes/${symbol}`">
+                  <ArrowLeft :size="16" />
+                </router-link>
+              </Button>
               <div>
-                <h1 class="text-h3 font-weight-bold">{{ gene.approved_symbol }}</h1>
-                <p class="text-body-1 text-medium-emphasis">Gene Structure & Protein Domains</p>
+                <h1 class="text-3xl font-bold">{{ gene.approved_symbol }}</h1>
+                <p class="text-base text-muted-foreground">Gene Structure & Protein Domains</p>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Gene Structure Visualization -->
-        <v-card class="mb-6">
-          <v-card-title class="d-flex align-center">
-            <Dna class="size-5 mr-2" />
-            Gene Structure
-          </v-card-title>
-          <v-card-subtitle v-if="ensemblData">
-            {{
-              ensemblData.canonical_transcript?.refseq_transcript_id ||
-              ensemblData.canonical_transcript?.transcript_id ||
-              'Canonical transcript'
-            }}
-            <span
-              v-if="
-                ensemblData.canonical_transcript?.refseq_transcript_id &&
-                ensemblData.canonical_transcript?.transcript_id
-              "
-              class="text-medium-emphasis"
-            >
-              ({{ ensemblData.canonical_transcript?.transcript_id }})
-            </span>
-          </v-card-subtitle>
-          <v-card-text>
+        <Card class="mb-6">
+          <CardHeader>
+            <CardTitle class="flex items-center">
+              <Dna class="size-5 mr-2" />
+              Gene Structure
+            </CardTitle>
+            <CardDescription v-if="ensemblData">
+              {{
+                ensemblData.canonical_transcript?.refseq_transcript_id ||
+                ensemblData.canonical_transcript?.transcript_id ||
+                'Canonical transcript'
+              }}
+              <span
+                v-if="
+                  ensemblData.canonical_transcript?.refseq_transcript_id &&
+                  ensemblData.canonical_transcript?.transcript_id
+                "
+                class="text-muted-foreground"
+              >
+                ({{ ensemblData.canonical_transcript?.transcript_id }})
+              </span>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div v-if="loadingEnsembl" class="text-center py-8">
-              <v-progress-circular indeterminate color="primary" size="32" />
-              <p class="text-body-2 mt-2 text-medium-emphasis">
+              <div
+                class="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto"
+              />
+              <p class="text-sm mt-2 text-muted-foreground">
                 Loading gene structure from Ensembl...
               </p>
             </div>
             <div v-else-if="!ensemblData" class="text-center py-8">
-              <CircleAlert class="size-12 text-yellow-600 dark:text-yellow-400" />
-              <p class="text-body-1 mt-2 text-medium-emphasis">
+              <CircleAlert class="size-12 text-yellow-600 dark:text-yellow-400 mx-auto" />
+              <p class="text-base mt-2 text-muted-foreground">
                 Gene structure data not available from Ensembl
               </p>
-              <v-btn
-                variant="tonal"
-                color="primary"
-                size="small"
-                class="mt-2"
-                @click="fetchEnsemblData"
-              >
+              <Button variant="outline" size="sm" class="mt-2" @click="fetchEnsemblData">
                 Retry
-              </v-btn>
+              </Button>
             </div>
             <GeneStructureVisualization
               v-else
@@ -102,198 +109,194 @@
               :clinvar-data="clinvarData"
               :uniprot-data="uniprotData"
             />
-          </v-card-text>
-        </v-card>
+          </CardContent>
+        </Card>
 
         <!-- Protein Domain Visualization -->
-        <v-card class="mb-6">
-          <v-card-title class="d-flex align-center">
-            <Atom class="size-5 mr-2" />
-            Protein Domains
-          </v-card-title>
-          <v-card-subtitle v-if="uniprotData">
-            {{ uniprotData.accession }} - {{ uniprotData.entry_name }}
-          </v-card-subtitle>
-          <v-card-text>
+        <Card class="mb-6">
+          <CardHeader>
+            <CardTitle class="flex items-center">
+              <Atom class="size-5 mr-2" />
+              Protein Domains
+            </CardTitle>
+            <CardDescription v-if="uniprotData">
+              {{ uniprotData.accession }} - {{ uniprotData.entry_name }}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div v-if="loadingUniprot" class="text-center py-8">
-              <v-progress-circular indeterminate color="primary" size="32" />
-              <p class="text-body-2 mt-2 text-medium-emphasis">
+              <div
+                class="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto"
+              />
+              <p class="text-sm mt-2 text-muted-foreground">
                 Loading protein domains from UniProt...
               </p>
             </div>
             <div v-else-if="!uniprotData" class="text-center py-8">
-              <CircleAlert class="size-12 text-yellow-600 dark:text-yellow-400" />
-              <p class="text-body-1 mt-2 text-medium-emphasis">
+              <CircleAlert class="size-12 text-yellow-600 dark:text-yellow-400 mx-auto" />
+              <p class="text-base mt-2 text-muted-foreground">
                 Protein domain data not available from UniProt
               </p>
-              <v-btn
-                variant="tonal"
-                color="primary"
-                size="small"
-                class="mt-2"
-                @click="fetchUniprotData"
-              >
+              <Button variant="outline" size="sm" class="mt-2" @click="fetchUniprotData">
                 Retry
-              </v-btn>
+              </Button>
             </div>
             <ProteinDomainVisualization
               v-else
               :uniprot-data="uniprotData"
               :clinvar-data="clinvarData"
             />
-          </v-card-text>
-        </v-card>
+          </CardContent>
+        </Card>
 
         <!-- Additional Information Cards -->
-        <v-row>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Ensembl Details -->
-          <v-col cols="12" md="6">
-            <v-card v-if="ensemblData">
-              <v-card-title>
+          <Card v-if="ensemblData">
+            <CardHeader>
+              <CardTitle class="flex items-center">
                 <Info class="size-5 mr-2" />
                 Gene Information
-              </v-card-title>
-              <v-card-text>
-                <v-list density="compact">
-                  <v-list-item v-if="ensemblData.canonical_transcript?.refseq_transcript_id">
-                    <template #prepend>
-                      <IdCard class="size-4" />
-                    </template>
-                    <v-list-item-title>RefSeq Transcript</v-list-item-title>
-                    <v-list-item-subtitle>
-                      <a
-                        :href="`https://www.ncbi.nlm.nih.gov/nuccore/${ensemblData.canonical_transcript.refseq_transcript_id}`"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {{ ensemblData.canonical_transcript.refseq_transcript_id }}
-                        <ExternalLink class="size-3" />
-                      </a>
-                    </v-list-item-subtitle>
-                  </v-list-item>
-                  <v-list-item>
-                    <template #prepend>
-                      <IdCard class="size-4" />
-                    </template>
-                    <v-list-item-title>Ensembl Gene ID</v-list-item-title>
-                    <v-list-item-subtitle>
-                      <a
-                        :href="`https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=${ensemblData.gene_id}`"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {{ ensemblData.gene_id }}
-                        <ExternalLink class="size-3" />
-                      </a>
-                    </v-list-item-subtitle>
-                  </v-list-item>
-                  <v-list-item v-if="ensemblData.canonical_transcript?.transcript_id">
-                    <template #prepend>
-                      <Dna class="size-4" />
-                    </template>
-                    <v-list-item-title>Ensembl Transcript</v-list-item-title>
-                    <v-list-item-subtitle>
-                      <a
-                        :href="`https://www.ensembl.org/Homo_sapiens/Transcript/Summary?t=${ensemblData.canonical_transcript.transcript_id}`"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {{ ensemblData.canonical_transcript.transcript_id }}
-                        <ExternalLink class="size-3" />
-                      </a>
-                    </v-list-item-subtitle>
-                  </v-list-item>
-                  <v-list-item>
-                    <template #prepend>
-                      <MapPin class="size-4" />
-                    </template>
-                    <v-list-item-title>Location</v-list-item-title>
-                    <v-list-item-subtitle>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div class="space-y-3">
+                <div
+                  v-if="ensemblData.canonical_transcript?.refseq_transcript_id"
+                  class="flex items-center gap-3"
+                >
+                  <IdCard :size="16" class="text-muted-foreground shrink-0" />
+                  <div>
+                    <div class="text-xs text-muted-foreground">RefSeq Transcript</div>
+                    <a
+                      :href="`https://www.ncbi.nlm.nih.gov/nuccore/${ensemblData.canonical_transcript.refseq_transcript_id}`"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-sm hover:underline"
+                    >
+                      {{ ensemblData.canonical_transcript.refseq_transcript_id }}
+                      <ExternalLink :size="12" class="inline ml-1" />
+                    </a>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <IdCard :size="16" class="text-muted-foreground shrink-0" />
+                  <div>
+                    <div class="text-xs text-muted-foreground">Ensembl Gene ID</div>
+                    <a
+                      :href="`https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=${ensemblData.gene_id}`"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-sm hover:underline"
+                    >
+                      {{ ensemblData.gene_id }}
+                      <ExternalLink :size="12" class="inline ml-1" />
+                    </a>
+                  </div>
+                </div>
+                <div
+                  v-if="ensemblData.canonical_transcript?.transcript_id"
+                  class="flex items-center gap-3"
+                >
+                  <Dna :size="16" class="text-muted-foreground shrink-0" />
+                  <div>
+                    <div class="text-xs text-muted-foreground">Ensembl Transcript</div>
+                    <a
+                      :href="`https://www.ensembl.org/Homo_sapiens/Transcript/Summary?t=${ensemblData.canonical_transcript.transcript_id}`"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-sm hover:underline"
+                    >
+                      {{ ensemblData.canonical_transcript.transcript_id }}
+                      <ExternalLink :size="12" class="inline ml-1" />
+                    </a>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <MapPin :size="16" class="text-muted-foreground shrink-0" />
+                  <div>
+                    <div class="text-xs text-muted-foreground">Location</div>
+                    <div class="text-sm">
                       chr{{ ensemblData.chromosome }}:{{ ensemblData.start?.toLocaleString() }}-{{
                         ensemblData.end?.toLocaleString()
                       }}
                       ({{ ensemblData.strand }})
-                    </v-list-item-subtitle>
-                  </v-list-item>
-                  <v-list-item>
-                    <template #prepend>
-                      <Ruler class="size-4" />
-                    </template>
-                    <v-list-item-title>Gene Length</v-list-item-title>
-                    <v-list-item-subtitle>
-                      {{ ensemblData.gene_length?.toLocaleString() }} bp
-                    </v-list-item-subtitle>
-                  </v-list-item>
-                  <v-list-item>
-                    <template #prepend>
-                      <Hash class="size-4" />
-                    </template>
-                    <v-list-item-title>Exons</v-list-item-title>
-                    <v-list-item-subtitle>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <Ruler :size="16" class="text-muted-foreground shrink-0" />
+                  <div>
+                    <div class="text-xs text-muted-foreground">Gene Length</div>
+                    <div class="text-sm">{{ ensemblData.gene_length?.toLocaleString() }} bp</div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <Hash :size="16" class="text-muted-foreground shrink-0" />
+                  <div>
+                    <div class="text-xs text-muted-foreground">Exons</div>
+                    <div class="text-sm">
                       {{ ensemblData.exon_count }} exons in canonical transcript
-                    </v-list-item-subtitle>
-                  </v-list-item>
-                </v-list>
-              </v-card-text>
-            </v-card>
-          </v-col>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <!-- UniProt Details -->
-          <v-col cols="12" md="6">
-            <v-card v-if="uniprotData">
-              <v-card-title>
+          <Card v-if="uniprotData">
+            <CardHeader>
+              <CardTitle class="flex items-center">
                 <Dna class="size-5 mr-2" />
                 Protein Information
-              </v-card-title>
-              <v-card-text>
-                <v-list density="compact">
-                  <v-list-item>
-                    <template #prepend>
-                      <IdCard class="size-4" />
-                    </template>
-                    <v-list-item-title>UniProt Accession</v-list-item-title>
-                    <v-list-item-subtitle>
-                      <a
-                        :href="`https://www.uniprot.org/uniprotkb/${uniprotData.accession}`"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {{ uniprotData.accession }}
-                        <ExternalLink class="size-3" />
-                      </a>
-                    </v-list-item-subtitle>
-                  </v-list-item>
-                  <v-list-item>
-                    <template #prepend>
-                      <Ruler class="size-4" />
-                    </template>
-                    <v-list-item-title>Protein Length</v-list-item-title>
-                    <v-list-item-subtitle>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div class="space-y-3">
+                <div class="flex items-center gap-3">
+                  <IdCard :size="16" class="text-muted-foreground shrink-0" />
+                  <div>
+                    <div class="text-xs text-muted-foreground">UniProt Accession</div>
+                    <a
+                      :href="`https://www.uniprot.org/uniprotkb/${uniprotData.accession}`"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-sm hover:underline"
+                    >
+                      {{ uniprotData.accession }}
+                      <ExternalLink :size="12" class="inline ml-1" />
+                    </a>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <Ruler :size="16" class="text-muted-foreground shrink-0" />
+                  <div>
+                    <div class="text-xs text-muted-foreground">Protein Length</div>
+                    <div class="text-sm">
                       {{ uniprotData.length?.toLocaleString() }} amino acids
-                    </v-list-item-subtitle>
-                  </v-list-item>
-                  <v-list-item>
-                    <template #prepend>
-                      <Shapes class="size-4" />
-                    </template>
-                    <v-list-item-title>Domains</v-list-item-title>
-                    <v-list-item-subtitle>
-                      {{ uniprotData.domain_count }} annotated domains
-                    </v-list-item-subtitle>
-                  </v-list-item>
-                  <v-list-item v-if="uniprotData.has_transmembrane">
-                    <template #prepend>
-                      <Network class="size-4" />
-                    </template>
-                    <v-list-item-title>Transmembrane</v-list-item-title>
-                    <v-list-item-subtitle>Contains transmembrane domains</v-list-item-subtitle>
-                  </v-list-item>
-                </v-list>
-              </v-card-text>
-            </v-card>
-          </v-col>
-        </v-row>
-      </v-container>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <Shapes :size="16" class="text-muted-foreground shrink-0" />
+                  <div>
+                    <div class="text-xs text-muted-foreground">Domains</div>
+                    <div class="text-sm">{{ uniprotData.domain_count }} annotated domains</div>
+                  </div>
+                </div>
+                <div v-if="uniprotData.has_transmembrane" class="flex items-center gap-3">
+                  <Network :size="16" class="text-muted-foreground shrink-0" />
+                  <div>
+                    <div class="text-xs text-muted-foreground">Transmembrane</div>
+                    <div class="text-sm">Contains transmembrane domains</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -304,9 +307,20 @@ import { geneApi } from '@/api/genes'
 import { getGeneStructureBreadcrumbs } from '@/utils/publicBreadcrumbs'
 import GeneStructureVisualization from '@/components/visualizations/GeneStructureVisualization.vue'
 import ProteinDomainVisualization from '@/components/visualizations/ProteinDomainVisualization.vue'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator
+} from '@/components/ui/breadcrumb'
+import {
+  ArrowLeft,
   Atom,
-  ChevronRight,
   CircleAlert,
   Dna,
   ExternalLink,
@@ -420,18 +434,3 @@ onUnmounted(() => {
   // Clean up any D3 elements (handled by child components)
 })
 </script>
-
-<style scoped>
-.bg-surface-light {
-  background-color: rgb(var(--v-theme-surface-light));
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
-}
-</style>

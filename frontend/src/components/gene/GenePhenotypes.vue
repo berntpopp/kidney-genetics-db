@@ -1,140 +1,180 @@
 <template>
-  <div v-if="hpoData" class="gene-phenotypes">
-    <div class="text-caption text-medium-emphasis mb-2">Human Phenotypes (HPO):</div>
+  <div v-if="hpoData">
+    <div class="text-xs text-muted-foreground mb-2">Human Phenotypes (HPO):</div>
 
-    <!-- Show special message if no phenotypes available -->
     <div
       v-if="hpoData.phenotype_count === 0 || hpoData.no_data_available"
-      class="d-flex align-center"
+      class="flex items-center"
     >
-      <v-chip color="grey" variant="tonal" size="small">
-        <Info class="size-3 mr-1" />
+      <Badge
+        variant="outline"
+        class="text-xs"
+        :style="{ backgroundColor: '#6b728020', color: '#6b7280' }"
+      >
+        <Info :size="12" class="mr-1" />
         No phenotypes available
-      </v-chip>
+      </Badge>
     </div>
 
-    <!-- All HPO data in one row for better space usage -->
-    <div v-else class="d-flex align-center flex-wrap ga-2">
+    <div v-else class="flex items-center flex-wrap gap-2">
       <!-- Clinical Group -->
-      <v-tooltip v-if="hpoData.classification?.clinical_group?.primary" location="bottom">
-        <template #activator="{ props }">
-          <v-chip
-            :color="getClinicalGroupColor(hpoData.classification.clinical_group.primary)"
-            variant="tonal"
-            size="small"
-            v-bind="props"
-          >
-            {{ formatClinicalGroup(hpoData.classification.clinical_group.primary) }}
-          </v-chip>
-        </template>
-        <div class="pa-2">
-          <div class="font-weight-medium">Clinical Classification</div>
-          <div class="text-caption mb-1">
-            Primary: {{ formatClinicalGroup(hpoData.classification.clinical_group.primary) }}
-          </div>
-          <div class="text-caption">
-            Score:
-            {{
-              (
-                hpoData.classification.clinical_group.scores[
-                  hpoData.classification.clinical_group.primary
-                ] * 100
-              ).toFixed(0)
-            }}%
-          </div>
-        </div>
-      </v-tooltip>
+      <TooltipProvider v-if="hpoData.classification?.clinical_group?.primary">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Badge
+              variant="outline"
+              class="cursor-help"
+              :style="{
+                backgroundColor:
+                  getClinicalGroupColor(hpoData.classification.clinical_group.primary) + '20',
+                color: getClinicalGroupColor(hpoData.classification.clinical_group.primary),
+                borderColor:
+                  getClinicalGroupColor(hpoData.classification.clinical_group.primary) + '40'
+              }"
+            >
+              {{ formatClinicalGroup(hpoData.classification.clinical_group.primary) }}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent class="max-w-xs">
+            <p class="font-medium text-xs">Clinical Classification</p>
+            <p class="text-xs text-muted-foreground mb-1">
+              Primary: {{ formatClinicalGroup(hpoData.classification.clinical_group.primary) }}
+            </p>
+            <p class="text-xs">
+              Score:
+              {{
+                (
+                  hpoData.classification.clinical_group.scores[
+                    hpoData.classification.clinical_group.primary
+                  ] * 100
+                ).toFixed(0)
+              }}%
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <!-- Onset Group -->
-      <v-tooltip v-if="hpoData.classification?.onset_group?.primary" location="bottom">
-        <template #activator="{ props }">
-          <v-chip color="secondary" variant="outlined" size="small" v-bind="props">
-            {{ formatOnsetGroup(hpoData.classification.onset_group.primary) }} onset
-          </v-chip>
-        </template>
-        <div class="pa-2">
-          <div class="font-weight-medium">Age of Onset</div>
-          <div class="text-caption">
-            {{ formatOnsetGroup(hpoData.classification.onset_group.primary) }}
-            ({{
-              (
-                hpoData.classification.onset_group.scores[
-                  hpoData.classification.onset_group.primary
-                ] * 100
-              ).toFixed(0)
-            }}%)
-          </div>
-        </div>
-      </v-tooltip>
+      <TooltipProvider v-if="hpoData.classification?.onset_group?.primary">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Badge
+              variant="outline"
+              class="cursor-help"
+              :style="{ color: '#6b7280', borderColor: '#6b728040' }"
+            >
+              {{ formatOnsetGroup(hpoData.classification.onset_group.primary) }} onset
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent class="max-w-xs">
+            <p class="font-medium text-xs">Age of Onset</p>
+            <p class="text-xs text-muted-foreground">
+              {{ formatOnsetGroup(hpoData.classification.onset_group.primary) }}
+              ({{
+                (
+                  hpoData.classification.onset_group.scores[
+                    hpoData.classification.onset_group.primary
+                  ] * 100
+                ).toFixed(0)
+              }}%)
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <!-- Syndromic Badge -->
-      <v-tooltip v-if="hpoData.classification?.syndromic_assessment" location="bottom">
-        <template #activator="{ props }">
-          <v-chip
-            :color="hpoData.classification.syndromic_assessment.is_syndromic ? 'warning' : 'grey'"
-            :variant="
-              hpoData.classification.syndromic_assessment.is_syndromic ? 'tonal' : 'outlined'
-            "
-            size="small"
-            v-bind="props"
-          >
-            {{
-              hpoData.classification.syndromic_assessment.is_syndromic ? 'Syndromic' : 'Isolated'
-            }}
-          </v-chip>
-        </template>
-        <div class="pa-2">
-          <div class="font-weight-medium">Presentation Type</div>
-          <div class="text-caption">
-            {{
-              hpoData.classification.syndromic_assessment.is_syndromic
-                ? 'Syndromic kidney disease'
-                : 'Isolated kidney phenotype'
-            }}
-          </div>
-          <div
-            v-if="hpoData.classification.syndromic_assessment.extra_renal_categories?.length"
-            class="text-caption mt-1"
-          >
-            Extra-renal:
-            {{ hpoData.classification.syndromic_assessment.extra_renal_categories.join(', ') }}
-          </div>
-        </div>
-      </v-tooltip>
+      <TooltipProvider v-if="hpoData.classification?.syndromic_assessment">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Badge
+              variant="outline"
+              class="cursor-help"
+              :style="{
+                backgroundColor: hpoData.classification.syndromic_assessment.is_syndromic
+                  ? '#f59e0b20'
+                  : undefined,
+                color: hpoData.classification.syndromic_assessment.is_syndromic
+                  ? '#f59e0b'
+                  : '#6b7280',
+                borderColor: hpoData.classification.syndromic_assessment.is_syndromic
+                  ? '#f59e0b40'
+                  : '#6b728040'
+              }"
+            >
+              {{
+                hpoData.classification.syndromic_assessment.is_syndromic ? 'Syndromic' : 'Isolated'
+              }}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent class="max-w-xs">
+            <p class="font-medium text-xs">Presentation Type</p>
+            <p class="text-xs text-muted-foreground">
+              {{
+                hpoData.classification.syndromic_assessment.is_syndromic
+                  ? 'Syndromic kidney disease'
+                  : 'Isolated kidney phenotype'
+              }}
+            </p>
+            <p
+              v-if="hpoData.classification.syndromic_assessment.extra_renal_categories?.length"
+              class="text-xs mt-1"
+            >
+              Extra-renal:
+              {{ hpoData.classification.syndromic_assessment.extra_renal_categories.join(', ') }}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <!-- Phenotype Count -->
-      <v-tooltip location="bottom">
-        <template #activator="{ props }">
-          <v-chip color="primary" variant="outlined" size="small" v-bind="props">
-            {{ hpoData.kidney_phenotype_count }}/{{ hpoData.phenotype_count }} kidney
-          </v-chip>
-        </template>
-        <div class="pa-2 max-width-300">
-          <div class="font-weight-medium">HPO Phenotypes</div>
-          <div class="text-caption mb-1">
-            {{ hpoData.kidney_phenotype_count }} kidney-related phenotypes out of
-            {{ hpoData.phenotype_count }} total
-          </div>
-        </div>
-      </v-tooltip>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Badge
+              variant="outline"
+              class="cursor-help"
+              :style="{ color: '#0ea5e9', borderColor: '#0ea5e940' }"
+            >
+              {{ hpoData.kidney_phenotype_count }}/{{ hpoData.phenotype_count }} kidney
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent class="max-w-xs">
+            <p class="font-medium text-xs">HPO Phenotypes</p>
+            <p class="text-xs text-muted-foreground">
+              {{ hpoData.kidney_phenotype_count }} kidney-related phenotypes out of
+              {{ hpoData.phenotype_count }} total
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <!-- Disease associations -->
-      <v-tooltip v-if="hpoData.disease_count > 0" location="bottom">
-        <template #activator="{ props }">
-          <v-chip color="info" variant="outlined" size="small" v-bind="props">
-            {{ hpoData.disease_count }} diseases
-          </v-chip>
-        </template>
-        <div class="pa-2">
-          <div class="font-weight-medium">Disease Associations</div>
-          <div class="text-caption">{{ hpoData.disease_count }} disease associations in HPO</div>
-        </div>
-      </v-tooltip>
+      <TooltipProvider v-if="hpoData.disease_count > 0">
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Badge
+              variant="outline"
+              class="cursor-help"
+              :style="{ color: '#3b82f6', borderColor: '#3b82f640' }"
+            >
+              {{ hpoData.disease_count }} diseases
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent class="max-w-xs">
+            <p class="font-medium text-xs">Disease Associations</p>
+            <p class="text-xs text-muted-foreground">
+              {{ hpoData.disease_count }} disease associations in HPO
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   </div>
 </template>
 
 <script setup>
+import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Info } from 'lucide-vue-next'
 
 defineProps({
@@ -144,17 +184,16 @@ defineProps({
   }
 })
 
-// Helper functions
 const getClinicalGroupColor = group => {
   const colors = {
-    complement: 'purple',
-    cakut: 'blue',
-    glomerulopathy: 'red',
-    cyst_cilio: 'teal',
-    tubulopathy: 'orange',
-    nephrolithiasis: 'brown'
+    complement: '#8b5cf6',
+    cakut: '#3b82f6',
+    glomerulopathy: '#ef4444',
+    cyst_cilio: '#14b8a6',
+    tubulopathy: '#f97316',
+    nephrolithiasis: '#92400e'
   }
-  return colors[group] || 'grey'
+  return colors[group] || '#6b7280'
 }
 
 const formatClinicalGroup = group => {

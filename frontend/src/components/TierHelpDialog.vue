@@ -1,108 +1,123 @@
 <template>
-  <v-dialog v-model="dialog" max-width="700" scrollable>
-    <template #activator="{ props }">
-      <v-btn v-bind="props" variant="text" size="small" color="primary">
-        <CircleHelp class="size-4 mr-1" />
+  <Dialog v-model:open="showDialog">
+    <DialogTrigger as-child>
+      <Button variant="ghost" size="sm" class="h-8 gap-1 text-primary">
+        <CircleHelp :size="16" />
         Understanding Evidence Tiers
-      </v-btn>
-    </template>
-
-    <v-card>
-      <v-card-title class="d-flex align-center">
-        <Info class="size-5 text-primary mr-2" />
-        <span>Evidence Tier Classification</span>
-      </v-card-title>
-
-      <v-divider />
-
-      <v-card-text class="pa-4">
+      </Button>
+    </DialogTrigger>
+    <DialogContent class="max-w-[700px] max-h-[80vh]">
+      <DialogHeader>
+        <DialogTitle class="flex items-center gap-2">
+          <Info :size="20" class="text-primary" />
+          Evidence Tier Classification
+        </DialogTitle>
+        <DialogDescription> Understanding evidence tiers and groups </DialogDescription>
+      </DialogHeader>
+      <ScrollArea class="max-h-[60vh] pr-4">
         <!-- Introduction -->
-        <div class="text-body-2 mb-4">
+        <p class="text-sm mb-4">
           Genes are automatically classified into evidence tiers based on the number of supporting
           data sources and the overall evidence score. This classification helps identify genes with
           stronger scientific support for their disease associations.
-        </div>
+        </p>
 
-        <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-          <strong>Note:</strong> These automated tiers are separate from manual ClinGen clinical
-          validity curation, which will be integrated in future updates.
-        </v-alert>
+        <Alert class="mb-4">
+          <Info :size="16" />
+          <AlertDescription class="text-xs">
+            <strong>Note:</strong> These automated tiers are separate from manual ClinGen clinical
+            validity curation, which will be integrated in future updates.
+          </AlertDescription>
+        </Alert>
 
-        <!-- Major Groups -->
-        <div class="mb-5">
-          <div class="text-h6 mb-3">Evidence Groups</div>
-
-          <div v-for="(config, groupKey) in GROUP_CONFIG" :key="groupKey" class="mb-3">
-            <v-card variant="outlined" class="pa-3">
-              <div class="d-flex align-center mb-2">
-                <v-chip :color="config.color" size="small" variant="flat" class="mr-2">
-                  <component :is="config.icon" class="size-4 mr-1" />
-                  {{ config.label }}
-                </v-chip>
-              </div>
-              <div class="text-body-2">{{ config.description }}</div>
-            </v-card>
+        <!-- Evidence Groups -->
+        <h3 class="text-base font-semibold mb-3">Evidence Groups</h3>
+        <div class="space-y-2 mb-6">
+          <div
+            v-for="(config, groupKey) in GROUP_CONFIG"
+            :key="groupKey"
+            class="flex items-start gap-3 p-2 rounded-md border"
+          >
+            <component
+              :is="config.icon"
+              :size="18"
+              :style="{ color: config.color }"
+              class="mt-0.5 shrink-0"
+            />
+            <div>
+              <Badge
+                :style="{ backgroundColor: config.color + '20', color: config.color }"
+                variant="outline"
+              >
+                {{ config.label }}
+              </Badge>
+              <p class="text-xs text-muted-foreground mt-1">{{ config.description }}</p>
+            </div>
           </div>
         </div>
 
-        <!-- Detailed Tiers -->
-        <div>
-          <div class="text-h6 mb-3">Evidence Tiers</div>
+        <Separator class="my-4" />
 
-          <div v-for="(config, tierKey) in TIER_CONFIG" :key="tierKey" class="mb-3">
-            <v-card variant="outlined" class="pa-3">
-              <div class="d-flex align-center mb-2">
-                <v-chip :color="config.color" size="small" variant="flat" class="mr-2">
-                  <component :is="config.icon" class="size-4 mr-1" />
-                  {{ config.label }}
-                </v-chip>
-              </div>
-              <div class="text-body-2">{{ config.description }}</div>
-            </v-card>
+        <!-- Evidence Tiers -->
+        <h3 class="text-base font-semibold mb-3">Evidence Tiers</h3>
+        <div class="space-y-2 mb-6">
+          <div
+            v-for="(config, tierKey) in TIER_CONFIG"
+            :key="tierKey"
+            class="flex items-start gap-3 p-2 rounded-md border"
+          >
+            <component
+              :is="config.icon"
+              :size="18"
+              :style="{ color: config.color }"
+              class="mt-0.5 shrink-0"
+            />
+            <div>
+              <Badge
+                :style="{ backgroundColor: config.color + '20', color: config.color }"
+                variant="outline"
+              >
+                {{ config.label }}
+              </Badge>
+              <p class="text-xs text-muted-foreground mt-1">{{ config.description }}</p>
+            </div>
           </div>
         </div>
+
+        <Separator class="my-4" />
 
         <!-- Data Sources Info -->
-        <v-divider class="my-4" />
-
-        <div class="text-body-2">
+        <p class="text-sm">
           <strong>Evidence sources include:</strong> PanelApp (gene panels), HPO (phenotype
           associations), ClinGen (clinical validity), GenCC (gene-disease curation), PubTator
           (literature mining), and additional curated databases.
-        </div>
-      </v-card-text>
-
-      <v-divider />
-
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="dialog = false">Close</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </p>
+      </ScrollArea>
+      <DialogFooter>
+        <Button variant="outline" @click="showDialog = false">Close</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { TIER_CONFIG, GROUP_CONFIG } from '@/utils/evidenceTiers'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Separator } from '@/components/ui/separator'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { CircleHelp, Info } from 'lucide-vue-next'
+import { TIER_CONFIG, GROUP_CONFIG } from '@/utils/evidenceTiers'
 
-// Dialog state
-const dialog = ref(false)
+const showDialog = ref(false)
 </script>
-
-<style scoped>
-/* Following Style Guide - Clean information display */
-.v-card {
-  border: 1px solid rgb(var(--v-theme-surface-variant));
-}
-
-.v-card-text {
-  line-height: 1.6;
-}
-
-/* Dark theme adjustments */
-.v-theme--dark .v-card {
-  background: rgb(var(--v-theme-surface));
-}
-</style>

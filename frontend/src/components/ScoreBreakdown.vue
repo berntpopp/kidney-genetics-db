@@ -1,122 +1,179 @@
 <template>
-  <div class="score-breakdown">
+  <div>
     <!-- Compact inline display for tables -->
-    <div v-if="variant === 'inline'" class="d-inline-flex align-center">
-      <v-tooltip location="bottom" max-width="400">
-        <template #activator="{ props: tooltipProps }">
-          <v-chip
-            :color="scoreColor"
-            :size="size"
-            variant="flat"
-            class="font-weight-medium score-chip"
-            v-bind="tooltipProps"
-          >
-            <component :is="scoreIcon" class="size-4 mr-1" />
-            {{ formattedScore }}
-          </v-chip>
-        </template>
-        <div class="pa-2">
-          <div class="text-caption">
-            {{ getScoreExplanation(score, Object.keys(breakdown || {}).length) }}
-          </div>
-        </div>
-      </v-tooltip>
+    <div v-if="variant === 'inline'" class="inline-flex items-center">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Badge
+              :class="[chipSizeClasses, 'cursor-help font-medium tabular-nums']"
+              :style="{
+                backgroundColor: scoreHexColor + '20',
+                color: scoreHexColor,
+                borderColor: scoreHexColor + '40'
+              }"
+              variant="outline"
+            >
+              <component :is="scoreIcon" :size="12" class="mr-1" />
+              {{ formattedScore }}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent class="max-w-xs">
+            <p class="text-xs">
+              {{ getScoreExplanation(score, Object.keys(breakdown || {}).length) }}
+            </p>
+            <!-- Source breakdown in tooltip -->
+            <div v-if="sortedBreakdownEntries.length" class="mt-2 space-y-1">
+              <div
+                v-for="[source, sourceScore] in topSourceEntries"
+                :key="source"
+                class="flex justify-between text-xs"
+              >
+                <span>{{ sourceAbbreviation(source) }}</span>
+                <span class="font-mono ml-3">{{ (sourceScore * 100).toFixed(1) }}%</span>
+              </div>
+              <p v-if="remainingSourceCount > 0" class="text-xs text-muted-foreground">
+                +{{ remainingSourceCount }} more
+              </p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
 
     <!-- Detailed card display for gene detail pages -->
-    <v-card v-else-if="variant === 'card'" class="score-breakdown-card" height="100%">
-      <v-card-item>
-        <template #prepend>
-          <v-avatar :color="scoreColor" size="40">
-            <component :is="scoreIcon" class="size-5 text-white" />
-          </v-avatar>
-        </template>
-        <v-card-title>Evidence Score</v-card-title>
-      </v-card-item>
-      <v-card-text>
+    <Card v-else-if="variant === 'card'" class="h-full">
+      <CardHeader class="flex flex-row items-center gap-3 pb-2">
+        <div
+          class="flex h-10 w-10 items-center justify-center rounded-full"
+          :style="{ backgroundColor: scoreHexColor + '20' }"
+        >
+          <component :is="scoreIcon" :size="20" :style="{ color: scoreHexColor }" />
+        </div>
+        <CardTitle class="text-base">Evidence Score</CardTitle>
+      </CardHeader>
+      <CardContent>
         <!-- Donut Chart Visualization -->
         <div v-if="score" class="text-center">
-          <div class="position-relative d-inline-block">
-            <v-progress-circular
-              :model-value="score"
-              :color="scoreColor"
-              size="120"
-              width="8"
-              class="score-circle"
-            >
-              <div class="text-center">
-                <div class="text-h4 font-weight-bold">
-                  {{ formattedScore }}
-                </div>
-                <div class="text-caption text-medium-emphasis">/ 100</div>
-              </div>
-            </v-progress-circular>
+          <div class="relative inline-flex items-center justify-center">
+            <svg :width="80" :height="80" class="-rotate-90">
+              <circle
+                :cx="40"
+                :cy="40"
+                :r="donutRadius"
+                fill="none"
+                stroke="currentColor"
+                class="text-muted/20"
+                :stroke-width="8"
+              />
+              <circle
+                :cx="40"
+                :cy="40"
+                :r="donutRadius"
+                fill="none"
+                :stroke="scoreHexColor"
+                :stroke-width="8"
+                :stroke-dasharray="circumference"
+                :stroke-dashoffset="circumference - (circumference * (score ?? 0)) / 100"
+                stroke-linecap="round"
+              />
+            </svg>
+            <span class="absolute text-lg font-bold" :style="{ color: scoreHexColor }">
+              {{ formattedScore }}
+            </span>
           </div>
           <div class="mt-3">
-            <v-chip :color="scoreColor" variant="tonal" size="small">
+            <Badge
+              :style="{
+                backgroundColor: scoreHexColor + '20',
+                color: scoreHexColor,
+                borderColor: scoreHexColor + '40'
+              }"
+              variant="outline"
+            >
               {{ classification }}
-            </v-chip>
+            </Badge>
           </div>
 
           <!-- Compact Breakdown Below -->
-          <v-divider class="my-3" />
-          <div class="score-breakdown-mini">
-            <div class="text-caption text-medium-emphasis mb-2">Score Breakdown</div>
-            <div class="d-flex flex-wrap justify-center ga-1">
-              <v-tooltip
-                v-for="(sourceScore, source) in sortedBreakdown"
+          <Separator class="my-3" />
+          <div>
+            <div class="text-xs text-muted-foreground mb-2">Score Breakdown</div>
+            <div class="flex flex-wrap justify-center gap-1">
+              <TooltipProvider
+                v-for="[source, sourceScore] in sortedBreakdownEntries"
                 :key="source"
-                location="bottom"
               >
-                <template #activator="{ props: tooltipProps }">
-                  <v-chip
-                    :color="getSubScoreColor(sourceScore)"
-                    size="x-small"
-                    variant="tonal"
-                    v-bind="tooltipProps"
-                  >
-                    {{ sourceAbbreviation(source) }}: {{ (sourceScore * 100).toFixed(0) }}
-                  </v-chip>
-                </template>
-                <div>
-                  <strong>{{ source }}</strong
-                  ><br />
-                  {{ getSourceDescription(source, sourceScore) }}
-                </div>
-              </v-tooltip>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Badge
+                      class="cursor-help text-[10px]"
+                      :style="{
+                        backgroundColor: getSubScoreHexColor(sourceScore) + '20',
+                        color: getSubScoreHexColor(sourceScore),
+                        borderColor: getSubScoreHexColor(sourceScore) + '40'
+                      }"
+                      variant="outline"
+                    >
+                      {{ sourceAbbreviation(source) }}: {{ (sourceScore * 100).toFixed(0) }}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p class="font-medium text-xs">{{ source }}</p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ getSourceDescription(source, sourceScore) }}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         </div>
         <div v-else class="text-center py-4">
-          <CircleHelp class="size-6 text-muted-foreground mb-2" />
-          <p class="text-body-2 text-medium-emphasis">No evidence score available</p>
+          <CircleHelp class="mx-auto mb-2 text-muted-foreground" :size="24" />
+          <p class="text-sm text-muted-foreground">No evidence score available</p>
         </div>
-      </v-card-text>
-    </v-card>
+      </CardContent>
+    </Card>
 
     <!-- Compact display for lists -->
-    <div v-else-if="variant === 'compact'" class="score-compact">
-      <div class="d-flex align-center justify-space-between">
-        <v-chip :color="scoreColor" :size="size" variant="flat" class="font-weight-medium">
+    <div v-else-if="variant === 'compact'" class="inline-block">
+      <div class="flex items-center justify-between gap-2">
+        <Badge
+          :class="[chipSizeClasses, 'font-medium tabular-nums']"
+          :style="{
+            backgroundColor: scoreHexColor + '20',
+            color: scoreHexColor,
+            borderColor: scoreHexColor + '40'
+          }"
+          variant="outline"
+        >
           {{ formattedScore }}
-        </v-chip>
-        <div class="d-flex ga-1">
-          <v-tooltip v-for="(sourceScore, source) in topSources" :key="source" location="bottom">
-            <template #activator="{ props: tooltipProps }">
-              <v-chip
-                :color="getSubScoreColor(sourceScore)"
-                size="x-small"
-                variant="tonal"
-                v-bind="tooltipProps"
-              >
-                {{ sourceAbbreviation(source) }}
-              </v-chip>
-            </template>
-            <span>{{ source }}: {{ (sourceScore * 100).toFixed(1) }}%</span>
-          </v-tooltip>
-          <v-chip v-if="remainingSourceCount > 0" size="x-small" variant="outlined">
+        </Badge>
+        <div class="flex gap-1">
+          <TooltipProvider v-for="[source, sourceScore] in topSourceEntries" :key="source">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Badge
+                  class="cursor-help text-[10px]"
+                  :style="{
+                    backgroundColor: getSubScoreHexColor(sourceScore) + '20',
+                    color: getSubScoreHexColor(sourceScore),
+                    borderColor: getSubScoreHexColor(sourceScore) + '40'
+                  }"
+                  variant="outline"
+                >
+                  {{ sourceAbbreviation(source) }}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <span>{{ source }}: {{ (sourceScore * 100).toFixed(1) }}%</span>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <Badge v-if="remainingSourceCount > 0" variant="outline" class="text-[10px]">
             +{{ remainingSourceCount }}
-          </v-chip>
+          </Badge>
         </div>
       </div>
     </div>
@@ -125,10 +182,13 @@
 
 <script setup>
 import { computed } from 'vue'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 import { getScoreExplanation } from '@/utils/evidenceTiers'
 import { CircleHelp, CircleCheck, CircleAlert, CircleX } from 'lucide-vue-next'
 
-// Props
 const props = defineProps({
   score: {
     type: Number,
@@ -160,14 +220,23 @@ const formattedScore = computed(() => {
   return props.score.toFixed(1)
 })
 
-const scoreColor = computed(() => {
-  if (!props.score) return 'grey'
-  if (props.score >= 95) return 'success'
-  if (props.score >= 80) return 'success'
-  if (props.score >= 70) return 'info'
-  if (props.score >= 50) return 'warning'
-  if (props.score >= 30) return 'orange'
-  return 'error'
+/** Map Vuetify-style color names to hex */
+const colorMap = {
+  success: '#22c55e',
+  info: '#3b82f6',
+  warning: '#f59e0b',
+  orange: '#f97316',
+  error: '#ef4444',
+  grey: '#6b7280'
+}
+
+const scoreHexColor = computed(() => {
+  if (!props.score) return colorMap.grey
+  if (props.score >= 80) return colorMap.success
+  if (props.score >= 70) return colorMap.info
+  if (props.score >= 50) return colorMap.warning
+  if (props.score >= 30) return colorMap.orange
+  return colorMap.error
 })
 
 const scoreIcon = computed(() => {
@@ -187,39 +256,42 @@ const classification = computed(() => {
   return 'Disputed'
 })
 
-const sortedBreakdown = computed(() => {
-  if (!props.breakdown) return {}
-
-  // Sort by score value descending
-  return Object.entries(props.breakdown)
-    .sort(([, a], [, b]) => b - a)
-    .reduce((acc, [key, value]) => {
-      acc[key] = value
-      return acc
-    }, {})
+const chipSizeClasses = computed(() => {
+  switch (props.size) {
+    case 'x-small':
+      return 'text-[10px] px-1.5 py-0'
+    case 'small':
+      return 'text-xs px-2 py-0.5'
+    default:
+      return 'text-sm px-2.5 py-1'
+  }
 })
 
-const topSources = computed(() => {
-  const entries = Object.entries(sortedBreakdown.value)
-  return entries.slice(0, props.maxSources).reduce((acc, [key, value]) => {
-    acc[key] = value
-    return acc
-  }, {})
+const sortedBreakdownEntries = computed(() => {
+  if (!props.breakdown) return []
+  return Object.entries(props.breakdown).sort(([, a], [, b]) => b - a)
+})
+
+const topSourceEntries = computed(() => {
+  return sortedBreakdownEntries.value.slice(0, props.maxSources)
 })
 
 const remainingSourceCount = computed(() => {
-  const total = Object.keys(sortedBreakdown.value).length
-  return Math.max(0, total - props.maxSources)
+  return Math.max(0, sortedBreakdownEntries.value.length - props.maxSources)
 })
 
+// SVG donut
+const donutRadius = 36 // (80 - 8) / 2
+const circumference = 2 * Math.PI * donutRadius
+
 // Methods
-const getSubScoreColor = score => {
-  const percentage = score * 100
-  if (percentage >= 90) return 'success'
-  if (percentage >= 70) return 'info'
-  if (percentage >= 50) return 'warning'
-  if (percentage >= 30) return 'orange'
-  return 'error'
+const getSubScoreHexColor = score => {
+  const pct = score * 100
+  if (pct >= 90) return colorMap.success
+  if (pct >= 70) return colorMap.info
+  if (pct >= 50) return colorMap.warning
+  if (pct >= 30) return colorMap.orange
+  return colorMap.error
 }
 
 const sourceAbbreviation = source => {
@@ -247,72 +319,3 @@ const getSourceDescription = (source, score) => {
   return descriptions[source] || `Evidence score: ${percentage}%`
 }
 </script>
-
-<style scoped>
-/* Following Style Guide - Compact density for data interfaces */
-.score-chip {
-  cursor: help;
-  font-variant-numeric: tabular-nums;
-}
-
-.score-details {
-  min-width: 250px;
-}
-
-.score-item {
-  margin-bottom: 8px;
-}
-
-.score-item:last-child {
-  margin-bottom: 0;
-}
-
-.score-breakdown-card {
-  border: 1px solid rgb(var(--v-theme-surface-variant));
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.score-breakdown-card:hover {
-  box-shadow: 0 2px 8px rgba(var(--v-theme-shadow), 0.12);
-}
-
-.score-details-expanded {
-  padding-top: 8px;
-}
-
-.score-item-expanded {
-  padding: 8px;
-  border-radius: 4px;
-  background: rgba(var(--v-theme-surface-variant), 0.4);
-  transition: background-color 0.2s ease;
-}
-
-.score-item-expanded:hover {
-  background: rgba(var(--v-theme-surface-variant), 0.6);
-}
-
-.score-compact {
-  display: inline-block;
-}
-
-/* Dark theme adjustments */
-.v-theme--dark .score-item-expanded {
-  background: rgba(var(--v-theme-surface-bright), 0.08);
-}
-
-.v-theme--dark .score-item-expanded:hover {
-  background: rgba(var(--v-theme-surface-bright), 0.12);
-}
-
-/* Smooth transitions */
-.v-chip,
-.v-progress-linear {
-  transition: all 0.2s ease;
-}
-
-/* Focus states - Following Style Guide */
-.score-chip:focus-visible {
-  outline: 2px solid rgb(var(--v-theme-primary));
-  outline-offset: 2px;
-}
-</style>

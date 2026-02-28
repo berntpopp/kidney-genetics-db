@@ -1,160 +1,168 @@
 <template>
-  <div class="panelapp-evidence">
+  <div class="max-w-full">
     <!-- Panels list -->
     <div v-if="panels?.length" class="mb-4">
-      <div class="text-subtitle-2 font-weight-medium mb-3">Panels ({{ panelCount }})</div>
+      <div class="text-sm font-medium mb-3">Panels ({{ panelCount }})</div>
 
-      <v-list density="compact" class="transparent">
-        <v-list-item
+      <div class="space-y-1">
+        <div
           v-for="(panel, index) in displayPanels"
           :key="index"
-          class="px-0 mb-2 panel-item"
+          class="flex items-center gap-3 p-2 rounded-md bg-muted/30"
         >
-          <template #prepend>
-            <v-avatar size="24" :color="getRegionColor(panel.region)">
-              <span class="text-caption font-weight-bold">{{ getRegionCode(panel.region) }}</span>
-            </v-avatar>
-          </template>
+          <Avatar class="h-6 w-6" :style="{ backgroundColor: getRegionColor(panel.region) + '20' }">
+            <AvatarFallback
+              class="text-[10px] font-bold"
+              :style="{ color: getRegionColor(panel.region) }"
+            >
+              {{ getRegionCode(panel.region) }}
+            </AvatarFallback>
+          </Avatar>
 
-          <div>
-            <div class="text-body-2 font-weight-medium">
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-medium truncate">
               {{ panel.name }}
             </div>
-            <div class="text-caption text-medium-emphasis">
-              Version {{ panel.version }} • {{ panel.region }}
+            <div class="text-xs text-muted-foreground">
+              Version {{ panel.version }} &bull; {{ panel.region }}
             </div>
           </div>
 
-          <template #append>
-            <v-btn
-              icon="mdi-open-in-new"
-              size="x-small"
-              variant="text"
-              :href="getPanelUrl(panel)"
-              target="_blank"
-            />
-          </template>
-        </v-list-item>
-      </v-list>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 shrink-0"
+            as="a"
+            :href="getPanelUrl(panel)"
+            target="_blank"
+          >
+            <ExternalLink class="size-3" />
+          </Button>
+        </div>
+      </div>
 
       <!-- Show more button -->
-      <v-btn
+      <Button
         v-if="hasMorePanels"
-        variant="text"
-        size="small"
+        variant="ghost"
+        size="sm"
         class="mt-2"
         @click="showAllPanels = !showAllPanels"
       >
         {{ showAllPanels ? 'Show Less' : `Show ${remainingPanels} More Panels` }}
         <component :is="showAllPanels ? ChevronUp : ChevronDown" class="size-4 ml-1" />
-      </v-btn>
+      </Button>
     </div>
 
     <!-- Regions summary -->
     <div v-if="regions?.length" class="mb-4">
-      <div class="text-subtitle-2 font-weight-medium mb-2">Regions</div>
-      <div class="d-flex ga-2">
-        <v-chip
+      <div class="text-sm font-medium mb-2">Regions</div>
+      <div class="flex flex-wrap gap-2">
+        <Badge
           v-for="region in regions"
           :key="region"
-          size="small"
-          :color="getRegionColor(region)"
-          variant="tonal"
+          variant="outline"
+          :style="{
+            borderColor: getRegionColor(region),
+            color: getRegionColor(region),
+            backgroundColor: getRegionColor(region) + '15'
+          }"
         >
           <MapPin class="size-3 mr-1" />
           {{ region }}
-        </v-chip>
+        </Badge>
       </div>
     </div>
 
     <!-- Phenotypes -->
     <div v-if="phenotypes?.length" class="mb-4">
-      <div class="text-subtitle-2 font-weight-medium mb-2">Associated Phenotypes</div>
-      <div class="phenotype-chips">
-        <v-chip
+      <div class="text-sm font-medium mb-2">Associated Phenotypes</div>
+      <div class="flex flex-wrap gap-1.5">
+        <Badge
           v-for="(phenotype, index) in displayPhenotypes"
           :key="index"
-          size="x-small"
-          variant="outlined"
-          color="orange"
+          variant="outline"
+          :style="{
+            borderColor: '#f97316',
+            color: '#f97316'
+          }"
+          class="text-xs"
         >
           {{ phenotype }}
-        </v-chip>
-        <v-chip
+        </Badge>
+        <Badge
           v-if="phenotypes.length > 5"
-          size="x-small"
-          variant="outlined"
+          variant="outline"
+          class="text-xs cursor-pointer"
           @click="showAllPhenotypes = !showAllPhenotypes"
         >
           {{ showAllPhenotypes ? 'Show Less' : `+${phenotypes.length - 5} more` }}
-        </v-chip>
+        </Badge>
       </div>
     </div>
 
     <!-- Evidence levels -->
     <div v-if="evidenceLevels?.length" class="mb-4">
-      <div class="text-subtitle-2 font-weight-medium mb-2">Evidence Levels</div>
-      <div class="d-flex ga-2">
-        <v-chip
+      <div class="text-sm font-medium mb-2">Evidence Levels</div>
+      <div class="flex flex-wrap gap-2">
+        <Badge
           v-for="level in evidenceLevels"
           :key="level"
-          size="small"
-          :color="getEvidenceLevelColor(level)"
-          variant="tonal"
+          variant="outline"
+          :style="{
+            borderColor: getEvidenceLevelColor(level),
+            color: getEvidenceLevelColor(level),
+            backgroundColor: getEvidenceLevelColor(level) + '15'
+          }"
         >
           Level {{ level }}
-        </v-chip>
+        </Badge>
       </div>
     </div>
 
     <!-- Modes of inheritance -->
     <div v-if="modesOfInheritance?.length" class="mb-4">
-      <div class="text-subtitle-2 font-weight-medium mb-2">Inheritance</div>
-      <v-list density="compact" class="transparent">
-        <v-list-item v-for="mode in modesOfInheritance" :key="mode" class="px-0">
-          <template #prepend>
-            <GitBranch class="size-3 text-yellow-600 dark:text-yellow-400" />
-          </template>
-          <v-list-item-title class="text-caption">{{ formatInheritance(mode) }}</v-list-item-title>
-        </v-list-item>
-      </v-list>
+      <div class="text-sm font-medium mb-2">Inheritance</div>
+      <div class="space-y-1">
+        <div v-for="mode in modesOfInheritance" :key="mode" class="flex items-center gap-2 py-1">
+          <GitBranch class="size-3 text-yellow-600 dark:text-yellow-400 shrink-0" />
+          <span class="text-xs">{{ formatInheritance(mode) }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- Statistics -->
-    <div class="mt-4 pa-3 bg-surface-light rounded">
-      <v-row dense>
-        <v-col cols="4">
-          <div class="text-center">
-            <div class="text-h5 font-weight-bold text-orange">
-              {{ panelCount }}
-            </div>
-            <div class="text-caption text-medium-emphasis">Panels</div>
+    <div class="mt-4 p-3 bg-muted/30 rounded-md">
+      <div class="grid grid-cols-3 gap-4">
+        <div class="text-center">
+          <div class="text-xl font-bold" style="color: #f97316">
+            {{ panelCount }}
           </div>
-        </v-col>
-        <v-col cols="4">
-          <div class="text-center">
-            <div class="text-h5 font-weight-bold text-orange">
-              {{ regions?.length || 0 }}
-            </div>
-            <div class="text-caption text-medium-emphasis">Regions</div>
+          <div class="text-xs text-muted-foreground">Panels</div>
+        </div>
+        <div class="text-center">
+          <div class="text-xl font-bold" style="color: #f97316">
+            {{ regions?.length || 0 }}
           </div>
-        </v-col>
-        <v-col cols="4">
-          <div class="text-center">
-            <div class="text-h5 font-weight-bold text-orange">
-              {{ phenotypes?.length || 0 }}
-            </div>
-            <div class="text-caption text-medium-emphasis">Phenotypes</div>
+          <div class="text-xs text-muted-foreground">Regions</div>
+        </div>
+        <div class="text-center">
+          <div class="text-xl font-bold" style="color: #f97316">
+            {{ phenotypes?.length || 0 }}
           </div>
-        </v-col>
-      </v-row>
+          <div class="text-xs text-muted-foreground">Phenotypes</div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { ChevronUp, ChevronDown, MapPin, GitBranch } from 'lucide-vue-next'
+import { ChevronUp, ChevronDown, MapPin, GitBranch, ExternalLink } from 'lucide-vue-next'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 const props = defineProps({
   evidenceData: {
@@ -221,12 +229,12 @@ const remainingPanels = computed(() => {
 // Helper functions
 const getRegionColor = region => {
   const colors = {
-    UK: 'blue',
-    Australia: 'green',
-    US: 'red',
-    Europe: 'purple'
+    UK: '#3b82f6',
+    Australia: '#22c55e',
+    US: '#ef4444',
+    Europe: '#8b5cf6'
   }
-  return colors[region] || 'grey'
+  return colors[region] || '#6b7280'
 }
 
 const getRegionCode = region => {
@@ -250,12 +258,12 @@ const getPanelUrl = panel => {
 
 const getEvidenceLevelColor = level => {
   const colors = {
-    3: 'success',
-    2: 'warning',
-    1: 'error',
-    0: 'grey'
+    3: '#22c55e',
+    2: '#f59e0b',
+    1: '#ef4444',
+    0: '#6b7280'
   }
-  return colors[level] || 'grey'
+  return colors[level] || '#6b7280'
 }
 
 const formatInheritance = mode => {
@@ -266,26 +274,3 @@ const formatInheritance = mode => {
   return mode
 }
 </script>
-
-<style scoped>
-.panelapp-evidence {
-  max-width: 100%;
-}
-
-.panel-item {
-  padding: 8px;
-  background: rgba(var(--v-theme-surface-variant), 0.1);
-  border-radius: 6px;
-  margin-bottom: 4px;
-}
-
-.phenotype-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.bg-surface-light {
-  background: rgba(var(--v-theme-surface-variant), 0.3);
-}
-</style>

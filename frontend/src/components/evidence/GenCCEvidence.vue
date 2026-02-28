@@ -1,128 +1,129 @@
 <template>
-  <div class="gencc-evidence">
+  <div class="max-w-full">
     <!-- Classifications overview -->
     <div v-if="classifications?.length" class="mb-4">
-      <div class="text-subtitle-2 font-weight-medium mb-3">Classifications</div>
+      <div class="text-sm font-medium mb-3">Classifications</div>
 
-      <div class="d-flex flex-wrap ga-2 mb-3">
-        <v-chip
+      <div class="flex flex-wrap gap-2 mb-3">
+        <Badge
           v-for="classification in uniqueClassifications"
           :key="classification"
-          :color="getClassificationColor(classification)"
-          variant="tonal"
-          size="small"
+          variant="outline"
+          :style="{
+            backgroundColor: getClassificationColor(classification) + '20',
+            color: getClassificationColor(classification),
+            borderColor: getClassificationColor(classification) + '40'
+          }"
         >
           <component :is="getClassificationIcon(classification)" class="size-3 mr-1" />
           {{ classification }}
-        </v-chip>
+        </Badge>
       </div>
     </div>
 
     <!-- Submissions details -->
     <div v-if="submissions?.length" class="mb-4">
-      <div class="text-subtitle-2 font-weight-medium mb-3">
-        Submissions ({{ submissions.length }})
-      </div>
+      <div class="text-sm font-medium mb-3">Submissions ({{ submissions.length }})</div>
 
-      <v-expansion-panels variant="accordion" density="compact">
-        <v-expansion-panel
+      <Accordion type="single" collapsible>
+        <AccordionItem
           v-for="(submission, index) in displaySubmissions"
           :key="index"
-          elevation="0"
+          :value="`submission-${index}`"
         >
-          <v-expansion-panel-title class="py-2">
-            <div class="d-flex align-center justify-space-between w-100">
-              <div class="d-flex align-center ga-2">
-                <v-chip
-                  size="x-small"
-                  :color="getClassificationColor(submission.classification)"
-                  variant="tonal"
+          <AccordionTrigger class="py-2">
+            <div class="flex items-center justify-between w-full pr-2">
+              <div class="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  class="text-xs"
+                  :style="{
+                    backgroundColor: getClassificationColor(submission.classification) + '20',
+                    color: getClassificationColor(submission.classification),
+                    borderColor: getClassificationColor(submission.classification) + '40'
+                  }"
                 >
                   {{ submission.classification }}
-                </v-chip>
-                <span class="text-body-2">{{ submission.disease_name }}</span>
+                </Badge>
+                <span class="text-sm">{{ submission.disease_name }}</span>
               </div>
-              <div class="text-caption text-medium-emphasis">
+              <div class="text-xs text-muted-foreground">
                 {{ submission.submitter }}
               </div>
             </div>
-          </v-expansion-panel-title>
+          </AccordionTrigger>
 
-          <v-expansion-panel-text>
-            <div class="pa-2">
-              <v-list density="compact" class="transparent">
-                <v-list-item class="px-0">
-                  <v-list-item-title class="text-caption">Disease</v-list-item-title>
-                  <v-list-item-subtitle>{{ submission.disease_name }}</v-list-item-subtitle>
-                </v-list-item>
+          <AccordionContent>
+            <div class="p-2 space-y-2">
+              <div class="px-0">
+                <div class="text-xs font-medium">Disease</div>
+                <div class="text-sm text-muted-foreground">{{ submission.disease_name }}</div>
+              </div>
 
-                <v-list-item class="px-0">
-                  <v-list-item-title class="text-caption">Mode of Inheritance</v-list-item-title>
-                  <v-list-item-subtitle>{{
-                    submission.mode_of_inheritance || 'Not specified'
-                  }}</v-list-item-subtitle>
-                </v-list-item>
+              <div class="px-0">
+                <div class="text-xs font-medium">Mode of Inheritance</div>
+                <div class="text-sm text-muted-foreground">
+                  {{ submission.mode_of_inheritance || 'Not specified' }}
+                </div>
+              </div>
 
-                <v-list-item class="px-0">
-                  <v-list-item-title class="text-caption">Submission Date</v-list-item-title>
-                  <v-list-item-subtitle>{{
-                    formatDate(submission.submission_date)
-                  }}</v-list-item-subtitle>
-                </v-list-item>
+              <div class="px-0">
+                <div class="text-xs font-medium">Submission Date</div>
+                <div class="text-sm text-muted-foreground">
+                  {{ formatDate(submission.submission_date) }}
+                </div>
+              </div>
 
-                <v-list-item class="px-0">
-                  <v-list-item-title class="text-caption">Submitter</v-list-item-title>
-                  <v-list-item-subtitle>{{ submission.submitter }}</v-list-item-subtitle>
-                </v-list-item>
-              </v-list>
+              <div class="px-0">
+                <div class="text-xs font-medium">Submitter</div>
+                <div class="text-sm text-muted-foreground">{{ submission.submitter }}</div>
+              </div>
             </div>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-      </v-expansion-panels>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       <!-- Show more button -->
-      <v-btn
+      <Button
         v-if="hasMoreSubmissions"
-        variant="text"
-        size="small"
+        variant="ghost"
+        size="sm"
         class="mt-2"
         @click="showAllSubmissions = !showAllSubmissions"
       >
         {{ showAllSubmissions ? 'Show Less' : `Show ${remainingSubmissions} More Submissions` }}
         <component :is="showAllSubmissions ? ChevronUp : ChevronDown" class="size-4 ml-1" />
-      </v-btn>
+      </Button>
     </div>
 
     <!-- Submitters summary -->
     <div v-if="submitters?.length" class="mb-4">
-      <div class="text-subtitle-2 font-weight-medium mb-2">Submitters</div>
-      <div class="d-flex flex-wrap ga-1">
-        <v-chip v-for="submitter in submitters" :key="submitter" size="x-small" variant="outlined">
+      <div class="text-sm font-medium mb-2">Submitters</div>
+      <div class="flex flex-wrap gap-1">
+        <Badge v-for="submitter in submitters" :key="submitter" variant="outline">
           {{ submitter }}
-        </v-chip>
+        </Badge>
       </div>
     </div>
 
     <!-- Diseases summary -->
     <div v-if="diseases?.length" class="mb-4">
-      <div class="text-subtitle-2 font-weight-medium mb-2">Associated Diseases</div>
-      <v-list density="compact" class="transparent">
-        <v-list-item v-for="disease in diseases" :key="disease" class="px-0">
-          <template #prepend>
-            <Bug class="size-3 text-purple-600 dark:text-purple-400" />
-          </template>
-          <v-list-item-title class="text-body-2">{{ disease }}</v-list-item-title>
-        </v-list-item>
-      </v-list>
+      <div class="text-sm font-medium mb-2">Associated Diseases</div>
+      <div class="space-y-1">
+        <div v-for="disease in diseases" :key="disease" class="flex items-center gap-2 px-0">
+          <Bug class="size-3 text-purple-600 dark:text-purple-400 shrink-0" />
+          <span class="text-sm">{{ disease }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- Evidence score -->
-    <div class="mt-4 pa-3 bg-surface-light rounded">
+    <div class="mt-4 p-3 bg-muted rounded">
       <div class="text-center">
-        <div class="text-h4 font-weight-bold text-purple">
+        <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">
           {{ evidenceScore }}
         </div>
-        <div class="text-caption text-medium-emphasis">Weighted Evidence Score</div>
+        <div class="text-xs text-muted-foreground">Weighted Evidence Score</div>
       </div>
     </div>
   </div>
@@ -143,6 +144,14 @@ import {
   Ban,
   Circle
 } from 'lucide-vue-next'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
+} from '@/components/ui/accordion'
 
 const props = defineProps({
   evidenceData: {
@@ -206,16 +215,16 @@ const remainingSubmissions = computed(() => {
 // Helper functions
 const getClassificationColor = classification => {
   const colors = {
-    Definitive: 'success',
-    Strong: 'success',
-    Moderate: 'info',
-    Supportive: 'warning',
-    Limited: 'orange',
-    'Disputed Evidence': 'error',
-    'No Known Disease Relationship': 'grey',
-    'Refuted Evidence': 'error'
+    Definitive: '#22c55e',
+    Strong: '#22c55e',
+    Moderate: '#3b82f6',
+    Supportive: '#f59e0b',
+    Limited: '#f97316',
+    'Disputed Evidence': '#ef4444',
+    'No Known Disease Relationship': '#6b7280',
+    'Refuted Evidence': '#ef4444'
   }
-  return colors[classification] || 'grey'
+  return colors[classification] || '#6b7280'
 }
 
 const getClassificationIcon = classification => {
@@ -242,13 +251,3 @@ const formatDate = dateString => {
   })
 }
 </script>
-
-<style scoped>
-.gencc-evidence {
-  max-width: 100%;
-}
-
-.bg-surface-light {
-  background: rgba(var(--v-theme-surface-variant), 0.3);
-}
-</style>

@@ -1,107 +1,99 @@
 <template>
-  <div class="pubtator-evidence">
+  <div class="max-w-full">
     <!-- Publication highlights with enhanced details -->
     <div v-if="topPublications?.length" class="mb-4">
-      <div class="text-subtitle-2 font-weight-medium mb-3">Recent Publications</div>
+      <div class="text-sm font-medium mb-3">Recent Publications</div>
 
-      <v-list density="compact" class="transparent">
-        <v-list-item v-for="mention in topPublications" :key="mention.pmid" class="px-0 mb-3">
-          <template #prepend>
-            <FileText class="size-4 text-teal-600 dark:text-teal-400" />
-          </template>
+      <div class="space-y-3">
+        <div v-for="mention in topPublications" :key="mention.pmid" class="flex items-start gap-3">
+          <FileText class="size-4 mt-0.5 shrink-0 text-teal-600 dark:text-teal-400" />
 
-          <div>
+          <div class="min-w-0">
             <!-- Publication title -->
-            <div class="text-body-2 font-weight-medium mb-1">
+            <div class="text-sm font-medium mb-1">
               {{ mention.title || `PMID: ${mention.pmid}` }}
             </div>
 
             <!-- Context snippet -->
-            <div v-if="mention.context" class="text-caption text-medium-emphasis mb-1">
+            <div v-if="mention.context" class="text-xs text-muted-foreground mb-1">
               "...{{ mention.context }}..."
             </div>
 
             <!-- PMID link -->
-            <v-chip
-              size="x-small"
-              variant="text"
-              color="teal"
+            <Badge
+              variant="outline"
+              as="a"
               :href="`https://pubmed.ncbi.nlm.nih.gov/${mention.pmid}`"
               target="_blank"
-              append-icon="mdi-open-in-new"
+              class="cursor-pointer"
+              :style="{ borderColor: '#14b8a6', color: '#14b8a6' }"
             >
               PMID: {{ mention.pmid }}
-            </v-chip>
+              <ExternalLink :size="10" class="ml-1" />
+            </Badge>
           </div>
-        </v-list-item>
-      </v-list>
+        </div>
+      </div>
 
       <!-- Show more publications -->
-      <v-btn
+      <Button
         v-if="hasMorePublications"
-        variant="text"
-        size="small"
+        variant="ghost"
+        size="sm"
         class="mt-2"
         @click="showAllPublications = !showAllPublications"
       >
         {{ showAllPublications ? 'Show Less' : `View ${remainingCount} More Publications` }}
         <component :is="showAllPublications ? ChevronUp : ChevronDown" class="size-4 ml-1" />
-      </v-btn>
+      </Button>
     </div>
 
     <!-- All publications (expanded view) -->
-    <v-expand-transition>
-      <div v-if="showAllPublications && allPublications?.length > 5" class="mb-4">
-        <v-divider class="mb-3" />
-        <div class="text-caption text-medium-emphasis mb-2">Additional Publications</div>
+    <div v-if="showAllPublications && allPublications?.length > 5" class="mb-4">
+      <Separator class="mb-3" />
+      <div class="text-xs text-muted-foreground mb-2">Additional Publications</div>
 
-        <div class="pmid-grid">
-          <v-chip
-            v-for="pmid in additionalPMIDs"
-            :key="pmid"
-            size="x-small"
-            variant="outlined"
-            :href="`https://pubmed.ncbi.nlm.nih.gov/${pmid}`"
-            target="_blank"
-          >
-            {{ pmid }}
-          </v-chip>
-        </div>
+      <div class="flex flex-wrap gap-2 max-h-[150px] overflow-y-auto p-2 bg-muted/30 rounded">
+        <Badge
+          v-for="pmid in additionalPMIDs"
+          :key="pmid"
+          variant="outline"
+          as="a"
+          :href="`https://pubmed.ncbi.nlm.nih.gov/${pmid}`"
+          target="_blank"
+          class="cursor-pointer"
+        >
+          {{ pmid }}
+        </Badge>
       </div>
-    </v-expand-transition>
+    </div>
 
     <!-- Statistics -->
-    <div class="mt-4 pa-3 bg-surface-light rounded">
-      <v-row dense>
-        <v-col cols="4">
-          <div class="text-center">
-            <div class="text-h5 font-weight-bold text-teal">
-              {{ publicationCount }}
-            </div>
-            <div class="text-caption text-medium-emphasis">Publications</div>
+    <div class="mt-4 p-3 bg-muted/30 rounded">
+      <div class="grid grid-cols-3 gap-4">
+        <div class="text-center">
+          <div class="text-2xl font-bold" :style="{ color: '#14b8a6' }">
+            {{ publicationCount }}
           </div>
-        </v-col>
-        <v-col cols="4">
-          <div class="text-center">
-            <div class="text-h5 font-weight-bold text-teal">
-              {{ mentionCount }}
-            </div>
-            <div class="text-caption text-medium-emphasis">Mentions</div>
+          <div class="text-xs text-muted-foreground">Publications</div>
+        </div>
+        <div class="text-center">
+          <div class="text-2xl font-bold" :style="{ color: '#14b8a6' }">
+            {{ mentionCount }}
           </div>
-        </v-col>
-        <v-col cols="4">
-          <div class="text-center">
-            <div class="text-h5 font-weight-bold text-teal">
-              {{ evidenceScore }}
-            </div>
-            <div class="text-caption text-medium-emphasis">Score</div>
+          <div class="text-xs text-muted-foreground">Mentions</div>
+        </div>
+        <div class="text-center">
+          <div class="text-2xl font-bold" :style="{ color: '#14b8a6' }">
+            {{ evidenceScore }}
           </div>
-        </v-col>
-      </v-row>
+          <div class="text-xs text-muted-foreground">Score</div>
+        </div>
+      </div>
     </div>
 
     <!-- Search query info -->
-    <div v-if="searchQuery" class="mt-3 text-caption text-medium-emphasis">
+    <div v-if="searchQuery" class="mt-3 text-xs text-muted-foreground">
       <Search class="size-3 inline-block align-middle" />
       Search: {{ searchQuery }}
     </div>
@@ -110,7 +102,10 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { FileText, ChevronUp, ChevronDown, Search } from 'lucide-vue-next'
+import { FileText, ChevronUp, ChevronDown, Search, ExternalLink } from 'lucide-vue-next'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
 
 const props = defineProps({
   evidenceData: {
@@ -173,24 +168,3 @@ const searchQuery = computed(() => {
   return props.evidenceData?.search_query || ''
 })
 </script>
-
-<style scoped>
-.pubtator-evidence {
-  max-width: 100%;
-}
-
-.pmid-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  max-height: 150px;
-  overflow-y: auto;
-  padding: 8px;
-  background: rgba(var(--v-theme-surface-variant), 0.3);
-  border-radius: 4px;
-}
-
-.bg-surface-light {
-  background: rgba(var(--v-theme-surface-variant), 0.3);
-}
-</style>

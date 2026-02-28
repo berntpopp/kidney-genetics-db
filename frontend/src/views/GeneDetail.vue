@@ -1,199 +1,261 @@
 <template>
   <div>
     <!-- Loading State -->
-    <v-container v-if="loading" class="text-center py-12">
-      <v-progress-circular indeterminate color="primary" size="64" />
-      <p class="text-h6 mt-4 text-medium-emphasis">Loading gene information...</p>
-    </v-container>
+    <div v-if="loading" class="text-center py-12">
+      <div
+        class="mx-auto h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"
+      />
+      <p class="text-lg mt-4 text-muted-foreground">Loading gene information...</p>
+    </div>
 
     <!-- Main Content -->
     <div v-else-if="gene">
       <!-- Breadcrumb Navigation -->
-      <v-container fluid class="pa-0">
-        <v-breadcrumbs :items="breadcrumbs" density="compact" class="px-6 py-2 bg-surface-light">
-          <template #prepend>
-            <Home class="size-4" />
-          </template>
-          <template #divider>
-            <ChevronRight class="size-4" />
-          </template>
-        </v-breadcrumbs>
-      </v-container>
+      <div class="px-6 py-2 bg-muted">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <template v-for="(crumb, index) in breadcrumbs" :key="index">
+              <BreadcrumbItem>
+                <BreadcrumbLink v-if="crumb.to" :href="crumb.to">
+                  <Home v-if="index === 0" class="size-4 mr-1 inline-block" />
+                  {{ crumb.title }}
+                </BreadcrumbLink>
+                <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
+            </template>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
 
-      <v-container>
+      <div class="container mx-auto px-4 py-6">
         <!-- Gene Header -->
-        <div class="d-flex align-start justify-space-between mb-6">
-          <div class="flex-grow-1">
-            <div class="d-flex align-center mb-2">
-              <v-btn icon="mdi-arrow-left" variant="text" size="small" to="/genes" class="mr-3" />
+        <div class="flex items-start justify-between mb-6">
+          <div class="flex-1">
+            <div class="flex items-center mb-2">
+              <RouterLink to="/genes">
+                <Button variant="ghost" size="icon-sm" class="mr-3">
+                  <ArrowLeft :size="16" />
+                </Button>
+              </RouterLink>
               <div>
-                <h1 class="text-h3 font-weight-bold">{{ gene.approved_symbol }}</h1>
-                <p class="text-body-1 text-medium-emphasis">Gene information</p>
+                <h1 class="text-3xl font-bold">{{ gene.approved_symbol }}</h1>
+                <p class="text-base text-muted-foreground">Gene information</p>
               </div>
             </div>
           </div>
 
           <!-- Action Buttons -->
-          <div class="d-flex ga-2">
+          <div class="flex gap-2">
             <!-- Curator/Admin Edit Button -->
-            <v-btn
-              v-if="authStore.isCurator"
-              variant="tonal"
-              size="small"
-              color="warning"
-              prepend-icon="mdi-pencil"
-              @click="editGene"
-            >
+            <Button v-if="authStore.isCurator" variant="secondary" size="sm" @click="editGene">
+              <Pencil :size="16" />
               Edit
-            </v-btn>
+            </Button>
 
-            <v-btn variant="outlined" size="small" prepend-icon="mdi-download">Save</v-btn>
-            <v-btn variant="outlined" size="small" prepend-icon="mdi-share-variant">Share</v-btn>
-            <v-btn variant="outlined" size="small" prepend-icon="mdi-export">Export</v-btn>
-            <v-menu>
-              <template #activator="{ props }">
-                <v-btn icon="mdi-dots-vertical" variant="text" size="small" v-bind="props" />
-              </template>
-              <v-list density="compact">
-                <v-list-item @click="copyGeneId">
-                  <v-list-item-title>Copy Gene ID</v-list-item-title>
-                </v-list-item>
-                <v-list-item @click="viewInHGNC">
-                  <v-list-item-title>View in HGNC</v-list-item-title>
-                </v-list-item>
-                <v-list-item v-if="authStore.isAdmin" class="text-error" @click="deleteGene">
-                  <v-list-item-title>Delete Gene</v-list-item-title>
-                </v-list-item>
-              </v-list>
-            </v-menu>
+            <Button variant="outline" size="sm">
+              <Download :size="16" />
+              Save
+            </Button>
+            <Button variant="outline" size="sm">
+              <Share2 :size="16" />
+              Share
+            </Button>
+            <Button variant="outline" size="sm">
+              <Upload :size="16" />
+              Export
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button variant="ghost" size="icon-sm">
+                  <EllipsisVertical :size="16" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem @click="copyGeneId"> Copy Gene ID </DropdownMenuItem>
+                <DropdownMenuItem @click="viewInHGNC"> View in HGNC </DropdownMenuItem>
+                <DropdownMenuItem
+                  v-if="authStore.isAdmin"
+                  class="text-destructive focus:text-destructive"
+                  @click="deleteGene"
+                >
+                  <Trash2 :size="16" />
+                  Delete Gene
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
         <!-- Overview Cards -->
-        <v-row class="mb-6 align-stretch">
+        <div class="grid grid-cols-12 gap-6 mb-6 items-stretch">
           <!-- Gene Information Card -->
-          <v-col cols="12" md="8" lg="8" class="d-flex">
+          <div class="col-span-12 md:col-span-8 flex">
             <GeneInformationCard
               :gene="gene"
               :annotations="annotations"
               :loading-annotations="loadingAnnotations"
-              class="flex-grow-1"
+              class="flex-1"
             />
-          </v-col>
+          </div>
 
           <!-- Evidence Score Visualization with Breakdown -->
-          <v-col cols="12" md="4" lg="4" class="d-flex">
+          <div class="col-span-12 md:col-span-4 flex">
             <ScoreBreakdown
               :score="gene.evidence_score"
               :breakdown="gene.score_breakdown"
               variant="card"
-              class="flex-grow-1"
+              class="flex-1"
             />
-          </v-col>
-        </v-row>
+          </div>
+        </div>
 
         <!-- Evidence Details Section -->
         <div class="mb-6">
-          <div class="d-flex align-center justify-space-between mb-4">
-            <h2 class="text-h4 font-weight-medium">Evidence Details</h2>
-            <div class="d-flex ga-2">
-              <v-btn
-                prepend-icon="mdi-refresh"
-                variant="outlined"
-                size="small"
-                :loading="loadingEvidence"
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-2xl font-medium">Evidence Details</h2>
+            <div class="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                :disabled="loadingEvidence"
                 @click="refreshEvidence"
               >
+                <RefreshCw :size="16" :class="{ 'animate-spin': loadingEvidence }" />
                 Refresh
-              </v-btn>
-              <v-btn
-                prepend-icon="mdi-filter"
-                variant="outlined"
-                size="small"
-                @click="showFilterPanel = !showFilterPanel"
-              >
+              </Button>
+              <Button variant="outline" size="sm" @click="showFilterPanel = !showFilterPanel">
+                <Filter :size="16" />
                 Filter
-              </v-btn>
+              </Button>
             </div>
           </div>
 
           <!-- Filter Panel -->
-          <v-expand-transition>
-            <v-card v-show="showFilterPanel" class="mb-4">
-              <v-card-text>
-                <v-row>
-                  <v-col cols="12" md="4">
-                    <v-select
-                      v-model="selectedEvidenceSources"
-                      :items="availableEvidenceSources"
-                      label="Filter by Source"
-                      multiple
-                      chips
-                      density="comfortable"
-                      variant="outlined"
-                    />
-                  </v-col>
-                  <v-col cols="12" md="4">
-                    <v-select
-                      v-model="evidenceSortOrder"
-                      :items="evidenceSortOptions"
-                      label="Sort by"
-                      density="comfortable"
-                      variant="outlined"
-                    />
-                  </v-col>
-                  <v-col cols="12" md="4" class="d-flex align-center">
-                    <v-btn variant="text" @click="clearEvidenceFilters"> Clear Filters </v-btn>
-                  </v-col>
-                </v-row>
-              </v-card-text>
-            </v-card>
-          </v-expand-transition>
+          <Card v-show="showFilterPanel" class="mb-4">
+            <CardContent class="pt-6">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Source filter -->
+                <div>
+                  <label class="text-sm font-medium mb-2 block">Filter by Source</label>
+                  <div class="flex flex-wrap gap-1">
+                    <Badge
+                      v-for="source in availableEvidenceSources"
+                      :key="source"
+                      :variant="selectedEvidenceSources.includes(source) ? 'default' : 'outline'"
+                      class="cursor-pointer"
+                      @click="toggleSource(source)"
+                    >
+                      {{ source }}
+                    </Badge>
+                  </div>
+                </div>
+                <!-- Sort -->
+                <div>
+                  <label class="text-sm font-medium mb-2 block">Sort by</label>
+                  <select
+                    v-model="evidenceSortOrder"
+                    class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  >
+                    <option v-for="opt in evidenceSortOptions" :key="opt.value" :value="opt.value">
+                      {{ opt.title }}
+                    </option>
+                  </select>
+                </div>
+                <!-- Clear -->
+                <div class="flex items-end">
+                  <Button variant="ghost" @click="clearEvidenceFilters">Clear Filters</Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <!-- Evidence Cards -->
-          <v-expansion-panels v-if="evidence.length > 0" variant="accordion">
+          <Accordion v-if="sortedEvidence.length > 0" type="multiple" class="space-y-2">
             <EvidenceCard
               v-for="item in sortedEvidence"
               :key="`${item.source}_${item.source_id}`"
               :evidence="item"
             />
-          </v-expansion-panels>
+          </Accordion>
           <div v-else-if="loadingEvidence" class="text-center py-8">
-            <v-progress-circular indeterminate color="primary" />
-            <p class="text-body-2 mt-2 text-medium-emphasis">Loading evidence...</p>
+            <div
+              class="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
+            />
+            <p class="text-sm mt-2 text-muted-foreground">Loading evidence...</p>
           </div>
           <div v-else class="text-center py-8">
-            <Info class="size-12 text-muted-foreground" />
-            <p class="text-body-1 mt-2 text-medium-emphasis">No evidence records available</p>
+            <Info class="mx-auto size-12 text-muted-foreground" />
+            <p class="text-base mt-2 text-muted-foreground">No evidence records available</p>
           </div>
         </div>
-      </v-container>
+      </div>
     </div>
 
     <!-- Error State -->
-    <v-container v-else class="text-center py-12">
-      <CircleAlert class="size-16 text-destructive mb-4" />
-      <h2 class="text-h4 mb-2">Gene Not Found</h2>
-      <p class="text-body-1 text-medium-emphasis mb-4">
+    <div v-else class="text-center py-12">
+      <CircleAlert class="mx-auto size-16 text-destructive mb-4" />
+      <h2 class="text-2xl mb-2">Gene Not Found</h2>
+      <p class="text-base text-muted-foreground mb-4">
         The gene "{{ $route.params.symbol }}" could not be found in our database.
       </p>
-      <v-btn color="primary" to="/genes" prepend-icon="mdi-arrow-left">
-        Back to Gene Browser
-      </v-btn>
-    </v-container>
+      <RouterLink to="/genes">
+        <Button>
+          <ArrowLeft :size="16" />
+          Back to Gene Browser
+        </Button>
+      </RouterLink>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { Home, ChevronRight, Info, CircleAlert } from 'lucide-vue-next'
+import {
+  Home,
+  ChevronRight,
+  Info,
+  CircleAlert,
+  ArrowLeft,
+  Download,
+  Share2,
+  Upload,
+  EllipsisVertical,
+  RefreshCw,
+  Filter,
+  Trash2,
+  Pencil
+} from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { geneApi } from '../api/genes'
 import { useAuthStore } from '../stores/auth'
 import { getGeneDetailBreadcrumbs } from '@/utils/publicBreadcrumbs'
 import ScoreBreakdown from '../components/ScoreBreakdown.vue'
 import EvidenceCard from '../components/evidence/EvidenceCard.vue'
 import GeneInformationCard from '../components/gene/GeneInformationCard.vue'
+
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Accordion } from '@/components/ui/accordion'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator
+} from '@/components/ui/breadcrumb'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+
+// Suppress unused import warning for icons used only in template
+void ChevronRight
 
 const route = useRoute()
 // const router = useRouter() // Currently unused but may be needed for navigation
@@ -251,6 +313,15 @@ const sortedEvidence = computed(() => {
 })
 
 // Methods
+const toggleSource = source => {
+  const idx = selectedEvidenceSources.value.indexOf(source)
+  if (idx >= 0) {
+    selectedEvidenceSources.value.splice(idx, 1)
+  } else {
+    selectedEvidenceSources.value.push(source)
+  }
+}
+
 const fetchGeneDetails = async () => {
   loading.value = true
   try {

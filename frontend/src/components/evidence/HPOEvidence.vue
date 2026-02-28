@@ -1,88 +1,100 @@
 <template>
-  <div class="hpo-evidence">
+  <div class="max-w-full">
     <!-- Enhanced HPO display with phenotype names -->
     <div v-if="phenotypeDetails?.length" class="mb-4">
-      <div class="text-subtitle-2 font-weight-medium mb-3">Phenotype Terms</div>
+      <div class="text-sm font-medium mb-3">Phenotype Terms</div>
 
       <!-- Display top phenotypes with names -->
-      <div class="phenotype-list">
-        <v-chip-group column>
-          <div v-for="term in displayTerms" :key="term.id" class="mb-2">
-            <v-chip
-              size="small"
-              variant="outlined"
-              color="blue"
-              :href="`https://hpo.jax.org/browse/term/${term.id}`"
-              target="_blank"
-              append-icon="mdi-open-in-new"
-            >
-              <span class="font-mono mr-2">{{ term.id }}</span>
-              <span>{{ term.name }}</span>
-            </v-chip>
-          </div>
-        </v-chip-group>
+      <div class="max-h-[400px] overflow-y-auto">
+        <div class="flex flex-wrap gap-2">
+          <Badge
+            v-for="term in displayTerms"
+            :key="term.id"
+            variant="outline"
+            as="a"
+            :href="`https://hpo.jax.org/browse/term/${term.id}`"
+            target="_blank"
+            class="cursor-pointer"
+            :style="{ borderColor: '#3b82f6', color: '#3b82f6' }"
+          >
+            <span class="font-mono mr-1">{{ term.id }}</span>
+            <span>{{ term.name }}</span>
+            <ExternalLink :size="10" class="ml-1" />
+          </Badge>
+        </div>
       </div>
 
       <!-- Show more button if there are additional terms -->
-      <v-btn
+      <Button
         v-if="hasMoreTerms"
-        variant="text"
-        size="small"
+        variant="ghost"
+        size="sm"
         class="mt-2"
         @click="showAllTerms = !showAllTerms"
       >
         {{ showAllTerms ? 'Show Less' : `Show ${remainingTerms} More Terms` }}
         <component :is="showAllTerms ? ChevronUp : ChevronDown" class="size-4 ml-1" />
-      </v-btn>
+      </Button>
     </div>
 
     <!-- Full term list (IDs only) for reference -->
     <div v-if="allTermIds?.length > phenotypeDetails?.length" class="mt-4">
-      <v-divider class="mb-3" />
-      <div class="text-caption text-medium-emphasis mb-2">
+      <Separator class="mb-3" />
+      <div class="text-xs text-muted-foreground mb-2">
         Total: {{ allTermIds.length }} phenotype associations
       </div>
 
-      <!-- Compact display of all term IDs -->
-      <v-expansion-panels variant="inset" density="compact">
-        <v-expansion-panel>
-          <v-expansion-panel-title class="text-caption">
+      <!-- Compact display of all term IDs via Collapsible -->
+      <Collapsible>
+        <CollapsibleTrigger as-child>
+          <Button variant="outline" size="sm" class="w-full justify-between text-xs">
             View All Term IDs
-          </v-expansion-panel-title>
-          <v-expansion-panel-text>
-            <div class="term-grid pa-2">
-              <code v-for="termId in allTermIds" :key="termId" class="term-id">
-                {{ termId }}
-              </code>
-            </div>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-      </v-expansion-panels>
+            <ChevronDown class="size-4 ml-1" />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div
+            class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2 max-h-[200px] overflow-y-auto p-2 mt-2 rounded bg-muted/50"
+          >
+            <code
+              v-for="termId in allTermIds"
+              :key="termId"
+              class="font-mono text-[11px] px-1 py-0.5 bg-background rounded whitespace-nowrap"
+            >
+              {{ termId }}
+            </code>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
 
     <!-- Evidence metadata -->
-    <div class="mt-4 pa-3 bg-surface-light rounded">
-      <v-row dense>
-        <v-col cols="6">
-          <div class="text-caption text-medium-emphasis">Evidence Score</div>
-          <div class="text-body-2 font-weight-medium">
+    <div class="mt-4 p-3 bg-muted/30 rounded">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <div class="text-xs text-muted-foreground">Evidence Score</div>
+          <div class="text-sm font-medium">
             {{ evidenceData.evidence_score || 'N/A' }}
           </div>
-        </v-col>
-        <v-col cols="6">
-          <div class="text-caption text-medium-emphasis">Last Updated</div>
-          <div class="text-body-2">
+        </div>
+        <div>
+          <div class="text-xs text-muted-foreground">Last Updated</div>
+          <div class="text-sm">
             {{ formatDate(evidenceData.last_updated) }}
           </div>
-        </v-col>
-      </v-row>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { ChevronUp, ChevronDown } from 'lucide-vue-next'
+import { ChevronUp, ChevronDown, ExternalLink } from 'lucide-vue-next'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 
 const props = defineProps({
   evidenceData: {
@@ -133,37 +145,3 @@ const formatDate = dateString => {
   })
 }
 </script>
-
-<style scoped>
-.hpo-evidence {
-  max-width: 100%;
-}
-
-.phenotype-list {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.term-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 8px;
-  max-height: 200px;
-  overflow-y: auto;
-  background: rgba(var(--v-theme-surface-variant), 0.5);
-  border-radius: 4px;
-}
-
-.term-id {
-  font-family: 'Roboto Mono', monospace;
-  font-size: 11px;
-  padding: 2px 4px;
-  background: rgb(var(--v-theme-surface));
-  border-radius: 2px;
-  white-space: nowrap;
-}
-
-.bg-surface-light {
-  background: rgba(var(--v-theme-surface-variant), 0.3);
-}
-</style>

@@ -1,138 +1,167 @@
 <template>
-  <div class="literature-evidence">
+  <div class="max-w-full">
     <!-- Publication List with Rich Details -->
     <div v-if="publications?.length" class="mb-4">
-      <div class="text-subtitle-2 font-weight-medium mb-3 d-flex align-center">
+      <div class="text-sm font-medium mb-3 flex items-center">
         <Library class="size-4 mr-2 text-primary" />
         Curated Literature Evidence
       </div>
 
       <!-- Top Publications with Details -->
-      <v-list density="compact" class="transparent">
-        <v-list-item
+      <div class="space-y-3">
+        <div
           v-for="(pub, index) in displayedPublications"
           :key="pub.pmid || index"
-          class="px-0 mb-3 publication-item"
+          class="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
         >
-          <template #prepend>
-            <v-avatar size="32" color="primary" variant="tonal">
-              <span class="text-caption font-weight-bold">{{ index + 1 }}</span>
-            </v-avatar>
-          </template>
+          <Avatar class="h-8 w-8 shrink-0" :style="{ backgroundColor: '#0ea5e920' }">
+            <AvatarFallback class="text-xs font-bold text-primary">
+              {{ index + 1 }}
+            </AvatarFallback>
+          </Avatar>
 
-          <div class="publication-content">
+          <div class="flex-1 min-w-0">
             <!-- Publication Title -->
-            <div class="text-body-2 font-weight-medium mb-1">
+            <div class="text-sm font-medium mb-1">
               {{ pub.title || `Publication ${pub.pmid || index + 1}` }}
             </div>
 
             <!-- Authors and Journal -->
-            <div v-if="pub.authors || pub.journal" class="text-caption text-medium-emphasis mb-1">
+            <div v-if="pub.authors || pub.journal" class="text-xs text-muted-foreground mb-1">
               <span v-if="pub.authors">
                 {{ formatAuthors(pub.authors) }}
               </span>
-              <span v-if="pub.authors && pub.journal"> • </span>
-              <span v-if="pub.journal" class="font-italic">
+              <span v-if="pub.authors && pub.journal"> &bull; </span>
+              <span v-if="pub.journal" class="italic">
                 {{ pub.journal }}
               </span>
               <span v-if="pub.publication_date"> ({{ formatYear(pub.publication_date) }})</span>
             </div>
 
-            <!-- Action Chips -->
-            <div class="d-flex ga-2 flex-wrap mt-2">
+            <!-- Action Badges -->
+            <div class="flex flex-wrap gap-2 mt-2">
               <!-- PMID Link -->
-              <v-chip
+              <Badge
                 v-if="pub.pmid"
-                size="x-small"
-                variant="tonal"
-                color="primary"
+                variant="outline"
+                :style="{
+                  borderColor: '#0ea5e9',
+                  color: '#0ea5e9',
+                  backgroundColor: '#0ea5e915'
+                }"
+                as="a"
                 :href="`https://pubmed.ncbi.nlm.nih.gov/${pub.pmid}`"
                 target="_blank"
-                prepend-icon="mdi-identifier"
-                append-icon="mdi-open-in-new"
+                class="text-xs cursor-pointer hover:opacity-80"
               >
+                <IdCard class="size-3" />
                 PMID: {{ pub.pmid }}
-              </v-chip>
+                <ExternalLink class="size-3" />
+              </Badge>
 
               <!-- DOI Link -->
-              <v-chip
+              <Badge
                 v-if="pub.doi"
-                size="x-small"
-                variant="tonal"
-                color="secondary"
+                variant="outline"
+                :style="{
+                  borderColor: '#6b7280',
+                  color: '#6b7280',
+                  backgroundColor: '#6b728015'
+                }"
+                as="a"
                 :href="`https://doi.org/${pub.doi}`"
                 target="_blank"
-                prepend-icon="mdi-link"
-                append-icon="mdi-open-in-new"
+                class="text-xs cursor-pointer hover:opacity-80"
               >
+                <Link class="size-3" />
                 DOI
-              </v-chip>
+                <ExternalLink class="size-3" />
+              </Badge>
 
               <!-- Direct URL -->
-              <v-chip
+              <Badge
                 v-if="pub.url && !pub.pmid && !pub.doi"
-                size="x-small"
-                variant="tonal"
-                color="info"
+                variant="outline"
+                :style="{
+                  borderColor: '#3b82f6',
+                  color: '#3b82f6',
+                  backgroundColor: '#3b82f615'
+                }"
+                as="a"
                 :href="pub.url"
                 target="_blank"
-                prepend-icon="mdi-web"
-                append-icon="mdi-open-in-new"
+                class="text-xs cursor-pointer hover:opacity-80"
               >
+                <Globe class="size-3" />
                 View
-              </v-chip>
+                <ExternalLink class="size-3" />
+              </Badge>
             </div>
           </div>
-        </v-list-item>
-      </v-list>
+        </div>
+      </div>
 
       <!-- Show More/Less Button -->
-      <v-btn
+      <Button
         v-if="hasMorePublications"
-        variant="text"
-        size="small"
-        color="primary"
-        class="mt-2"
+        variant="ghost"
+        size="sm"
+        class="mt-2 text-primary"
         @click="showAllPublications = !showAllPublications"
       >
         {{ showAllPublications ? 'Show Less' : `View ${remainingCount} More` }}
         <component :is="showAllPublications ? ChevronUp : ChevronDown" class="size-4 ml-1" />
-      </v-btn>
+      </Button>
     </div>
 
     <!-- Publication IDs Grid (Compact View) -->
-    <v-expand-transition>
-      <div v-if="showAllPublications && additionalPublications.length" class="mb-4">
-        <v-divider class="mb-3" />
-        <div class="text-caption text-medium-emphasis mb-2">Additional Publications</div>
+    <div v-if="showAllPublications && additionalPublications.length" class="mb-4">
+      <Separator class="mb-3" />
+      <div class="text-xs text-muted-foreground mb-2">Additional Publications</div>
 
-        <div class="publication-grid">
-          <v-chip
-            v-for="pub in additionalPublications"
-            :key="pub.pmid || pub"
-            size="x-small"
-            variant="outlined"
-            color="primary"
-            :href="getPublicationUrl(pub)"
-            target="_blank"
-          >
-            {{ getPublicationLabel(pub) }}
-          </v-chip>
-        </div>
+      <div class="flex flex-wrap gap-2 max-h-[200px] overflow-y-auto p-3 bg-muted/30 rounded-lg">
+        <Badge
+          v-for="pub in additionalPublications"
+          :key="pub.pmid || pub"
+          variant="outline"
+          :style="{
+            borderColor: '#0ea5e9',
+            color: '#0ea5e9'
+          }"
+          as="a"
+          :href="getPublicationUrl(pub)"
+          target="_blank"
+          class="text-xs cursor-pointer hover:opacity-80"
+        >
+          {{ getPublicationLabel(pub) }}
+        </Badge>
       </div>
-    </v-expand-transition>
+    </div>
 
     <!-- No Data State -->
     <div v-if="!publications?.length" class="text-center py-8">
-      <BookOpen class="size-12 mb-3 text-muted-foreground" />
-      <p class="text-body-2 text-medium-emphasis">No literature evidence available</p>
+      <BookOpen class="size-12 mb-3 mx-auto text-muted-foreground" />
+      <p class="text-sm text-muted-foreground">No literature evidence available</p>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Library, ChevronUp, ChevronDown, BookOpen } from 'lucide-vue-next'
+import {
+  Library,
+  ChevronUp,
+  ChevronDown,
+  BookOpen,
+  ExternalLink,
+  IdCard,
+  Link,
+  Globe
+} from 'lucide-vue-next'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Separator } from '@/components/ui/separator'
 
 const props = defineProps({
   evidenceData: {
@@ -257,61 +286,3 @@ const getPublicationLabel = pub => {
   return 'Publication'
 }
 </script>
-
-<style scoped>
-.literature-evidence {
-  max-width: 100%;
-}
-
-.publication-item {
-  transition: all 0.2s ease;
-  border-radius: 8px;
-  padding: 8px !important;
-}
-
-.publication-item:hover {
-  background: rgba(var(--v-theme-primary), 0.04);
-}
-
-.publication-content {
-  flex: 1;
-}
-
-.publication-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  max-height: 200px;
-  overflow-y: auto;
-  padding: 12px;
-  background: rgba(var(--v-theme-surface-variant), 0.3);
-  border-radius: 8px;
-}
-
-/* Scrollbar styling */
-.publication-grid::-webkit-scrollbar {
-  width: 4px;
-}
-
-.publication-grid::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.publication-grid::-webkit-scrollbar-thumb {
-  background: rgba(var(--v-theme-primary), 0.3);
-  border-radius: 2px;
-}
-
-.font-italic {
-  font-style: italic;
-}
-
-/* Dark mode adjustments */
-.v-theme--dark .publication-item:hover {
-  background: rgba(var(--v-theme-primary), 0.08);
-}
-
-.v-theme--dark .publication-grid {
-  background: rgba(var(--v-theme-surface-variant), 0.2);
-}
-</style>
