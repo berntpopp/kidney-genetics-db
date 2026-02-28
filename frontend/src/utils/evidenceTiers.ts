@@ -56,31 +56,31 @@ export interface ScoreRangeConfig {
 export const TIER_CONFIG: Record<TierName, TierConfig> = {
   comprehensive_support: {
     label: 'Comprehensive Support',
-    color: 'success',
+    color: '#22c55e',
     icon: CircleCheck,
     description: '4+ sources with robust evidence (score ≥50%)'
   },
   multi_source_support: {
     label: 'Multi-Source Support',
-    color: 'info',
+    color: '#3b82f6',
     icon: CircleCheckBig,
     description: '3+ sources with emerging evidence (score ≥35%)'
   },
   established_support: {
     label: 'Established Support',
-    color: 'primary',
+    color: '#0ea5e9',
     icon: Check,
     description: '2+ sources with moderate evidence (score ≥20%)'
   },
   preliminary_evidence: {
     label: 'Preliminary Evidence',
-    color: 'warning',
+    color: '#f59e0b',
     icon: CircleAlert,
     description: 'Initial evidence requiring validation (score ≥10%)'
   },
   minimal_evidence: {
     label: 'Minimal Evidence',
-    color: 'grey',
+    color: '#6b7280',
     icon: Info,
     description: 'Limited early-stage evidence (score <10%)'
   }
@@ -92,13 +92,13 @@ export const TIER_CONFIG: Record<TierName, TierConfig> = {
 export const GROUP_CONFIG: Record<GroupName, GroupConfig> = {
   well_supported: {
     label: 'Well-Supported',
-    color: 'success',
+    color: '#22c55e',
     icon: Star,
     description: '2+ sources with strong evidence scores'
   },
   emerging_evidence: {
     label: 'Emerging Evidence',
-    color: 'warning',
+    color: '#f59e0b',
     icon: Star,
     description: 'Initial evidence, needs further validation'
   }
@@ -113,7 +113,7 @@ export function getTierConfig(tier: string | null | undefined): TierConfig {
   if (!tier || !(tier in TIER_CONFIG)) {
     return {
       label: 'No Classification',
-      color: 'grey-lighten-2',
+      color: '#9ca3af',
       icon: CircleHelp,
       description: 'No evidence tier assigned'
     }
@@ -130,7 +130,7 @@ export function getGroupConfig(group: string | null | undefined): GroupConfig {
   if (!group || !(group in GROUP_CONFIG)) {
     return {
       label: 'Unclassified',
-      color: 'grey-lighten-2',
+      color: '#9ca3af',
       icon: CircleHelp,
       description: 'No evidence group assigned'
     }
@@ -174,49 +174,49 @@ export const SCORE_RANGES: ScoreRangeConfig[] = [
     threshold: 95,
     label: 'Exceptional',
     description: 'comprehensive support with definitive multi-source evidence',
-    color: 'success',
+    color: '#22c55e',
     tierAlignment: 'comprehensive_support'
   },
   {
     threshold: 80,
     label: 'Very Strong',
     description: 'comprehensive support, well-established disease gene',
-    color: 'success',
+    color: '#22c55e',
     tierAlignment: 'comprehensive_support'
   },
   {
     threshold: 50,
     label: 'Strong',
     description: 'comprehensive support with robust evidence',
-    color: 'success',
+    color: '#22c55e',
     tierAlignment: 'comprehensive_support'
   },
   {
     threshold: 35,
     label: 'Good',
     description: 'multi-source support with emerging evidence',
-    color: 'info',
+    color: '#3b82f6',
     tierAlignment: 'multi_source_support'
   },
   {
     threshold: 20,
     label: 'Moderate',
     description: 'established support from independent sources',
-    color: 'primary',
+    color: '#0ea5e9',
     tierAlignment: 'established_support'
   },
   {
     threshold: 10,
     label: 'Preliminary',
     description: 'initial evidence requiring validation',
-    color: 'warning',
+    color: '#f59e0b',
     tierAlignment: 'preliminary_evidence'
   },
   {
     threshold: 0,
     label: 'Minimal',
     description: 'limited early-stage evidence',
-    color: 'grey',
+    color: '#6b7280',
     tierAlignment: 'minimal_evidence'
   }
 ]
