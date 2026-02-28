@@ -1,171 +1,135 @@
 <template>
-  <v-container>
+  <div class="container mx-auto px-4 py-6">
     <!-- Admin Header -->
     <AdminHeader
       title="Admin Dashboard"
       subtitle="System administration and management"
-      icon="mdi-view-dashboard-variant"
+      :icon="LayoutDashboard"
       icon-color="primary"
       :breadcrumbs="ADMIN_BREADCRUMBS.dashboard"
     />
 
     <!-- Stats Overview -->
-    <v-row class="mb-6">
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Active Users"
-          :value="stats.activeUsers"
-          :loading="statsLoading"
-          icon="mdi-account-check"
-          color="success"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Cache Hit Rate"
-          :value="stats.cacheHitRate"
-          :loading="statsLoading"
-          format="percent"
-          icon="mdi-speedometer"
-          color="info"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Pipeline Jobs"
-          :value="stats.pipelineJobs"
-          :loading="statsLoading"
-          icon="mdi-pipe"
-          color="warning"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Pending Staging"
-          :value="stats.pendingStaging"
-          :loading="statsLoading"
-          icon="mdi-clock-alert"
-          color="error"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Data Releases"
-          :value="stats.totalReleases"
-          :loading="statsLoading"
-          icon="mdi-package-variant"
-          color="indigo"
-        />
-      </v-col>
-    </v-row>
+    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+      <AdminStatsCard
+        title="Active Users"
+        :value="stats.activeUsers"
+        :loading="statsLoading"
+        icon="mdi-account-check"
+        color="success"
+      />
+      <AdminStatsCard
+        title="Cache Hit Rate"
+        :value="stats.cacheHitRate"
+        :loading="statsLoading"
+        format="percent"
+        icon="mdi-speedometer"
+        color="info"
+      />
+      <AdminStatsCard
+        title="Pipeline Jobs"
+        :value="stats.pipelineJobs"
+        :loading="statsLoading"
+        icon="mdi-pipe"
+        color="warning"
+      />
+      <AdminStatsCard
+        title="Pending Staging"
+        :value="stats.pendingStaging"
+        :loading="statsLoading"
+        icon="mdi-clock-alert"
+        color="error"
+      />
+      <AdminStatsCard
+        title="Data Releases"
+        :value="stats.totalReleases"
+        :loading="statsLoading"
+        icon="mdi-package-variant"
+        color="indigo"
+      />
+    </div>
 
     <!-- Admin Function Cards -->
-    <v-row>
-      <v-col v-for="section in adminSections" :key="section.id" cols="12" lg="4" md="6">
-        <v-card hover class="pa-4 h-100 d-flex flex-column" @click="navigateTo(section.route)">
-          <div class="d-flex align-center mb-3">
-            <component :is="section.icon" class="size-7" />
-            <div class="ml-4 flex-grow-1">
-              <h3 class="text-h6 font-weight-medium">{{ section.title }}</h3>
-              <p class="text-caption text-medium-emphasis mt-1">
-                {{ section.description }}
-              </p>
-            </div>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <Card
+        v-for="section in adminSections"
+        :key="section.id"
+        class="cursor-pointer transition-shadow hover:shadow-md"
+        @click="navigateTo(section.route)"
+      >
+        <CardHeader class="flex flex-row items-center gap-3 pb-2">
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+            <component :is="section.icon" :size="20" class="text-primary" />
           </div>
-
-          <v-divider class="my-3" />
-
-          <div class="text-body-2 flex-grow-1">
-            <div
-              v-for="feature in section.features"
-              :key="feature"
-              class="d-flex align-center mb-2"
-            >
-              <CircleCheck class="size-4 text-green-600 dark:text-green-400 mr-2" />
+          <div>
+            <CardTitle class="text-base">{{ section.title }}</CardTitle>
+            <CardDescription class="text-xs">{{ section.description }}</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ul class="space-y-1 text-xs text-muted-foreground">
+            <li v-for="feature in section.features" :key="feature" class="flex items-center gap-2">
+              <CircleCheck :size="14" class="text-green-600 dark:text-green-400" />
               <span>{{ feature }}</span>
-            </div>
-          </div>
-
-          <v-btn :color="section.color" variant="tonal" size="small" class="mt-3" block>
-            Manage
-            <ArrowRight class="size-5 ml-1" />
-          </v-btn>
-        </v-card>
-      </v-col>
-    </v-row>
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+    </div>
 
     <!-- Quick Actions -->
-    <v-row class="mt-6">
-      <v-col cols="12">
-        <v-card class="pa-4">
-          <h3 class="text-h6 mb-3">Quick Actions</h3>
-          <div class="d-flex flex-wrap gap-2">
-            <v-btn
-              color="primary"
-              size="small"
-              prepend-icon="mdi-database-refresh"
-              :loading="refreshingCache"
-              @click="refreshCache"
-            >
-              Refresh Cache
-            </v-btn>
-            <v-btn
-              color="success"
-              size="small"
-              prepend-icon="mdi-play"
-              :loading="runningPipeline"
-              @click="runPipeline"
-            >
-              Run All Pipelines
-            </v-btn>
-            <v-btn
-              color="warning"
-              size="small"
-              prepend-icon="mdi-broom"
-              :loading="cleaningLogs"
-              @click="cleanupLogs"
-            >
-              Cleanup Old Logs
-            </v-btn>
-            <v-btn
-              color="info"
-              size="small"
-              prepend-icon="mdi-chart-line"
-              :loading="exportingStats"
-              @click="exportStats"
-            >
-              Export Statistics
-            </v-btn>
-          </div>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+    <Card class="mt-6">
+      <CardHeader>
+        <CardTitle class="text-base">Quick Actions</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div class="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" :disabled="refreshingCache" @click="refreshCache">
+            <RefreshCw :size="14" class="mr-2" :class="{ 'animate-spin': refreshingCache }" />
+            Refresh Cache
+          </Button>
+          <Button variant="outline" size="sm" :disabled="runningPipeline" @click="runPipeline">
+            <Play :size="14" class="mr-2" />
+            Run All Pipelines
+          </Button>
+          <Button variant="outline" size="sm" :disabled="cleaningLogs" @click="cleanupLogs">
+            <Eraser :size="14" class="mr-2" />
+            Cleanup Old Logs
+          </Button>
+          <Button variant="outline" size="sm" :disabled="exportingStats" @click="exportStats">
+            <ChartLine :size="14" class="mr-2" />
+            Export Statistics
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  </div>
 </template>
 
 <script setup>
-/**
- * Admin Dashboard - Central hub for all admin functions
- * Following Material Design 3 principles with compact density
- */
-
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import {
-  ArrowRight,
+  ChartLine,
   CircleCheck,
   Cog,
   DatabaseBackup,
   DatabaseZap,
   Dna,
+  Eraser,
   FileText,
+  LayoutDashboard,
   MemoryStick,
   Minus,
   Package,
+  Play,
+  RefreshCw,
   Tags,
   Users
 } from 'lucide-vue-next'
@@ -195,7 +159,6 @@ const adminSections = [
     title: 'User Management',
     description: 'Manage user accounts and permissions',
     icon: Users,
-    color: 'primary',
     route: '/admin/users',
     features: [
       'Create and manage users',
@@ -209,7 +172,6 @@ const adminSections = [
     title: 'Cache Management',
     description: 'Monitor and control cache performance',
     icon: MemoryStick,
-    color: 'purple',
     route: '/admin/cache',
     features: [
       'View cache statistics',
@@ -223,7 +185,6 @@ const adminSections = [
     title: 'System Logs',
     description: 'View and analyze system logs',
     icon: FileText,
-    color: 'orange',
     route: '/admin/logs',
     features: ['Filter by severity', 'Search log entries', 'Export log data', 'View error trends']
   },
@@ -232,7 +193,6 @@ const adminSections = [
     title: 'Data Pipeline',
     description: 'Control data ingestion pipelines',
     icon: Minus,
-    color: 'green',
     route: '/admin/pipeline',
     features: [
       'Monitor pipeline status',
@@ -246,7 +206,6 @@ const adminSections = [
     title: 'Gene Staging',
     description: 'Review gene normalization attempts',
     icon: Dna,
-    color: 'red',
     route: '/admin/staging',
     features: [
       'Review pending genes',
@@ -260,7 +219,6 @@ const adminSections = [
     title: 'Annotations',
     description: 'Manage gene annotation sources',
     icon: Tags,
-    color: 'teal',
     route: '/admin/annotations',
     features: ['Configure sources', 'Update annotations', 'View statistics', 'Schedule updates']
   },
@@ -269,7 +227,6 @@ const adminSections = [
     title: 'Data Releases',
     description: 'Create and manage CalVer data releases',
     icon: Package,
-    color: 'indigo',
     route: '/admin/releases',
     features: [
       'Create versioned releases',
@@ -283,7 +240,6 @@ const adminSections = [
     title: 'Database Backups',
     description: 'Create and manage database backups',
     icon: DatabaseBackup,
-    color: 'blue-grey',
     route: '/admin/backups',
     features: [
       'Create on-demand backups',
@@ -297,7 +253,6 @@ const adminSections = [
     title: 'System Settings',
     description: 'Manage application configuration',
     icon: Cog,
-    color: 'deep-purple',
     route: '/admin/settings',
     features: [
       'Configure cache settings',
@@ -311,7 +266,6 @@ const adminSections = [
     title: 'Hybrid Sources',
     description: 'Upload DiagnosticPanels and Literature data',
     icon: DatabaseZap,
-    color: 'cyan',
     route: '/admin/hybrid-sources',
     features: [
       'Upload diagnostic panel files',
@@ -330,7 +284,6 @@ const navigateTo = route => {
 const loadStats = async () => {
   statsLoading.value = true
   try {
-    // Load statistics from various endpoints
     const [users, cache, pipeline, staging, releases] = await Promise.all([
       fetchUserStats(),
       fetchCacheStats(),
@@ -443,7 +396,6 @@ const refreshCache = async () => {
       }
     })
     if (!response.ok) throw new Error('Failed to clear cache')
-    // Show success message
     window.logService.info('Cache cleared successfully')
   } catch (error) {
     window.logService.error('Failed to refresh cache:', error)
@@ -455,7 +407,6 @@ const refreshCache = async () => {
 const runPipeline = async () => {
   runningPipeline.value = true
   try {
-    // Get all sources and trigger them
     const response = await fetch('/api/progress/status', {
       headers: {
         Authorization: `Bearer ${authStore.accessToken}`
@@ -464,7 +415,6 @@ const runPipeline = async () => {
     if (!response.ok) throw new Error('Failed to fetch sources')
     const sources = await response.json()
 
-    // Trigger each data source
     const triggers = sources.data
       .filter(s => s.category === 'data_source')
       .map(s =>
@@ -507,7 +457,6 @@ const cleanupLogs = async () => {
 const exportStats = async () => {
   exportingStats.value = true
   try {
-    // Collect all statistics
     const [users, cache, pipeline, staging, logs] = await Promise.all([
       fetchUserStats(),
       fetchCacheStats(),
@@ -527,7 +476,6 @@ const exportStats = async () => {
       logs: logs.data || logs
     }
 
-    // Create and download JSON file
     const blob = new Blob([JSON.stringify(exportData, null, 2)], {
       type: 'application/json'
     })
@@ -549,13 +497,6 @@ const exportStats = async () => {
 // Lifecycle
 onMounted(() => {
   loadStats()
-  // Refresh stats every 30 seconds
   setInterval(loadStats, 30000)
 })
 </script>
-
-<style scoped>
-.gap-2 {
-  gap: 0.5rem;
-}
-</style>
