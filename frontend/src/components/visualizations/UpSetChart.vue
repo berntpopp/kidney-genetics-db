@@ -1,156 +1,173 @@
 <template>
-  <v-card class="upset-chart-container">
-    <v-card-title class="d-flex align-center">
-      <ChartScatter class="size-5 me-2" />
-      Gene Source Overlaps
-      <v-tooltip location="bottom">
-        <template #activator="{ props: tooltipProps }">
-          <CircleHelp v-bind="tooltipProps" class="size-4 me-2 text-medium-emphasis" />
-        </template>
-        <span
-          >UpSet plot showing intersections between gene data sources. Click bars or dots to see
-          genes in each intersection.</span
-        >
-      </v-tooltip>
-      <v-spacer />
-      <v-tooltip v-if="data" location="bottom" max-width="300">
-        <template #activator="{ props: tooltipProps }">
-          <v-chip v-bind="tooltipProps" variant="outlined" size="small" class="me-2">
-            {{ data.total_unique_genes.toLocaleString() }} genes
-          </v-chip>
-        </template>
-        <div class="pa-2">
-          <strong>Genes with evidence:</strong> {{ data.total_unique_genes.toLocaleString() }} genes
-          with evidence score > 0 <br />These genes have kidney disease associations from at least
-          one data source
-        </div>
-      </v-tooltip>
-      <v-tooltip location="bottom">
-        <template #activator="{ props: tooltipProps }">
-          <v-checkbox
-            v-model="showInsufficientEvidence"
-            v-bind="tooltipProps"
-            label="Show insufficient evidence"
-            density="compact"
-            hide-details
-            class="me-2"
-          />
-        </template>
-        <span>Include genes with percentage_score = 0 (no meaningful evidence)</span>
-      </v-tooltip>
-      <v-btn
-        icon="mdi-refresh"
-        variant="text"
-        size="small"
-        :loading="loading"
-        @click="refreshData"
-      />
-    </v-card-title>
+  <Card class="w-full">
+    <CardHeader class="flex flex-row items-center space-y-0 pb-2">
+      <div class="flex items-center flex-1">
+        <ChartScatter class="size-5 mr-2" />
+        <CardTitle class="text-lg font-semibold">Gene Source Overlaps</CardTitle>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <CircleHelp class="size-4 ml-2 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <span
+                >UpSet plot showing intersections between gene data sources. Click bars or dots to
+                see genes in each intersection.</span
+              >
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+      <div class="flex items-center gap-2">
+        <TooltipProvider v-if="data">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Badge variant="outline">
+                {{ data.total_unique_genes.toLocaleString() }} genes
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" class="max-w-[300px]">
+              <div class="p-2">
+                <strong>Genes with evidence:</strong>
+                {{ data.total_unique_genes.toLocaleString() }} genes with evidence score > 0
+                <br />These genes have kidney disease associations from at least one data source
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <div class="flex items-center gap-2">
+                <Checkbox
+                  id="show-insufficient"
+                  :checked="showInsufficientEvidence"
+                  @update:checked="showInsufficientEvidence = $event"
+                />
+                <Label for="show-insufficient" class="text-sm cursor-pointer">
+                  Show insufficient evidence
+                </Label>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <span>Include genes with percentage_score = 0 (no meaningful evidence)</span>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <Button variant="ghost" size="icon-sm" :disabled="loading" @click="refreshData">
+          <RefreshCw class="size-4" :class="{ 'animate-spin': loading }" />
+        </Button>
+      </div>
+    </CardHeader>
 
-    <v-card-text>
+    <CardContent>
       <!-- Loading state (only on initial load) -->
-      <div v-if="loading && !data" class="d-flex justify-center align-center" style="height: 400px">
-        <v-progress-circular indeterminate size="64" />
+      <div
+        v-if="loading && !data"
+        class="flex justify-center items-center"
+        style="height: 400px"
+      >
+        <div
+          class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"
+        />
       </div>
 
       <!-- Error state -->
-      <v-alert v-else-if="error" type="error" variant="outlined" class="mb-4">
-        {{ error }}
-      </v-alert>
+      <Alert v-else-if="error" variant="destructive" class="mb-4">
+        <AlertDescription>{{ error }}</AlertDescription>
+      </Alert>
 
       <!-- UpSet visualization -->
-      <div v-else-if="data">
+      <div v-else-if="data" class="relative">
         <!-- Loading overlay for data updates -->
-        <v-overlay :model-value="loading" contained persistent class="align-center justify-center">
-          <v-progress-circular indeterminate size="64" />
-        </v-overlay>
-        <!-- Summary stats -->
-        <div class="mb-4">
-          <v-row class="text-center">
-            <v-col cols="12" sm="3">
-              <div class="text-h6 text-primary">{{ data.sets.length }}</div>
-              <div class="text-caption">Data Sources</div>
-            </v-col>
-            <v-col cols="12" sm="3">
-              <div class="text-h6 text-primary">{{ data.intersections.length }}</div>
-              <div class="text-caption">Intersections</div>
-            </v-col>
-            <v-col cols="12" sm="3">
-              <div class="text-h6 text-primary">
-                {{ data.overlap_statistics.genes_in_all_sources }}
-              </div>
-              <div class="text-caption">In All Sources</div>
-            </v-col>
-            <v-col cols="12" sm="3">
-              <div class="text-h6 text-primary">
-                {{ data.overlap_statistics.single_source_combinations }}
-              </div>
-              <div class="text-caption">Single Source Only</div>
-            </v-col>
-          </v-row>
+        <div
+          v-if="loading"
+          class="absolute inset-0 z-10 flex items-center justify-center bg-background/80"
+        >
+          <div
+            class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"
+          />
         </div>
 
-        <v-divider class="mb-4" />
+        <!-- Summary stats -->
+        <div class="mb-4">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+            <div>
+              <div class="text-lg font-semibold text-primary">{{ data.sets.length }}</div>
+              <div class="text-xs text-muted-foreground">Data Sources</div>
+            </div>
+            <div>
+              <div class="text-lg font-semibold text-primary">
+                {{ data.intersections.length }}
+              </div>
+              <div class="text-xs text-muted-foreground">Intersections</div>
+            </div>
+            <div>
+              <div class="text-lg font-semibold text-primary">
+                {{ data.overlap_statistics.genes_in_all_sources }}
+              </div>
+              <div class="text-xs text-muted-foreground">In All Sources</div>
+            </div>
+            <div>
+              <div class="text-lg font-semibold text-primary">
+                {{ data.overlap_statistics.single_source_combinations }}
+              </div>
+              <div class="text-xs text-muted-foreground">Single Source Only</div>
+            </div>
+          </div>
+        </div>
+
+        <Separator class="mb-4" />
 
         <!-- Source Selection Interface -->
         <div class="source-selection-container mb-4">
-          <div class="d-flex align-center flex-wrap gap-2">
-            <div class="d-flex align-center">
-              <Filter class="size-4 me-2" />
-              <span class="text-subtitle-2">Selected Sources ({{ selectedSources.length }}):</span>
+          <div class="flex items-center flex-wrap gap-2">
+            <div class="flex items-center">
+              <Filter class="size-4 mr-2" />
+              <span class="text-sm font-medium"
+                >Selected Sources ({{ selectedSources.length }}):</span
+              >
             </div>
 
             <!-- Source chips inline -->
-            <v-chip
-              v-for="source in selectedSources"
-              :key="source"
-              class="ma-1"
-              closable
-              color="primary"
-              variant="flat"
-              size="small"
-              @click:close="removeSource(source)"
-            >
+            <Badge v-for="source in selectedSources" :key="source" class="gap-1 m-1">
               {{ source }}
-            </v-chip>
+              <button
+                class="ml-1 rounded-full hover:bg-destructive/20"
+                @click="removeSource(source)"
+              >
+                <X :size="12" />
+              </button>
+            </Badge>
 
             <!-- Select All chip -->
-            <v-chip
+            <Badge
               v-if="selectedSources.length < availableSources.length"
-              class="ma-1"
-              variant="outlined"
-              color="success"
-              prepend-icon="mdi-select-all"
-              size="small"
+              variant="outline"
+              class="cursor-pointer m-1"
               @click="selectAllSources"
             >
+              <CheckSquare :size="14" class="mr-1" />
               Select All
-            </v-chip>
+            </Badge>
 
             <!-- Add source menu -->
-            <v-menu v-if="availableToAdd.length > 0">
-              <template #activator="{ props: menuProps }">
-                <v-chip
-                  v-bind="menuProps"
-                  class="ma-1"
-                  variant="outlined"
-                  color="primary"
-                  prepend-icon="mdi-plus"
-                  size="small"
-                >
-                  Add Source
-                </v-chip>
-              </template>
-              <v-list>
-                <v-list-item
+            <DropdownMenu v-if="availableToAdd.length > 0">
+              <DropdownMenuTrigger as-child>
+                <Badge variant="outline" class="cursor-pointer m-1">
+                  <Plus :size="14" class="mr-1" /> Add Source
+                </Badge>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
                   v-for="source in availableToAdd"
                   :key="source"
                   @click="addSource(source)"
                 >
-                  <v-list-item-title>{{ source }}</v-list-item-title>
-                </v-list-item>
-              </v-list>
-            </v-menu>
+                  {{ source }}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -165,57 +182,89 @@
         <!-- Empty state when no sources selected -->
         <div v-show="selectedSources.length === 0" class="empty-state">
           <ChartScatter class="size-16 text-muted-foreground" />
-          <h3 class="text-h6 mt-4 mb-2 text-grey-lighten-1">No Sources Selected</h3>
-          <p class="text-body-2 text-grey">
+          <h3 class="text-lg font-semibold mt-4 mb-2 text-muted-foreground">
+            No Sources Selected
+          </h3>
+          <p class="text-sm text-muted-foreground">
             Select one or more data sources above to view the UpSet plot visualization.
           </p>
         </div>
 
         <!-- Selected intersection details -->
-        <v-card v-if="selectedIntersection" variant="outlined" class="mt-4">
-          <v-card-title class="text-h6">
-            Selected Intersection: {{ selectedIntersection.name }}
-          </v-card-title>
-          <v-card-text>
+        <Card v-if="selectedIntersection" variant="outline" class="mt-4 border">
+          <CardHeader class="pb-2">
+            <CardTitle class="text-lg font-semibold">
+              Selected Intersection: {{ selectedIntersection.name }}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <div class="mb-2">
               <strong>{{ selectedIntersection.cardinality }}</strong> genes in this intersection
             </div>
-            <v-chip-group v-if="selectedIntersection.elems.length <= 20">
-              <v-chip
+            <div
+              v-if="selectedIntersection.elems.length <= 20"
+              class="flex flex-wrap gap-1"
+            >
+              <Badge
                 v-for="elem in selectedIntersection.elems"
                 :key="elem.name"
-                size="small"
-                variant="outlined"
+                variant="outline"
               >
                 {{ elem.name }}
-              </v-chip>
-            </v-chip-group>
+              </Badge>
+            </div>
             <div v-else>
               <div class="mb-2">First 20 genes:</div>
-              <v-chip-group>
-                <v-chip
+              <div class="flex flex-wrap gap-1">
+                <Badge
                   v-for="elem in selectedIntersection.elems.slice(0, 20)"
                   :key="elem.name"
-                  size="small"
-                  variant="outlined"
+                  variant="outline"
                 >
                   {{ elem.name }}
-                </v-chip>
-              </v-chip-group>
-              <div class="text-caption mt-2">
+                </Badge>
+              </div>
+              <div class="text-xs text-muted-foreground mt-2">
                 ... and {{ selectedIntersection.elems.length - 20 }} more genes
               </div>
             </div>
-          </v-card-text>
-        </v-card>
+          </CardContent>
+        </Card>
       </div>
-    </v-card-text>
-  </v-card>
+    </CardContent>
+  </Card>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { ChartScatter, CircleHelp, Filter } from 'lucide-vue-next'
+import {
+  ChartScatter,
+  CircleHelp,
+  Filter,
+  RefreshCw,
+  X,
+  Plus,
+  CheckSquare
+} from 'lucide-vue-next'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  TooltipProvider,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent
+} from '@/components/ui/tooltip'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem
+} from '@/components/ui/dropdown-menu'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Separator } from '@/components/ui/separator'
 import { statisticsApi } from '@/api/statistics'
 import { extractCombinations, renderUpSet } from '@upsetjs/bundle'
 
@@ -440,7 +489,7 @@ const renderUpSetPlot = () => {
   if (containerWidth < 400) {
     upsetContainer.value.innerHTML = `
       <div style="text-align: center; padding: 40px;">
-        <p>📱 Screen too narrow</p>
+        <p>Screen too narrow</p>
         <p>Please rotate to landscape or use a larger screen</p>
       </div>
     `
@@ -534,17 +583,13 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.upset-chart-container {
-  width: 100%;
-}
-
 .upset-plot {
   overflow-x: auto;
   overflow-y: hidden;
 }
 
 .source-selection-container {
-  background-color: rgb(var(--v-theme-surface));
+  background-color: hsl(var(--card));
   border-radius: 4px;
   padding: 12px;
 }
