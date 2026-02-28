@@ -1,80 +1,95 @@
 <template>
-  <v-card class="network-search-overlay" elevation="3" rounded="lg">
-    <v-card-text class="pa-3">
-      <!-- Search Input Field -->
-      <v-text-field
+  <div class="network-search-overlay rounded-lg border bg-card p-3 shadow-md">
+    <!-- Search Input Field -->
+    <div class="relative">
+      <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      <Input
         v-model="localSearchPattern"
-        label="Search genes"
         placeholder="e.g., COL*, PKD1, *A1"
-        prepend-inner-icon="mdi-magnify"
-        density="compact"
-        variant="outlined"
-        hide-details="auto"
-        clearable
-        :error-messages="errorMessage"
+        class="pl-8 h-9 pr-20"
+        :class="{ 'border-destructive': errorMessage }"
         @keyup.enter="handleSearch"
-        @click:clear="handleClear"
         @update:model-value="handleInputChange"
+      />
+      <!-- Clear button inside input -->
+      <button
+        v-if="localSearchPattern"
+        class="absolute right-2 top-2 h-5 w-5 rounded-full text-muted-foreground hover:text-foreground"
+        @click="handleClear"
       >
-        <!-- Match count chip in append slot -->
-        <template v-if="matchCount > 0" #append>
-          <v-chip size="x-small" color="success" label>
-            {{ matchCount }} {{ matchCount === 1 ? 'match' : 'matches' }}
-          </v-chip>
-        </template>
-      </v-text-field>
-
-      <!-- Help text for wildcards -->
-      <div v-if="showHelp" class="text-caption text-medium-emphasis mt-1 mb-2">
-        <Info class="size-3 mr-1" />
-        Use * for multiple chars, ? for single char
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="d-flex ga-2 mt-2">
-        <v-btn
-          color="warning"
-          size="small"
-          prepend-icon="mdi-checkbox-multiple-marked"
-          :disabled="matchCount === 0"
-          :loading="loading"
-          block
-          @click="$emit('highlight-all')"
-        >
-          Highlight All
-        </v-btn>
-        <v-btn
-          color="secondary"
-          size="small"
-          prepend-icon="mdi-fit-to-screen"
-          :disabled="matchCount === 0"
-          :loading="loading"
-          block
-          @click="$emit('fit-view')"
-        >
-          Fit View
-        </v-btn>
-      </div>
-
-      <!-- Error message display -->
-      <v-alert
-        v-if="error && !errorMessage"
-        type="error"
-        variant="tonal"
-        density="compact"
-        class="mt-2"
-        closable
-        @click:close="$emit('clear-error')"
+        <X class="h-4 w-4" />
+      </button>
+      <!-- Match count badge appended -->
+      <Badge
+        v-if="matchCount > 0"
+        class="absolute right-8 top-1.5 bg-green-600 text-white text-xs"
       >
-        {{ error }}
-      </v-alert>
-    </v-card-text>
-  </v-card>
+        {{ matchCount }} {{ matchCount === 1 ? 'match' : 'matches' }}
+      </Badge>
+    </div>
+
+    <!-- Error message below input -->
+    <p v-if="errorMessage" class="text-xs text-destructive mt-1">
+      {{ errorMessage }}
+    </p>
+
+    <!-- Help text for wildcards -->
+    <div v-if="showHelp" class="flex items-center text-xs text-muted-foreground mt-1 mb-2">
+      <Info class="size-3 mr-1 shrink-0" />
+      Use * for multiple chars, ? for single char
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex gap-2 mt-2">
+      <Button
+        variant="outline"
+        size="sm"
+        class="flex-1"
+        :disabled="matchCount === 0 || loading"
+        @click="$emit('highlight-all')"
+      >
+        <Highlighter class="h-4 w-4 mr-1" />
+        Highlight All
+      </Button>
+      <Button
+        variant="secondary"
+        size="sm"
+        class="flex-1"
+        :disabled="matchCount === 0 || loading"
+        @click="$emit('fit-view')"
+      >
+        <Maximize class="h-4 w-4 mr-1" />
+        Fit View
+      </Button>
+    </div>
+
+    <!-- Error alert display -->
+    <Alert
+      v-if="error && !errorMessage"
+      variant="destructive"
+      class="mt-2"
+    >
+      <AlertCircle class="h-4 w-4" />
+      <AlertDescription class="flex items-center justify-between">
+        <span>{{ error }}</span>
+        <button
+          class="ml-2 text-destructive hover:text-destructive/80"
+          @click="$emit('clear-error')"
+        >
+          <X class="h-3 w-3" />
+        </button>
+      </AlertDescription>
+    </Alert>
+  </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
-import { Info } from 'lucide-vue-next'
+import { Info, Search, X, Highlighter, Maximize, AlertCircle } from 'lucide-vue-next'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 // Props
 const props = defineProps({
@@ -150,13 +165,8 @@ const handleInputChange = value => {
   z-index: 1000;
   min-width: 320px;
   max-width: 400px;
-  background: rgba(255, 255, 255, 0.98);
+  background: hsl(var(--card) / 0.98);
   backdrop-filter: blur(8px);
-}
-
-/* Dark theme support */
-.v-theme--dark .network-search-overlay {
-  background: rgba(33, 33, 33, 0.98);
 }
 
 /* Hover effect for better interactivity */
