@@ -1,9 +1,14 @@
 /**
  * Axios API client configuration
+ *
+ * Uses config.ts as single source of truth for API base URL.
+ * - Dev (Vite): VITE_API_BASE_URL=http://localhost:8000
+ * - Docker/prod: window._env_.API_BASE_URL="" (same-origin, nginx proxies /api/)
  */
 
 import axios from 'axios'
 import type { AxiosInstance, InternalAxiosRequestConfig, AxiosError } from 'axios'
+import { config } from '@/config'
 
 // Augment Axios to support _retry flag on request config
 declare module 'axios' {
@@ -12,8 +17,7 @@ declare module 'axios' {
   }
 }
 
-const API_BASE_URL =
-  window._env_?.API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE_URL = config.apiBaseUrl
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,

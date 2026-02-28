@@ -11,7 +11,7 @@ cat > /usr/share/nginx/html/env-config.js <<EOF
 // Runtime environment configuration
 // Injected at container startup
 window._env_ = {
-  API_BASE_URL: "${API_BASE_URL:-/api}",
+  API_BASE_URL: "${API_BASE_URL:-}",
   WS_URL: "${WS_URL:-/ws}",
   ENVIRONMENT: "${ENVIRONMENT:-production}",
   VERSION: "${VERSION:-0.2.0}"

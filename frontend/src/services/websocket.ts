@@ -43,8 +43,18 @@ export class WebSocketService {
     // Construct WebSocket URL
     if (!url) {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const host = import.meta.env.VITE_API_URL?.replace(/^https?:\/\//, '') || 'localhost:8000'
-      url = `${protocol}//${host}/api/progress/ws`
+      const wsUrl = window._env_?.WS_URL ?? import.meta.env.VITE_WS_URL
+      if (wsUrl) {
+        // Use configured WS URL (e.g., /ws in Docker)
+        url = `${protocol}//${window.location.host}${wsUrl}/progress/ws`
+      } else {
+        // Dev fallback: derive from API base URL
+        const apiBase =
+          import.meta.env.VITE_API_BASE_URL ||
+          `${window.location.protocol}//${window.location.host}`
+        const host = apiBase.replace(/^https?:\/\//, '')
+        url = `${protocol}//${host}/api/progress/ws`
+      }
     }
 
     const resolvedUrl = url

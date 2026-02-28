@@ -10,7 +10,10 @@ export interface AppConfig {
 }
 
 export const config: AppConfig = {
-  apiBaseUrl: window._env_?.API_BASE_URL ?? import.meta.env.VITE_API_BASE_URL ?? '/api',
+  // Dev: VITE_API_BASE_URL=http://localhost:8000 (cross-origin)
+  // Docker/prod: window._env_.API_BASE_URL="" (same-origin, nginx proxies /api/)
+  // Fallback: empty string (same-origin)
+  apiBaseUrl: window._env_?.API_BASE_URL ?? import.meta.env.VITE_API_BASE_URL ?? '',
   wsUrl: window._env_?.WS_URL ?? import.meta.env.VITE_WS_URL ?? '/ws',
   environment: window._env_?.ENVIRONMENT ?? import.meta.env.MODE ?? 'development',
   version: window._env_?.VERSION ?? '0.2.0'

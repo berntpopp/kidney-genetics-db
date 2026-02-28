@@ -26,7 +26,7 @@ COPY nginx.prod.conf /etc/nginx/conf.d/default.conf
 RUN rm -f /etc/nginx/conf.d/default.conf.template && \
     # Move PID file to /tmp (writable by nginx user)
     # Note: nginx.conf has multiple spaces, so use [[:space:]]* to match any whitespace
-    sed -i 's|pid[[:space:]][[:space:]]*\/var\/run\/nginx\.pid;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf && \
+    sed -i 's|pid[[:space:]]*[^ ;]*nginx\.pid;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf && \
     # Remove user directive (conflicts with USER instruction)
     sed -i '/^user/d' /etc/nginx/nginx.conf && \
     # Set ownership of all required directories

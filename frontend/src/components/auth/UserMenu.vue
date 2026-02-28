@@ -1,95 +1,84 @@
-<template>
-  <v-menu v-model="menu" :close-on-content-click="false" location="bottom">
-    <template #activator="{ props }">
-      <v-btn v-bind="props" variant="tonal" size="default" color="primary">
-        <v-icon start>mdi-account</v-icon>
-        {{ authStore.user?.username }}
-        <v-icon end>mdi-chevron-down</v-icon>
-      </v-btn>
-    </template>
-
-    <v-card min-width="250">
-      <v-list density="compact">
-        <v-list-item>
-          <v-list-item-title class="font-weight-medium">
-            {{ authStore.user?.username }}
-          </v-list-item-title>
-          <v-list-item-subtitle>
-            {{ authStore.user?.email }}
-          </v-list-item-subtitle>
-          <template #append>
-            <v-chip :color="roleColor" size="x-small" label>
-              {{ authStore.userRole }}
-            </v-chip>
-          </template>
-        </v-list-item>
-      </v-list>
-
-      <v-divider />
-
-      <v-list density="compact">
-        <v-list-item @click="goToProfile">
-          <template #prepend>
-            <v-icon size="small">mdi-account-circle</v-icon>
-          </template>
-          <v-list-item-title>My Profile</v-list-item-title>
-        </v-list-item>
-
-        <v-list-item v-if="authStore.isAdmin" @click="goToAdminPanel">
-          <template #prepend>
-            <v-icon size="small">mdi-shield-crown</v-icon>
-          </template>
-          <v-list-item-title>Admin Panel</v-list-item-title>
-        </v-list-item>
-      </v-list>
-
-      <v-divider />
-
-      <v-list density="compact">
-        <v-list-item @click="handleLogout">
-          <template #prepend>
-            <v-icon size="small">mdi-logout</v-icon>
-          </template>
-          <v-list-item-title>Logout</v-list-item-title>
-        </v-list-item>
-      </v-list>
-    </v-card>
-  </v-menu>
-</template>
-
-<script setup>
-import { ref, computed } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+<script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuItem
+} from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { CircleUser, ShieldEllipsis, LogOut, ChevronDown } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 const router = useRouter()
 
-const menu = ref(false)
+const userInitials = computed(() => authStore.user?.username?.charAt(0).toUpperCase() ?? 'U')
 
-const roleColor = computed(() => {
+const roleBadgeVariant = computed<'destructive' | 'secondary' | 'default'>(() => {
   switch (authStore.userRole) {
     case 'admin':
-      return 'error'
+      return 'destructive'
     case 'curator':
-      return 'warning'
+      return 'secondary'
     default:
-      return 'primary'
+      return 'default'
   }
 })
 
 const goToProfile = () => {
-  menu.value = false
   router.push('/profile')
 }
 
 const goToAdminPanel = () => {
-  menu.value = false
   router.push('/admin')
 }
 
 const handleLogout = async () => {
-  menu.value = false
   await authStore.logout()
 }
 </script>
+
+<template>
+  <DropdownMenu>
+    <DropdownMenuTrigger as-child>
+      <Button variant="ghost" class="flex items-center gap-2">
+        <Avatar class="size-8">
+          <AvatarFallback>{{ userInitials }}</AvatarFallback>
+        </Avatar>
+        <span class="hidden sm:inline text-sm font-medium">{{ authStore.user?.username }}</span>
+        <ChevronDown class="size-4 text-muted-foreground" />
+      </Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end" class="w-56">
+      <DropdownMenuLabel class="font-normal">
+        <div class="flex flex-col space-y-1">
+          <p class="text-sm font-medium leading-none">{{ authStore.user?.username }}</p>
+          <p class="text-xs leading-none text-muted-foreground">{{ authStore.user?.email }}</p>
+        </div>
+      </DropdownMenuLabel>
+      <div class="px-2 py-1">
+        <Badge :variant="roleBadgeVariant" class="text-xs">{{ authStore.userRole }}</Badge>
+      </div>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem @click="goToProfile">
+        <CircleUser class="mr-2 size-4" />
+        My Profile
+      </DropdownMenuItem>
+      <DropdownMenuItem v-if="authStore.isAdmin" @click="goToAdminPanel">
+        <ShieldEllipsis class="mr-2 size-4" />
+        Admin Panel
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem @click="handleLogout">
+        <LogOut class="mr-2 size-4" />
+        Logout
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+</template>

@@ -1,51 +1,12 @@
-<template>
-  <div class="mb-6">
-    <!-- Breadcrumbs navigation (if provided) -->
-    <v-breadcrumbs
-      v-if="breadcrumbs && breadcrumbs.length > 0"
-      :items="breadcrumbs"
-      density="compact"
-      class="pa-0 mb-2"
-    >
-      <template #divider>
-        <v-icon size="small">mdi-chevron-right</v-icon>
-      </template>
-    </v-breadcrumbs>
-
-    <div class="d-flex align-center">
-      <!-- Icon - matches public view pattern -->
-      <v-icon v-if="icon" :color="iconColor" size="large" class="mr-3">
-        {{ icon }}
-      </v-icon>
-
-      <!-- Title and subtitle -->
-      <div class="flex-grow-1">
-        <h1 class="text-h4 font-weight-bold">{{ title }}</h1>
-        <p class="text-body-2 text-medium-emphasis ma-0">
-          {{ subtitle }}
-        </p>
-      </div>
-
-      <!-- Optional action slot -->
-      <div v-if="$slots.actions" class="ml-4">
-        <slot name="actions"></slot>
-      </div>
-    </div>
-
-    <!-- Optional divider (default: hidden to match public views) -->
-    <v-divider v-if="showDivider" class="mt-4" />
-  </div>
-</template>
-
-<script setup>
+<script setup lang="ts">
 /**
  * Unified admin header component
  *
  * Features:
- * - Breadcrumb navigation for hierarchical context
+ * - Breadcrumb navigation with shadcn-vue Breadcrumb
  * - Icon + Title alignment (horizontal)
  * - Consistent spacing (mb-6)
- * - Material Design 3 typography
+ * - Tailwind typography
  * - Action slot for primary actions
  *
  * Usage:
@@ -60,31 +21,80 @@
  *   ]"
  * />
  */
+import { RouterLink } from 'vue-router'
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator
+} from '@/components/ui/breadcrumb'
+import { Separator } from '@/components/ui/separator'
 
-defineProps({
-  title: {
-    type: String,
-    required: true
-  },
-  subtitle: {
-    type: String,
-    default: ''
-  },
-  icon: {
-    type: String,
-    default: ''
-  },
-  iconColor: {
-    type: String,
-    default: 'primary'
-  },
-  showDivider: {
-    type: Boolean,
-    default: false
-  },
-  breadcrumbs: {
-    type: Array,
-    default: () => []
+interface BreadcrumbItemType {
+  title: string
+  to?: string
+  disabled?: boolean
+}
+
+withDefaults(
+  defineProps<{
+    title: string
+    subtitle?: string
+    icon?: string
+    iconColor?: string
+    showDivider?: boolean
+    breadcrumbs?: BreadcrumbItemType[]
+  }>(),
+  {
+    subtitle: '',
+    icon: '',
+    iconColor: 'primary',
+    showDivider: false,
+    breadcrumbs: () => []
   }
-})
+)
 </script>
+
+<template>
+  <div class="mb-6">
+    <!-- Breadcrumbs navigation (if provided) -->
+    <Breadcrumb v-if="breadcrumbs && breadcrumbs.length > 0" class="mb-2">
+      <BreadcrumbList>
+        <template v-for="(item, index) in breadcrumbs" :key="item.title">
+          <BreadcrumbItem>
+            <BreadcrumbLink v-if="!item.disabled && item.to" as-child>
+              <RouterLink :to="item.to">{{ item.title }}</RouterLink>
+            </BreadcrumbLink>
+            <BreadcrumbPage v-else>{{ item.title }}</BreadcrumbPage>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
+        </template>
+      </BreadcrumbList>
+    </Breadcrumb>
+
+    <div class="flex items-center">
+      <!-- TODO: Phase 7 - replace v-icon with Lucide component lookup -->
+      <v-icon v-if="icon" :color="iconColor" size="large" class="mr-3">
+        {{ icon }}
+      </v-icon>
+
+      <!-- Title and subtitle -->
+      <div class="flex-1">
+        <h1 class="text-2xl font-bold">{{ title }}</h1>
+        <p class="text-sm text-muted-foreground m-0">
+          {{ subtitle }}
+        </p>
+      </div>
+
+      <!-- Optional action slot -->
+      <div v-if="$slots.actions" class="ml-4">
+        <slot name="actions" />
+      </div>
+    </div>
+
+    <!-- Optional divider -->
+    <Separator v-if="showDivider" class="mt-4" />
+  </div>
+</template>
