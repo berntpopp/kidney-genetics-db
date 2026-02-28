@@ -1,464 +1,203 @@
-<template>
-  <div>
-    <!-- Enhanced Search and Filter Bar -->
-    <v-card elevation="0" class="search-card mb-4" rounded="lg">
-      <v-card-text class="pa-4">
-        <div class="d-flex align-center justify-space-between mb-3">
-          <div>
-            <h2 class="text-h6 font-weight-medium mb-1">Search & Filter</h2>
-            <div class="d-flex align-center ga-1">
-              <p class="text-caption text-medium-emphasis mb-0">
-                Explore {{ totalItems.toLocaleString() }} kidney disease genes
-              </p>
-              <v-tooltip location="bottom" max-width="300">
-                <template #activator="{ props }">
-                  <Info class="size-3 text-medium-emphasis" v-bind="props" />
-                </template>
-                <div class="pa-2">
-                  <strong>Genes with evidence:</strong> {{ totalItems.toLocaleString() }} genes with
-                  evidence score > 0
-                  <template v-if="hiddenGeneCount > 0">
-                    <br /><br />{{ hiddenGeneCount.toLocaleString() }} genes with insufficient
-                    evidence are currently hidden. <br />Toggle "Show genes with insufficient
-                    evidence" below to see all
-                    {{ (totalItems + hiddenGeneCount).toLocaleString() }} genes in the database.
-                  </template>
-                </div>
-              </v-tooltip>
-            </div>
-          </div>
-          <div class="d-flex ga-2">
-            <v-btn
-              icon="mdi-download"
-              variant="outlined"
-              size="small"
-              :disabled="loading"
-              title="Export filtered results"
-              @click="exportData"
-            />
-            <v-btn
-              icon="mdi-filter-remove"
-              variant="outlined"
-              size="small"
-              :color="hasActiveFilters ? 'warning' : ''"
-              :disabled="!hasActiveFilters"
-              title="Clear all filters"
-              @click="clearAllFilters"
-            />
-            <v-btn
-              icon="mdi-refresh"
-              variant="outlined"
-              size="small"
-              :loading="loading"
-              title="Refresh data"
-              @click="refreshData"
-            />
-          </div>
-        </div>
-
-        <!-- Compact Filters Row -->
-        <v-row align="center" class="mb-2">
-          <!-- Search -->
-          <v-col cols="12" lg="4">
-            <v-text-field
-              v-model="search"
-              prepend-inner-icon="mdi-magnify"
-              label="Search"
-              placeholder="PKD1, HGNC:9008..."
-              clearable
-              hide-details
-              variant="outlined"
-              density="compact"
-              single-line
-              @update:model-value="debouncedSearch"
-            />
-          </v-col>
-
-          <!-- Data Sources -->
-          <v-col cols="12" lg="3">
-            <v-select
-              v-model="selectedSources"
-              :items="availableSources"
-              label="Sources"
-              multiple
-              chips
-              closable-chips
-              hide-details
-              variant="outlined"
-              density="compact"
-              @update:model-value="debouncedSearch"
-            />
-          </v-col>
-
-          <!-- Evidence Tiers -->
-          <v-col cols="12" lg="3">
-            <v-select
-              v-model="selectedTiers"
-              :items="availableTiers"
-              label="Evidence Tiers"
-              multiple
-              chips
-              closable-chips
-              hide-details
-              variant="outlined"
-              density="compact"
-              @update:model-value="debouncedSearch"
-            >
-              <template #chip="{ item, props }">
-                <v-chip v-bind="props" :color="getTierColor(item.value)" size="small" closable>
-                  {{ item.title }}
-                </v-chip>
-              </template>
-            </v-select>
-          </v-col>
-
-          <!-- Sort -->
-          <v-col cols="12" lg="3">
-            <v-select
-              v-model="sortOption"
-              :items="sortOptions"
-              label="Sort by"
-              hide-details
-              variant="outlined"
-              density="compact"
-              @update:model-value="applySorting"
-            />
-          </v-col>
-        </v-row>
-
-        <!-- Range Sliders Row -->
-        <v-row align="center" class="mb-2">
-          <v-col cols="12" md="6">
-            <div class="d-flex align-center ga-2">
-              <span class="text-caption font-weight-medium" style="min-width: 90px">Score:</span>
-              <v-chip size="x-small" variant="tonal">{{ evidenceScoreRange[0] }}</v-chip>
-              <v-range-slider
-                v-model="evidenceScoreRange"
-                :min="0"
-                :max="100"
-                :step="1"
-                hide-details
-                color="primary"
-                density="compact"
-                class="flex-grow-1 mx-2"
-                @update:model-value="debouncedSearch"
-              />
-              <v-chip size="x-small" variant="tonal">{{ evidenceScoreRange[1] }}</v-chip>
-            </div>
-          </v-col>
-
-          <v-col cols="12" md="6">
-            <div class="d-flex align-center ga-2">
-              <span class="text-caption font-weight-medium" style="min-width: 90px">Count:</span>
-              <v-chip size="x-small" variant="tonal">{{ evidenceCountRange[0] }}</v-chip>
-              <v-range-slider
-                v-model="evidenceCountRange"
-                :min="0"
-                :max="filterMeta?.evidence_count?.max || 6"
-                :step="1"
-                hide-details
-                color="secondary"
-                density="compact"
-                class="flex-grow-1 mx-2"
-                @update:model-value="debouncedSearch"
-              />
-              <v-chip size="x-small" variant="tonal">{{ evidenceCountRange[1] }}</v-chip>
-            </div>
-          </v-col>
-        </v-row>
-
-        <!-- Additional Filters Row -->
-        <v-row align="center">
-          <v-col cols="12">
-            <div class="d-flex align-center ga-4">
-              <v-switch
-                v-model="showZeroScoreGenes"
-                color="primary"
-                density="compact"
-                hide-details
-                @update:model-value="debouncedSearch"
-              >
-                <template #label>
-                  <span class="text-body-2">
-                    Show genes with insufficient evidence
-                    <v-tooltip location="bottom">
-                      <template #activator="{ props }">
-                        <Info class="size-3 ml-1 text-medium-emphasis" v-bind="props" />
-                      </template>
-                      <div class="pa-2">
-                        Include {{ hiddenGeneCount.toLocaleString() }} genes with evidence score = 0
-                        <br />(single source or disputed classification)
-                      </div>
-                    </v-tooltip>
-                  </span>
-                </template>
-              </v-switch>
-              <v-chip
-                v-if="!showZeroScoreGenes && hiddenGeneCount > 0"
-                size="small"
-                variant="tonal"
-                color="warning"
-              >
-                <EyeOff class="size-3 mr-1" />
-                {{ hiddenGeneCount.toLocaleString() }} genes hidden
-              </v-chip>
-            </div>
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
-
-    <!-- Top Pagination Controls (per Style Guide) -->
-    <v-card elevation="0" class="mb-2" rounded="lg">
-      <v-card-text class="pa-3">
-        <div class="d-flex align-center justify-space-between">
-          <div class="d-flex align-center ga-4">
-            <div class="text-body-2 d-flex align-center ga-1">
-              <span class="font-weight-medium">{{ totalItems.toLocaleString() }}</span>
-              <span class="text-medium-emphasis">Genes</span>
-              <v-chip
-                v-if="!showZeroScoreGenes && hiddenGeneCount > 0"
-                size="x-small"
-                variant="text"
-                class="px-1"
-              >
-                ({{ hiddenGeneCount.toLocaleString() }} hidden)
-              </v-chip>
-            </div>
-            <v-divider vertical />
-            <div class="text-body-2 text-medium-emphasis">
-              {{ pageRangeText }}
-            </div>
-          </div>
-          <div class="d-flex align-center ga-2">
-            <span class="text-caption text-medium-emphasis mr-2">Per page:</span>
-            <v-select
-              v-model="itemsPerPage"
-              :items="itemsPerPageOptions"
-              density="compact"
-              variant="outlined"
-              hide-details
-              style="width: 100px"
-              @update:model-value="updateItemsPerPage"
-            />
-            <v-pagination
-              v-model="page"
-              :length="pageCount"
-              :total-visible="5"
-              density="compact"
-              @update:model-value="updatePage"
-            />
-          </div>
-        </div>
-      </v-card-text>
-    </v-card>
-
-    <!-- Data Table -->
-    <v-card rounded="lg">
-      <v-data-table-server
-        :items-per-page="itemsPerPage"
-        :page="page"
-        :sort-by="sortBy"
-        :headers="headers"
-        :items="genes"
-        :items-length="totalItems"
-        :loading="loading"
-        :items-per-page-options="itemsPerPageOptions"
-        density="compact"
-        :hover="true"
-        :show-select="false"
-        :must-sort="true"
-        :no-data-text="noDataText"
-        @update:options="handleTableUpdate"
-      >
-        <!-- Gene Symbol with Link -->
-        <template #[`item.approved_symbol`]="{ item }">
-          <div class="d-flex align-center">
-            <router-link
-              :to="`/genes/${item.approved_symbol}`"
-              class="gene-symbol text-primary text-decoration-none font-weight-medium"
-            >
-              {{ item.approved_symbol }}
-            </router-link>
-            <v-tooltip v-if="item.aliases?.length" location="bottom">
-              <template #activator="{ props }">
-                <Info class="size-3 ml-1 text-medium-emphasis" v-bind="props" />
-              </template>
-              <div class="pa-2">
-                <strong>Aliases:</strong><br />
-                {{ item.aliases.join(', ') }}
-              </div>
-            </v-tooltip>
-          </div>
-        </template>
-
-        <!-- HGNC ID -->
-        <template #[`item.hgnc_id`]="{ item }">
-          <code v-if="item.hgnc_id" class="text-caption bg-surface-variant pa-1 rounded">
-            {{ item.hgnc_id }}
-          </code>
-          <v-chip v-else color="grey" variant="tonal" size="x-small">N/A</v-chip>
-        </template>
-
-        <!-- Evidence Tier -->
-        <template #[`item.evidence_tier`]="{ item }">
-          <EvidenceTierBadge :tier="item.evidence_tier" size="x-small" />
-        </template>
-
-        <!-- Evidence Count with Visual Indicator -->
-        <template #[`item.evidence_count`]="{ item }">
-          <div class="d-flex align-center">
-            <v-chip
-              :color="getEvidenceCountColor(item.evidence_count)"
-              size="x-small"
-              variant="tonal"
-              class="font-weight-medium"
-            >
-              {{ item.evidence_count }}
-            </v-chip>
-            <v-progress-linear
-              :model-value="getEvidenceStrength(item.evidence_count)"
-              :color="getEvidenceCountColor(item.evidence_count)"
-              height="2"
-              class="ml-2"
-              style="width: 40px"
-            />
-          </div>
-        </template>
-
-        <!-- Enhanced Evidence Score with Breakdown -->
-        <template #[`item.evidence_score`]="{ item }">
-          <div class="text-center">
-            <ScoreBreakdown
-              v-if="item.evidence_score !== null && item.evidence_score !== undefined"
-              :score="item.evidence_score"
-              :breakdown="getSourcesAsBreakdown(item.sources)"
-              variant="inline"
-              size="small"
-            />
-            <v-chip v-else color="grey" variant="tonal" size="x-small">N/A</v-chip>
-          </div>
-        </template>
-
-        <!-- Enhanced Sources -->
-        <template #[`item.sources`]="{ item }">
-          <div class="d-flex flex-wrap ga-1">
-            <v-chip
-              v-for="source in item.sources?.slice(0, 3)"
-              :key="source"
-              size="x-small"
-              :color="getSourceColor(source)"
-              variant="tonal"
-              class="font-weight-medium"
-            >
-              {{ source }}
-            </v-chip>
-            <v-menu v-if="item.sources?.length > 3" location="bottom">
-              <template #activator="{ props }">
-                <v-chip size="x-small" variant="outlined" v-bind="props">
-                  +{{ item.sources.length - 3 }}
-                </v-chip>
-              </template>
-              <v-list density="compact">
-                <v-list-item v-for="source in item.sources.slice(3)" :key="source">
-                  <v-chip size="x-small" :color="getSourceColor(source)" variant="tonal">
-                    {{ source }}
-                  </v-chip>
-                </v-list-item>
-              </v-list>
-            </v-menu>
-          </div>
-        </template>
-
-        <!-- No bottom slot - pagination is at the top per style guide -->
-        <template #bottom></template>
-      </v-data-table-server>
-    </v-card>
-
-    <!-- Empty State -->
-    <v-card v-if="!loading && genes.length === 0" class="text-center pa-12" rounded="lg">
-      <Search class="size-8 mb-4 text-medium-emphasis" />
-      <h3 class="text-h6 mb-2">No genes found</h3>
-      <p class="text-body-2 text-medium-emphasis mb-4">
-        {{ search ? `No results for "${search}"` : 'Try adjusting your filters' }}
-      </p>
-      <v-btn v-if="hasActiveFilters" color="primary" variant="outlined" @click="clearAllFilters">
-        Clear Filters
-      </v-btn>
-    </v-card>
-  </div>
-</template>
-
-<script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { Info, EyeOff, Search } from 'lucide-vue-next'
-import { useRoute, useRouter } from 'vue-router'
+<script setup lang="ts">
+import { ref, computed, onMounted, watch, h } from 'vue'
+import type { ColumnDef, SortingState, PaginationState } from '@tanstack/vue-table'
+import { useVueTable, getCoreRowModel } from '@tanstack/vue-table'
+import { Info, EyeOff, Search, Download, FilterX, RefreshCw } from 'lucide-vue-next'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { geneApi } from '../api/genes'
 import ScoreBreakdown from './ScoreBreakdown.vue'
 import EvidenceTierBadge from './EvidenceTierBadge.vue'
 import { TIER_CONFIG } from '@/utils/evidenceTiers'
+import { DataTable, DataTableColumnHeader, DataTablePagination } from '@/components/ui/data-table'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import { Slider } from '@/components/ui/slider'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Separator } from '@/components/ui/separator'
+import { Progress } from '@/components/ui/progress'
 
+// Route
 const route = useRoute()
 const router = useRouter()
 
 // Data
-const genes = ref([])
+const genes = ref<any[]>([])
 const loading = ref(false)
 const totalItems = ref(0)
 const page = ref(1)
 const itemsPerPage = ref(10)
 const search = ref('')
 const evidenceScoreRange = ref([0, 100])
-const selectedSources = ref([])
-const selectedTiers = ref([])
-const evidenceCountRange = ref([0, 7]) // Initialize with a sensible default
+const selectedSources = ref<string[]>([])
+const selectedTiers = ref<string[]>([])
+const evidenceCountRange = ref([0, 7])
 const sortOption = ref('score_desc')
-const filterMeta = ref(null)
+const filterMeta = ref<any>(null)
 const sortBy = ref([{ key: 'evidence_score', order: 'desc' }])
-const showZeroScoreGenes = ref(false) // Default: hide genes with score=0
+const showZeroScoreGenes = ref(false)
 
 // Track initialization to prevent circular updates
 const isInitializing = ref(true)
 const isNavigating = ref(false)
 
 // Options
-const itemsPerPageOptions = [
-  { value: 5, title: '5' },
-  { value: 10, title: '10' },
-  { value: 20, title: '20' },
-  { value: 50, title: '50' },
-  { value: 100, title: '100' }
-]
+const itemsPerPageOptions = [10, 20, 50, 100]
 
-// Dynamic sources list - will be populated from API
-const availableSources = ref([])
+// Dynamic sources list
+const availableSources = ref<{ title: string; value: string }[]>([])
 
 // Available evidence tiers from config
 const availableTiers = computed(() => {
   return Object.entries(TIER_CONFIG).map(([key, config]) => ({
     title: config.label,
-    value: key
+    value: key,
+    color: config.color
   }))
 })
 
 const sortOptions = [
-  { title: 'Evidence Score (High to Low)', value: 'score_desc' },
-  { title: 'Evidence Score (Low to High)', value: 'score_asc' },
-  { title: 'Evidence Tier (Best to Weakest)', value: 'tier_asc' },
-  { title: 'Evidence Tier (Weakest to Best)', value: 'tier_desc' },
-  { title: 'Gene Symbol (A-Z)', value: 'symbol_asc' },
-  { title: 'Gene Symbol (Z-A)', value: 'symbol_desc' },
-  { title: 'Evidence Count (High to Low)', value: 'count_desc' },
-  { title: 'Evidence Count (Low to High)', value: 'count_asc' }
+  { title: 'Score (High → Low)', value: 'score_desc' },
+  { title: 'Score (Low → High)', value: 'score_asc' },
+  { title: 'Tier (Best → Weakest)', value: 'tier_asc' },
+  { title: 'Tier (Weakest → Best)', value: 'tier_desc' },
+  { title: 'Symbol (A → Z)', value: 'symbol_asc' },
+  { title: 'Symbol (Z → A)', value: 'symbol_desc' },
+  { title: 'Count (High → Low)', value: 'count_desc' },
+  { title: 'Count (Low → High)', value: 'count_asc' }
 ]
 
-const headers = [
-  { title: 'Gene Symbol', key: 'approved_symbol', sortable: true },
-  { title: 'HGNC ID', key: 'hgnc_id', sortable: true },
-  { title: 'Evidence Tier', key: 'evidence_tier', sortable: true },
-  { title: 'Evidence Count', key: 'evidence_count', sortable: true },
-  { title: 'Evidence Score', key: 'evidence_score', sortable: true },
-  { title: 'Data Sources', key: 'sources', sortable: false }
+// Column definitions
+const columns: ColumnDef<any>[] = [
+  {
+    accessorKey: 'approved_symbol',
+    header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Gene' }),
+    cell: ({ row }) => {
+      const symbol = row.getValue('approved_symbol') as string
+      const aliases = row.original.aliases as string[] | undefined
+      return h('div', { class: 'flex items-center gap-1' }, [
+        h(
+          RouterLink,
+          {
+            to: `/genes/${symbol}`,
+            class: 'text-primary hover:underline font-medium font-mono text-sm'
+          },
+          () => symbol
+        ),
+        ...(aliases?.length
+          ? [
+              h(TooltipProvider, null, () =>
+                h(Tooltip, null, {
+                  default: () => [
+                    h(TooltipTrigger, { asChild: true }, () =>
+                      h(Info, { class: 'h-3 w-3 text-muted-foreground' })
+                    ),
+                    h(TooltipContent, null, () =>
+                      h('div', null, [h('strong', null, 'Aliases: '), aliases.join(', ')])
+                    )
+                  ]
+                })
+              )
+            ]
+          : [])
+      ])
+    },
+    size: 140
+  },
+  {
+    accessorKey: 'hgnc_id',
+    header: ({ column }) => h(DataTableColumnHeader, { column, title: 'HGNC ID' }),
+    cell: ({ row }) => {
+      const id = row.getValue('hgnc_id') as string | null
+      return id
+        ? h('code', { class: 'text-xs bg-muted px-1 py-0.5 rounded font-mono' }, id)
+        : h(Badge, { variant: 'secondary', class: 'text-[10px]' }, () => 'N/A')
+    },
+    size: 110
+  },
+  {
+    accessorKey: 'evidence_tier',
+    header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Tier' }),
+    cell: ({ row }) =>
+      h(EvidenceTierBadge, { tier: row.getValue('evidence_tier'), size: 'x-small' }),
+    size: 100
+  },
+  {
+    accessorKey: 'evidence_count',
+    header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Evidence' }),
+    cell: ({ row }) => {
+      const count = row.getValue('evidence_count') as number
+      return h('div', { class: 'flex items-center gap-2' }, [
+        h(
+          Badge,
+          {
+            variant: 'secondary',
+            class: 'font-mono text-xs'
+          },
+          () => count
+        ),
+        h(Progress, {
+          modelValue: getEvidenceStrength(count),
+          class: 'h-0.5 w-10'
+        })
+      ])
+    },
+    size: 100
+  },
+  {
+    accessorKey: 'evidence_score',
+    header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Score' }),
+    cell: ({ row }) => {
+      const score = row.getValue('evidence_score')
+      if (score === null || score === undefined) {
+        return h(Badge, { variant: 'secondary', class: 'text-[10px]' }, () => 'N/A')
+      }
+      return h(ScoreBreakdown, {
+        score,
+        breakdown: getSourcesAsBreakdown(row.original.sources),
+        variant: 'inline',
+        size: 'small'
+      })
+    },
+    size: 100
+  },
+  {
+    accessorKey: 'sources',
+    header: 'Sources',
+    cell: ({ row }) => {
+      const sources = (row.getValue('sources') as string[]) || []
+      return h('div', { class: 'flex flex-wrap gap-1' }, [
+        ...sources.slice(0, 3).map(s =>
+          h(
+            Badge,
+            {
+              key: s,
+              variant: 'outline',
+              class: 'text-[10px] font-medium'
+            },
+            () => s
+          )
+        ),
+        ...(sources.length > 3
+          ? [h('span', { class: 'text-xs text-muted-foreground' }, `+${sources.length - 3}`)]
+          : [])
+      ])
+    },
+    enableSorting: false,
+    size: 200
+  }
 ]
 
 // Computed
@@ -472,7 +211,6 @@ const pageRangeText = computed(() => {
 })
 
 const hiddenGeneCount = computed(() => {
-  // Get hidden count from API metadata
   return filterMeta.value?.hidden_zero_scores || 0
 })
 
@@ -485,15 +223,50 @@ const hasActiveFilters = computed(() => {
     evidenceCountRange.value[1] < (filterMeta.value?.evidence_count?.max || 6) ||
     selectedSources.value.length > 0 ||
     selectedTiers.value.length > 0 ||
-    showZeroScoreGenes.value // Include zero score filter
+    showZeroScoreGenes.value
   )
 })
 
-const noDataText = computed(() => {
-  if (hasActiveFilters.value) {
-    return 'No genes match your current filters'
+// TanStack Table setup (server-side)
+const table = useVueTable({
+  get data() {
+    return genes.value
+  },
+  columns,
+  getCoreRowModel: getCoreRowModel(),
+  manualPagination: true,
+  manualSorting: true,
+  get pageCount() {
+    return pageCount.value
+  },
+  state: {
+    get pagination(): PaginationState {
+      return { pageIndex: page.value - 1, pageSize: itemsPerPage.value }
+    },
+    get sorting(): SortingState {
+      return sortBy.value.map(s => ({
+        id: s.key,
+        desc: s.order === 'desc'
+      }))
+    }
+  },
+  onPaginationChange: updater => {
+    if (isInitializing.value || isNavigating.value) return
+    const current = { pageIndex: page.value - 1, pageSize: itemsPerPage.value }
+    const newState = typeof updater === 'function' ? updater(current) : updater
+    page.value = newState.pageIndex + 1
+    itemsPerPage.value = newState.pageSize
+    updateUrl()
+    loadGenes()
+  },
+  onSortingChange: updater => {
+    if (isInitializing.value || isNavigating.value) return
+    const current = sortBy.value.map(s => ({ id: s.key, desc: s.order === 'desc' }))
+    const newState = typeof updater === 'function' ? updater(current) : updater
+    sortBy.value = newState.map(s => ({ key: s.id, order: s.desc ? 'desc' : 'asc' }))
+    updateUrl()
+    loadGenes()
   }
-  return 'No gene data available'
 })
 
 // Parse URL parameters and apply to component state
@@ -501,27 +274,26 @@ const parseUrlParams = () => {
   const query = route.query
 
   if (query.page) {
-    const parsedPage = parseInt(query.page)
+    const parsedPage = parseInt(query.page as string)
     if (!isNaN(parsedPage) && parsedPage > 0) {
       page.value = parsedPage
     }
   }
 
   if (query.per_page) {
-    const parsedPerPage = parseInt(query.per_page)
-    if (!isNaN(parsedPerPage) && itemsPerPageOptions.some(opt => opt.value === parsedPerPage)) {
+    const parsedPerPage = parseInt(query.per_page as string)
+    if (!isNaN(parsedPerPage) && itemsPerPageOptions.includes(parsedPerPage)) {
       itemsPerPage.value = parsedPerPage
     }
   }
 
   if (query.search) {
-    search.value = query.search
+    search.value = query.search as string
   }
 
   if (query.sort_by && query.sort_order) {
-    sortBy.value = [{ key: query.sort_by, order: query.sort_order }]
-    // Update sortOption for dropdown
-    const sortMap = {
+    sortBy.value = [{ key: query.sort_by as string, order: query.sort_order as string }]
+    const sortMap: Record<string, string> = {
       evidence_score_desc: 'score_desc',
       evidence_score_asc: 'score_asc',
       evidence_tier_asc: 'tier_asc',
@@ -535,26 +307,25 @@ const parseUrlParams = () => {
   }
 
   if (query.min_score) {
-    evidenceScoreRange.value[0] = parseInt(query.min_score) || 0
+    evidenceScoreRange.value[0] = parseInt(query.min_score as string) || 0
   }
   if (query.max_score) {
-    evidenceScoreRange.value[1] = parseInt(query.max_score) || 100
+    evidenceScoreRange.value[1] = parseInt(query.max_score as string) || 100
   }
 
   if (query.min_count) {
-    evidenceCountRange.value[0] = parseInt(query.min_count) || 0
+    evidenceCountRange.value[0] = parseInt(query.min_count as string) || 0
   }
   if (query.max_count) {
-    evidenceCountRange.value[1] = parseInt(query.max_count) || 7
+    evidenceCountRange.value[1] = parseInt(query.max_count as string) || 7
   }
 
   if (query.source) {
-    selectedSources.value = [query.source]
+    selectedSources.value = [query.source as string]
   }
 
   if (query.tier) {
-    // Parse comma-separated tiers
-    selectedTiers.value = query.tier
+    selectedTiers.value = (query.tier as string)
       .split(',')
       .map(t => t.trim())
       .filter(t => t)
@@ -569,7 +340,7 @@ const parseUrlParams = () => {
 const updateUrl = () => {
   if (isInitializing.value) return
 
-  const query = {}
+  const query: Record<string, any> = {}
 
   if (page.value !== 1) query.page = page.value
   if (itemsPerPage.value !== 10) query.per_page = itemsPerPage.value
@@ -586,58 +357,19 @@ const updateUrl = () => {
   if (evidenceCountRange.value[1] < 7) query.max_count = evidenceCountRange.value[1]
   if (selectedSources.value.length > 0) query.source = selectedSources.value[0]
   if (selectedTiers.value.length > 0) query.tier = selectedTiers.value.join(',')
-  if (showZeroScoreGenes.value) query.show_zero_scores = 'true' // Only add if true
+  if (showZeroScoreGenes.value) query.show_zero_scores = 'true'
 
   router.replace({ query })
 }
 
-// Handle table update events
-const handleTableUpdate = options => {
-  // During initialization or navigation, ignore the table's events
-  if (isInitializing.value || isNavigating.value) {
-    return
-  }
-
-  // Update our local state from the table options
-  let needsReload = false
-
-  if (options.page !== undefined && options.page !== page.value) {
-    page.value = options.page
-    needsReload = true
-  }
-
-  if (options.itemsPerPage !== undefined && options.itemsPerPage !== itemsPerPage.value) {
-    itemsPerPage.value = options.itemsPerPage
-    page.value = 1 // Reset to first page when changing items per page
-    needsReload = true
-  }
-
-  if (
-    options.sortBy?.length > 0 &&
-    JSON.stringify(options.sortBy) !== JSON.stringify(sortBy.value)
-  ) {
-    sortBy.value = options.sortBy
-    needsReload = true
-  }
-
-  if (needsReload) {
-    // Update URL with the new state
-    updateUrl()
-    // Load data with the new options
-    loadGenes()
-  }
-}
-
 // Methods
 const loadGenes = async () => {
-  // Prevent duplicate loading
   if (loading.value) return
 
   loading.value = true
   try {
-    // Parse sorting for API - always use current state values
-    let sortByField = sortBy.value?.[0]?.key || 'evidence_score'
-    let sortDesc = sortBy.value?.[0]?.order === 'desc'
+    const sortByField = sortBy.value?.[0]?.key || 'evidence_score'
+    const sortDesc = sortBy.value?.[0]?.order === 'desc'
     const response = await geneApi.getGenes({
       page: page.value,
       perPage: itemsPerPage.value,
@@ -652,27 +384,23 @@ const loadGenes = async () => {
       source: selectedSources.value.length > 0 ? selectedSources.value[0] : null,
       tiers: selectedTiers.value.length > 0 ? selectedTiers.value : null,
       sortBy: sortByField,
-      sortDesc: sortDesc,
-      hideZeroScores: !showZeroScoreGenes.value // Inverse of showZeroScoreGenes
+      sortDesc,
+      hideZeroScores: !showZeroScoreGenes.value
     })
 
     genes.value = response.items
     totalItems.value = response.total
 
-    // Store filter metadata for dynamic ranges
     if (response.meta && response.meta.filters) {
       filterMeta.value = response.meta.filters
 
-      // Update available sources dynamically from API metadata
       if (response.meta.filters.available_sources) {
-        availableSources.value = response.meta.filters.available_sources.map(source => ({
+        availableSources.value = response.meta.filters.available_sources.map((source: string) => ({
           title: source,
           value: source
         }))
       }
 
-      // Update the evidence count range max only on first load
-      // Check if we haven't set filterMeta yet (first load)
       if (response.meta.filters.evidence_count?.max && !filterMeta.value) {
         evidenceCountRange.value = [0, response.meta.filters.evidence_count.max]
       }
@@ -687,22 +415,10 @@ const loadGenes = async () => {
 }
 
 // Event handlers
-const updatePage = newPage => {
-  page.value = newPage
-  updateUrl()
-  loadGenes()
-}
-
-const updateItemsPerPage = newValue => {
-  itemsPerPage.value = newValue
-  page.value = 1 // Reset to first page
-  updateUrl()
-  loadGenes()
-}
-
-const applySorting = () => {
-  const [field, order] = sortOption.value.split('_')
-  const fieldMap = {
+const applySorting = (value: string) => {
+  sortOption.value = value
+  const [field, order] = value.split('_')
+  const fieldMap: Record<string, string> = {
     score: 'evidence_score',
     symbol: 'approved_symbol',
     count: 'evidence_count',
@@ -713,7 +429,7 @@ const applySorting = () => {
   loadGenes()
 }
 
-let searchTimeout
+let searchTimeout: ReturnType<typeof setTimeout>
 const debouncedSearch = () => {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => {
@@ -731,7 +447,7 @@ const clearAllFilters = () => {
   selectedTiers.value = []
   sortOption.value = 'score_desc'
   sortBy.value = [{ key: 'evidence_score', order: 'desc' }]
-  showZeroScoreGenes.value = false // Reset to default: hide genes with score=0
+  showZeroScoreGenes.value = false
   page.value = 1
   updateUrl()
   loadGenes()
@@ -742,57 +458,67 @@ const refreshData = () => {
 }
 
 const exportData = () => {
-  // TODO: Implement export functionality
   window.logService.info('Export functionality to be implemented')
 }
 
-// Color and helper methods
-const getSourceColor = source => {
-  const colors = {
-    PanelApp: 'primary',
-    HPO: 'secondary',
-    PubTator: 'info',
-    ClinGen: 'success',
-    GenCC: 'warning',
-    DiagnosticPanels: 'error',
-    Literature: 'purple'
+const clearSources = () => {
+  selectedSources.value = []
+  page.value = 1
+  updateUrl()
+  loadGenes()
+}
+
+const clearTiers = () => {
+  selectedTiers.value = []
+  page.value = 1
+  updateUrl()
+  loadGenes()
+}
+
+// Source toggle helper
+const toggleSource = (source: string) => {
+  const idx = selectedSources.value.indexOf(source)
+  if (idx >= 0) {
+    selectedSources.value = selectedSources.value.filter(s => s !== source)
+  } else {
+    selectedSources.value = [...selectedSources.value, source]
   }
-  return colors[source] || 'grey'
+  page.value = 1
+  updateUrl()
+  loadGenes()
 }
 
-const getTierColor = tierKey => {
-  return TIER_CONFIG[tierKey]?.color || 'grey'
+const toggleTier = (tier: string) => {
+  const idx = selectedTiers.value.indexOf(tier)
+  if (idx >= 0) {
+    selectedTiers.value = selectedTiers.value.filter(t => t !== tier)
+  } else {
+    selectedTiers.value = [...selectedTiers.value, tier]
+  }
+  page.value = 1
+  updateUrl()
+  loadGenes()
 }
 
-const getSourcesAsBreakdown = sources => {
+// Helper methods
+const getSourcesAsBreakdown = (sources: string[]) => {
   if (!sources || sources.length === 0) return {}
-
-  // Create a simple object with source names for display
-  const breakdown = {}
+  const breakdown: Record<string, boolean> = {}
   sources.forEach(source => {
-    breakdown[source] = true // Just for presence, not scoring
+    breakdown[source] = true
   })
   return breakdown
 }
 
-const getEvidenceCountColor = count => {
-  if (count >= 5) return 'success'
-  if (count >= 3) return 'info'
-  if (count >= 2) return 'warning'
-  return 'error'
-}
-
-const getEvidenceStrength = count => {
+const getEvidenceStrength = (count: number) => {
   const max = filterMeta.value?.evidence_count?.max || 6
   return max > 0 ? Math.min((count / max) * 100, 100) : 0
 }
 
-// Watch for route changes - this handles when the component is kept alive
-// and the route changes (e.g., query parameter changes on the same page)
+// Watch for route changes
 watch(
   () => route.query,
   (newQuery, oldQuery) => {
-    // Only react if we're not initializing and the query actually changed
     if (!isInitializing.value && JSON.stringify(newQuery) !== JSON.stringify(oldQuery)) {
       isNavigating.value = true
       parseUrlParams()
@@ -806,73 +532,326 @@ watch(
   { deep: true }
 )
 
-// Lifecycle - Parse URL and load data on mount
-// This runs when component is created (including when navigating back)
+// Lifecycle
 onMounted(async () => {
-  // Reset initialization flag on mount
   isInitializing.value = true
-
-  // Parse URL parameters first
   parseUrlParams()
-
-  // Load the data with parsed parameters
   await loadGenes()
-
-  // Wait for the data table to stabilize
   await new Promise(resolve => setTimeout(resolve, 100))
-
-  // Mark initialization as complete
   isInitializing.value = false
 })
 </script>
 
-<style scoped>
-.search-card {
-  border: 1px solid rgba(var(--v-border-color), 0.12);
-}
+<template>
+  <div class="space-y-3">
+    <!-- Search & Filter Card -->
+    <Card>
+      <CardContent class="pt-6">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <h2 class="text-lg font-medium mb-1">Search & Filter</h2>
+            <div class="flex items-center gap-1">
+              <p class="text-sm text-muted-foreground">
+                Explore {{ totalItems.toLocaleString() }} kidney disease genes
+              </p>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Info class="h-3 w-3 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" class="max-w-[300px]">
+                    <div>
+                      <strong>Genes with evidence:</strong>
+                      {{ totalItems.toLocaleString() }} genes with evidence score > 0
+                      <template v-if="hiddenGeneCount > 0">
+                        <br /><br />{{ hiddenGeneCount.toLocaleString() }} genes with insufficient
+                        evidence are currently hidden. <br />Toggle "Show genes with insufficient
+                        evidence" below to see all
+                        {{ (totalItems + hiddenGeneCount).toLocaleString() }} genes.
+                      </template>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button variant="outline" size="icon-sm" :disabled="loading" @click="exportData">
+                    <Download class="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Export filtered results</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    :disabled="!hasActiveFilters"
+                    @click="clearAllFilters"
+                  >
+                    <FilterX class="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Clear all filters</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button variant="outline" size="icon-sm" @click="refreshData">
+                    <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Refresh data</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
 
-.search-field :deep(.v-field__input) {
-  font-size: 0.95rem;
-}
+        <!-- Row 1: Search + Sort -->
+        <div class="flex flex-col sm:flex-row gap-3 mb-3">
+          <div class="relative flex-1">
+            <Search
+              :size="16"
+              class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              v-model="search"
+              placeholder="PKD1, HGNC:9008..."
+              class="pl-9"
+              @input="debouncedSearch"
+            />
+          </div>
+          <Select :model-value="sortOption" @update:model-value="applySorting">
+            <SelectTrigger class="w-full sm:w-[220px]">
+              <SelectValue placeholder="Sort by..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
+                {{ opt.title }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-.gene-symbol {
-  font-weight: 500;
-}
+        <!-- Row 2: Source + Tier filters -->
+        <div class="flex flex-wrap gap-3 mb-3">
+          <!-- Source Filter -->
+          <Popover>
+            <PopoverTrigger as-child>
+              <Button variant="outline" size="sm" class="h-9">
+                Sources
+                <Badge
+                  v-if="selectedSources.length"
+                  variant="secondary"
+                  class="ml-2 rounded-sm px-1"
+                >
+                  {{ selectedSources.length }}
+                </Badge>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent class="w-[200px] p-3" align="start">
+              <div class="space-y-2">
+                <p class="text-sm font-medium">Filter by source</p>
+                <Separator />
+                <div
+                  v-for="source in availableSources"
+                  :key="source.value"
+                  class="flex items-center gap-2"
+                >
+                  <Checkbox
+                    :id="`source-${source.value}`"
+                    :checked="selectedSources.includes(source.value)"
+                    @update:checked="toggleSource(source.value)"
+                  />
+                  <Label :for="`source-${source.value}`" class="text-sm cursor-pointer">
+                    {{ source.title }}
+                  </Label>
+                </div>
+                <Button
+                  v-if="selectedSources.length > 0"
+                  variant="ghost"
+                  size="sm"
+                  class="w-full"
+                  @click="clearSources"
+                >
+                  Clear
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
 
-.gene-symbol:hover {
-  text-decoration: underline !important;
-}
+          <!-- Tier Filter -->
+          <Popover>
+            <PopoverTrigger as-child>
+              <Button variant="outline" size="sm" class="h-9">
+                Tiers
+                <Badge v-if="selectedTiers.length" variant="secondary" class="ml-2 rounded-sm px-1">
+                  {{ selectedTiers.length }}
+                </Badge>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent class="w-[250px] p-3" align="start">
+              <div class="space-y-2">
+                <p class="text-sm font-medium">Filter by tier</p>
+                <Separator />
+                <div
+                  v-for="tier in availableTiers"
+                  :key="tier.value"
+                  class="flex items-center gap-2"
+                >
+                  <Checkbox
+                    :id="`tier-${tier.value}`"
+                    :checked="selectedTiers.includes(tier.value)"
+                    @update:checked="toggleTier(tier.value)"
+                  />
+                  <Label :for="`tier-${tier.value}`" class="text-sm cursor-pointer">
+                    <span
+                      class="inline-block w-2 h-2 rounded-full mr-1"
+                      :style="{ backgroundColor: tier.color }"
+                    />
+                    {{ tier.title }}
+                  </Label>
+                </div>
+                <Button
+                  v-if="selectedTiers.length > 0"
+                  variant="ghost"
+                  size="sm"
+                  class="w-full"
+                  @click="clearTiers"
+                >
+                  Clear
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
 
-/* Compact data table styling per style guide */
-:deep(.v-data-table) {
-  font-size: 0.875rem;
-}
+        <!-- Row 3: Score + Count sliders -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <Label class="text-xs">Evidence Score</Label>
+              <span class="text-xs text-muted-foreground font-mono">
+                {{ evidenceScoreRange[0] }} – {{ evidenceScoreRange[1] }}
+              </span>
+            </div>
+            <Slider
+              v-model="evidenceScoreRange"
+              :min="0"
+              :max="100"
+              :step="1"
+              class="w-full"
+              @update:model-value="debouncedSearch"
+            />
+          </div>
 
-:deep(.v-data-table-header__content) {
-  font-weight: 600;
-  font-size: 0.8125rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <Label class="text-xs">Evidence Count</Label>
+              <span class="text-xs text-muted-foreground font-mono">
+                {{ evidenceCountRange[0] }} – {{ evidenceCountRange[1] }}
+              </span>
+            </div>
+            <Slider
+              v-model="evidenceCountRange"
+              :min="0"
+              :max="filterMeta?.evidence_count?.max || 6"
+              :step="1"
+              class="w-full"
+              @update:model-value="debouncedSearch"
+            />
+          </div>
+        </div>
 
-:deep(.v-data-table__tr) {
-  height: 48px !important;
-}
+        <!-- Row 4: Zero-score toggle -->
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <Switch
+              id="zero-score"
+              :checked="showZeroScoreGenes"
+              @update:checked="
+                val => {
+                  showZeroScoreGenes = val
+                  debouncedSearch()
+                }
+              "
+            />
+            <Label for="zero-score" class="text-sm cursor-pointer">
+              Show genes with insufficient evidence
+            </Label>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Info class="h-3 w-3 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  Include {{ hiddenGeneCount.toLocaleString() }} genes with evidence score = 0
+                  <br />(single source or disputed classification)
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <Badge
+            v-if="!showZeroScoreGenes && hiddenGeneCount > 0"
+            variant="outline"
+            class="text-xs"
+          >
+            <EyeOff class="h-3 w-3 mr-1" />
+            {{ hiddenGeneCount.toLocaleString() }} hidden
+          </Badge>
+        </div>
+      </CardContent>
+    </Card>
 
-:deep(.v-data-table__td) {
-  padding: 8px 12px !important;
-}
+    <!-- Pagination Info Bar -->
+    <Card>
+      <CardContent class="py-3 px-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="text-sm flex items-center gap-1">
+              <span class="font-medium">{{ totalItems.toLocaleString() }}</span>
+              <span class="text-muted-foreground">Genes</span>
+              <span
+                v-if="!showZeroScoreGenes && hiddenGeneCount > 0"
+                class="text-xs text-muted-foreground"
+              >
+                ({{ hiddenGeneCount.toLocaleString() }} hidden)
+              </span>
+            </div>
+            <Separator orientation="vertical" class="h-4" />
+            <div class="text-sm text-muted-foreground">
+              {{ pageRangeText }}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
 
-/* Ensure proper alignment in compact mode */
-:deep(.v-chip--size-x-small) {
-  height: 20px;
-  font-size: 0.625rem;
-}
+    <!-- Data Table -->
+    <Card v-if="genes.length > 0 || loading">
+      <DataTable :table="table" />
+      <DataTablePagination :table="table" :page-size-options="itemsPerPageOptions" />
+    </Card>
 
-/* Pagination styling */
-:deep(.v-pagination__item) {
-  min-width: 32px;
-  height: 32px;
-  font-size: 0.875rem;
-}
-</style>
+    <!-- Empty State -->
+    <Card v-if="!loading && genes.length === 0" class="text-center">
+      <CardContent class="py-12">
+        <Search class="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
+        <h3 class="text-lg font-medium mb-2">No genes found</h3>
+        <p class="text-sm text-muted-foreground mb-4">
+          {{ search ? `No results for "${search}"` : 'Try adjusting your filters' }}
+        </p>
+        <Button v-if="hasActiveFilters" variant="outline" @click="clearAllFilters">
+          Clear Filters
+        </Button>
+      </CardContent>
+    </Card>
+  </div>
+</template>
