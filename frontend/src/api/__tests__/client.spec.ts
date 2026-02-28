@@ -34,7 +34,7 @@ vi.stubGlobal('logService', {
 // Mock window._env_ to control API_BASE_URL
 vi.stubGlobal('_env_', { API_BASE_URL: 'http://test-api:8000' })
 
-Object.defineProperty(global, 'localStorage', { value: localStorageMock, writable: true })
+vi.stubGlobal('localStorage', localStorageMock)
 
 // Import after mocks are set up
 import apiClient from '@/api/client'

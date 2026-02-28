@@ -8,7 +8,6 @@
  * @module utils/debounce
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface DebouncedFunction<T extends (...args: any[]) => any> {
   (...args: Parameters<T>): void
   cancel(): void
@@ -36,14 +35,12 @@ export interface DebouncedFunction<T extends (...args: any[]) => any> {
  * // Cancel pending execution
  * debouncedUpdate.cancel()
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function debounce<T extends (...args: any[]) => any>(
   fn: T,
   delay: number
 ): DebouncedFunction<T> {
   let timeoutId: ReturnType<typeof setTimeout> | null = null
   let lastArgs: Parameters<T> | null = null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let lastThis: any = null
 
   const debounced = function (this: unknown, ...args: Parameters<T>): void {
@@ -75,7 +72,6 @@ export function debounce<T extends (...args: any[]) => any>(
 
   // Add flush method to immediately execute with last stored args
   // Note: passed args are accepted for type compatibility but lastArgs are used internally
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   debounced.flush = function (..._args: Parameters<T>): void {
     if (timeoutId !== null) {
       clearTimeout(timeoutId)
@@ -107,7 +103,6 @@ export function debounce<T extends (...args: any[]) => any>(
  *
  * window.addEventListener('scroll', throttledScroll)
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function throttle<T extends (...args: any[]) => any>(
   fn: T,
   delay: number

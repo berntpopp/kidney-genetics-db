@@ -8,11 +8,11 @@
 @layer theme, base, vuetify, components, utilities;
 
 /* Vuetify styles inside named layer so Tailwind wins */
-@import "vuetify/styles" layer(vuetify);
-@import "@mdi/font/css/materialdesignicons.css" layer(vuetify);
+@import 'vuetify/styles' layer(vuetify);
+@import '@mdi/font/css/materialdesignicons.css' layer(vuetify);
 
 /* Tailwind v4 — generates @layer base, components, utilities */
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* ============================================================
    Theme — CSS custom properties for light/dark mode (OKLCH)
