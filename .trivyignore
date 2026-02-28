@@ -3,11 +3,11 @@
 # See: https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/
 
 # =============================================================================
-# gosu CVEs - False Positives
+# gosu CVEs - False Positives (backend: python:3.14-slim base image)
 # =============================================================================
 # gosu is a simple Go binary used only for privilege dropping during container
 # startup. It does NOT use the vulnerable code paths in Go's standard library:
-# - No tar file parsing (archive/tar)
+# - No tar/zip file parsing (archive/tar, archive/zip)
 # - No TLS connections (crypto/tls, crypto/x509)
 # - No HTTP client/server (net/http)
 # - No email parsing (net/mail)
@@ -18,12 +18,21 @@
 # gosu simply: parses CLI args -> looks up user/group -> setuid/setgid -> exec
 # These vulnerabilities require specific attack vectors that gosu never exercises.
 #
+# Note: Our Dockerfiles use the USER instruction for privilege dropping, not gosu.
+# gosu is present in the base image but is never invoked.
+#
 # Reference: https://github.com/tianon/gosu (gosu source code)
-# Last reviewed: 2026-01-12
+# Last reviewed: 2026-02-28
+
+# CRITICAL severity
+CVE-2025-68121  # crypto/tls: Unexpected session resumption - gosu doesn't use TLS
 
 # HIGH severity
 CVE-2025-58183  # archive/tar: Unbounded allocation - gosu doesn't parse tar
+CVE-2025-61728  # archive/zip: Excessive CPU consumption - gosu doesn't parse zip
 CVE-2025-61729  # crypto/x509: Resource consumption - gosu doesn't validate certs
+CVE-2025-61730  # crypto/tls: TLS 1.3 handshake issue - gosu doesn't use TLS
+CVE-2025-61726  # net/url: Memory exhaustion in query parsing - gosu doesn't parse URLs
 
 # MEDIUM severity
 CVE-2025-47912  # net/url: IPv6 validation - gosu doesn't parse URLs
@@ -36,4 +45,70 @@ CVE-2025-61723  # encoding/pem: Quadratic complexity - gosu doesn't parse PEM
 CVE-2025-61724  # net/textproto: CPU consumption - gosu doesn't parse text proto
 CVE-2025-61725  # net/mail: CPU consumption - gosu doesn't parse email
 CVE-2024-34155  # crypto/x509: Subdomain wildcard - gosu doesn't validate certs
-CVE-2025-61727  # crypto/x509: Excluded subdomain constraint wildcard SANs - gosu doesn't validate certs
+CVE-2025-61727  # crypto/x509: Excluded subdomain constraint - gosu doesn't validate certs
+
+# =============================================================================
+# OpenSSL CVEs - False Positives (frontend: nginx:1.29-alpine base image)
+# =============================================================================
+# nginx serves pre-built Vue.js static assets over HTTP/HTTPS. It does NOT:
+# - Process untrusted CMS (Cryptographic Message Syntax) content
+# - Parse or validate PKCS#7 / PKCS#12 files from users
+# - Handle TimeStamp protocol responses
+# - Use OCB encryption mode
+# - Run the `openssl dgst` command
+# - Handle QUIC connections (QUIC not enabled in our config)
+# - Process TLS certificate compression from untrusted sources
+# - Use BIO filters with untrusted content
+#
+# These vulnerabilities require specific OpenSSL API calls or processing
+# of malicious cryptographic objects that nginx's TLS termination never exercises.
+#
+# The upstream Alpine team will patch openssl when fixes are available.
+# Last reviewed: 2026-02-28
+
+# CRITICAL severity
+CVE-2025-15467  # OpenSSL CMS: RCE via oversized IV - nginx doesn't process CMS content
+
+# HIGH severity
+CVE-2025-69419  # OpenSSL PKCS#12: OOB write - nginx doesn't parse PKCS#12 files
+CVE-2025-69421  # OpenSSL PKCS#12: DoS via malformed file - nginx doesn't parse PKCS#12
+
+# MEDIUM severity
+CVE-2025-11187  # OpenSSL PKCS#12: crafted file RCE/DoS - nginx doesn't parse PKCS#12
+CVE-2025-15468  # OpenSSL QUIC: NULL dereference DoS - QUIC not enabled
+CVE-2025-15469  # OpenSSL dgst: truncation bypass - nginx doesn't use dgst command
+CVE-2025-66199  # OpenSSL TLS 1.3: cert compression DoS - not exploitable via nginx
+CVE-2025-68160  # OpenSSL BIO: OOB write in filter - not exploitable via nginx
+CVE-2025-69418  # OpenSSL OCB: info disclosure - nginx doesn't use OCB mode
+CVE-2025-69420  # OpenSSL TSP: malformed TimeStamp DoS - nginx doesn't use TSP
+CVE-2026-22795  # OpenSSL PKCS#12: type confusion DoS - nginx doesn't parse PKCS#12
+CVE-2026-22796  # OpenSSL PKCS#7: type confusion DoS - nginx doesn't parse PKCS#7
+
+# =============================================================================
+# libpng CVE - False Positive (frontend: nginx:1.29-alpine base image)
+# =============================================================================
+# nginx serves pre-built static assets (HTML/JS/CSS). It does NOT process,
+# decode, or re-encode PNG images. User-uploaded PNGs are never processed
+# server-side by nginx. The vulnerable function png_set_quantize() is never called.
+# Last reviewed: 2026-02-28
+
+CVE-2026-25646  # libpng: heap buffer overflow in png_set_quantize
+
+# =============================================================================
+# libexpat CVEs - False Positives (frontend: nginx:1.29-alpine base image)
+# =============================================================================
+# nginx does not parse XML. libexpat is a transitive dependency in the Alpine
+# base image but is not used by our nginx configuration.
+# Last reviewed: 2026-02-28
+
+CVE-2026-25210  # libexpat: integer overflow in buffer reallocation
+CVE-2026-24515  # libexpat: null pointer dereference
+
+# =============================================================================
+# pip CVE - False Positive (backend: python:3.14-slim base image)
+# =============================================================================
+# pip is present in the base image but is never used at runtime. Dependencies
+# are installed via UV in the builder stage. pip is not invoked in production.
+# Last reviewed: 2026-02-28
+
+CVE-2026-1703   # pip: path traversal when installing crafted wheel archives
