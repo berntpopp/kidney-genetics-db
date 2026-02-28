@@ -1,66 +1,66 @@
 <template>
-  <v-expansion-panel class="evidence-panel">
-    <v-expansion-panel-title class="py-3">
-      <div class="d-flex align-center justify-space-between w-100">
-        <div class="d-flex align-center">
-          <v-avatar :color="sourceColor" size="32" class="mr-3">
-            <component :is="sourceIconComponent" class="size-4 text-white" />
-          </v-avatar>
+  <AccordionItem :value="evidence.source_name" class="border rounded-lg mb-2">
+    <AccordionTrigger class="px-4 py-3 hover:no-underline">
+      <div class="flex items-center justify-between w-full mr-4">
+        <div class="flex items-center gap-3">
+          <Avatar class="h-8 w-8" :style="{ backgroundColor: sourceColorHex + '20' }">
+            <AvatarFallback>
+              <component :is="sourceIconComponent" :size="16" :style="{ color: sourceColorHex }" />
+            </AvatarFallback>
+          </Avatar>
           <div>
-            <div class="text-subtitle-1 font-weight-medium">{{ evidence.source_name }}</div>
-            <div class="text-caption text-medium-emphasis">{{ evidenceSummary }}</div>
+            <span class="text-sm font-medium">{{ evidence.source_name }}</span>
+            <span class="text-xs text-muted-foreground ml-2">{{ evidenceSummary }}</span>
           </div>
         </div>
-        <div class="d-flex align-center ga-2">
-          <!-- Score chip following style guide - x-small for secondary info -->
-          <v-chip
+        <div class="flex items-center gap-2">
+          <Badge
             v-if="evidence.normalized_score"
-            size="x-small"
-            variant="tonal"
-            :color="getScoreColor(evidence.normalized_score)"
+            variant="outline"
+            :style="{ backgroundColor: getScoreColorHex(evidence.normalized_score) + '20', color: getScoreColorHex(evidence.normalized_score) }"
           >
             Score: {{ formatScore(evidence.normalized_score) }}
-          </v-chip>
-          <!-- Count badges -->
-          <v-chip v-if="primaryCount" size="x-small" variant="outlined">
+          </Badge>
+          <Badge v-if="primaryCount" variant="secondary" class="text-xs">
             {{ primaryCount }}
-          </v-chip>
+          </Badge>
         </div>
       </div>
-    </v-expansion-panel-title>
+    </AccordionTrigger>
+    <AccordionContent class="px-4 pb-4">
+      <!-- Dynamic component based on source type -->
+      <component
+        :is="evidenceComponent"
+        :evidence-data="evidence.evidence_data"
+        :source-name="evidence.source_name"
+      />
 
-    <v-expansion-panel-text>
-      <div class="pa-3">
-        <!-- Dynamic component based on source type -->
-        <component
-          :is="evidenceComponent"
-          :evidence-data="evidence.evidence_data"
-          :source-name="evidence.source_name"
-        />
-
-        <!-- Metadata footer -->
-        <div class="d-flex justify-space-between align-center mt-4 pt-3 border-t">
-          <div class="text-caption text-medium-emphasis">
-            Last updated: {{ formatDate(evidence.evidence_date) }}
-          </div>
-          <v-btn
-            size="x-small"
-            variant="text"
-            :href="getSourceUrl(evidence.source_name)"
-            target="_blank"
-            append-icon="mdi-open-in-new"
-          >
-            View Source
-          </v-btn>
-        </div>
+      <!-- Metadata footer -->
+      <div class="border-t pt-3 mt-4 flex items-center justify-between text-xs text-muted-foreground">
+        <span>Last updated: {{ formatDate(evidence.evidence_date) }}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          as="a"
+          :href="getSourceUrl(evidence.source_name)"
+          target="_blank"
+        >
+          View Source
+          <ExternalLink :size="12" class="ml-1" />
+        </Button>
       </div>
-    </v-expansion-panel-text>
-  </v-expansion-panel>
+    </AccordionContent>
+  </AccordionItem>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import { ExternalLink } from 'lucide-vue-next'
 import { resolveMdiIcon } from '@/utils/icons'
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import GenCCEvidence from './GenCCEvidence.vue'
 import HPOEvidence from './HPOEvidence.vue'
 import PubTatorEvidence from './PubTatorEvidence.vue'
@@ -83,7 +83,7 @@ const evidenceComponents = {
   PubTator: PubTatorEvidence,
   ClinGen: ClinGenEvidence,
   PanelApp: PanelAppEvidence,
-  DiagnosticPanels: DiagnosticPanelsEvidence, // Fixed: no space in source name
+  DiagnosticPanels: DiagnosticPanelsEvidence,
   Literature: LiteratureEvidence
 }
 
@@ -96,7 +96,6 @@ const evidenceSummary = computed(() => {
   const data = props.evidence.evidence_data
   const source = props.evidence.source_name
 
-  // Custom summaries per source following new backend format
   if (source === 'GenCC' && data?.classifications?.length) {
     const topClassifications = data.classifications.slice(0, 2).join(', ')
     return `${props.evidence.source_detail} - ${topClassifications}`
@@ -113,19 +112,15 @@ const evidenceSummary = computed(() => {
   }
 
   if (source === 'DiagnosticPanels') {
-    // New structure with provider_panels mapping
     if (data?.provider_panels) {
       const providerCount = Object.keys(data.provider_panels).length
-      // Count unique panels across all providers
       const uniquePanels = new Set()
       Object.values(data.provider_panels).forEach(panels => {
         panels.forEach(panel => uniquePanels.add(panel))
       })
       const panelCount = uniquePanels.size
       return `${providerCount} provider${providerCount > 1 ? 's' : ''}, ${panelCount} panel${panelCount > 1 ? 's' : ''}`
-    }
-    // Fallback for aggregated counts
-    else if (data?.provider_count || data?.panel_count) {
+    } else if (data?.provider_count || data?.panel_count) {
       const providerCount = data.provider_count || 0
       const panelCount = data.panel_count || 0
       return `${providerCount} provider${providerCount > 1 ? 's' : ''}, ${panelCount} panel${panelCount > 1 ? 's' : ''}`
@@ -157,12 +152,10 @@ const primaryCount = computed(() => {
     return `${data?.panel_count || 0} panels`
   }
   if (props.evidence.source_name === 'DiagnosticPanels') {
-    // New structure with provider_panels mapping
     if (data?.provider_panels) {
       const providerCount = Object.keys(data.provider_panels).length
       return `${providerCount} providers`
     }
-    // Fallback for old structure
     return `${data?.panels?.length || 0} panels`
   }
   if (props.evidence.source_name === 'Literature') {
@@ -173,18 +166,19 @@ const primaryCount = computed(() => {
   return null
 })
 
-// Source styling
-const sourceColor = computed(() => {
-  const colors = {
-    GenCC: 'purple',
-    HPO: 'blue',
-    PubTator: 'teal',
-    ClinGen: 'green',
-    PanelApp: 'orange',
-    DiagnosticPanels: 'indigo', // Fixed: no space
-    Literature: 'primary' // Using primary color per style guide
-  }
-  return colors[props.evidence.source_name] || 'grey'
+// Source styling - hex colors for inline styles
+const sourceColors = {
+  GenCC: '#8b5cf6',
+  HPO: '#3b82f6',
+  PubTator: '#14b8a6',
+  ClinGen: '#22c55e',
+  PanelApp: '#f97316',
+  DiagnosticPanels: '#6366f1',
+  Literature: '#0ea5e9'
+}
+
+const sourceColorHex = computed(() => {
+  return sourceColors[props.evidence.source_name] || '#6b7280'
 })
 
 const sourceIcon = computed(() => {
@@ -194,7 +188,7 @@ const sourceIcon = computed(() => {
     PubTator: 'mdi-text-search',
     ClinGen: 'mdi-certificate',
     PanelApp: 'mdi-view-dashboard',
-    DiagnosticPanels: 'mdi-test-tube', // Fixed: no space
+    DiagnosticPanels: 'mdi-test-tube',
     Literature: 'mdi-book-open-variant'
   }
   return icons[props.evidence.source_name] || 'mdi-database'
@@ -209,15 +203,11 @@ const formatScore = score => {
   return (score * 100).toFixed(1)
 }
 
-const getScoreColor = score => {
-  // Following style guide evidence score colors
+const getScoreColorHex = score => {
   const percentage = score * 100
-  if (percentage >= 95) return 'success'
-  if (percentage >= 80) return 'success'
-  if (percentage >= 70) return 'success'
-  if (percentage >= 50) return 'warning'
-  if (percentage >= 30) return 'orange'
-  return 'error'
+  if (percentage >= 50) return '#22c55e'
+  if (percentage >= 30) return '#f59e0b'
+  return '#ef4444'
 }
 
 const formatDate = dateString => {
@@ -237,24 +227,9 @@ const getSourceUrl = sourceName => {
     PubTator: 'https://www.ncbi.nlm.nih.gov/research/pubtator/',
     ClinGen: 'https://clinicalgenome.org/',
     PanelApp: 'https://panelapp.genomicsengland.co.uk/',
-    DiagnosticPanels: '#', // No single source URL for aggregated panels
-    Literature: 'https://pubmed.ncbi.nlm.nih.gov/' // PubMed as default for literature
+    DiagnosticPanels: '#',
+    Literature: 'https://pubmed.ncbi.nlm.nih.gov/'
   }
   return urls[sourceName] || '#'
 }
 </script>
-
-<style scoped>
-.evidence-panel {
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.evidence-panel:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.border-t {
-  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-}
-</style>
