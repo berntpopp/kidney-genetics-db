@@ -1,3 +1,5 @@
+import type { EvidenceData } from './evidence'
+
 export interface Gene {
   id: number
   hgnc_id: string
@@ -20,7 +22,7 @@ export interface GeneDetail extends Gene {
 
 export interface EvidenceSource {
   source_name: string
-  source_data: Record<string, unknown>
+  source_data: EvidenceData
   last_updated: string | null
 }
 
