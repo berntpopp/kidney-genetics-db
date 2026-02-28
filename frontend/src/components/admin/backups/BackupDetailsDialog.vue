@@ -1,120 +1,113 @@
 <template>
-  <v-dialog
-    :model-value="modelValue"
-    max-width="700"
-    @update:model-value="$emit('update:modelValue', $event)"
-  >
-    <v-card>
-      <v-card-title class="d-flex align-center">
-        <Info class="mr-2 size-5 text-blue-500" />
-        Backup Details
-      </v-card-title>
+  <Dialog :open="modelValue" @update:open="$emit('update:modelValue', $event)">
+    <DialogContent class="max-w-[700px]">
+      <DialogHeader>
+        <DialogTitle class="flex items-center gap-2">
+          <Info class="size-5 text-blue-500" />
+          Backup Details
+        </DialogTitle>
+        <DialogDescription> Detailed information about the selected backup. </DialogDescription>
+      </DialogHeader>
 
-      <v-card-text>
-        <v-list v-if="backup" density="compact">
-          <v-list-item>
-            <v-list-item-title>Filename</v-list-item-title>
-            <v-list-item-subtitle>{{ backup.filename }}</v-list-item-subtitle>
-          </v-list-item>
+      <div v-if="backup" class="space-y-3 text-sm">
+        <div class="grid grid-cols-[140px_1fr] gap-y-2">
+          <span class="font-medium text-muted-foreground">Filename</span>
+          <span>{{ backup.filename }}</span>
 
-          <v-list-item>
-            <v-list-item-title>Status</v-list-item-title>
-            <v-list-item-subtitle>
-              <v-chip :color="getStatusColor(backup.status)" size="small" class="mt-1">
-                <component :is="resolveMdiIcon(getStatusIcon(backup.status))" class="size-3 mr-1" />
-                {{ backup.status }}
-              </v-chip>
-            </v-list-item-subtitle>
-          </v-list-item>
+          <span class="font-medium text-muted-foreground">Status</span>
+          <span>
+            <Badge :variant="getStatusVariant(backup.status)">
+              {{ backup.status }}
+            </Badge>
+          </span>
 
-          <v-list-item>
-            <v-list-item-title>File Size</v-list-item-title>
-            <v-list-item-subtitle>{{ formatSize(backup.file_size_mb) }}</v-list-item-subtitle>
-          </v-list-item>
+          <span class="font-medium text-muted-foreground">File Size</span>
+          <span>{{ formatSize(backup.file_size_mb) }}</span>
 
-          <v-list-item>
-            <v-list-item-title>Created</v-list-item-title>
-            <v-list-item-subtitle>{{ formatDate(backup.created_at) }}</v-list-item-subtitle>
-          </v-list-item>
+          <span class="font-medium text-muted-foreground">Created</span>
+          <span>{{ formatDate(backup.created_at) }}</span>
 
-          <v-list-item v-if="backup.completed_at">
-            <v-list-item-title>Completed</v-list-item-title>
-            <v-list-item-subtitle>{{ formatDate(backup.completed_at) }}</v-list-item-subtitle>
-          </v-list-item>
+          <template v-if="backup.completed_at">
+            <span class="font-medium text-muted-foreground">Completed</span>
+            <span>{{ formatDate(backup.completed_at) }}</span>
+          </template>
 
-          <v-list-item v-if="backup.duration_seconds">
-            <v-list-item-title>Duration</v-list-item-title>
-            <v-list-item-subtitle>{{
-              formatDuration(backup.duration_seconds)
-            }}</v-list-item-subtitle>
-          </v-list-item>
+          <template v-if="backup.duration_seconds">
+            <span class="font-medium text-muted-foreground">Duration</span>
+            <span>{{ formatDuration(backup.duration_seconds) }}</span>
+          </template>
 
-          <v-list-item>
-            <v-list-item-title>Trigger Source</v-list-item-title>
-            <v-list-item-subtitle>
-              <v-chip size="x-small" variant="outlined" class="mt-1">
-                {{ backup.trigger_source }}
-              </v-chip>
-            </v-list-item-subtitle>
-          </v-list-item>
+          <span class="font-medium text-muted-foreground">Trigger Source</span>
+          <span>
+            <Badge variant="outline">{{ backup.trigger_source }}</Badge>
+          </span>
 
-          <v-list-item v-if="backup.description">
-            <v-list-item-title>Description</v-list-item-title>
-            <v-list-item-subtitle>{{ backup.description }}</v-list-item-subtitle>
-          </v-list-item>
+          <template v-if="backup.description">
+            <span class="font-medium text-muted-foreground">Description</span>
+            <span>{{ backup.description }}</span>
+          </template>
 
-          <v-list-item v-if="backup.checksum_sha256">
-            <v-list-item-title>SHA256 Checksum</v-list-item-title>
-            <v-list-item-subtitle class="text-caption font-mono">
-              {{ backup.checksum_sha256 }}
-            </v-list-item-subtitle>
-          </v-list-item>
+          <template v-if="backup.checksum_sha256">
+            <span class="font-medium text-muted-foreground">SHA256 Checksum</span>
+            <span class="font-mono text-xs break-all">{{ backup.checksum_sha256 }}</span>
+          </template>
+        </div>
 
-          <v-divider class="my-2" />
+        <div class="border-t pt-3">
+          <div class="grid grid-cols-[140px_1fr] gap-y-2">
+            <template v-if="backup.compression_level !== undefined">
+              <span class="font-medium text-muted-foreground">Compression Level</span>
+              <span>{{ backup.compression_level }}</span>
+            </template>
 
-          <v-list-item v-if="backup.compression_level !== undefined">
-            <v-list-item-title>Compression Level</v-list-item-title>
-            <v-list-item-subtitle>{{ backup.compression_level }}</v-list-item-subtitle>
-          </v-list-item>
+            <template v-if="backup.parallel_jobs">
+              <span class="font-medium text-muted-foreground">Parallel Jobs</span>
+              <span>{{ backup.parallel_jobs }}</span>
+            </template>
 
-          <v-list-item v-if="backup.parallel_jobs">
-            <v-list-item-title>Parallel Jobs</v-list-item-title>
-            <v-list-item-subtitle>{{ backup.parallel_jobs }}</v-list-item-subtitle>
-          </v-list-item>
+            <span class="font-medium text-muted-foreground">Include Logs</span>
+            <span><component :is="backup.include_logs ? Check : X" class="size-4" /></span>
 
-          <v-list-item>
-            <v-list-item-title>Include Logs</v-list-item-title>
-            <v-list-item-subtitle>
-              <component :is="backup.include_logs ? Check : X" class="size-4" />
-            </v-list-item-subtitle>
-          </v-list-item>
+            <span class="font-medium text-muted-foreground">Include Cache</span>
+            <span><component :is="backup.include_cache ? Check : X" class="size-4" /></span>
+          </div>
+        </div>
+      </div>
 
-          <v-list-item>
-            <v-list-item-title>Include Cache</v-list-item-title>
-            <v-list-item-subtitle>
-              <component :is="backup.include_cache ? Check : X" class="size-4" />
-            </v-list-item-subtitle>
-          </v-list-item>
-        </v-list>
+      <div v-else class="py-4 text-center text-sm text-muted-foreground">No backup selected</div>
 
-        <v-alert v-else type="info" variant="tonal" density="compact"> No backup selected </v-alert>
-      </v-card-text>
-
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="$emit('update:modelValue', false)">Close</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      <DialogFooter>
+        <Button variant="outline" @click="$emit('update:modelValue', false)">Close</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup>
 import { useBackupFormatters } from '@/composables/useBackupFormatters'
 import { Info, Check, X } from 'lucide-vue-next'
-import { resolveMdiIcon } from '@/utils/icons'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
-const { getStatusColor, getStatusIcon, formatSize, formatDate, formatDuration } =
-  useBackupFormatters()
+const { getStatusColor, formatSize, formatDate, formatDuration } = useBackupFormatters()
+
+const getStatusVariant = status => {
+  const variants = {
+    completed: 'default',
+    running: 'secondary',
+    failed: 'destructive',
+    pending: 'outline'
+  }
+  return variants[status] || 'secondary'
+}
 
 defineProps({
   modelValue: {
@@ -129,9 +122,3 @@ defineProps({
 
 defineEmits(['update:modelValue'])
 </script>
-
-<style scoped>
-.font-mono {
-  font-family: 'Courier New', monospace;
-}
-</style>

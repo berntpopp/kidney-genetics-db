@@ -1,84 +1,130 @@
 <template>
-  <v-dialog
-    :model-value="modelValue"
-    max-width="600"
-    @update:model-value="$emit('update:modelValue', $event)"
-  >
-    <v-card>
-      <v-card-title class="d-flex align-center">
-        <DatabaseZap class="mr-2 size-5 text-primary" />
-        Create Database Backup
-      </v-card-title>
+  <Dialog :open="modelValue" @update:open="$emit('update:modelValue', $event)">
+    <DialogContent class="max-w-[600px]">
+      <DialogHeader>
+        <DialogTitle class="flex items-center gap-2">
+          <DatabaseZap class="size-5 text-primary" />
+          Create Database Backup
+        </DialogTitle>
+        <DialogDescription>
+          Create a complete backup of the database. The process may take several minutes depending
+          on database size.
+        </DialogDescription>
+      </DialogHeader>
 
-      <v-card-text>
-        <v-alert type="info" variant="tonal" class="mb-4" density="compact">
+      <Alert>
+        <AlertDescription>
           This will create a complete backup of the database. The process may take several minutes
           depending on database size.
-        </v-alert>
+        </AlertDescription>
+      </Alert>
 
-        <v-text-field
-          v-model="form.description"
-          label="Description (optional)"
-          density="compact"
-          variant="outlined"
-          placeholder="e.g., Before major update"
-          class="mb-3"
-        />
+      <div class="space-y-4">
+        <div class="space-y-2">
+          <Label for="backup-description">Description (optional)</Label>
+          <Input
+            id="backup-description"
+            v-model="form.description"
+            placeholder="e.g., Before major update"
+          />
+        </div>
 
-        <v-select
-          v-model="form.compressionLevel"
-          label="Compression Level"
-          :items="compressionLevels"
-          density="compact"
-          variant="outlined"
-          hint="Higher = better compression but slower"
-          persistent-hint
-          class="mb-3"
-        />
+        <div class="space-y-2">
+          <Label for="compression-level">Compression Level</Label>
+          <Select v-model="form.compressionLevel">
+            <SelectTrigger id="compression-level">
+              <SelectValue placeholder="Select compression level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="option in compressionLevels"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.title }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <p class="text-xs text-muted-foreground">Higher = better compression but slower</p>
+        </div>
 
-        <v-select
-          v-model="form.parallelJobs"
-          label="Parallel Jobs"
-          :items="parallelJobOptions"
-          density="compact"
-          variant="outlined"
-          hint="More jobs = faster backup on multi-core systems"
-          persistent-hint
-          class="mb-3"
-        />
+        <div class="space-y-2">
+          <Label for="parallel-jobs">Parallel Jobs</Label>
+          <Select v-model="form.parallelJobs">
+            <SelectTrigger id="parallel-jobs">
+              <SelectValue placeholder="Select parallel jobs" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="option in parallelJobOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.title }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <p class="text-xs text-muted-foreground">
+            More jobs = faster backup on multi-core systems
+          </p>
+        </div>
 
-        <v-switch
-          v-model="form.includeLogs"
-          label="Include system logs"
-          density="compact"
-          color="warning"
-          hide-details
-          class="mb-2"
-        />
+        <div class="flex items-center justify-between">
+          <Label for="include-logs" class="cursor-pointer">Include system logs</Label>
+          <Switch
+            id="include-logs"
+            :checked="form.includeLogs"
+            @update:checked="form.includeLogs = $event"
+          />
+        </div>
 
-        <v-switch
-          v-model="form.includeCache"
-          label="Include cache tables"
-          density="compact"
-          color="warning"
-          hide-details
-        />
-      </v-card-text>
+        <div class="flex items-center justify-between">
+          <Label for="include-cache" class="cursor-pointer">Include cache tables</Label>
+          <Switch
+            id="include-cache"
+            :checked="form.includeCache"
+            @update:checked="form.includeCache = $event"
+          />
+        </div>
+      </div>
 
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="handleCancel">Cancel</v-btn>
-        <v-btn color="primary" variant="elevated" :loading="loading" @click="handleCreate">
+      <DialogFooter>
+        <Button variant="outline" @click="handleCancel">Cancel</Button>
+        <Button :disabled="loading" @click="handleCreate">
+          <span
+            v-if="loading"
+            class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+          />
           Create Backup
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
 import { DatabaseZap } from 'lucide-vue-next'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const props = defineProps({
   modelValue: {

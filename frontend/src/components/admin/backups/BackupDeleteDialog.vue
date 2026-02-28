@@ -1,42 +1,54 @@
 <template>
-  <v-dialog
-    :model-value="modelValue"
-    max-width="500"
-    @update:model-value="$emit('update:modelValue', $event)"
-  >
-    <v-card>
-      <v-card-title class="d-flex align-center">
-        <Trash2 class="mr-2 size-5 text-destructive" />
-        Delete Backup
-      </v-card-title>
-
-      <v-card-text>
-        <v-alert type="error" variant="tonal" class="mb-4" density="compact">
+  <AlertDialog :open="modelValue" @update:open="$emit('update:modelValue', $event)">
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle class="flex items-center gap-2">
+          <Trash2 class="size-5 text-destructive" />
+          Delete Backup
+        </AlertDialogTitle>
+        <AlertDialogDescription>
           This will permanently delete the backup file. This action cannot be undone.
-        </v-alert>
+        </AlertDialogDescription>
+      </AlertDialogHeader>
 
-        <div v-if="backup" class="text-body-2">
-          <strong>Filename:</strong> {{ backup.filename }}
+      <div v-if="backup" class="space-y-1 text-sm">
+        <div><span class="font-medium">Filename:</span> {{ backup.filename }}</div>
+        <div v-if="backup?.file_size_mb">
+          <span class="font-medium">Size:</span> {{ formatSize(backup.file_size_mb) }}
         </div>
-        <div v-if="backup?.file_size_mb" class="text-body-2 mt-1">
-          <strong>Size:</strong> {{ formatSize(backup.file_size_mb) }}
-        </div>
-      </v-card-text>
+      </div>
 
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="$emit('update:modelValue', false)">Cancel</v-btn>
-        <v-btn color="error" variant="elevated" :loading="loading" @click="$emit('delete')">
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          :disabled="loading"
+          @click.prevent="$emit('delete')"
+        >
+          <span
+            v-if="loading"
+            class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+          />
           Delete
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
 </template>
 
 <script setup>
 import { Trash2 } from 'lucide-vue-next'
 import { useBackupFormatters } from '@/composables/useBackupFormatters'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from '@/components/ui/alert-dialog'
 
 const { formatSize } = useBackupFormatters()
 
