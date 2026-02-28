@@ -25,13 +25,13 @@ export const useAuthStore = defineStore('auth', () => {
   const userPermissions = computed<string[]>(() => [])
 
   // Check if user has specific permission
-  const hasPermission = computed<(permission: string) => boolean>(
-    () => (permission: string) => {
-      return userPermissions.value.includes(permission)
-    }
-  )
+  // eslint-disable-next-line no-unused-vars
+  const hasPermission = computed<(permission: string) => boolean>(() => (permission: string) => {
+    return userPermissions.value.includes(permission)
+  })
 
   // Check if user has any of the required roles
+  // eslint-disable-next-line no-unused-vars
   const hasRole = computed<(role: UserRole | UserRole[]) => boolean>(
     () => (role: UserRole | UserRole[]) => {
       if (!user.value) return false

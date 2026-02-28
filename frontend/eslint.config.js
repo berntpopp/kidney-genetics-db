@@ -65,7 +65,19 @@ export default [
         fetch: 'readonly',
         confirm: 'readonly',
         CustomEvent: 'readonly',
-        __APP_VERSION__: 'readonly'
+        __APP_VERSION__: 'readonly',
+        // DOM types
+        MouseEvent: 'readonly',
+        HTMLElement: 'readonly',
+        HTMLDivElement: 'readonly',
+        DOMRect: 'readonly',
+        RequestInit: 'readonly',
+        MessageEvent: 'readonly',
+        Event: 'readonly',
+        Element: 'readonly',
+        Node: 'readonly',
+        FormData: 'readonly',
+        File: 'readonly'
       }
     },
     rules: {

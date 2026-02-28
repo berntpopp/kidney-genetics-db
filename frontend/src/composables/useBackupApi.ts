@@ -4,34 +4,80 @@
  */
 
 import { ref } from 'vue'
+import type { Ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 
-export function useBackupApi() {
+/** Backup creation options */
+interface BackupCreateOptions {
+  description?: string
+  includeLogs?: boolean
+  includeCache?: boolean
+  compressionLevel?: number
+  parallelJobs?: number
+}
+
+/** Restore options */
+interface RestoreOptions {
+  createSafetyBackup?: boolean
+  runAnalyze?: boolean
+}
+
+/** Backup list filter params */
+interface BackupListParams {
+  limit?: number
+  offset?: number
+  status?: string
+  triggerSource?: string
+  search?: string
+}
+
+/** Backup record shape returned from API */
+interface BackupRecord {
+  id: number
+  filename: string
+  [key: string]: unknown
+}
+
+/** Return type for useBackupApi */
+export interface BackupApiReturn {
+  loading: Ref<boolean>
+  error: Ref<string | null>
+  loadStats: () => Promise<unknown>
+  loadBackups: (params?: BackupListParams) => Promise<unknown>
+  createBackup: (backupData: BackupCreateOptions) => Promise<unknown>
+  restoreBackup: (backupId: number, restoreOptions: RestoreOptions) => Promise<unknown>
+  downloadBackup: (backup: BackupRecord) => Promise<boolean>
+  deleteBackup: (backupId: number) => Promise<unknown>
+  cleanupOldBackups: () => Promise<unknown>
+}
+
+export function useBackupApi(): BackupApiReturn {
   const authStore = useAuthStore()
-  const loading = ref(false)
-  const error = ref(null)
+  const loading = ref<boolean>(false)
+  const error = ref<string | null>(null)
 
   /**
    * Generic API request handler with auth
    */
-  const apiRequest = async (url, options = {}) => {
+  const apiRequest = async (url: string, options: RequestInit = {}): Promise<unknown> => {
     try {
       const response = await fetch(url, {
         ...options,
         headers: {
-          ...options.headers,
+          ...(options.headers ?? {}),
           Authorization: `Bearer ${authStore.accessToken}`
         }
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.detail || `Request failed: ${response.statusText}`)
+        const errorData = (await response.json().catch(() => ({}))) as { detail?: string }
+        throw new Error(errorData.detail ?? `Request failed: ${response.statusText}`)
       }
 
       return await response.json()
-    } catch (err) {
-      error.value = err.message
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      error.value = msg
       throw err
     }
   }
@@ -39,7 +85,7 @@ export function useBackupApi() {
   /**
    * Load backup statistics
    */
-  const loadStats = async () => {
+  const loadStats = async (): Promise<unknown> => {
     loading.value = true
     error.value = null
     try {
@@ -52,14 +98,14 @@ export function useBackupApi() {
   /**
    * Load backups list with filters
    */
-  const loadBackups = async (params = {}) => {
+  const loadBackups = async (params: BackupListParams = {}): Promise<unknown> => {
     loading.value = true
     error.value = null
     try {
       const queryParams = new URLSearchParams()
 
-      if (params.limit) queryParams.append('limit', params.limit)
-      if (params.offset) queryParams.append('offset', params.offset)
+      if (params.limit !== undefined) queryParams.append('limit', String(params.limit))
+      if (params.offset !== undefined) queryParams.append('offset', String(params.offset))
       if (params.status) queryParams.append('status', params.status)
       if (params.triggerSource) queryParams.append('trigger_source', params.triggerSource)
       if (params.search) queryParams.append('search', params.search)
@@ -73,7 +119,7 @@ export function useBackupApi() {
   /**
    * Create a new backup
    */
-  const createBackup = async backupData => {
+  const createBackup = async (backupData: BackupCreateOptions): Promise<unknown> => {
     loading.value = true
     error.value = null
     try {
@@ -83,11 +129,11 @@ export function useBackupApi() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          description: backupData.description || '',
-          include_logs: backupData.includeLogs || false,
-          include_cache: backupData.includeCache || false,
-          compression_level: backupData.compressionLevel || 6,
-          parallel_jobs: backupData.parallelJobs || 2
+          description: backupData.description ?? '',
+          include_logs: backupData.includeLogs ?? false,
+          include_cache: backupData.includeCache ?? false,
+          compression_level: backupData.compressionLevel ?? 6,
+          parallel_jobs: backupData.parallelJobs ?? 2
         })
       })
     } finally {
@@ -98,7 +144,10 @@ export function useBackupApi() {
   /**
    * Restore from backup
    */
-  const restoreBackup = async (backupId, restoreOptions) => {
+  const restoreBackup = async (
+    backupId: number,
+    restoreOptions: RestoreOptions
+  ): Promise<unknown> => {
     loading.value = true
     error.value = null
     try {
@@ -120,7 +169,7 @@ export function useBackupApi() {
   /**
    * Download backup file
    */
-  const downloadBackup = async backup => {
+  const downloadBackup = async (backup: BackupRecord): Promise<boolean> => {
     loading.value = true
     error.value = null
     try {
@@ -153,7 +202,7 @@ export function useBackupApi() {
   /**
    * Delete a backup
    */
-  const deleteBackup = async backupId => {
+  const deleteBackup = async (backupId: number): Promise<unknown> => {
     loading.value = true
     error.value = null
     try {
@@ -168,7 +217,7 @@ export function useBackupApi() {
   /**
    * Cleanup old backups
    */
-  const cleanupOldBackups = async () => {
+  const cleanupOldBackups = async (): Promise<unknown> => {
     loading.value = true
     error.value = null
     try {

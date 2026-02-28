@@ -8,41 +8,71 @@
  */
 
 import { ref, computed } from 'vue'
+import type { Ref, ComputedRef } from 'vue'
+import type cytoscape from 'cytoscape'
 import { matchesWildcard, validatePattern } from '../utils/wildcardMatcher'
+
+/** Return type for useNetworkSearch */
+export interface NetworkSearchReturn {
+  searchPattern: Ref<string>
+  matchedNodeIds: Ref<Set<string>>
+  isSearching: Ref<boolean>
+  searchError: Ref<string | null>
+  matchCount: ComputedRef<number>
+  hasMatches: ComputedRef<boolean>
+  hasPattern: ComputedRef<boolean>
+  searchNodes: (cyInstance: cytoscape.Core | null, pattern: string) => cytoscape.NodeSingular[]
+  clearSearch: () => void
+  isNodeMatched: (nodeId: string) => boolean
+  getSearchStats: () => SearchStats
+}
+
+/** Search statistics */
+interface SearchStats {
+  pattern: string
+  matchCount: number
+  hasMatches: boolean
+  hasPattern: boolean
+  isSearching: boolean
+  error: string | null
+}
 
 /**
  * Composable for network search functionality
  *
- * @returns {Object} Search state and methods
+ * @returns Search state and methods
  *
  * @example
  * const { searchPattern, matchCount, searchNodes, clearSearch } = useNetworkSearch()
  * const matches = searchNodes(cyInstance, "COL*")
  */
-export function useNetworkSearch() {
+export function useNetworkSearch(): NetworkSearchReturn {
   // Reactive state
-  const searchPattern = ref('')
-  const matchedNodeIds = ref(new Set())
-  const isSearching = ref(false)
-  const searchError = ref(null)
+  const searchPattern = ref<string>('')
+  const matchedNodeIds = ref<Set<string>>(new Set())
+  const isSearching = ref<boolean>(false)
+  const searchError = ref<string | null>(null)
 
   // Computed properties
-  const matchCount = computed(() => matchedNodeIds.value.size)
-  const hasMatches = computed(() => matchCount.value > 0)
-  const hasPattern = computed(() => searchPattern.value.trim().length > 0)
+  const matchCount = computed<number>(() => matchedNodeIds.value.size)
+  const hasMatches = computed<boolean>(() => matchCount.value > 0)
+  const hasPattern = computed<boolean>(() => searchPattern.value.trim().length > 0)
 
   /**
    * Search nodes by gene symbol with wildcard support
    *
-   * @param {Object} cyInstance - Cytoscape instance
-   * @param {string} pattern - Search pattern (e.g., "COL*", "PKD?")
-   * @returns {Array} Array of matched Cytoscape node elements
+   * @param cyInstance - Cytoscape instance
+   * @param pattern - Search pattern (e.g., "COL*", "PKD?")
+   * @returns Array of matched Cytoscape node elements
    *
    * @example
    * const matches = searchNodes(cyInstance, "COL*")
    * // Returns array of nodes matching pattern
    */
-  function searchNodes(cyInstance, pattern) {
+  function searchNodes(
+    cyInstance: cytoscape.Core | null,
+    pattern: string
+  ): cytoscape.NodeSingular[] {
     isSearching.value = true
     searchError.value = null
 
@@ -72,14 +102,14 @@ export function useNetworkSearch() {
     }
 
     // Search all nodes
-    const matches = []
+    const matches: cytoscape.NodeSingular[] = []
     let searchCount = 0
 
     try {
       cyInstance.nodes().forEach(node => {
         searchCount++
         // Get gene symbol from node data (prefer label, fallback to gene_id)
-        const geneSymbol = node.data('label') || node.data('gene_id') || ''
+        const geneSymbol = (node.data('label') as string) || (node.data('gene_id') as string) || ''
 
         if (geneSymbol && matchesWildcard(geneSymbol, trimmedPattern)) {
           matches.push(node)
@@ -98,8 +128,9 @@ export function useNetworkSearch() {
           matchPercentage: ((matches.length / searchCount) * 100).toFixed(1) + '%'
         })
       }
-    } catch (error) {
-      searchError.value = 'Search failed: ' + error.message
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error)
+      searchError.value = 'Search failed: ' + msg
       if (window.logService) {
         window.logService.error('[NetworkSearch] Search error:', error)
       }
@@ -113,7 +144,7 @@ export function useNetworkSearch() {
   /**
    * Clear search state and results
    */
-  function clearSearch() {
+  function clearSearch(): void {
     searchPattern.value = ''
     matchedNodeIds.value.clear()
     searchError.value = null
@@ -127,19 +158,19 @@ export function useNetworkSearch() {
   /**
    * Check if a specific node ID is in the current search results
    *
-   * @param {string} nodeId - Cytoscape node ID
-   * @returns {boolean} True if node is in search results
+   * @param nodeId - Cytoscape node ID
+   * @returns True if node is in search results
    */
-  function isNodeMatched(nodeId) {
+  function isNodeMatched(nodeId: string): boolean {
     return matchedNodeIds.value.has(nodeId)
   }
 
   /**
    * Get statistics about current search
    *
-   * @returns {Object} Search statistics
+   * @returns Search statistics
    */
-  function getSearchStats() {
+  function getSearchStats(): SearchStats {
     return {
       pattern: searchPattern.value,
       matchCount: matchCount.value,

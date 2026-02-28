@@ -6,24 +6,44 @@
  */
 
 import * as d3 from 'd3'
+import type { Selection } from 'd3'
 import { ref, onUnmounted } from 'vue'
+import type { Ref } from 'vue'
+
+/** D3 Selection type for a div tooltip */
+type TooltipSelection = Selection<HTMLDivElement, unknown, HTMLElement, unknown>
+
+/** Options for showing a tooltip */
+interface TooltipShowOptions {
+  [key: string]: unknown
+}
+
+/** Return type for useD3Tooltip */
+export interface D3TooltipReturn {
+  show: (event: MouseEvent, content: string, options?: TooltipShowOptions) => void
+  hide: () => void
+  pin: (event: MouseEvent, content: string) => void
+  unpin: () => void
+  remove: () => void
+  isPinned: Ref<boolean>
+}
 
 /**
  * Create a D3 tooltip composable
- * @returns {Object} Tooltip functions: show, hide, pin, unpin, remove, isPinned
+ * @returns Tooltip functions: show, hide, pin, unpin, remove, isPinned
  */
-export function useD3Tooltip() {
-  let tooltip = null
+export function useD3Tooltip(): D3TooltipReturn {
+  let tooltip: TooltipSelection | null = null
   const isPinned = ref(false)
 
   /**
    * Create tooltip element if it doesn't exist
    */
-  const ensureTooltip = () => {
+  const ensureTooltip = (): TooltipSelection => {
     if (!tooltip) {
       tooltip = d3
-        .select('body')
-        .append('div')
+        .select<HTMLElement, unknown>('body')
+        .append<HTMLDivElement>('div')
         .attr('class', 'visualization-tooltip')
         .style('position', 'absolute')
         .style('pointer-events', 'none')
@@ -45,16 +65,16 @@ export function useD3Tooltip() {
 
   /**
    * Show tooltip with HTML content
-   * @param {MouseEvent} event - Mouse event for positioning
-   * @param {string} content - HTML content for tooltip
-   * @param {Object} options - Additional options
+   * @param event - Mouse event for positioning
+   * @param content - HTML content for tooltip
+   * @param _options - Additional options
    */
-  const show = (event, content, _options = {}) => {
+  const show = (event: MouseEvent, content: string, _options: TooltipShowOptions = {}): void => {
     if (isPinned.value) return // Don't update if pinned
 
-    ensureTooltip()
+    const tip = ensureTooltip()
 
-    tooltip
+    tip
       .style('pointer-events', 'none')
       .html(`<div style="padding: 10px 14px;">${content}</div>`)
       .transition()
@@ -62,8 +82,8 @@ export function useD3Tooltip() {
       .style('opacity', 1)
 
     // Position tooltip
-    const tooltipNode = tooltip.node()
-    const rect = tooltipNode.getBoundingClientRect()
+    const tooltipNode = tip.node()
+    const rect = tooltipNode?.getBoundingClientRect() ?? new DOMRect()
     let left = event.pageX + 12
     let top = event.pageY - 10
 
@@ -78,16 +98,16 @@ export function useD3Tooltip() {
       top = window.scrollY + 10
     }
 
-    tooltip.style('left', left + 'px').style('top', top + 'px')
+    tip.style('left', left + 'px').style('top', top + 'px')
   }
 
   /**
    * Pin tooltip with full content (scrollable, with close button)
-   * @param {MouseEvent} event - Mouse event for positioning
-   * @param {string} content - HTML content for tooltip
+   * @param event - Mouse event for positioning
+   * @param content - HTML content for tooltip
    */
-  const pin = (event, content) => {
-    ensureTooltip()
+  const pin = (event: MouseEvent, content: string): void => {
+    const tip = ensureTooltip()
     isPinned.value = true
 
     // Create pinned tooltip with close button and scrollable content
@@ -103,7 +123,7 @@ export function useD3Tooltip() {
       </div>
     `
 
-    tooltip
+    tip
       .style('pointer-events', 'auto')
       .html(pinnedContent)
       .transition()
@@ -111,13 +131,13 @@ export function useD3Tooltip() {
       .style('opacity', 1)
 
     // Add close button handler
-    tooltip.select('.tooltip-close-btn').on('click', () => {
+    tip.select('.tooltip-close-btn').on('click', () => {
       unpin()
     })
 
     // Position tooltip
-    const tooltipNode = tooltip.node()
-    const rect = tooltipNode.getBoundingClientRect()
+    const tooltipNode = tip.node()
+    const rect = tooltipNode?.getBoundingClientRect() ?? new DOMRect()
     let left = event.pageX + 12
     let top = event.pageY - 10
 
@@ -132,12 +152,13 @@ export function useD3Tooltip() {
       top = window.scrollY + 10
     }
 
-    tooltip.style('left', left + 'px').style('top', top + 'px')
+    tip.style('left', left + 'px').style('top', top + 'px')
 
     // Close on click outside
     setTimeout(() => {
-      d3.select('body').on('click.tooltip-close', event => {
-        if (!tooltip.node().contains(event.target)) {
+      d3.select('body').on('click.tooltip-close', (e: MouseEvent) => {
+        const tooltipEl = tip.node()
+        if (tooltipEl && !tooltipEl.contains(e.target as Node)) {
           unpin()
         }
       })
@@ -147,7 +168,7 @@ export function useD3Tooltip() {
   /**
    * Unpin and hide tooltip
    */
-  const unpin = () => {
+  const unpin = (): void => {
     isPinned.value = false
     d3.select('body').on('click.tooltip-close', null)
     hide()
@@ -156,7 +177,7 @@ export function useD3Tooltip() {
   /**
    * Hide tooltip with fade animation
    */
-  const hide = () => {
+  const hide = (): void => {
     if (tooltip && !isPinned.value) {
       tooltip.transition().duration(300).style('opacity', 0)
     }
@@ -165,7 +186,7 @@ export function useD3Tooltip() {
   /**
    * Remove tooltip from DOM completely
    */
-  const remove = () => {
+  const remove = (): void => {
     isPinned.value = false
     d3.select('body').on('click.tooltip-close', null)
     if (tooltip) {

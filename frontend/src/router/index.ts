@@ -8,6 +8,7 @@ import type { RouteRecordRaw, NavigationGuardNext, RouteLocationNormalized } fro
 import { useAuthStore } from '@/stores/auth'
 
 declare module 'vue-router' {
+  // eslint-disable-next-line no-unused-vars
   interface RouteMeta {
     requiresAuth?: boolean
     requiresAdmin?: boolean
