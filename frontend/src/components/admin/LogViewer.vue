@@ -1,6 +1,17 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { FileSearch, FileX, FileJson, Download, Trash, X, Search, Filter, Copy, Settings } from 'lucide-vue-next'
+import {
+  FileSearch,
+  FileX,
+  FileJson,
+  Download,
+  Trash,
+  X,
+  Search,
+  Filter,
+  Copy,
+  Settings
+} from 'lucide-vue-next'
 import { useLogStore } from '@/stores/logStore'
 import { LogLevel } from '@/services/logService'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -8,7 +19,12 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent
+} from '@/components/ui/accordion'
 
 const logStore = useLogStore()
 
@@ -60,12 +76,18 @@ const filteredLogs = computed(() => {
 
 function getLogColor(level) {
   switch (level) {
-    case LogLevel.DEBUG: return '#6b7280'
-    case LogLevel.INFO: return '#3b82f6'
-    case LogLevel.WARN: return '#f59e0b'
-    case LogLevel.ERROR: return '#ef4444'
-    case LogLevel.CRITICAL: return '#ef4444'
-    default: return '#6b7280'
+    case LogLevel.DEBUG:
+      return '#6b7280'
+    case LogLevel.INFO:
+      return '#3b82f6'
+    case LogLevel.WARN:
+      return '#f59e0b'
+    case LogLevel.ERROR:
+      return '#ef4444'
+    case LogLevel.CRITICAL:
+      return '#ef4444'
+    default:
+      return '#6b7280'
   }
 }
 
@@ -168,7 +190,10 @@ watch(
 </script>
 
 <template>
-  <Sheet :open="logStore.isViewerVisible" @update:open="val => val ? logStore.showViewer() : logStore.hideViewer()">
+  <Sheet
+    :open="logStore.isViewerVisible"
+    @update:open="val => (val ? logStore.showViewer() : logStore.hideViewer())"
+  >
     <SheetContent side="right" class="w-[600px] sm:max-w-[600px] flex flex-col p-0">
       <!-- Header -->
       <SheetHeader class="bg-primary text-primary-foreground px-4 py-3">
@@ -176,11 +201,7 @@ watch(
           <SheetTitle class="text-primary-foreground flex items-center gap-2">
             <FileSearch :size="18" />
             Application Logs
-            <Badge
-              v-if="logStore.logCount > 0"
-              variant="secondary"
-              class="text-xs"
-            >
+            <Badge v-if="logStore.logCount > 0" variant="secondary" class="text-xs">
               {{ logStore.logCount }}
             </Badge>
           </SheetTitle>
@@ -222,12 +243,20 @@ watch(
       <div class="px-4 py-3 space-y-3 border-b">
         <!-- Search -->
         <div class="relative">
-          <Search :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            :size="14"
+            class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
           <Input
             :model-value="searchQuery"
             placeholder="Search logs..."
             class="pl-9"
-            @update:model-value="val => { searchQuery = val; updateSearch(val) }"
+            @update:model-value="
+              val => {
+                searchQuery = val
+                updateSearch(val)
+              }
+            "
           />
         </div>
 
@@ -264,9 +293,7 @@ watch(
               </option>
             </select>
           </div>
-          <Badge variant="outline" class="text-xs">
-            Memory: {{ logStore.memoryUsage.kb }}KB
-          </Badge>
+          <Badge variant="outline" class="text-xs"> Memory: {{ logStore.memoryUsage.kb }}KB </Badge>
           <Badge variant="outline" class="text-xs">
             {{ logStore.logCount }}/{{ maxEntries }}
           </Badge>
@@ -293,7 +320,9 @@ watch(
       <div class="flex-1 overflow-y-auto p-2 space-y-2">
         <div v-if="filteredLogs.length === 0" class="text-center py-8 text-muted-foreground">
           <FileX class="mx-auto mb-2" :size="48" />
-          <p class="text-sm">{{ logStore.logCount === 0 ? 'No logs available' : 'No logs match your filters' }}</p>
+          <p class="text-sm">
+            {{ logStore.logCount === 0 ? 'No logs available' : 'No logs match your filters' }}
+          </p>
         </div>
 
         <div
@@ -344,7 +373,10 @@ watch(
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <pre class="text-[11px] leading-tight max-h-[200px] overflow-y-auto bg-muted rounded p-2 whitespace-pre-wrap break-words">{{ formatLogData(log.data) }}</pre>
+                <pre
+                  class="text-[11px] leading-tight max-h-[200px] overflow-y-auto bg-muted rounded p-2 whitespace-pre-wrap break-words"
+                  >{{ formatLogData(log.data) }}</pre
+                >
               </AccordionContent>
             </AccordionItem>
           </Accordion>
