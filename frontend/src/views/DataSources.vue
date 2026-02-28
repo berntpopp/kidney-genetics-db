@@ -1,206 +1,212 @@
 <template>
-  <v-container>
-    <!-- Page Header -->
-    <v-row>
-      <v-col cols="12">
-        <!-- Breadcrumbs -->
-        <v-breadcrumbs :items="breadcrumbs" density="compact" class="pa-0 mb-2">
-          <template #divider>
-            <ChevronRight class="size-4" />
-          </template>
-        </v-breadcrumbs>
+  <div class="container mx-auto px-4 py-6">
+    <!-- Breadcrumb -->
+    <Breadcrumb class="mb-2">
+      <BreadcrumbList>
+        <BreadcrumbItem v-for="(crumb, index) in breadcrumbs" :key="index">
+          <BreadcrumbLink v-if="!crumb.disabled && crumb.to" as-child>
+            <RouterLink :to="crumb.to">{{ crumb.title }}</RouterLink>
+          </BreadcrumbLink>
+          <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
+          <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
+        </BreadcrumbItem>
+      </BreadcrumbList>
+    </Breadcrumb>
 
-        <!-- Header -->
-        <div class="d-flex align-center mb-6">
-          <RefreshCw class="size-6 text-primary mr-3" />
-          <div>
-            <h1 class="text-h4 font-weight-bold">Data Sources</h1>
-            <p class="text-body-2 text-medium-emphasis ma-0">
-              Live status and statistics from integrated data sources
-            </p>
-          </div>
-        </div>
-      </v-col>
-    </v-row>
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-6">
+      <RefreshCw class="size-6 text-primary" />
+      <div>
+        <h1 class="text-2xl font-bold">Data Sources</h1>
+        <p class="text-sm text-muted-foreground">
+          Live status and statistics from integrated data sources
+        </p>
+      </div>
+    </div>
 
     <!-- Loading State -->
-    <v-row v-if="loading">
-      <v-col cols="12">
-        <v-card>
-          <v-card-text class="text-center py-12">
-            <v-progress-circular indeterminate color="primary" size="64" class="mb-4" />
-            <div class="text-h6">Loading data sources...</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
+    <div v-if="loading" class="flex flex-col items-center justify-center py-12">
+      <div
+        class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4"
+      />
+      <div class="text-lg font-semibold">Loading data sources...</div>
+    </div>
 
     <!-- Data Sources Cards -->
-    <v-row v-else>
-      <v-col v-for="source in dataSources" :key="source.name" cols="12" md="6" lg="4">
-        <v-card
-          class="source-card h-100"
-          :elevation="hoveredCard === source.name ? 4 : 1"
-          @mouseenter="hoveredCard = source.name"
-          @mouseleave="hoveredCard = null"
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <Card
+        v-for="source in dataSources"
+        :key="source.name"
+        class="source-card h-full overflow-hidden"
+        @mouseenter="hoveredCard = source.name"
+        @mouseleave="hoveredCard = null"
+      >
+        <!-- Header with gradient -->
+        <div
+          class="p-4"
+          :style="`background: linear-gradient(135deg, ${getSourceGradient(source.name)});`"
         >
-          <!-- Header with gradient -->
-          <div
-            class="source-header pa-4"
-            :style="`background: linear-gradient(135deg, ${getSourceGradient(source.name)});`"
-          >
-            <div class="d-flex align-center justify-space-between">
-              <div class="d-flex align-center">
-                <component :is="getSourceIcon(source.name)" class="size-6 text-white mr-3" />
-                <div>
-                  <h3 class="text-h6 font-weight-bold text-white">{{ source.name }}</h3>
-                  <div class="text-caption text-white-darken-1">{{ source.type || 'API' }}</div>
-                </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <component :is="getSourceIcon(source.name)" class="size-6 text-white" />
+              <div>
+                <h3 class="text-lg font-bold text-white">{{ source.name }}</h3>
+                <div class="text-xs text-white/95">{{ source.type || 'API' }}</div>
               </div>
-              <v-chip :color="getStatusChipColor(source.status)" size="small" variant="flat">
-                {{ getStatusLabel(source.status) }}
-              </v-chip>
+            </div>
+            <Badge
+              :variant="source.status === 'active' ? 'default' : 'secondary'"
+              :class="getStatusBadgeClass(source.status)"
+            >
+              {{ getStatusLabel(source.status) }}
+            </Badge>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <CardContent class="p-4">
+          <p class="text-sm text-muted-foreground mb-4">
+            {{ source.description || getSourceDescription(source.name) }}
+          </p>
+
+          <!-- Statistics -->
+          <div class="flex justify-between items-center mb-3">
+            <div class="text-center">
+              <div class="text-lg font-bold text-green-600 dark:text-green-400">
+                {{ source.stats?.gene_count || 0 }}
+              </div>
+              <div class="text-xs text-muted-foreground">Genes</div>
+            </div>
+            <div class="text-center">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <div class="text-lg font-bold text-primary">
+                      {{ getMetadataCount(source, 'primary') }}
+                    </div>
+                    <div class="text-xs text-muted-foreground">
+                      {{ getMetadataLabel(source, 'primary') }}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>{{ getMetadataTooltip(source, 'primary') }}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <div v-if="getMetadataCount(source, 'secondary') > 0" class="text-center">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <div class="text-lg font-bold text-blue-600 dark:text-blue-400">
+                      {{ getMetadataCount(source, 'secondary') }}
+                    </div>
+                    <div class="text-xs text-muted-foreground">
+                      {{ getMetadataLabel(source, 'secondary') }}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>{{ getMetadataTooltip(source, 'secondary') }}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
 
-          <!-- Content -->
-          <v-card-text class="pa-4">
-            <p class="text-body-2 text-medium-emphasis mb-4">
-              {{ source.description || getSourceDescription(source.name) }}
-            </p>
-
-            <!-- Statistics -->
-            <div class="d-flex justify-space-between align-center mb-3">
-              <div class="text-center">
-                <div class="text-h6 font-weight-bold text-success">
-                  {{ source.stats?.gene_count || 0 }}
-                </div>
-                <div class="text-caption text-medium-emphasis">Genes</div>
-              </div>
-              <div class="text-center">
-                <v-tooltip :text="getMetadataTooltip(source, 'primary')" location="bottom">
-                  <template #activator="{ props }">
-                    <div v-bind="props">
-                      <div class="text-h6 font-weight-bold text-primary">
-                        {{ getMetadataCount(source, 'primary') }}
-                      </div>
-                      <div class="text-caption text-medium-emphasis">
-                        {{ getMetadataLabel(source, 'primary') }}
-                      </div>
-                    </div>
-                  </template>
-                </v-tooltip>
-              </div>
-              <div v-if="getMetadataCount(source, 'secondary') > 0" class="text-center">
-                <v-tooltip :text="getMetadataTooltip(source, 'secondary')" location="bottom">
-                  <template #activator="{ props }">
-                    <div v-bind="props">
-                      <div class="text-h6 font-weight-bold text-info">
-                        {{ getMetadataCount(source, 'secondary') }}
-                      </div>
-                      <div class="text-caption text-medium-emphasis">
-                        {{ getMetadataLabel(source, 'secondary') }}
-                      </div>
-                    </div>
-                  </template>
-                </v-tooltip>
-              </div>
-            </div>
-
-            <!-- Last Update -->
-            <v-divider class="my-3" />
-            <div class="d-flex align-center justify-space-between">
-              <span class="text-caption text-medium-emphasis">Last Updated</span>
-              <span class="text-caption font-weight-medium">
-                {{ formatDate(source.stats?.last_updated) }}
-              </span>
-            </div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
+          <!-- Last Update -->
+          <Separator class="my-3" />
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-muted-foreground">Last Updated</span>
+            <span class="text-xs font-medium">
+              {{ formatDate(source.stats?.last_updated) }}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
 
     <!-- Summary Statistics -->
-    <v-row class="mt-6">
-      <v-col cols="12">
-        <v-card>
-          <v-card-title class="d-flex align-center">
-            <ChartBarBig class="size-5 text-primary mr-2" />
-            Database Summary
-          </v-card-title>
-          <v-card-text>
-            <v-row>
-              <v-col cols="6" sm="3">
-                <v-tooltip :text="apiResponse?.explanations?.active_sources" location="bottom">
-                  <template #activator="{ props }">
-                    <div class="text-center" v-bind="props">
-                      <div class="text-h4 font-weight-bold text-primary">
-                        {{ summaryStats.total_active }}
-                      </div>
-                      <div class="text-body-2 text-medium-emphasis">
-                        Active Sources
-                        <CircleHelp class="size-3 ml-1 inline-block" />
-                      </div>
-                    </div>
-                  </template>
-                </v-tooltip>
-              </v-col>
-              <v-col cols="6" sm="3">
-                <v-tooltip :text="apiResponse?.explanations?.unique_genes" location="bottom">
-                  <template #activator="{ props }">
-                    <div class="text-center" v-bind="props">
-                      <div class="text-h4 font-weight-bold text-success">
-                        {{ summaryStats.unique_genes.toLocaleString() }}
-                      </div>
-                      <div class="text-body-2 text-medium-emphasis">
-                        Genes with Evidence
-                        <CircleHelp class="size-3 ml-1 inline-block" />
-                      </div>
-                    </div>
-                  </template>
-                </v-tooltip>
-              </v-col>
-              <v-col cols="6" sm="3">
-                <v-tooltip :text="apiResponse?.explanations?.source_coverage" location="bottom">
-                  <template #activator="{ props }">
-                    <div class="text-center" v-bind="props">
-                      <div class="text-h4 font-weight-bold text-info">
-                        {{ calculateCoverage() }}%
-                      </div>
-                      <div class="text-body-2 text-medium-emphasis">
-                        Source Coverage
-                        <CircleHelp class="size-3 ml-1 inline-block" />
-                      </div>
-                    </div>
-                  </template>
-                </v-tooltip>
-              </v-col>
-              <v-col cols="6" sm="3">
-                <v-tooltip :text="apiResponse?.explanations?.last_updated" location="bottom">
-                  <template #activator="{ props }">
-                    <div class="text-center" v-bind="props">
-                      <div class="text-h4 font-weight-bold text-secondary">
-                        {{ formatDate(summaryStats.last_update) }}
-                      </div>
-                      <div class="text-body-2 text-medium-emphasis">
-                        Last Updated
-                        <CircleHelp class="size-3 ml-1 inline-block" />
-                      </div>
-                    </div>
-                  </template>
-                </v-tooltip>
-              </v-col>
-            </v-row>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+    <Card class="mt-6">
+      <CardHeader class="flex flex-row items-center gap-2">
+        <ChartBarBig class="size-5 text-primary" />
+        <CardTitle>Database Summary</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <div class="text-center">
+                  <div class="text-3xl font-bold text-primary">
+                    {{ summaryStats.total_active }}
+                  </div>
+                  <div class="text-sm text-muted-foreground">
+                    Active Sources
+                    <CircleHelp class="size-3 ml-1 inline-block" />
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>{{
+                apiResponse?.explanations?.active_sources || 'Number of active data sources'
+              }}</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <div class="text-center">
+                  <div class="text-3xl font-bold text-green-600 dark:text-green-400">
+                    {{ summaryStats.unique_genes.toLocaleString() }}
+                  </div>
+                  <div class="text-sm text-muted-foreground">
+                    Genes with Evidence
+                    <CircleHelp class="size-3 ml-1 inline-block" />
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>{{
+                apiResponse?.explanations?.unique_genes || 'Total unique genes with evidence'
+              }}</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <div class="text-center">
+                  <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                    {{ calculateCoverage() }}%
+                  </div>
+                  <div class="text-sm text-muted-foreground">
+                    Source Coverage
+                    <CircleHelp class="size-3 ml-1 inline-block" />
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>{{
+                apiResponse?.explanations?.source_coverage || 'Percentage of multi-source coverage'
+              }}</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <div class="text-center">
+                  <div class="text-3xl font-bold" style="color: #8b5cf6">
+                    {{ formatDate(summaryStats.last_update) }}
+                  </div>
+                  <div class="text-sm text-muted-foreground">
+                    Last Updated
+                    <CircleHelp class="size-3 ml-1 inline-block" />
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>{{
+                apiResponse?.explanations?.last_updated || 'Most recent data update'
+              }}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </CardContent>
+    </Card>
+  </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import { RouterLink } from 'vue-router'
 import {
-  ChevronRight,
   RefreshCw,
   ChartBarBig,
   CircleHelp,
@@ -215,17 +221,27 @@ import {
 import { ref, computed, onMounted } from 'vue'
 import { datasourceApi } from '@/api/datasources'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator
+} from '@/components/ui/breadcrumb'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
-// Breadcrumbs
 const breadcrumbs = PUBLIC_BREADCRUMBS.dataSources
 
 const loading = ref(true)
-const hoveredCard = ref(null)
-const dataSources = ref([])
-const apiResponse = ref(null)
+const hoveredCard = ref<string | null>(null)
+const dataSources = ref<Array<Record<string, unknown>>>([])
+const apiResponse = ref<Record<string, unknown> | null>(null)
 
-// Source descriptions mapping
-const sourceDescriptions = {
+const sourceDescriptions: Record<string, string> = {
   PanelApp: 'Expert-curated gene panels from UK Genomics England and Australian Genomics',
   HPO: 'Human Phenotype Ontology providing standardized phenotype-gene associations',
   PubTator: 'Literature mining from PubMed Central with automated text analysis',
@@ -234,40 +250,32 @@ const sourceDescriptions = {
   DiagnosticPanels: 'Commercial diagnostic panels from leading genetic testing laboratories'
 }
 
-// Summary stats computed from API data
 const summaryStats = computed(() => {
   if (!apiResponse.value) {
-    return {
-      total_active: 0,
-      unique_genes: 0,
-      last_update: null
-    }
+    return { total_active: 0, unique_genes: 0, last_update: null }
   }
-
-  const response = apiResponse.value
-
+  const response = apiResponse.value as Record<string, unknown>
   return {
-    total_active: response.total_active || 0,
-    unique_genes: response.total_unique_genes || 0,
-    last_update: response.last_data_update || null
+    total_active: (response.total_active as number) || 0,
+    unique_genes: (response.total_unique_genes as number) || 0,
+    last_update: (response.last_data_update as string) || null
   }
 })
 
-// Style guide color mappings
-const getSourceGradient = sourceName => {
-  const gradients = {
-    PanelApp: '#0EA5E9, #0284C7', // Primary blue
-    HPO: '#8B5CF6, #7C3AED', // Secondary purple
-    PubTator: '#3B82F6, #2563EB', // Info blue
-    ClinGen: '#F59E0B, #D97706', // Warning amber
-    GenCC: '#10B981, #059669', // Success green
-    DiagnosticPanels: '#EF4444, #DC2626' // Error red
+const getSourceGradient = (sourceName: string) => {
+  const gradients: Record<string, string> = {
+    PanelApp: '#0EA5E9, #0284C7',
+    HPO: '#8B5CF6, #7C3AED',
+    PubTator: '#3B82F6, #2563EB',
+    ClinGen: '#F59E0B, #D97706',
+    GenCC: '#10B981, #059669',
+    DiagnosticPanels: '#EF4444, #DC2626'
   }
   return gradients[sourceName] || gradients['PanelApp']
 }
 
-const getSourceIcon = sourceName => {
-  const icons = {
+const getSourceIcon = (sourceName: string) => {
+  const icons: Record<string, typeof Database> = {
     PanelApp: LayoutDashboard,
     HPO: User,
     PubTator: FileText,
@@ -278,24 +286,24 @@ const getSourceIcon = sourceName => {
   return icons[sourceName] || Database
 }
 
-const getSourceDescription = sourceName => {
+const getSourceDescription = (sourceName: string) => {
   return sourceDescriptions[sourceName] || 'Integrated data source for genetic information'
 }
 
-const getStatusChipColor = status => {
+const getStatusBadgeClass = (status: string) => {
   switch (status) {
     case 'active':
-      return 'success'
+      return 'bg-green-600 text-white'
     case 'error':
-      return 'error'
+      return 'bg-red-600 text-white'
     case 'pending':
-      return 'warning'
+      return 'bg-yellow-600 text-white'
     default:
-      return 'grey'
+      return ''
   }
 }
 
-const getStatusLabel = status => {
+const getStatusLabel = (status: string) => {
   switch (status) {
     case 'active':
       return 'Active'
@@ -308,11 +316,11 @@ const getStatusLabel = status => {
   }
 }
 
-const getMetadataCount = (source, type) => {
-  if (!source.stats?.metadata) return 0
-  const metadata = source.stats.metadata
+const getMetadataCount = (source: Record<string, unknown>, type: string): number => {
+  const stats = source.stats as Record<string, unknown> | undefined
+  const metadata = stats?.metadata as Record<string, number> | undefined
+  if (!metadata) return 0
 
-  // Map source to its metrics
   if (type === 'primary') {
     switch (source.name) {
       case 'ClinGen':
@@ -347,7 +355,7 @@ const getMetadataCount = (source, type) => {
   return 0
 }
 
-const getMetadataLabel = (source, type) => {
+const getMetadataLabel = (source: Record<string, unknown>, type: string) => {
   if (type === 'primary') {
     switch (source.name) {
       case 'ClinGen':
@@ -382,18 +390,20 @@ const getMetadataLabel = (source, type) => {
   return ''
 }
 
-const getMetadataTooltip = (source, type) => {
-  // Map metric labels to explanation keys
-  const tooltipMap = {
-    'Expert Panels': apiResponse.value?.explanations?.expert_panels,
-    Classifications: apiResponse.value?.explanations?.classifications,
-    Submissions: apiResponse.value?.explanations?.submissions,
-    Submitters: apiResponse.value?.explanations?.submitters,
-    Phenotypes: apiResponse.value?.explanations?.phenotypes,
-    Publications: apiResponse.value?.explanations?.publications,
-    Panels: apiResponse.value?.explanations?.panels,
-    Regions: apiResponse.value?.explanations?.regions,
-    Providers: apiResponse.value?.explanations?.providers
+const getMetadataTooltip = (source: Record<string, unknown>, type: string) => {
+  const explanations = (apiResponse.value as Record<string, unknown>)?.explanations as
+    | Record<string, string>
+    | undefined
+  const tooltipMap: Record<string, string | undefined> = {
+    'Expert Panels': explanations?.expert_panels,
+    Classifications: explanations?.classifications,
+    Submissions: explanations?.submissions,
+    Submitters: explanations?.submitters,
+    Phenotypes: explanations?.phenotypes,
+    Publications: explanations?.publications,
+    Panels: explanations?.panels,
+    Regions: explanations?.regions,
+    Providers: explanations?.providers
   }
 
   const label = getMetadataLabel(source, type)
@@ -401,22 +411,20 @@ const getMetadataTooltip = (source, type) => {
 }
 
 const calculateCoverage = () => {
-  // Calculate percentage of genes covered by multiple sources
-  // Average gene appears in ~2 sources based on data
   const uniqueGenes = summaryStats.value.unique_genes || 1
-  const totalEvidence = apiResponse.value?.total_evidence_records || 0
+  const response = apiResponse.value as Record<string, unknown> | null
+  const totalEvidence = (response?.total_evidence_records as number) || 0
   const avgSourcesPerGene = totalEvidence / uniqueGenes
-  // Convert to percentage (max 6 sources = 100%)
   return Math.min(Math.round((avgSourcesPerGene / 6) * 100), 100)
 }
 
-const formatDate = dateStr => {
+const formatDate = (dateStr: string | null | undefined) => {
   if (!dateStr) return 'Never'
   const date = new Date(dateStr)
   if (isNaN(date.getTime())) return 'Never'
 
   const today = new Date()
-  const diffDays = Math.floor((today - date) / (1000 * 60 * 60 * 24))
+  const diffDays = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
 
   if (diffDays === 0) return 'Today'
   if (diffDays === 1) return 'Yesterday'
@@ -435,7 +443,6 @@ onMounted(async () => {
     dataSources.value = response.sources || []
   } catch (error) {
     window.logService.error('Failed to load data sources:', error)
-    // Fallback empty state
     dataSources.value = []
     apiResponse.value = {
       total_active: 0,
@@ -451,24 +458,22 @@ onMounted(async () => {
 <style scoped>
 .source-card {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
 }
 
-.source-header {
-  border-radius: inherit;
-}
-
-.text-white-darken-1 {
-  opacity: 0.95;
-}
-
-/* Smooth hover transitions */
 .source-card:hover {
   transform: translateY(-2px);
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
-/* Card height consistency */
-.h-100 {
-  height: 100%;
+@media (prefers-reduced-motion: reduce) {
+  .source-card {
+    transition-duration: 0.01ms !important;
+  }
+
+  .source-card:hover {
+    transform: none;
+  }
 }
 </style>

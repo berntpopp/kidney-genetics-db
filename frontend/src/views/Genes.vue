@@ -1,34 +1,42 @@
 <template>
-  <v-container>
-    <v-row>
-      <v-col cols="12">
-        <!-- Breadcrumbs -->
-        <v-breadcrumbs :items="breadcrumbs" density="compact" class="pa-0 mb-2">
-          <template #divider>
-            <ChevronRight class="size-4" />
-          </template>
-        </v-breadcrumbs>
+  <div class="container mx-auto px-4 py-6">
+    <div class="mb-6">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem v-for="(crumb, index) in breadcrumbs" :key="index">
+            <BreadcrumbLink v-if="!crumb.disabled && crumb.to" as-child>
+              <RouterLink :to="crumb.to">{{ crumb.title }}</RouterLink>
+            </BreadcrumbLink>
+            <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
+            <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+      <div class="flex items-center gap-2 mt-2">
+        <Dna class="size-6 text-primary" />
+        <h1 class="text-2xl font-bold">Gene Browser</h1>
+      </div>
+      <p class="text-sm text-muted-foreground">
+        Search and explore curated kidney disease gene-disease associations with evidence scores
+      </p>
+    </div>
 
-        <!-- Header -->
-        <div class="d-flex align-center mb-6">
-          <Dna class="size-6 text-primary mr-3" />
-          <div>
-            <h1 class="text-h4 font-weight-bold">Gene Browser</h1>
-            <p class="text-body-2 text-medium-emphasis ma-0">
-              Search and explore curated kidney disease gene-disease associations with evidence
-              scores
-            </p>
-          </div>
-        </div>
-        <GeneTable />
-      </v-col>
-    </v-row>
-  </v-container>
+    <GeneTable />
+  </div>
 </template>
 
-<script setup>
-import { ChevronRight, Dna } from 'lucide-vue-next'
-import GeneTable from '../components/GeneTable.vue'
+<script setup lang="ts">
+import { RouterLink } from 'vue-router'
+import { Dna } from 'lucide-vue-next'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator
+} from '@/components/ui/breadcrumb'
+import GeneTable from '@/components/GeneTable.vue'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
 
 const breadcrumbs = PUBLIC_BREADCRUMBS.genes

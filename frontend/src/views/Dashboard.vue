@@ -1,109 +1,130 @@
 <template>
-  <v-container>
-    <!-- Page Header -->
-    <v-row>
-      <v-col cols="12">
-        <!-- Breadcrumbs -->
-        <v-breadcrumbs :items="breadcrumbs" density="compact" class="pa-0 mb-2">
-          <template #divider>
-            <ChevronRight class="size-4" />
-          </template>
-        </v-breadcrumbs>
+  <div class="container mx-auto px-4 py-6">
+    <!-- Breadcrumb -->
+    <Breadcrumb class="mb-2">
+      <BreadcrumbList>
+        <BreadcrumbItem v-for="(crumb, index) in breadcrumbs" :key="index">
+          <BreadcrumbLink v-if="!crumb.disabled && crumb.to" as-child>
+            <RouterLink :to="crumb.to">{{ crumb.title }}</RouterLink>
+          </BreadcrumbLink>
+          <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
+          <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
+        </BreadcrumbItem>
+      </BreadcrumbList>
+    </Breadcrumb>
 
-        <!-- Header -->
-        <div class="d-flex align-center mb-6">
-          <LayoutDashboard class="size-6 text-primary mr-3" />
-          <div>
-            <h1 class="text-h4 font-weight-bold">Data Visualization Dashboard</h1>
-            <p class="text-body-2 text-medium-emphasis ma-0">
-              Comprehensive analysis of gene-disease associations across multiple genomic data
-              sources
-            </p>
-          </div>
-        </div>
-      </v-col>
-    </v-row>
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-6">
+      <LayoutDashboard class="size-6 text-primary" />
+      <div>
+        <h1 class="text-2xl font-bold">Data Visualization Dashboard</h1>
+        <p class="text-sm text-muted-foreground">
+          Comprehensive analysis of gene-disease associations across multiple genomic data sources
+        </p>
+      </div>
+    </div>
 
     <!-- Global Filters -->
-    <v-row class="mb-4">
-      <v-col cols="12">
-        <v-select
-          v-model="selectedTiers"
-          :items="tierOptions"
-          label="Evidence Tier Filter"
-          density="compact"
-          variant="outlined"
-          multiple
-          chips
-          closable-chips
-          clearable
-          hint="Select one or more evidence tiers to filter visualizations (multi-select with OR logic)"
-          persistent-hint
-        >
-          <template #item="{ props: itemProps, item }">
-            <v-list-item v-bind="itemProps" :subtitle="item.raw.description"></v-list-item>
-          </template>
-          <template #chip="{ item, props }">
-            <v-chip v-bind="props" :color="getTierColor(item.value)" size="small" closable>
-              {{ item.title }}
-            </v-chip>
-          </template>
-        </v-select>
-      </v-col>
-    </v-row>
+    <div class="mb-4">
+      <Popover>
+        <PopoverTrigger as-child>
+          <Button variant="outline" class="justify-between">
+            {{ selectedTiers.length ? `${selectedTiers.length} tiers selected` : 'All tiers' }}
+            <ChevronDown :size="16" class="ml-2" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent class="w-72">
+          <div class="space-y-1">
+            <div
+              v-for="tier in tierOptions"
+              :key="tier.value"
+              class="flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer hover:bg-accent"
+              @click="toggleTier(tier.value)"
+            >
+              <div
+                class="h-4 w-4 rounded border flex items-center justify-center"
+                :class="
+                  selectedTiers.includes(tier.value) ? 'bg-primary border-primary' : 'border-input'
+                "
+              >
+                <CheckIcon
+                  v-if="selectedTiers.includes(tier.value)"
+                  :size="12"
+                  class="text-primary-foreground"
+                />
+              </div>
+              <Badge
+                variant="secondary"
+                :style="{ backgroundColor: tier.color + '20', color: tier.color }"
+              >
+                {{ tier.title }}
+              </Badge>
+            </div>
+          </div>
+          <div v-if="selectedTiers.length" class="mt-2 pt-2 border-t">
+            <Button variant="ghost" size="sm" class="w-full text-xs" @click="selectedTiers = []">
+              Clear all
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+      <p class="text-xs text-muted-foreground mt-1">
+        Select one or more evidence tiers to filter visualizations (multi-select with OR logic)
+      </p>
+    </div>
 
     <!-- Visualization Tabs -->
-    <v-row>
-      <v-col cols="12">
-        <v-card rounded="lg">
-          <v-tabs v-model="activeTab" color="primary" align-tabs="start" show-arrows>
-            <v-tab value="overlaps">
-              <ChartScatter class="size-5 me-2" />
+    <Card>
+      <Tabs v-model="activeTab" class="w-full">
+        <CardHeader class="pb-0">
+          <TabsList>
+            <TabsTrigger value="overlaps">
+              <ChartScatter :size="16" class="mr-2" />
               Gene Source Overlaps
-            </v-tab>
-            <v-tab value="distributions">
-              <ChartBar class="size-5 me-2" />
+            </TabsTrigger>
+            <TabsTrigger value="distributions">
+              <ChartBar :size="16" class="mr-2" />
               Source Distributions
-            </v-tab>
-            <v-tab value="composition">
-              <Circle class="size-5 me-2" />
+            </TabsTrigger>
+            <TabsTrigger value="composition">
+              <Circle :size="16" class="mr-2" />
               Evidence Composition
-            </v-tab>
-          </v-tabs>
-
-          <v-tabs-window v-model="activeTab">
-            <v-tabs-window-item value="overlaps">
-              <div class="pa-4">
-                <UpSetChart :selected-tiers="selectedTiers" />
-              </div>
-            </v-tabs-window-item>
-
-            <v-tabs-window-item value="distributions">
-              <div class="pa-4">
-                <SourceDistributionsChart
-                  v-if="activeTab === 'distributions'"
-                  :selected-tiers="selectedTiers"
-                />
-              </div>
-            </v-tabs-window-item>
-
-            <v-tabs-window-item value="composition">
-              <div class="pa-4">
-                <EvidenceCompositionChart
-                  v-if="activeTab === 'composition'"
-                  :selected-tiers="selectedTiers"
-                />
-              </div>
-            </v-tabs-window-item>
-          </v-tabs-window>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+            </TabsTrigger>
+          </TabsList>
+        </CardHeader>
+        <CardContent>
+          <TabsContent value="overlaps">
+            <UpSetChart :selected-tiers="selectedTiers" />
+          </TabsContent>
+          <TabsContent value="distributions">
+            <SourceDistributionsChart
+              v-if="activeTab === 'distributions'"
+              :selected-tiers="selectedTiers"
+            />
+          </TabsContent>
+          <TabsContent value="composition">
+            <EvidenceCompositionChart
+              v-if="activeTab === 'composition'"
+              :selected-tiers="selectedTiers"
+            />
+          </TabsContent>
+        </CardContent>
+      </Tabs>
+    </Card>
+  </div>
 </template>
 
-<script setup>
-import { ChevronRight, LayoutDashboard, ChartScatter, ChartBar, Circle } from 'lucide-vue-next'
+<script setup lang="ts">
+import { RouterLink } from 'vue-router'
+import {
+  ChevronRight,
+  LayoutDashboard,
+  ChartScatter,
+  ChartBar,
+  Circle,
+  ChevronDown,
+  Check as CheckIcon
+} from 'lucide-vue-next'
 import { ref, watch, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -113,49 +134,58 @@ import {
 } from '@/components/visualizations'
 import { TIER_CONFIG } from '@/utils/evidenceTiers'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator
+} from '@/components/ui/breadcrumb'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
-// Meta
 defineOptions({
   name: 'Dashboard'
 })
 
-// Router
 const route = useRoute()
 const router = useRouter()
 
-// Breadcrumbs
 const breadcrumbs = PUBLIC_BREADCRUMBS.dashboard
-
-// Reactive data
 const activeTab = ref('overlaps')
-const selectedTiers = ref([])
+const selectedTiers = ref<string[]>([])
 
-// Valid tab values
 const validTabs = ['overlaps', 'distributions', 'composition']
 
-// Evidence tier options from config (matching GeneTable)
 const tierOptions = computed(() => {
   return Object.entries(TIER_CONFIG).map(([key, config]) => ({
     title: config.label,
     value: key,
+    color: config.color,
     description: config.description
   }))
 })
 
-// Get tier color from config (matching GeneTable)
-const getTierColor = tierKey => {
-  return TIER_CONFIG[tierKey]?.color || 'grey'
+const toggleTier = (value: string) => {
+  const index = selectedTiers.value.indexOf(value)
+  if (index === -1) {
+    selectedTiers.value = [...selectedTiers.value, value]
+  } else {
+    selectedTiers.value = selectedTiers.value.filter(t => t !== value)
+  }
 }
 
-// Initialize tab from URL
 onMounted(() => {
-  const urlTab = route.query.tab
+  const urlTab = route.query.tab as string
   if (urlTab && validTabs.includes(urlTab)) {
     activeTab.value = urlTab
   }
 })
 
-// Watch for tab changes and update URL
 watch(activeTab, newTab => {
   if (route.query.tab !== newTab) {
     router.push({
@@ -165,39 +195,12 @@ watch(activeTab, newTab => {
   }
 })
 
-// Watch for URL changes and update tab
 watch(
   () => route.query.tab,
   newTab => {
-    if (newTab && validTabs.includes(newTab) && activeTab.value !== newTab) {
-      activeTab.value = newTab
+    if (newTab && validTabs.includes(newTab as string) && activeTab.value !== newTab) {
+      activeTab.value = newTab as string
     }
   }
 )
 </script>
-
-<style scoped>
-.dashboard-container {
-  min-height: calc(100vh - 64px - 80px); /* Account for header and footer */
-  padding: 24px;
-}
-
-/* Responsive adjustments */
-@media (max-width: 600px) {
-  .dashboard-container {
-    padding: 16px;
-  }
-}
-
-/* Animation for visualization cards */
-.v-card {
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.v-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-}
-</style>
