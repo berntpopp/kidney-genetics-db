@@ -3,51 +3,6 @@
 # See: https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/
 
 # =============================================================================
-# gosu CVEs - False Positives (backend: python:3.14-slim base image)
-# =============================================================================
-# gosu is a simple Go binary used only for privilege dropping during container
-# startup. It does NOT use the vulnerable code paths in Go's standard library:
-# - No tar/zip file parsing (archive/tar, archive/zip)
-# - No TLS connections (crypto/tls, crypto/x509)
-# - No HTTP client/server (net/http)
-# - No email parsing (net/mail)
-# - No URL parsing from untrusted sources (net/url)
-# - No PEM/ASN.1/DER parsing (encoding/pem, encoding/asn1)
-# - No text protocol parsing (net/textproto)
-#
-# gosu simply: parses CLI args -> looks up user/group -> setuid/setgid -> exec
-# These vulnerabilities require specific attack vectors that gosu never exercises.
-#
-# Note: Our Dockerfiles use the USER instruction for privilege dropping, not gosu.
-# gosu is present in the base image but is never invoked.
-#
-# Reference: https://github.com/tianon/gosu (gosu source code)
-# Last reviewed: 2026-02-28
-
-# CRITICAL severity
-CVE-2025-68121  # crypto/tls: Unexpected session resumption - gosu doesn't use TLS
-
-# HIGH severity
-CVE-2025-58183  # archive/tar: Unbounded allocation - gosu doesn't parse tar
-CVE-2025-61728  # archive/zip: Excessive CPU consumption - gosu doesn't parse zip
-CVE-2025-61729  # crypto/x509: Resource consumption - gosu doesn't validate certs
-CVE-2025-61730  # crypto/tls: TLS 1.3 handshake issue - gosu doesn't use TLS
-CVE-2025-61726  # net/url: Memory exhaustion in query parsing - gosu doesn't parse URLs
-
-# MEDIUM severity
-CVE-2025-47912  # net/url: IPv6 validation - gosu doesn't parse URLs
-CVE-2025-58185  # encoding/asn1: Memory exhaustion - gosu doesn't parse ASN.1
-CVE-2025-58186  # net/http: Cookie parsing - gosu doesn't use HTTP
-CVE-2025-58187  # crypto/x509: Name constraints - gosu doesn't validate certs
-CVE-2025-58188  # crypto/x509: DSA panic - gosu doesn't validate certs
-CVE-2025-58189  # crypto/tls: ALPN negotiation - gosu doesn't use TLS
-CVE-2025-61723  # encoding/pem: Quadratic complexity - gosu doesn't parse PEM
-CVE-2025-61724  # net/textproto: CPU consumption - gosu doesn't parse text proto
-CVE-2025-61725  # net/mail: CPU consumption - gosu doesn't parse email
-CVE-2024-34155  # crypto/x509: Subdomain wildcard - gosu doesn't validate certs
-CVE-2025-61727  # crypto/x509: Excluded subdomain constraint - gosu doesn't validate certs
-
-# =============================================================================
 # OpenSSL CVEs - False Positives (frontend: nginx:1.29-alpine base image)
 # =============================================================================
 # nginx serves pre-built Vue.js static assets over HTTP/HTTPS. It does NOT:
@@ -103,12 +58,3 @@ CVE-2026-25646  # libpng: heap buffer overflow in png_set_quantize
 
 CVE-2026-25210  # libexpat: integer overflow in buffer reallocation
 CVE-2026-24515  # libexpat: null pointer dereference
-
-# =============================================================================
-# pip CVE - False Positive (backend: python:3.14-slim base image)
-# =============================================================================
-# pip is present in the base image but is never used at runtime. Dependencies
-# are installed via UV in the builder stage. pip is not invoked in production.
-# Last reviewed: 2026-02-28
-
-CVE-2026-1703   # pip: path traversal when installing crafted wheel archives

@@ -32,10 +32,14 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH"
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# SECURITY: Remove unnecessary binaries from base image that carry CVEs
+# - gosu: Go binary for privilege dropping (17 CVEs from Go stdlib)
+#   We use the USER instruction instead, gosu is never invoked
+# - pip/setuptools: Not needed at runtime (UV installs in builder stage)
+#   Eliminates pip path traversal CVE
+RUN rm -f /usr/local/bin/gosu /usr/local/sbin/gosu && \
+    pip uninstall -y pip setuptools 2>/dev/null || true && \
+    rm -rf /usr/lib/python3*/ensurepip
 
 # Create non-root user with explicit UID/GID
 RUN groupadd -r -g 1000 kidney-api && \
@@ -46,15 +50,20 @@ WORKDIR /app
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
 
+# Remove pip/setuptools from the virtual environment copied from builder
+RUN rm -rf /opt/venv/lib/python3*/site-packages/pip* \
+           /opt/venv/lib/python3*/site-packages/setuptools* \
+           /opt/venv/bin/pip*
+
 # Copy application code
 COPY --chown=kidney-api:kidney-api . .
 
 # Switch to non-root user
 USER kidney-api
 
-# Health check
+# Health check using Python instead of curl (no curl in production image)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/api/health || exit 1
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
 
 EXPOSE 8000
 

@@ -86,7 +86,8 @@ services:
     healthcheck:
       # Note: Uses /health (not /api/health) - this is the actual endpoint defined in backend/app/main.py
       # The /api/ prefix is only added by nginx proxy for external requests
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      # Uses Python urllib instead of curl (curl removed from production image for security)
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
