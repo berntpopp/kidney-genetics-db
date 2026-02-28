@@ -5,11 +5,13 @@
  * Specifically designed for kidney disease genetic research data
  */
 
+import type { LogEntry } from '@/types/log'
+
 /**
  * Sensitive keys that should be redacted from logs
  * Includes medical, genetic, and patient-specific patterns
  */
-const SENSITIVE_KEYS = [
+const SENSITIVE_KEYS: string[] = [
   // Patient identifiers
   'patientname',
   'firstname',
@@ -123,7 +125,7 @@ const SENSITIVE_KEYS = [
 /**
  * Regex patterns for sensitive values
  */
-const SENSITIVE_VALUE_PATTERNS = [
+const SENSITIVE_VALUE_PATTERNS: RegExp[] = [
   // Email patterns
   /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
 
@@ -191,7 +193,7 @@ const GENETIC_PATTERNS = {
   ],
 
   // Patterns that might reveal patient genetic information
-  isGeneticIdentifier: str => {
+  isGeneticIdentifier: (str: string): boolean => {
     const patterns = [
       /^rs\d+$/i, // SNP IDs
       /^g\.\d+/, // Genomic notation
@@ -205,11 +207,11 @@ const GENETIC_PATTERNS = {
 /**
  * Sanitizes an object for logging by redacting sensitive information
  *
- * @param {any} obj - The object to sanitize
- * @param {number} maxDepth - Maximum recursion depth
- * @returns {any} - Sanitized copy of the object
+ * @param obj - The object to sanitize
+ * @param maxDepth - Maximum recursion depth
+ * @returns Sanitized copy of the object
  */
-export function sanitizeForLogging(obj, maxDepth = 5) {
+export function sanitizeForLogging(obj: unknown, maxDepth = 5): unknown {
   // Handle max depth
   if (maxDepth <= 0) {
     return '[MAX_DEPTH_EXCEEDED]'
@@ -222,7 +224,7 @@ export function sanitizeForLogging(obj, maxDepth = 5) {
 
   // Handle primitives
   if (typeof obj !== 'object') {
-    return sanitizeValue(obj)
+    return sanitizeValue(obj as string | number | boolean)
   }
 
   // Handle arrays
@@ -231,9 +233,9 @@ export function sanitizeForLogging(obj, maxDepth = 5) {
   }
 
   // Handle objects
-  const sanitized = {}
+  const sanitized: Record<string, unknown> = {}
 
-  for (const [key, value] of Object.entries(obj)) {
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
     const lowerKey = key.toLowerCase().replace(/[_-]/g, '')
 
     // Check if key is sensitive
@@ -259,7 +261,7 @@ export function sanitizeForLogging(obj, maxDepth = 5) {
       sanitized[key] = sanitizeForLogging(value, maxDepth - 1)
     } else {
       // Sanitize primitive values
-      sanitized[key] = sanitizeValue(value)
+      sanitized[key] = sanitizeValue(value as string | number | boolean)
     }
   }
 
@@ -269,10 +271,10 @@ export function sanitizeForLogging(obj, maxDepth = 5) {
 /**
  * Sanitizes primitive values by checking against sensitive patterns
  *
- * @param {any} value - The value to sanitize
- * @returns {any} - Sanitized value
+ * @param value - The value to sanitize
+ * @returns Sanitized value
  */
-function sanitizeValue(value) {
+function sanitizeValue(value: string | number | boolean | unknown): unknown {
   if (typeof value !== 'string') {
     return value
   }
@@ -308,10 +310,10 @@ function sanitizeValue(value) {
 /**
  * Special sanitization for genetic values
  *
- * @param {string} value - The genetic value to sanitize
- * @returns {string} - Sanitized genetic value
+ * @param value - The genetic value to sanitize
+ * @returns Sanitized genetic value
  */
-function sanitizeGeneticValue(value) {
+function sanitizeGeneticValue(value: string): string {
   // Check if value contains known sensitive gene names with variants
   for (const gene of GENETIC_PATTERNS.sensitiveGenes) {
     if (
@@ -328,19 +330,28 @@ function sanitizeGeneticValue(value) {
   }
 
   // Default sanitization
-  return sanitizeValue(value)
+  return sanitizeValue(value) as string
+}
+
+/** Result of log entry sanitization */
+export interface SanitizedLogEntry {
+  message: string
+  data: unknown
 }
 
 /**
  * Sanitizes log entry message and data
  *
- * @param {string} message - Log message
- * @param {any} data - Optional data object
- * @returns {Object} - Sanitized message and data
+ * @param message - Log message
+ * @param data - Optional data object
+ * @returns Sanitized message and data
  */
-export function sanitizeLogEntry(message, data = null) {
+export function sanitizeLogEntry(
+  message: string,
+  data: unknown = null
+): Pick<LogEntry, 'message'> & { data: unknown } {
   return {
-    message: sanitizeValue(message || ''),
+    message: sanitizeValue(message || '') as string,
     data: data ? sanitizeForLogging(data) : null
   }
 }
@@ -349,10 +360,10 @@ export function sanitizeLogEntry(message, data = null) {
  * Quick check to determine if a value contains potentially sensitive data
  * Used for performance optimization
  *
- * @param {any} value - Value to check
- * @returns {boolean} - True if value might contain sensitive data
+ * @param value - Value to check
+ * @returns True if value might contain sensitive data
  */
-export function containsSensitiveData(value) {
+export function containsSensitiveData(value: unknown): boolean {
   if (!value) return false
 
   const str = typeof value === 'string' ? value : JSON.stringify(value)
@@ -382,37 +393,44 @@ export function containsSensitiveData(value) {
  * Development helper to add custom sensitive keys
  * Only works in development mode
  *
- * @param {string[]} keys - Additional sensitive keys to add
+ * @param keys - Additional sensitive keys to add
  */
-export function addSensitiveKeys(keys) {
+export function addSensitiveKeys(keys: string[]): void {
   if (import.meta.env.DEV) {
     SENSITIVE_KEYS.push(...keys.map(k => k.toLowerCase()))
     console.info('Added sensitive keys for development:', keys)
   }
 }
 
+/** Summary of what would be redacted from an object (development only) */
+export interface RedactionSummary {
+  sensitiveKeys: string[]
+  redactedValues: Array<{ path: string; pattern: string }>
+  geneticData: Array<{ path: string; type: string }>
+}
+
 /**
  * Get a summary of redacted items for debugging
  * Only available in development mode
  *
- * @param {any} obj - Object to analyze
- * @returns {Object} - Summary of what would be redacted
+ * @param obj - Object to analyze
+ * @returns Summary of what would be redacted, or null in production
  */
-export function getRedactionSummary(obj) {
+export function getRedactionSummary(obj: unknown): RedactionSummary | null {
   if (!import.meta.env.DEV) {
     return null
   }
 
-  const summary = {
+  const summary: RedactionSummary = {
     sensitiveKeys: [],
     redactedValues: [],
     geneticData: []
   }
 
-  const analyze = (item, path = '') => {
+  const analyze = (item: unknown, path = ''): void => {
     if (!item || typeof item !== 'object') return
 
-    Object.entries(item).forEach(([key, value]) => {
+    Object.entries(item as Record<string, unknown>).forEach(([key, value]) => {
       const fullPath = path ? `${path}.${key}` : key
       const lowerKey = key.toLowerCase().replace(/[_-]/g, '')
 

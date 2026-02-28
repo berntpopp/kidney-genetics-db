@@ -3,11 +3,46 @@
  * Used for displaying tier badges and managing tier-related UI
  */
 
+/** Union of all valid tier name strings */
+export type TierName =
+  | 'comprehensive_support'
+  | 'multi_source_support'
+  | 'established_support'
+  | 'preliminary_evidence'
+  | 'minimal_evidence'
+
+/** Union of all valid group name strings */
+export type GroupName = 'well_supported' | 'emerging_evidence'
+
+/** Configuration object for a single evidence tier */
+export interface TierConfig {
+  label: string
+  color: string
+  icon: string
+  description: string
+}
+
+/** Configuration object for an evidence group */
+export interface GroupConfig {
+  label: string
+  color: string
+  icon: string
+  description: string
+}
+
+/** Configuration object for a score range */
+export interface ScoreRangeConfig {
+  threshold: number
+  label: string
+  description: string
+  color: string
+  tierAlignment: TierName
+}
+
 /**
  * Configuration for evidence tiers
- * @type {Object.<string, Object>}
  */
-export const TIER_CONFIG = {
+export const TIER_CONFIG: Record<TierName, TierConfig> = {
   comprehensive_support: {
     label: 'Comprehensive Support',
     color: 'success',
@@ -42,9 +77,8 @@ export const TIER_CONFIG = {
 
 /**
  * Configuration for evidence groups
- * @type {Object.<string, Object>}
  */
-export const GROUP_CONFIG = {
+export const GROUP_CONFIG: Record<GroupName, GroupConfig> = {
   well_supported: {
     label: 'Well-Supported',
     color: 'success',
@@ -61,11 +95,11 @@ export const GROUP_CONFIG = {
 
 /**
  * Get tier configuration by tier name
- * @param {string|null} tier - Tier name
- * @returns {Object} Tier configuration object
+ * @param tier - Tier name
+ * @returns Tier configuration object
  */
-export function getTierConfig(tier) {
-  if (!tier || !TIER_CONFIG[tier]) {
+export function getTierConfig(tier: string | null | undefined): TierConfig {
+  if (!tier || !(tier in TIER_CONFIG)) {
     return {
       label: 'No Classification',
       color: 'grey-lighten-2',
@@ -73,16 +107,16 @@ export function getTierConfig(tier) {
       description: 'No evidence tier assigned'
     }
   }
-  return TIER_CONFIG[tier]
+  return TIER_CONFIG[tier as TierName]
 }
 
 /**
  * Get group configuration by group name
- * @param {string|null} group - Group name
- * @returns {Object} Group configuration object
+ * @param group - Group name
+ * @returns Group configuration object
  */
-export function getGroupConfig(group) {
-  if (!group || !GROUP_CONFIG[group]) {
+export function getGroupConfig(group: string | null | undefined): GroupConfig {
+  if (!group || !(group in GROUP_CONFIG)) {
     return {
       label: 'Unclassified',
       color: 'grey-lighten-2',
@@ -90,44 +124,41 @@ export function getGroupConfig(group) {
       description: 'No evidence group assigned'
     }
   }
-  return GROUP_CONFIG[group]
+  return GROUP_CONFIG[group as GroupName]
 }
 
 /**
  * Get sort order for tier (lower is better)
- * @param {string|null} tier - Tier name
- * @returns {number} Sort order
+ * @param tier - Tier name
+ * @returns Sort order
  */
-export function getTierSortOrder(tier) {
-  const order = {
+export function getTierSortOrder(tier: string | null | undefined): number {
+  const order: Record<TierName, number> = {
     comprehensive_support: 1,
     multi_source_support: 2,
     established_support: 3,
     preliminary_evidence: 4,
     minimal_evidence: 5
   }
-  return tier ? order[tier] || 999 : 999
+  return tier && tier in order ? order[tier as TierName] : 999
 }
 
 /**
  * List of all valid tier values
- * @type {string[]}
  */
-export const VALID_TIERS = Object.keys(TIER_CONFIG)
+export const VALID_TIERS: TierName[] = Object.keys(TIER_CONFIG) as TierName[]
 
 /**
  * List of all valid group values
- * @type {string[]}
  */
-export const VALID_GROUPS = Object.keys(GROUP_CONFIG)
+export const VALID_GROUPS: GroupName[] = Object.keys(GROUP_CONFIG) as GroupName[]
 
 /**
  * Configuration for evidence score ranges and their interpretations
  * Aligned with tier thresholds: 50% (comprehensive), 35% (multi-source), 20% (established), 10% (preliminary)
  * Ordered from highest to lowest threshold
- * @type {Array.<Object>}
  */
-export const SCORE_RANGES = [
+export const SCORE_RANGES: ScoreRangeConfig[] = [
   {
     threshold: 95,
     label: 'Exceptional',
@@ -181,10 +212,10 @@ export const SCORE_RANGES = [
 
 /**
  * Get score range configuration for a given score
- * @param {number} score - Evidence score (0-100)
- * @returns {Object} Score range configuration
+ * @param score - Evidence score (0-100)
+ * @returns Score range configuration or null if score is invalid
  */
-export function getScoreRangeConfig(score) {
+export function getScoreRangeConfig(score: number | null | undefined): ScoreRangeConfig | null {
   if (!score && score !== 0) return null
 
   for (const range of SCORE_RANGES) {
@@ -193,16 +224,19 @@ export function getScoreRangeConfig(score) {
     }
   }
 
-  return SCORE_RANGES[SCORE_RANGES.length - 1]
+  return SCORE_RANGES[SCORE_RANGES.length - 1] ?? null
 }
 
 /**
  * Generate a contextual explanation for an evidence score
- * @param {number} score - Evidence score (0-100)
- * @param {number} sourceCount - Number of sources
- * @returns {string} Formatted explanation
+ * @param score - Evidence score (0-100)
+ * @param sourceCount - Number of sources
+ * @returns Formatted explanation
  */
-export function getScoreExplanation(score, sourceCount) {
+export function getScoreExplanation(
+  score: number | null | undefined,
+  sourceCount: number | null | undefined
+): string {
   if (!score && score !== 0) return 'No evidence score available'
   if (!sourceCount || sourceCount === 0) return `Score: ${score.toFixed(1)}%`
 

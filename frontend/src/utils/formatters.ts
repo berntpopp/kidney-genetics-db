@@ -2,7 +2,7 @@
  * Date and value formatting utilities
  */
 
-export function formatDate(dateString) {
+export function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return '—'
 
   const date = new Date(dateString)
@@ -16,12 +16,12 @@ export function formatDate(dateString) {
   })
 }
 
-export function formatRelativeTime(dateString) {
+export function formatRelativeTime(dateString: string | null | undefined): string {
   if (!dateString) return '—'
 
   const date = new Date(dateString)
   const now = new Date()
-  const diffMs = now - date
+  const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
 
   if (diffMins < 1) return 'Just now'
@@ -36,7 +36,7 @@ export function formatRelativeTime(dateString) {
   return formatDate(dateString)
 }
 
-export function formatBytes(bytes, decimals = 2) {
+export function formatBytes(bytes: number, decimals = 2): string {
   if (bytes === 0) return '0 Bytes'
 
   const k = 1024

@@ -8,13 +8,20 @@
  * @module utils/debounce
  */
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface DebouncedFunction<T extends (...args: any[]) => any> {
+  (...args: Parameters<T>): void
+  cancel(): void
+  flush(...args: Parameters<T>): void
+}
+
 /**
  * Create a debounced function that delays invoking the provided function
  * until after the specified delay has elapsed since the last invocation.
  *
- * @param {Function} fn - The function to debounce
- * @param {number} delay - The delay in milliseconds
- * @returns {Function} Debounced function with cancel method
+ * @param fn - The function to debounce
+ * @param delay - The delay in milliseconds
+ * @returns Debounced function with cancel and flush methods
  *
  * @example
  * const debouncedUpdate = debounce((value) => {
@@ -29,12 +36,17 @@
  * // Cancel pending execution
  * debouncedUpdate.cancel()
  */
-export function debounce(fn, delay) {
-  let timeoutId = null
-  let lastArgs = null
-  let lastThis = null
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function debounce<T extends (...args: any[]) => any>(
+  fn: T,
+  delay: number
+): DebouncedFunction<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+  let lastArgs: Parameters<T> | null = null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let lastThis: any = null
 
-  const debounced = function (...args) {
+  const debounced = function (this: unknown, ...args: Parameters<T>): void {
     // Store the latest args and context
     lastArgs = args
     lastThis = this
@@ -47,12 +59,12 @@ export function debounce(fn, delay) {
     // Schedule new execution
     timeoutId = setTimeout(() => {
       timeoutId = null
-      fn.apply(lastThis, lastArgs)
+      fn.apply(lastThis, lastArgs!)
     }, delay)
   }
 
   // Add cancel method to debounced function
-  debounced.cancel = function () {
+  debounced.cancel = function (): void {
     if (timeoutId !== null) {
       clearTimeout(timeoutId)
       timeoutId = null
@@ -62,7 +74,9 @@ export function debounce(fn, delay) {
   }
 
   // Add flush method to immediately execute with last stored args
-  debounced.flush = function () {
+  // Note: passed args are accepted for type compatibility but lastArgs are used internally
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  debounced.flush = function (..._args: Parameters<T>): void {
     if (timeoutId !== null) {
       clearTimeout(timeoutId)
       timeoutId = null
@@ -75,16 +89,16 @@ export function debounce(fn, delay) {
     }
   }
 
-  return debounced
+  return debounced as DebouncedFunction<T>
 }
 
 /**
  * Create a throttled function that only invokes the provided function
  * at most once per specified delay period.
  *
- * @param {Function} fn - The function to throttle
- * @param {number} delay - The delay in milliseconds
- * @returns {Function} Throttled function
+ * @param fn - The function to throttle
+ * @param delay - The delay in milliseconds
+ * @returns Throttled function
  *
  * @example
  * const throttledScroll = throttle(() => {
@@ -93,10 +107,14 @@ export function debounce(fn, delay) {
  *
  * window.addEventListener('scroll', throttledScroll)
  */
-export function throttle(fn, delay) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function throttle<T extends (...args: any[]) => any>(
+  fn: T,
+  delay: number
+): (...args: Parameters<T>) => void {
   let lastCall = 0
 
-  return function (...args) {
+  return function (this: unknown, ...args: Parameters<T>): void {
     const now = Date.now()
 
     if (now - lastCall >= delay) {

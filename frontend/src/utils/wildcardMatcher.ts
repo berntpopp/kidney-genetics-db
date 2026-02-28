@@ -14,17 +14,23 @@
  * @module utils/wildcardMatcher
  */
 
+/** Result of a wildcard pattern validation */
+export interface PatternValidationResult {
+  isValid: boolean
+  error: string | null
+}
+
 /**
  * Convert wildcard pattern to regular expression
  *
- * @param {string} pattern - Wildcard pattern (e.g., "COL*", "PKD?")
- * @returns {RegExp} Case-insensitive regular expression
+ * @param pattern - Wildcard pattern (e.g., "COL*", "PKD?")
+ * @returns Case-insensitive regular expression
  *
  * @example
  * const regex = wildcardToRegex("COL*")
  * regex.test("COL4A1") // true
  */
-export function wildcardToRegex(pattern) {
+export function wildcardToRegex(pattern: string): RegExp {
   if (!pattern) {
     return /.*/i // Match everything if no pattern
   }
@@ -46,16 +52,16 @@ export function wildcardToRegex(pattern) {
 /**
  * Test if a value matches a wildcard pattern
  *
- * @param {string} value - Value to test (e.g., "COL4A1")
- * @param {string} pattern - Wildcard pattern (e.g., "COL*")
- * @returns {boolean} True if value matches pattern
+ * @param value - Value to test (e.g., "COL4A1")
+ * @param pattern - Wildcard pattern (e.g., "COL*")
+ * @returns True if value matches pattern
  *
  * @example
  * matchesWildcard("COL4A1", "COL*") // true
  * matchesWildcard("PKD1", "COL*")   // false
  * matchesWildcard("col4a1", "COL*") // true (case-insensitive)
  */
-export function matchesWildcard(value, pattern) {
+export function matchesWildcard(value: string, pattern: string): boolean {
   if (!value || !pattern) {
     return false
   }
@@ -67,15 +73,15 @@ export function matchesWildcard(value, pattern) {
 /**
  * Find all values that match a wildcard pattern
  *
- * @param {Array<string>} values - Array of values to search
- * @param {string} pattern - Wildcard pattern
- * @returns {Array<string>} Matched values
+ * @param values - Array of values to search
+ * @param pattern - Wildcard pattern
+ * @returns Matched values
  *
  * @example
  * const genes = ["COL4A1", "COL4A2", "PKD1", "NPHS1"]
  * findMatches(genes, "COL*") // ["COL4A1", "COL4A2"]
  */
-export function findMatches(values, pattern) {
+export function findMatches(values: string[], pattern: string): string[] {
   if (!Array.isArray(values) || !pattern) {
     return []
   }
@@ -87,14 +93,14 @@ export function findMatches(values, pattern) {
 /**
  * Validate wildcard pattern syntax
  *
- * @param {string} pattern - Pattern to validate
- * @returns {Object} Validation result with isValid and error properties
+ * @param pattern - Pattern to validate
+ * @returns Validation result with isValid and error properties
  *
  * @example
  * validatePattern("COL*")     // { isValid: true, error: null }
  * validatePattern("")         // { isValid: false, error: "Pattern cannot be empty" }
  */
-export function validatePattern(pattern) {
+export function validatePattern(pattern: string): PatternValidationResult {
   if (!pattern || pattern.trim() === '') {
     return {
       isValid: false,

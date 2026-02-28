@@ -10,22 +10,54 @@
 
 import { compressState, decompressState } from './stateCompression'
 
+/** Decoded network analysis state */
+export interface NetworkState {
+  geneIds?: number[]
+  filteredGenes?: Array<{ id: number; [key: string]: unknown }>
+  selectedTiers?: string[]
+  minScore?: number
+  maxGenes?: number
+  minStringScore?: number
+  clusterAlgorithm?: string
+  removeIsolated?: boolean
+  minDegree?: number
+  minClusterSize?: number
+  largestComponentOnly?: boolean
+  nodeColorMode?: string
+  enrichmentType?: string
+  fdrThreshold?: number
+  selectedClusters?: number[]
+  highlightedCluster?: number | null
+  isClustered?: boolean
+  [key: string]: unknown
+}
+
+/** URL query parameters object */
+export type QueryParams = Record<string, string>
+
+/** Result of state validation */
+export interface NetworkStateValidation {
+  isValid: boolean
+  missingFields: string[]
+}
+
 /**
  * Encode network state to URL query parameters
  * Defaults to v2 (compressed) for production use
  *
- * @param {Object} state - Network analysis state
- * @param {number} version - Schema version (1=uncompressed, 2=compressed)
- * @returns {Object} Query parameters object
+ * @param state - Network analysis state
+ * @param version - Schema version (1=uncompressed, 2=compressed)
+ * @returns Query parameters object
  */
-export function encodeNetworkState(state, version = 2) {
+export function encodeNetworkState(state: NetworkState, version = 2): QueryParams {
   if (version === 2) {
     return encodeNetworkStateV2(state)
   } else if (version === 1) {
     return encodeNetworkStateV1(state)
   } else {
     if (window.logService) {
-      window.logService.warning(`[NetworkStateCodec] Unsupported version ${version}, using v2`)
+      // Fix (Rule 1 - Bug): was logService.warning() which does not exist; correct method is warn()
+      window.logService.warn(`[NetworkStateCodec] Unsupported version ${version}, using v2`)
     }
     return encodeNetworkStateV2(state)
   }
@@ -34,29 +66,24 @@ export function encodeNetworkState(state, version = 2) {
 /**
  * Encodes the network analysis state into v2 (compressed) format for use in URL query parameters.
  * Uses LZ-string compression via `compressState`. If compression fails, falls back to v1 (uncompressed) format.
- * Logs encoding details and errors using `window.logService` if available.
  *
- * @param {Object} state - The network analysis state to encode.
- * @param {Array<number>} [state.geneIds] - List of gene IDs
- * @param {Array<string>} [state.selectedTiers] - Selected evidence tiers
- * @param {number} [state.minScore] - Minimum score threshold
- * @param {string} [state.clusterAlgorithm] - Clustering algorithm (leiden, louvain, etc.)
- * @param {boolean} [state.isClustered] - Whether clustering has been performed
- * @returns {Object} Query parameters object containing the compressed state (`v: '2', c: <compressed>`).
- * @throws Will not throw; falls back to v1 encoding if compression fails.
+ * @param state - The network analysis state to encode.
+ * @returns Query parameters object containing the compressed state (`v: '2', c: <compressed>`).
  *
  * @private
  */
-function encodeNetworkStateV2(state) {
+function encodeNetworkStateV2(state: NetworkState): QueryParams {
   try {
-    const { compressed, originalSize, compressedSize, ratio } = compressState(state)
+    const { compressed, originalSize, compressedSize, ratio } = compressState(
+      state as Record<string, unknown>
+    )
 
     if (window.logService) {
       window.logService.info('[NetworkStateCodec] Encoded to v2 (compressed)', {
         originalSize,
         compressedSize,
         compressionRatio: `${(ratio * 100).toFixed(0)}%`,
-        geneCount: state.geneIds?.length || 0
+        geneCount: state.geneIds?.length ?? 0
       })
     }
 
@@ -77,23 +104,23 @@ function encodeNetworkStateV2(state) {
  * Encode network state to v1 (uncompressed) format
  * Used for debugging and as fallback
  *
- * @param {Object} state - Network analysis state
- * @returns {Object} Query parameters object
+ * @param state - Network analysis state
+ * @returns Query parameters object
  */
-function encodeNetworkStateV1(state) {
-  const params = {
+function encodeNetworkStateV1(state: NetworkState): QueryParams {
+  const params: QueryParams = {
     v: '1'
   }
 
   // Gene selection - handle both geneIds (new) and filteredGenes (legacy)
-  if (state.geneIds?.length > 0) {
+  if (state.geneIds && state.geneIds.length > 0) {
     params.genes = state.geneIds.join(',')
-  } else if (state.filteredGenes?.length > 0) {
+  } else if (state.filteredGenes && state.filteredGenes.length > 0) {
     // Backward compatibility: filteredGenes with objects
     params.genes = state.filteredGenes.map(g => g.id).join(',')
   }
 
-  if (state.selectedTiers?.length > 0) {
+  if (state.selectedTiers && state.selectedTiers.length > 0) {
     params.tiers = state.selectedTiers.join(',')
   }
 
@@ -145,7 +172,7 @@ function encodeNetworkStateV1(state) {
     params.fdr = state.fdrThreshold.toString()
   }
 
-  if (state.selectedClusters?.length > 0) {
+  if (state.selectedClusters && state.selectedClusters.length > 0) {
     params.selected = state.selectedClusters.join(',')
   }
 
@@ -166,11 +193,11 @@ function encodeNetworkStateV1(state) {
  * Decode URL query parameters to network state
  * Automatically detects version and routes to appropriate decoder
  *
- * @param {Object} query - URL query parameters
- * @returns {Object} Decoded network state
+ * @param query - URL query parameters
+ * @returns Decoded network state
  */
-export function decodeNetworkState(query) {
-  const version = parseInt(query.v) || 1
+export function decodeNetworkState(query: QueryParams): NetworkState {
+  const version = parseInt(query['v'] ?? '1') || 1
 
   if (version === 2) {
     return decodeNetworkStateV2(query)
@@ -178,7 +205,8 @@ export function decodeNetworkState(query) {
     return decodeNetworkStateV1(query)
   } else {
     if (window.logService) {
-      window.logService.warning(
+      // Fix (Rule 1 - Bug): was logService.warning() which does not exist; correct method is warn()
+      window.logService.warn(
         `[NetworkStateCodec] Unsupported schema version: ${version}, using v1`
       )
     }
@@ -189,21 +217,21 @@ export function decodeNetworkState(query) {
 /**
  * Decode v2 (compressed) format to network state
  *
- * @param {Object} query - URL query parameters with 'c' (compressed) field
- * @returns {Object} Decoded network state
+ * @param query - URL query parameters with 'c' (compressed) field
+ * @returns Decoded network state
  */
-function decodeNetworkStateV2(query) {
+function decodeNetworkStateV2(query: QueryParams): NetworkState {
   try {
     if (!query.c) {
       throw new Error('Missing compressed state parameter "c"')
     }
 
-    const state = decompressState(query.c)
+    const state = decompressState(query.c!) as NetworkState
 
     if (window.logService) {
       window.logService.info('[NetworkStateCodec] Decoded from v2 (compressed)', {
         compressedSize: query.c.length,
-        geneCount: state.geneIds?.length || 0,
+        geneCount: state.geneIds?.length ?? 0,
         maxGenes: state.maxGenes,
         minClusterSize: state.minClusterSize,
         isClustered: state.isClustered,
@@ -216,18 +244,18 @@ function decodeNetworkStateV2(query) {
     if (window.logService) {
       window.logService.error('[NetworkStateCodec] v2 decoding failed:', error)
     }
-    throw new Error(`Failed to decode compressed URL state: ${error.message}`)
+    throw new Error(`Failed to decode compressed URL state: ${(error as Error).message}`)
   }
 }
 
 /**
  * Decode v1 (uncompressed) format to network state
  *
- * @param {Object} query - URL query parameters
- * @returns {Object} Decoded network state
+ * @param query - URL query parameters
+ * @returns Decoded network state
  */
-function decodeNetworkStateV1(query) {
-  const state = {}
+function decodeNetworkStateV1(query: QueryParams): NetworkState {
+  const state: NetworkState = {}
 
   // Gene selection
   if (query.genes) {
@@ -306,16 +334,18 @@ function decodeNetworkStateV1(query) {
 /**
  * Validate state object completeness
  *
- * @param {Object} state - Network state
- * @returns {Object} Validation result { isValid, missingFields }
+ * @param state - Network state
+ * @returns Validation result { isValid, missingFields }
  */
-export function validateNetworkState(state) {
-  const requiredFields = ['geneIds']
-  const missingFields = requiredFields.filter(field => !state[field] || state[field].length === 0)
+export function validateNetworkState(state: NetworkState): NetworkStateValidation {
+  const requiredFields: (keyof NetworkState)[] = ['geneIds']
+  const missingFields = requiredFields.filter(
+    field => !state[field] || (state[field] as unknown[]).length === 0
+  )
 
   return {
     isValid: missingFields.length === 0,
-    missingFields
+    missingFields: missingFields as string[]
   }
 }
 

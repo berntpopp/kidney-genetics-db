@@ -5,7 +5,80 @@
  * These values control gene selection, network construction, and visualization behavior.
  */
 
-export const networkAnalysisConfig = {
+/** Color mode option for node coloring */
+export interface ColorModeOption {
+  value: string
+  label: string
+  description: string
+}
+
+/** Warning message configuration */
+export interface WarningMessageConfig {
+  title: string
+  threshold: number
+  message: (count: number) => string
+}
+
+/** Network analysis configuration shape */
+export interface NetworkAnalysisConfig {
+  geneSelection: {
+    defaultMinScore: number
+    defaultMaxGenes: number
+    maxGenesHardLimit: number
+    minGenesLimit: number
+    largeNetworkThreshold: number
+    maxGeneIds: number
+  }
+  networkConstruction: {
+    defaultMinStringScore: number
+    minStringScoreRange: { min: number; max: number; step: number }
+    defaultClusteringAlgorithm: string
+  }
+  filtering: {
+    defaultRemoveIsolated: boolean
+    defaultMinDegree: number
+    defaultMinClusterSize: number
+    defaultLargestComponentOnly: boolean
+  }
+  enrichment: {
+    defaultEnrichmentType: string
+    defaultFdrThreshold: number
+    hpoGeneSet: string
+    goGeneSets: string[]
+  }
+  ui: {
+    defaultGraphHeight: string
+    warningMessages: {
+      largeNetwork: WarningMessageConfig
+    }
+  }
+  search: {
+    enabled: boolean
+    placeholder: string
+    highlightColor: string
+    maxResults: number
+    caseSensitive: boolean
+    wildcardSupport: boolean
+    showHelp: boolean
+    animationDuration: number
+  }
+  nodeColoring: {
+    modes: ColorModeOption[]
+    defaultMode: string
+    colorSchemes: {
+      clinical_group: Record<string, string>
+      onset_group: Record<string, string>
+      syndromic: Record<string, string>
+    }
+    labels: {
+      clinical_group: Record<string, string>
+      onset_group: Record<string, string>
+      syndromic: Record<string, string>
+    }
+  }
+}
+
+export const networkAnalysisConfig: NetworkAnalysisConfig = {
   // Gene Selection Parameters
   geneSelection: {
     defaultMinScore: 20, // Minimum evidence score for gene inclusion
@@ -54,7 +127,7 @@ export const networkAnalysisConfig = {
       largeNetwork: {
         title: 'Large Network Warning',
         threshold: 700,
-        message: count =>
+        message: (count: number) =>
           `You have selected ${count} genes. Networks with >${networkAnalysisConfig.geneSelection.largeNetworkThreshold} nodes may take longer to build and visualize. Consider filtering to higher evidence tiers for better performance.`
       }
     }

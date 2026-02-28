@@ -8,12 +8,29 @@
 
 import api from '@/api/client'
 
+/** Frontend version info */
+export interface FrontendVersionInfo {
+  version: string
+  name: string
+  type: string
+}
+
+/** Complete version response from API + frontend */
+export interface AllVersionsResult {
+  frontend: FrontendVersionInfo
+  backend?: { version: string; [key: string]: unknown }
+  database?: { version: string; [key: string]: unknown }
+  environment?: string
+  timestamp?: string
+  [key: string]: unknown
+}
+
 /**
  * Get frontend version (injected by Vite at build time)
- * @returns {string} Frontend version (e.g., "0.1.0")
+ * @returns Frontend version (e.g., "0.1.0")
  */
-export function getFrontendVersion() {
-  return __APP_VERSION__ // Injected by Vite via define in vite.config.js
+export function getFrontendVersion(): string {
+  return __APP_VERSION__ // Injected by Vite via define in vite.config.ts
 }
 
 /**
@@ -22,7 +39,7 @@ export function getFrontendVersion() {
  * Fetches backend and database versions from the API and combines them
  * with the frontend version.
  *
- * @returns {Promise<Object>} Version information for all components
+ * @returns Version information for all components
  * @example
  * const versions = await getAllVersions()
  * // {
@@ -33,12 +50,12 @@ export function getFrontendVersion() {
  * //   timestamp: "2025-10-10T12:00:00Z"
  * // }
  */
-export async function getAllVersions() {
+export async function getAllVersions(): Promise<AllVersionsResult> {
   try {
     const response = await api.get('/version')
 
     return {
-      ...response.data,
+      ...(response.data as Record<string, unknown>),
       frontend: {
         version: getFrontendVersion(),
         name: 'kidney-genetics-db-frontend',

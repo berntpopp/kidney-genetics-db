@@ -5,13 +5,29 @@
  * Follows Material Design 3 navigation patterns.
  */
 
+/** A single breadcrumb item for v-breadcrumbs */
+export interface BreadcrumbItem {
+  title: string
+  to?: string | null
+  disabled: boolean
+}
+
+/** A page entry used to build breadcrumbs with parent pages */
+export interface BreadcrumbPage {
+  title: string
+  to: string
+}
+
 /**
  * Generate breadcrumbs for a public page
- * @param {string} currentPageTitle - The title of the current page
- * @param {string} currentPagePath - Optional path override
- * @returns {Array} Breadcrumb items for v-breadcrumbs
+ * @param currentPageTitle - The title of the current page
+ * @param currentPagePath - Optional path override
+ * @returns Breadcrumb items for v-breadcrumbs
  */
-export const getPublicBreadcrumbs = (currentPageTitle, currentPagePath = null) => {
+export const getPublicBreadcrumbs = (
+  currentPageTitle: string,
+  currentPagePath: string | null = null
+): BreadcrumbItem[] => {
   return [
     {
       title: 'Home',
@@ -28,11 +44,11 @@ export const getPublicBreadcrumbs = (currentPageTitle, currentPagePath = null) =
 
 /**
  * Generate breadcrumbs with parent pages
- * @param {Array} pages - Array of {title, to} objects
- * @returns {Array} Breadcrumb items for v-breadcrumbs
+ * @param pages - Array of {title, to} objects
+ * @returns Breadcrumb items for v-breadcrumbs
  */
-export const getPublicBreadcrumbsWithParents = pages => {
-  const breadcrumbs = [
+export const getPublicBreadcrumbsWithParents = (pages: BreadcrumbPage[]): BreadcrumbItem[] => {
+  const breadcrumbs: BreadcrumbItem[] = [
     {
       title: 'Home',
       to: '/',
@@ -54,7 +70,7 @@ export const getPublicBreadcrumbsWithParents = pages => {
 /**
  * Breadcrumb configurations for each public page
  */
-export const PUBLIC_BREADCRUMBS = {
+export const PUBLIC_BREADCRUMBS: Record<string, BreadcrumbItem[]> = {
   genes: getPublicBreadcrumbs('Genes', '/genes'),
   dashboard: getPublicBreadcrumbs('Dashboard', '/dashboard'),
   dataSources: getPublicBreadcrumbs('Data Sources', '/data-sources'),
@@ -64,10 +80,10 @@ export const PUBLIC_BREADCRUMBS = {
 
 /**
  * Generate breadcrumbs for gene detail page
- * @param {string} geneSymbol - The gene symbol
- * @returns {Array} Breadcrumb items
+ * @param geneSymbol - The gene symbol
+ * @returns Breadcrumb items
  */
-export const getGeneDetailBreadcrumbs = geneSymbol => {
+export const getGeneDetailBreadcrumbs = (geneSymbol: string): BreadcrumbItem[] => {
   return getPublicBreadcrumbsWithParents([
     { title: 'Genes', to: '/genes' },
     { title: geneSymbol, to: `/genes/${geneSymbol}` }
@@ -76,10 +92,10 @@ export const getGeneDetailBreadcrumbs = geneSymbol => {
 
 /**
  * Generate breadcrumbs for gene structure page
- * @param {string} geneSymbol - The gene symbol
- * @returns {Array} Breadcrumb items
+ * @param geneSymbol - The gene symbol
+ * @returns Breadcrumb items
  */
-export const getGeneStructureBreadcrumbs = geneSymbol => {
+export const getGeneStructureBreadcrumbs = (geneSymbol: string): BreadcrumbItem[] => {
   return getPublicBreadcrumbsWithParents([
     { title: 'Genes', to: '/genes' },
     { title: geneSymbol, to: `/genes/${geneSymbol}` },

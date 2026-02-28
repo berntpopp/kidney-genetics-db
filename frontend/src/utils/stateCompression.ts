@@ -9,18 +9,26 @@
 
 import LZString from 'lz-string'
 
+/** Result of a state compression operation */
+export interface CompressionResult {
+  compressed: string
+  originalSize: number
+  compressedSize: number
+  ratio: number
+}
+
 /**
  * Compress network state to URI-safe string
  *
- * @param {Object} state - Network analysis state
- * @returns {Object} { compressed, originalSize, compressedSize, ratio }
- * @throws {Error} If compression fails
+ * @param state - Network analysis state
+ * @returns CompressionResult with compressed string and size stats
+ * @throws Error If compression fails
  *
  * @example
  * const result = compressState({ geneIds: [1,2,3], filters: {...} })
  * // Returns: { compressed: "eJy...", originalSize: 450, compressedSize: 120, ratio: 0.73 }
  */
-export function compressState(state) {
+export function compressState(state: Record<string, unknown>): CompressionResult {
   try {
     // Serialize to JSON
     const json = JSON.stringify(state)
@@ -31,14 +39,14 @@ export function compressState(state) {
     const compressedSize = compressed.length
 
     // Calculate compression ratio (compressedSize / originalSize)
-    const ratio = (compressedSize / originalSize).toFixed(2)
+    const ratio = parseFloat((compressedSize / originalSize).toFixed(2))
 
     if (window.logService) {
       window.logService.debug('[StateCompression] Compression successful', {
         originalSize,
         compressedSize,
         ratio: `${(ratio * 100).toFixed(0)}%`, // e.g., "27%" means compressed is 27% of original
-        geneCount: state.filteredGenes?.length || 0
+        geneCount: (state.filteredGenes as unknown[] | undefined)?.length ?? 0
       })
     }
 
@@ -46,28 +54,28 @@ export function compressState(state) {
       compressed,
       originalSize,
       compressedSize,
-      ratio: parseFloat(ratio)
+      ratio
     }
   } catch (error) {
     if (window.logService) {
       window.logService.error('[StateCompression] Compression failed:', error)
     }
-    throw new Error(`Failed to compress state: ${error.message}`)
+    throw new Error(`Failed to compress state: ${(error as Error).message}`)
   }
 }
 
 /**
  * Decompress URI-safe string to network state
  *
- * @param {string} compressed - Compressed state string
- * @returns {Object} Decompressed network state
- * @throws {Error} If decompression fails
+ * @param compressed - Compressed state string
+ * @returns Decompressed network state
+ * @throws Error If decompression fails
  *
  * @example
  * const state = decompressState("eJy...")
  * // Returns: { geneIds: [1,2,3], filters: {...} }
  */
-export function decompressState(compressed) {
+export function decompressState(compressed: string): Record<string, unknown> {
   try {
     // Decompress from URI-safe encoding
     const json = LZString.decompressFromEncodedURIComponent(compressed)
@@ -77,34 +85,35 @@ export function decompressState(compressed) {
     }
 
     // Parse JSON
-    const state = JSON.parse(json)
+    const state = JSON.parse(json) as Record<string, unknown>
 
     if (window.logService) {
       window.logService.debug('[StateCompression] Decompression successful', {
         compressedSize: compressed.length,
-        geneCount: state.geneIds?.length || 0
+        geneCount: (state.geneIds as unknown[] | undefined)?.length ?? 0
       })
     }
 
     return state
   } catch (error) {
     if (window.logService) {
-      window.logService.error('[StateCompression] Decompression failed:', error, {
+      window.logService.error('[StateCompression] Decompression failed:', {
+        error,
         compressedLength: compressed?.length || 0,
         firstChars: compressed?.substring(0, 20) || 'null'
       })
     }
-    throw new Error(`Failed to decompress state: ${error.message}`)
+    throw new Error(`Failed to decompress state: ${(error as Error).message}`)
   }
 }
 
 /**
  * Check if compressed string is valid LZ-string format
  *
- * @param {string} compressed - String to validate
- * @returns {boolean} True if valid
+ * @param compressed - String to validate
+ * @returns True if valid
  */
-export function isValidCompressed(compressed) {
+export function isValidCompressed(compressed: string | null | undefined): boolean {
   if (!compressed || typeof compressed !== 'string') {
     return false
   }
@@ -121,10 +130,10 @@ export function isValidCompressed(compressed) {
  * Estimate compressed size without actually compressing
  * Useful for warning users about extremely large states
  *
- * @param {Object} state - Network state to estimate
- * @returns {number} Estimated compressed size in characters
+ * @param state - Network state to estimate
+ * @returns Estimated compressed size in characters
  */
-export function estimateCompressedSize(state) {
+export function estimateCompressedSize(state: Record<string, unknown>): number {
   const json = JSON.stringify(state)
   // Use empirical compression ratio of 0.26 (compressed is ~26% of original size)
   return Math.ceil(json.length * 0.26)

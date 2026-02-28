@@ -8,7 +8,7 @@
  * <AdminHeader :icon="ADMIN_ICONS.users" />
  */
 
-export const ADMIN_ICONS = {
+export const ADMIN_ICONS: Record<string, string> = {
   // Main dashboard
   dashboard: 'mdi-view-dashboard-variant',
 
@@ -49,8 +49,8 @@ export const ADMIN_ICONS = {
  * Get icon color based on admin section
  * Maps to Material Design 3 color system
  */
-export const getAdminIconColor = section => {
-  const colorMap = {
+export const getAdminIconColor = (section: string): string => {
+  const colorMap: Record<string, string> = {
     dashboard: 'primary',
     users: 'primary',
     cache: 'purple',
@@ -64,7 +64,7 @@ export const getAdminIconColor = section => {
     hybridSources: 'cyan'
   }
 
-  return colorMap[section] || 'primary'
+  return colorMap[section] ?? 'primary'
 }
 
 export default ADMIN_ICONS
