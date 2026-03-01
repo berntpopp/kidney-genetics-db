@@ -9,6 +9,13 @@ import { ref, computed } from 'vue'
 import type { User, UserRole } from '@/types/auth'
 import * as authApi from '@/api/auth'
 
+/** Extract detail message from API error responses (supports JSON:API wrapper format) */
+type ApiError = { response?: { data?: { detail?: string; error?: { detail?: string } } } }
+function extractErrorDetail(err: unknown, fallback: string): string {
+  const apiErr = err as ApiError
+  return apiErr.response?.data?.error?.detail ?? apiErr.response?.data?.detail ?? fallback
+}
+
 export const useAuthStore = defineStore('auth', () => {
   // State - using refs for reactivity
   const user = ref<User | null>(null)
@@ -68,8 +75,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       return true
     } catch (err: unknown) {
-      const apiErr = err as { response?: { data?: { detail?: string } } }
-      error.value = apiErr.response?.data?.detail ?? 'Login failed'
+      error.value = extractErrorDetail(err, 'Login failed')
       window.logService.error('Login error:', err)
       return false
     } finally {
@@ -172,8 +178,7 @@ export const useAuthStore = defineStore('auth', () => {
       await authApi.requestPasswordReset(email)
       return true
     } catch (err: unknown) {
-      const apiErr = err as { response?: { data?: { detail?: string } } }
-      error.value = apiErr.response?.data?.detail ?? 'Failed to send reset email'
+      error.value = extractErrorDetail(err, 'Failed to send reset email')
       return false
     } finally {
       isLoading.value = false
@@ -193,8 +198,7 @@ export const useAuthStore = defineStore('auth', () => {
       await authApi.resetPassword(token, newPassword)
       return true
     } catch (err: unknown) {
-      const apiErr = err as { response?: { data?: { detail?: string } } }
-      error.value = apiErr.response?.data?.detail ?? 'Failed to reset password'
+      error.value = extractErrorDetail(err, 'Failed to reset password')
       return false
     } finally {
       isLoading.value = false
@@ -214,8 +218,7 @@ export const useAuthStore = defineStore('auth', () => {
       await authApi.changePassword(currentPassword, newPassword)
       return true
     } catch (err: unknown) {
-      const apiErr = err as { response?: { data?: { detail?: string } } }
-      error.value = apiErr.response?.data?.detail ?? 'Failed to change password'
+      error.value = extractErrorDetail(err, 'Failed to change password')
       return false
     } finally {
       isLoading.value = false
@@ -240,8 +243,7 @@ export const useAuthStore = defineStore('auth', () => {
       const newUser = await authApi.registerUser(userData)
       return newUser
     } catch (err: unknown) {
-      const apiErr = err as { response?: { data?: { detail?: string } } }
-      error.value = apiErr.response?.data?.detail ?? 'Failed to register user'
+      error.value = extractErrorDetail(err, 'Failed to register user')
       throw err
     } finally {
       isLoading.value = false
