@@ -33,8 +33,13 @@
         <div class="flex items-start justify-between mb-6">
           <div class="flex-1">
             <div class="flex items-center mb-2">
-              <RouterLink to="/genes">
-                <Button variant="ghost" size="icon-sm" class="mr-3">
+              <RouterLink to="/genes" aria-label="Back to gene browser">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="mr-3 min-h-11 min-w-11"
+                  aria-label="Back to gene browser"
+                >
                   <ArrowLeft :size="16" />
                 </Button>
               </RouterLink>
@@ -68,7 +73,12 @@
 
             <DropdownMenu>
               <DropdownMenuTrigger as-child>
-                <Button variant="ghost" size="icon-sm">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="min-h-11 min-w-11"
+                  aria-label="More actions"
+                >
                   <EllipsisVertical :size="16" />
                 </Button>
               </DropdownMenuTrigger>

@@ -25,28 +25,39 @@
     <div class="container mx-auto px-4 -mt-8">
       <!-- Statistics Cards with Gradients -->
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        <div
-          v-for="(stat, index) in stats"
-          :key="stat.title"
-          class="stat-card overflow-hidden rounded-lg shadow-sm transition-all"
-          :class="{ 'stat-card-clickable cursor-pointer': stat.route }"
-          @mouseenter="hoveredCard = index"
-          @mouseleave="hoveredCard = null"
-          @click="stat.route ? router.push(stat.route) : null"
-        >
+        <template v-if="statsLoaded">
           <div
-            class="p-4 text-center rounded-lg"
-            :style="`background: linear-gradient(135deg, ${getGradientColors(stat.color)});`"
+            v-for="(stat, index) in stats"
+            :key="stat.title"
+            class="stat-card overflow-hidden rounded-lg shadow-sm transition-all"
+            :class="{ 'stat-card-clickable cursor-pointer': stat.route }"
+            @mouseenter="hoveredCard = index"
+            @mouseleave="hoveredCard = null"
+            @click="stat.route ? router.push(stat.route) : null"
           >
-            <component :is="stat.icon" class="size-8 text-white mb-2 mx-auto" />
-            <div class="text-3xl font-bold text-white">
-              {{ stat.value }}
-            </div>
-            <div class="text-sm text-white/95">
-              {{ stat.title }}
+            <div
+              class="p-4 text-center rounded-lg"
+              :style="`background: linear-gradient(135deg, ${getGradientColors(stat.color)});`"
+            >
+              <component :is="stat.icon" class="size-8 text-white mb-2 mx-auto" />
+              <div class="text-3xl font-bold text-white">
+                {{ stat.value }}
+              </div>
+              <div class="text-sm text-white/95">
+                {{ stat.title }}
+              </div>
             </div>
           </div>
-        </div>
+        </template>
+        <template v-else>
+          <div v-for="n in 3" :key="n" class="overflow-hidden rounded-lg shadow-sm">
+            <div class="p-4 text-center rounded-lg bg-muted animate-pulse">
+              <div class="size-8 rounded-full bg-muted-foreground/20 mb-2 mx-auto" />
+              <div class="h-9 w-20 rounded bg-muted-foreground/20 mx-auto mb-2" />
+              <div class="h-4 w-28 rounded bg-muted-foreground/20 mx-auto" />
+            </div>
+          </div>
+        </template>
       </div>
 
       <!-- Key Benefits -->
@@ -88,6 +99,7 @@ import { KGDBLogo } from '@/components/branding'
 const router = useRouter()
 const { width } = useWindowSize()
 const hoveredCard = ref<number | null>(null)
+const statsLoaded = ref(false)
 
 // Responsive logo sizing
 const logoSize = computed(() => {
@@ -189,6 +201,8 @@ onMounted(async () => {
   } catch (error) {
     window.logService.error('Error fetching stats:', error)
     stats.value[2].value = 'Error'
+  } finally {
+    statsLoaded.value = true
   }
 })
 </script>

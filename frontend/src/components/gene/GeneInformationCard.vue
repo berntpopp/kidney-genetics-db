@@ -5,7 +5,7 @@
         <Dna :size="20" class="text-primary" />
       </div>
       <div class="flex-1">
-        <CardTitle class="flex items-center flex-wrap text-base">
+        <CardTitle tag="h2" class="flex items-center flex-wrap text-base">
           <span>Gene Information</span>
           <span class="ml-3 text-sm font-normal text-muted-foreground">
             {{ gene.approved_symbol }} &bull; {{ gene.hgnc_id }}

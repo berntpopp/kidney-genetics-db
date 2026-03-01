@@ -50,7 +50,7 @@
         >
           <component :is="scoreIcon" :size="20" :style="{ color: scoreHexColor }" />
         </div>
-        <CardTitle class="text-base">Evidence Score</CardTitle>
+        <CardTitle tag="h2" class="text-base">Evidence Score</CardTitle>
       </CardHeader>
       <CardContent>
         <!-- Donut Chart Visualization -->
