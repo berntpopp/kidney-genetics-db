@@ -270,6 +270,8 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
+import { useSeoMeta } from '@/composables/useSeoMeta'
+import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
 import {
   ArrowLeftRight,
   ArrowRight,
@@ -306,6 +308,15 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
 const breadcrumbs = PUBLIC_BREADCRUMBS.about
+
+useJsonLd(getBreadcrumbSchema(breadcrumbs))
+
+useSeoMeta({
+  title: 'About',
+  description:
+    'Learn about the Kidney Genetics Database, its core concepts, data pipeline, and technical architecture.',
+  canonicalPath: '/about'
+})
 
 const coreConcepts = [
   {

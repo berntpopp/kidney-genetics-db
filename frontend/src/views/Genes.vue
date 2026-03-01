@@ -38,6 +38,17 @@ import {
 } from '@/components/ui/breadcrumb'
 import GeneTable from '@/components/GeneTable.vue'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
+import { useSeoMeta } from '@/composables/useSeoMeta'
+import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
 
 const breadcrumbs = PUBLIC_BREADCRUMBS.genes
+
+useJsonLd(getBreadcrumbSchema(breadcrumbs))
+
+useSeoMeta({
+  title: 'Gene Browser',
+  description:
+    'Search and explore curated kidney disease gene-disease associations with evidence scores from multiple genomic sources.',
+  canonicalPath: '/genes'
+})
 </script>

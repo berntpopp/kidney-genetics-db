@@ -221,6 +221,8 @@ import {
 import { ref, computed, onMounted } from 'vue'
 import { datasourceApi } from '@/api/datasources'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
+import { useSeoMeta } from '@/composables/useSeoMeta'
+import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -235,6 +237,15 @@ import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const breadcrumbs = PUBLIC_BREADCRUMBS.dataSources
+
+useJsonLd(getBreadcrumbSchema(breadcrumbs))
+
+useSeoMeta({
+  title: 'Data Sources',
+  description:
+    'Live status and statistics from integrated genomic data sources including PanelApp, ClinGen, GenCC, HPO, and more.',
+  canonicalPath: '/data-sources'
+})
 
 const loading = ref(true)
 const hoveredCard = ref<string | null>(null)

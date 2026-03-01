@@ -203,13 +203,6 @@ const columns: ColumnDef<any>[] = [
 // Computed
 const pageCount = computed(() => Math.ceil(totalItems.value / itemsPerPage.value))
 
-const pageRangeText = computed(() => {
-  if (totalItems.value === 0) return 'No results'
-  const start = (page.value - 1) * itemsPerPage.value + 1
-  const end = Math.min(page.value * itemsPerPage.value, totalItems.value)
-  return `Showing ${start}–${end} of ${totalItems.value}`
-})
-
 const hiddenGeneCount = computed(() => {
   return filterMeta.value?.hidden_zero_scores || 0
 })
@@ -544,78 +537,11 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-3">
-    <!-- Search & Filter Card -->
+    <!-- Search & Filter Bar -->
     <Card>
-      <CardContent class="pt-6">
-        <div class="flex items-start justify-between mb-4">
-          <div>
-            <h2 class="text-lg font-medium mb-1">Search & Filter</h2>
-            <div class="flex items-center gap-1">
-              <p class="text-sm text-muted-foreground">
-                Explore {{ totalItems.toLocaleString() }} kidney disease genes
-              </p>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <Info class="h-3 w-3 text-muted-foreground" />
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" class="max-w-[300px]">
-                    <div>
-                      <strong>Genes with evidence:</strong>
-                      {{ totalItems.toLocaleString() }} genes with evidence score > 0
-                      <template v-if="hiddenGeneCount > 0">
-                        <br /><br />{{ hiddenGeneCount.toLocaleString() }} genes with insufficient
-                        evidence are currently hidden. <br />Toggle "Show genes with insufficient
-                        evidence" below to see all
-                        {{ (totalItems + hiddenGeneCount).toLocaleString() }} genes.
-                      </template>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </div>
-          <div class="flex gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <Button variant="outline" size="icon-sm" :disabled="loading" @click="exportData">
-                    <Download class="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Export filtered results</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    :disabled="!hasActiveFilters"
-                    @click="clearAllFilters"
-                  >
-                    <FilterX class="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Clear all filters</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <Button variant="outline" size="icon-sm" @click="refreshData">
-                    <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Refresh data</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        </div>
-
-        <!-- Row 1: Search + Sort -->
-        <div class="flex flex-col sm:flex-row gap-3 mb-3">
+      <CardContent class="py-3 px-4">
+        <!-- Row 1: Search + Sort + Action buttons -->
+        <div class="flex flex-col sm:flex-row gap-2">
           <div class="relative flex-1">
             <Search
               :size="16"
@@ -624,154 +550,172 @@ onMounted(async () => {
             <Input
               v-model="search"
               placeholder="PKD1, HGNC:9008..."
-              class="pl-9"
+              class="pl-9 h-9"
               @input="debouncedSearch"
             />
           </div>
-          <Select :model-value="sortOption" @update:model-value="applySorting">
-            <SelectTrigger class="w-full sm:w-[220px]">
-              <SelectValue placeholder="Sort by..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
-                {{ opt.title }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+          <div class="flex gap-2">
+            <Select :model-value="sortOption" @update:model-value="applySorting">
+              <SelectTrigger class="w-[180px] h-9">
+                <SelectValue placeholder="Sort by..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.title }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
-        <!-- Row 2: Source + Tier filters -->
-        <div class="flex flex-wrap gap-3 mb-3">
-          <!-- Source Filter -->
-          <Popover>
-            <PopoverTrigger as-child>
-              <Button variant="outline" size="sm" class="h-9">
-                Sources
-                <Badge
-                  v-if="selectedSources.length"
-                  variant="secondary"
-                  class="ml-2 rounded-sm px-1"
-                >
-                  {{ selectedSources.length }}
-                </Badge>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent class="w-[200px] p-3" align="start">
-              <div class="space-y-2">
-                <p class="text-sm font-medium">Filter by source</p>
-                <Separator />
-                <div
-                  v-for="source in availableSources"
-                  :key="source.value"
-                  class="flex items-center gap-2"
-                >
-                  <Checkbox
-                    :id="`source-${source.value}`"
-                    :checked="selectedSources.includes(source.value)"
-                    @update:checked="toggleSource(source.value)"
-                  />
-                  <Label :for="`source-${source.value}`" class="text-sm cursor-pointer">
-                    {{ source.title }}
-                  </Label>
-                </div>
-                <Button
-                  v-if="selectedSources.length > 0"
-                  variant="ghost"
-                  size="sm"
-                  class="w-full"
-                  @click="clearSources"
-                >
-                  Clear
+            <!-- Source Filter -->
+            <Popover>
+              <PopoverTrigger as-child>
+                <Button variant="outline" size="sm" class="h-9">
+                  Sources
+                  <Badge
+                    v-if="selectedSources.length"
+                    variant="secondary"
+                    class="ml-1 rounded-sm px-1 text-xs"
+                  >
+                    {{ selectedSources.length }}
+                  </Badge>
                 </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
-
-          <!-- Tier Filter -->
-          <Popover>
-            <PopoverTrigger as-child>
-              <Button variant="outline" size="sm" class="h-9">
-                Tiers
-                <Badge v-if="selectedTiers.length" variant="secondary" class="ml-2 rounded-sm px-1">
-                  {{ selectedTiers.length }}
-                </Badge>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent class="w-[250px] p-3" align="start">
-              <div class="space-y-2">
-                <p class="text-sm font-medium">Filter by tier</p>
-                <Separator />
-                <div
-                  v-for="tier in availableTiers"
-                  :key="tier.value"
-                  class="flex items-center gap-2"
-                >
-                  <Checkbox
-                    :id="`tier-${tier.value}`"
-                    :checked="selectedTiers.includes(tier.value)"
-                    @update:checked="toggleTier(tier.value)"
-                  />
-                  <Label :for="`tier-${tier.value}`" class="text-sm cursor-pointer">
-                    <span
-                      class="inline-block w-2 h-2 rounded-full mr-1"
-                      :style="{ backgroundColor: tier.color }"
+              </PopoverTrigger>
+              <PopoverContent class="w-[200px] p-3" align="start">
+                <div class="space-y-2">
+                  <p class="text-sm font-medium">Filter by source</p>
+                  <Separator />
+                  <div
+                    v-for="source in availableSources"
+                    :key="source.value"
+                    class="flex items-center gap-2"
+                  >
+                    <Checkbox
+                      :id="`source-${source.value}`"
+                      :checked="selectedSources.includes(source.value)"
+                      @update:checked="toggleSource(source.value)"
                     />
-                    {{ tier.title }}
-                  </Label>
+                    <Label :for="`source-${source.value}`" class="text-sm cursor-pointer">
+                      {{ source.title }}
+                    </Label>
+                  </div>
+                  <Button
+                    v-if="selectedSources.length > 0"
+                    variant="ghost"
+                    size="sm"
+                    class="w-full"
+                    @click="clearSources"
+                  >
+                    Clear
+                  </Button>
                 </div>
-                <Button
-                  v-if="selectedTiers.length > 0"
-                  variant="ghost"
-                  size="sm"
-                  class="w-full"
-                  @click="clearTiers"
-                >
-                  Clear
+              </PopoverContent>
+            </Popover>
+
+            <!-- Tier Filter -->
+            <Popover>
+              <PopoverTrigger as-child>
+                <Button variant="outline" size="sm" class="h-9">
+                  Tiers
+                  <Badge
+                    v-if="selectedTiers.length"
+                    variant="secondary"
+                    class="ml-1 rounded-sm px-1 text-xs"
+                  >
+                    {{ selectedTiers.length }}
+                  </Badge>
                 </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
+              </PopoverTrigger>
+              <PopoverContent class="w-[250px] p-3" align="start">
+                <div class="space-y-2">
+                  <p class="text-sm font-medium">Filter by tier</p>
+                  <Separator />
+                  <div
+                    v-for="tier in availableTiers"
+                    :key="tier.value"
+                    class="flex items-center gap-2"
+                  >
+                    <Checkbox
+                      :id="`tier-${tier.value}`"
+                      :checked="selectedTiers.includes(tier.value)"
+                      @update:checked="toggleTier(tier.value)"
+                    />
+                    <Label :for="`tier-${tier.value}`" class="text-sm cursor-pointer">
+                      <span
+                        class="inline-block w-2 h-2 rounded-full mr-1"
+                        :style="{ backgroundColor: tier.color }"
+                      />
+                      {{ tier.title }}
+                    </Label>
+                  </div>
+                  <Button
+                    v-if="selectedTiers.length > 0"
+                    variant="ghost"
+                    size="sm"
+                    class="w-full"
+                    @click="clearTiers"
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Button
+              variant="outline"
+              size="icon-sm"
+              class="h-9 w-9"
+              :disabled="loading"
+              @click="exportData"
+            >
+              <Download class="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              class="h-9 w-9"
+              :disabled="!hasActiveFilters"
+              @click="clearAllFilters"
+            >
+              <FilterX class="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon-sm" class="h-9 w-9" @click="refreshData">
+              <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
+            </Button>
+          </div>
         </div>
 
-        <!-- Row 3: Score + Count sliders -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <Label class="text-xs">Evidence Score</Label>
-              <span class="text-xs text-muted-foreground font-mono">
-                {{ evidenceScoreRange[0] }} – {{ evidenceScoreRange[1] }}
-              </span>
-            </div>
+        <!-- Row 2: Sliders + Zero-score toggle (compact) -->
+        <div class="flex flex-col md:flex-row items-start md:items-center gap-x-6 gap-y-2 mt-2">
+          <div class="flex items-center gap-2 min-w-[200px] flex-1">
+            <Label class="text-xs whitespace-nowrap">Score</Label>
             <Slider
               v-model="evidenceScoreRange"
               :min="0"
               :max="100"
               :step="1"
-              class="w-full"
+              class="flex-1"
               @update:model-value="debouncedSearch"
             />
+            <span class="text-xs text-muted-foreground font-mono whitespace-nowrap">
+              {{ evidenceScoreRange[0] }}–{{ evidenceScoreRange[1] }}
+            </span>
           </div>
 
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <Label class="text-xs">Evidence Count</Label>
-              <span class="text-xs text-muted-foreground font-mono">
-                {{ evidenceCountRange[0] }} – {{ evidenceCountRange[1] }}
-              </span>
-            </div>
+          <div class="flex items-center gap-2 min-w-[180px] flex-1">
+            <Label class="text-xs whitespace-nowrap">Count</Label>
             <Slider
               v-model="evidenceCountRange"
               :min="0"
               :max="filterMeta?.evidence_count?.max || 6"
               :step="1"
-              class="w-full"
+              class="flex-1"
               @update:model-value="debouncedSearch"
             />
+            <span class="text-xs text-muted-foreground font-mono whitespace-nowrap">
+              {{ evidenceCountRange[0] }}–{{ evidenceCountRange[1] }}
+            </span>
           </div>
-        </div>
 
-        <!-- Row 4: Zero-score toggle -->
-        <div class="flex items-center gap-3">
           <div class="flex items-center gap-2">
             <Switch
               id="zero-score"
@@ -783,53 +727,23 @@ onMounted(async () => {
                 }
               "
             />
-            <Label for="zero-score" class="text-sm cursor-pointer">
-              Show genes with insufficient evidence
+            <Label for="zero-score" class="text-xs cursor-pointer whitespace-nowrap">
+              Include zero-score
             </Label>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <Info class="h-3 w-3 text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  Include {{ hiddenGeneCount.toLocaleString() }} genes with evidence score = 0
-                  <br />(single source or disputed classification)
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Badge
+              v-if="!showZeroScoreGenes && hiddenGeneCount > 0"
+              variant="outline"
+              class="text-xs"
+            >
+              <EyeOff class="h-3 w-3 mr-1" />
+              {{ hiddenGeneCount.toLocaleString() }}
+            </Badge>
           </div>
-          <Badge
-            v-if="!showZeroScoreGenes && hiddenGeneCount > 0"
-            variant="outline"
-            class="text-xs"
-          >
-            <EyeOff class="h-3 w-3 mr-1" />
-            {{ hiddenGeneCount.toLocaleString() }} hidden
-          </Badge>
-        </div>
-      </CardContent>
-    </Card>
 
-    <!-- Pagination Info Bar -->
-    <Card>
-      <CardContent class="py-3 px-4">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="text-sm flex items-center gap-1">
-              <span class="font-medium">{{ totalItems.toLocaleString() }}</span>
-              <span class="text-muted-foreground">Genes</span>
-              <span
-                v-if="!showZeroScoreGenes && hiddenGeneCount > 0"
-                class="text-xs text-muted-foreground"
-              >
-                ({{ hiddenGeneCount.toLocaleString() }} hidden)
-              </span>
-            </div>
-            <Separator orientation="vertical" class="h-4" />
-            <div class="text-sm text-muted-foreground">
-              {{ pageRangeText }}
-            </div>
-          </div>
+          <!-- Total gene count -->
+          <Badge variant="secondary" class="text-xs font-normal ml-auto">
+            {{ genes.length }}/{{ totalItems.toLocaleString() }} genes
+          </Badge>
         </div>
       </CardContent>
     </Card>

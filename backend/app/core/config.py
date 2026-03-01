@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Kidney Genetics API"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = False
+    SITE_URL: str = "https://kidney-genetics.org"
 
     # Database
     DATABASE_URL: str = "postgresql://kidney_user:kidney_pass@localhost:5432/kidney_genetics"

@@ -1,6 +1,7 @@
 import './assets/main.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import { createHead } from '@unhead/vue/client'
 import App from './App.vue'
 import router from './router'
 
@@ -13,6 +14,10 @@ const pinia = createPinia()
 
 // Initialize Pinia first (required for stores)
 app.use(pinia)
+
+// Initialize @unhead/vue for SEO meta management
+const head = createHead()
+app.use(head)
 
 // Initialize logging system after Pinia is available
 const logStore = useLogStore()

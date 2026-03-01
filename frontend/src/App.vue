@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { useHead } from '@unhead/vue'
 import AppHeader from '@/layouts/AppHeader.vue'
 import AppFooter from '@/layouts/AppFooter.vue'
 import LogViewer from '@/components/admin/LogViewer.vue'
@@ -8,12 +10,24 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuthStore } from '@/stores/auth'
 import { useLogStore } from '@/stores/logStore'
 import { useAppTheme } from '@/composables/useAppTheme'
+import { useJsonLd, getOrganizationWebSiteSchema } from '@/composables/useJsonLd'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const logStore = useLogStore()
 
 // Initialize dark mode bidirectional sync
 useAppTheme()
+
+// Global JSON-LD: Organization + WebSite schema
+useJsonLd(getOrganizationWebSiteSchema())
+
+// Global noindex for admin/auth routes
+useHead({
+  meta: computed(() =>
+    route.meta.noindex ? [{ name: 'robots', content: 'noindex, nofollow' }] : []
+  )
+})
 
 // Keyboard shortcut for log viewer (Ctrl+Shift+L)
 const handleKeyPress = (event: KeyboardEvent) => {

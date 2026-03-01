@@ -241,6 +241,8 @@ import { RouterLink, useRoute } from 'vue-router'
 import { geneApi } from '../api/genes'
 import { useAuthStore } from '../stores/auth'
 import { getGeneDetailBreadcrumbs } from '@/utils/publicBreadcrumbs'
+import { useSeoMeta } from '@/composables/useSeoMeta'
+import { useJsonLd, getGeneSchema, getBreadcrumbSchema } from '@/composables/useJsonLd'
 import ScoreBreakdown from '../components/ScoreBreakdown.vue'
 import EvidenceCard from '../components/evidence/EvidenceCard.vue'
 import GeneInformationCard from '../components/gene/GeneInformationCard.vue'
@@ -282,10 +284,38 @@ const showFilterPanel = ref(false)
 const selectedEvidenceSources = ref([])
 const evidenceSortOrder = ref('score_desc')
 
+// SEO meta tags (reactive — updates when gene data loads)
+useSeoMeta({
+  title: computed(() =>
+    gene.value ? `${gene.value.approved_symbol} - Gene Detail` : 'Gene Detail'
+  ),
+  description: computed(() => {
+    if (!gene.value) return 'Detailed gene information with evidence scores and annotations.'
+    const g = gene.value
+    const parts = [`${g.approved_symbol} kidney disease gene`]
+    if (g.hgnc_id) parts.push(g.hgnc_id)
+    if (g.evidence_score != null)
+      parts.push(`evidence score ${Math.round(g.evidence_score * 10) / 10}`)
+    return parts.join(' — ') + '. Multi-source evidence and annotations from KGDB.'
+  }),
+  canonicalPath: computed(() => `/genes/${route.params.symbol}`)
+})
+
 // Computed - Using utility function for consistency
 const breadcrumbs = computed(() =>
   getGeneDetailBreadcrumbs(gene.value?.approved_symbol || 'Loading...')
 )
+
+// Gene JSON-LD (reactive — updates when gene data loads)
+useJsonLd(
+  computed(() => {
+    if (!gene.value) return { '@context': 'https://schema.org', '@type': 'Gene', name: 'Loading' }
+    return getGeneSchema(gene.value)
+  })
+)
+
+// Breadcrumb JSON-LD
+useJsonLd(computed(() => getBreadcrumbSchema(breadcrumbs.value)))
 
 const availableEvidenceSources = computed(() => {
   const sources = [...new Set(evidence.value.map(e => e.source))]

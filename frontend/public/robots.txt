@@ -1,4 +1,9 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://db.kidney-genetics.org/sitemap.xml
+Disallow: /admin
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /profile
+
+Sitemap: https://kidney-genetics.org/sitemap.xml

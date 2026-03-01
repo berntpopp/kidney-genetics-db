@@ -134,6 +134,8 @@ import {
 } from '@/components/visualizations'
 import { TIER_CONFIG } from '@/utils/evidenceTiers'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
+import { useSeoMeta } from '@/composables/useSeoMeta'
+import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -156,6 +158,16 @@ const route = useRoute()
 const router = useRouter()
 
 const breadcrumbs = PUBLIC_BREADCRUMBS.dashboard
+
+useJsonLd(getBreadcrumbSchema(breadcrumbs))
+
+useSeoMeta({
+  title: 'Dashboard',
+  description:
+    'Comprehensive analysis of kidney disease gene-disease associations across multiple genomic data sources.',
+  canonicalPath: '/dashboard'
+})
+
 const activeTab = ref('overlaps')
 const selectedTiers = ref<string[]>([])
 

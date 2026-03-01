@@ -539,9 +539,20 @@ import { networkAnalysisConfig } from '../config/networkAnalysis'
 import { TIER_CONFIG } from '../utils/evidenceTiers'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
 import useNetworkUrlState from '../composables/useNetworkUrlState'
+import { useSeoMeta } from '@/composables/useSeoMeta'
+import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
 
 // Breadcrumbs
 const breadcrumbs = PUBLIC_BREADCRUMBS.networkAnalysis
+
+useJsonLd(getBreadcrumbSchema(breadcrumbs))
+
+useSeoMeta({
+  title: 'Network Analysis',
+  description:
+    'Explore protein-protein interaction networks and functional clusters across kidney disease genes using STRING-DB data.',
+  canonicalPath: '/network-analysis'
+})
 
 // Enrichment card ref for scroll targeting
 const enrichmentCard = ref(null)

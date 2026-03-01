@@ -95,8 +95,17 @@ import { useWindowSize } from '@vueuse/core'
 import { useRouter } from 'vue-router'
 import { datasourceApi } from '../api/datasources'
 import { KGDBLogo } from '@/components/branding'
+import { useSeoMeta } from '@/composables/useSeoMeta'
+import { useJsonLd, getDatasetSchema } from '@/composables/useJsonLd'
 
 const router = useRouter()
+
+useSeoMeta({
+  title: 'Home',
+  description:
+    'Evidence-based kidney disease gene curation with multi-source integration. Explore 571+ genes with comprehensive annotations from 9 sources.',
+  canonicalPath: '/'
+})
 const { width } = useWindowSize()
 const hoveredCard = ref<number | null>(null)
 const statsLoaded = ref(false)
@@ -131,6 +140,17 @@ const stats = ref([
     route: null
   }
 ])
+
+// Dataset JSON-LD (reactive — updates when stats load)
+useJsonLd(
+  computed(() => {
+    const geneCount =
+      typeof stats.value[0].value === 'string'
+        ? parseInt(stats.value[0].value.replace(/,/g, ''), 10) || undefined
+        : (stats.value[0].value as number) || undefined
+    return getDatasetSchema(geneCount)
+  })
+)
 
 const keyBenefits = [
   {

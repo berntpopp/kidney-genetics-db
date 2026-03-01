@@ -24,6 +24,7 @@ from app.api.endpoints import (
     network_analysis,
     progress,
     releases,
+    seo,
     shadow_tests,
     statistics,
     version,
@@ -140,15 +141,23 @@ app.add_middleware(
     log_response_body=False,  # Keep response logging disabled for performance
     max_body_size=50000,  # Limit body size to 50KB for storage efficiency
     slow_request_threshold_ms=1000,
-    exclude_paths=["/health", "/docs", "/redoc", "/openapi.json", "/api/admin/logs"],
+    exclude_paths=[
+        "/health",
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+        "/api/admin/logs",
+        "/sitemap.xml",
+    ],
 )
 
 # Register standardized error handlers (enhanced by logging middleware)
 register_error_handlers(app)
 
 # Include routers - organized by functional areas
-# 0. System - Health, version, and root endpoints
+# 0. System - Health, version, SEO, and root endpoints
 app.include_router(version.router, tags=["System"])
+app.include_router(seo.router, tags=["System"])
 
 # 1. Authentication - User management and auth
 app.include_router(auth.router, tags=["Authentication"])
