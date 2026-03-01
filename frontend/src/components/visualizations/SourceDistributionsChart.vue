@@ -1,74 +1,81 @@
 <template>
-  <v-card class="source-distributions-container">
-    <v-card-title class="d-flex align-center">
-      <ChartBar class="size-5 me-2" />
-      Source Distributions
-      <v-tooltip location="bottom">
-        <template #activator="{ props: tooltipProps }">
-          <CircleHelp v-bind="tooltipProps" class="size-4 me-2 text-medium-emphasis" />
-        </template>
-        <span>{{
-          selectedSource
-            ? getSourceDescription(selectedSource)
-            : 'Select a source to see distribution'
-        }}</span>
-      </v-tooltip>
-      <v-spacer />
-      <v-tooltip location="bottom">
-        <template #activator="{ props: tooltipProps }">
-          <v-checkbox
-            v-model="showInsufficientEvidence"
-            v-bind="tooltipProps"
-            label="Show insufficient evidence"
-            density="compact"
-            hide-details
-            class="me-2"
-          />
-        </template>
-        <span>Include genes with percentage_score = 0 (no meaningful evidence)</span>
-      </v-tooltip>
-      <v-select
-        v-if="data && Object.keys(data).length > 0"
-        v-model="selectedSource"
-        :items="sourceOptions"
-        density="compact"
-        variant="outlined"
-        class="me-2"
-        style="max-width: 200px"
-      />
-      <v-btn
-        icon="mdi-refresh"
-        variant="text"
-        size="small"
-        :loading="loading"
-        @click="refreshData"
-      />
-    </v-card-title>
+  <Card class="source-distributions-container w-full">
+    <CardHeader class="flex flex-row items-center space-y-0 pb-2">
+      <ChartBar class="size-5 mr-2" />
+      <CardTitle class="text-lg font-semibold">Source Distributions</CardTitle>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <CircleHelp class="size-4 ml-2 text-muted-foreground cursor-help" />
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <span>{{
+              selectedSource
+                ? getSourceDescription(selectedSource)
+                : 'Select a source to see distribution'
+            }}</span>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <div class="flex-1" />
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <div class="flex items-center space-x-2 mr-2">
+              <Checkbox
+                id="show-insufficient-src"
+                :checked="showInsufficientEvidence"
+                @update:checked="showInsufficientEvidence = $event"
+              />
+              <Label for="show-insufficient-src" class="text-sm">Show insufficient evidence</Label>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <span>Include genes with percentage_score = 0 (no meaningful evidence)</span>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <Select v-if="data && Object.keys(data).length > 0" v-model="selectedSource">
+        <SelectTrigger class="w-[200px] h-8 mr-2">
+          <SelectValue placeholder="Select source" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem v-for="option in sourceOptions" :key="option.value" :value="option.value">
+            {{ option.title }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
+      <Button variant="ghost" size="icon-sm" :disabled="loading" @click="refreshData">
+        <RefreshCw class="size-4" :class="{ 'animate-spin': loading }" />
+      </Button>
+    </CardHeader>
 
-    <v-card-text>
+    <CardContent>
       <!-- Loading state -->
-      <div v-if="loading" class="d-flex justify-center align-center" style="height: 400px">
-        <v-progress-circular indeterminate size="64" />
+      <div v-if="loading" class="flex items-center justify-center" style="height: 400px">
+        <div
+          class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"
+        />
       </div>
 
       <!-- Error state -->
-      <v-alert v-else-if="error" type="error" variant="outlined" class="mb-4">
-        {{ error }}
-      </v-alert>
+      <Alert v-else-if="error" variant="destructive" class="mb-4">
+        <AlertDescription>{{ error }}</AlertDescription>
+      </Alert>
 
       <!-- Chart visualization -->
       <div v-else-if="data && selectedSource && sourceData">
         <!-- Source metadata -->
-        <v-card variant="outlined" class="mb-4">
-          <v-card-text>
-            <v-row class="text-center">
-              <v-col v-for="(value, key) in sourceMetadata" :key="key" cols="12" sm="6" md="3">
-                <div class="text-h6 text-primary">{{ value }}</div>
-                <div class="text-caption">{{ formatMetadataLabel(key) }}</div>
-              </v-col>
-            </v-row>
-          </v-card-text>
-        </v-card>
+        <Card class="mb-4">
+          <CardContent class="pt-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div v-for="(value, key) in sourceMetadata" :key="key">
+                <div class="text-lg font-semibold text-primary">{{ value }}</div>
+                <div class="text-xs text-muted-foreground">{{ formatMetadataLabel(key) }}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <!-- Dynamic chart based on visualization type -->
         <div v-if="hasDistributionData" class="chart-container">
@@ -92,20 +99,34 @@
         </div>
 
         <!-- No data message -->
-        <v-alert v-else type="info" variant="outlined" class="mb-4">
-          No distribution data available for this source
-        </v-alert>
+        <Alert v-else class="mb-4">
+          <AlertDescription>No distribution data available for this source</AlertDescription>
+        </Alert>
       </div>
-    </v-card-text>
-  </v-card>
+    </CardContent>
+  </Card>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { ChartBar, CircleHelp } from 'lucide-vue-next'
+import { ChartBar, CircleHelp, RefreshCw } from 'lucide-vue-next'
 import { statisticsApi } from '@/api/statistics'
 import D3DonutChart from './D3DonutChart.vue'
 import D3BarChart from './D3BarChart.vue'
+
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 // Props
 const props = defineProps({
@@ -286,9 +307,9 @@ onMounted(() => {
 .chart-container {
   min-height: 400px;
   padding: 24px;
-  background: rgb(var(--v-theme-surface));
+  background: hsl(var(--card));
   border-radius: 8px;
-  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border: 1px solid hsl(var(--border));
 }
 
 /* Responsive adjustments */

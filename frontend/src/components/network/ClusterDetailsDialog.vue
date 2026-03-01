@@ -1,233 +1,279 @@
 <template>
-  <v-dialog v-model="dialog" max-width="800" scrollable>
-    <v-card>
+  <Dialog :open="modelValue" @update:open="$emit('update:modelValue', $event)">
+    <DialogContent class="max-w-4xl max-h-[90vh] overflow-y-auto">
       <!-- Header -->
-      <v-card-title class="d-flex align-center justify-space-between pa-4">
-        <div class="d-flex align-center">
-          <v-chip :color="clusterColor" size="small" label class="mr-3">
-            <Atom class="size-5 mr-1" />
+      <DialogHeader>
+        <div class="flex items-center gap-3">
+          <Badge
+            :style="{ backgroundColor: clusterColor, color: '#fff' }"
+            class="flex items-center gap-1"
+          >
+            <Atom class="size-4" />
             {{ clusterDisplayName || `Cluster ${clusterId + 1}` }}
-          </v-chip>
+          </Badge>
           <div>
-            <h3 class="text-h6 font-weight-medium">Cluster Details</h3>
-            <p class="text-caption text-medium-emphasis mt-1">
+            <DialogTitle class="text-lg font-medium">Cluster Details</DialogTitle>
+            <p class="text-xs text-muted-foreground mt-1">
               {{ geneCount }} gene{{ geneCount !== 1 ? 's' : '' }} in cluster
             </p>
           </div>
         </div>
-        <v-btn icon="mdi-close" variant="text" size="small" @click="close" />
-      </v-card-title>
+      </DialogHeader>
 
-      <v-divider />
+      <Separator />
 
       <!-- HPO Classification Statistics -->
-      <v-card-text v-if="clusterStatistics" class="pa-4 bg-surface-variant">
-        <div class="d-flex align-center mb-3">
+      <div v-if="clusterStatistics" class="p-4 bg-muted/50 rounded-md">
+        <div class="flex items-center mb-3">
           <ChartBarBig class="size-5 mr-2 text-primary" />
-          <h4 class="text-subtitle-1 font-weight-medium">HPO Classification Summary</h4>
-          <v-chip size="x-small" class="ml-auto" label>
-            <Database class="size-3 mr-1" />
+          <h4 class="text-sm font-medium">HPO Classification Summary</h4>
+          <Badge variant="secondary" class="ml-auto flex items-center gap-1">
+            <Database class="size-3" />
             {{ clusterStatistics.hpoDataCount }} / {{ clusterStatistics.total }} genes ({{
               clusterStatistics.hpoDataPercentage
             }}%)
-          </v-chip>
+          </Badge>
         </div>
 
-        <v-row dense>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <!-- Clinical Classification -->
-          <v-col v-if="clusterStatistics.clinical.length > 0" cols="12" md="4">
-            <div class="stats-section">
-              <div class="text-caption font-weight-medium text-medium-emphasis mb-2">
-                Clinical Classification
-              </div>
-              <div class="d-flex flex-wrap ga-1">
-                <v-chip
-                  v-for="stat in clusterStatistics.clinical"
-                  :key="stat.key"
-                  :color="stat.color"
-                  size="x-small"
-                  label
-                >
-                  {{ stat.label }}: {{ stat.percentage }}%
-                </v-chip>
-              </div>
+          <div v-if="clusterStatistics.clinical.length > 0" class="stats-section">
+            <div class="text-xs font-medium text-muted-foreground mb-2">
+              Clinical Classification
             </div>
-          </v-col>
+            <div class="flex flex-wrap gap-1">
+              <Badge
+                v-for="stat in clusterStatistics.clinical"
+                :key="stat.key"
+                :style="{ backgroundColor: stat.color, color: '#fff' }"
+              >
+                {{ stat.label }}: {{ stat.percentage }}%
+              </Badge>
+            </div>
+          </div>
 
           <!-- Age of Onset -->
-          <v-col v-if="clusterStatistics.onset.length > 0" cols="12" md="4">
-            <div class="stats-section">
-              <div class="text-caption font-weight-medium text-medium-emphasis mb-2">
-                Age of Onset
-              </div>
-              <div class="d-flex flex-wrap ga-1">
-                <v-chip
-                  v-for="stat in clusterStatistics.onset"
-                  :key="stat.key"
-                  :color="stat.color"
-                  size="x-small"
-                  label
-                >
-                  {{ stat.label }}: {{ stat.percentage }}%
-                </v-chip>
-              </div>
+          <div v-if="clusterStatistics.onset.length > 0" class="stats-section">
+            <div class="text-xs font-medium text-muted-foreground mb-2">Age of Onset</div>
+            <div class="flex flex-wrap gap-1">
+              <Badge
+                v-for="stat in clusterStatistics.onset"
+                :key="stat.key"
+                :style="{ backgroundColor: stat.color, color: '#fff' }"
+              >
+                {{ stat.label }}: {{ stat.percentage }}%
+              </Badge>
             </div>
-          </v-col>
+          </div>
 
           <!-- Syndromic Assessment -->
-          <v-col v-if="clusterStatistics.syndromic.syndromicCount > 0" cols="12" md="4">
-            <div class="stats-section">
-              <div class="text-caption font-weight-medium text-medium-emphasis mb-2">
-                Syndromic Assessment
-              </div>
-              <div class="d-flex flex-wrap ga-1">
-                <v-chip
-                  :color="networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.true"
-                  size="x-small"
-                  label
-                >
-                  Syndromic: {{ clusterStatistics.syndromic.syndromicPercentage }}%
-                </v-chip>
-                <v-chip
-                  :color="networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.false"
-                  size="x-small"
-                  label
-                >
-                  Isolated: {{ clusterStatistics.syndromic.isolatedPercentage }}%
-                </v-chip>
-              </div>
+          <div v-if="clusterStatistics.syndromic.syndromicCount > 0" class="stats-section">
+            <div class="text-xs font-medium text-muted-foreground mb-2">Syndromic Assessment</div>
+            <div class="flex flex-wrap gap-1">
+              <Badge
+                :style="{
+                  backgroundColor: networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.true,
+                  color: '#fff'
+                }"
+              >
+                Syndromic: {{ clusterStatistics.syndromic.syndromicPercentage }}%
+              </Badge>
+              <Badge
+                :style="{
+                  backgroundColor: networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.false,
+                  color: '#fff'
+                }"
+              >
+                Isolated: {{ clusterStatistics.syndromic.isolatedPercentage }}%
+              </Badge>
             </div>
-          </v-col>
-        </v-row>
-      </v-card-text>
-
-      <v-divider v-if="clusterStatistics" />
-
-      <!-- Gene Table -->
-      <v-card-text class="pa-0">
-        <v-data-table
-          :headers="headers"
-          :items="genes"
-          :items-per-page="itemsPerPage"
-          :page="page"
-          hide-default-footer
-          class="cluster-genes-table"
-        >
-          <!-- Gene Symbol with Link -->
-          <template #item.symbol="{ item }">
-            <router-link :to="`/genes/${item.symbol}`" class="gene-link">
-              <v-chip size="small" color="primary" variant="outlined">
-                <Dna class="size-4 mr-1" />
-                {{ item.symbol }}
-              </v-chip>
-            </router-link>
-          </template>
-
-          <!-- Gene ID -->
-          <template #item.gene_id="{ item }">
-            <span class="text-mono text-caption">{{ item.gene_id }}</span>
-          </template>
-
-          <!-- Actions -->
-          <template #item.actions="{ item }">
-            <div class="d-flex ga-1">
-              <v-tooltip location="bottom">
-                <template #activator="{ props: tooltipProps }">
-                  <v-btn
-                    icon="mdi-eye"
-                    variant="text"
-                    size="x-small"
-                    v-bind="tooltipProps"
-                    :to="`/genes/${item.symbol}`"
-                  />
-                </template>
-                <span>View gene details</span>
-              </v-tooltip>
-
-              <v-tooltip location="bottom">
-                <template #activator="{ props: tooltipProps }">
-                  <v-btn
-                    icon="mdi-content-copy"
-                    variant="text"
-                    size="x-small"
-                    v-bind="tooltipProps"
-                    @click="copyGeneSymbol(item.symbol)"
-                  />
-                </template>
-                <span>Copy gene symbol</span>
-              </v-tooltip>
-
-              <v-tooltip location="bottom">
-                <template #activator="{ props: tooltipProps }">
-                  <v-btn
-                    icon="mdi-map-marker"
-                    variant="text"
-                    size="x-small"
-                    v-bind="tooltipProps"
-                    @click="$emit('highlightGene', item.gene_id)"
-                  />
-                </template>
-                <span>Highlight in network</span>
-              </v-tooltip>
-            </div>
-          </template>
-        </v-data-table>
-      </v-card-text>
-
-      <!-- Pagination -->
-      <v-divider v-if="totalPages > 1" />
-      <v-card-text v-if="totalPages > 1" class="pa-3">
-        <div class="d-flex align-center justify-space-between">
-          <div class="text-caption text-medium-emphasis">
-            {{ paginationText }}
-          </div>
-          <div class="d-flex align-center ga-2">
-            <v-select
-              v-model="itemsPerPage"
-              :items="itemsPerPageOptions"
-              label="Per page"
-              density="compact"
-              variant="outlined"
-              hide-details
-              style="max-width: 100px"
-            />
-            <v-btn
-              icon="mdi-chevron-left"
-              variant="text"
-              size="small"
-              :disabled="page === 1"
-              @click="page--"
-            />
-            <span class="text-caption">{{ page }} / {{ totalPages }}</span>
-            <v-btn
-              icon="mdi-chevron-right"
-              variant="text"
-              size="small"
-              :disabled="page === totalPages"
-              @click="page++"
-            />
           </div>
         </div>
-      </v-card-text>
+      </div>
 
-      <v-divider />
+      <Separator v-if="clusterStatistics" />
+
+      <!-- Gene Table -->
+      <div class="rounded-md border">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b bg-muted/50">
+              <th class="p-2 text-left font-semibold whitespace-nowrap">Gene Symbol</th>
+              <th class="p-2 text-left font-semibold whitespace-nowrap">Gene ID</th>
+              <th class="p-2 text-right font-semibold whitespace-nowrap">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="item in paginatedGenes"
+              :key="item.gene_id"
+              class="border-b last:border-0 hover:bg-muted/50"
+            >
+              <!-- Gene Symbol with Link -->
+              <td class="p-2">
+                <router-link :to="`/genes/${item.symbol}`" class="gene-link">
+                  <Badge variant="outline" class="flex items-center gap-1 w-fit">
+                    <Dna class="size-4" />
+                    {{ item.symbol }}
+                  </Badge>
+                </router-link>
+              </td>
+
+              <!-- Gene ID -->
+              <td class="p-2">
+                <span class="font-mono text-xs">{{ item.gene_id }}</span>
+              </td>
+
+              <!-- Actions -->
+              <td class="p-2 text-right">
+                <div class="flex items-center justify-end gap-1">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button variant="ghost" size="icon" class="h-7 w-7" as-child>
+                          <router-link :to="`/genes/${item.symbol}`">
+                            <Eye class="size-4" />
+                          </router-link>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>View gene details</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          class="h-7 w-7"
+                          @click="copyGeneSymbol(item.symbol)"
+                        >
+                          <Copy class="size-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>Copy gene symbol</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          class="h-7 w-7"
+                          @click="$emit('highlightGene', item.gene_id)"
+                        >
+                          <MapPin class="size-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>Highlight in network</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <template v-if="totalPages > 1">
+        <Separator />
+        <div class="flex items-center justify-between py-1">
+          <div class="text-xs text-muted-foreground">
+            {{ paginationText }}
+          </div>
+          <div class="flex items-center gap-2">
+            <Select v-model="itemsPerPageStr">
+              <SelectTrigger class="h-8 w-[80px]">
+                <SelectValue placeholder="Per page" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="opt in itemsPerPageOptions" :key="opt" :value="String(opt)">
+                  {{ opt }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8"
+              :disabled="page === 1"
+              @click="page--"
+            >
+              <ChevronLeft class="size-4" />
+            </Button>
+            <span class="text-xs">{{ page }} / {{ totalPages }}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8"
+              :disabled="page === totalPages"
+              @click="page++"
+            >
+              <ChevronRight class="size-4" />
+            </Button>
+          </div>
+        </div>
+      </template>
+
+      <Separator />
 
       <!-- Footer Actions -->
-      <v-card-actions class="pa-3">
-        <v-btn variant="text" prepend-icon="mdi-download" size="small" @click="exportClusterGenes">
+      <DialogFooter class="flex items-center sm:justify-between">
+        <Button variant="ghost" size="sm" @click="exportClusterGenes">
+          <Download class="size-4 mr-2" />
           Export Genes
-        </v-btn>
-        <v-spacer />
-        <v-btn variant="tonal" @click="close">Close</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </Button>
+        <div class="flex-1" />
+        <Button variant="secondary" @click="$emit('update:modelValue', false)">Close</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Atom, ChartBarBig, Database, Dna } from 'lucide-vue-next'
+import {
+  Atom,
+  ChartBarBig,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Database,
+  Dna,
+  Download,
+  Eye,
+  MapPin
+} from 'lucide-vue-next'
 import { networkAnalysisConfig } from '../../config/networkAnalysis'
+
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 
 // Props
 const props = defineProps({
@@ -258,21 +304,31 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['update:modelValue', 'highlightGene'])
+defineEmits(['update:modelValue', 'highlightGene'])
 
 // Refs
 const page = ref(1)
 const itemsPerPage = ref(10)
 
-// Computed
-const dialog = computed({
-  get: () => props.modelValue,
-  set: value => emit('update:modelValue', value)
+// String version for Select component (radix-vue Select works with strings)
+const itemsPerPageStr = computed({
+  get: () => String(itemsPerPage.value),
+  set: val => {
+    itemsPerPage.value = Number(val)
+    page.value = 1
+  }
 })
 
+// Computed
 const geneCount = computed(() => props.genes.length)
 
 const totalPages = computed(() => Math.ceil(geneCount.value / itemsPerPage.value))
+
+const paginatedGenes = computed(() => {
+  const start = (page.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return props.genes.slice(start, end)
+})
 
 const paginationText = computed(() => {
   if (geneCount.value === 0) return ''
@@ -364,17 +420,7 @@ const clusterStatistics = computed(() => {
 // Options
 const itemsPerPageOptions = [10, 20, 50, 100]
 
-const headers = [
-  { title: 'Gene Symbol', key: 'symbol', sortable: true },
-  { title: 'Gene ID', key: 'gene_id', sortable: true },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
-]
-
 // Methods
-const close = () => {
-  dialog.value = false
-}
-
 const copyGeneSymbol = symbol => {
   navigator.clipboard
     .writeText(symbol)
@@ -398,10 +444,10 @@ const exportClusterGenes = () => {
   const clusterName = props.clusterDisplayName || `Cluster ${props.clusterId + 1}`
 
   // Create CSV content
-  const headers = ['Gene Symbol', 'Gene ID', 'Cluster']
+  const csvHeaders = ['Gene Symbol', 'Gene ID', 'Cluster']
   const rows = props.genes.map(g => [g.symbol, g.gene_id, clusterName])
 
-  const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n')
+  const csv = [csvHeaders.join(','), ...rows.map(row => row.join(','))].join('\n')
 
   // Download CSV
   const blob = new Blob([csv], { type: 'text/csv' })
@@ -422,20 +468,6 @@ watch(
 </script>
 
 <style scoped>
-/* Following Style Guide - Clean table display */
-.cluster-genes-table :deep(table) {
-  table-layout: auto;
-}
-
-.cluster-genes-table :deep(th) {
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.cluster-genes-table :deep(td) {
-  padding: 12px 16px;
-}
-
 .gene-link {
   text-decoration: none;
   transition: opacity 0.2s;
@@ -445,18 +477,8 @@ watch(
   opacity: 0.8;
 }
 
-.text-mono {
-  font-family: 'Courier New', monospace;
-  font-size: 0.875rem;
-}
-
 /* Statistics section styling */
 .stats-section {
   height: 100%;
-}
-
-/* Dark theme adjustments */
-.v-theme--dark .v-card {
-  background: rgb(var(--v-theme-surface));
 }
 </style>

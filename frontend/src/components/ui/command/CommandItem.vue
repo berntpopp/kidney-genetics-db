@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable no-undef */
 import type { ListboxItemEmits, ListboxItemProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
 import { reactiveOmit, useCurrentElement } from '@vueuse/core'
@@ -37,7 +38,7 @@ const isRender = computed(() => {
 const itemRef = ref()
 const currentElement = useCurrentElement(itemRef)
 onMounted(() => {
-  if (!(currentElement.value instanceof HTMLElement)) return // eslint-disable-line no-undef
+  if (!(currentElement.value instanceof HTMLElement)) return
 
   // textValue to perform filter
   allItems.value.set(id, currentElement.value.textContent ?? props.value?.toString() ?? '')

@@ -1,52 +1,83 @@
 <template>
-  <v-card class="evidence-composition-container">
-    <v-card-title class="d-flex align-center">
-      <Circle class="size-5 me-2" />
-      Evidence Composition
-      <v-tooltip location="bottom">
-        <template #activator="{ props: tooltipProps }">
-          <CircleHelp v-bind="tooltipProps" class="size-4 me-2 text-medium-emphasis" />
-        </template>
-        <span>{{ getViewDescription() }}</span>
-      </v-tooltip>
-      <v-spacer />
-      <v-tooltip location="bottom">
-        <template #activator="{ props: tooltipProps }">
-          <v-checkbox
-            v-model="showInsufficientEvidence"
-            v-bind="tooltipProps"
-            label="Show insufficient evidence"
-            density="compact"
-            hide-details
-            class="me-2"
-          />
-        </template>
-        <span>Include genes with percentage_score = 0 (no meaningful evidence)</span>
-      </v-tooltip>
-      <v-btn-toggle v-model="activeView" variant="outlined" density="compact" class="me-2">
-        <v-btn value="tiers" size="small">Tiers</v-btn>
-        <v-btn value="coverage" size="small">Coverage</v-btn>
-        <v-btn value="weights" size="small">Weights</v-btn>
-      </v-btn-toggle>
-      <v-btn
-        icon="mdi-refresh"
-        variant="text"
-        size="small"
-        :loading="loading"
-        @click="refreshData"
-      />
-    </v-card-title>
+  <Card class="evidence-composition-container w-full">
+    <CardHeader class="flex flex-row items-center space-y-0 pb-2">
+      <Circle class="size-5 mr-2" />
+      <CardTitle class="text-base">Evidence Composition</CardTitle>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <CircleHelp class="size-4 ml-2 text-muted-foreground cursor-help" />
+          </TooltipTrigger>
+          <TooltipContent side="bottom" class="max-w-xs">
+            <span>{{ getViewDescription() }}</span>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <div class="flex-1" />
+      <div class="flex items-center space-x-2 mr-2">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <div class="flex items-center space-x-2">
+                <Checkbox
+                  id="show-insufficient"
+                  :checked="showInsufficientEvidence"
+                  @update:checked="showInsufficientEvidence = $event"
+                />
+                <Label for="show-insufficient" class="text-sm cursor-pointer">
+                  Show insufficient evidence
+                </Label>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <span>Include genes with percentage_score = 0 (no meaningful evidence)</span>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+      <div class="inline-flex rounded-md border mr-2">
+        <Button
+          :variant="activeView === 'tiers' ? 'default' : 'ghost'"
+          size="sm"
+          class="rounded-none first:rounded-l-md last:rounded-r-md"
+          @click="activeView = 'tiers'"
+        >
+          Tiers
+        </Button>
+        <Button
+          :variant="activeView === 'coverage' ? 'default' : 'ghost'"
+          size="sm"
+          class="rounded-none first:rounded-l-md last:rounded-r-md"
+          @click="activeView = 'coverage'"
+        >
+          Coverage
+        </Button>
+        <Button
+          :variant="activeView === 'weights' ? 'default' : 'ghost'"
+          size="sm"
+          class="rounded-none first:rounded-l-md last:rounded-r-md"
+          @click="activeView = 'weights'"
+        >
+          Weights
+        </Button>
+      </div>
+      <Button variant="ghost" size="icon-sm" :disabled="loading" @click="refreshData">
+        <RefreshCw class="size-4" :class="{ 'animate-spin': loading }" />
+      </Button>
+    </CardHeader>
 
-    <v-card-text>
+    <CardContent>
       <!-- Loading state -->
-      <div v-if="loading" class="d-flex justify-center align-center" style="height: 400px">
-        <v-progress-circular indeterminate size="64" />
+      <div v-if="loading" class="flex items-center justify-center" style="height: 400px">
+        <div
+          class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"
+        />
       </div>
 
       <!-- Error state -->
-      <v-alert v-else-if="error" type="error" variant="outlined" class="mb-4">
-        {{ error }}
-      </v-alert>
+      <Alert v-else-if="error" variant="destructive" class="mb-4">
+        <AlertDescription>{{ error }}</AlertDescription>
+      </Alert>
 
       <!-- Chart visualization -->
       <div v-else-if="data">
@@ -54,18 +85,18 @@
         <div class="chart-container">
           <!-- Evidence Tier Distribution -->
           <div v-if="activeView === 'tiers'">
-            <h3 class="text-h6 mb-4">Evidence Tier Distribution</h3>
+            <h3 class="text-lg font-semibold mb-4">Evidence Tier Distribution</h3>
             <div v-if="tierChartData.length > 0">
               <D3DonutChart :data="tierChartData" :total="totalGenes" center-label="Total Genes" />
             </div>
-            <v-alert v-else type="info" variant="outlined">
-              No tier distribution data available
-            </v-alert>
+            <Alert v-else class="mb-4">
+              <AlertDescription>No tier distribution data available</AlertDescription>
+            </Alert>
           </div>
 
           <!-- Source coverage chart -->
           <div v-else-if="activeView === 'coverage'">
-            <h3 class="text-h6 mb-4">Source Coverage Distribution</h3>
+            <h3 class="text-lg font-semibold mb-4">Source Coverage Distribution</h3>
             <div v-if="coverageChartData.length > 0">
               <D3BarChart
                 :data="coverageChartData"
@@ -75,14 +106,14 @@
                 value-label="genes"
               />
             </div>
-            <v-alert v-else type="info" variant="outlined">
-              No coverage distribution data available
-            </v-alert>
+            <Alert v-else class="mb-4">
+              <AlertDescription>No coverage distribution data available</AlertDescription>
+            </Alert>
           </div>
 
           <!-- Source contribution weights -->
           <div v-else-if="activeView === 'weights'">
-            <h3 class="text-h6 mb-4">Source Contribution Weights</h3>
+            <h3 class="text-lg font-semibold mb-4">Source Contribution Weights</h3>
             <div v-if="weightsChartData.length > 0">
               <D3DonutChart
                 :data="weightsChartData"
@@ -93,20 +124,26 @@
                 :value-formatter="v => v.toFixed(1)"
               />
             </div>
-            <v-alert v-else type="info" variant="outlined">
-              No weight distribution data available
-            </v-alert>
+            <Alert v-else class="mb-4">
+              <AlertDescription>No weight distribution data available</AlertDescription>
+            </Alert>
           </div>
         </div>
       </div>
-    </v-card-text>
-  </v-card>
+    </CardContent>
+  </Card>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { Circle, CircleHelp } from 'lucide-vue-next'
+import { Circle, CircleHelp, RefreshCw } from 'lucide-vue-next'
 import { statisticsApi } from '@/api/statistics'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import D3DonutChart from './D3DonutChart.vue'
 import D3BarChart from './D3BarChart.vue'
 
@@ -247,16 +284,12 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.evidence-composition-container {
-  width: 100%;
-}
-
 .chart-container {
   min-height: 400px;
   padding: 16px;
-  background: rgb(var(--v-theme-surface));
+  background: hsl(var(--card));
   border-radius: 4px;
-  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border: 1px solid hsl(var(--border));
 }
 
 /* Responsive adjustments */

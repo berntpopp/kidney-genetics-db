@@ -4,52 +4,59 @@
     <div v-if="hasVariants" class="filter-controls mb-4">
       <!-- Classification Filter -->
       <div class="filter-group mb-2">
-        <span class="filter-label text-caption text-medium-emphasis mr-2">Classification:</span>
-        <v-chip-group
-          v-model="selectedClassifications"
-          multiple
-          selected-class="bg-primary"
-          class="d-inline-flex"
-        >
-          <v-chip
+        <span class="filter-label text-xs text-muted-foreground mr-2">Classification:</span>
+        <div class="flex flex-wrap gap-1">
+          <Badge
             v-for="cat in classificationOptions"
             :key="cat.value"
-            :value="cat.value"
-            size="small"
-            variant="outlined"
-            :color="getClassificationColor(cat.value)"
-            filter
+            :variant="selectedClassifications.includes(cat.value) ? 'default' : 'outline'"
+            class="cursor-pointer select-none"
+            :style="
+              selectedClassifications.includes(cat.value)
+                ? {
+                    backgroundColor: getClassificationColor(cat.value),
+                    borderColor: getClassificationColor(cat.value),
+                    color: 'white'
+                  }
+                : {
+                    borderColor: getClassificationColor(cat.value),
+                    color: getClassificationColor(cat.value)
+                  }
+            "
+            @click="toggleFilter(selectedClassifications, cat.value)"
           >
             {{ cat.label }} ({{ getClassificationCount(cat.value) }})
-          </v-chip>
-        </v-chip-group>
+          </Badge>
+        </div>
       </div>
 
       <!-- Effect Filter -->
       <div class="filter-group mb-2">
-        <span class="filter-label text-caption text-medium-emphasis mr-2">Effect:</span>
-        <v-chip-group
-          v-model="selectedEffects"
-          multiple
-          selected-class="bg-primary"
-          class="d-inline-flex"
-        >
-          <v-chip
+        <span class="filter-label text-xs text-muted-foreground mr-2">Effect:</span>
+        <div class="flex flex-wrap gap-1">
+          <Badge
             v-for="eff in effectOptions"
             :key="eff.value"
-            :value="eff.value"
-            size="small"
-            variant="outlined"
-            :color="getEffectColor(eff.value)"
-            filter
+            :variant="selectedEffects.includes(eff.value) ? 'default' : 'outline'"
+            class="cursor-pointer select-none"
+            :style="
+              selectedEffects.includes(eff.value)
+                ? {
+                    backgroundColor: getEffectColor(eff.value),
+                    borderColor: getEffectColor(eff.value),
+                    color: 'white'
+                  }
+                : { borderColor: getEffectColor(eff.value), color: getEffectColor(eff.value) }
+            "
+            @click="toggleFilter(selectedEffects, eff.value)"
           >
             {{ eff.label }} ({{ getEffectCount(eff.value) }})
-          </v-chip>
-        </v-chip-group>
+          </Badge>
+        </div>
       </div>
 
       <!-- Variant count summary -->
-      <div class="text-caption text-medium-emphasis mt-2">
+      <div class="text-xs text-muted-foreground mt-2">
         Showing {{ filteredVariants.length }} of {{ allVariants.length }} variants with genomic
         positions
       </div>
@@ -57,24 +64,42 @@
 
     <!-- Zoom Controls -->
     <div class="zoom-controls mb-2">
-      <v-btn-group density="compact" variant="outlined" divided>
-        <v-btn size="small" :disabled="!canZoomIn" @click="zoomIn">
+      <div class="inline-flex rounded-md border">
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-8 w-8 rounded-none rounded-l-md"
+          :disabled="!canZoomIn"
+          @click="zoomIn"
+        >
           <ZoomIn class="size-4" />
-        </v-btn>
-        <v-btn size="small" :disabled="!canZoomOut" @click="zoomOut">
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-8 w-8 rounded-none"
+          :disabled="!canZoomOut"
+          @click="zoomOut"
+        >
           <ZoomOut class="size-4" />
-        </v-btn>
-        <v-btn size="small" :disabled="!isZoomed" @click="resetZoom">
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          class="h-8 rounded-none rounded-r-md"
+          :disabled="!isZoomed"
+          @click="resetZoom"
+        >
           <SearchX class="size-4 mr-1" />
           Reset
-        </v-btn>
-      </v-btn-group>
-      <span v-if="isZoomed" class="text-caption text-medium-emphasis ml-2">
+        </Button>
+      </div>
+      <span v-if="isZoomed" class="text-xs text-muted-foreground ml-2">
         Viewing: {{ Math.round(zoomDomain[0]).toLocaleString() }} -
         {{ Math.round(zoomDomain[1]).toLocaleString() }} bp ({{ Math.round(zoomLevel * 100) }}%
         zoom)
       </span>
-      <span class="text-caption text-medium-emphasis ml-2">
+      <span class="text-xs text-muted-foreground ml-2">
         <MoveHorizontal class="size-3 mr-1" />
         Drag to pan, scroll to zoom
       </span>
@@ -88,11 +113,13 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { ZoomIn, ZoomOut, SearchX, MoveHorizontal } from 'lucide-vue-next'
-import { useTheme } from 'vuetify'
+import { useAppTheme } from '@/composables/useAppTheme'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import * as d3 from 'd3'
 import { useD3Tooltip } from '@/composables/useD3Tooltip'
 
-const theme = useTheme()
+const { isDark } = useAppTheme()
 const chartContainer = ref(null)
 let resizeObserver = null
 
@@ -228,6 +255,15 @@ const getEffectColor = effect => {
   return effectColors[effect] || '#757575'
 }
 
+const toggleFilter = (filterRef, value) => {
+  const idx = filterRef.value.indexOf(value)
+  if (idx === -1) {
+    filterRef.value = [...filterRef.value, value]
+  } else {
+    filterRef.value = filterRef.value.filter(v => v !== value)
+  }
+}
+
 // Get exons from canonical transcript
 // Sort by transcript order (5'→3'), not genomic position
 const exons = computed(() => {
@@ -271,8 +307,8 @@ const variantsWithGenomicPos = computed(() => {
 const colors = computed(() => ({
   exon: '#1976D2',
   exonHover: '#1565C0',
-  intron: theme.global.current.value.dark ? '#424242' : '#E0E0E0',
-  text: theme.global.current.value.dark ? '#FFFFFF' : '#333333'
+  intron: isDark.value ? '#424242' : '#E0E0E0',
+  text: isDark.value ? '#FFFFFF' : '#333333'
 }))
 
 // Zoom control functions
@@ -754,7 +790,7 @@ watch(
 )
 
 watch(
-  () => theme.global.name.value,
+  () => isDark.value,
   () => nextTick(renderChart)
 )
 </script>
@@ -777,7 +813,7 @@ watch(
 
 .filter-controls {
   padding: 12px;
-  background: rgba(var(--v-theme-surface-variant), 0.3);
+  background: hsl(var(--muted));
   border-radius: 8px;
 }
 

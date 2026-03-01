@@ -4,10 +4,10 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useTheme } from 'vuetify'
+import { useAppTheme } from '@/composables/useAppTheme'
 import * as d3 from 'd3'
 
-const theme = useTheme()
+const { isDark } = useAppTheme()
 const chartContainer = ref(null)
 let resizeObserver = null
 let tooltip = null
@@ -389,7 +389,7 @@ watch(
   () => nextTick(renderChart)
 )
 watch(
-  () => theme.global.name.value,
+  () => isDark.value,
   () => nextTick(renderChart)
 )
 </script>

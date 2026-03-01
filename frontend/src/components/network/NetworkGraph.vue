@@ -1,177 +1,191 @@
 <template>
-  <v-card elevation="2" class="network-graph-card" rounded="lg">
-    <v-card-title class="d-flex align-center justify-space-between pa-4">
+  <Card class="network-graph-card w-full">
+    <CardHeader class="flex flex-row items-center justify-between space-y-0 p-4">
       <div>
-        <h3 class="text-h6 font-weight-medium">Protein-Protein Interaction Network</h3>
-        <p class="text-caption text-medium-emphasis mt-1">
+        <CardTitle class="text-lg font-medium">Protein-Protein Interaction Network</CardTitle>
+        <p class="text-sm text-muted-foreground mt-1">
           {{ networkStats }}
         </p>
       </div>
-      <div class="d-flex ga-2">
-        <v-tooltip location="bottom">
-          <template #activator="{ props: tooltipProps }">
-            <v-btn
-              icon="mdi-download"
-              variant="text"
-              size="small"
-              v-bind="tooltipProps"
-              :disabled="!cyInstance"
-              @click="exportGraph"
-            />
-          </template>
-          <span>Export graph as PNG</span>
-        </v-tooltip>
+      <div class="flex gap-2">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="size-8"
+                :disabled="!cyInstance"
+                @click="exportGraph"
+              >
+                <Download class="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom"><p>Export graph as PNG</p></TooltipContent>
+          </Tooltip>
 
-        <v-tooltip location="bottom">
-          <template #activator="{ props: tooltipProps }">
-            <v-btn
-              icon="mdi-fit-to-screen"
-              variant="text"
-              size="small"
-              v-bind="tooltipProps"
-              :disabled="!cyInstance"
-              @click="fitGraph"
-            />
-          </template>
-          <span>Fit to screen</span>
-        </v-tooltip>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="size-8"
+                :disabled="!cyInstance"
+                @click="fitGraph"
+              >
+                <Maximize2 class="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom"><p>Fit to screen</p></TooltipContent>
+          </Tooltip>
 
-        <v-tooltip location="bottom">
-          <template #activator="{ props: tooltipProps }">
-            <v-btn
-              icon="mdi-refresh"
-              variant="text"
-              size="small"
-              v-bind="tooltipProps"
-              :loading="loading"
-              @click="$emit('refresh')"
-            />
-          </template>
-          <span>Refresh network</span>
-        </v-tooltip>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="size-8"
+                :disabled="loading"
+                @click="$emit('refresh')"
+              >
+                <RefreshCw class="size-4" :class="{ 'animate-spin': loading }" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom"><p>Refresh network</p></TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
-    </v-card-title>
+    </CardHeader>
 
-    <v-divider />
+    <Separator />
 
     <!-- Network Controls -->
-    <v-card-text class="pa-3">
-      <v-row dense align="center">
-        <v-col cols="12" sm="3">
-          <v-select
-            v-model="layoutType"
-            :items="layoutOptions"
-            label="Layout"
-            density="compact"
-            variant="outlined"
-            hide-details
-            @update:model-value="applyLayout"
-          />
-        </v-col>
+    <CardContent class="p-3">
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-muted-foreground">Layout</label>
+          <Select v-model="layoutType" @update:model-value="applyLayout">
+            <SelectTrigger class="h-9">
+              <SelectValue placeholder="Layout" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="opt in layoutOptions" :key="opt.value" :value="opt.value">
+                {{ opt.title }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <v-col cols="12" sm="3">
-          <v-select
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-muted-foreground">Clustering</label>
+          <Select
             v-model="clusterAlgorithm"
-            :items="clusterOptions"
-            label="Clustering"
-            density="compact"
-            variant="outlined"
-            hide-details
             @update:model-value="$emit('cluster', clusterAlgorithm)"
-          />
-        </v-col>
+          >
+            <SelectTrigger class="h-9">
+              <SelectValue placeholder="Clustering" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="opt in clusterOptions" :key="opt.value" :value="opt.value">
+                {{ opt.title }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <v-col cols="12" sm="3">
-          <v-select
-            :model-value="colorMode"
-            :items="networkAnalysisConfig.nodeColoring.modes"
-            item-title="label"
-            item-value="value"
-            label="Node Color"
-            prepend-inner-icon="mdi-palette"
-            density="compact"
-            variant="outlined"
-            hide-details
-            :loading="loadingHPOData"
-            @update:model-value="$emit('update:colorMode', $event)"
-          />
-        </v-col>
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-muted-foreground">Node Color</label>
+          <Select :model-value="colorMode" @update:model-value="$emit('update:colorMode', $event)">
+            <SelectTrigger class="h-9">
+              <Palette class="size-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="Node Color" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="mode in networkAnalysisConfig.nodeColoring.modes"
+                :key="mode.value"
+                :value="mode.value"
+              >
+                {{ mode.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <v-col cols="12" sm="3">
-          <v-text-field
-            :model-value="minStringScore"
-            label="Min STRING Score"
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-muted-foreground">Min STRING Score</label>
+          <Input
+            :model-value="String(minStringScore)"
             type="number"
             min="0"
             max="1000"
             step="50"
-            density="compact"
-            variant="outlined"
-            hide-details
+            class="h-9"
             @update:model-value="$emit('update:minStringScore', Number($event))"
           />
-        </v-col>
-      </v-row>
+        </div>
+      </div>
 
       <!-- Search Controls Row -->
-      <v-row v-if="cyInstance && !loading && !error" dense align="center" class="mt-2">
-        <v-col cols="12" sm="6">
-          <v-text-field
+      <div
+        v-if="cyInstance && !loading && !error"
+        class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3"
+      >
+        <div class="relative">
+          <Search class="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+          <Input
             v-model="localSearchPattern"
-            label="Search genes"
             placeholder="e.g., COL*, PKD1, *A1"
-            prepend-inner-icon="mdi-magnify"
-            density="compact"
-            variant="outlined"
-            hide-details="auto"
-            clearable
+            class="pl-8 h-9"
+            :class="{ 'pr-24': matchCount > 0 }"
             @input="handleSearchInput"
             @keyup.enter="handleSearch(localSearchPattern)"
-            @click:clear="clearSearchHighlight"
+          />
+          <button
+            v-if="localSearchPattern"
+            class="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
+            @click="clearSearchHighlight"
           >
-            <template v-if="matchCount > 0" #append-inner>
-              <v-chip size="x-small" color="success" label class="mr-2">
-                {{ matchCount }} {{ matchCount === 1 ? 'match' : 'matches' }}
-              </v-chip>
-            </template>
-          </v-text-field>
-        </v-col>
+            <X class="size-4" />
+          </button>
+          <Badge
+            v-if="matchCount > 0"
+            class="absolute right-8 top-1.5 bg-green-600 text-white text-xs"
+          >
+            {{ matchCount }} {{ matchCount === 1 ? 'match' : 'matches' }}
+          </Badge>
+        </div>
 
-        <v-col cols="12" sm="6">
-          <div class="d-flex ga-2 align-center">
-            <v-btn
-              color="warning"
-              size="small"
-              prepend-icon="mdi-checkbox-multiple-marked"
-              :disabled="matchCount === 0"
-              @click="highlightSearchMatches"
-            >
-              Highlight All
-            </v-btn>
-            <v-btn
-              color="secondary"
-              size="small"
-              prepend-icon="mdi-fit-to-screen"
-              :disabled="matchCount === 0"
-              @click="fitSearchMatches"
-            >
-              Fit View
-            </v-btn>
-            <span
-              v-if="localSearchPattern && matchCount === 0"
-              class="text-caption text-medium-emphasis"
-            >
-              No matches found
-            </span>
-          </div>
-        </v-col>
-      </v-row>
-    </v-card-text>
+        <div class="flex gap-2 items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="matchCount === 0"
+            @click="highlightSearchMatches"
+          >
+            <CheckSquare class="size-4 mr-1" />
+            Highlight All
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="matchCount === 0"
+            @click="fitSearchMatches"
+          >
+            <Maximize2 class="size-4 mr-1" />
+            Fit View
+          </Button>
+          <span v-if="localSearchPattern && matchCount === 0" class="text-sm text-muted-foreground">
+            No matches found
+          </span>
+        </div>
+      </div>
+    </CardContent>
 
-    <v-divider />
+    <Separator />
 
     <!-- Cytoscape Graph Container -->
-    <v-card-text class="pa-0 network-container-wrapper">
+    <CardContent class="p-0 network-container-wrapper">
       <div
         v-show="!loading && !error"
         ref="cytoscapeContainer"
@@ -255,200 +269,196 @@
       </div>
 
       <!-- Loading State -->
-      <div
-        v-if="loading"
-        class="d-flex align-center justify-center"
-        :style="{ height: graphHeight }"
-      >
+      <div v-if="loading" class="flex items-center justify-center" :style="{ height: graphHeight }">
         <div class="text-center">
-          <v-progress-circular indeterminate color="primary" size="64" />
-          <p class="text-body-2 text-medium-emphasis mt-4">Loading network...</p>
+          <div
+            class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"
+          />
+          <p class="text-sm text-muted-foreground mt-4">Loading network...</p>
         </div>
       </div>
 
       <!-- Error State -->
-      <div v-if="error" class="d-flex align-center justify-center" :style="{ height: graphHeight }">
-        <v-alert type="error" variant="outlined" max-width="500">
-          <template #title>Network Error</template>
-          {{ error }}
-        </v-alert>
+      <div v-if="error" class="flex items-center justify-center" :style="{ height: graphHeight }">
+        <Alert variant="destructive" class="max-w-md">
+          <AlertCircle class="size-4" />
+          <AlertTitle>Network Error</AlertTitle>
+          <AlertDescription>{{ error }}</AlertDescription>
+        </Alert>
       </div>
 
       <!-- Empty State -->
       <div
         v-if="!loading && !error && !cyInstance"
-        class="d-flex align-center justify-center"
+        class="flex items-center justify-center"
         :style="{ height: graphHeight }"
       >
-        <div class="text-center text-medium-emphasis">
-          <Network class="size-16 mb-4" />
-          <p class="text-body-1">No network data available</p>
-          <p class="text-caption">Build a network to visualize interactions</p>
+        <div class="text-center text-muted-foreground">
+          <NetworkIcon class="size-16 mb-4 mx-auto" />
+          <p class="text-base">No network data available</p>
+          <p class="text-sm">Build a network to visualize interactions</p>
         </div>
       </div>
-    </v-card-text>
+    </CardContent>
 
     <!-- Dynamic Legend (Clusters or HPO Classifications) -->
-    <v-divider v-if="showLegend" />
-    <v-card-text v-if="showLegend" class="pa-3">
+    <Separator v-if="showLegend" />
+    <CardContent v-if="showLegend" class="p-3">
       <!-- HPO Classification Legend (when in HPO mode) -->
       <div v-if="hpoLegendItems.length > 0" class="mb-3">
-        <div class="d-flex align-center mb-2">
-          <span class="text-caption text-medium-emphasis font-weight-medium">{{
-            legendTitle
-          }}</span>
+        <div class="flex items-center mb-2">
+          <span class="text-xs text-muted-foreground font-medium">{{ legendTitle }}</span>
         </div>
-        <div class="d-flex flex-wrap ga-2">
-          <v-chip
+        <div class="flex flex-wrap gap-2">
+          <Badge
             v-for="item in hpoLegendItems"
             :key="item.id"
-            :color="item.color"
-            size="small"
-            label
+            :style="{ backgroundColor: item.color, color: 'white' }"
           >
             {{ item.label }}
-          </v-chip>
+          </Badge>
         </div>
       </div>
 
       <!-- Cluster Legend (always visible when clusters exist) -->
       <div v-if="clusterLegendItems.length > 0">
-        <div class="d-flex align-center justify-space-between mb-2">
-          <span class="text-caption text-medium-emphasis font-weight-medium">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs text-muted-foreground font-medium">
             {{ colorMode === 'cluster' ? legendTitle : 'Clusters' }}
-            <v-chip v-if="colorMode !== 'cluster'" size="x-small" variant="text" class="ml-1" label>
-              (inactive)
-            </v-chip>
+            <span v-if="colorMode !== 'cluster'" class="ml-1 opacity-60">(inactive)</span>
           </span>
           <!-- Sort options only for cluster mode -->
-          <v-btn-toggle
-            v-if="colorMode === 'cluster'"
-            v-model="clusterSortMethod"
-            mandatory
-            density="compact"
-            variant="outlined"
-            divided
-            size="x-small"
-          >
-            <v-btn value="size" title="Sort by cluster size (largest first)">
-              <ArrowUpDown class="size-4" />
-              <span class="ml-1">Size</span>
-            </v-btn>
-            <v-btn value="spatial" title="Sort by spatial proximity in graph">
-              <Route class="size-4" />
-              <span class="ml-1">Spatial</span>
-            </v-btn>
-          </v-btn-toggle>
-        </div>
-        <div class="d-flex flex-wrap ga-2">
-          <v-menu
-            v-for="item in clusterLegendItems"
-            :key="item.id"
-            open-on-hover
-            :open-delay="300"
-            :close-delay="100"
-            location="top"
-            :disabled="!clusterStatistics.has(item.id) || !hpoClassifications?.data"
-          >
-            <template #activator="{ props: menuProps }">
-              <v-chip
-                v-bind="menuProps"
-                :color="item.isActive ? item.color : undefined"
-                :variant="item.isActive ? 'flat' : 'outlined'"
-                size="small"
-                label
-                class="cluster-chip cursor-pointer"
-                :class="{ 'inactive-chip': !item.isActive }"
-                @mouseenter="highlightCluster(item.id)"
-                @mouseleave="clearHighlight()"
-                @click="openClusterDialog(item.id)"
-              >
-                {{ item.label }}
-              </v-chip>
-            </template>
-
-            <!-- HPO Statistics Tooltip -->
-            <v-card
-              v-if="clusterStatistics.has(item.id)"
-              class="pa-3"
-              elevation="8"
-              max-width="320"
+          <div v-if="colorMode === 'cluster'" class="inline-flex rounded-md border">
+            <Button
+              :variant="clusterSortMethod === 'size' ? 'default' : 'ghost'"
+              size="sm"
+              class="h-7 rounded-none rounded-l-md text-xs px-2"
+              title="Sort by cluster size (largest first)"
+              @click="clusterSortMethod = 'size'"
             >
-              <v-card-title class="text-subtitle-2 pa-0 mb-2">
-                {{ item.label }}
-                <v-chip size="x-small" class="ml-2" label>
-                  {{ clusterStatistics.get(item.id).total }} genes
-                </v-chip>
-              </v-card-title>
+              <ArrowUpDown class="size-3 mr-1" />
+              Size
+            </Button>
+            <Button
+              :variant="clusterSortMethod === 'spatial' ? 'default' : 'ghost'"
+              size="sm"
+              class="h-7 rounded-none rounded-r-md text-xs px-2"
+              title="Sort by spatial proximity in graph"
+              @click="clusterSortMethod = 'spatial'"
+            >
+              <Route class="size-3 mr-1" />
+              Spatial
+            </Button>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <TooltipProvider :delay-duration="300">
+            <Tooltip v-for="item in clusterLegendItems" :key="item.id">
+              <TooltipTrigger as-child>
+                <Badge
+                  :variant="item.isActive ? 'default' : 'outline'"
+                  class="cursor-pointer cluster-chip"
+                  :class="{ 'opacity-50': !item.isActive }"
+                  :style="
+                    item.isActive
+                      ? { backgroundColor: item.color, borderColor: item.color, color: 'white' }
+                      : {}
+                  "
+                  @mouseenter="highlightCluster(item.id)"
+                  @mouseleave="clearHighlight()"
+                  @click="openClusterDialog(item.id)"
+                >
+                  {{ item.label }}
+                </Badge>
+              </TooltipTrigger>
 
-              <v-divider class="mb-2" />
-
-              <!-- HPO Data Coverage -->
-              <div class="text-caption text-medium-emphasis mb-3">
-                <Database class="size-3 mr-1" />
-                HPO data:
-                {{ clusterStatistics.get(item.id).hpoDataCount }} /
-                {{ clusterStatistics.get(item.id).total }}
-                ({{ clusterStatistics.get(item.id).hpoDataPercentage }}%)
-              </div>
-
-              <!-- Clinical Group Breakdown -->
-              <div v-if="clusterStatistics.get(item.id).clinical.length > 0" class="mb-2">
-                <div class="text-caption font-weight-medium mb-1">Clinical Classification</div>
-                <div class="d-flex flex-wrap ga-1">
-                  <v-chip
-                    v-for="stat in clusterStatistics.get(item.id).clinical"
-                    :key="stat.key"
-                    :color="stat.color"
-                    size="x-small"
-                    label
-                  >
-                    {{ stat.label }}: {{ stat.percentage }}%
-                  </v-chip>
+              <!-- HPO Statistics Tooltip -->
+              <TooltipContent
+                v-if="clusterStatistics.has(item.id) && hpoClassifications?.data"
+                side="top"
+                class="max-w-xs p-3 z-50"
+              >
+                <div class="text-sm font-medium mb-1.5 flex items-center gap-2">
+                  {{ item.label }}
+                  <Badge variant="secondary" class="text-xs">
+                    {{ clusterStatistics.get(item.id).total }} genes
+                  </Badge>
                 </div>
-              </div>
 
-              <!-- Onset Group Breakdown -->
-              <div v-if="clusterStatistics.get(item.id).onset.length > 0" class="mb-2">
-                <div class="text-caption font-weight-medium mb-1">Age of Onset</div>
-                <div class="d-flex flex-wrap ga-1">
-                  <v-chip
-                    v-for="stat in clusterStatistics.get(item.id).onset"
-                    :key="stat.key"
-                    :color="stat.color"
-                    size="x-small"
-                    label
-                  >
-                    {{ stat.label }}: {{ stat.percentage }}%
-                  </v-chip>
-                </div>
-              </div>
+                <Separator class="my-1.5" />
 
-              <!-- Syndromic Assessment -->
-              <div v-if="clusterStatistics.get(item.id).syndromic.syndromicCount > 0">
-                <div class="text-caption font-weight-medium mb-1">Syndromic Assessment</div>
-                <div class="d-flex ga-1">
-                  <v-chip
-                    :color="networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.true"
-                    size="x-small"
-                    label
-                  >
-                    Syndromic: {{ clusterStatistics.get(item.id).syndromic.syndromicPercentage }}%
-                  </v-chip>
-                  <v-chip
-                    :color="networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.false"
-                    size="x-small"
-                    label
-                  >
-                    Isolated: {{ clusterStatistics.get(item.id).syndromic.isolatedPercentage }}%
-                  </v-chip>
+                <!-- HPO Data Coverage -->
+                <div class="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                  <Database class="size-3" />
+                  HPO data: {{ clusterStatistics.get(item.id).hpoDataCount }} /
+                  {{ clusterStatistics.get(item.id).total }}
+                  ({{ clusterStatistics.get(item.id).hpoDataPercentage }}%)
                 </div>
-              </div>
-            </v-card>
-          </v-menu>
+
+                <!-- Clinical Group Breakdown -->
+                <div v-if="clusterStatistics.get(item.id).clinical.length > 0" class="mb-2">
+                  <div class="text-xs font-medium mb-1">Clinical Classification</div>
+                  <div class="flex flex-wrap gap-1">
+                    <Badge
+                      v-for="stat in clusterStatistics.get(item.id).clinical"
+                      :key="stat.key"
+                      class="text-xs"
+                      :style="{ backgroundColor: stat.color, color: 'white' }"
+                    >
+                      {{ stat.label }}: {{ stat.percentage }}%
+                    </Badge>
+                  </div>
+                </div>
+
+                <!-- Onset Group Breakdown -->
+                <div v-if="clusterStatistics.get(item.id).onset.length > 0" class="mb-2">
+                  <div class="text-xs font-medium mb-1">Age of Onset</div>
+                  <div class="flex flex-wrap gap-1">
+                    <Badge
+                      v-for="stat in clusterStatistics.get(item.id).onset"
+                      :key="stat.key"
+                      class="text-xs"
+                      :style="{ backgroundColor: stat.color, color: 'white' }"
+                    >
+                      {{ stat.label }}: {{ stat.percentage }}%
+                    </Badge>
+                  </div>
+                </div>
+
+                <!-- Syndromic Assessment -->
+                <div v-if="clusterStatistics.get(item.id).syndromic.syndromicCount > 0">
+                  <div class="text-xs font-medium mb-1">Syndromic Assessment</div>
+                  <div class="flex gap-1">
+                    <Badge
+                      class="text-xs"
+                      :style="{
+                        backgroundColor:
+                          networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.true,
+                        color: 'white'
+                      }"
+                    >
+                      Syndromic:
+                      {{ clusterStatistics.get(item.id).syndromic.syndromicPercentage }}%
+                    </Badge>
+                    <Badge
+                      class="text-xs"
+                      :style="{
+                        backgroundColor:
+                          networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.false,
+                        color: 'white'
+                      }"
+                    >
+                      Isolated:
+                      {{ clusterStatistics.get(item.id).syndromic.isolatedPercentage }}%
+                    </Badge>
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
-    </v-card-text>
+    </CardContent>
 
     <!-- Cluster Details Dialog -->
     <ClusterDetailsDialog
@@ -462,14 +472,43 @@
       :hpo-classifications="hpoClassifications"
       @highlight-gene="highlightGeneInNetwork"
     />
-  </v-card>
+  </Card>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { ArrowUpDown, Database, Network, Route } from 'lucide-vue-next'
+import {
+  AlertCircle,
+  ArrowUpDown,
+  CheckSquare,
+  Database,
+  Download,
+  Maximize2,
+  Network as NetworkIcon,
+  Palette,
+  RefreshCw,
+  Route,
+  Search,
+  X
+} from 'lucide-vue-next'
 import cytoscape from 'cytoscape'
 import coseBilkent from 'cytoscape-cose-bilkent'
+
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+
 import ClusterDetailsDialog from './ClusterDetailsDialog.vue'
 import { useNetworkSearch } from '../../composables/useNetworkSearch'
 import { networkAnalysisConfig } from '../../config/networkAnalysis'
@@ -1451,7 +1490,6 @@ onUnmounted(() => {
 
 <style scoped>
 .network-graph-card {
-  width: 100%;
   position: relative; /* Allow absolute positioning of search overlay */
 }
 
@@ -1467,6 +1505,10 @@ onUnmounted(() => {
   position: relative;
 }
 
+.dark .cytoscape-container {
+  background-color: hsl(var(--muted));
+}
+
 .cluster-chip {
   cursor: pointer;
   transition:
@@ -1477,15 +1519,6 @@ onUnmounted(() => {
 .cluster-chip:hover {
   transform: scale(1.1);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-
-.inactive-chip {
-  opacity: 0.5;
-  border-color: rgba(0, 0, 0, 0.3) !important;
-}
-
-.inactive-chip:hover {
-  opacity: 0.7;
 }
 
 /* Tooltip styling */
@@ -1571,32 +1604,32 @@ onUnmounted(() => {
 }
 
 /* Dark theme adjustments */
-.v-theme--dark .node-tooltip {
+.dark .node-tooltip {
   background: rgba(250, 250, 250, 0.95);
   color: #212121;
 }
 
-.v-theme--dark .tooltip-cluster {
+.dark .tooltip-cluster {
   color: #1976d2;
 }
 
-.v-theme--dark .tooltip-hpo-divider {
+.dark .tooltip-hpo-divider {
   background: rgba(0, 0, 0, 0.1);
 }
 
-.v-theme--dark .tooltip-hpo-section-title {
+.dark .tooltip-hpo-section-title {
   color: #1976d2;
 }
 
-.v-theme--dark .tooltip-hpo-label {
+.dark .tooltip-hpo-label {
   color: #1976d2;
 }
 
-.v-theme--dark .tooltip-context-percent {
+.dark .tooltip-context-percent {
   color: #f57c00;
 }
 
-.v-theme--dark .tooltip-context-label {
+.dark .tooltip-context-label {
   color: rgba(0, 0, 0, 0.7);
 }
 
