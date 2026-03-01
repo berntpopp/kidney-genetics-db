@@ -2,14 +2,17 @@
 Statistics API endpoints
 """
 
+import asyncio
 import time
 from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import get_db
+from app.core.database import SessionLocal
 from app.core.exceptions import ValidationError
 from app.core.responses import ResponseBuilder
 from app.crud.statistics import statistics_crud
@@ -255,10 +258,24 @@ async def get_statistics_summary(db: Session = Depends(get_db)) -> dict[str, Any
     start_time = time.time()
 
     try:
-        # Get summary data from each analysis
-        overlap_data = statistics_crud.get_source_overlaps(db)
-        composition_data = statistics_crud.get_evidence_composition(db)
-        distribution_data = statistics_crud.get_source_distributions(db)
+        # Run all three heavy queries in parallel with separate sessions
+        def _get_overlaps() -> dict[str, Any]:
+            with SessionLocal() as s:
+                return statistics_crud.get_source_overlaps(s)
+
+        def _get_composition() -> dict[str, Any]:
+            with SessionLocal() as s:
+                return statistics_crud.get_evidence_composition(s)
+
+        def _get_distributions() -> dict[str, Any]:
+            with SessionLocal() as s:
+                return statistics_crud.get_source_distributions(s)
+
+        overlap_data, composition_data, distribution_data = await asyncio.gather(
+            run_in_threadpool(_get_overlaps),
+            run_in_threadpool(_get_composition),
+            run_in_threadpool(_get_distributions),
+        )
 
         # Extract key summary metrics
         summary = {
