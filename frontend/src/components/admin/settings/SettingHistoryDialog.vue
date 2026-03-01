@@ -1,67 +1,74 @@
 <template>
-  <v-dialog
-    :model-value="modelValue"
-    max-width="800"
-    @update:model-value="$emit('update:modelValue', $event)"
-  >
-    <v-card>
-      <v-card-title class="d-flex align-center">
-        <History class="size-5 mr-2" />
-        Change History: {{ setting?.key }}
-      </v-card-title>
+  <Dialog :open="modelValue" @update:open="$emit('update:modelValue', $event)">
+    <DialogContent class="max-w-[800px]">
+      <DialogHeader>
+        <DialogTitle class="flex items-center gap-2">
+          <History class="size-5" />
+          Change History: {{ setting?.key }}
+        </DialogTitle>
+        <DialogDescription> View the history of changes made to this setting. </DialogDescription>
+      </DialogHeader>
 
-      <v-card-text>
-        <v-timeline density="compact" side="end">
-          <v-timeline-item
+      <ScrollArea class="max-h-[400px]">
+        <div v-if="history.length > 0" class="space-y-4">
+          <div
             v-for="entry in history"
             :key="entry.id"
-            dot-color="primary"
-            size="small"
+            class="relative pl-6 border-l-2 border-border"
           >
-            <template #opposite>
-              <div class="text-caption">{{ formatDate(entry.changed_at) }}</div>
-            </template>
-
-            <v-card>
-              <v-card-text>
-                <div class="d-flex justify-space-between align-center mb-2">
-                  <span class="text-subtitle-2">Changed by User #{{ entry.changed_by_id }}</span>
-                  <v-chip size="x-small">{{ entry.ip_address || 'Unknown' }}</v-chip>
+            <div class="absolute -left-[5px] top-1 h-2 w-2 rounded-full bg-primary" />
+            <div class="rounded-md border p-3">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs text-muted-foreground">{{
+                  formatDate(entry.changed_at)
+                }}</span>
+                <Badge variant="secondary" class="text-[10px]">
+                  User #{{ entry.changed_by_id }}
+                </Badge>
+              </div>
+              <div v-if="entry.ip_address" class="mb-1">
+                <Badge variant="outline" class="text-[10px]">{{ entry.ip_address }}</Badge>
+              </div>
+              <div class="text-xs space-y-1">
+                <div>
+                  <span class="text-muted-foreground">Old:</span>
+                  <code class="ml-1 rounded bg-muted px-1 py-0.5">{{
+                    formatValue(entry.old_value)
+                  }}</code>
                 </div>
-
-                <div class="mb-2">
-                  <span class="text-caption text-medium-emphasis">Old:</span>
-                  <code class="ml-2">{{ formatValue(entry.old_value) }}</code>
+                <div>
+                  <span class="text-muted-foreground">New:</span>
+                  <code class="ml-1 rounded bg-muted px-1 py-0.5">{{
+                    formatValue(entry.new_value)
+                  }}</code>
                 </div>
-
-                <div class="mb-2">
-                  <span class="text-caption text-medium-emphasis">New:</span>
-                  <code class="ml-2">{{ formatValue(entry.new_value) }}</code>
+                <div v-if="entry.change_reason">
+                  <span class="text-muted-foreground">Reason:</span> {{ entry.change_reason }}
                 </div>
-
-                <div v-if="entry.change_reason" class="text-caption text-medium-emphasis">
-                  Reason: {{ entry.change_reason }}
-                </div>
-              </v-card-text>
-            </v-card>
-          </v-timeline-item>
-        </v-timeline>
-
-        <div v-if="loading" class="text-center py-4">
-          <v-progress-circular indeterminate color="primary" />
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div v-if="!loading && history.length === 0" class="text-center py-8 text-medium-emphasis">
+        <div v-if="loading" class="flex justify-center py-8">
+          <div
+            class="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"
+          />
+        </div>
+
+        <div
+          v-if="!loading && history.length === 0"
+          class="py-8 text-center text-sm text-muted-foreground"
+        >
           No change history available
         </div>
-      </v-card-text>
+      </ScrollArea>
 
-      <v-card-actions>
-        <v-spacer />
-        <v-btn @click="$emit('update:modelValue', false)">Close</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      <DialogFooter>
+        <Button variant="outline" @click="$emit('update:modelValue', false)">Close</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup>
@@ -69,6 +76,17 @@ import { ref, watch } from 'vue'
 import { History } from 'lucide-vue-next'
 import { useSettingsApi } from '@/composables/useSettingsApi'
 import { formatDate } from '@/utils/formatters'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 const props = defineProps({
   modelValue: Boolean,

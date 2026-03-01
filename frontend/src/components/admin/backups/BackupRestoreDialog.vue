@@ -1,71 +1,87 @@
 <template>
-  <v-dialog
-    :model-value="modelValue"
-    max-width="600"
-    @update:model-value="$emit('update:modelValue', $event)"
-  >
-    <v-card>
-      <v-card-title class="d-flex align-center">
-        <AlertTriangle class="mr-2 size-5 text-yellow-600 dark:text-yellow-400" />
-        Restore Database Backup
-      </v-card-title>
+  <Dialog :open="modelValue" @update:open="$emit('update:modelValue', $event)">
+    <DialogContent class="max-w-[600px]">
+      <DialogHeader>
+        <DialogTitle class="flex items-center gap-2">
+          <AlertTriangle class="size-5 text-yellow-600 dark:text-yellow-400" />
+          Restore Database Backup
+        </DialogTitle>
+        <DialogDescription>
+          Replace the current database with data from the selected backup.
+        </DialogDescription>
+      </DialogHeader>
 
-      <v-card-text>
-        <v-alert type="warning" variant="tonal" prominent class="mb-4">
-          <div class="text-body-2">
-            <strong>⚠️ Warning:</strong> This will replace the current database with data from the
-            selected backup. This action cannot be undone.
-          </div>
-        </v-alert>
+      <Alert variant="destructive">
+        <AlertTriangle class="size-4" />
+        <AlertDescription>
+          <strong>Warning:</strong> This will replace the current database with data from the
+          selected backup. This action cannot be undone.
+        </AlertDescription>
+      </Alert>
 
-        <div v-if="backup" class="mb-4">
-          <div class="text-subtitle-2 mb-2">Selected Backup:</div>
-          <v-card variant="outlined" color="info">
-            <v-card-text class="pa-3">
-              <div class="text-body-2"><strong>Filename:</strong> {{ backup.filename }}</div>
-              <div class="text-body-2">
-                <strong>Created:</strong> {{ formatDate(backup.created_at) }}
-              </div>
-              <div class="text-body-2">
-                <strong>Size:</strong> {{ formatSize(backup.file_size_mb) }}
-              </div>
-            </v-card-text>
-          </v-card>
+      <div v-if="backup" class="space-y-3">
+        <p class="text-sm font-medium">Selected Backup:</p>
+        <div class="rounded-md border p-3 text-sm space-y-1">
+          <div><span class="font-medium">Filename:</span> {{ backup.filename }}</div>
+          <div><span class="font-medium">Created:</span> {{ formatDate(backup.created_at) }}</div>
+          <div><span class="font-medium">Size:</span> {{ formatSize(backup.file_size_mb) }}</div>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <Label for="safety-backup" class="cursor-pointer"
+            >Create safety backup before restore (recommended)</Label
+          >
+          <Switch
+            id="safety-backup"
+            :checked="form.createSafetyBackup"
+            @update:checked="form.createSafetyBackup = $event"
+          />
         </div>
 
-        <v-switch
-          v-model="form.createSafetyBackup"
-          label="Create safety backup before restore (recommended)"
-          density="compact"
-          color="success"
-          hide-details
-          class="mb-2"
-        />
+        <div class="flex items-center justify-between">
+          <Label for="run-analyze" class="cursor-pointer"
+            >Run ANALYZE after restore (recommended)</Label
+          >
+          <Switch
+            id="run-analyze"
+            :checked="form.runAnalyze"
+            @update:checked="form.runAnalyze = $event"
+          />
+        </div>
+      </div>
 
-        <v-switch
-          v-model="form.runAnalyze"
-          label="Run ANALYZE after restore (recommended)"
-          density="compact"
-          color="success"
-          hide-details
-        />
-      </v-card-text>
-
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="handleCancel">Cancel</v-btn>
-        <v-btn color="warning" variant="elevated" :loading="loading" @click="handleRestore">
+      <DialogFooter>
+        <Button variant="outline" @click="handleCancel">Cancel</Button>
+        <Button variant="destructive" :disabled="loading" @click="handleRestore">
+          <span
+            v-if="loading"
+            class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+          />
           Restore Database
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
 import { AlertTriangle } from 'lucide-vue-next'
 import { useBackupFormatters } from '@/composables/useBackupFormatters'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const { formatDate, formatSize } = useBackupFormatters()
 

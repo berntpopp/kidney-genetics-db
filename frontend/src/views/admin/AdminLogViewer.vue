@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <div class="container mx-auto px-4 py-6">
     <AdminHeader
       title="System Logs"
       subtitle="View and analyze system logs"
@@ -8,597 +8,555 @@
       :breadcrumbs="ADMIN_BREADCRUMBS.logs"
     >
       <template #actions>
-        <v-btn
-          color="warning"
-          variant="elevated"
-          prepend-icon="mdi-broom"
+        <Button
+          variant="outline"
+          class="border-yellow-500 text-yellow-600"
           @click="showCleanupDialog = true"
         >
+          <Trash2 class="size-4 mr-2" />
           Clean Up Old Logs
-        </v-btn>
+        </Button>
       </template>
     </AdminHeader>
 
     <!-- Stats Overview -->
-    <v-row class="mb-6">
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Total Logs"
-          :value="stats.totalLogs"
-          :loading="statsLoading"
-          icon="mdi-file-document-multiple"
-          color="info"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Errors (24h)"
-          :value="stats.errorCount"
-          :loading="statsLoading"
-          icon="mdi-alert-circle"
-          color="error"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Warnings (24h)"
-          :value="stats.warningCount"
-          :loading="statsLoading"
-          icon="mdi-alert"
-          color="warning"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Storage Used"
-          :value="stats.storageSize"
-          :loading="statsLoading"
-          icon="mdi-database"
-          color="purple"
-        />
-      </v-col>
-    </v-row>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <AdminStatsCard
+        title="Total Logs"
+        :value="stats.totalLogs"
+        :loading="statsLoading"
+        icon="mdi-file-document-multiple"
+        color="info"
+      />
+      <AdminStatsCard
+        title="Errors (24h)"
+        :value="stats.errorCount"
+        :loading="statsLoading"
+        icon="mdi-alert-circle"
+        color="error"
+      />
+      <AdminStatsCard
+        title="Warnings (24h)"
+        :value="stats.warningCount"
+        :loading="statsLoading"
+        icon="mdi-alert"
+        color="warning"
+      />
+      <AdminStatsCard
+        title="Storage Used"
+        :value="stats.storageSize"
+        :loading="statsLoading"
+        icon="mdi-database"
+        color="purple"
+      />
+    </div>
 
     <!-- Filters -->
-    <v-card class="mb-3" rounded="lg">
-      <v-card-text>
-        <v-row>
-          <v-col cols="12" md="3">
-            <v-select
-              v-model="filters.level"
-              label="Log Level"
-              :items="logLevels"
-              density="compact"
-              variant="outlined"
-              clearable
-              hide-details
-            />
-          </v-col>
-          <v-col cols="12" md="3">
-            <v-text-field
-              v-model="filters.source"
-              label="Source Module"
-              density="compact"
-              variant="outlined"
-              clearable
-              hide-details
-            />
-          </v-col>
-          <v-col cols="12" md="3">
-            <v-text-field
-              v-model="filters.requestId"
-              label="Request ID"
-              density="compact"
-              variant="outlined"
-              clearable
-              hide-details
-            />
-          </v-col>
-          <v-col cols="12" md="3">
-            <v-select
-              v-model="filters.timeRange"
-              label="Time Range"
-              :items="timeRanges"
-              density="compact"
-              variant="outlined"
-              hide-details
-            />
-          </v-col>
-        </v-row>
-        <v-row class="mt-3">
-          <v-col cols="12" md="3">
-            <v-select
-              v-model="sortOption"
-              :items="sortOptions"
-              label="Sort by"
-              density="compact"
-              variant="outlined"
-              hide-details
-              @update:model-value="applySorting"
-            />
-          </v-col>
-          <v-col cols="12" md="6">
-            <v-text-field
-              v-model="searchQuery"
-              label="Search logs..."
-              prepend-inner-icon="mdi-magnify"
-              density="compact"
-              variant="outlined"
-              clearable
-              hide-details
-              @keyup.enter="loadLogs"
-            />
-          </v-col>
-          <v-col cols="12" md="6" class="text-right">
-            <v-btn
-              color="primary"
-              size="small"
-              prepend-icon="mdi-filter"
-              :loading="loading"
-              class="mr-2"
-              @click="loadLogs"
-            >
+    <Card class="mb-3">
+      <CardContent class="pt-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="space-y-2">
+            <Label>Log Level</Label>
+            <Select v-model="filters.level">
+              <SelectTrigger>
+                <SelectValue placeholder="All levels" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All levels</SelectItem>
+                <SelectItem v-for="level in logLevels" :key="level" :value="level">
+                  {{ level }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div class="space-y-2">
+            <Label>Source Module</Label>
+            <Input v-model="filters.source" placeholder="Filter by source..." />
+          </div>
+          <div class="space-y-2">
+            <Label>Request ID</Label>
+            <Input v-model="filters.requestId" placeholder="Filter by request ID..." />
+          </div>
+          <div class="space-y-2">
+            <Label>Time Range</Label>
+            <Select v-model="filters.timeRange">
+              <SelectTrigger>
+                <SelectValue placeholder="Select range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="range in timeRanges" :key="range.value" :value="range.value">
+                  {{ range.title }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4">
+          <div class="md:col-span-3 space-y-2">
+            <Label>Sort by</Label>
+            <Select v-model="sortOption" @update:model-value="applySorting">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.title }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div class="md:col-span-5 space-y-2">
+            <Label>Search</Label>
+            <Input v-model="searchQuery" placeholder="Search logs..." @keyup.enter="loadLogs" />
+          </div>
+          <div class="md:col-span-4 flex items-end gap-2 justify-end">
+            <Button size="sm" :disabled="loading" @click="loadLogs">
+              <Filter class="size-4 mr-1" />
               Apply Filters
-            </v-btn>
-            <v-btn
-              color="warning"
-              size="small"
-              prepend-icon="mdi-filter-off"
-              variant="outlined"
-              class="mr-2"
-              @click="clearFilters"
-            >
+            </Button>
+            <Button variant="outline" size="sm" @click="clearFilters">
+              <FilterX class="size-4 mr-1" />
               Clear
-            </v-btn>
-            <v-btn
-              color="success"
-              size="small"
-              prepend-icon="mdi-download"
-              :loading="exporting"
-              @click="exportLogs"
-            >
+            </Button>
+            <Button variant="secondary" size="sm" :disabled="exporting" @click="exportLogs">
+              <Download class="size-4 mr-1" />
               Export
-            </v-btn>
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
 
     <!-- Logs Table -->
-    <v-card rounded="lg">
+    <Card>
       <!-- Top Pagination Controls -->
-      <v-card-text class="pa-2 border-b">
-        <div class="d-flex justify-space-between align-center">
-          <div class="d-flex align-center ga-4">
-            <div class="text-body-2">
-              <span class="font-weight-bold">{{ totalLogs }}</span>
-              <span class="text-medium-emphasis"> Log Entries</span>
+      <div class="p-2 border-b">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-4">
+            <div class="text-sm">
+              <span class="font-bold">{{ totalLogs }}</span>
+              <span class="text-muted-foreground"> Log Entries</span>
             </div>
-            <v-divider vertical />
-            <div class="text-body-2 text-medium-emphasis">
+            <Separator orientation="vertical" class="h-4" />
+            <div class="text-sm text-muted-foreground">
               {{ pageRangeText }}
             </div>
           </div>
-          <div class="d-flex align-center ga-2">
-            <span class="text-caption text-medium-emphasis mr-2">Per page:</span>
-            <v-select
-              v-model="itemsPerPage"
-              :items="itemsPerPageOptions"
-              density="compact"
-              variant="outlined"
-              hide-details
-              style="width: 100px"
-              @update:model-value="updateItemsPerPage"
-            />
-            <v-pagination
-              v-model="currentPage"
-              :length="pageCount"
-              :total-visible="5"
-              density="compact"
-              @update:model-value="updatePage"
-            />
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-muted-foreground mr-2">Per page:</span>
+            <Select v-model="itemsPerPageStr" @update:model-value="updateItemsPerPage">
+              <SelectTrigger class="w-[80px] h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  v-for="opt in itemsPerPageOptions"
+                  :key="opt.value"
+                  :value="String(opt.value)"
+                >
+                  {{ opt.title }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <div class="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="currentPage <= 1"
+                @click="updatePage(currentPage - 1)"
+              >
+                <ChevronLeft class="size-4" />
+              </Button>
+              <span class="text-sm px-2">{{ currentPage }} / {{ pageCount || 1 }}</span>
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8"
+                :disabled="currentPage >= pageCount"
+                @click="updatePage(currentPage + 1)"
+              >
+                <ChevronRight class="size-4" />
+              </Button>
+            </div>
           </div>
         </div>
-      </v-card-text>
+      </div>
 
-      <v-data-table-server
-        v-model:sort-by="sortBy"
-        :headers="headers"
-        :items="logs"
-        :loading="loading"
-        :items-per-page="itemsPerPage"
-        :page="currentPage"
-        :items-length="totalLogs"
-        density="compact"
-        hover
-        :items-per-page-options="[]"
-        must-sort
-        @update:options="handleTableUpdate"
-      >
-        <!-- Timestamp column -->
-        <template #item.timestamp="{ item }">
-          <span class="text-caption">
-            {{ formatTimestamp(item.timestamp) }}
-          </span>
-        </template>
+      <CardContent class="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead class="w-[150px]">Timestamp</TableHead>
+              <TableHead class="w-[80px]">Level</TableHead>
+              <TableHead class="w-[80px]">Method</TableHead>
+              <TableHead class="w-[200px]">Path</TableHead>
+              <TableHead class="w-[80px]">Status</TableHead>
+              <TableHead class="w-[100px]">Duration</TableHead>
+              <TableHead>Message</TableHead>
+              <TableHead class="w-[100px] text-center">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-if="loading">
+              <TableCell colspan="8" class="text-center py-8 text-muted-foreground">
+                Loading...
+              </TableCell>
+            </TableRow>
+            <TableRow v-else-if="logs.length === 0">
+              <TableCell colspan="8" class="text-center py-8 text-muted-foreground">
+                No logs found
+              </TableCell>
+            </TableRow>
+            <TableRow v-for="item in logs" :key="item.id" class="hover:bg-muted/50">
+              <TableCell>
+                <span class="text-xs">{{ formatTimestamp(item.timestamp) }}</span>
+              </TableCell>
+              <TableCell>
+                <Badge :variant="getLevelVariant(item.level)" class="text-xs">
+                  {{ item.level }}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Badge v-if="item.method" variant="outline" class="text-xs">
+                  {{ item.method }}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <code class="text-xs truncate block max-w-[200px]" :title="item.path">
+                  {{ item.path || '-' }}
+                </code>
+              </TableCell>
+              <TableCell>
+                <Badge
+                  v-if="item.status_code"
+                  :variant="getStatusVariant(item.status_code)"
+                  class="text-xs"
+                >
+                  {{ item.status_code }}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <span v-if="item.duration_ms" class="text-xs">
+                  {{ formatDuration(item.duration_ms) }}
+                </span>
+              </TableCell>
+              <TableCell>
+                <div class="truncate max-w-[400px]" :title="item.message">
+                  {{ item.message }}
+                </div>
+              </TableCell>
+              <TableCell class="text-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7"
+                  title="View details"
+                  @click="showLogDetails(item)"
+                >
+                  <Eye class="size-4" />
+                </Button>
+                <Button
+                  v-if="item.request_id"
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7"
+                  title="Filter by request ID"
+                  @click="filterByRequestId(item.request_id)"
+                >
+                  <Filter class="size-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
 
-        <!-- Level column -->
-        <template #item.level="{ item }">
-          <v-chip :color="getLevelColor(item.level)" size="small" label>
-            {{ item.level }}
-          </v-chip>
-        </template>
+    <!-- Log Details Dialog -->
+    <Dialog v-model:open="showDetailsDialog">
+      <DialogContent class="max-w-[800px] max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle class="flex items-center gap-2">
+            <Eye class="size-5" />
+            Request Details
+            <Badge v-if="selectedLog" :variant="getLevelVariant(selectedLog.level)" class="ml-1">
+              {{ selectedLog.level }}
+            </Badge>
+          </DialogTitle>
+        </DialogHeader>
 
-        <!-- Method column -->
-        <template #item.method="{ item }">
-          <v-chip v-if="item.method" :color="getMethodColor(item.method)" size="x-small" label>
-            {{ item.method }}
-          </v-chip>
-        </template>
+        <div v-if="selectedLog">
+          <Tabs v-model="detailsTab" class="w-full">
+            <TabsList class="grid w-full grid-cols-5">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="request">Request</TabsTrigger>
+              <TabsTrigger value="response">Response</TabsTrigger>
+              <TabsTrigger v-if="selectedLog.error_type" value="error">Error</TabsTrigger>
+              <TabsTrigger value="context">Context</TabsTrigger>
+            </TabsList>
 
-        <!-- Path column -->
-        <template #item.path="{ item }">
-          <code class="text-caption text-truncate" style="max-width: 200px" :title="item.path">
-            {{ item.path || '-' }}
-          </code>
-        </template>
-
-        <!-- Status column -->
-        <template #item.status_code="{ item }">
-          <v-chip
-            v-if="item.status_code"
-            :color="getStatusColor(item.status_code)"
-            size="x-small"
-            label
-          >
-            {{ item.status_code }}
-          </v-chip>
-        </template>
-
-        <!-- Duration column -->
-        <template #item.duration_ms="{ item }">
-          <span v-if="item.duration_ms" class="text-caption">
-            {{ formatDuration(item.duration_ms) }}
-          </span>
-        </template>
-
-        <!-- Message column -->
-        <template #item.message="{ item }">
-          <div class="text-truncate" style="max-width: 400px" :title="item.message">
-            {{ item.message }}
-          </div>
-        </template>
-
-        <!-- Actions column -->
-        <template #item.actions="{ item }">
-          <v-btn
-            icon="mdi-eye"
-            size="x-small"
-            variant="text"
-            title="View details"
-            @click="showLogDetails(item)"
-          />
-          <v-btn
-            v-if="item.request_id"
-            icon="mdi-filter-variant"
-            size="x-small"
-            variant="text"
-            title="Filter by request ID"
-            @click="filterByRequestId(item.request_id)"
-          />
-        </template>
-        <!-- Hide bottom pagination slot -->
-        <template #bottom />
-      </v-data-table-server>
-    </v-card>
-
-    <!-- Log Details Dialog - Enhanced -->
-    <v-dialog v-model="showDetailsDialog" max-width="1200" scrollable>
-      <v-card v-if="selectedLog">
-        <v-card-title class="d-flex align-center">
-          <Eye class="size-5 mr-2" />
-          Request Details
-          <v-chip :color="getLevelColor(selectedLog.level)" size="small" label class="ml-2">
-            {{ selectedLog.level }}
-          </v-chip>
-          <v-spacer />
-          <v-btn
-            icon="mdi-content-copy"
-            size="small"
-            variant="text"
-            title="Copy Request ID"
-            @click="copyToClipboard(selectedLog.request_id)"
-          />
-          <v-btn icon="mdi-close" size="small" variant="text" @click="showDetailsDialog = false" />
-        </v-card-title>
-
-        <v-tabs v-model="detailsTab" density="compact">
-          <v-tab value="overview">
-            <Info class="size-4 mr-2" />
-            Overview
-          </v-tab>
-          <v-tab value="request">
-            <SquareArrowRight class="size-4 mr-2" />
-            Request
-          </v-tab>
-          <v-tab value="response">
-            <SquareArrowLeft class="size-4 mr-2" />
-            Response
-          </v-tab>
-          <v-tab v-if="selectedLog.error_type" value="error">
-            <CircleAlert class="size-4 mr-2" />
-            Error
-          </v-tab>
-          <v-tab value="context">
-            <FileJson class="size-4 mr-2" />
-            Context
-          </v-tab>
-        </v-tabs>
-
-        <v-card-text>
-          <v-tabs-window v-model="detailsTab">
-            <!-- Overview Tab -->
-            <v-tabs-window-item value="overview">
-              <v-row>
-                <v-col cols="12" md="6">
-                  <v-list density="compact">
-                    <v-list-item>
-                      <v-list-item-title class="text-caption text-grey"
-                        >Timestamp</v-list-item-title
+            <ScrollArea class="max-h-[50vh] mt-4">
+              <!-- Overview Tab -->
+              <TabsContent value="overview">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-3">
+                    <div class="border-b pb-2">
+                      <div
+                        class="text-xs text-muted-foreground uppercase tracking-wide font-medium"
                       >
-                      <v-list-item-subtitle>{{
-                        formatTimestamp(selectedLog.timestamp, true)
-                      }}</v-list-item-subtitle>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-list-item-title class="text-caption text-grey"
-                        >Request ID</v-list-item-title
+                        Timestamp
+                      </div>
+                      <div class="text-sm">{{ formatTimestamp(selectedLog.timestamp, true) }}</div>
+                    </div>
+                    <div class="border-b pb-2">
+                      <div
+                        class="text-xs text-muted-foreground uppercase tracking-wide font-medium"
                       >
-                      <v-list-item-subtitle>
+                        Request ID
+                      </div>
+                      <div class="text-sm">
                         <code>{{ selectedLog.request_id || 'N/A' }}</code>
-                      </v-list-item-subtitle>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-list-item-title class="text-caption text-grey">Duration</v-list-item-title>
-                      <v-list-item-subtitle>
+                      </div>
+                    </div>
+                    <div class="border-b pb-2">
+                      <div
+                        class="text-xs text-muted-foreground uppercase tracking-wide font-medium"
+                      >
+                        Duration
+                      </div>
+                      <div class="text-sm">
                         {{
                           selectedLog.duration_ms ? formatDuration(selectedLog.duration_ms) : 'N/A'
                         }}
-                      </v-list-item-subtitle>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-list-item-title class="text-caption text-grey"
-                        >Status Code</v-list-item-title
+                      </div>
+                    </div>
+                    <div class="border-b pb-2">
+                      <div
+                        class="text-xs text-muted-foreground uppercase tracking-wide font-medium"
                       >
-                      <v-list-item-subtitle>
-                        <v-chip
+                        Status Code
+                      </div>
+                      <div class="text-sm">
+                        <Badge
                           v-if="selectedLog.status_code"
-                          :color="getStatusColor(selectedLog.status_code)"
-                          size="small"
-                          label
+                          :variant="getStatusVariant(selectedLog.status_code)"
                         >
                           {{ selectedLog.status_code }}
-                        </v-chip>
+                        </Badge>
                         <span v-else>N/A</span>
-                      </v-list-item-subtitle>
-                    </v-list-item>
-                  </v-list>
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-list density="compact">
-                    <v-list-item>
-                      <v-list-item-title class="text-caption text-grey"
-                        >Source Module</v-list-item-title
+                      </div>
+                    </div>
+                  </div>
+                  <div class="space-y-3">
+                    <div class="border-b pb-2">
+                      <div
+                        class="text-xs text-muted-foreground uppercase tracking-wide font-medium"
                       >
-                      <v-list-item-subtitle>
+                        Source Module
+                      </div>
+                      <div class="text-sm">
                         <code>{{ selectedLog.source }}</code>
-                      </v-list-item-subtitle>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-list-item-title class="text-caption text-grey">User</v-list-item-title>
-                      <v-list-item-subtitle>
-                        {{ selectedLog.user_id ? `User ID: ${selectedLog.user_id}` : 'Anonymous' }}
-                      </v-list-item-subtitle>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-list-item-title class="text-caption text-grey"
-                        >IP Address</v-list-item-title
+                      </div>
+                    </div>
+                    <div class="border-b pb-2">
+                      <div
+                        class="text-xs text-muted-foreground uppercase tracking-wide font-medium"
                       >
-                      <v-list-item-subtitle>
+                        User
+                      </div>
+                      <div class="text-sm">
+                        {{ selectedLog.user_id ? `User ID: ${selectedLog.user_id}` : 'Anonymous' }}
+                      </div>
+                    </div>
+                    <div class="border-b pb-2">
+                      <div
+                        class="text-xs text-muted-foreground uppercase tracking-wide font-medium"
+                      >
+                        IP Address
+                      </div>
+                      <div class="text-sm">
                         {{ selectedLog.ip_address || selectedLog.client_info?.ip_address || 'N/A' }}
-                      </v-list-item-subtitle>
-                    </v-list-item>
-                    <v-list-item>
-                      <v-list-item-title class="text-caption text-grey">Message</v-list-item-title>
-                      <v-list-item-subtitle class="text-wrap">
-                        {{ selectedLog.message }}
-                      </v-list-item-subtitle>
-                    </v-list-item>
-                  </v-list>
-                </v-col>
-              </v-row>
-            </v-tabs-window-item>
+                      </div>
+                    </div>
+                    <div class="border-b pb-2">
+                      <div
+                        class="text-xs text-muted-foreground uppercase tracking-wide font-medium"
+                      >
+                        Message
+                      </div>
+                      <div class="text-sm break-words">{{ selectedLog.message }}</div>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
 
-            <!-- Request Tab -->
-            <v-tabs-window-item value="request">
-              <v-list density="compact">
-                <v-list-item>
-                  <v-list-item-title class="text-caption text-grey"
-                    >Method & Path</v-list-item-title
-                  >
-                  <v-list-item-subtitle>
-                    <v-chip
-                      v-if="selectedLog.method"
-                      :color="getMethodColor(selectedLog.method)"
-                      size="small"
-                      label
-                      class="mr-2"
+              <!-- Request Tab -->
+              <TabsContent value="request">
+                <div class="space-y-4">
+                  <div class="border-b pb-2">
+                    <div
+                      class="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1"
                     >
-                      {{ selectedLog.method }}
-                    </v-chip>
-                    <code>{{ selectedLog.path || 'N/A' }}</code>
-                  </v-list-item-subtitle>
-                </v-list-item>
-
-                <v-list-item v-if="selectedLog.query_params">
-                  <v-list-item-title class="text-caption text-grey"
-                    >Query Parameters</v-list-item-title
-                  >
-                  <v-list-item-subtitle>
-                    <v-card variant="outlined" class="mt-2">
-                      <v-card-text>
-                        <pre class="json-display">{{ formatJson(selectedLog.query_params) }}</pre>
-                      </v-card-text>
-                    </v-card>
-                  </v-list-item-subtitle>
-                </v-list-item>
-
-                <v-list-item v-if="selectedLog.request_body">
-                  <v-list-item-title class="text-caption text-grey">Request Body</v-list-item-title>
-                  <v-list-item-subtitle>
-                    <v-card variant="outlined" class="mt-2">
-                      <v-card-text>
-                        <pre class="json-display">{{
-                          formatRequestBody(selectedLog.request_body)
-                        }}</pre>
-                      </v-card-text>
-                    </v-card>
-                  </v-list-item-subtitle>
-                </v-list-item>
-
-                <v-list-item v-if="selectedLog.headers">
-                  <v-list-item-title class="text-caption text-grey">Headers</v-list-item-title>
-                  <v-list-item-subtitle>
-                    <v-card variant="outlined" class="mt-2">
-                      <v-card-text>
-                        <pre class="json-display">{{ formatJson(selectedLog.headers) }}</pre>
-                      </v-card-text>
-                    </v-card>
-                  </v-list-item-subtitle>
-                </v-list-item>
-
-                <v-list-item v-if="selectedLog.user_agent">
-                  <v-list-item-title class="text-caption text-grey">User Agent</v-list-item-title>
-                  <v-list-item-subtitle class="text-wrap">
-                    <code>{{ selectedLog.user_agent }}</code>
-                  </v-list-item-subtitle>
-                </v-list-item>
-              </v-list>
-            </v-tabs-window-item>
-
-            <!-- Response Tab -->
-            <v-tabs-window-item value="response">
-              <v-list density="compact">
-                <v-list-item>
-                  <v-list-item-title class="text-caption text-grey">Status</v-list-item-title>
-                  <v-list-item-subtitle>
-                    <v-chip
-                      v-if="selectedLog.status_code"
-                      :color="getStatusColor(selectedLog.status_code)"
-                      size="small"
-                      label
+                      Method & Path
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <Badge v-if="selectedLog.method" variant="outline">{{
+                        selectedLog.method
+                      }}</Badge>
+                      <code class="text-sm">{{ selectedLog.path || 'N/A' }}</code>
+                    </div>
+                  </div>
+                  <div v-if="selectedLog.query_params" class="border-b pb-2">
+                    <div
+                      class="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1"
                     >
-                      {{ selectedLog.status_code }}
-                    </v-chip>
-                    <span v-else>N/A</span>
-                  </v-list-item-subtitle>
-                </v-list-item>
-                <v-list-item>
-                  <v-list-item-title class="text-caption text-grey"
-                    >Processing Time</v-list-item-title
-                  >
-                  <v-list-item-subtitle>
-                    {{ selectedLog.duration_ms ? formatDuration(selectedLog.duration_ms) : 'N/A' }}
-                  </v-list-item-subtitle>
-                </v-list-item>
-              </v-list>
-            </v-tabs-window-item>
+                      Query Parameters
+                    </div>
+                    <pre class="text-xs bg-muted p-3 rounded overflow-x-auto">{{
+                      formatJson(selectedLog.query_params)
+                    }}</pre>
+                  </div>
+                  <div v-if="selectedLog.request_body" class="border-b pb-2">
+                    <div
+                      class="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1"
+                    >
+                      Request Body
+                    </div>
+                    <pre class="text-xs bg-muted p-3 rounded overflow-x-auto">{{
+                      formatRequestBody(selectedLog.request_body)
+                    }}</pre>
+                  </div>
+                  <div v-if="selectedLog.headers" class="border-b pb-2">
+                    <div
+                      class="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1"
+                    >
+                      Headers
+                    </div>
+                    <pre class="text-xs bg-muted p-3 rounded overflow-x-auto">{{
+                      formatJson(selectedLog.headers)
+                    }}</pre>
+                  </div>
+                  <div v-if="selectedLog.user_agent" class="border-b pb-2">
+                    <div
+                      class="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1"
+                    >
+                      User Agent
+                    </div>
+                    <code class="text-xs break-all">{{ selectedLog.user_agent }}</code>
+                  </div>
+                </div>
+              </TabsContent>
 
-            <!-- Error Tab -->
-            <v-tabs-window-item v-if="selectedLog.error_type" value="error">
-              <v-list density="compact">
-                <v-list-item>
-                  <v-list-item-title class="text-caption text-grey">Error Type</v-list-item-title>
-                  <v-list-item-subtitle>
-                    <v-chip color="error" size="small" label>{{ selectedLog.error_type }}</v-chip>
-                  </v-list-item-subtitle>
-                </v-list-item>
-                <v-list-item v-if="selectedLog.error_message">
-                  <v-list-item-title class="text-caption text-grey"
-                    >Error Message</v-list-item-title
-                  >
-                  <v-list-item-subtitle class="text-wrap">
-                    {{ selectedLog.error_message }}
-                  </v-list-item-subtitle>
-                </v-list-item>
-                <v-list-item v-if="selectedLog.stack_trace">
-                  <v-list-item-title class="text-caption text-grey">Stack Trace</v-list-item-title>
-                  <v-list-item-subtitle>
-                    <v-card variant="outlined" class="mt-2">
-                      <v-card-text>
-                        <pre class="stack-trace">{{ selectedLog.stack_trace }}</pre>
-                      </v-card-text>
-                    </v-card>
-                  </v-list-item-subtitle>
-                </v-list-item>
-              </v-list>
-            </v-tabs-window-item>
+              <!-- Response Tab -->
+              <TabsContent value="response">
+                <div class="space-y-3">
+                  <div class="border-b pb-2">
+                    <div class="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+                      Status
+                    </div>
+                    <div class="text-sm">
+                      <Badge
+                        v-if="selectedLog.status_code"
+                        :variant="getStatusVariant(selectedLog.status_code)"
+                      >
+                        {{ selectedLog.status_code }}
+                      </Badge>
+                      <span v-else>N/A</span>
+                    </div>
+                  </div>
+                  <div class="border-b pb-2">
+                    <div class="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+                      Processing Time
+                    </div>
+                    <div class="text-sm">
+                      {{
+                        selectedLog.duration_ms ? formatDuration(selectedLog.duration_ms) : 'N/A'
+                      }}
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
 
-            <!-- Context Tab -->
-            <v-tabs-window-item value="context">
-              <v-card variant="outlined">
-                <v-card-text>
-                  <pre class="json-display">{{ formatJson(selectedLog.context || {}) }}</pre>
-                </v-card-text>
-              </v-card>
-            </v-tabs-window-item>
-          </v-tabs-window>
-        </v-card-text>
+              <!-- Error Tab -->
+              <TabsContent v-if="selectedLog.error_type" value="error">
+                <div class="space-y-3">
+                  <div class="border-b pb-2">
+                    <div class="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+                      Error Type
+                    </div>
+                    <Badge variant="destructive">{{ selectedLog.error_type }}</Badge>
+                  </div>
+                  <div v-if="selectedLog.error_message" class="border-b pb-2">
+                    <div class="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+                      Error Message
+                    </div>
+                    <div class="text-sm break-words">{{ selectedLog.error_message }}</div>
+                  </div>
+                  <div v-if="selectedLog.stack_trace">
+                    <div
+                      class="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1"
+                    >
+                      Stack Trace
+                    </div>
+                    <pre
+                      class="text-xs bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 p-3 rounded overflow-x-auto"
+                      >{{ selectedLog.stack_trace }}</pre
+                    >
+                  </div>
+                </div>
+              </TabsContent>
 
-        <v-card-actions>
-          <v-btn
-            v-if="selectedLog.request_id"
-            color="primary"
-            variant="text"
-            prepend-icon="mdi-filter-variant"
+              <!-- Context Tab -->
+              <TabsContent value="context">
+                <pre class="text-xs bg-muted p-3 rounded overflow-x-auto">{{
+                  formatJson(selectedLog.context || {})
+                }}</pre>
+              </TabsContent>
+            </ScrollArea>
+          </Tabs>
+        </div>
+
+        <DialogFooter>
+          <Button
+            v-if="selectedLog?.request_id"
+            variant="outline"
             @click="filterByRequestId(selectedLog.request_id)"
           >
+            <Filter class="size-4 mr-2" />
             Filter by Request ID
-          </v-btn>
-          <v-spacer />
-          <v-btn variant="text" @click="showDetailsDialog = false">Close</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          </Button>
+          <Button variant="outline" @click="showDetailsDialog = false">Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <!-- Cleanup Dialog -->
-    <v-dialog v-model="showCleanupDialog" max-width="400">
-      <v-card>
-        <v-card-title>Clean Up Old Logs</v-card-title>
-        <v-card-text>
-          <v-text-field
-            v-model.number="cleanupDays"
-            label="Delete logs older than (days)"
-            type="number"
-            min="1"
-            max="365"
-            density="compact"
-            variant="outlined"
-          />
-          <v-alert type="warning" density="compact" class="mt-2">
-            This will permanently delete all logs older than {{ cleanupDays }} days.
-          </v-alert>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="showCleanupDialog = false">Cancel</v-btn>
-          <v-btn color="error" variant="flat" :loading="cleaning" @click="executeCleanup">
-            Delete Logs
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-  </v-container>
+    <Dialog v-model:open="showCleanupDialog">
+      <DialogContent class="max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle>Clean Up Old Logs</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="space-y-2">
+            <Label>Delete logs older than (days)</Label>
+            <Input v-model.number="cleanupDays" type="number" min="1" max="365" />
+          </div>
+          <Alert variant="destructive">
+            <AlertDescription>
+              This will permanently delete all logs older than {{ cleanupDays }} days.
+            </AlertDescription>
+          </Alert>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="showCleanupDialog = false">Cancel</Button>
+          <Button variant="destructive" :disabled="cleaning" @click="executeCleanup">
+            {{ cleaning ? 'Deleting...' : 'Delete Logs' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>
 </template>
 
 <script setup>
@@ -608,23 +566,52 @@
  */
 
 import { ref, computed, onMounted, watch } from 'vue'
-// import { useAuthStore } from '@/stores/auth'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as logsApi from '@/api/admin/logs'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import { toast } from 'vue-sonner'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
-  FileText,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Separator } from '@/components/ui/separator'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
   Eye,
-  Info,
-  SquareArrowRight,
-  SquareArrowLeft,
-  CircleAlert,
-  FileJson
+  FileText,
+  Filter,
+  FilterX,
+  Trash2
 } from 'lucide-vue-next'
-
-// const authStore = useAuthStore()
 
 // State
 const logs = ref([])
@@ -640,6 +627,7 @@ const detailsTab = ref('overview')
 
 // Pagination
 const itemsPerPage = ref(25)
+const itemsPerPageStr = ref('25')
 const currentPage = ref(1)
 const totalLogs = ref(0)
 const itemsPerPageOptions = [
@@ -681,18 +669,6 @@ const stats = ref({
   warningCount: 0,
   storageSize: '0 MB'
 })
-
-// Table configuration
-const headers = [
-  { title: 'Timestamp', key: 'timestamp', width: '150px', sortable: true },
-  { title: 'Level', key: 'level', width: '80px', sortable: true },
-  { title: 'Method', key: 'method', width: '80px', sortable: true },
-  { title: 'Path', key: 'path', width: '200px', sortable: true },
-  { title: 'Status', key: 'status_code', width: '80px', sortable: true },
-  { title: 'Duration', key: 'duration_ms', width: '100px', sortable: true },
-  { title: 'Message', key: 'message', sortable: true },
-  { title: 'Actions', key: 'actions', sortable: false, width: '120px', align: 'center' }
-]
 
 const logLevels = ['INFO', 'WARNING', 'ERROR', 'DEBUG']
 
@@ -779,6 +755,31 @@ const queryParams = computed(() => {
 
   return params
 })
+
+// Level/status variant helpers
+const getLevelVariant = level => {
+  switch (level) {
+    case 'ERROR':
+    case 'CRITICAL':
+      return 'destructive'
+    case 'WARNING':
+      return 'outline'
+    case 'INFO':
+      return 'default'
+    case 'DEBUG':
+      return 'secondary'
+    default:
+      return 'outline'
+  }
+}
+
+const getStatusVariant = status => {
+  if (status >= 200 && status < 300) return 'default'
+  if (status >= 300 && status < 400) return 'secondary'
+  if (status >= 400 && status < 500) return 'outline'
+  if (status >= 500) return 'destructive'
+  return 'outline'
+}
 
 // Methods
 const loadLogs = async () => {
@@ -933,46 +934,6 @@ const formatTimestamp = (timestamp, full = false) => {
   }
 }
 
-const getLevelColor = level => {
-  switch (level) {
-    case 'ERROR':
-      return 'error'
-    case 'WARNING':
-      return 'warning'
-    case 'INFO':
-      return 'info'
-    case 'DEBUG':
-      return 'grey'
-    default:
-      return 'grey'
-  }
-}
-
-const getMethodColor = method => {
-  switch (method) {
-    case 'GET':
-      return 'success'
-    case 'POST':
-      return 'primary'
-    case 'PUT':
-      return 'warning'
-    case 'PATCH':
-      return 'orange'
-    case 'DELETE':
-      return 'error'
-    default:
-      return 'grey'
-  }
-}
-
-const getStatusColor = status => {
-  if (status >= 200 && status < 300) return 'success'
-  if (status >= 300 && status < 400) return 'info'
-  if (status >= 400 && status < 500) return 'warning'
-  if (status >= 500) return 'error'
-  return 'grey'
-}
-
 const formatDuration = ms => {
   if (ms < 1000) return `${ms}ms`
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
@@ -1006,28 +967,14 @@ const formatRequestBody = body => {
   return JSON.stringify(body, null, 2)
 }
 
-const copyToClipboard = async text => {
-  try {
-    await navigator.clipboard.writeText(text)
-    toast.success('Copied to clipboard', { duration: 5000 })
-  } catch (error) {
-    window.logService.error('Failed to copy:', error)
-    toast.error('Failed to copy', { duration: Infinity })
-  }
-}
-
-const handleTableUpdate = () => {
-  // The v-data-table-server will update sortBy automatically via v-model
-  // Our watcher will handle the actual loading
-}
-
 const updatePage = newPage => {
   currentPage.value = newPage
   loadLogs()
 }
 
 const updateItemsPerPage = newValue => {
-  itemsPerPage.value = newValue
+  itemsPerPage.value = parseInt(newValue)
+  itemsPerPageStr.value = newValue
   currentPage.value = 1 // Reset to first page when changing items per page
   loadLogs()
 }
@@ -1041,98 +988,9 @@ watch(
   }
 )
 
-// Watch for sorting changes from table headers
-watch(
-  sortBy,
-  newSortBy => {
-    if (newSortBy.length > 0) {
-      const key = newSortBy[0].key
-      const order = newSortBy[0].order
-      const reverseFieldMap = {
-        timestamp: 'timestamp',
-        level: 'level',
-        duration_ms: 'duration',
-        path: 'path',
-        method: 'method',
-        status_code: 'status',
-        message: 'message',
-        logger: 'source'
-      }
-      const field = reverseFieldMap[key] || key
-      sortOption.value = `${field}_${order}`
-      loadLogs()
-    }
-  },
-  { deep: true }
-)
-
 // Lifecycle
 onMounted(() => {
   loadLogs()
   loadStats()
 })
 </script>
-
-<style scoped>
-pre {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  max-width: 100%;
-}
-
-code {
-  background-color: rgba(0, 0, 0, 0.05);
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-family: 'Roboto Mono', monospace;
-  font-size: 12px;
-}
-
-.json-display {
-  background-color: #f5f5f5;
-  border-radius: 4px;
-  padding: 12px;
-  font-family: 'Roboto Mono', monospace;
-  font-size: 12px;
-  line-height: 1.6;
-  overflow-x: auto;
-}
-
-.v-theme--dark .json-display {
-  background-color: #1e1e1e;
-}
-
-.stack-trace {
-  background-color: #fee;
-  border-radius: 4px;
-  padding: 12px;
-  font-family: 'Roboto Mono', monospace;
-  font-size: 11px;
-  line-height: 1.5;
-  overflow-x: auto;
-  color: #d00;
-}
-
-.v-theme--dark .stack-trace {
-  background-color: #3e1e1e;
-  color: #ff6b6b;
-}
-
-.text-caption.text-grey {
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 500;
-}
-
-.v-list-item {
-  border-bottom: thin solid rgba(0, 0, 0, 0.05);
-}
-
-.v-list-item:last-child {
-  border-bottom: none;
-}
-
-.v-theme--dark .v-list-item {
-  border-bottom-color: rgba(255, 255, 255, 0.05);
-}
-</style>

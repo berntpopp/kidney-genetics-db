@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <div class="container mx-auto px-4 py-6">
     <!-- Header -->
     <AdminHeader
       title="Database Backups"
@@ -9,58 +9,45 @@
       :breadcrumbs="ADMIN_BREADCRUMBS.backups"
     >
       <template #actions>
-        <v-btn
-          color="primary"
-          variant="elevated"
-          prepend-icon="mdi-database-plus"
-          :loading="apiLoading"
-          @click="dialogs.create = true"
-        >
+        <Button :disabled="apiLoading" @click="dialogs.create = true">
+          <DatabaseBackup class="mr-2 size-4" />
           Create Backup
-        </v-btn>
+        </Button>
       </template>
     </AdminHeader>
 
     <!-- Stats Overview -->
-    <v-row class="mb-6">
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Total Backups"
-          :value="stats.totalBackups"
-          :loading="statsLoading"
-          icon="mdi-database-outline"
-          color="primary"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Latest Backup"
-          :value="stats.latestBackupAge"
-          :loading="statsLoading"
-          icon="mdi-clock-outline"
-          color="info"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Total Size"
-          :value="stats.totalSize"
-          :loading="statsLoading"
-          format="bytes"
-          icon="mdi-harddisk"
-          color="purple"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <AdminStatsCard
-          title="Retention Days"
-          :value="stats.retentionDays"
-          :loading="statsLoading"
-          icon="mdi-calendar-clock"
-          color="warning"
-        />
-      </v-col>
-    </v-row>
+    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+      <AdminStatsCard
+        title="Total Backups"
+        :value="stats.totalBackups"
+        :loading="statsLoading"
+        icon="mdi-database-outline"
+        color="primary"
+      />
+      <AdminStatsCard
+        title="Latest Backup"
+        :value="stats.latestBackupAge"
+        :loading="statsLoading"
+        icon="mdi-clock-outline"
+        color="info"
+      />
+      <AdminStatsCard
+        title="Total Size"
+        :value="stats.totalSize"
+        :loading="statsLoading"
+        format="bytes"
+        icon="mdi-harddisk"
+        color="purple"
+      />
+      <AdminStatsCard
+        title="Retention Days"
+        :value="stats.retentionDays"
+        :loading="statsLoading"
+        icon="mdi-calendar-clock"
+        color="warning"
+      />
+    </div>
 
     <!-- Filters -->
     <BackupFilters
@@ -74,135 +61,166 @@
     />
 
     <!-- Backups Table -->
-    <v-card rounded="lg">
-      <!-- Top Pagination -->
-      <v-card-text class="pa-2 border-b">
-        <div class="d-flex justify-space-between align-center">
-          <div class="d-flex align-center ga-4">
-            <div class="text-body-2">
-              <span class="font-weight-bold">{{ totalBackups }}</span>
-              <span class="text-medium-emphasis"> Backups</span>
-            </div>
-            <v-divider vertical />
-            <div class="text-body-2 text-medium-emphasis">
-              {{ pageRangeText }}
-            </div>
+    <Card>
+      <CardContent class="p-2 border-b">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <span class="text-sm">
+              <span class="font-bold">{{ totalBackups }}</span>
+              <span class="text-muted-foreground"> Backups</span>
+            </span>
+            <span class="text-sm text-muted-foreground">{{ pageRangeText }}</span>
           </div>
-          <div class="d-flex align-center ga-2">
-            <span class="text-caption text-medium-emphasis mr-2">Per page:</span>
-            <v-select
-              v-model="itemsPerPage"
-              :items="[10, 25, 50, 100]"
-              density="compact"
-              variant="outlined"
-              hide-details
-              style="width: 100px"
-              @update:model-value="loadBackups"
-            />
-            <v-pagination
-              v-model="currentPage"
-              :length="pageCount"
-              :total-visible="5"
-              density="compact"
-              @update:model-value="loadBackups"
-            />
+          <div class="flex items-center gap-2">
+            <span class="mr-2 text-xs text-muted-foreground">Per page:</span>
+            <Select v-model="itemsPerPage" @update:model-value="loadBackups">
+              <SelectTrigger class="w-[100px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="n in [10, 25, 50, 100]" :key="n" :value="n">{{ n }}</SelectItem>
+              </SelectContent>
+            </Select>
+            <div class="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                :disabled="currentPage <= 1"
+                @click="
+                  () => {
+                    currentPage--
+                    loadBackups()
+                  }
+                "
+              >
+                <ChevronLeft class="size-4" />
+              </Button>
+              <span class="px-2 text-sm text-muted-foreground"
+                >{{ currentPage }} / {{ pageCount || 1 }}</span
+              >
+              <Button
+                variant="outline"
+                size="icon"
+                :disabled="currentPage >= pageCount"
+                @click="
+                  () => {
+                    currentPage++
+                    loadBackups()
+                  }
+                "
+              >
+                <ChevronRight class="size-4" />
+              </Button>
+            </div>
           </div>
         </div>
-      </v-card-text>
+      </CardContent>
 
       <!-- Data Table -->
-      <v-data-table
-        :headers="headers"
-        :items="backups"
-        :loading="apiLoading"
-        density="compact"
-        hover
-        :items-per-page="-1"
-        hide-default-footer
-      >
-        <template #item.status="{ item }">
-          <v-chip :color="getStatusColor(item.status)" size="small" label>
-            <component :is="resolveMdiIcon(getStatusIcon(item.status))" class="size-3 mr-1" />
-            {{ item.status }}
-          </v-chip>
-        </template>
-
-        <template #item.trigger_source="{ item }">
-          <v-chip size="x-small" variant="outlined">
-            {{ item.trigger_source }}
-          </v-chip>
-        </template>
-
-        <template #item.file_size_mb="{ item }">
-          <span class="text-caption">{{ formatSize(item.file_size_mb) }}</span>
-        </template>
-
-        <template #item.duration_seconds="{ item }">
-          <span class="text-caption">{{ formatDuration(item.duration_seconds) }}</span>
-        </template>
-
-        <template #item.created_at="{ item }">
-          <span class="text-caption">{{ formatDate(item.created_at) }}</span>
-        </template>
-
-        <template #item.actions="{ item }">
-          <div class="d-flex ga-1">
-            <v-tooltip text="Download Backup" location="top">
-              <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  icon="mdi-download"
-                  size="x-small"
-                  variant="text"
-                  color="primary"
-                  @click="handleDownloadBackup(item)"
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Filename</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Trigger</TableHead>
+            <TableHead>Size</TableHead>
+            <TableHead>Duration</TableHead>
+            <TableHead>Created</TableHead>
+            <TableHead class="text-center">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-if="apiLoading">
+            <TableCell :colspan="7" class="text-center py-8">
+              <div class="flex justify-center">
+                <div
+                  class="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"
                 />
-              </template>
-            </v-tooltip>
+              </div>
+            </TableCell>
+          </TableRow>
+          <TableRow v-else-if="backups.length === 0">
+            <TableCell :colspan="7" class="text-center py-8 text-muted-foreground">
+              No backups found
+            </TableCell>
+          </TableRow>
+          <TableRow v-for="item in backups" :key="item.id" class="hover:bg-muted/50">
+            <TableCell class="text-sm">{{ item.filename }}</TableCell>
+            <TableCell>
+              <Badge :variant="getStatusVariant(item.status)">
+                {{ item.status }}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <Badge variant="outline" class="text-xs">{{ item.trigger_source }}</Badge>
+            </TableCell>
+            <TableCell class="text-xs">{{ formatSize(item.file_size_mb) }}</TableCell>
+            <TableCell class="text-xs">{{ formatDuration(item.duration_seconds) }}</TableCell>
+            <TableCell class="text-xs">{{ formatDate(item.created_at) }}</TableCell>
+            <TableCell>
+              <div class="flex justify-center gap-1">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                      @click="handleDownloadBackup(item)"
+                    >
+                      <Download class="size-4 text-primary" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Download Backup</TooltipContent>
+                </Tooltip>
 
-            <v-tooltip text="Restore Backup" location="top">
-              <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  icon="mdi-database-import"
-                  size="x-small"
-                  variant="text"
-                  color="success"
-                  :disabled="item.status !== 'completed'"
-                  @click="showRestoreDialog(item)"
-                />
-              </template>
-            </v-tooltip>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                      :disabled="item.status !== 'completed'"
+                      @click="showRestoreDialog(item)"
+                    >
+                      <DatabaseBackup class="size-4 text-green-600" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Restore Backup</TooltipContent>
+                </Tooltip>
 
-            <v-tooltip text="View Details" location="top">
-              <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  icon="mdi-information"
-                  size="x-small"
-                  variant="text"
-                  color="info"
-                  @click="showDetailsDialog(item)"
-                />
-              </template>
-            </v-tooltip>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                      @click="showDetailsDialog(item)"
+                    >
+                      <Info class="size-4 text-blue-500" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>View Details</TooltipContent>
+                </Tooltip>
 
-            <v-tooltip text="Delete Backup" location="top">
-              <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  icon="mdi-delete"
-                  size="x-small"
-                  variant="text"
-                  color="error"
-                  @click="showDeleteDialog(item)"
-                />
-              </template>
-            </v-tooltip>
-          </div>
-        </template>
-      </v-data-table>
-    </v-card>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8"
+                      @click="showDeleteDialog(item)"
+                    >
+                      <Trash2 class="size-4 text-destructive" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Delete Backup</TooltipContent>
+                </Tooltip>
+              </div>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </Card>
 
     <!-- Dialogs -->
     <BackupCreateDialog
@@ -226,7 +244,7 @@
       :loading="apiLoading"
       @delete="handleDeleteBackup"
     />
-  </v-container>
+  </div>
 </template>
 
 <script setup>
@@ -241,7 +259,7 @@
  */
 
 import { ref, computed, onMounted } from 'vue'
-import { resolveMdiIcon } from '@/utils/icons'
+import { Download, Info, Trash2, ChevronLeft, ChevronRight, DatabaseBackup } from 'lucide-vue-next'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import BackupCreateDialog from '@/components/admin/backups/BackupCreateDialog.vue'
@@ -253,6 +271,26 @@ import BackupFilters from '@/components/admin/backups/BackupFilters.vue'
 import { useBackupApi } from '@/composables/useBackupApi'
 import { useBackupFormatters } from '@/composables/useBackupFormatters'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
+
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 // Composables
 const {
@@ -266,14 +304,7 @@ const {
   cleanupOldBackups: apiCleanupOldBackups
 } = useBackupApi()
 
-const {
-  getStatusColor,
-  getStatusIcon,
-  formatSize,
-  formatDuration,
-  formatDate,
-  formatRelativeTime
-} = useBackupFormatters()
+const { formatSize, formatDuration, formatDate, formatRelativeTime } = useBackupFormatters()
 
 // State
 const stats = ref({
@@ -308,17 +339,6 @@ const currentPage = ref(1)
 const itemsPerPage = ref(25)
 const totalBackups = ref(0)
 
-// Table configuration
-const headers = [
-  { title: 'Filename', value: 'filename', sortable: true },
-  { title: 'Status', value: 'status', sortable: true },
-  { title: 'Trigger', value: 'trigger_source', sortable: false },
-  { title: 'Size', value: 'file_size_mb', sortable: true },
-  { title: 'Duration', value: 'duration_seconds', sortable: true },
-  { title: 'Created', value: 'created_at', sortable: true },
-  { title: 'Actions', value: 'actions', sortable: false, align: 'center', width: 160 }
-]
-
 // Computed
 const pageCount = computed(() => Math.ceil(totalBackups.value / itemsPerPage.value))
 
@@ -327,6 +347,16 @@ const pageRangeText = computed(() => {
   const end = Math.min(currentPage.value * itemsPerPage.value, totalBackups.value)
   return `${start}-${end} of ${totalBackups.value}`
 })
+
+const getStatusVariant = status => {
+  const variants = {
+    completed: 'default',
+    running: 'secondary',
+    failed: 'destructive',
+    pending: 'outline'
+  }
+  return variants[status] || 'secondary'
+}
 
 // Methods
 const loadStats = async () => {
@@ -449,9 +479,3 @@ onMounted(() => {
   loadBackups()
 })
 </script>
-
-<style scoped>
-.border-b {
-  border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
-}
-</style>

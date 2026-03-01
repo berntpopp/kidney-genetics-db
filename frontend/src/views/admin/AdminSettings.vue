@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <div class="container mx-auto px-4 py-6">
     <!-- Header -->
     <AdminHeader
       title="System Settings"
@@ -10,132 +10,144 @@
     />
 
     <!-- Stats Overview -->
-    <v-row class="mb-6">
-      <v-col cols="12" sm="6" md="4">
-        <AdminStatsCard
-          title="Total Settings"
-          :value="stats.total"
-          :loading="statsLoading"
-          icon="mdi-cog-outline"
-          color="primary"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="4">
-        <AdminStatsCard
-          title="Requires Restart"
-          :value="stats.requires_restart"
-          :loading="statsLoading"
-          icon="mdi-restart-alert"
-          color="warning"
-        />
-      </v-col>
-      <v-col cols="12" sm="6" md="4">
-        <AdminStatsCard
-          title="Recent Changes"
-          :value="stats.recent_changes_24h"
-          :loading="statsLoading"
-          icon="mdi-history"
-          color="info"
-        />
-      </v-col>
-    </v-row>
+    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+      <AdminStatsCard
+        title="Total Settings"
+        :value="stats.total"
+        :loading="statsLoading"
+        icon="mdi-cog-outline"
+        color="primary"
+      />
+      <AdminStatsCard
+        title="Requires Restart"
+        :value="stats.requires_restart"
+        :loading="statsLoading"
+        icon="mdi-restart-alert"
+        color="warning"
+      />
+      <AdminStatsCard
+        title="Recent Changes"
+        :value="stats.recent_changes_24h"
+        :loading="statsLoading"
+        icon="mdi-history"
+        color="info"
+      />
+    </div>
 
     <!-- Category Filter -->
-    <v-card rounded="lg" class="mb-4">
-      <v-card-text>
-        <v-row align="center">
-          <v-col cols="12" md="4">
-            <v-select
-              v-model="selectedCategory"
-              :items="categoryOptions"
-              label="Filter by Category"
-              clearable
-              variant="outlined"
-              density="compact"
-              @update:model-value="loadSettings"
-            />
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+    <Card class="mb-4">
+      <CardContent class="pt-6">
+        <div class="max-w-xs space-y-2">
+          <Label for="category-filter">Filter by Category</Label>
+          <Select v-model="selectedCategory" @update:model-value="loadSettings">
+            <SelectTrigger id="category-filter">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="option in categoryOptions"
+                :key="option.value ?? 'all'"
+                :value="option.value ?? 'all'"
+              >
+                {{ option.title }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </CardContent>
+    </Card>
 
     <!-- Settings by Category -->
     <div v-for="(settingsGroup, category) in groupedSettings" :key="category" class="mb-6">
-      <v-card rounded="lg">
-        <v-card-title class="text-h6 bg-surface-variant">
-          <component :is="getCategoryIcon(category)" class="size-5 mr-1" />
-          {{ formatCategoryName(category) }}
-        </v-card-title>
+      <Card>
+        <CardHeader>
+          <CardTitle class="flex items-center gap-2 text-lg">
+            <component :is="getCategoryIcon(category)" class="size-5" />
+            {{ formatCategoryName(category) }}
+          </CardTitle>
+        </CardHeader>
+        <CardContent class="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Setting Key</TableHead>
+                <TableHead>Value</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead class="text-center">Status</TableHead>
+                <TableHead class="text-center w-[100px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="item in settingsGroup" :key="item.id" class="hover:bg-muted/50">
+                <TableCell class="font-medium text-sm">{{ item.key }}</TableCell>
+                <TableCell>
+                  <code v-if="item.is_sensitive" class="rounded bg-muted px-1.5 py-0.5 text-xs"
+                    >***MASKED***</code
+                  >
+                  <code v-else class="rounded bg-muted px-1.5 py-0.5 text-xs">{{
+                    formatValue(item.value)
+                  }}</code>
+                </TableCell>
+                <TableCell class="text-xs text-muted-foreground">{{ item.description }}</TableCell>
+                <TableCell class="text-center">
+                  <Badge
+                    v-if="item.requires_restart"
+                    variant="outline"
+                    class="text-yellow-600 border-yellow-600"
+                  >
+                    Restart Required
+                  </Badge>
+                  <span v-else class="text-xs text-muted-foreground">--</span>
+                </TableCell>
+                <TableCell>
+                  <div class="flex justify-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          class="h-8 w-8"
+                          :disabled="item.is_readonly"
+                          @click="showEditDialog(item)"
+                        >
+                          <Pencil class="size-4 text-primary" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit Setting</TooltipContent>
+                    </Tooltip>
 
-        <v-data-table
-          :headers="headers"
-          :items="settingsGroup"
-          :loading="loading"
-          density="compact"
-          hover
-          items-per-page="-1"
-          hide-default-footer
-        >
-          <template #item.key="{ item }">
-            <span class="font-weight-medium">{{ item.key }}</span>
-          </template>
-
-          <template #item.value="{ item }">
-            <code v-if="item.is_sensitive" class="text-caption">***MASKED***</code>
-            <code v-else class="text-caption">{{ formatValue(item.value) }}</code>
-          </template>
-
-          <template #item.requires_restart="{ item }">
-            <v-chip v-if="item.requires_restart" size="x-small" color="warning" variant="outlined">
-              Restart Required
-            </v-chip>
-            <span v-else class="text-caption text-medium-emphasis">—</span>
-          </template>
-
-          <template #item.actions="{ item }">
-            <div class="d-flex ga-1">
-              <v-tooltip text="Edit Setting" location="top">
-                <template #activator="{ props }">
-                  <v-btn
-                    v-bind="props"
-                    icon="mdi-pencil"
-                    size="x-small"
-                    variant="text"
-                    color="primary"
-                    :disabled="item.is_readonly"
-                    @click="showEditDialog(item)"
-                  />
-                </template>
-              </v-tooltip>
-
-              <v-tooltip text="View History" location="top">
-                <template #activator="{ props }">
-                  <v-btn
-                    v-bind="props"
-                    icon="mdi-history"
-                    size="x-small"
-                    variant="text"
-                    color="info"
-                    @click="showHistoryDialog(item)"
-                  />
-                </template>
-              </v-tooltip>
-            </div>
-          </template>
-        </v-data-table>
-      </v-card>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          class="h-8 w-8"
+                          @click="showHistoryDialog(item)"
+                        >
+                          <HistoryIcon class="size-4 text-blue-500" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>View History</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
 
     <!-- Empty State -->
-    <v-card v-if="!loading && Object.keys(groupedSettings).length === 0" rounded="lg">
-      <v-card-text class="text-center py-8">
-        <Settings class="size-16 text-muted-foreground" />
-        <div class="text-h6 mt-4">No Settings Found</div>
-        <div class="text-body-2 text-medium-emphasis">
+    <Card v-if="!loading && Object.keys(groupedSettings).length === 0">
+      <CardContent class="py-8 text-center">
+        <Settings class="mx-auto size-16 text-muted-foreground" />
+        <div class="mt-4 text-lg font-semibold">No Settings Found</div>
+        <div class="text-sm text-muted-foreground">
           Select a different category or clear filters
         </div>
-      </v-card-text>
-    </v-card>
+      </CardContent>
+    </Card>
 
     <!-- Dialogs -->
     <SettingEditDialog
@@ -146,11 +158,12 @@
     />
 
     <SettingHistoryDialog v-model="dialogs.history" :setting="selectedSetting" />
-  </v-container>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { Pencil, History as HistoryIcon } from 'lucide-vue-next'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import SettingEditDialog from '@/components/admin/settings/SettingEditDialog.vue'
@@ -166,6 +179,27 @@ import {
   ShieldAlert,
   Workflow
 } from 'lucide-vue-next'
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 // Composables
 const {
@@ -204,15 +238,6 @@ const categoryOptions = [
   { title: 'Features', value: 'features' }
 ]
 
-// Table headers
-const headers = [
-  { title: 'Setting Key', value: 'key', sortable: false },
-  { title: 'Value', value: 'value', sortable: false },
-  { title: 'Description', value: 'description', sortable: false },
-  { title: 'Status', value: 'requires_restart', sortable: false, align: 'center' },
-  { title: 'Actions', value: 'actions', sortable: false, align: 'center', width: 100 }
-]
-
 // Computed
 const groupedSettings = computed(() => {
   if (!settings.value.length) return {}
@@ -247,8 +272,9 @@ const loadStats = async () => {
 const loadSettings = async () => {
   loading.value = true
   try {
+    const category = selectedCategory.value === 'all' ? null : selectedCategory.value
     const data = await apiLoadSettings({
-      category: selectedCategory.value,
+      category,
       limit: 500,
       offset: 0
     })
@@ -278,7 +304,7 @@ const handleSaveSetting = async ({ value, reason }) => {
     window.logService.info('Setting updated successfully', result)
 
     if (result.setting.requires_restart) {
-      window.logService.warn('⚠️ Server restart required for this change to take effect')
+      window.logService.warn('Server restart required for this change to take effect')
     }
 
     dialogs.value.edit = false
@@ -316,11 +342,3 @@ onMounted(() => {
   loadSettings()
 })
 </script>
-
-<style scoped>
-code {
-  background-color: rgba(var(--v-theme-on-surface), 0.05);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-</style>

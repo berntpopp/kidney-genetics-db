@@ -1,257 +1,215 @@
 <template>
-  <v-card class="data-source-progress" elevation="1">
-    <v-card-title class="d-flex align-center pa-4">
-      <RefreshCw class="size-5 mr-2 text-primary" />
-      <span class="text-h6">Data Source Updates</span>
-      <v-chip v-if="summary.running > 0" size="x-small" color="primary" label class="ml-2 pulse">
-        <Circle class="size-3 mr-1" />
-        Live
-      </v-chip>
-      <v-spacer />
-      <span v-if="lastUpdate" class="text-caption text-medium-emphasis mr-2">
-        Updated {{ getRelativeTime(lastUpdate) }}
-      </span>
-      <v-tooltip text="Auto-refresh">
-        <template #activator="{ props }">
-          <v-btn
-            icon
-            variant="text"
-            size="small"
-            v-bind="props"
-            :color="autoRefresh ? 'primary' : 'grey'"
-            @click="toggleAutoRefresh"
-          >
-            <component :is="autoRefresh ? RefreshCcw : RefreshCw" class="size-5" />
-          </v-btn>
-        </template>
-      </v-tooltip>
-      <v-btn icon variant="text" size="small" @click="toggleExpanded">
-        <component :is="expanded ? ChevronUp : ChevronDown" class="size-5" />
-      </v-btn>
-    </v-card-title>
-
-    <v-expand-transition>
-      <div v-show="expanded">
-        <v-card-text class="pa-4">
-          <!-- Summary Stats - Following stat-card pattern -->
-          <v-row class="mb-4">
-            <v-col cols="6" sm="3">
-              <div class="text-center">
-                <v-chip color="success" size="x-small" label>
-                  {{ summary.completed }} Completed
-                </v-chip>
-              </div>
-            </v-col>
-            <v-col cols="6" sm="3">
-              <div class="text-center">
-                <v-chip color="primary" size="x-small" label>
-                  {{ summary.running }} Running
-                </v-chip>
-              </div>
-            </v-col>
-            <v-col cols="6" sm="3">
-              <div class="text-center">
-                <v-chip color="error" size="x-small" label> {{ summary.failed }} Failed </v-chip>
-              </div>
-            </v-col>
-            <v-col cols="6" sm="3">
-              <div class="text-center">
-                <v-chip color="grey" size="x-small" label> {{ summary.idle }} Idle </v-chip>
-              </div>
-            </v-col>
-          </v-row>
+  <Card>
+    <Collapsible v-model:open="expanded">
+      <CardHeader class="flex flex-row items-center justify-between p-4">
+        <div class="flex items-center gap-2">
+          <RefreshCw :size="18" class="text-primary" />
+          <CardTitle class="text-base">Data Source Updates</CardTitle>
+          <Badge v-if="summary.running > 0" variant="default" class="pulse text-xs">
+            <Circle :size="8" class="mr-1" />
+            Live
+          </Badge>
+        </div>
+        <div class="flex items-center gap-1">
+          <span v-if="lastUpdate" class="mr-2 text-xs text-muted-foreground">
+            Updated {{ getRelativeTime(lastUpdate) }}
+          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button variant="ghost" size="icon" class="h-8 w-8" @click="toggleAutoRefresh">
+                  <component
+                    :is="autoRefresh ? RefreshCcw : RefreshCw"
+                    :size="14"
+                    :class="autoRefresh ? 'text-primary' : 'text-muted-foreground'"
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Auto-refresh</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <CollapsibleTrigger as-child>
+            <Button variant="ghost" size="icon" class="h-8 w-8">
+              <ChevronDown
+                :size="14"
+                :class="{ 'rotate-180': expanded }"
+                class="transition-transform"
+              />
+            </Button>
+          </CollapsibleTrigger>
+        </div>
+      </CardHeader>
+      <CollapsibleContent>
+        <CardContent class="pt-0">
+          <!-- Summary Stats -->
+          <div class="mb-4 grid grid-cols-4 gap-2">
+            <div class="text-center">
+              <Badge variant="default" class="bg-green-500 text-xs hover:bg-green-500">
+                {{ summary.completed }} Completed
+              </Badge>
+            </div>
+            <div class="text-center">
+              <Badge variant="default" class="text-xs"> {{ summary.running }} Running </Badge>
+            </div>
+            <div class="text-center">
+              <Badge variant="destructive" class="text-xs"> {{ summary.failed }} Failed </Badge>
+            </div>
+            <div class="text-center">
+              <Badge variant="secondary" class="text-xs"> {{ summary.idle }} Idle </Badge>
+            </div>
+          </div>
 
           <!-- Data Sources -->
           <div v-if="dataSources.length > 0" class="mb-4">
-            <div class="text-subtitle-2 text-grey-darken-1 mb-2">Data Sources</div>
-            <v-list density="compact" class="pa-0">
-              <v-list-item
+            <p class="mb-2 text-sm font-medium text-muted-foreground">Data Sources</p>
+            <div class="space-y-3">
+              <div
                 v-for="source in dataSources"
                 :key="source.source_name"
-                class="px-0 py-2"
+                class="rounded-md border p-3"
               >
-                <v-list-item-title class="d-flex align-center mb-1">
-                  <span class="font-weight-medium">{{ source.source_name }}</span>
-                  <v-chip :color="getStatusColor(source.status)" size="x-small" label class="ml-2">
-                    {{ source.status }}
-                  </v-chip>
-                  <span v-if="source.current_operation" class="text-caption ml-2 text-grey">
-                    {{ source.current_operation }}
-                  </span>
-                </v-list-item-title>
-
-                <v-progress-linear
-                  :model-value="source.progress_percentage"
-                  :color="getStatusColor(source.status)"
-                  height="18"
-                  rounded
-                  class="my-2"
-                  :indeterminate="source.status === 'running' && source.progress_percentage === 0"
-                >
-                  <template #default>
-                    <span class="text-caption font-weight-medium">
-                      {{ Math.ceil(source.progress_percentage) }}%
+                <div class="mb-2 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="h-2 w-2 rounded-full" :class="getStatusDotClass(source.status)" />
+                    <span class="text-sm font-medium">{{ source.source_name }}</span>
+                    <Badge variant="outline" class="text-xs">{{ source.status }}</Badge>
+                    <span v-if="source.current_operation" class="text-xs text-muted-foreground">
+                      {{ source.current_operation }}
                     </span>
-                  </template>
-                </v-progress-linear>
-
-                <div class="d-flex align-center text-caption">
-                  <span v-if="source.items_added > 0" class="mr-3">
-                    <Plus class="size-3 mr-1 text-green-600 dark:text-green-400" />
-                    {{ source.items_added }}
-                  </span>
-                  <span v-if="source.items_updated > 0" class="mr-3">
-                    <RefreshCw class="size-3 mr-1 text-blue-600 dark:text-blue-400" />
-                    {{ source.items_updated }}
-                  </span>
-                  <span v-if="source.items_failed > 0" class="mr-3">
-                    <AlertTriangle class="size-3 mr-1 text-destructive" />
-                    {{ source.items_failed }}
-                  </span>
-                  <v-spacer />
-                  <!-- Action buttons -->
-                  <v-btn
-                    v-if="source.status === 'idle' || source.status === 'failed'"
-                    icon
-                    size="x-small"
-                    variant="text"
-                    color="primary"
-                    :loading="triggering[source.source_name]"
-                    @click="triggerUpdate(source.source_name)"
-                  >
-                    <Play class="size-4" />
-                  </v-btn>
-                  <v-btn
-                    v-else-if="source.status === 'running'"
-                    icon
-                    size="x-small"
-                    variant="text"
-                    color="warning"
-                    @click="pauseSource(source.source_name)"
-                  >
-                    <Pause class="size-4" />
-                  </v-btn>
-                  <v-btn
-                    v-else-if="source.status === 'paused'"
-                    icon
-                    size="x-small"
-                    variant="text"
-                    color="success"
-                    @click="resumeSource(source.source_name)"
-                  >
-                    <Play class="size-4" />
-                  </v-btn>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <Button
+                      v-if="source.status === 'idle' || source.status === 'failed'"
+                      variant="ghost"
+                      size="icon"
+                      class="h-6 w-6"
+                      :disabled="triggering[source.source_name]"
+                      @click="triggerUpdate(source.source_name)"
+                    >
+                      <Play :size="12" />
+                    </Button>
+                    <Button
+                      v-else-if="source.status === 'running'"
+                      variant="ghost"
+                      size="icon"
+                      class="h-6 w-6"
+                      @click="pauseSource(source.source_name)"
+                    >
+                      <Pause :size="12" />
+                    </Button>
+                    <Button
+                      v-else-if="source.status === 'paused'"
+                      variant="ghost"
+                      size="icon"
+                      class="h-6 w-6"
+                      @click="resumeSource(source.source_name)"
+                    >
+                      <Play :size="12" />
+                    </Button>
+                  </div>
                 </div>
-
-                <!-- Error message if exists -->
-                <div v-if="source.last_error" class="text-caption text-error mt-1">
+                <Progress :model-value="source.progress_percentage || 0" class="h-2" />
+                <div class="mt-2 flex items-center gap-3 text-xs">
+                  <span v-if="source.items_added > 0" class="text-green-500">
+                    <Plus :size="10" class="mr-0.5 inline" />{{ source.items_added }}
+                  </span>
+                  <span v-if="source.items_updated > 0" class="text-blue-500">
+                    <RefreshCw :size="10" class="mr-0.5 inline" />{{ source.items_updated }}
+                  </span>
+                  <span v-if="source.items_failed > 0" class="text-red-500">
+                    <AlertTriangle :size="10" class="mr-0.5 inline" />{{ source.items_failed }}
+                  </span>
+                </div>
+                <div v-if="source.last_error" class="mt-1 text-xs text-destructive">
                   Error: {{ source.last_error }}
                 </div>
-              </v-list-item>
-            </v-list>
+              </div>
+            </div>
           </div>
 
           <!-- Internal Processes -->
           <div v-if="internalProcesses.length > 0">
-            <div class="text-subtitle-2 text-grey-darken-1 mb-2">Internal Processes</div>
-            <v-list density="compact" class="pa-0">
-              <v-list-item
+            <p class="mb-2 text-sm font-medium text-muted-foreground">Internal Processes</p>
+            <div class="space-y-3">
+              <div
                 v-for="source in internalProcesses"
                 :key="source.source_name"
-                class="px-0 py-2"
+                class="rounded-md border p-3"
               >
-                <v-list-item-title class="d-flex align-center mb-1">
-                  <span class="font-weight-medium">{{ source.source_name.replace('_', ' ') }}</span>
-                  <v-chip :color="getStatusColor(source.status)" size="x-small" label class="ml-2">
-                    {{ source.status }}
-                  </v-chip>
-                  <span v-if="source.current_operation" class="text-caption ml-2 text-grey">
-                    {{ source.current_operation }}
-                  </span>
-                </v-list-item-title>
-
-                <v-progress-linear
-                  :model-value="source.progress_percentage"
-                  :color="getStatusColor(source.status)"
-                  height="18"
-                  rounded
-                  class="my-2"
-                  :indeterminate="source.status === 'running' && source.progress_percentage === 0"
-                >
-                  <template #default>
-                    <span class="text-caption font-weight-medium">
-                      {{ Math.ceil(source.progress_percentage) }}%
+                <div class="mb-2 flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="h-2 w-2 rounded-full" :class="getStatusDotClass(source.status)" />
+                    <span class="text-sm font-medium">{{
+                      source.source_name.replace('_', ' ')
+                    }}</span>
+                    <Badge variant="outline" class="text-xs">{{ source.status }}</Badge>
+                    <span v-if="source.current_operation" class="text-xs text-muted-foreground">
+                      {{ source.current_operation }}
                     </span>
-                  </template>
-                </v-progress-linear>
-
-                <div class="d-flex align-center text-caption">
-                  <span v-if="source.items_processed > 0" class="mr-3">
-                    <Cog class="size-3 mr-1 text-blue-600 dark:text-blue-400" />
-                    {{ source.items_processed }} processed
-                  </span>
-                  <v-spacer />
-                  <!-- Show pause/resume for annotation_pipeline like PubTator -->
-                  <v-btn
-                    v-if="
-                      source.source_name === 'annotation_pipeline' &&
-                      (source.status === 'idle' || source.status === 'failed')
-                    "
-                    icon
-                    size="x-small"
-                    variant="text"
-                    color="primary"
-                    :loading="triggering[source.source_name]"
-                    @click="triggerUpdate(source.source_name)"
-                  >
-                    <Play class="size-4" />
-                  </v-btn>
-                  <v-btn
-                    v-else-if="
-                      source.source_name === 'annotation_pipeline' && source.status === 'running'
-                    "
-                    icon
-                    size="x-small"
-                    variant="text"
-                    color="warning"
-                    @click="pauseSource(source.source_name)"
-                  >
-                    <Pause class="size-4" />
-                  </v-btn>
-                  <v-btn
-                    v-else-if="
-                      source.source_name === 'annotation_pipeline' && source.status === 'paused'
-                    "
-                    icon
-                    size="x-small"
-                    variant="text"
-                    color="success"
-                    @click="resumeSource(source.source_name)"
-                  >
-                    <Play class="size-4" />
-                  </v-btn>
-                  <v-chip
-                    v-else-if="source.status === 'completed'"
-                    size="x-small"
-                    color="success"
-                    label
-                  >
-                    <Check class="size-3 mr-1" />
-                    Complete
-                  </v-chip>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <Button
+                      v-if="
+                        source.source_name === 'annotation_pipeline' &&
+                        (source.status === 'idle' || source.status === 'failed')
+                      "
+                      variant="ghost"
+                      size="icon"
+                      class="h-6 w-6"
+                      :disabled="triggering[source.source_name]"
+                      @click="triggerUpdate(source.source_name)"
+                    >
+                      <Play :size="12" />
+                    </Button>
+                    <Button
+                      v-else-if="
+                        source.source_name === 'annotation_pipeline' && source.status === 'running'
+                      "
+                      variant="ghost"
+                      size="icon"
+                      class="h-6 w-6"
+                      @click="pauseSource(source.source_name)"
+                    >
+                      <Pause :size="12" />
+                    </Button>
+                    <Button
+                      v-else-if="
+                        source.source_name === 'annotation_pipeline' && source.status === 'paused'
+                      "
+                      variant="ghost"
+                      size="icon"
+                      class="h-6 w-6"
+                      @click="resumeSource(source.source_name)"
+                    >
+                      <Play :size="12" />
+                    </Button>
+                    <Badge
+                      v-else-if="source.status === 'completed'"
+                      variant="default"
+                      class="bg-green-500 text-xs hover:bg-green-500"
+                    >
+                      <Check :size="10" class="mr-1" />
+                      Complete
+                    </Badge>
+                  </div>
                 </div>
-
-                <!-- Error message if exists -->
-                <div v-if="source.last_error" class="text-caption text-error mt-1">
+                <Progress :model-value="source.progress_percentage || 0" class="h-2" />
+                <div class="mt-2 flex items-center gap-3 text-xs">
+                  <span v-if="source.items_processed > 0" class="text-blue-500">
+                    <Cog :size="10" class="mr-0.5 inline" />{{ source.items_processed }}
+                    processed
+                  </span>
+                </div>
+                <div v-if="source.last_error" class="mt-1 text-xs text-destructive">
                   Error: {{ source.last_error }}
                 </div>
-              </v-list-item>
-            </v-list>
+              </div>
+            </div>
           </div>
-        </v-card-text>
-      </div>
-    </v-expand-transition>
-  </v-card>
+        </CardContent>
+      </CollapsibleContent>
+    </Collapsible>
+  </Card>
 </template>
 
 <script setup>
@@ -260,7 +218,6 @@ import apiClient from '@/api/client'
 import {
   RefreshCw,
   RefreshCcw,
-  ChevronUp,
   ChevronDown,
   Circle,
   Plus,
@@ -270,8 +227,12 @@ import {
   Cog,
   Check
 } from 'lucide-vue-next'
-
-// Browser globals are already defined in eslint config
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 // State
 const expanded = ref(false)
@@ -294,7 +255,7 @@ const dataSources = computed(() => {
             s.source_name
           ))
     )
-    .sort((a, b) => a.source_name.localeCompare(b.source_name)) // Stable alphabetical sort
+    .sort((a, b) => a.source_name.localeCompare(b.source_name))
 })
 
 const internalProcesses = computed(() => {
@@ -304,7 +265,7 @@ const internalProcesses = computed(() => {
         s.category === 'internal_process' ||
         (!s.category && ['Evidence_Aggregation', 'HGNC_Normalization'].includes(s.source_name))
     )
-    .sort((a, b) => a.source_name.localeCompare(b.source_name)) // Stable alphabetical sort
+    .sort((a, b) => a.source_name.localeCompare(b.source_name))
 })
 
 const summary = computed(() => {
@@ -318,16 +279,15 @@ const summary = computed(() => {
 })
 
 // Methods
-const getStatusColor = status => {
-  // Following style guide color system
-  const colors = {
-    running: 'primary', // #0EA5E9
-    completed: 'success', // #10B981
-    failed: 'error', // #EF4444
-    idle: 'grey',
-    paused: 'warning' // #F59E0B
+const getStatusDotClass = status => {
+  const classes = {
+    running: 'bg-primary',
+    completed: 'bg-green-500',
+    failed: 'bg-red-500',
+    idle: 'bg-muted-foreground',
+    paused: 'bg-yellow-500'
   }
-  return colors[status] || 'grey'
+  return classes[status] || 'bg-muted-foreground'
 }
 
 const getRelativeTime = date => {
@@ -346,10 +306,6 @@ const getRelativeTime = date => {
   return `${days}d ago`
 }
 
-const toggleExpanded = () => {
-  expanded.value = !expanded.value
-}
-
 const toggleAutoRefresh = () => {
   autoRefresh.value = !autoRefresh.value
   if (autoRefresh.value) {
@@ -365,7 +321,6 @@ const fetchStatus = async () => {
     sources.value = response.data.data
     lastUpdate.value = new Date()
 
-    // Auto-expand if sources are running
     if (summary.value.running > 0 && !expanded.value) {
       expanded.value = true
     }
@@ -375,9 +330,8 @@ const fetchStatus = async () => {
 }
 
 const startPolling = () => {
-  stopPolling() // Clear any existing interval
+  stopPolling()
 
-  // Start polling every 3 seconds when any source is running
   pollInterval.value = setInterval(() => {
     if (summary.value.running > 0 || autoRefresh.value) {
       fetchStatus()
@@ -410,7 +364,6 @@ const connectWebSocket = () => {
     if (message.type === 'initial_status') {
       sources.value = message.data
     } else if (message.type === 'progress_update') {
-      // Update sources with new progress data
       message.data.forEach(update => {
         const index = sources.value.findIndex(s => s.source_name === update.source_name)
         if (index >= 0) {
@@ -418,7 +371,6 @@ const connectWebSocket = () => {
         }
       })
     } else if (message.type === 'status_change') {
-      // Update single source status
       const index = sources.value.findIndex(s => s.source_name === message.source)
       if (index >= 0) {
         sources.value[index] = message.data
@@ -432,7 +384,6 @@ const connectWebSocket = () => {
 
   ws.value.onclose = () => {
     window.logService.info('WebSocket disconnected')
-    // Try to reconnect after 5 seconds
     if (!reconnectInterval.value) {
       reconnectInterval.value = setInterval(() => {
         window.logService.info('Attempting to reconnect WebSocket...')
@@ -474,7 +425,6 @@ onMounted(() => {
   fetchStatus()
   connectWebSocket()
 
-  // Start auto-refresh by default
   if (autoRefresh.value) {
     startPolling()
   }
@@ -494,24 +444,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Following style guide spacing system (4px grid) */
-.data-source-progress {
-  margin-bottom: 16px; /* mb-4 equivalent */
-}
-
-/* Professional typography */
-.text-caption {
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-/* Ensure progress bar text is visible */
-.v-progress-linear {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Pulsing animation for live indicator */
 .pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
@@ -526,26 +458,9 @@ onUnmounted(() => {
   }
 }
 
-/* Smooth transitions for progress bars */
-.v-progress-linear {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Hover effect for expandable card */
-.data-source-progress:hover {
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-
-/* Respect motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .pulse {
     animation: none;
-  }
-
-  .v-progress-linear {
-    transition-duration: 0.01ms !important;
   }
 }
 </style>
