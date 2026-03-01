@@ -571,6 +571,9 @@ class AnnotationPipeline:
 
         # Re-fetch genes from database to ensure they're bound to current session
         genes = self.db.query(Gene).filter(Gene.id.in_(gene_ids)).all()
+        # Release transaction before potentially long fetch_batch (bulk download
+        # + parse can take 60-90 s, exceeding idle_in_transaction_session_timeout).
+        self.db.commit()
 
         if len(genes) != len(gene_ids):
             logger.sync_warning(
@@ -616,9 +619,7 @@ class AnnotationPipeline:
                     operation=f"Writing {source_name}: {len(batch_data)} annotations (bulk)",
                 )
 
-            upsert_count = self._bulk_upsert_annotations(
-                source_name, source.version, batch_data
-            )
+            upsert_count = self._bulk_upsert_annotations(source_name, source.version, batch_data)
             successful = upsert_count
             logger.sync_info(
                 f"Bulk upsert complete for {source_name}",
@@ -637,8 +638,7 @@ class AnnotationPipeline:
                     self.progress_tracker.update(
                         current_item=len(batch_data) + i,
                         operation=(
-                            f"Updating {source_name}: "
-                            f"fallback {i}/{len(missed_genes)} genes"
+                            f"Updating {source_name}: fallback {i}/{len(missed_genes)} genes"
                         ),
                     )
                 try:
@@ -738,9 +738,7 @@ class AnnotationPipeline:
             return 0
 
         now = datetime.utcnow()
-        metadata_json = json.dumps(
-            {"retrieved_at": now.isoformat(), "batch_fetch": True}
-        )
+        metadata_json = json.dumps({"retrieved_at": now.isoformat(), "batch_fetch": True})
 
         upserted = 0
         chunk_size = 500  # Rows per INSERT statement
@@ -781,9 +779,7 @@ class AnnotationPipeline:
                 self.db.commit()
                 upserted += len(chunk)
             except Exception as e:
-                logger.sync_error(
-                    f"Bulk upsert failed for {source_name} chunk: {e}"
-                )
+                logger.sync_error(f"Bulk upsert failed for {source_name} chunk: {e}")
                 self.db.rollback()
 
         return upserted
