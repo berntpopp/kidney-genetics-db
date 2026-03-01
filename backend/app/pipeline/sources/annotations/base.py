@@ -269,24 +269,18 @@ class BaseAnnotationSource(ABC):
 
         try:
             import asyncio
-            import inspect
 
-            # Check if we're in an async context by looking at the call stack
-            # This is more reliable than checking for running event loop
-            if any(
-                inspect.iscoroutinefunction(frame.frame.f_code) for frame in inspect.stack()[1:10]
-            ):  # Check up to 10 frames
-                # We're being called from an async function
-                # Try to get the current running loop
-                try:
-                    asyncio.get_running_loop()
-                    # Schedule as a task in the existing loop
-                    asyncio.create_task(self._invalidate_api_cache(gene_id))
-                    # Don't wait for it - fire and forget
-                    return
-                except RuntimeError:
-                    # No running loop, fall through to sync handling
-                    pass
+            # Detect async context using zero-cost asyncio check
+            # instead of expensive inspect.stack() (~1ms per call)
+            try:
+                asyncio.get_running_loop()
+                # We're in an async context with a running loop
+                # Schedule as a task - fire and forget
+                asyncio.create_task(self._invalidate_api_cache(gene_id))
+                return
+            except RuntimeError:
+                # No running loop - fall through to sync handling
+                pass
 
             # We're in a true sync context - use threading to avoid blocking
             import threading
