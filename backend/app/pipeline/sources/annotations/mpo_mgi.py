@@ -320,6 +320,238 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
             },
         }
 
+    # ── Bulk query methods ──────────────────────────────────────────────
+
+    # Maximum genes per bulk LOOKUP query (keeps URL under safe limits)
+    BULK_CHUNK_SIZE = 100
+
+    async def _bulk_query_phenotypes(
+        self, gene_symbols: list[str], mpo_terms: set[str]
+    ) -> dict[str, dict[str, Any]]:
+        """
+        Bulk query MouseMine HGene_MPhenotype for many genes at once.
+
+        Sends comma-separated gene symbols in the LOOKUP value1 parameter,
+        chunked to stay within URL length limits.
+
+        Args:
+            gene_symbols: List of human gene symbols to query
+            mpo_terms: Set of kidney-related MPO term IDs
+
+        Returns:
+            Dict mapping human_gene_symbol → per-gene phenotype result
+        """
+        # Accumulate results across all chunks
+        # Per-gene accumulators: mouse_symbols, all_phenotypes, kidney_phenotypes
+        gene_mouse_symbols: dict[str, set[str]] = {}
+        gene_all_pheno: dict[str, dict[str, str]] = {}
+        gene_kidney_pheno: dict[str, dict[str, str]] = {}
+
+        for chunk_start in range(0, len(gene_symbols), self.BULK_CHUNK_SIZE):
+            chunk = gene_symbols[chunk_start : chunk_start + self.BULK_CHUNK_SIZE]
+            csv_value = ",".join(chunk)
+
+            try:
+                await self.apply_rate_limit()
+                client = await self.get_http_client()
+
+                url = f"{self.mousemine_url}/template/results"
+                params = {
+                    "name": "HGene_MPhenotype",
+                    "constraint1": "Gene",
+                    "op1": "LOOKUP",
+                    "value1": csv_value,
+                    "extra1": "H. sapiens",
+                    "format": "json",
+                    "size": "0",  # unlimited
+                }
+
+                response = await client.get(url, params=params, timeout=120.0)
+                if response.status_code != 200:
+                    logger.sync_warning(
+                        f"Bulk HGene_MPhenotype failed (chunk {chunk_start}): "
+                        f"{response.status_code}"
+                    )
+                    continue
+
+                data = response.json()
+                results = data.get("results", [])
+
+                # Columns: [human_id, human_symbol, human_organism,
+                #            mouse_id, mouse_symbol, mouse_organism, mpo_id, mpo_name]
+                for row in results:
+                    if len(row) < 8:
+                        continue
+                    human_sym = row[1]  # human gene symbol from result
+                    mouse_sym = row[4]
+                    mpo_id = row[6]
+                    mpo_name = row[7]
+
+                    if human_sym not in gene_mouse_symbols:
+                        gene_mouse_symbols[human_sym] = set()
+                        gene_all_pheno[human_sym] = {}
+                        gene_kidney_pheno[human_sym] = {}
+
+                    if mouse_sym:
+                        gene_mouse_symbols[human_sym].add(mouse_sym)
+                    if mpo_id and mpo_name:
+                        gene_all_pheno[human_sym][mpo_id] = mpo_name
+                        if mpo_id in mpo_terms:
+                            gene_kidney_pheno[human_sym][mpo_id] = mpo_name
+
+            except Exception as e:
+                logger.sync_error(f"Bulk HGene_MPhenotype error (chunk {chunk_start}): {e}")
+                continue
+
+        # Build per-gene result dicts
+        out: dict[str, dict[str, Any]] = {}
+        for sym in gene_symbols:
+            kidney = gene_kidney_pheno.get(sym, {})
+            kidney_list = [
+                {"term": tid, "name": name} for tid, name in sorted(kidney.items())
+            ]
+            out[sym] = {
+                "has_kidney_phenotype": len(kidney) > 0,
+                "mouse_orthologs": sorted(gene_mouse_symbols.get(sym, set())),
+                "phenotypes": kidney_list,
+                "phenotype_count": len(kidney),
+                "total_phenotypes": len(gene_all_pheno.get(sym, {})),
+            }
+
+        logger.sync_info(
+            f"Bulk HGene_MPhenotype: {len(gene_symbols)} genes, "
+            f"{sum(1 for v in out.values() if v['has_kidney_phenotype'])} with kidney phenotypes"
+        )
+        return out
+
+    async def _bulk_query_zygosity(
+        self,
+        gene_mouse_map: dict[str, list[str]],
+        mpo_terms: set[str],
+    ) -> dict[str, dict[str, Any]]:
+        """
+        Bulk query MouseMine _Genotype_Phenotype for zygosity data.
+
+        Sends comma-separated *mouse* gene symbols in the CONTAINS value1 parameter.
+
+        Args:
+            gene_mouse_map: Mapping of human_symbol → list of mouse orthologs
+            mpo_terms: Set of kidney-related MPO term IDs
+
+        Returns:
+            Dict mapping human_gene_symbol → zygosity_analysis dict
+        """
+        # Invert map: mouse_symbol → human_symbol(s)
+        mouse_to_human: dict[str, str] = {}
+        all_mouse_symbols: list[str] = []
+        for human_sym, mouse_syms in gene_mouse_map.items():
+            for ms in mouse_syms:
+                mouse_to_human[ms] = human_sym
+                all_mouse_symbols.append(ms)
+
+        # Accumulate zygosity data per human gene
+        gene_zyg: dict[str, dict[str, list[dict[str, str]]]] = {}
+        for human_sym in gene_mouse_map:
+            gene_zyg[human_sym] = {"hm": [], "ht": [], "cn": [], "other": []}
+
+        for chunk_start in range(0, len(all_mouse_symbols), self.BULK_CHUNK_SIZE):
+            chunk = all_mouse_symbols[chunk_start : chunk_start + self.BULK_CHUNK_SIZE]
+            csv_value = ",".join(chunk)
+
+            try:
+                await self.apply_rate_limit()
+                client = await self.get_http_client()
+
+                url = f"{self.mousemine_url}/template/results"
+                params = {
+                    "name": "_Genotype_Phenotype",
+                    "constraint1": "OntologyAnnotation.subject.symbol",
+                    "op1": "CONTAINS",
+                    "value1": csv_value,
+                    "format": "json",
+                    "size": "0",  # unlimited
+                }
+
+                response = await client.get(url, params=params, timeout=120.0)
+                if response.status_code != 200:
+                    logger.sync_warning(
+                        f"Bulk _Genotype_Phenotype failed (chunk {chunk_start}): "
+                        f"{response.status_code}"
+                    )
+                    continue
+
+                data = response.json()
+                results = data.get("results", [])
+
+                # Columns: [primaryId, symbol, background, zygosity, mpo_id, mpo_name]
+                for row in results:
+                    if len(row) < 6:
+                        continue
+                    mouse_sym = row[1]
+                    zygosity = row[3]
+                    mpo_id = row[4]
+                    mpo_name = row[5]
+
+                    resolved_human = mouse_to_human.get(mouse_sym)
+                    if not resolved_human or not mpo_id or not mpo_name:
+                        continue
+
+                    entry = {"term": mpo_id, "name": mpo_name}
+                    bucket = gene_zyg[resolved_human]
+                    if zygosity == "hm":
+                        bucket["hm"].append(entry)
+                    elif zygosity == "ht":
+                        bucket["ht"].append(entry)
+                    elif zygosity == "cn":
+                        bucket["cn"].append(entry)
+                    else:
+                        bucket["other"].append(entry)
+
+            except Exception as e:
+                logger.sync_error(
+                    f"Bulk _Genotype_Phenotype error (chunk {chunk_start}): {e}"
+                )
+                continue
+
+        # Build per-gene zygosity analysis
+        out: dict[str, dict[str, Any]] = {}
+        for human_sym, zyg in gene_zyg.items():
+            hm_kidney = list(
+                {p["term"]: p for p in zyg["hm"] if p["term"] in mpo_terms}.values()
+            )
+            ht_kidney = list(
+                {p["term"]: p for p in zyg["ht"] if p["term"] in mpo_terms}.values()
+            )
+            cn_kidney = list(
+                {p["term"]: p for p in zyg["cn"] if p["term"] in mpo_terms}.values()
+            )
+
+            hm_result = "true" if hm_kidney else "false"
+            ht_result = "true" if ht_kidney else "false"
+
+            out[human_sym] = {
+                "homozygous": {
+                    "has_kidney_phenotype": len(hm_kidney) > 0,
+                    "phenotype_count": len(hm_kidney),
+                    "phenotypes": hm_kidney,
+                },
+                "heterozygous": {
+                    "has_kidney_phenotype": len(ht_kidney) > 0,
+                    "phenotype_count": len(ht_kidney),
+                    "phenotypes": ht_kidney,
+                },
+                "conditional": {
+                    "has_kidney_phenotype": len(cn_kidney) > 0,
+                    "phenotype_count": len(cn_kidney),
+                    "phenotypes": cn_kidney,
+                },
+                "summary": f"hm ({hm_result}); ht ({ht_result})",
+            }
+
+        return out
+
+    # ── Original per-gene query methods ────────────────────────────────
+
     async def query_mousemine_phenotypes(
         self, human_gene_symbol: str, mpo_terms: set[str]
     ) -> dict[str, Any] | None:
@@ -532,9 +764,11 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
     async def fetch_batch(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
         """
-        Batch fetch annotations for multiple genes.
+        Batch fetch annotations for multiple genes using bulk MouseMine queries.
 
-        Pre-fetches MPO terms once then queries genes in parallel.
+        Uses comma-separated LOOKUP queries to fetch all genes in ~6 chunked
+        requests instead of 1,142 individual requests.  Falls back to per-gene
+        queries for any genes missing from bulk results.
 
         Args:
             genes: List of Gene objects
@@ -550,32 +784,101 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
             self._mpo_terms_cache = await self.fetch_kidney_mpo_terms()
             self._mpo_cache_timestamp = datetime.now(timezone.utc)
 
-        # Process genes in parallel (limit concurrency)
-        batch_size = 5  # MouseMine can be slow, limit concurrent requests
+        mpo_terms = self._mpo_terms_cache
+        if mpo_terms is None:
+            raise RuntimeError("MPO terms cache should be loaded at this point")
 
-        for i in range(0, len(genes), batch_size):
-            batch = genes[i : i + batch_size]
+        # Build symbol → gene mapping
+        symbol_to_gene: dict[str, Gene] = {g.approved_symbol: g for g in genes}
+        all_symbols = list(symbol_to_gene.keys())
 
-            # Create tasks for this batch
-            tasks = [self.fetch_annotation(gene) for gene in batch]
+        # Step 1: Bulk HGene_MPhenotype query (phenotypes + mouse orthologs)
+        pheno_map = await self._bulk_query_phenotypes(all_symbols, mpo_terms)
 
-            # Execute batch
-            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Step 2: Bulk _Genotype_Phenotype query for genes with mouse orthologs
+        gene_mouse_map: dict[str, list[str]] = {}
+        for sym, pheno in pheno_map.items():
+            orthologs = pheno.get("mouse_orthologs", [])
+            if orthologs:
+                gene_mouse_map[sym] = orthologs
 
-            # Process results - only store successful results
-            for gene, result in zip(batch, batch_results, strict=False):
-                if isinstance(result, Exception):
+        zyg_map: dict[str, dict[str, Any]] = {}
+        if gene_mouse_map:
+            zyg_map = await self._bulk_query_zygosity(gene_mouse_map, mpo_terms)
+
+        # Step 3: Assemble final per-gene results
+        for sym, gene in symbol_to_gene.items():
+            gene_pheno = pheno_map.get(sym)
+            if gene_pheno is None:
+                # Gene wasn't in bulk results at all — skip (will be caught by fallback)
+                continue
+
+            # Merge zygosity data
+            zyg = zyg_map.get(sym)
+            if zyg is None:
+                zyg = {
+                    "homozygous": {
+                        "has_kidney_phenotype": False,
+                        "phenotype_count": 0,
+                        "phenotypes": [],
+                    },
+                    "heterozygous": {
+                        "has_kidney_phenotype": False,
+                        "phenotype_count": 0,
+                        "phenotypes": [],
+                    },
+                    "conditional": {
+                        "has_kidney_phenotype": False,
+                        "phenotype_count": 0,
+                        "phenotypes": [],
+                    },
+                    "summary": "hm (false); ht (false)",
+                }
+
+            # Combine into the full result structure
+            # Use zygosity phenotypes for has_kidney_phenotype and counts
+            # when zygosity data is available (more detailed)
+            all_kidney = list(
+                {
+                    p["term"]: p
+                    for cat in ["homozygous", "heterozygous", "conditional"]
+                    for p in zyg[cat]["phenotypes"]
+                }.values()
+            )
+
+            # Prefer zygosity-derived phenotypes if available, else use pheno_map
+            if all_kidney or not gene_pheno.get("has_kidney_phenotype"):
+                kidney_phenotypes = all_kidney
+                has_kidney = len(all_kidney) > 0
+            else:
+                kidney_phenotypes = gene_pheno.get("phenotypes", [])
+                has_kidney = gene_pheno.get("has_kidney_phenotype", False)
+
+            results[gene.id] = {
+                "gene_symbol": sym,
+                "has_kidney_phenotype": has_kidney,
+                "mouse_orthologs": gene_pheno.get("mouse_orthologs", []),
+                "phenotypes": kidney_phenotypes,
+                "phenotype_count": len(kidney_phenotypes),
+                "mpo_terms_searched": len(mpo_terms),
+                "zygosity_analysis": zyg,
+            }
+
+        # Step 4: Fallback — per-gene query for any genes not in bulk results
+        missing_genes = [g for g in genes if g.id not in results]
+        if missing_genes:
+            logger.sync_info(
+                f"Falling back to per-gene queries for {len(missing_genes)} genes"
+            )
+            for gene in missing_genes:
+                try:
+                    result = await self.fetch_annotation(gene)
+                    if isinstance(result, dict):
+                        results[gene.id] = result
+                except Exception as e:
                     logger.sync_error(
-                        f"Failed to fetch MPO/MGI for {gene.approved_symbol}: {result}"
+                        f"Per-gene fallback failed for {gene.approved_symbol}: {e}"
                     )
-                    # Skip failed results to match parent return type
-                elif isinstance(result, dict):
-                    results[gene.id] = result
-                # Skip None results to match parent return type
-
-            # Small delay between batches to avoid overwhelming MouseMine
-            if i + batch_size < len(genes):
-                await asyncio.sleep(0.5)
 
         return results
 
