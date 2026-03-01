@@ -62,7 +62,7 @@
                 <SelectValue placeholder="All levels" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All levels</SelectItem>
+                <SelectItem value="all">All levels</SelectItem>
                 <SelectItem v-for="level in logLevels" :key="level" :value="level">
                   {{ level }}
                 </SelectItem>
@@ -696,7 +696,7 @@ const queryParams = computed(() => {
     offset: (currentPage.value - 1) * itemsPerPage.value
   }
 
-  if (filters.value.level) {
+  if (filters.value.level && filters.value.level !== 'all') {
     params.level = filters.value.level
   }
 

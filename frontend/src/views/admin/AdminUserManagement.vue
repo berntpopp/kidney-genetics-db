@@ -53,7 +53,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const authStore = useAuthStore()
 
@@ -178,67 +178,61 @@ const columns = [
     cell: ({ row }) => {
       const user = row.original
       return h('div', { class: 'flex items-center gap-1' }, [
-        h(TooltipProvider, null, () =>
-          h(Tooltip, null, {
-            default: () => [
-              h(TooltipTrigger, { asChild: true }, () =>
-                h(
-                  Button,
-                  {
-                    variant: 'ghost',
-                    size: 'icon',
-                    class: 'h-8 w-8',
-                    onClick: () => editUser(user)
-                  },
-                  () => h(Pencil, { class: 'size-4' })
-                )
-              ),
-              h(TooltipContent, null, () => 'Edit user')
-            ]
-          })
-        ),
-        h(TooltipProvider, null, () =>
-          h(Tooltip, null, {
-            default: () => [
-              h(TooltipTrigger, { asChild: true }, () =>
-                h(
-                  Button,
-                  {
-                    variant: 'ghost',
-                    size: 'icon',
-                    class: 'h-8 w-8',
-                    onClick: () => toggleUserStatus(user)
-                  },
-                  () =>
-                    h(user.is_active ? UserX : UserCheck, {
-                      class: 'size-4'
-                    })
-                )
-              ),
-              h(TooltipContent, null, () => `${user.is_active ? 'Deactivate' : 'Activate'} user`)
-            ]
-          })
-        ),
-        h(TooltipProvider, null, () =>
-          h(Tooltip, null, {
-            default: () => [
-              h(TooltipTrigger, { asChild: true }, () =>
-                h(
-                  Button,
-                  {
-                    variant: 'ghost',
-                    size: 'icon',
-                    class: 'h-8 w-8 text-destructive',
-                    disabled: user.id === authStore.user?.id,
-                    onClick: () => confirmDelete(user)
-                  },
-                  () => h(Trash2, { class: 'size-4' })
-                )
-              ),
-              h(TooltipContent, null, () => 'Delete user')
-            ]
-          })
-        )
+        h(Tooltip, null, {
+          default: () => [
+            h(TooltipTrigger, { asChild: true }, () =>
+              h(
+                Button,
+                {
+                  variant: 'ghost',
+                  size: 'icon',
+                  class: 'h-8 w-8',
+                  onClick: () => editUser(user)
+                },
+                () => h(Pencil, { class: 'size-4' })
+              )
+            ),
+            h(TooltipContent, null, () => 'Edit user')
+          ]
+        }),
+        h(Tooltip, null, {
+          default: () => [
+            h(TooltipTrigger, { asChild: true }, () =>
+              h(
+                Button,
+                {
+                  variant: 'ghost',
+                  size: 'icon',
+                  class: 'h-8 w-8',
+                  onClick: () => toggleUserStatus(user)
+                },
+                () =>
+                  h(user.is_active ? UserX : UserCheck, {
+                    class: 'size-4'
+                  })
+              )
+            ),
+            h(TooltipContent, null, () => `${user.is_active ? 'Deactivate' : 'Activate'} user`)
+          ]
+        }),
+        h(Tooltip, null, {
+          default: () => [
+            h(TooltipTrigger, { asChild: true }, () =>
+              h(
+                Button,
+                {
+                  variant: 'ghost',
+                  size: 'icon',
+                  class: 'h-8 w-8 text-destructive',
+                  disabled: user.id === authStore.user?.id,
+                  onClick: () => confirmDelete(user)
+                },
+                () => h(Trash2, { class: 'size-4' })
+              )
+            ),
+            h(TooltipContent, null, () => 'Delete user')
+          ]
+        })
       ])
     },
     enableSorting: false,

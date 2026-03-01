@@ -4,6 +4,7 @@ import AppHeader from '@/layouts/AppHeader.vue'
 import AppFooter from '@/layouts/AppFooter.vue'
 import LogViewer from '@/components/admin/LogViewer.vue'
 import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuthStore } from '@/stores/auth'
 import { useLogStore } from '@/stores/logStore'
 import { useAppTheme } from '@/composables/useAppTheme'
@@ -33,19 +34,21 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col bg-background text-foreground">
-    <AppHeader />
-    <main class="flex-1">
-      <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
-    </main>
-    <AppFooter />
-    <LogViewer />
-    <Toaster position="bottom-right" :expand="false" rich-colors />
-  </div>
+  <TooltipProvider :delay-duration="0">
+    <div class="min-h-screen flex flex-col bg-background text-foreground">
+      <AppHeader />
+      <main class="flex-1">
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </main>
+      <AppFooter />
+      <LogViewer />
+      <Toaster position="bottom-right" :expand="false" rich-colors />
+    </div>
+  </TooltipProvider>
 </template>
 
 <style scoped>
