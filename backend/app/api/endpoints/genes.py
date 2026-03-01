@@ -464,9 +464,16 @@ async def get_genes(
     else:
         sort_clause = " ORDER BY gs.percentage_score DESC NULLS LAST, g.approved_symbol ASC"
 
-    # Data query - sources and evidence_count fetched from gene_evidence table for accuracy
-    # Note: Uses correlated subqueries to get actual data (not cached gene_scores values)
+    # Data query - sources and evidence_count fetched via CTE for efficiency
+    # Note: Uses a CTE to pre-aggregate evidence data instead of correlated subqueries
     data_query = f"""
+        WITH evidence_agg AS (
+            SELECT gene_id,
+                   COUNT(*) as evidence_count,
+                   array_agg(DISTINCT source_name ORDER BY source_name) as sources
+            FROM gene_evidence
+            GROUP BY gene_id
+        )
         SELECT
             g.id,
             g.hgnc_id,
@@ -474,10 +481,7 @@ async def get_genes(
             g.aliases,
             g.created_at,
             g.updated_at,
-            COALESCE(
-                (SELECT COUNT(*) FROM gene_evidence WHERE gene_id = g.id),
-                0
-            ) as evidence_count,
+            COALESCE(ea.evidence_count, 0) as evidence_count,
             gs.percentage_score as evidence_score,
             gs.evidence_tier,
             gs.evidence_group,
@@ -494,14 +498,10 @@ async def get_genes(
                 WHEN 'emerging_evidence' THEN 2
                 ELSE 999
             END as group_sort_order,
-            COALESCE(
-                (SELECT array_agg(DISTINCT source_name ORDER BY source_name)
-                 FROM gene_evidence
-                 WHERE gene_id = g.id),
-                ARRAY[]::text[]
-            ) as sources
+            COALESCE(ea.sources, ARRAY[]::text[]) as sources
         FROM genes g
         LEFT JOIN gene_scores gs ON gs.gene_id = g.id
+        LEFT JOIN evidence_agg ea ON ea.gene_id = g.id
         WHERE {where_clause}
         {sort_clause}
     """
