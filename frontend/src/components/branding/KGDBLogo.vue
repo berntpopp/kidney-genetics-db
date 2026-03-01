@@ -48,7 +48,7 @@
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { useTheme } from 'vuetify'
+import { useAppTheme } from '@/composables/useAppTheme'
 
 const props = defineProps({
   size: {
@@ -97,7 +97,7 @@ const props = defineProps({
 
 const emit = defineEmits(['click'])
 
-const theme = useTheme()
+const { isDark } = useAppTheme()
 const reducedMotion = ref(false)
 
 // Logo source - use the KGDB_logo.svg
@@ -131,9 +131,6 @@ const sizeClass = computed(() => {
   if (size <= 128) return 'lg'
   return 'xl'
 })
-
-// Theme-aware dark mode detection
-const isDark = computed(() => theme.current.value.dark)
 
 // Logo classes for styling
 const logoClasses = computed(() => ({
@@ -271,7 +268,7 @@ const handleClick = event => {
     sans-serif;
   font-weight: 700;
   font-size: var(--logo-text-size);
-  color: rgb(var(--v-theme-on-surface));
+  color: hsl(var(--foreground));
   letter-spacing: -0.02em;
 }
 
@@ -306,7 +303,7 @@ const handleClick = event => {
 }
 
 .kgdb-logo--interactive:focus-visible {
-  outline: 2px solid rgb(var(--v-theme-primary));
+  outline: 2px solid hsl(var(--primary));
   outline-offset: 4px;
   border-radius: 8px;
 }

@@ -121,7 +121,7 @@
                 <SelectValue placeholder="All sources" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All sources</SelectItem>
+                <SelectItem value="all">All sources</SelectItem>
                 <SelectItem
                   v-for="source in sourceOptions"
                   :key="source.value"
@@ -690,7 +690,7 @@ const loadPendingReviews = async () => {
   try {
     const params = {
       limit: filters.limit,
-      source_filter: filters.sourceFilter,
+      source_filter: filters.sourceFilter === 'all' ? '' : filters.sourceFilter,
       requires_expert_review: filters.expertReviewOnly || undefined
     }
 

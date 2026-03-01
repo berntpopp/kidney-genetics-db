@@ -44,7 +44,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 // State
 const cacheStats = ref({})
@@ -99,44 +99,40 @@ const namespaceColumns = [
     cell: ({ row }) => {
       const ns = row.original
       return h('div', { class: 'flex items-center gap-1' }, [
-        h(TooltipProvider, null, () =>
-          h(Tooltip, null, {
-            default: () => [
-              h(TooltipTrigger, { asChild: true }, () =>
-                h(
-                  Button,
-                  {
-                    variant: 'ghost',
-                    size: 'icon',
-                    class: 'h-8 w-8',
-                    onClick: () => showNamespaceDetails(ns)
-                  },
-                  () => h(Info, { class: 'size-4' })
-                )
-              ),
-              h(TooltipContent, null, () => 'View details')
-            ]
-          })
-        ),
-        h(TooltipProvider, null, () =>
-          h(Tooltip, null, {
-            default: () => [
-              h(TooltipTrigger, { asChild: true }, () =>
-                h(
-                  Button,
-                  {
-                    variant: 'ghost',
-                    size: 'icon',
-                    class: 'h-8 w-8 text-destructive',
-                    onClick: () => confirmClearNamespace(ns)
-                  },
-                  () => h(Trash2, { class: 'size-4' })
-                )
-              ),
-              h(TooltipContent, null, () => 'Clear namespace')
-            ]
-          })
-        )
+        h(Tooltip, null, {
+          default: () => [
+            h(TooltipTrigger, { asChild: true }, () =>
+              h(
+                Button,
+                {
+                  variant: 'ghost',
+                  size: 'icon',
+                  class: 'h-8 w-8',
+                  onClick: () => showNamespaceDetails(ns)
+                },
+                () => h(Info, { class: 'size-4' })
+              )
+            ),
+            h(TooltipContent, null, () => 'View details')
+          ]
+        }),
+        h(Tooltip, null, {
+          default: () => [
+            h(TooltipTrigger, { asChild: true }, () =>
+              h(
+                Button,
+                {
+                  variant: 'ghost',
+                  size: 'icon',
+                  class: 'h-8 w-8 text-destructive',
+                  onClick: () => confirmClearNamespace(ns)
+                },
+                () => h(Trash2, { class: 'size-4' })
+              )
+            ),
+            h(TooltipContent, null, () => 'Clear namespace')
+          ]
+        })
       ])
     },
     enableSorting: false,

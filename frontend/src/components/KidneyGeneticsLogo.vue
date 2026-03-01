@@ -54,7 +54,7 @@
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { useTheme } from 'vuetify'
+import { useAppTheme } from '@/composables/useAppTheme'
 import nephrologyIcon from '@/assets/nephrology.svg'
 import geneticsIcon from '@/assets/genetics.svg'
 
@@ -93,7 +93,7 @@ const props = defineProps({
 
 defineEmits(['click'])
 
-const theme = useTheme()
+const { isDark } = useAppTheme()
 const reducedMotion = ref(false)
 
 // Check for reduced motion preference
@@ -124,19 +124,19 @@ const sizeClass = computed(() => {
   return 'xl'
 })
 
-// Theme-aware colors
-const isDark = computed(() => {
+// Theme-aware colors (themeOverride can still force light/dark)
+const isEffectivelyDark = computed(() => {
   if (props.themeOverride === 'light') return false
   if (props.themeOverride === 'dark') return true
-  return theme.current.value.dark
+  return isDark.value
 })
 
 const iconStyle = computed(() => ({
   width: '50%',
   height: '50%',
   filter: props.monochrome
-    ? `brightness(${isDark.value ? '0.9' : '0.4'})`
-    : isDark.value
+    ? `brightness(${isEffectivelyDark.value ? '0.9' : '0.4'})`
+    : isEffectivelyDark.value
       ? 'brightness(1.1) contrast(1.1)'
       : 'brightness(0.8) contrast(1.2)'
 }))

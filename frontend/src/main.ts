@@ -3,7 +3,6 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
-import vuetify from './plugins/vuetify'
 
 // Import logging system
 import { logService } from './services/logService'
@@ -42,7 +41,6 @@ window.snackbar = {
 
 // Continue with other plugins
 app.use(router)
-app.use(vuetify)
 
 // Mount application
 app.mount('#app')

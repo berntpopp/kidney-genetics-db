@@ -286,7 +286,7 @@
                 <SelectValue placeholder="All sources" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All sources</SelectItem>
+                <SelectItem value="all">All sources</SelectItem>
                 <SelectItem v-for="src in sourceFilterOptions" :key="src.value" :value="src.value">
                   {{ src.title }}
                 </SelectItem>
@@ -842,7 +842,7 @@ const lookupGeneAnnotations = async () => {
   try {
     const response = await annotationsApi.getGeneAnnotations(
       parseInt(lookupGeneId.value),
-      lookupSource.value
+      lookupSource.value === 'all' ? null : lookupSource.value
     )
     lookupResult.value = response.data
   } catch (error) {
