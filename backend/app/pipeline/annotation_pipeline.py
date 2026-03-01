@@ -108,6 +108,9 @@ class AnnotationPipeline:
             task_id=task_id,
         )
 
+        # Recover from stale pipeline lock (previous worker crash)
+        self._recover_stale_lock()
+
         # Initialize progress tracking
         self.progress_tracker = ProgressTracker(self.db, self.source_name)
 
@@ -496,6 +499,65 @@ class AnnotationPipeline:
             logger.sync_error(f"Failed to load checkpoint: {e}")
         return None
 
+    # Maximum age (minutes) before a "running" status is considered stale
+    _STALE_LOCK_MINUTES: int = 15
+
+    def _recover_stale_lock(self) -> None:
+        """Reset pipeline status if a previous run crashed and left it 'running'.
+
+        Checks the ``data_source_progress`` row for ``annotation_pipeline``.
+        If it has been in ``running`` state for longer than
+        ``_STALE_LOCK_MINUTES``, resets it to ``idle`` so a new run can
+        proceed.  This prevents the pipeline from being permanently locked
+        after an unexpected worker crash.
+        """
+        try:
+            progress = (
+                self.db.query(DataSourceProgress).filter_by(source_name=self.source_name).first()
+            )
+            if not progress:
+                return
+
+            if progress.status != "running":
+                return
+
+            # Check how long it has been running
+            started = progress.started_at
+            if started is None:
+                started = progress.updated_at
+
+            if started is None:
+                # No timestamp at all — assume stale
+                age_minutes = self._STALE_LOCK_MINUTES + 1
+            else:
+                age_minutes = (
+                    datetime.utcnow() - started.replace(tzinfo=None)
+                ).total_seconds() / 60
+
+            if age_minutes >= self._STALE_LOCK_MINUTES:
+                logger.sync_warning(
+                    "Recovering stale pipeline lock from previous crash",
+                    source_name=self.source_name,
+                    age_minutes=round(age_minutes, 1),
+                    last_operation=progress.current_operation,
+                )
+                progress.status = "idle"
+                progress.current_operation = None
+                progress.error_message = (
+                    f"Auto-recovered: previous run stale after {round(age_minutes)}min"
+                )
+                progress.progress_metadata = {}
+                self.db.commit()
+            else:
+                logger.sync_warning(
+                    "Pipeline is already running (started recently)",
+                    source_name=self.source_name,
+                    age_minutes=round(age_minutes, 1),
+                )
+        except Exception as e:
+            logger.sync_error(f"Failed to check stale lock: {e}")
+            self.db.rollback()
+
     async def _update_sources_parallel(
         self, sources: list[str], gene_ids: list[int], force: bool = False
     ) -> dict[str, Any]:
@@ -515,10 +577,11 @@ class AnnotationPipeline:
             """Update single source with rate limiting."""
             async with semaphore:
                 try:
-                    # Refresh database connection for long-running operation
+                    # Ping database to ensure connection is alive, then
+                    # commit immediately so no transaction stays open.
                     if hasattr(self.db, "execute"):
-                        # Ping database to ensure connection is alive
                         self.db.execute(text("SELECT 1"))
+                        self.db.commit()
 
                     logger.sync_info(f"Starting parallel update for {source_name}")
                     result = await self._update_source_with_recovery(source_name, gene_ids, force)
@@ -626,6 +689,11 @@ class AnnotationPipeline:
                 upserted=upsert_count,
             )
 
+        # Release transaction between phases to prevent idle_in_transaction
+        # timeout (30 s).  The bulk upsert commits per-chunk, but subsequent
+        # phases (fallback, cache clear) may take time.
+        self.db.commit()
+
         # Phase 3: Per-gene fallback for genes not in batch_data
         missed_genes = [g for g in genes if g.id not in batch_data]
         if missed_genes:
@@ -680,21 +748,28 @@ class AnnotationPipeline:
 
         source.batch_mode = False
 
-        # Clear caches in background
+        # Clear caches in background using a dedicated session
+        # IMPORTANT: Do NOT pass self.db to the thread — SQLAlchemy sessions
+        # are not thread-safe.  Create a new session inside the worker.
         try:
             from concurrent.futures import ThreadPoolExecutor
 
             from app.core.cache_service import get_cache_service
+            from app.core.database import SessionLocal
 
             if not hasattr(self, "_executor"):
                 self._executor = ThreadPoolExecutor(max_workers=2)
 
             def clear_cache_sync() -> None:
-                cache_service = get_cache_service(self.db)
-                if cache_service:
-                    cache_service.clear_namespace_sync(source_name.lower())
-                    cache_service.clear_namespace_sync("annotations")
-                    logger.sync_debug(f"Cleared cache for {source_name}")
+                thread_db = SessionLocal()
+                try:
+                    cache_service = get_cache_service(thread_db)
+                    if cache_service:
+                        cache_service.clear_namespace_sync(source_name.lower())
+                        cache_service.clear_namespace_sync("annotations")
+                        logger.sync_debug(f"Cleared cache for {source_name}")
+                finally:
+                    thread_db.close()
 
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(self._executor, clear_cache_sync)
