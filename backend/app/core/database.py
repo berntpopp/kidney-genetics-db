@@ -43,7 +43,7 @@ def get_thread_pool_executor() -> ThreadPoolExecutor:
             if _thread_pool_executor is None:
                 logger.sync_info("Creating singleton thread pool executor")
                 _thread_pool_executor = ThreadPoolExecutor(
-                    max_workers=4,
+                    max_workers=10,
                     thread_name_prefix="db-executor-",
                 )
 
@@ -63,8 +63,8 @@ engine = create_engine(
     settings.DATABASE_URL,
     echo=settings.DATABASE_ECHO,
     # Connection pooling with robustness settings
-    pool_size=20,
-    max_overflow=30,
+    pool_size=10,
+    max_overflow=15,
     pool_timeout=30,
     pool_recycle=3600,  # Recycle connections after 1 hour
     pool_pre_ping=True,  # Test connections before use
