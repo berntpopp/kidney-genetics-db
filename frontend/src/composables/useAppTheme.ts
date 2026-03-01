@@ -4,7 +4,7 @@ import { useColorMode } from '@vueuse/core'
 export function useAppTheme() {
   const mode = useColorMode({
     storageKey: 'kgdb-color-mode',
-    initialValue: 'auto',
+    initialValue: 'auto'
   })
 
   const isDark = computed(() => mode.value === 'dark')

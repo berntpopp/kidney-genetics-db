@@ -1,15 +1,8 @@
 /* ============================================================
-   CSS Coexistence Layer — Tailwind v4 + Vuetify
-   Layer order: theme < base < vuetify < components < utilities
-   Vuetify styles are wrapped in @layer(vuetify) so Tailwind
-   utility classes always win in specificity.
+   CSS Layer Order — Tailwind v4 + shadcn-vue
    ============================================================ */
 
-@layer theme, base, vuetify, components, utilities;
-
-/* Vuetify styles inside named layer so Tailwind wins */
-@import 'vuetify/styles' layer(vuetify);
-@import '@mdi/font/css/materialdesignicons.css' layer(vuetify);
+@layer theme, base, components, utilities;
 
 /* Tailwind v4 — generates @layer base, components, utilities */
 @import 'tailwindcss';
