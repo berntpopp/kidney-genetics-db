@@ -1,66 +1,93 @@
 """
 HGNC annotation source for gene annotations.
+
+Supports bulk JSON download of the complete HGNC dataset for fast batch
+processing, with REST API fallback for individual lookups.
 """
 
+import json
+from pathlib import Path
 from typing import Any, cast
 
 from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
+from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin
 
 logger = get_logger(__name__)
 
 
-class HGNCAnnotationSource(BaseAnnotationSource):
+class HGNCAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     """
     HGNC (HUGO Gene Nomenclature Committee) annotation source.
 
-    Fetches gene information from the HGNC REST API including:
-    - NCBI Gene ID (Entrez ID)
-    - MANE Select transcripts
-    - RefSeq accessions
-    - OMIM IDs
-    - PubMed IDs
-    - Gene families
-    - Previous symbols and aliases
+    Uses bulk JSON download of the complete HGNC dataset for fast batch
+    processing. Falls back to REST API for individual lookups.
     """
 
     source_name = "hgnc"
     display_name = "HGNC"
     version = "2024.01"
 
-    # API configuration
+    # API configuration (fallback)
     base_url = "https://rest.genenames.org"
     headers = {"Accept": "application/json", "User-Agent": "KidneyGeneticsDB/1.0"}
 
     # Cache configuration
     cache_ttl_days = 90
 
+    # Bulk download configuration
+    bulk_file_url = (
+        "https://storage.googleapis.com/public-download-files"
+        "/hgnc/json/json/hgnc_complete_set.json"
+    )
+    bulk_cache_ttl_hours = 168  # 7 days
+    bulk_file_format = "json"
+
+    def parse_bulk_file(self, path: Path) -> dict[str, dict[str, Any]]:
+        """Parse HGNC complete set JSON into gene-keyed dict.
+
+        Uses ``_extract_annotations()`` to produce identical field names
+        as the REST API path, ensuring data parity.
+        """
+        with open(path) as f:
+            raw = json.load(f)
+
+        docs = raw.get("response", {}).get("docs", [])
+        data: dict[str, dict[str, Any]] = {}
+
+        for doc in docs:
+            symbol = doc.get("symbol", "").strip()
+            if not symbol:
+                continue
+            data[symbol] = self._extract_annotations(doc)
+
+        return data
+
     async def fetch_annotation(self, gene: Gene) -> dict[str, Any] | None:
-        """
-        Fetch HGNC annotation for a single gene.
+        """Fetch HGNC annotation for a single gene.
 
-        Args:
-            gene: Gene object to fetch annotations for
-
-        Returns:
-            Dictionary of annotation data or None if not found
+        Tries bulk data first, then falls back to REST API.
         """
-        # Try different identifiers
+        # Try bulk lookup by symbol
+        if self._bulk_data is not None and gene.approved_symbol:
+            bulk_result = self.lookup_gene(gene.approved_symbol)
+            if bulk_result is not None:
+                return bulk_result
+
+        # Fall back to REST API
+        return await self._fetch_via_api(gene)
+
+    async def _fetch_via_api(self, gene: Gene) -> dict[str, Any] | None:
+        """Fetch HGNC data via REST API (original implementation)."""
         hgnc_data = None
 
-        # Try HGNC ID first
         if gene.hgnc_id:
             hgnc_data = await self._fetch_by_hgnc_id(gene.hgnc_id)
 
-        # Fall back to gene symbol
         if not hgnc_data and gene.approved_symbol:
             hgnc_data = await self._fetch_by_symbol(gene.approved_symbol)
-
-        # Fall back to Ensembl ID
-        # if not hgnc_data and gene.ensembl_gene_id:
-        #     hgnc_data = await self._fetch_by_ensembl_id(gene.ensembl_gene_id)
 
         if not hgnc_data:
             logger.sync_warning(
@@ -70,13 +97,11 @@ class HGNCAnnotationSource(BaseAnnotationSource):
             )
             return None
 
-        # Extract and structure the annotation data
         return self._extract_annotations(hgnc_data)
 
     @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _fetch_by_hgnc_id(self, hgnc_id: str) -> dict[str, Any] | None:
         """Fetch HGNC data by HGNC ID."""
-        # Clean HGNC ID (remove "HGNC:" prefix if present)
         clean_id = hgnc_id.replace("HGNC:", "")
 
         await self.apply_rate_limit()
@@ -145,73 +170,45 @@ class HGNCAnnotationSource(BaseAnnotationSource):
         return None
 
     def _extract_annotations(self, hgnc_data: dict) -> dict[str, Any]:
-        """
-        Extract relevant annotations from HGNC API response.
-
-        Args:
-            hgnc_data: Raw HGNC API response
-
-        Returns:
-            Structured annotation dictionary
-        """
+        """Extract relevant annotations from HGNC data (API or bulk)."""
         annotations = {
-            # Core identifiers
             "hgnc_id": hgnc_data.get("hgnc_id"),
             "symbol": hgnc_data.get("symbol"),
             "name": hgnc_data.get("name"),
             "status": hgnc_data.get("status"),
-            # External IDs
             "ncbi_gene_id": hgnc_data.get("entrez_id"),
             "ensembl_gene_id": hgnc_data.get("ensembl_gene_id"),
             "omim_ids": hgnc_data.get("omim_id", []),
             "orphanet_id": hgnc_data.get("orphanet"),
             "cosmic_id": hgnc_data.get("cosmic"),
-            # RefSeq accessions
             "refseq_accession": hgnc_data.get("refseq_accession", []),
-            # MANE Select - Parse from mane_select field
             "mane_select": self._parse_mane_select(hgnc_data.get("mane_select", [])),
-            # Gene information
             "locus_type": hgnc_data.get("locus_type"),
             "locus_group": hgnc_data.get("locus_group"),
             "location": hgnc_data.get("location"),
             "location_sortable": hgnc_data.get("location_sortable"),
-            # Aliases and previous symbols
             "alias_symbol": hgnc_data.get("alias_symbol", []),
             "alias_name": hgnc_data.get("alias_name", []),
             "prev_symbol": hgnc_data.get("prev_symbol", []),
             "prev_name": hgnc_data.get("prev_name", []),
-            # Gene families
             "gene_family": hgnc_data.get("gene_family", []),
             "gene_family_id": hgnc_data.get("gene_family_id", []),
-            # Publications
             "pubmed_ids": hgnc_data.get("pubmed_id", []),
-            # Dates
             "date_approved_reserved": hgnc_data.get("date_approved_reserved"),
             "date_modified": hgnc_data.get("date_modified"),
             "date_name_changed": hgnc_data.get("date_name_changed"),
             "date_symbol_changed": hgnc_data.get("date_symbol_changed"),
-            # Additional fields
             "uuid": hgnc_data.get("uuid"),
             "_version_": hgnc_data.get("_version_"),
         }
 
-        # Remove None values to save space
         return {k: v for k, v in annotations.items() if v is not None}
 
     def _parse_mane_select(self, mane_select_list: list) -> dict | None:
-        """
-        Parse MANE Select transcript information.
-
-        HGNC provides MANE Select as a list like:
-        ["ENST00000356175.9", "NM_000546.6"]
-
-        Returns:
-            Dictionary with ensembl and refseq transcript IDs
-        """
+        """Parse MANE Select transcript information."""
         if not mane_select_list or len(mane_select_list) < 2:
             return None
 
-        # Usually first is Ensembl, second is RefSeq
         ensembl_transcript = None
         refseq_transcript = None
 
@@ -230,55 +227,59 @@ class HGNCAnnotationSource(BaseAnnotationSource):
         return None
 
     async def fetch_batch(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
-        """
-        Fetch annotations for multiple genes.
+        """Fetch annotations for multiple genes.
 
-        Note: HGNC doesn't have a batch endpoint, so we fetch individually
-        but use async to parallelize requests.
-
-        Args:
-            genes: List of Gene objects
-
-        Returns:
-            Dictionary mapping gene_id to annotation data
+        Loads bulk data once, then does fast local lookups. Falls back to
+        REST API for genes not found in the bulk file.
         """
         import asyncio
 
+        # Load bulk data if not already loaded
+        try:
+            await self.ensure_bulk_data_loaded()
+        except Exception as e:
+            logger.sync_warning(
+                f"Failed to load HGNC bulk data, falling back to API: {e}",
+            )
+
         results: dict[int, dict[str, Any]] = {}
+        api_fallback_genes: list[Gene] = []
 
-        # Create tasks for all genes
-        tasks = []
+        # Fast bulk lookups
         for gene in genes:
-            tasks.append(self.fetch_annotation(gene))
+            if self._bulk_data is not None and gene.approved_symbol:
+                bulk_result = self.lookup_gene(gene.approved_symbol)
+                if bulk_result is not None:
+                    results[gene.id] = bulk_result
+                    continue
+            api_fallback_genes.append(gene)
 
-        # Execute all tasks concurrently
-        annotations = await asyncio.gather(*tasks, return_exceptions=True)
+        if api_fallback_genes:
+            logger.sync_info(
+                "HGNC bulk miss, falling back to API",
+                bulk_hits=len(results),
+                api_fallback=len(api_fallback_genes),
+            )
 
-        # Map results back to gene IDs
-        for gene, annotation in zip(genes, annotations, strict=False):
-            if annotation and not isinstance(annotation, BaseException):
-                results[gene.id] = annotation
-            elif isinstance(annotation, BaseException):
-                logger.sync_error(
-                    "Error fetching annotation for gene",
-                    gene_symbol=gene.approved_symbol,
-                    error=str(annotation),
-                )
+            # API fallback with async parallelism
+            tasks = [self._fetch_via_api(gene) for gene in api_fallback_genes]
+            annotations = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for gene, annotation in zip(api_fallback_genes, annotations, strict=False):
+                if annotation and not isinstance(annotation, BaseException):
+                    results[gene.id] = annotation
+                elif isinstance(annotation, BaseException):
+                    logger.sync_error(
+                        "Error fetching annotation for gene",
+                        gene_symbol=gene.approved_symbol,
+                        error=str(annotation),
+                    )
 
         return results
 
     @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def search_genes(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
-        """
-        Search for genes in HGNC by query string.
-
-        Args:
-            query: Search query
-            limit: Maximum number of results
-
-        Returns:
-            List of gene data dictionaries
-        """
+        """Search for genes in HGNC by query string."""
         await self.apply_rate_limit()
         client = await self.get_http_client()
 
