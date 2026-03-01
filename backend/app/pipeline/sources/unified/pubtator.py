@@ -99,6 +99,23 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             "PubTator", "transaction_size", 1000
         )  # Reduced from 5000
 
+        # Gene-centric query configuration
+        self.gene_centric_enabled = get_source_parameter("PubTator", "gene_centric_enabled", True)
+        self.gene_centric_kidney_terms = get_source_parameter(
+            "PubTator",
+            "gene_centric_kidney_terms",
+            "kidney disease",
+        )
+        # Max pages per gene in gene-centric mode (1 page = 10 results)
+        self.gene_centric_max_pages = get_source_parameter("PubTator", "gene_centric_max_pages", 1)
+
+        # PubTator3 search API URL (different from the older pubtator-api)
+        self.search_api_url = get_source_parameter(
+            "PubTator",
+            "search_api_url",
+            "https://www.ncbi.nlm.nih.gov/research/pubtator3-api",
+        )
+
         logger.sync_info(
             f"{self.source_name} initialized with rate limiting and filtering",
             max_pages="ALL" if self.max_pages is None else str(self.max_pages),
@@ -108,6 +125,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             filter_after_complete=self.filter_after_complete,
             chunk_size=self.chunk_size,
             transaction_size=self.transaction_size,
+            gene_centric_enabled=self.gene_centric_enabled,
         )
 
     def _get_default_ttl(self) -> int:
@@ -149,10 +167,10 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         self, db: Session, tracker: "ProgressTracker | None", mode: str = "smart"
     ) -> dict[str, Any]:
         """
-        Override base class to handle PubTator's streaming architecture.
+        Override base class to handle PubTator's architecture.
 
-        PubTator doesn't follow the fetch->process->store pattern.
-        Instead, it streams and processes data directly to the database.
+        Uses gene-centric queries by default (one request per known gene),
+        falling back to paginated keyword search if gene-centric fails.
         """
         stats = self._initialize_stats()
 
@@ -161,10 +179,28 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 tracker.start(f"Starting {self.source_name} update")
             logger.sync_info("Starting data update", source_name=self.source_name)
 
-            # Stream and process data directly
-            if tracker:
-                tracker.update(operation="Streaming and processing PubTator data")
-            stream_stats = await self._stream_process_pubtator(self.kidney_query, tracker, mode)
+            # Try gene-centric approach first (much faster and more targeted)
+            if self.gene_centric_enabled:
+                if tracker:
+                    tracker.update(operation="Gene-centric PubTator queries")
+                try:
+                    stream_stats = await self._gene_centric_process(db, tracker, mode)
+                except Exception as e:
+                    logger.sync_warning(
+                        "Gene-centric processing failed, falling back to keyword search",
+                        error_detail=str(e),
+                    )
+                    if tracker:
+                        tracker.update(
+                            operation="Falling back to keyword search after gene-centric failure"
+                        )
+                    stream_stats = await self._stream_process_pubtator(
+                        self.kidney_query, tracker, mode
+                    )
+            else:
+                if tracker:
+                    tracker.update(operation="Streaming and processing PubTator data")
+                stream_stats = await self._stream_process_pubtator(self.kidney_query, tracker, mode)
 
             # Merge stats
             stats.update(stream_stats)
@@ -276,6 +312,278 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         result: dict[Any, Any] = response.json()
         return result
+
+    # ── Gene-centric processing ──────────────────────────────────────────
+
+    async def _gene_centric_process(
+        self,
+        db: Session,
+        tracker: "ProgressTracker | None",
+        mode: str,
+    ) -> dict[str, Any]:
+        """
+        Gene-centric PubTator processing.
+
+        Instead of paginating through 500+ pages of keyword search results,
+        queries each known gene individually with kidney terms.
+        571 genes × 1 request each at 3 req/s ≈ 3 minutes.
+        """
+        from sqlalchemy import text as sa_text
+
+        # Get all gene symbols from the database
+        rows = db.execute(sa_text("SELECT approved_symbol FROM genes ORDER BY approved_symbol"))
+        gene_symbols = [row[0] for row in rows.fetchall()]
+
+        if not gene_symbols:
+            logger.sync_warning("No genes in database for gene-centric PubTator")
+            return self._empty_gene_centric_stats()
+
+        logger.sync_info(
+            "Starting gene-centric PubTator processing",
+            total_genes=len(gene_symbols),
+            kidney_terms=self.gene_centric_kidney_terms,
+            max_pages_per_gene=self.gene_centric_max_pages,
+        )
+
+        stats: dict[str, Any] = {
+            "processed_articles": 0,
+            "processed_genes": 0,
+            "genes_processed": 0,
+            "genes_created": 0,
+            "genes_updated": 0,
+            "evidence_created": 0,
+            "evidence_updated": 0,
+            "genes_with_publications": 0,
+            "genes_skipped_below_threshold": 0,
+            "errors": 0,
+            "approach": "gene_centric",
+        }
+
+        gene_data_buffer: dict[str, dict[str, Any]] = {}
+        total = len(gene_symbols)
+
+        for idx, symbol in enumerate(gene_symbols):
+            try:
+                if tracker:
+                    tracker.update(
+                        current_item=idx + 1,
+                        total_items=total,
+                        operation=f"Querying PubTator for {symbol} ({idx + 1}/{total})",
+                    )
+
+                # Fetch publications for this gene + kidney terms
+                gene_result = await self._fetch_gene_publications(symbol)
+                stats["processed_genes"] += 1
+
+                if gene_result is None:
+                    continue
+
+                pub_count = gene_result.get("count", 0)
+                if pub_count == 0:
+                    continue
+
+                # Apply minimum publications filter early
+                if self.filtering_enabled and pub_count < self.min_publications:
+                    stats["genes_skipped_below_threshold"] += 1
+                    continue
+
+                stats["genes_with_publications"] += 1
+
+                # Build evidence data from results
+                evidence_data = self._build_gene_evidence(symbol, gene_result)
+                gene_data_buffer[symbol] = evidence_data
+
+                # Flush buffer periodically
+                if len(gene_data_buffer) >= self.batch_size:
+                    await self._flush_gene_centric_buffer(db, gene_data_buffer, stats, tracker)
+                    gene_data_buffer.clear()
+                    db.commit()
+
+            except Exception as e:
+                logger.sync_error(
+                    "Error in gene-centric query",
+                    symbol=symbol,
+                    error_detail=str(e),
+                )
+                stats["errors"] += 1
+
+        # Flush remaining buffer
+        if gene_data_buffer:
+            await self._flush_gene_centric_buffer(db, gene_data_buffer, stats, tracker)
+            gene_data_buffer.clear()
+            db.commit()
+
+        logger.sync_info(
+            "Gene-centric PubTator processing complete",
+            total_genes=total,
+            genes_with_publications=stats["genes_with_publications"],
+            genes_skipped_below_threshold=stats["genes_skipped_below_threshold"],
+            evidence_created=stats["evidence_created"],
+            evidence_updated=stats["evidence_updated"],
+            errors=stats["errors"],
+        )
+
+        return stats
+
+    @retry_with_backoff(
+        config=RetryConfig(
+            max_retries=3,
+            initial_delay=1.0,
+            max_delay=30.0,
+            retry_on_status_codes=(429, 500, 502, 503, 504),
+            retry_on_exceptions=(
+                httpx.HTTPStatusError,
+                httpx.RequestError,
+                httpx.TimeoutException,
+                httpx.RemoteProtocolError,
+                asyncio.TimeoutError,
+                ConnectionError,
+                TimeoutError,
+            ),
+        )
+    )
+    async def _fetch_gene_publications(self, gene_symbol: str) -> dict | None:
+        """
+        Fetch PubTator publications for a single gene + kidney terms.
+
+        Uses the PubTator3 search API with @GENE_{symbol} syntax.
+        Returns the API response with count, total_pages, and results.
+        """
+        await self.rate_limiter.wait()
+
+        query = f"@GENE_{gene_symbol} {self.gene_centric_kidney_terms}"
+        params = {"text": query, "page": 1, "sort": self.sort_order}
+
+        if self.http_client is None:
+            raise RuntimeError("HTTP client not initialized")
+
+        response = await self.http_client.get(
+            f"{self.search_api_url}/search/",
+            params=params,
+            timeout=30,
+        )
+
+        if response.status_code != 200:
+            if response.status_code in (429, 500, 502, 503, 504):
+                raise Exception(f"HTTP {response.status_code} for gene {gene_symbol}")
+            logger.sync_debug(f"Non-retryable status {response.status_code} for {gene_symbol}")
+            return None
+
+        data: dict[str, Any] = response.json()
+
+        # Fetch additional pages if configured
+        total_pages = data.get("total_pages", 1)
+        if self.gene_centric_max_pages > 1 and total_pages > 1:
+            pages_to_fetch = min(self.gene_centric_max_pages, total_pages)
+            all_results = list(data.get("results", []))
+
+            for page in range(2, pages_to_fetch + 1):
+                await self.rate_limiter.wait()
+                page_response = await self.http_client.get(
+                    f"{self.search_api_url}/search/",
+                    params={"text": query, "page": page, "sort": self.sort_order},
+                    timeout=30,
+                )
+                if page_response.status_code == 200:
+                    page_data = page_response.json()
+                    all_results.extend(page_data.get("results", []))
+
+            data["results"] = all_results
+
+        return data
+
+    def _build_gene_evidence(
+        self, gene_symbol: str, api_response: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Build evidence data dict from gene-centric API response.
+
+        Extracts publication count, PMIDs, and top mentions
+        in the same format as the streaming processor.
+        """
+        results = api_response.get("results", [])
+        pub_count = api_response.get("count", len(results))
+
+        pmids: list[str] = []
+        mentions: list[dict[str, Any]] = []
+        identifiers: set[str] = set()
+
+        for article in results:
+            pmid = str(article.get("pmid", ""))
+            if pmid:
+                pmids.append(pmid)
+
+            # Extract gene identifiers from highlighted text
+            genes = self._extract_genes_from_highlight(article.get("text_hl"))
+            for g in genes:
+                if g.get("symbol", "").upper() == gene_symbol.upper():
+                    identifiers.add(g.get("identifier", ""))
+
+            mentions.append(
+                {
+                    "pmid": pmid,
+                    "title": article.get("title", ""),
+                    "journal": article.get("journal", ""),
+                    "date": article.get("date", ""),
+                    "score": article.get("score", 0),
+                }
+            )
+
+        # Sort by score and keep top 20
+        mentions.sort(key=lambda x: x.get("score", 0), reverse=True)
+        top_mentions = mentions[:20]
+
+        avg_score = sum(m.get("score", 0) for m in mentions) / len(mentions) if mentions else 0
+
+        return {
+            "pmids": pmids,
+            "identifiers": list(identifiers),
+            "publication_count": pub_count,
+            "total_mentions": pub_count,
+            "evidence_score": avg_score,
+            "mentions": top_mentions,
+            "top_mentions": top_mentions[:5],
+            "search_query": f"@GENE_{gene_symbol} {self.gene_centric_kidney_terms}",
+            "last_updated": datetime.now(timezone.utc).isoformat(),
+        }
+
+    async def _flush_gene_centric_buffer(
+        self,
+        db: Session,
+        gene_buffer: dict[str, dict[str, Any]],
+        stats: dict[str, Any],
+        tracker: "ProgressTracker | None",
+    ) -> None:
+        """Flush gene-centric buffer to database using existing store logic."""
+        if not gene_buffer:
+            return
+
+        if tracker is not None:
+            await self._store_genes_in_database(db, gene_buffer, stats, tracker)
+        else:
+            await self._store_genes_without_tracker(db, gene_buffer, stats)
+
+        stats["processed_articles"] += sum(len(d.get("pmids", [])) for d in gene_buffer.values())
+
+        logger.sync_debug(f"Flushed gene-centric buffer: {len(gene_buffer)} genes")
+
+    def _empty_gene_centric_stats(self) -> dict[str, Any]:
+        """Return empty stats dict for gene-centric processing."""
+        return {
+            "processed_articles": 0,
+            "processed_genes": 0,
+            "genes_processed": 0,
+            "genes_created": 0,
+            "genes_updated": 0,
+            "evidence_created": 0,
+            "evidence_updated": 0,
+            "genes_with_publications": 0,
+            "genes_skipped_below_threshold": 0,
+            "errors": 0,
+            "approach": "gene_centric",
+        }
+
+    # ── Legacy keyword search (fallback) ─────────────────────────────────
 
     async def _stream_process_pubtator(
         self, query: str, tracker: "ProgressTracker | None", mode: str
