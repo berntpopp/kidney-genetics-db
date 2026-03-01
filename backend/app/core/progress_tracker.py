@@ -34,7 +34,7 @@ class ProgressTracker:
         self.source_name = source_name
         self.broadcast_callback = broadcast_callback
         self.progress_record = self._get_or_create_progress()
-        self._update_interval = 1.0  # Update database every second
+        self._update_interval = 5.0  # Update database every 5 seconds
         self._last_update_time = datetime.now(timezone.utc)
         self._start_time: datetime | None = None
 
