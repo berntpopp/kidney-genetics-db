@@ -18,7 +18,7 @@ defineProps<Props>()
 </script>
 
 <template>
-  <div class="rounded-md border">
+  <div class="rounded-md px-2">
     <UiTable>
       <TableHeader>
         <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">

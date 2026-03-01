@@ -750,8 +750,8 @@ onMounted(async () => {
 
     <!-- Data Table -->
     <Card v-if="genes.length > 0 || loading">
-      <DataTable :table="table" />
       <DataTablePagination :table="table" :page-size-options="itemsPerPageOptions" />
+      <DataTable :table="table" />
     </Card>
 
     <!-- Empty State -->
