@@ -2,11 +2,13 @@
 HPO (Human Phenotype Ontology) Annotation Source
 
 Fetches HPO terms and disease associations for genes using the JAX HPO API.
-Uses NCBI Gene IDs to retrieve comprehensive phenotype annotations.
+Supports bulk file download from genes_to_phenotype.txt for fast batch
+processing, with API fallback for genes not in the bulk file.
 """
 
 import asyncio
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -16,11 +18,12 @@ from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
+from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin
 
 logger = get_logger(__name__)
 
 
-class HPOAnnotationSource(BaseAnnotationSource):
+class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     """
     HPO phenotype annotations for genes.
 
@@ -38,6 +41,14 @@ class HPOAnnotationSource(BaseAnnotationSource):
 
     # API endpoints
     hpo_api_url = "https://ontology.jax.org/api"
+
+    # Bulk download configuration
+    # genes_to_phenotype.txt: gene→phenotype associations (~15 MB)
+    bulk_file_url = (
+        "http://purl.obolibrary.org/obo/hp/hpoa/genes_to_phenotype.txt"
+    )
+    bulk_cache_ttl_hours = 168  # 7 days
+    bulk_file_format = "txt"
 
     # Class-level cache for kidney terms (shared across all instances)
     _kidney_terms_cache = None
@@ -60,6 +71,74 @@ class HPOAnnotationSource(BaseAnnotationSource):
             )
             self.source_record.base_url = self.hpo_api_url
             self.session.commit()
+
+    def parse_bulk_file(self, path: Path) -> dict[str, dict[str, Any]]:
+        """Parse HPO genes_to_phenotype.txt into gene-keyed dict.
+
+        File format (tab-separated):
+          ncbi_gene_id, gene_symbol, hpo_id, hpo_name, frequency, disease_id
+
+        Groups rows by gene_symbol, collecting unique phenotypes and diseases.
+        Field names match the output of ``get_gene_annotations()`` for parity.
+        """
+        data: dict[str, dict[str, Any]] = {}
+        # Track seen phenotype IDs per gene to deduplicate
+        seen_phenotypes: dict[str, set[str]] = {}
+        seen_diseases: dict[str, set[str]] = {}
+
+        with open(path, newline="") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+
+                parts = line.split("\t")
+                if len(parts) < 4:
+                    continue
+
+                ncbi_gene_id = parts[0].strip()
+                gene_symbol = parts[1].strip()
+                hpo_id = parts[2].strip()
+                hpo_name = parts[3].strip()
+                disease_id = parts[5].strip() if len(parts) > 5 else ""
+
+                if not gene_symbol or not hpo_id:
+                    continue
+
+                # Initialize gene entry
+                if gene_symbol not in data:
+                    data[gene_symbol] = {
+                        "ncbi_gene_id": ncbi_gene_id,
+                        "phenotypes": [],
+                        "diseases": [],
+                    }
+                    seen_phenotypes[gene_symbol] = set()
+                    seen_diseases[gene_symbol] = set()
+
+                # Add phenotype (deduplicated by HPO ID)
+                if hpo_id not in seen_phenotypes[gene_symbol]:
+                    seen_phenotypes[gene_symbol].add(hpo_id)
+                    data[gene_symbol]["phenotypes"].append({
+                        "id": hpo_id,
+                        "name": hpo_name,
+                    })
+
+                # Add disease (deduplicated by disease ID)
+                if disease_id and disease_id != "-" and disease_id not in seen_diseases[gene_symbol]:
+                    seen_diseases[gene_symbol].add(disease_id)
+                    # Parse disease_id into db and dbId (e.g., "OMIM:173900")
+                    db = ""
+                    db_id = disease_id
+                    if ":" in disease_id:
+                        db, db_id = disease_id.split(":", 1)
+                    data[gene_symbol]["diseases"].append({
+                        "id": disease_id,
+                        "name": None,
+                        "db": db,
+                        "dbId": db_id,
+                    })
+
+        return data
 
     @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def search_gene_for_ncbi_id(self, gene_symbol: str) -> str | None:
@@ -562,21 +641,62 @@ class HPOAnnotationSource(BaseAnnotationSource):
         return result
 
     async def fetch_annotation(self, gene: Gene) -> dict[str, Any] | None:
-        """
-        Fetch HPO annotation for a gene.
+        """Fetch HPO annotation for a gene.
 
-        Args:
-            gene: Gene object to fetch annotations for
-
-        Returns:
-            Dictionary with annotation data or None if not found
+        Tries bulk data first, then falls back to API.
         """
         try:
-            # Step 1: Get NCBI Gene ID for the gene symbol
+            ncbi_gene_id = None
+            phenotypes: list[dict[str, Any]] = []
+            diseases: list[dict[str, Any]] = []
+
+            # Try bulk lookup first
+            if self._bulk_data is not None and gene.approved_symbol:
+                bulk_result = self.lookup_gene(gene.approved_symbol)
+                if bulk_result is not None:
+                    ncbi_gene_id = bulk_result.get("ncbi_gene_id")
+                    phenotypes = bulk_result.get("phenotypes", [])
+                    diseases = bulk_result.get("diseases", [])
+
+            # Fall back to API if no bulk data
+            if not phenotypes:
+                api_result = await self._fetch_via_api(gene)
+                if api_result is None:
+                    return None
+                return api_result
+
+            # Build annotation from bulk data (same structure as API path)
+            kidney_phenotypes = await self.filter_kidney_phenotypes(phenotypes)
+
+            classification = {}
+            if phenotypes:
+                classification = await self.classify_gene_phenotypes(phenotypes)
+
+            return {
+                "gene_symbol": gene.approved_symbol,
+                "ncbi_gene_id": ncbi_gene_id,
+                "has_hpo_data": len(phenotypes) > 0 or len(diseases) > 0,
+                "phenotypes": phenotypes,
+                "phenotype_count": len(phenotypes),
+                "diseases": diseases,
+                "disease_count": len(diseases),
+                "kidney_phenotypes": kidney_phenotypes,
+                "kidney_phenotype_count": len(kidney_phenotypes),
+                "has_kidney_phenotype": len(kidney_phenotypes) > 0,
+                "classification": classification,
+                "last_updated": datetime.now(timezone.utc).isoformat(),
+            }
+
+        except Exception as e:
+            logger.sync_error(f"Error fetching HPO annotation for {gene.approved_symbol}: {str(e)}")
+            return None
+
+    async def _fetch_via_api(self, gene: Gene) -> dict[str, Any] | None:
+        """Fetch HPO data via API (original implementation)."""
+        try:
             ncbi_gene_id = await self.search_gene_for_ncbi_id(gene.approved_symbol)
 
             if not ncbi_gene_id:
-                # No NCBI Gene ID found, return empty annotation
                 return {
                     "gene_symbol": gene.approved_symbol,
                     "ncbi_gene_id": None,
@@ -593,22 +713,15 @@ class HPOAnnotationSource(BaseAnnotationSource):
                     "last_updated": datetime.now(timezone.utc).isoformat(),
                 }
 
-            # Step 2: Get HPO annotations using NCBI Gene ID
             annotations = await self.get_gene_annotations(ncbi_gene_id)
-
             if annotations is None:
-                # Error occurred
                 return None
 
             phenotypes = annotations.get("phenotypes", [])
             diseases = annotations.get("diseases", [])
-
-            # Step 3: Filter for kidney-related phenotypes
             kidney_phenotypes = await self.filter_kidney_phenotypes(phenotypes)
 
-            # Step 4: Classify phenotypes
             classification = {}
-
             if phenotypes:
                 classification = await self.classify_gene_phenotypes(phenotypes)
 
@@ -632,40 +745,78 @@ class HPOAnnotationSource(BaseAnnotationSource):
             return None
 
     async def fetch_batch(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
-        """
-        Batch fetch annotations for multiple genes.
+        """Fetch annotations for multiple genes.
 
-        Args:
-            genes: List of Gene objects
-
-        Returns:
-            Dictionary mapping gene_id to annotation data
+        Loads bulk data once, then does fast local lookups. Falls back to
+        API for genes not found in the bulk file.
         """
+        # Load bulk data if not already loaded
+        try:
+            await self.ensure_bulk_data_loaded()
+        except Exception as e:
+            logger.sync_warning(
+                f"Failed to load HPO bulk data, falling back to API: {e}",
+            )
+
         results: dict[int, dict[str, Any]] = {}
+        api_fallback_genes: list[Gene] = []
 
-        # Process genes in parallel (limit concurrency)
-        batch_size = 10  # HPO API can handle moderate concurrency
+        # Fast bulk lookups (still need classification per gene)
+        for gene in genes:
+            if self._bulk_data is not None and gene.approved_symbol:
+                bulk_result = self.lookup_gene(gene.approved_symbol)
+                if bulk_result is not None:
+                    try:
+                        phenotypes = bulk_result.get("phenotypes", [])
+                        diseases = bulk_result.get("diseases", [])
+                        kidney_phenotypes = await self.filter_kidney_phenotypes(phenotypes)
+                        classification = {}
+                        if phenotypes:
+                            classification = await self.classify_gene_phenotypes(phenotypes)
 
-        for i in range(0, len(genes), batch_size):
-            batch = genes[i : i + batch_size]
+                        results[gene.id] = {
+                            "gene_symbol": gene.approved_symbol,
+                            "ncbi_gene_id": bulk_result.get("ncbi_gene_id"),
+                            "has_hpo_data": len(phenotypes) > 0 or len(diseases) > 0,
+                            "phenotypes": phenotypes,
+                            "phenotype_count": len(phenotypes),
+                            "diseases": diseases,
+                            "disease_count": len(diseases),
+                            "kidney_phenotypes": kidney_phenotypes,
+                            "kidney_phenotype_count": len(kidney_phenotypes),
+                            "has_kidney_phenotype": len(kidney_phenotypes) > 0,
+                            "classification": classification,
+                            "last_updated": datetime.now(timezone.utc).isoformat(),
+                        }
+                        continue
+                    except Exception as e:
+                        logger.sync_warning(
+                            f"HPO bulk classification failed for {gene.approved_symbol}, "
+                            f"falling back to API: {e}"
+                        )
+            api_fallback_genes.append(gene)
 
-            # Create tasks for this batch
-            tasks = [self.fetch_annotation(gene) for gene in batch]
+        if api_fallback_genes:
+            logger.sync_info(
+                "HPO bulk miss, falling back to API",
+                bulk_hits=len(results),
+                api_fallback=len(api_fallback_genes),
+            )
 
-            # Execute batch
+        # API fallback for misses
+        batch_size = 10
+        for i in range(0, len(api_fallback_genes), batch_size):
+            batch = api_fallback_genes[i : i + batch_size]
+            tasks = [self._fetch_via_api(gene) for gene in batch]
             batch_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            # Process results - only store successful results
             for gene, result in zip(batch, batch_results, strict=False):
                 if isinstance(result, Exception):
                     logger.sync_error(f"Failed to fetch HPO for {gene.approved_symbol}: {result}")
-                    # Skip failed results to match parent return type
                 elif isinstance(result, dict):
                     results[gene.id] = result
-                # Skip None results to match parent return type
 
-            # Small delay between batches to be respectful to the API
-            if i + batch_size < len(genes):
+            if i + batch_size < len(api_fallback_genes):
                 await asyncio.sleep(0.2)
 
         return results
