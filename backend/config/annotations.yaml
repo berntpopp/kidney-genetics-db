@@ -33,9 +33,11 @@ annotations:
     update_frequency: quarterly
     is_active: true
     priority: 7
-    # NCBI eUtils allows 3 req/s without API key (not 10 as sometimes documented)
-    # Using 2.8 to stay just below limit while maximizing throughput
+    # NCBI eUtils: 3 req/s without API key, 10 req/s with NCBI_API_KEY
+    # Rate set conservatively; with API key the effective limit is 9.5 req/s
     requests_per_second: 2.8
+    # Optional: set NCBI_API_KEY env var or ncbi_api_key here
+    # ncbi_api_key: null
     max_retries: 5
     cache_ttl_days: 90
     use_http_cache: true

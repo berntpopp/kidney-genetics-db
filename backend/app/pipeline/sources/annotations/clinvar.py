@@ -2,12 +2,16 @@
 ClinVar Annotation Source
 
 Fetches variant counts and clinical significance data from ClinVar
-using NCBI's eUtils API.
+using NCBI's eUtils API.  Supports an optional NCBI API key for higher
+throughput (10 req/s vs 3 req/s) and uses gene_specific_summary.txt as
+a bulk pre-filter to skip genes with zero ClinVar variants.
 """
 
 import asyncio
+import os
 from collections import defaultdict
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -17,11 +21,12 @@ from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
+from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin
 
 logger = get_logger(__name__)
 
 
-class ClinVarAnnotationSource(BaseAnnotationSource):
+class ClinVarAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     """
     ClinVar variant annotation source with proper rate limiting.
 
@@ -29,6 +34,10 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
     Uses a two-step process:
     1. Search for all variant IDs for a gene using esearch
     2. Fetch variant details in batches using esummary
+
+    Optimization: downloads gene_specific_summary.txt (~3.5 MB) to
+    pre-filter genes with zero ClinVar variants, avoiding unnecessary
+    API calls.  Supports NCBI_API_KEY for 10 req/s throughput.
     """
 
     source_name = "clinvar"
@@ -43,6 +52,13 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
     variant_batch_size = 200
     search_batch_size = 10000
     max_concurrent_variant_fetches = 2
+
+    # Bulk download configuration (gene_specific_summary.txt ~3.5 MB)
+    bulk_file_url = (
+        "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/gene_specific_summary.txt"
+    )
+    bulk_cache_ttl_hours = 168  # 7 days
+    bulk_file_format = "txt"
 
     # Review status confidence levels (loaded from configuration)
     _review_confidence_levels = None
@@ -62,12 +78,100 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
         self.search_batch_size = config.get("search_batch_size", 10000)
         self.max_concurrent_variant_fetches = config.get("max_concurrent_variant_fetches", 2)
 
+        # NCBI API key (env var or config) — 3 req/s without, 10 req/s with
+        self.ncbi_api_key: str | None = os.environ.get("NCBI_API_KEY") or config.get(
+            "ncbi_api_key"
+        )
+        if self.ncbi_api_key:
+            logger.sync_info("NCBI API key configured, using 10 req/s rate limit")
+
         # Update source configuration
         if self.source_record:
             self.source_record.update_frequency = "weekly"
             self.source_record.description = "Clinical variant data from ClinVar database"
             self.source_record.base_url = self.base_url
             self.session.commit()
+
+    # ------------------------------------------------------------------
+    # Bulk pre-filter: gene_specific_summary.txt
+    # ------------------------------------------------------------------
+
+    def parse_bulk_file(self, path: Path) -> dict[str, dict[str, Any]]:
+        """Parse gene_specific_summary.txt into gene-keyed dict.
+
+        Columns (tab-separated, 1-indexed):
+          1  #Symbol
+          2  GeneID
+          3  Total_submissions
+          4  Total_alleles
+          5  Submissions_reporting_this_gene
+          6  Alleles_reported_Pathogenic_Likely_pathogenic
+          7  Gene_MIM_number
+          8  Number_uncertain
+          9  Number_with_conflicts
+        """
+        data: dict[str, dict[str, Any]] = {}
+
+        with open(path, newline="") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+
+                parts = line.split("\t")
+                if len(parts) < 9:
+                    continue
+
+                symbol = parts[0].strip()
+                if not symbol:
+                    continue
+
+                def _safe_int(val: str) -> int:
+                    val = val.strip().lstrip("-")
+                    return int(val) if val.isdigit() else 0
+
+                data[symbol] = {
+                    "gene_id": parts[1].strip(),
+                    "total_submissions": _safe_int(parts[2]),
+                    "total_alleles": _safe_int(parts[3]),
+                    "pathogenic_likely_pathogenic": _safe_int(parts[5]),
+                    "gene_mim_number": parts[6].strip(),
+                    "number_uncertain": _safe_int(parts[7]),
+                    "number_with_conflicts": _safe_int(parts[8]),
+                }
+
+        logger.sync_info(
+            "Parsed ClinVar gene_specific_summary",
+            gene_count=len(data),
+        )
+        return data
+
+    def _gene_has_variants(self, gene_symbol: str) -> bool | None:
+        """Check if a gene has any ClinVar variants using bulk data.
+
+        Returns ``True``/``False`` when bulk data is loaded, or ``None``
+        when bulk data is not available (caller should fall through to API).
+        """
+        if self._bulk_data is None:
+            return None
+        entry = self._bulk_data.get(gene_symbol)
+        if entry is None:
+            return False
+        total: int = entry.get("total_alleles", 0)
+        return total > 0
+
+    # ------------------------------------------------------------------
+    # NCBI API key helper
+    # ------------------------------------------------------------------
+
+    def _ncbi_params(self, extra: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Return base eUtils params, injecting ``api_key`` when set."""
+        params: dict[str, Any] = {}
+        if self.ncbi_api_key:
+            params["api_key"] = self.ncbi_api_key
+        if extra:
+            params.update(extra)
+        return params
 
     def _get_review_confidence_levels(self) -> dict[str, int]:
         """Get review status confidence levels from configuration."""
@@ -111,12 +215,14 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             # Note: Removed single_gene[prop] filter because it excludes variants
             # that are annotated for overlapping genes (e.g., PKD1 and PKD1-AS1).
             # This was causing ~900 PKD1 variants to be missing from our database.
-            params = {
-                "db": "clinvar",
-                "term": f"{gene_symbol}[gene]",
-                "retmax": self.search_batch_size,
-                "retmode": "json",
-            }
+            params = self._ncbi_params(
+                {
+                    "db": "clinvar",
+                    "term": f"{gene_symbol}[gene]",
+                    "retmax": self.search_batch_size,
+                    "retmode": "json",
+                }
+            )
 
             response = await client.get(search_url, params=params)
             data = response.json()
@@ -239,7 +345,9 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
 
         try:
             summary_url = f"{self.base_url}/esummary.fcgi"
-            params = {"db": "clinvar", "id": ",".join(variant_ids), "retmode": "json"}
+            params = self._ncbi_params(
+                {"db": "clinvar", "id": ",".join(variant_ids), "retmode": "json"}
+            )
 
             response = await client.get(summary_url, params=params)
             data = response.json()
@@ -584,6 +692,10 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
         """
         Fetch ClinVar annotation for a gene.
 
+        Uses bulk gene_specific_summary.txt as a pre-filter: genes with
+        zero alleles in the summary file are returned immediately with
+        empty counts, saving two API round-trips per gene.
+
         Args:
             gene: Gene object to fetch annotations for
 
@@ -591,6 +703,30 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             Dictionary with annotation data or None if not found
         """
         try:
+            # Pre-filter: skip genes with no ClinVar variants
+            has_variants = self._gene_has_variants(gene.approved_symbol)
+            if has_variants is False:
+                logger.sync_debug(
+                    "Skipping gene with no ClinVar variants (bulk pre-filter)",
+                    gene_symbol=gene.approved_symbol,
+                )
+                return {
+                    "gene_symbol": gene.approved_symbol,
+                    "total_variants": 0,
+                    "variant_summary": "No variants",
+                    "pathogenic_count": 0,
+                    "likely_pathogenic_count": 0,
+                    "vus_count": 0,
+                    "benign_count": 0,
+                    "likely_benign_count": 0,
+                    "conflicting_count": 0,
+                    "has_pathogenic": False,
+                    "pathogenic_percentage": 0,
+                    "high_confidence_percentage": 0,
+                    "top_traits": [],
+                    "last_updated": datetime.now(timezone.utc).isoformat(),
+                }
+
             # Step 1: Search for all variant IDs
             variant_ids = await self._search_variants(gene.approved_symbol)
 
@@ -727,6 +863,9 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
         """
         Fetch annotations for multiple genes.
 
+        Loads bulk gene_specific_summary.txt once (if not loaded yet)
+        to enable pre-filtering in ``fetch_annotation()``.
+
         Args:
             genes: List of Gene objects
 
@@ -734,6 +873,15 @@ class ClinVarAnnotationSource(BaseAnnotationSource):
             Dictionary mapping gene IDs to annotation data
         """
         results = {}
+
+        # Load bulk data for pre-filtering (no-op if already loaded)
+        try:
+            await self.ensure_bulk_data_loaded()
+        except Exception as exc:
+            logger.sync_warning(
+                "Failed to load ClinVar bulk summary, falling back to API-only",
+                error=str(exc),
+            )
 
         # Process genes concurrently but with a limit
         semaphore = asyncio.Semaphore(3)  # Limit concurrent requests
