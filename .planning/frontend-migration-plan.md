@@ -18,10 +18,10 @@
 | 02 | TypeScript Migration | ~40 | — | DONE |
 | 03 | App Shell, Nav, Auth, Icons | ~75 | — | DONE |
 | 04 | Public Pages + Footer | 7 | ~2,110 | DONE |
-| 05 | Gene Detail & Evidence | 20 | ~3,650 | PLANNED (3 plans) |
-| 06 | Data Tables | 4+infra | ~1,400 | PLANNED (2 plans) |
-| 07 | Admin Panel | 22 | ~8,740 | PLANNED (4 plans) |
-| 08 | Network & Visualizations | 11 | ~6,165 | PLANNED (3 plans) |
+| 05 | Gene Detail & Evidence | 20 | ~3,650 | DONE |
+| 06 | Data Tables | 4+infra | ~1,400 | DONE |
+| 07 | Admin Panel | 22 | ~8,740 | DONE |
+| 08 | Network & Visualizations | 11 | ~6,165 | DONE |
 | 09 | Cleanup & Vuetify Removal | ~8 | — | DONE |
 
 **Critical path:** 03 → 04 → 05 + 06 (parallel) → 07 (needs 06) → 08 → 09
@@ -502,32 +502,32 @@ npm uninstall vuetify @mdi/font
 | `v-app-bar` | Custom header + NavigationMenu | DONE (03-01) |
 | `v-navigation-drawer` | Sheet | DONE (03-01) |
 | `v-footer` | Custom `<footer>` | DONE (04) |
-| `v-container`/`v-row`/`v-col` | Tailwind grid/flex | Phases 04-08 |
+| `v-container`/`v-row`/`v-col` | Tailwind grid/flex | DONE (04-08) |
 | `v-btn` | Button | DONE (03-01) |
-| `v-card` + sub | Card + sub | Phases 04-08 |
-| `v-dialog` | Dialog / AlertDialog | DONE auth (03-03), others 05-08 |
-| `v-text-field` | Input + Label | DONE auth (03-03), others 06-08 |
-| `v-select` | Select | Phase 06 |
-| `v-autocomplete` | Command / Combobox | Phase 07 |
-| `v-chip` | Badge | Phases 04-08 |
-| `v-tabs` | Tabs | DONE (04 Dashboard), 05 (GeneDetail) |
+| `v-card` + sub | Card + sub | DONE (04-08) |
+| `v-dialog` | Dialog / AlertDialog | DONE (03-08) |
+| `v-text-field` | Input + Label | DONE (03-08) |
+| `v-select` | Select | DONE (06) |
+| `v-autocomplete` | Command / Combobox | DONE (07) |
+| `v-chip` | Badge | DONE (04-08) |
+| `v-tabs` | Tabs | DONE (04-05) |
 | `v-alert` | Alert | DONE (04) |
-| `v-snackbar` | vue-sonner toast | Phase 03-04 |
-| `v-form` | Form (vee-validate+Zod) | DONE auth (03-03), others 07 |
-| `v-expansion-panel` | Accordion | Phase 05 |
-| `v-tooltip` | Tooltip | Phases 05-08 |
-| `v-menu` | DropdownMenu | DONE (03-02), others 04-05 |
-| `v-list`/`v-list-item` | Tailwind styled list | Phases 04-07 |
-| `v-pagination` | Pagination | Phase 06 |
-| `v-progress-linear` | Progress | Phase 07 |
-| `v-progress-circular` | Tailwind spinner | Phases 04-07 |
-| `v-divider` | Separator | Phases 04-08 |
-| `v-switch` | Switch | Phase 07 |
-| `v-data-table` | DataTable (TanStack) | Phase 06-07 |
-| `v-icon` (mdi-*) | Lucide icons | Phase 03-05 |
+| `v-snackbar` | vue-sonner toast | DONE (03-04) |
+| `v-form` | Form (vee-validate+Zod) | DONE (03, 07) |
+| `v-expansion-panel` | Accordion | DONE (05) |
+| `v-tooltip` | Tooltip | DONE (05-08) |
+| `v-menu` | DropdownMenu | DONE (03-05) |
+| `v-list`/`v-list-item` | Tailwind styled list | DONE (04-07) |
+| `v-pagination` | Pagination | DONE (06) |
+| `v-progress-linear` | Progress | DONE (07) |
+| `v-progress-circular` | Tailwind spinner | DONE (04-07) |
+| `v-divider` | Separator | DONE (04-08) |
+| `v-switch` | Switch | DONE (07) |
+| `v-data-table` | DataTable (TanStack) | DONE (06-07) |
+| `v-icon` (mdi-*) | Lucide icons | DONE (03-05) |
 | `v-breadcrumbs` | Breadcrumb | DONE (03-02) |
-| `v-avatar` | Avatar | DONE (03-02), others 04-05 |
-| `v-spacer` | Tailwind `flex-1` / `grow` | Phases 04-08 |
+| `v-avatar` | Avatar | DONE (03-05) |
+| `v-spacer` | Tailwind `flex-1` / `grow` | DONE (04-08) |
 
 ---
 
