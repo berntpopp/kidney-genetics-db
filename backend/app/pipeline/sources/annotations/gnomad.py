@@ -1,7 +1,12 @@
 """
 gnomAD annotation source for gene constraint scores.
+
+Supports bulk TSV download from gnomAD v4.1 constraint metrics for fast
+batch processing, with GraphQL API fallback for genes not in the bulk file.
 """
 
+import csv
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -10,85 +15,138 @@ from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
+from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin
 
 logger = get_logger(__name__)
 
+# TSV column -> our annotation field name
+# Maps gnomAD v4.1 constraint_metrics.tsv columns to the field names
+# used by _extract_constraint_data() (the GraphQL API path), ensuring
+# data parity between bulk and API approaches.
+_TSV_FIELD_MAP: dict[str, str] = {
+    "lof.pLI": "pli",
+    "lof.z_score": "lof_z",
+    "mis.z_score": "mis_z",
+    "syn.z_score": "syn_z",
+    "lof.oe": "oe_lof",
+    "lof.oe_ci.lower": "oe_lof_lower",
+    "lof.oe_ci.upper": "oe_lof_upper",
+    "mis.oe": "oe_mis",
+    "mis.oe_ci.lower": "oe_mis_lower",
+    "mis.oe_ci.upper": "oe_mis_upper",
+    "syn.oe": "oe_syn",
+    "syn.oe_ci.lower": "oe_syn_lower",
+    "syn.oe_ci.upper": "oe_syn_upper",
+    "lof.obs": "obs_lof",
+    "lof.exp": "exp_lof",
+    "mis.obs": "obs_mis",
+    "mis.exp": "exp_mis",
+    "syn.obs": "obs_syn",
+    "syn.exp": "exp_syn",
+}
 
-class GnomADAnnotationSource(BaseAnnotationSource):
+
+class GnomADAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     """
-    gnomAD (Genome Aggregation Database) annotation source with proper rate limiting.
+    gnomAD (Genome Aggregation Database) annotation source.
 
-    Fetches gene constraint scores from gnomAD GraphQL API including:
-    - pLI (probability of loss-of-function intolerance)
-    - oe_lof (observed/expected ratio for loss-of-function variants)
-    - lof_z (Z-score for loss-of-function variants)
-    - mis_z (Z-score for missense variants)
-    - syn_z (Z-score for synonymous variants)
-    - And other constraint metrics
+    Uses bulk TSV download of constraint metrics for fast batch processing.
+    Falls back to GraphQL API for genes not found in the bulk file.
     """
 
     source_name = "gnomad"
     display_name = "gnomAD"
-    version = "v4.0.0"
+    version = "v4.1.0"
 
-    # API configuration
+    # API configuration (fallback)
     graphql_url = "https://gnomad.broadinstitute.org/api"
     headers = {"Content-Type": "application/json", "User-Agent": "KidneyGeneticsDB/1.0"}
 
     # Cache configuration
-    cache_ttl_days = 90  # gnomAD data updates less frequently
+    cache_ttl_days = 90
 
     # Reference genome
-    reference_genome = "GRCh38"  # Default to GRCh38 for v4
+    reference_genome = "GRCh38"
+
+    # Bulk download configuration
+    bulk_file_url = (
+        "https://storage.googleapis.com/gcp-public-data--gnomad"
+        "/release/4.1/constraint/gnomad.v4.1.constraint_metrics.tsv"
+    )
+    bulk_cache_ttl_hours = 168  # 7 days
+    bulk_file_format = "tsv"
+
+    def parse_bulk_file(self, path: Path) -> dict[str, dict[str, Any]]:
+        """Parse gnomAD constraint metrics TSV into gene-keyed dict.
+
+        Only canonical transcripts are included. Field names match the
+        output of ``_extract_constraint_data()`` for data parity.
+        """
+        data: dict[str, dict[str, Any]] = {}
+
+        with open(path, newline="") as f:
+            reader = csv.DictReader(f, delimiter="\t")
+            for row in reader:
+                if row.get("canonical", "").lower() != "true":
+                    continue
+
+                gene_symbol = row.get("gene", "").strip()
+                if not gene_symbol:
+                    continue
+
+                annotation: dict[str, Any] = {
+                    "source_version": "gnomad_v4",
+                    "gene_symbol": gene_symbol,
+                    "canonical_transcript": row.get("transcript", ""),
+                }
+
+                for tsv_col, our_field in _TSV_FIELD_MAP.items():
+                    val = row.get(tsv_col, "")
+                    if val and val != "NA":
+                        try:
+                            annotation[our_field] = float(val)
+                        except ValueError:
+                            annotation[our_field] = val
+
+                # Parse flags from string representation
+                flags_str = row.get("constraint_flags", "[]")
+                if flags_str and flags_str != "[]" and flags_str != "NA":
+                    annotation["flags"] = [
+                        f.strip().strip("'\"")
+                        for f in flags_str.strip("[]").split(",")
+                        if f.strip()
+                    ]
+                else:
+                    annotation["flags"] = []
+
+                # Remove None values
+                annotation = {k: v for k, v in annotation.items() if v is not None}
+
+                if any(annotation.get(f) is not None for f in ("pli", "lof_z", "oe_lof")):
+                    data[gene_symbol] = annotation
+
+        return data
 
     async def fetch_annotation(self, gene: Gene) -> dict[str, Any] | None:
+        """Fetch gnomAD constraint scores for a single gene.
+
+        Tries bulk data first, then falls back to GraphQL API.
         """
-        Fetch gnomAD constraint scores for a single gene.
+        # Try bulk lookup first
+        if self._bulk_data is not None and gene.approved_symbol:
+            bulk_result = self.lookup_gene(gene.approved_symbol)
+            if bulk_result is not None:
+                return bulk_result
 
-        Args:
-            gene: Gene object to fetch annotations for
+        # Fall back to GraphQL API
+        return await self._fetch_via_api(gene)
 
-        Returns:
-            Dictionary of annotation data or None if not found
-        """
-        # Get Ensembl ID from HGNC annotations if available
-        ensembl_id = None
-        if hasattr(gene, "annotations") and gene.annotations:
-            for ann in gene.annotations:
-                if ann.source == "hgnc" and ann.annotations:
-                    ensembl_id = ann.annotations.get("ensembl_gene_id")
-                    break
-
-        await logger.debug(
-            "Starting gnomAD annotation fetch",
-            gene_id=gene.id,
-            gene_symbol=gene.approved_symbol,
-            hgnc_id=gene.hgnc_id,
-            ensembl_id=ensembl_id,
-        )
-
-        # Try to fetch by gene symbol first
+    async def _fetch_via_api(self, gene: Gene) -> dict[str, Any] | None:
+        """Fetch gnomAD data via GraphQL API (original implementation)."""
         constraint_data = None
 
         if gene.approved_symbol:
-            await logger.debug(
-                "Attempting to fetch gnomAD data by symbol", gene_symbol=gene.approved_symbol
-            )
             constraint_data = await self._fetch_by_symbol(gene.approved_symbol)
-            if constraint_data:
-                await logger.info(
-                    "Successfully fetched gnomAD data by symbol",
-                    gene_symbol=gene.approved_symbol,
-                    has_constraint=bool(constraint_data.get("constraint_scores")),
-                )
-
-        # Fall back to Ensembl gene ID if available from HGNC annotations
-        # if not constraint_data and ensembl_id:
-        #     await logger.debug(
-        #         "Attempting to fetch gnomAD data by Ensembl ID",
-        #         ensembl_id=ensembl_id
-        #     )
-        #     constraint_data = await self._fetch_by_ensembl_id(ensembl_id)
 
         if not constraint_data:
             await logger.warning(
@@ -99,25 +157,10 @@ class GnomADAnnotationSource(BaseAnnotationSource):
             )
             return None
 
-        # Check if this is a "no constraint available" annotation
-        if constraint_data.get("constraint_not_available"):
-            await logger.info(
-                "Gene found in gnomAD but constraint scores not available",
-                gene_id=gene.id,
-                gene_symbol=gene.approved_symbol,
-                hgnc_id=gene.hgnc_id,
-            )
-
         return constraint_data
 
     async def _fetch_by_symbol(self, symbol: str) -> dict | None:
-        """Fetch gnomAD data by gene symbol."""
-        await logger.debug(
-            "Preparing gnomAD GraphQL query",
-            gene_symbol=symbol,
-            reference_genome=self.reference_genome,
-        )
-
+        """Fetch gnomAD data by gene symbol via GraphQL."""
         query = """
         query gene($gene_symbol: String!, $reference_genome: ReferenceGenomeId!) {
             gene(gene_symbol: $gene_symbol, reference_genome: $reference_genome) {
@@ -165,25 +208,10 @@ class GnomADAnnotationSource(BaseAnnotationSource):
         """
 
         variables = {"gene_symbol": symbol, "reference_genome": self.reference_genome}
-
         result = await self._execute_query(query, variables)
 
         if result and result.get("gene"):
-            gene_data = result["gene"]
-            await logger.debug(
-                "gnomAD API returned gene data",
-                gene_symbol=symbol,
-                gene_id=gene_data.get("gene_id"),
-                has_gnomad_constraint=bool(gene_data.get("gnomad_constraint")),
-                has_exac_constraint=bool(gene_data.get("exac_constraint")),
-            )
-            return self._extract_constraint_data(gene_data)
-        else:
-            await logger.debug(
-                "gnomAD API returned no gene data",
-                gene_symbol=symbol,
-                result_keys=list(result.keys()) if result else None,
-            )
+            return self._extract_constraint_data(result["gene"])
 
         return None
 
@@ -235,9 +263,7 @@ class GnomADAnnotationSource(BaseAnnotationSource):
         }
         """
 
-        # Clean Ensembl ID (remove version if present)
         clean_id = ensembl_id.split(".")[0]
-
         variables = {"gene_id": clean_id, "reference_genome": self.reference_genome}
 
         result = await self._execute_query(query, variables)
@@ -249,20 +275,8 @@ class GnomADAnnotationSource(BaseAnnotationSource):
 
     @retry_with_backoff(config=RetryConfig(max_retries=5))
     async def _execute_query(self, query: str, variables: dict) -> dict | None:
-        """
-        Execute a GraphQL query with retry logic and rate limiting.
-
-        Args:
-            query: GraphQL query string
-            variables: Query variables
-
-        Returns:
-            Query result data or None if error
-        """
-        # Apply rate limiting
+        """Execute a GraphQL query with retry logic and rate limiting."""
         await self.apply_rate_limit()
-
-        # Get configured HTTP client
         client = await self.get_http_client()
 
         try:
@@ -274,17 +288,8 @@ class GnomADAnnotationSource(BaseAnnotationSource):
 
             data = response.json()
 
-            await logger.debug(
-                "gnomAD API response received",
-                gene_symbol=variables.get("gene_symbol"),
-                has_data=bool(data.get("data")),
-                has_errors=bool(data.get("errors")),
-                response_keys=list(data.keys()),
-            )
-
-            # Check for GraphQL errors
             if data.get("errors"):
-                logger.sync_error(  # Keep as error
+                logger.sync_error(
                     "GraphQL errors in gnomAD response",
                     errors=data["errors"],
                     gene_symbol=variables.get("gene_symbol"),
@@ -296,7 +301,6 @@ class GnomADAnnotationSource(BaseAnnotationSource):
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
-                # Parse Retry-After header if present
                 retry_after = e.response.headers.get("retry-after")
                 logger.sync_error(
                     "gnomAD rate limit hit",
@@ -304,7 +308,7 @@ class GnomADAnnotationSource(BaseAnnotationSource):
                     retry_after=retry_after,
                     gene_symbol=variables.get("gene_symbol"),
                 )
-                raise  # Let retry decorator handle it
+                raise
             else:
                 logger.sync_error(
                     "gnomAD API error",
@@ -321,41 +325,21 @@ class GnomADAnnotationSource(BaseAnnotationSource):
             raise
 
     def _extract_constraint_data(self, gene_data: dict) -> dict[str, Any]:
-        """
-        Extract constraint scores from gnomAD API response.
-
-        Args:
-            gene_data: Gene data from GraphQL response
-
-        Returns:
-            Structured annotation dictionary
-        """
+        """Extract constraint scores from gnomAD GraphQL API response."""
         constraint = gene_data.get("gnomad_constraint", {})
         exac_constraint = gene_data.get("exac_constraint", {})
 
-        logger.sync_debug(
-            "Extracting constraint data",
-            gene_symbol=gene_data.get("symbol"),
-            has_gnomad_constraint=bool(constraint),
-            has_exac_constraint=bool(exac_constraint),
-            gnomad_pLI=constraint.get("pLI") if constraint else None,
-            exac_pLI=exac_constraint.get("pLI") if exac_constraint else None,
-        )
-
         if not constraint:
-            # If no gnomAD v4 constraint, try ExAC constraint
             if exac_constraint:
                 return {
                     "source_version": "exac",
                     "gene_id": gene_data.get("gene_id"),
                     "gene_symbol": gene_data.get("symbol"),
                     "canonical_transcript": gene_data.get("canonical_transcript_id"),
-                    # ExAC constraint scores
                     "pli": exac_constraint.get("pLI"),
                     "lof_z": exac_constraint.get("lof_z"),
                     "mis_z": exac_constraint.get("mis_z"),
                     "syn_z": exac_constraint.get("syn_z"),
-                    # Observed/Expected counts
                     "obs_lof": exac_constraint.get("obs_lof"),
                     "exp_lof": exac_constraint.get("exp_lof"),
                     "obs_mis": exac_constraint.get("obs_mis"),
@@ -364,8 +348,6 @@ class GnomADAnnotationSource(BaseAnnotationSource):
                     "exp_syn": exac_constraint.get("exp_syn"),
                     "flags": [],
                 }
-            # No constraint data available in gnomAD or ExAC
-            # Return a special marker annotation to indicate this gene was checked but has no data
             return {
                 "source_version": "gnomad_v4",
                 "gene_id": gene_data.get("gene_id"),
@@ -374,7 +356,6 @@ class GnomADAnnotationSource(BaseAnnotationSource):
                 "canonical_transcript": gene_data.get("canonical_transcript_id"),
                 "constraint_not_available": True,
                 "message": "Constraint not available for this gene",
-                # Include empty constraint fields to maintain consistency
                 "pli": None,
                 "lof_z": None,
                 "mis_z": None,
@@ -390,12 +371,10 @@ class GnomADAnnotationSource(BaseAnnotationSource):
             "gene_symbol": gene_data.get("symbol"),
             "gene_name": gene_data.get("name"),
             "canonical_transcript": gene_data.get("canonical_transcript_id"),
-            # Core constraint scores
             "pli": constraint.get("pLI"),
             "lof_z": constraint.get("lof_z"),
             "mis_z": constraint.get("mis_z"),
             "syn_z": constraint.get("syn_z"),
-            # Observed/Expected ratios
             "oe_lof": constraint.get("oe_lof"),
             "oe_lof_lower": constraint.get("oe_lof_lower"),
             "oe_lof_upper": constraint.get("oe_lof_upper"),
@@ -405,76 +384,71 @@ class GnomADAnnotationSource(BaseAnnotationSource):
             "oe_syn": constraint.get("oe_syn"),
             "oe_syn_lower": constraint.get("oe_syn_lower"),
             "oe_syn_upper": constraint.get("oe_syn_upper"),
-            # Raw counts
             "obs_lof": constraint.get("obs_lof"),
             "exp_lof": constraint.get("exp_lof"),
             "obs_mis": constraint.get("obs_mis"),
             "exp_mis": constraint.get("exp_mis"),
             "obs_syn": constraint.get("obs_syn"),
             "exp_syn": constraint.get("exp_syn"),
-            # Flags for data quality
             "flags": constraint.get("flags", []),
         }
 
-        # Remove None values to save space
         return {k: v for k, v in annotations.items() if v is not None}
 
     async def fetch_batch(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
+        """Fetch annotations for multiple genes.
+
+        Loads bulk data once, then does fast local lookups. Falls back to
+        GraphQL API for genes not found in the bulk file.
         """
-        Fetch annotations for multiple genes with proper rate limiting.
+        # Load bulk data if not already loaded
+        try:
+            await self.ensure_bulk_data_loaded()
+        except Exception as e:
+            logger.sync_warning(
+                f"Failed to load gnomAD bulk data, falling back to API: {e}",
+            )
 
-        Note: gnomAD doesn't have a batch endpoint, so we fetch individually
-        with rate limiting to avoid 429 errors.
+        results: dict[int, dict[str, Any]] = {}
+        api_fallback_genes: list[Gene] = []
 
-        Args:
-            genes: List of Gene objects
+        # Fast bulk lookups
+        for gene in genes:
+            if self._bulk_data is not None and gene.approved_symbol:
+                bulk_result = self.lookup_gene(gene.approved_symbol)
+                if bulk_result is not None:
+                    results[gene.id] = bulk_result
+                    continue
+            api_fallback_genes.append(gene)
 
-        Returns:
-            Dictionary mapping gene_id to annotation data
-        """
-        results = {}
-        failed_genes = []
+        if api_fallback_genes:
+            logger.sync_info(
+                "gnomAD bulk miss, falling back to API",
+                bulk_hits=len(results),
+                api_fallback=len(api_fallback_genes),
+            )
 
-        # Process sequentially with rate limiting instead of concurrent batches
-        for i, gene in enumerate(genes):
+        # API fallback for misses
+        for i, gene in enumerate(api_fallback_genes):
             try:
-                # Show progress
-                if i % 10 == 0:
+                if i % 10 == 0 and api_fallback_genes:
                     logger.sync_info(
-                        "Processing gnomAD annotations",
-                        progress=f"{i}/{len(genes)}",
-                        source=self.source_name,
+                        "Processing gnomAD API fallback",
+                        progress=f"{i}/{len(api_fallback_genes)}",
                     )
-
-                # Fetch with retry logic
-                annotation = await self.fetch_annotation(gene)
-
+                annotation = await self._fetch_via_api(gene)
                 if annotation and self._is_valid_annotation(annotation):
                     results[gene.id] = annotation
-                else:
-                    failed_genes.append(gene.approved_symbol)
-
             except Exception as e:
                 logger.sync_error(
                     f"Failed to fetch gnomAD annotation for {gene.approved_symbol}",
                     error_detail=str(e),
                 )
-                failed_genes.append(gene.approved_symbol)
-
-                # If circuit breaker is open, stop processing
                 if self.circuit_breaker and self.circuit_breaker.state == "open":
                     logger.sync_error(
-                        "Circuit breaker open, stopping batch processing",
-                        failed_count=len(failed_genes),
+                        "Circuit breaker open, stopping API fallback",
                     )
                     break
-
-        if failed_genes:
-            logger.sync_warning(
-                "Failed to fetch gnomAD annotations",
-                failed_genes=failed_genes[:10],  # Log first 10
-                total_failed=len(failed_genes),
-            )
 
         return results
 
@@ -483,27 +457,14 @@ class GnomADAnnotationSource(BaseAnnotationSource):
         if not super()._is_valid_annotation(annotation_data):
             return False
 
-        # Check if this is a "no constraint data available" annotation
         if annotation_data.get("constraint_not_available"):
-            # This is a valid annotation indicating no constraint data exists
             return True
 
-        # gnomAD specific: must have at least one constraint score
         constraint_fields = ["pli", "lof_z", "oe_lof", "mis_z", "syn_z"]
-        has_constraint = any(annotation_data.get(field) is not None for field in constraint_fields)
-
-        return has_constraint
+        return any(annotation_data.get(field) is not None for field in constraint_fields)
 
     async def get_transcript_constraint(self, transcript_id: str) -> dict | None:
-        """
-        Get constraint scores for a specific transcript.
-
-        Args:
-            transcript_id: Ensembl transcript ID
-
-        Returns:
-            Transcript constraint data
-        """
+        """Get constraint scores for a specific transcript."""
         query = """
         query transcript($transcript_id: String!, $reference_genome: ReferenceGenomeId!) {
             transcript(transcript_id: $transcript_id, reference_genome: $reference_genome) {
@@ -537,7 +498,7 @@ class GnomADAnnotationSource(BaseAnnotationSource):
         """
 
         variables = {
-            "transcript_id": transcript_id.split(".")[0],  # Remove version
+            "transcript_id": transcript_id.split(".")[0],
             "reference_genome": self.reference_genome,
         }
 
