@@ -163,7 +163,7 @@ Database (PostgreSQL)       ← Hybrid relational + JSONB + materialized views
 - **`api/`** - API client modules (use these, not raw fetch/axios)
 - **`composables/`** - Reusable Vue composition functions
 - **`router/`** - Vue Router with route guards
-- **`plugins/`** - Vuetify setup
+- **`plugins/`** - App plugins (Vuetify removed)
 
 ### Database Design
 - **Hybrid architecture**: Relational columns for fast queries + JSONB for flexible detailed data

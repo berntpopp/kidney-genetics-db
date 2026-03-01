@@ -22,7 +22,7 @@
 | 06 | Data Tables | 4+infra | ~1,400 | PLANNED (2 plans) |
 | 07 | Admin Panel | 22 | ~8,740 | PLANNED (4 plans) |
 | 08 | Network & Visualizations | 11 | ~6,165 | PLANNED (3 plans) |
-| 09 | Cleanup & Vuetify Removal | ~8 | — | PLANNED (1 plan) |
+| 09 | Cleanup & Vuetify Removal | ~8 | — | DONE |
 
 **Critical path:** 03 → 04 → 05 + 06 (parallel) → 07 (needs 06) → 08 → 09
 
@@ -589,17 +589,17 @@ npm uninstall vuetify @mdi/font
 
 ---
 
-## Files Importing `from 'vuetify'` (must all be removed by Phase 09)
+## Files Importing `from 'vuetify'` — ALL REMOVED (Phase 09 complete)
 
-1. `src/plugins/vuetify.ts` — DELETE in Phase 09
-2. `src/composables/useAppTheme.ts` — MODIFY in Phase 09
+1. ~~`src/plugins/vuetify.ts`~~ — DELETED in Phase 09
+2. ~~`src/composables/useAppTheme.ts`~~ — DONE in Phase 09 (Vuetify sync removed)
 3. ~~`src/views/Home.vue`~~ — DONE in Phase 04 (useDisplay removed)
-4. `src/components/branding/KGDBLogo.vue` — MODIFY in Phase 09
-5. `src/components/KidneyGeneticsLogo.vue` — MODIFY in Phase 09
-6. `src/components/visualizations/D3BarChart.vue` — MODIFY in Phase 08
-7. `src/components/visualizations/D3DonutChart.vue` — MODIFY in Phase 08
-8. `src/components/visualizations/GeneStructureVisualization.vue` — MODIFY in Phase 08
-9. `src/components/visualizations/ProteinDomainVisualization.vue` — MODIFY in Phase 08
+4. ~~`src/components/branding/KGDBLogo.vue`~~ — DONE in Phase 09 (useAppTheme)
+5. ~~`src/components/KidneyGeneticsLogo.vue`~~ — DONE in Phase 09 (useAppTheme)
+6. ~~`src/components/visualizations/D3BarChart.vue`~~ — DONE in Phase 08 (useAppTheme)
+7. ~~`src/components/visualizations/D3DonutChart.vue`~~ — DONE in Phase 08 (useAppTheme)
+8. ~~`src/components/visualizations/GeneStructureVisualization.vue`~~ — DONE in Phase 08 (useAppTheme)
+9. ~~`src/components/visualizations/ProteinDomainVisualization.vue`~~ — DONE in Phase 08 (useAppTheme)
 
 ---
 

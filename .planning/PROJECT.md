@@ -50,10 +50,10 @@ Researchers and clinicians can quickly find, explore, and evaluate kidney diseas
 - [ ] vee-validate + Zod replacing Vuetify forms
 - [ ] Lucide icons replacing MDI icons
 - [ ] vue-sonner replacing v-snackbar
-- [ ] VueUse useColorMode replacing Vuetify useTheme
+- [x] VueUse useColorMode replacing Vuetify useTheme
 - [ ] Vitest component tests for migrated components
-- [ ] Complete Vuetify removal (zero references)
-- [ ] Bundle size reduction
+- [x] Complete Vuetify removal (zero references)
+- [x] Bundle size reduction
 
 ### Out of Scope
 

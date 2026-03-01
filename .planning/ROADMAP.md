@@ -22,7 +22,7 @@ Migrate the entire frontend from JavaScript + Vuetify 3 to TypeScript + Tailwind
 - [ ] **Phase 6: Data Tables** — Migrate GeneTable and all admin data tables to TanStack Table with server-side pagination
 - [ ] **Phase 7: Admin Panel** — Migrate all 11 admin views, forms, and the sidebar navigation
 - [ ] **Phase 8: Network Analysis and Visualizations** — Migrate visualization wrappers while preserving D3/Cytoscape rendering internals
-- [ ] **Phase 9: Cleanup and Vuetify Removal** — Remove all Vuetify dependencies, clean coexistence hacks, verify zero references
+- [x] **Phase 9: Cleanup and Vuetify Removal** — Remove all Vuetify dependencies, clean coexistence hacks, verify zero references
 
 ## Phase Details
 
@@ -260,11 +260,10 @@ Plans:
 **Estimated complexity:** LOW
 **Research needed:** No — mechanical cleanup phase; all patterns are established. Final grep audits are documented in research (PITFALLS.md).
 
-**Plans:** TBD
+**Plans:** 1 plan (09-01 covered all cleanup tasks including CSS)
 
 Plans:
-- [ ] 09-01: Remove Vuetify package, plugin, and all remaining references (CLNP-01, CLNP-02, CLNP-03, CLNP-04, CLNP-05)
-- [ ] 09-02: Clean CSS coexistence hacks and verify build + bundle (CLNP-06, CLNP-07, CLNP-08, TEST-06)
+- [x] 09-01-PLAN.md — Remove Vuetify package, plugin, CSS imports, and all remaining references; verify build + bundle (CLNP-01 through CLNP-08, TEST-06)
 
 ---
 
@@ -283,7 +282,7 @@ Plans:
 | 6. Data Tables | Migrate GeneTable + admin tables to TanStack Table | TBD | Not started | - |
 | 7. Admin Panel | Migrate 11 admin views + 13 form dialogs | TBD | Not started | - |
 | 8. Network + Visualizations | Migrate network and D3 wrappers | TBD | Not started | - |
-| 9. Cleanup + Vuetify Removal | Remove all Vuetify; verify zero references | TBD | Not started | - |
+| 9. Cleanup + Vuetify Removal | Remove all Vuetify; verify zero references | 1 plan | ✓ Complete | 2026-03-01 |
 
 ---
 
