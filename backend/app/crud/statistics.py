@@ -59,9 +59,11 @@ class CRUDStatistics:
             join_clause, filter_clause = get_gene_evidence_filter_join(hide_zero_scores)
             where_clauses = [filter_clause]
 
-            # Add tier filtering if specified (using direct string interpolation for consistency with source_distributions)
+            # Add tier filtering if specified
             if filter_tiers and len(filter_tiers) > 0:
-                # Sanitize and quote tier values for SQL IN clause
+                # Ensure gene_scores JOIN exists (needed for gs.evidence_tier)
+                if not join_clause:
+                    join_clause = "INNER JOIN gene_scores gs ON gs.gene_id = gene_evidence.gene_id"
                 tier_list_str = ", ".join([f"'{tier}'" for tier in filter_tiers])
                 where_clauses.append(f"gs.evidence_tier IN ({tier_list_str})")
                 logger.sync_debug("Added tier filtering", tier_list=tier_list_str)
@@ -233,7 +235,8 @@ class CRUDStatistics:
 
             # Add tier filtering if specified
             if filter_tiers:
-                # Use parameterized query for security
+                if not join_clause:
+                    join_clause = "INNER JOIN gene_scores gs ON gs.gene_id = gene_evidence.gene_id"
                 tier_list_str = ", ".join([f"'{tier}'" for tier in filter_tiers])
                 where_clauses.append(f"gs.evidence_tier IN ({tier_list_str})")
 
