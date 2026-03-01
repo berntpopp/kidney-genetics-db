@@ -18,25 +18,8 @@
         </Tooltip>
       </TooltipProvider>
       <div class="flex-1" />
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <div class="flex items-center space-x-2 mr-2">
-              <Checkbox
-                id="show-insufficient-src"
-                :checked="showInsufficientEvidence"
-                @update:checked="showInsufficientEvidence = $event"
-              />
-              <Label for="show-insufficient-src" class="text-sm">Show insufficient evidence</Label>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <span>Include genes with percentage_score = 0 (no meaningful evidence)</span>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
       <Select v-if="data && Object.keys(data).length > 0" v-model="selectedSource">
-        <SelectTrigger class="w-[200px] h-8 mr-2">
+        <SelectTrigger class="w-[200px] h-8">
           <SelectValue placeholder="Select source" />
         </SelectTrigger>
         <SelectContent>
@@ -45,9 +28,6 @@
           </SelectItem>
         </SelectContent>
       </Select>
-      <Button variant="ghost" size="icon-sm" :disabled="loading" @click="refreshData">
-        <RefreshCw class="size-4" :class="{ 'animate-spin': loading }" />
-      </Button>
     </CardHeader>
 
     <CardContent>
@@ -109,15 +89,13 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { ChartBar, CircleHelp, RefreshCw } from 'lucide-vue-next'
+import { ChartBar, CircleHelp } from 'lucide-vue-next'
 import { statisticsApi } from '@/api/statistics'
 import D3DonutChart from './D3DonutChart.vue'
 import D3BarChart from './D3BarChart.vue'
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectTrigger,
@@ -125,7 +103,6 @@ import {
   SelectContent,
   SelectItem
 } from '@/components/ui/select'
-import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
 // Props
@@ -133,6 +110,10 @@ const props = defineProps({
   selectedTiers: {
     type: Array,
     default: () => []
+  },
+  showInsufficientEvidence: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -141,7 +122,6 @@ const loading = ref(false)
 const error = ref(null)
 const data = ref(null)
 const selectedSource = ref(null)
-const showInsufficientEvidence = ref(false) // Default: hide genes with score = 0
 
 // Computed properties
 const sourceOptions = computed(() => {
@@ -205,7 +185,7 @@ const loadData = async () => {
   try {
     const response = await statisticsApi.getSourceDistributions(
       props.selectedTiers,
-      !showInsufficientEvidence.value // Invert: checkbox OFF = hide (true), checkbox ON = show (false)
+      !props.showInsufficientEvidence
     )
     data.value = response.data
 
@@ -223,7 +203,7 @@ const loadData = async () => {
         availableSources: availableSources,
         metadata: data.value[selectedSource.value]?.metadata,
         distributionCount: data.value[selectedSource.value]?.distribution?.length,
-        hideZeroScores: !showInsufficientEvidence.value
+        hideZeroScores: !props.showInsufficientEvidence
       })
     }
   } catch (err) {
@@ -232,10 +212,6 @@ const loadData = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const refreshData = () => {
-  loadData()
 }
 
 const formatMetadataLabel = key => {
@@ -284,10 +260,10 @@ watch(
 
 // Watch for insufficient evidence toggle changes and reload data
 watch(
-  () => showInsufficientEvidence.value,
+  () => props.showInsufficientEvidence,
   async () => {
     window.logService.info('Insufficient evidence toggle changed', {
-      showInsufficientEvidence: showInsufficientEvidence.value
+      showInsufficientEvidence: props.showInsufficientEvidence
     })
     await loadData()
   }

@@ -18,46 +18,9 @@
           </Tooltip>
         </TooltipProvider>
       </div>
-      <div class="flex items-center gap-2">
-        <TooltipProvider v-if="data">
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Badge variant="outline">
-                {{ data.total_unique_genes.toLocaleString() }} genes
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" class="max-w-[300px]">
-              <div class="p-2">
-                <strong>Genes with evidence:</strong>
-                {{ data.total_unique_genes.toLocaleString() }} genes with evidence score > 0
-                <br />These genes have kidney disease associations from at least one data source
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <div class="flex items-center gap-2">
-                <Checkbox
-                  id="show-insufficient"
-                  :checked="showInsufficientEvidence"
-                  @update:checked="showInsufficientEvidence = $event"
-                />
-                <Label for="show-insufficient" class="text-sm cursor-pointer">
-                  Show insufficient evidence
-                </Label>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <span>Include genes with percentage_score = 0 (no meaningful evidence)</span>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <Button variant="ghost" size="icon-sm" :disabled="loading" @click="refreshData">
-          <RefreshCw class="size-4" :class="{ 'animate-spin': loading }" />
-        </Button>
-      </div>
+      <Badge v-if="data" variant="outline">
+        {{ data.total_unique_genes.toLocaleString() }}/{{ totalGenes.toLocaleString() }} genes
+      </Badge>
     </CardHeader>
 
     <CardContent>
@@ -224,12 +187,9 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { ChartScatter, CircleHelp, Filter, RefreshCw, X, Plus, CheckSquare } from 'lucide-vue-next'
+import { ChartScatter, CircleHelp, Filter, X, Plus, CheckSquare } from 'lucide-vue-next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
@@ -247,6 +207,10 @@ const props = defineProps({
   selectedTiers: {
     type: Array,
     default: () => []
+  },
+  showInsufficientEvidence: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -258,7 +222,7 @@ const selectedIntersection = ref(null)
 const upsetContainer = ref(null)
 const selectedSources = ref([])
 const availableSources = ref([])
-const showInsufficientEvidence = ref(false) // Default: hide genes with score = 0
+const totalGenes = ref(0)
 let resizeObserver = null
 
 // Computed properties
@@ -305,7 +269,7 @@ const loadAvailableSources = async () => {
     const response = await statisticsApi.getSourceOverlaps(
       null,
       props.selectedTiers,
-      !showInsufficientEvidence.value // Invert: checkbox OFF = hide (true), checkbox ON = show (false)
+      !props.showInsufficientEvidence
     )
     if (response.data?.sets) {
       // Sort by cardinality descending (largest first) to match UpSet.js default
@@ -338,13 +302,13 @@ const loadData = async () => {
     window.logService.info('Calling API with sources', {
       sources: selectedSources.value,
       selectedTiers: props.selectedTiers,
-      hideZeroScores: !showInsufficientEvidence.value
+      hideZeroScores: !props.showInsufficientEvidence
     })
 
     const response = await statisticsApi.getSourceOverlaps(
       selectedSources.value,
       props.selectedTiers,
-      !showInsufficientEvidence.value // Invert: checkbox OFF = hide (true), checkbox ON = show (false)
+      !props.showInsufficientEvidence
     )
     window.logService.info('API response received', { data: response.data })
     data.value = response.data
@@ -364,10 +328,6 @@ const loadData = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const refreshData = () => {
-  loadData()
 }
 
 // Source selection methods
@@ -427,10 +387,10 @@ watch(
 
 // Watch for insufficient evidence toggle changes and reload data
 watch(
-  () => showInsufficientEvidence.value,
+  () => props.showInsufficientEvidence,
   async () => {
     window.logService.info('Insufficient evidence toggle changed', {
-      showInsufficientEvidence: showInsufficientEvidence.value
+      showInsufficientEvidence: props.showInsufficientEvidence
     })
     await loadAvailableSources()
     await loadData()
@@ -531,8 +491,19 @@ const renderUpSetPlot = () => {
   render()
 }
 
+// Load total gene count (baseline for x/y display)
+const loadTotalGenes = async () => {
+  try {
+    const response = await statisticsApi.getSourceOverlaps(null, [], false)
+    totalGenes.value = response.data?.total_unique_genes || 0
+  } catch {
+    totalGenes.value = 0
+  }
+}
+
 // Setup ResizeObserver
 onMounted(async () => {
+  await loadTotalGenes()
   await loadAvailableSources()
   await loadData()
 

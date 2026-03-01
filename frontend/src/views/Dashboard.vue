@@ -24,57 +24,48 @@
       </div>
     </div>
 
-    <!-- Global Filters -->
-    <div class="mb-4">
-      <Popover>
-        <PopoverTrigger as-child>
-          <Button variant="outline" class="justify-between">
-            {{ selectedTiers.length ? `${selectedTiers.length} tiers selected` : 'All tiers' }}
-            <ChevronDown :size="16" class="ml-2" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent class="w-72">
-          <div class="space-y-1">
-            <div
-              v-for="tier in tierOptions"
-              :key="tier.value"
-              class="flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer hover:bg-accent"
-              @click="toggleTier(tier.value)"
-            >
-              <div
-                class="h-4 w-4 rounded border flex items-center justify-center"
-                :class="
-                  selectedTiers.includes(tier.value) ? 'bg-primary border-primary' : 'border-input'
-                "
-              >
-                <CheckIcon
-                  v-if="selectedTiers.includes(tier.value)"
-                  :size="12"
-                  class="text-primary-foreground"
-                />
-              </div>
-              <Badge
-                variant="secondary"
-                :style="{ backgroundColor: tier.color + '20', color: tier.color }"
-              >
-                {{ tier.title }}
-              </Badge>
-            </div>
-          </div>
-          <div v-if="selectedTiers.length" class="mt-2 pt-2 border-t">
-            <Button variant="ghost" size="sm" class="w-full text-xs" @click="selectedTiers = []">
-              Clear all
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
-      <p class="text-xs text-muted-foreground mt-1">
-        Select one or more evidence tiers to filter visualizations (multi-select with OR logic)
-      </p>
-    </div>
-
     <!-- Visualization Tabs -->
     <Card>
+      <!-- Global Filters -->
+      <div class="flex flex-wrap items-center gap-2 px-6 pt-6 pb-2">
+        <span class="text-sm font-medium text-muted-foreground">Tiers:</span>
+        <Badge
+          v-for="tier in tierOptions"
+          :key="tier.value"
+          class="cursor-pointer select-none transition-opacity"
+          :class="
+            selectedTiers.length === 0 || selectedTiers.includes(tier.value)
+              ? 'opacity-100'
+              : 'opacity-30'
+          "
+          :style="{
+            backgroundColor: tier.color + '20',
+            color: tier.color,
+            borderColor: selectedTiers.includes(tier.value) ? tier.color : 'transparent'
+          }"
+          @click="toggleTier(tier.value)"
+        >
+          {{ tier.title }}
+        </Badge>
+        <Button
+          v-if="selectedTiers.length > 0"
+          variant="ghost"
+          size="sm"
+          class="text-xs h-6 px-2"
+          @click="selectedTiers = []"
+        >
+          Clear
+        </Button>
+        <div class="ml-auto flex items-center gap-2">
+          <Label
+            for="show-insufficient-global"
+            class="text-sm text-muted-foreground cursor-pointer"
+          >
+            Include zero-score genes
+          </Label>
+          <Switch id="show-insufficient-global" v-model="showInsufficientEvidence" />
+        </div>
+      </div>
       <Tabs v-model="activeTab" class="w-full">
         <CardHeader class="pb-0">
           <TabsList>
@@ -94,18 +85,23 @@
         </CardHeader>
         <CardContent>
           <TabsContent value="overlaps">
-            <UpSetChart :selected-tiers="selectedTiers" />
+            <UpSetChart
+              :selected-tiers="selectedTiers"
+              :show-insufficient-evidence="showInsufficientEvidence"
+            />
           </TabsContent>
           <TabsContent value="distributions">
             <SourceDistributionsChart
               v-if="activeTab === 'distributions'"
               :selected-tiers="selectedTiers"
+              :show-insufficient-evidence="showInsufficientEvidence"
             />
           </TabsContent>
           <TabsContent value="composition">
             <EvidenceCompositionChart
               v-if="activeTab === 'composition'"
               :selected-tiers="selectedTiers"
+              :show-insufficient-evidence="showInsufficientEvidence"
             />
           </TabsContent>
         </CardContent>
@@ -116,15 +112,7 @@
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
-import {
-  ChevronRight,
-  LayoutDashboard,
-  ChartScatter,
-  ChartBar,
-  Circle,
-  ChevronDown,
-  Check as CheckIcon
-} from 'lucide-vue-next'
+import { LayoutDashboard, ChartScatter, ChartBar, Circle } from 'lucide-vue-next'
 import { ref, watch, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -146,9 +134,10 @@ import {
 } from '@/components/ui/breadcrumb'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 
 defineOptions({
   name: 'Dashboard'
@@ -170,6 +159,7 @@ useSeoMeta({
 
 const activeTab = ref('overlaps')
 const selectedTiers = ref<string[]>([])
+const showInsufficientEvidence = ref(false)
 
 const validTabs = ['overlaps', 'distributions', 'composition']
 

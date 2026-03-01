@@ -14,27 +14,6 @@
         </Tooltip>
       </TooltipProvider>
       <div class="flex-1" />
-      <div class="flex items-center space-x-2 mr-2">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <div class="flex items-center space-x-2">
-                <Checkbox
-                  id="show-insufficient"
-                  :checked="showInsufficientEvidence"
-                  @update:checked="showInsufficientEvidence = $event"
-                />
-                <Label for="show-insufficient" class="text-sm cursor-pointer">
-                  Show insufficient evidence
-                </Label>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <span>Include genes with percentage_score = 0 (no meaningful evidence)</span>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
       <div class="inline-flex rounded-md border mr-2">
         <Button
           :variant="activeView === 'tiers' ? 'default' : 'ghost'"
@@ -61,9 +40,6 @@
           Weights
         </Button>
       </div>
-      <Button variant="ghost" size="icon-sm" :disabled="loading" @click="refreshData">
-        <RefreshCw class="size-4" :class="{ 'animate-spin': loading }" />
-      </Button>
     </CardHeader>
 
     <CardContent>
@@ -136,12 +112,10 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { Circle, CircleHelp, RefreshCw } from 'lucide-vue-next'
+import { Circle, CircleHelp } from 'lucide-vue-next'
 import { statisticsApi } from '@/api/statistics'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import D3DonutChart from './D3DonutChart.vue'
@@ -152,6 +126,10 @@ const props = defineProps({
   selectedTiers: {
     type: Array,
     default: () => []
+  },
+  showInsufficientEvidence: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -160,7 +138,6 @@ const loading = ref(false)
 const error = ref(null)
 const data = ref(null)
 const activeView = ref('tiers') // Default to tiers view
-const showInsufficientEvidence = ref(false) // Default: hide genes with score = 0
 
 // Computed properties
 const tierChartData = computed(() => {
@@ -224,11 +201,11 @@ const loadData = async () => {
   try {
     window.logService.info('Loading evidence composition', {
       selectedTiers: props.selectedTiers,
-      hideZeroScores: !showInsufficientEvidence.value
+      hideZeroScores: !props.showInsufficientEvidence
     })
     const response = await statisticsApi.getEvidenceComposition(
       props.selectedTiers,
-      !showInsufficientEvidence.value // Invert: checkbox ON = show, API param = hide
+      !props.showInsufficientEvidence
     )
     data.value = response.data
   } catch (err) {
@@ -237,10 +214,6 @@ const loadData = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const refreshData = () => {
-  loadData()
 }
 
 const getViewDescription = () => {
@@ -271,7 +244,7 @@ watch(
 )
 
 watch(
-  () => showInsufficientEvidence.value,
+  () => props.showInsufficientEvidence,
   async () => {
     await loadData()
   }
