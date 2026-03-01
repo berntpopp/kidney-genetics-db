@@ -5,6 +5,7 @@ This module provides functions to enqueue pipeline tasks to the ARQ worker,
 allowing long-running pipelines to run independently of the web server.
 """
 
+import asyncio
 from typing import Any
 
 from arq import ArqRedis, create_pool
@@ -18,19 +19,21 @@ logger = get_logger(__name__)
 
 # Global pool instance (lazy initialized)
 _arq_pool: ArqRedis | None = None
+_arq_pool_lock = asyncio.Lock()
 
 
 async def get_arq_pool() -> ArqRedis:
     """
     Get or create the ARQ Redis connection pool.
 
-    Returns:
-        ArqRedis connection pool
+    Thread-safe: uses asyncio.Lock to prevent duplicate pool creation.
     """
     global _arq_pool
     if _arq_pool is None:
-        logger.sync_info("Creating ARQ Redis connection pool", redis_url=settings.REDIS_URL)
-        _arq_pool = await create_pool(RedisSettings.from_dsn(settings.REDIS_URL))
+        async with _arq_pool_lock:
+            if _arq_pool is None:
+                logger.sync_info("Creating ARQ Redis connection pool", redis_url=settings.REDIS_URL)
+                _arq_pool = await create_pool(RedisSettings.from_dsn(settings.REDIS_URL))
     return _arq_pool
 
 
