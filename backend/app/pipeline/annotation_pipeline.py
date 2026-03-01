@@ -3,6 +3,7 @@ Annotation pipeline orchestrator for managing gene annotation updates.
 """
 
 import asyncio
+import json
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
@@ -546,7 +547,14 @@ class AnnotationPipeline:
     async def _update_source_with_recovery(
         self, source_name: str, gene_ids: list[int], force: bool = False
     ) -> dict[str, Any]:
-        """Update source with gene-level error recovery and retry.
+        """Update source using batch fetch + bulk DB upsert for speed.
+
+        Uses fetch_batch() to retrieve all annotations at once (bulk sources
+        download a file once and do fast local lookups), then writes to the
+        database in bulk using INSERT ... ON CONFLICT DO UPDATE.
+
+        Falls back to per-gene update_gene() only for genes not returned by
+        fetch_batch().
 
         Args:
             source_name: Name of the annotation source to update
@@ -555,14 +563,13 @@ class AnnotationPipeline:
             force: Whether to force update existing annotations
         """
         logger.sync_info(
-            f"Starting update with recovery for {source_name}",
+            f"Starting batch update for {source_name}",
             source_name=source_name,
             gene_count=len(gene_ids),
             force=force,
         )
 
         # Re-fetch genes from database to ensure they're bound to current session
-        # This avoids "Instance <Gene> is not bound to a Session" errors
         genes = self.db.query(Gene).filter(Gene.id.in_(gene_ids)).all()
 
         if len(genes) != len(gene_ids):
@@ -572,44 +579,70 @@ class AnnotationPipeline:
 
         source_class = self.sources[source_name]
         source = source_class(self.db)
-
-        # Enable batch mode to prevent individual cache invalidations
         source.batch_mode = True
 
+        total_genes = len(genes)
         successful = 0
         failed = 0
         failed_genes: list[Gene] = []
 
-        # Process genes sequentially to avoid session conflicts
-        # Note: Parallel processing causes connection pool exhaustion and session state issues
-        batch_size = source.batch_size
-        total_genes = len(genes)
+        # Phase 1: Batch fetch all annotations at once
+        if self.progress_tracker:
+            self.progress_tracker.update(
+                current_item=0,
+                operation=f"Fetching {source_name} annotations (batch)",
+            )
 
-        for i in range(0, total_genes, batch_size):
-            # Check for pause
-            if self.progress_tracker and self.progress_tracker.is_paused():
-                await self._save_checkpoint(
-                    {
-                        "sources_remaining": [source_name],
-                        "gene_ids": [g.id for g in genes[i:]],
-                        "batch_index": i,
-                    }
-                )
-                logger.sync_info(f"Paused at batch {i}/{total_genes}")
-                return {"successful": successful, "failed": failed, "paused": True}
+        batch_data: dict[int, dict[str, Any]] = {}
+        try:
+            batch_data = await source.fetch_batch(genes)
+            if batch_data is None:
+                batch_data = {}
+            logger.sync_info(
+                f"Batch fetch complete for {source_name}",
+                fetched=len(batch_data),
+                total=total_genes,
+            )
+        except Exception as e:
+            logger.sync_warning(
+                f"Batch fetch failed for {source_name}, falling back to per-gene: {e}",
+            )
 
-            batch = genes[i : i + batch_size]
-
+        # Phase 2: Bulk upsert fetched annotations via INSERT ON CONFLICT
+        if batch_data:
             if self.progress_tracker:
                 self.progress_tracker.update(
-                    current_item=i, operation=f"Updating {source_name}: {i}/{total_genes} genes"
+                    current_item=0,
+                    operation=f"Writing {source_name}: {len(batch_data)} annotations (bulk)",
                 )
 
-            # Process each gene sequentially within the batch
-            for gene in batch:
+            upsert_count = self._bulk_upsert_annotations(
+                source_name, source.version, batch_data
+            )
+            successful = upsert_count
+            logger.sync_info(
+                f"Bulk upsert complete for {source_name}",
+                upserted=upsert_count,
+            )
+
+        # Phase 3: Per-gene fallback for genes not in batch_data
+        missed_genes = [g for g in genes if g.id not in batch_data]
+        if missed_genes:
+            logger.sync_info(
+                f"Per-gene fallback for {source_name}",
+                missed=len(missed_genes),
+            )
+            for i, gene in enumerate(missed_genes):
+                if self.progress_tracker and i % 100 == 0:
+                    self.progress_tracker.update(
+                        current_item=len(batch_data) + i,
+                        operation=(
+                            f"Updating {source_name}: "
+                            f"fallback {i}/{len(missed_genes)} genes"
+                        ),
+                    )
                 try:
-                    success = await source.update_gene(gene)
-                    if success:
+                    if await source.update_gene(gene):
                         successful += 1
                     else:
                         failed_genes.append(gene)
@@ -619,14 +652,13 @@ class AnnotationPipeline:
                     failed_genes.append(gene)
                     failed += 1
 
-            # Commit after each batch to avoid long transactions
             try:
                 self.db.commit()
             except Exception as e:
-                logger.sync_warning(f"Batch commit failed: {e}")
+                logger.sync_warning(f"Fallback commit failed: {e}")
                 self.db.rollback()
 
-        # Retry failed genes with exponential backoff
+        # Phase 4: Retry failed genes
         if failed_genes:
             logger.sync_info(f"Retrying {len(failed_genes)} failed genes with backoff")
             retry_config = RetryConfig(
@@ -646,29 +678,24 @@ class AnnotationPipeline:
                 except Exception as e:
                     logger.sync_error(f"Failed to retry {gene.approved_symbol}: {e}")
 
-        # Disable batch mode
         source.batch_mode = False
 
-        # Schedule cache clearing in thread pool to avoid blocking
+        # Clear caches in background
         try:
             from concurrent.futures import ThreadPoolExecutor
 
             from app.core.cache_service import get_cache_service
 
-            # Reuse existing executor or create if needed
             if not hasattr(self, "_executor"):
                 self._executor = ThreadPoolExecutor(max_workers=2)
 
-            # Clear cache in background thread (non-blocking)
             def clear_cache_sync() -> None:
                 cache_service = get_cache_service(self.db)
                 if cache_service:
-                    # Use sync methods since we're in thread
                     cache_service.clear_namespace_sync(source_name.lower())
                     cache_service.clear_namespace_sync("annotations")
                     logger.sync_debug(f"Cleared cache for {source_name}")
 
-            # Schedule in thread pool
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(self._executor, clear_cache_sync)
 
@@ -684,9 +711,82 @@ class AnnotationPipeline:
         return {
             "successful": successful,
             "failed": failed,
-            "total": len(genes),
+            "total": total_genes,
             "recovery_attempted": len(failed_genes) > 0,
         }
+
+    def _bulk_upsert_annotations(
+        self,
+        source_name: str,
+        version: str | None,
+        batch_data: dict[int, dict[str, Any]],
+    ) -> int:
+        """Bulk upsert annotations using INSERT ... ON CONFLICT DO UPDATE.
+
+        Writes all annotations in a single SQL statement per chunk,
+        replacing ~5000 individual SELECT+INSERT/UPDATE pairs.
+
+        Args:
+            source_name: Annotation source name
+            version: Source version string
+            batch_data: Mapping of gene_id -> annotation JSONB data
+
+        Returns:
+            Number of rows upserted
+        """
+        if not batch_data:
+            return 0
+
+        now = datetime.utcnow()
+        metadata_json = json.dumps(
+            {"retrieved_at": now.isoformat(), "batch_fetch": True}
+        )
+
+        upserted = 0
+        chunk_size = 500  # Rows per INSERT statement
+        items = list(batch_data.items())
+
+        for chunk_start in range(0, len(items), chunk_size):
+            chunk = items[chunk_start : chunk_start + chunk_size]
+
+            # Build parameterized VALUES list
+            values_clauses = []
+            params: dict[str, Any] = {}
+            for idx, (gene_id, annotations) in enumerate(chunk):
+                values_clauses.append(
+                    f"(:gene_id_{idx}, :source, :version, "
+                    f"CAST(:annotations_{idx} AS jsonb), "
+                    f"CAST(:metadata AS jsonb), :now, :now)"
+                )
+                params[f"gene_id_{idx}"] = gene_id
+                params[f"annotations_{idx}"] = json.dumps(annotations)
+
+            params["source"] = source_name
+            params["version"] = version
+            params["metadata"] = metadata_json
+            params["now"] = now
+
+            sql = text(
+                f"INSERT INTO gene_annotations "
+                f"(gene_id, source, version, annotations, source_metadata, "
+                f"created_at, updated_at) VALUES {', '.join(values_clauses)} "
+                f"ON CONFLICT (gene_id, source, version) DO UPDATE SET "
+                f"annotations = EXCLUDED.annotations, "
+                f"source_metadata = EXCLUDED.source_metadata, "
+                f"updated_at = EXCLUDED.updated_at"
+            )
+
+            try:
+                self.db.execute(sql, params)
+                self.db.commit()
+                upserted += len(chunk)
+            except Exception as e:
+                logger.sync_error(
+                    f"Bulk upsert failed for {source_name} chunk: {e}"
+                )
+                self.db.rollback()
+
+        return upserted
 
     async def _refresh_materialized_view(self) -> bool:
         """Refresh all materialized views without blocking."""
