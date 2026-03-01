@@ -2,11 +2,14 @@
 Ensembl Annotation Source
 
 Fetches gene structure data including exons, transcripts, and genomic coordinates
-from the Ensembl REST API.
+from the Ensembl REST API.  Uses the MANE summary file to resolve Ensembl
+transcript IDs to RefSeq NM_ accessions without per-transcript API calls.
 """
 
 import asyncio
+import csv
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -16,16 +19,21 @@ from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, SimpleRateLimiter, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
+from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin
 
 logger = get_logger(__name__)
 
 
-class EnsemblAnnotationSource(BaseAnnotationSource):
+class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     """
     Ensembl gene structure annotation source.
 
     Fetches exon/intron structure, transcripts, and genomic coordinates
     for visualization. Uses POST lookup/symbol endpoint for batch requests.
+
+    Uses MANE summary file for Ensembl-to-RefSeq transcript mapping,
+    replacing per-transcript xrefs API calls with a single bulk download.
+    Falls back to the xrefs API for transcripts not in MANE.
     """
 
     source_name = "ensembl"
@@ -37,6 +45,14 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
 
     # Default values (overridden by config)
     batch_size = 500  # API limit is 1000
+
+    # MANE bulk file for Ensembl→RefSeq transcript mapping
+    bulk_file_url = (
+        "https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/"
+        "current/MANE.GRCh38.v1.5.summary.txt.gz"
+    )
+    bulk_cache_ttl_hours = 168  # 7 days
+    bulk_file_format = "txt.gz"
 
     def __init__(self, session: Session) -> None:
         """Initialize the Ensembl annotation source."""
@@ -62,6 +78,86 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
             self.source_record.base_url = self.base_url
             self.session.commit()
 
+    def parse_bulk_file(self, path: Path) -> dict[str, dict[str, Any]]:
+        """Parse the MANE summary file into an Ensembl→RefSeq mapping.
+
+        Builds a dict keyed by *unversioned* Ensembl transcript ID (e.g.
+        ``ENST00000263100``) mapping to ``{"refseq_nuc": "NM_130786.4",
+        "symbol": "A1BG", "mane_status": "MANE Select"}``.
+
+        Args:
+            path: Path to the decompressed MANE summary TSV.
+
+        Returns:
+            Mapping of unversioned ENST ID → metadata dict.
+        """
+        data: dict[str, dict[str, Any]] = {}
+        with open(path, newline="") as fh:
+            reader = csv.DictReader(
+                (line for line in fh if not line.startswith("#")),
+                fieldnames=[
+                    "NCBI_GeneID",
+                    "Ensembl_Gene",
+                    "HGNC_ID",
+                    "symbol",
+                    "name",
+                    "RefSeq_nuc",
+                    "RefSeq_prot",
+                    "Ensembl_nuc",
+                    "Ensembl_prot",
+                    "MANE_status",
+                    "GRCh38_chr",
+                    "chr_start",
+                    "chr_end",
+                    "chr_strand",
+                ],
+                delimiter="\t",
+            )
+            for row in reader:
+                enst_versioned = row.get("Ensembl_nuc", "")
+                refseq_nuc = row.get("RefSeq_nuc", "")
+                if not enst_versioned or not refseq_nuc:
+                    continue
+                # Key by unversioned ENST so lookups match Ensembl API IDs
+                enst_unversioned = enst_versioned.split(".")[0]
+                data[enst_unversioned] = {
+                    "refseq_nuc": refseq_nuc,
+                    "symbol": row.get("symbol", ""),
+                    "mane_status": row.get("MANE_status", ""),
+                    "ensembl_nuc_versioned": enst_versioned,
+                }
+        logger.sync_info(
+            "Parsed MANE summary file",
+            transcript_count=len(data),
+            path=str(path),
+        )
+        return data
+
+    async def _resolve_refseq_id(self, transcript_id: str) -> str | None:
+        """Resolve a RefSeq NM_ ID for an Ensembl transcript.
+
+        Tries the MANE bulk lookup first (zero-cost).  Falls back to the
+        Ensembl xrefs API when the transcript is not in MANE.
+
+        Args:
+            transcript_id: Ensembl transcript ID (e.g. ENST00000262304).
+
+        Returns:
+            RefSeq NM transcript ID or None.
+        """
+        if not transcript_id:
+            return None
+
+        # Strip version for MANE lookup
+        enst_unversioned = transcript_id.split(".")[0]
+        mane_entry = self.lookup_gene(enst_unversioned)
+        if mane_entry:
+            refseq: str = mane_entry["refseq_nuc"]
+            return refseq
+
+        # Fall back to Ensembl xrefs API
+        return await self._fetch_refseq_id(transcript_id)
+
     def _is_valid_annotation(self, annotation_data: dict) -> bool:
         """Validate Ensembl annotation data."""
         if not super()._is_valid_annotation(annotation_data):
@@ -84,12 +180,18 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
         """
         Fetch Ensembl annotation for a single gene.
 
+        Loads the MANE bulk file on first call so that RefSeq ID resolution
+        uses a dict lookup instead of per-transcript API calls.
+
         Args:
             gene: Gene object to fetch annotations for
 
         Returns:
             Dictionary with annotation data or None if not found
         """
+        # Ensure MANE data is loaded for RefSeq resolution
+        await self.ensure_bulk_data_loaded()
+
         await self.rate_limiter.wait()
 
         try:
@@ -123,11 +225,11 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
             data = response.json()
             annotation = self._parse_gene_data(gene.approved_symbol, data)
 
-            # Fetch RefSeq ID if we have a canonical transcript
+            # Resolve RefSeq ID via MANE lookup (with API fallback)
             if annotation and annotation.get("canonical_transcript"):
                 transcript_id = annotation["canonical_transcript"].get("transcript_id")
                 if transcript_id:
-                    refseq_id = await self._fetch_refseq_id(transcript_id)
+                    refseq_id = await self._resolve_refseq_id(transcript_id)
                     if refseq_id:
                         annotation["canonical_transcript"]["refseq_transcript_id"] = refseq_id
                         logger.sync_debug(
@@ -370,6 +472,9 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
         """
         Fetch annotations for multiple genes using POST lookup/symbol.
 
+        Loads the MANE bulk file once so that RefSeq ID resolution for all
+        genes uses dict lookups instead of per-transcript API calls.
+
         Args:
             genes: List of Gene objects
 
@@ -378,6 +483,9 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
         """
         if not genes:
             return {}
+
+        # Ensure MANE data is loaded once for the entire batch
+        await self.ensure_bulk_data_loaded()
 
         results = {}
 
@@ -442,12 +550,12 @@ class EnsemblAnnotationSource(BaseAnnotationSource):
                     if annotation:
                         results[gene.id] = annotation
 
-            # Fetch RefSeq IDs for all annotations (separate API calls)
+            # Resolve RefSeq IDs via MANE lookup (with API fallback)
             for _gene_id, annotation in results.items():
                 if annotation.get("canonical_transcript"):
                     transcript_id = annotation["canonical_transcript"].get("transcript_id")
                     if transcript_id:
-                        refseq_id = await self._fetch_refseq_id(transcript_id)
+                        refseq_id = await self._resolve_refseq_id(transcript_id)
                         if refseq_id:
                             annotation["canonical_transcript"]["refseq_transcript_id"] = refseq_id
 
