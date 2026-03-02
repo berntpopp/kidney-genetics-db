@@ -2,21 +2,22 @@
 Ensembl Annotation Source
 
 Fetches gene structure data including exons, transcripts, and genomic coordinates
-from the Ensembl REST API.  Uses the MANE summary file to resolve Ensembl
-transcript IDs to RefSeq NM_ accessions without per-transcript API calls.
+by parsing Ensembl's GTF bulk file.  Uses the MANE summary file to resolve
+Ensembl transcript IDs to RefSeq NM_ accessions.
+
+Zero REST API dependency — all data comes from two bulk files:
+1. Ensembl GTF (gene structure, exons, transcripts)
+2. NCBI MANE summary (Ensembl→RefSeq mapping)
 """
 
-import asyncio
 import csv
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import httpx
 from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
-from app.core.retry_utils import RetryConfig, SimpleRateLimiter, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin
@@ -24,35 +25,66 @@ from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin
 logger = get_logger(__name__)
 
 
+def _parse_gtf_attributes(attr_str: str) -> tuple[dict[str, str], set[str]]:
+    """Parse the GTF attribute column into key-value pairs and tags.
+
+    GTF format: ``key "value"; key "value";``
+    The ``tag`` key can appear multiple times, so tags are collected
+    into a separate set.
+
+    Args:
+        attr_str: The 9th column of a GTF line.
+
+    Returns:
+        Tuple of (attributes dict, tags set).
+    """
+    attrs: dict[str, str] = {}
+    tags: set[str] = set()
+    for field in attr_str.strip().rstrip(";").split("; "):
+        parts = field.split(" ", 1)
+        if len(parts) != 2:
+            continue
+        key = parts[0]
+        value = parts[1].strip('"')
+        if key == "tag":
+            tags.add(value)
+        else:
+            attrs[key] = value
+    return attrs, tags
+
+
 class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     """
     Ensembl gene structure annotation source.
 
-    Fetches exon/intron structure, transcripts, and genomic coordinates
-    for visualization. Uses POST lookup/symbol endpoint for batch requests.
+    Parses the Ensembl GTF file for exon/intron structure, transcripts,
+    and genomic coordinates.  Uses the MANE summary file for
+    Ensembl→RefSeq transcript mapping.
 
-    Uses MANE summary file for Ensembl-to-RefSeq transcript mapping,
-    replacing per-transcript xrefs API calls with a single bulk download.
-    Falls back to the xrefs API for transcripts not in MANE.
+    No REST API calls — everything comes from bulk files.
     """
 
     source_name = "ensembl"
     display_name = "Ensembl"
-    version = "1.0"
+    version = "2.0"
 
-    # Base configuration
-    base_url = "https://rest.ensembl.org"
-
-    # Default values (overridden by config)
-    batch_size = 500  # API limit is 1000
-
-    # MANE bulk file for Ensembl→RefSeq transcript mapping
+    # GTF bulk file (replaces REST API)
     bulk_file_url = (
+        "https://ftp.ensembl.org/pub/current_gtf/homo_sapiens/"
+        "Homo_sapiens.GRCh38.115.chr.gtf.gz"
+    )
+    bulk_cache_ttl_hours = 168  # 7 days
+    bulk_file_format = "gtf.gz"
+    bulk_file_min_size_bytes = 80_000_000  # ~99 MB compressed expected
+
+    # MANE summary file for Ensembl→RefSeq transcript mapping
+    mane_file_url = (
         "https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/"
         "current/MANE.GRCh38.v1.5.summary.txt.gz"
     )
-    bulk_cache_ttl_hours = 168  # 7 days
-    bulk_file_format = "txt.gz"
+
+    # Batch size for fetch_batch (dict lookups, so can be large)
+    batch_size = 1000
 
     def __init__(self, session: Session) -> None:
         """Initialize the Ensembl annotation source."""
@@ -62,23 +94,229 @@ class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
         from app.core.datasource_config import get_annotation_config
 
         config = get_annotation_config("ensembl") or {}
+        self.batch_size = config.get("batch_size", 1000)
 
-        # Apply Ensembl-specific configuration
-        self.batch_size = config.get("batch_size", 500)
-
-        # Initialize rate limiter (15 req/s for Ensembl)
-        self.rate_limiter = SimpleRateLimiter(requests_per_second=self.requests_per_second)
+        # MANE data dict (separate from _bulk_data which holds GTF data)
+        self._mane_data: dict[str, dict[str, Any]] | None = None
 
         # Update source configuration
         if self.source_record:
             self.source_record.update_frequency = "monthly"
             self.source_record.description = (
-                "Gene structure data from Ensembl - exons, transcripts, coordinates"
+                "Gene structure data from Ensembl GTF - exons, transcripts, coordinates"
             )
-            self.source_record.base_url = self.base_url
+            self.source_record.base_url = "https://ftp.ensembl.org"
             self.session.commit()
 
+    # ------------------------------------------------------------------
+    # Bulk file parsing
+    # ------------------------------------------------------------------
+
     def parse_bulk_file(self, path: Path) -> dict[str, dict[str, Any]]:
+        """Parse the Ensembl GTF file into a gene-keyed annotation dict.
+
+        Streams the GTF line-by-line, collecting gene, transcript, and
+        exon features.  Selects a canonical transcript per gene using:
+        1. MANE_Select tag
+        2. Ensembl_canonical tag
+        3. Longest protein-coding transcript
+
+        Args:
+            path: Path to the decompressed GTF file.
+
+        Returns:
+            Dict keyed by gene symbol → annotation data.
+        """
+        # Intermediate storage during parsing
+        genes: dict[str, dict[str, Any]] = {}  # gene_name → gene info
+        transcripts: dict[str, dict[str, Any]] = {}  # transcript_id → transcript info
+        transcript_exons: dict[str, list[dict[str, Any]]] = {}  # transcript_id → exon list
+        gene_transcripts: dict[str, list[str]] = {}  # gene_name → [transcript_ids]
+
+        line_count = 0
+        with open(path) as fh:
+            for line in fh:
+                if line.startswith("#"):
+                    continue
+                line_count += 1
+
+                parts = line.rstrip("\n").split("\t", 8)
+                if len(parts) < 9:
+                    continue
+
+                chrom, _source, feature, start, end, _score, strand, _frame, attr_str = parts
+                attrs, tags = _parse_gtf_attributes(attr_str)
+
+                if feature == "gene":
+                    gene_name = attrs.get("gene_name", "")
+                    if not gene_name:
+                        continue
+                    genes[gene_name] = {
+                        "chromosome": chrom,
+                        "start": int(start),
+                        "end": int(end),
+                        "strand": "+" if strand == "+" else "-",
+                        "gene_id": attrs.get("gene_id", ""),
+                        "biotype": attrs.get("gene_biotype", ""),
+                    }
+                    if gene_name not in gene_transcripts:
+                        gene_transcripts[gene_name] = []
+
+                elif feature == "transcript":
+                    gene_name = attrs.get("gene_name", "")
+                    transcript_id = attrs.get("transcript_id", "")
+                    if not gene_name or not transcript_id:
+                        continue
+
+                    is_mane_select = "MANE_Select" in tags
+                    is_canonical = "Ensembl_canonical" in tags
+
+                    transcripts[transcript_id] = {
+                        "transcript_id": transcript_id,
+                        "gene_name": gene_name,
+                        "biotype": attrs.get("transcript_biotype", ""),
+                        "start": int(start),
+                        "end": int(end),
+                        "display_name": attrs.get("transcript_name", ""),
+                        "is_mane_select": is_mane_select,
+                        "is_canonical": is_canonical,
+                        "length": int(end) - int(start) + 1,
+                    }
+
+                    if gene_name not in gene_transcripts:
+                        gene_transcripts[gene_name] = []
+                    gene_transcripts[gene_name].append(transcript_id)
+
+                elif feature == "exon":
+                    transcript_id = attrs.get("transcript_id", "")
+                    if not transcript_id:
+                        continue
+                    exon_data = {
+                        "exon_id": attrs.get("exon_id", ""),
+                        "exon_number": int(attrs.get("exon_number", "0")),
+                        "start": int(start),
+                        "end": int(end),
+                        "length": int(end) - int(start) + 1,
+                    }
+                    if transcript_id not in transcript_exons:
+                        transcript_exons[transcript_id] = []
+                    transcript_exons[transcript_id].append(exon_data)
+
+        logger.sync_info(
+            "GTF file parsed",
+            lines_processed=line_count,
+            gene_count=len(genes),
+            transcript_count=len(transcripts),
+        )
+
+        # Build final annotation dict keyed by gene symbol
+        result: dict[str, dict[str, Any]] = {}
+        for gene_name, gene_info in genes.items():
+            tx_ids = gene_transcripts.get(gene_name, [])
+            if not tx_ids:
+                continue
+
+            # Select canonical transcript
+            canonical_id = self._select_canonical_transcript(tx_ids, transcripts)
+            if not canonical_id:
+                continue
+
+            canonical = transcripts[canonical_id]
+            exons = transcript_exons.get(canonical_id, [])
+
+            # Sort exons by start position and re-number
+            exons_sorted = sorted(exons, key=lambda e: e["start"])
+            for i, exon in enumerate(exons_sorted):
+                exon["exon_number"] = i + 1
+
+            gene_length = gene_info["end"] - gene_info["start"] + 1
+
+            result[gene_name] = {
+                "gene_id": gene_info["gene_id"],
+                "gene_symbol": gene_name,
+                "display_name": gene_name,
+                "description": None,
+                "biotype": gene_info["biotype"],
+                "chromosome": gene_info["chromosome"],
+                "start": gene_info["start"],
+                "end": gene_info["end"],
+                "strand": gene_info["strand"],
+                "gene_length": gene_length,
+                "assembly": "GRCh38",
+                "canonical_transcript": {
+                    "transcript_id": canonical["transcript_id"],
+                    "display_name": canonical["display_name"],
+                    "biotype": canonical["biotype"],
+                    "is_canonical": canonical["is_canonical"] or canonical["is_mane_select"],
+                    "start": canonical["start"],
+                    "end": canonical["end"],
+                    "exon_count": len(exons_sorted),
+                    "exons": exons_sorted,
+                    "refseq_transcript_id": None,  # Filled in by MANE cross-reference
+                },
+                "transcript_count": len(tx_ids),
+                "exon_count": len(exons_sorted),
+                "last_updated": datetime.now(timezone.utc).isoformat(),
+            }
+
+        logger.sync_info(
+            "GTF annotation dict built",
+            genes_with_annotations=len(result),
+        )
+        return result
+
+    @staticmethod
+    def _select_canonical_transcript(
+        transcript_ids: list[str],
+        transcripts: dict[str, dict[str, Any]],
+    ) -> str | None:
+        """Select the canonical transcript from a list of transcript IDs.
+
+        Priority:
+        1. MANE_Select tagged transcript
+        2. Ensembl_canonical tagged transcript
+        3. Longest protein-coding transcript
+        4. First transcript
+
+        Args:
+            transcript_ids: List of transcript IDs for a gene.
+            transcripts: Full transcript dict (transcript_id → info).
+
+        Returns:
+            The selected transcript ID, or None.
+        """
+        if not transcript_ids:
+            return None
+
+        # Priority 1: MANE_Select
+        for tx_id in transcript_ids:
+            tx = transcripts.get(tx_id)
+            if tx and tx.get("is_mane_select"):
+                return tx_id
+
+        # Priority 2: Ensembl_canonical
+        for tx_id in transcript_ids:
+            tx = transcripts.get(tx_id)
+            if tx and tx.get("is_canonical"):
+                return tx_id
+
+        # Priority 3: Longest protein-coding
+        protein_coding = []
+        for tx_id in transcript_ids:
+            tx = transcripts.get(tx_id)
+            if tx and tx.get("biotype") == "protein_coding":
+                protein_coding.append((tx_id, tx.get("length", 0)))
+        if protein_coding:
+            return max(protein_coding, key=lambda x: x[1])[0]
+
+        # Priority 4: First transcript
+        return transcript_ids[0]
+
+    # ------------------------------------------------------------------
+    # MANE parsing
+    # ------------------------------------------------------------------
+
+    def parse_mane_file(self, path: Path) -> dict[str, dict[str, Any]]:
         """Parse the MANE summary file into an Ensembl→RefSeq mapping.
 
         Builds a dict keyed by *unversioned* Ensembl transcript ID (e.g.
@@ -118,7 +356,6 @@ class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                 refseq_nuc = row.get("RefSeq_nuc", "")
                 if not enst_versioned or not refseq_nuc:
                     continue
-                # Key by unversioned ENST so lookups match Ensembl API IDs
                 enst_unversioned = enst_versioned.split(".")[0]
                 data[enst_unversioned] = {
                     "refseq_nuc": refseq_nuc,
@@ -133,41 +370,126 @@ class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
         )
         return data
 
-    async def _resolve_refseq_id(self, transcript_id: str) -> str | None:
-        """Resolve a RefSeq NM_ ID for an Ensembl transcript.
+    # ------------------------------------------------------------------
+    # Bulk data loading (two files)
+    # ------------------------------------------------------------------
 
-        Tries the MANE bulk lookup first (zero-cost).  Falls back to the
-        Ensembl xrefs API when the transcript is not in MANE.
+    async def ensure_bulk_data_loaded(self, force: bool = False) -> None:
+        """Download, decompress, parse, and cache both bulk files.
+
+        Loads:
+        1. Ensembl GTF → ``self._bulk_data`` (gene structure, keyed by symbol)
+        2. MANE summary → ``self._mane_data`` (RefSeq mapping, keyed by ENST)
+
+        Then cross-references: for each gene's canonical transcript, looks
+        up RefSeq ID from the MANE data.
 
         Args:
-            transcript_id: Ensembl transcript ID (e.g. ENST00000262304).
-
-        Returns:
-            RefSeq NM transcript ID or None.
+            force: Force re-download and re-parse.
         """
-        if not transcript_id:
-            return None
+        if self._bulk_data is not None and self._mane_data is not None and not force:
+            return
 
-        # Strip version for MANE lookup
-        enst_unversioned = transcript_id.split(".")[0]
-        mane_entry = self.lookup_gene(enst_unversioned)
-        if mane_entry:
-            refseq: str = mane_entry["refseq_nuc"]
-            return refseq
+        # 1. Download and parse GTF (use streaming — file is ~99 MB compressed)
+        saved_url = self.bulk_file_url
+        gtf_path = await self.download_bulk_file_streaming(force=force)
 
-        # Fall back to Ensembl xrefs API
-        return await self._fetch_refseq_id(transcript_id)
+        # Decompress GTF if gzipped
+        gtf_parse_path = gtf_path
+        if gtf_path.suffix == ".gz":
+            decompressed = gtf_path.with_suffix("")
+            if not decompressed.exists() or force:
+                import gzip as _gzip
+                import shutil
+
+                logger.sync_info(
+                    "Decompressing GTF file",
+                    src=str(gtf_path),
+                    dest=str(decompressed),
+                )
+                with _gzip.open(gtf_path, "rb") as f_in:
+                    with open(decompressed, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+            gtf_parse_path = decompressed
+
+        self._bulk_data = self.parse_bulk_file(gtf_parse_path)
+        logger.sync_info(
+            "GTF bulk data loaded",
+            gene_count=len(self._bulk_data),
+        )
+
+        # 2. Download and parse MANE summary
+        self.bulk_file_url = self.mane_file_url
+        # Temporarily override format for MANE file
+        saved_format = self.bulk_file_format
+        self.bulk_file_format = "txt.gz"
+        saved_min_size = self.bulk_file_min_size_bytes
+        self.bulk_file_min_size_bytes = 0  # MANE file is much smaller
+
+        try:
+            mane_path = await self.download_bulk_file(force=force)
+
+            # Decompress MANE if gzipped
+            mane_parse_path = mane_path
+            if mane_path.suffix == ".gz":
+                decompressed_mane = mane_path.with_suffix("")
+                if not decompressed_mane.exists() or force:
+                    import gzip as _gzip
+                    import shutil
+
+                    logger.sync_info(
+                        "Decompressing MANE file",
+                        src=str(mane_path),
+                        dest=str(decompressed_mane),
+                    )
+                    with _gzip.open(mane_path, "rb") as f_in:
+                        with open(decompressed_mane, "wb") as f_out:
+                            shutil.copyfileobj(f_in, f_out)
+                mane_parse_path = decompressed_mane
+
+            self._mane_data = self.parse_mane_file(mane_parse_path)
+        finally:
+            # Restore original URL and format
+            self.bulk_file_url = saved_url
+            self.bulk_file_format = saved_format
+            self.bulk_file_min_size_bytes = saved_min_size
+
+        logger.sync_info(
+            "MANE bulk data loaded",
+            transcript_count=len(self._mane_data),
+        )
+
+        # 3. Cross-reference: attach RefSeq IDs to canonical transcripts
+        refseq_matches = 0
+        for _symbol, annotation in self._bulk_data.items():
+            canonical = annotation.get("canonical_transcript")
+            if not canonical:
+                continue
+            transcript_id = canonical.get("transcript_id", "")
+            enst_unversioned = transcript_id.split(".")[0]
+            mane_entry = self._mane_data.get(enst_unversioned)
+            if mane_entry:
+                canonical["refseq_transcript_id"] = mane_entry["refseq_nuc"]
+                refseq_matches += 1
+
+        logger.sync_info(
+            "Cross-referenced GTF with MANE",
+            total_genes=len(self._bulk_data),
+            refseq_matches=refseq_matches,
+        )
+
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
 
     def _is_valid_annotation(self, annotation_data: dict) -> bool:
         """Validate Ensembl annotation data."""
         if not super()._is_valid_annotation(annotation_data):
             return False
 
-        # Ensembl specific: must have gene_id and at least basic structure
         required_fields = ["gene_id", "gene_symbol"]
         has_required = all(field in annotation_data for field in required_fields)
 
-        # Must have at least one transcript with exons
         if has_required and "canonical_transcript" in annotation_data:
             transcript: dict[str, Any] = annotation_data["canonical_transcript"]
             exon_count: int = int(transcript.get("exon_count", 0))
@@ -175,410 +497,60 @@ class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
         return bool(has_required)
 
-    @retry_with_backoff(config=RetryConfig(max_retries=5))
-    async def fetch_annotation(self, gene: Gene) -> dict[str, Any] | None:
-        """
-        Fetch Ensembl annotation for a single gene.
+    # ------------------------------------------------------------------
+    # Fetch methods (pure dict lookups, no API calls)
+    # ------------------------------------------------------------------
 
-        Loads the MANE bulk file on first call so that RefSeq ID resolution
-        uses a dict lookup instead of per-transcript API calls.
+    async def fetch_annotation(self, gene: Gene) -> dict[str, Any] | None:
+        """Fetch Ensembl annotation for a single gene via GTF lookup.
 
         Args:
-            gene: Gene object to fetch annotations for
+            gene: Gene object to fetch annotations for.
 
         Returns:
-            Dictionary with annotation data or None if not found
+            Dictionary with annotation data or None if not found.
         """
-        # Ensure MANE data is loaded for RefSeq resolution
         await self.ensure_bulk_data_loaded()
 
-        await self.rate_limiter.wait()
-
-        try:
-            client = await self.get_http_client()
-
-            # Use lookup endpoint for single gene
-            url = f"{self.base_url}/lookup/symbol/homo_sapiens/{gene.approved_symbol}"
-            params = {"expand": "1"}  # Include transcripts and exons
-
-            response = await client.get(
-                url,
-                params=params,
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                },
-            )
-
-            if response.status_code == 404:
-                logger.sync_debug("Gene not found in Ensembl", gene_symbol=gene.approved_symbol)
-                return None
-
-            if response.status_code != 200:
-                logger.sync_warning(
-                    "Unexpected status from Ensembl",
-                    gene_symbol=gene.approved_symbol,
-                    status_code=response.status_code,
-                )
-                return None
-
-            data = response.json()
-            annotation = self._parse_gene_data(gene.approved_symbol, data)
-
-            # Resolve RefSeq ID via MANE lookup (with API fallback)
-            if annotation and annotation.get("canonical_transcript"):
-                transcript_id = annotation["canonical_transcript"].get("transcript_id")
-                if transcript_id:
-                    refseq_id = await self._resolve_refseq_id(transcript_id)
-                    if refseq_id:
-                        annotation["canonical_transcript"]["refseq_transcript_id"] = refseq_id
-                        logger.sync_debug(
-                            "Found RefSeq ID",
-                            gene_symbol=gene.approved_symbol,
-                            ensembl_id=transcript_id,
-                            refseq_id=refseq_id,
-                        )
-
-            return annotation
-
-        except httpx.HTTPStatusError as e:
-            logger.sync_error(
-                "HTTP error fetching Ensembl data",
-                gene_symbol=gene.approved_symbol,
-                status_code=e.response.status_code,
-            )
-            raise
-
-        except Exception as e:
-            logger.sync_error(
-                "Error fetching Ensembl annotation",
-                gene_symbol=gene.approved_symbol,
-                error_detail=str(e),
-            )
-            return None
-
-    def _parse_gene_data(self, gene_symbol: str, data: dict[str, Any]) -> dict[str, Any] | None:
-        """
-        Parse Ensembl API response into annotation format.
-
-        Args:
-            gene_symbol: Gene symbol for reference
-            data: Raw API response
-
-        Returns:
-            Parsed annotation dictionary
-        """
-        if not data:
-            return None
-
-        # Find canonical transcript (MANE Select preferred)
-        transcripts = data.get("Transcript", [])
-        canonical = self._find_canonical_transcript(transcripts)
-
-        if not canonical:
+        annotation = self.lookup_gene(gene.approved_symbol)
+        if not annotation:
             logger.sync_debug(
-                "No canonical transcript found",
-                gene_symbol=gene_symbol,
-                transcript_count=len(transcripts),
+                "Gene not found in GTF data",
+                gene_symbol=gene.approved_symbol,
             )
             return None
-
-        # Parse exons from canonical transcript
-        exons = self._parse_exons(canonical)
-
-        annotation = {
-            "gene_id": data.get("id"),
-            "gene_symbol": gene_symbol,
-            "display_name": data.get("display_name"),
-            "description": data.get("description"),
-            "biotype": data.get("biotype"),
-            "chromosome": data.get("seq_region_name"),
-            "start": data.get("start"),
-            "end": data.get("end"),
-            "strand": "+" if data.get("strand", 1) == 1 else "-",
-            "gene_length": data.get("end", 0) - data.get("start", 0) + 1,
-            "assembly": data.get("assembly_name", "GRCh38"),
-            "canonical_transcript": {
-                "transcript_id": canonical.get("id"),
-                "display_name": canonical.get("display_name"),
-                "biotype": canonical.get("biotype"),
-                "is_canonical": canonical.get("is_canonical", False),
-                "start": canonical.get("start"),
-                "end": canonical.get("end"),
-                "exon_count": len(exons),
-                "exons": exons,
-                # Try to extract RefSeq ID from external names
-                "refseq_transcript_id": self._find_refseq_id(canonical),
-            },
-            "transcript_count": len(transcripts),
-            "exon_count": len(exons),
-            "last_updated": datetime.now(timezone.utc).isoformat(),
-        }
 
         logger.sync_debug(
-            "Successfully parsed Ensembl data",
-            gene_symbol=gene_symbol,
-            gene_id=annotation["gene_id"],
-            exon_count=annotation["exon_count"],
+            "Found Ensembl annotation from GTF",
+            gene_symbol=gene.approved_symbol,
+            gene_id=annotation.get("gene_id"),
+            exon_count=annotation.get("exon_count"),
         )
-
         return annotation
 
-    def _find_canonical_transcript(self, transcripts: list[dict]) -> dict[str, Any] | None:
-        """
-        Find canonical transcript, preferring MANE Select.
-
-        Args:
-            transcripts: List of transcript data from Ensembl
-
-        Returns:
-            Canonical transcript or None
-        """
-        if not transcripts:
-            return None
-
-        # Priority 1: Look for MANE Select
-        for t in transcripts:
-            if t.get("is_canonical") and "MANE_Select" in str(t.get("display_name", "")):
-                return t
-
-        # Priority 2: Use is_canonical flag
-        for t in transcripts:
-            if t.get("is_canonical"):
-                return t
-
-        # Priority 3: Return longest protein-coding transcript
-        protein_coding = [t for t in transcripts if t.get("biotype") == "protein_coding"]
-        if protein_coding:
-            return max(protein_coding, key=lambda x: (x.get("end", 0) - x.get("start", 0)))
-
-        # Fallback: Return first transcript
-        return transcripts[0] if transcripts else None
-
-    def _parse_exons(self, transcript: dict[str, Any]) -> list[dict[str, Any]]:
-        """
-        Parse exon data from transcript.
-
-        Args:
-            transcript: Transcript data with exons
-
-        Returns:
-            List of parsed exon dictionaries
-        """
-        exons_raw = transcript.get("Exon", [])
-
-        exons = []
-        for i, exon in enumerate(sorted(exons_raw, key=lambda x: x.get("start", 0))):
-            exon_data = {
-                "exon_id": exon.get("id"),
-                "exon_number": i + 1,
-                "start": exon.get("start"),
-                "end": exon.get("end"),
-                "length": exon.get("end", 0) - exon.get("start", 0) + 1,
-                "phase_start": exon.get("phase"),
-                "phase_end": exon.get("end_phase"),
-            }
-            exons.append(exon_data)
-
-        return exons
-
-    def _find_refseq_id(self, transcript: dict[str, Any]) -> str | None:
-        """
-        Extract RefSeq transcript ID if available from transcript data.
-
-        Note: This is a synchronous fallback. The async method _fetch_refseq_id
-        should be used when possible to get accurate RefSeq mappings.
-
-        Args:
-            transcript: Transcript data
-
-        Returns:
-            RefSeq ID or None
-        """
-        # Check display name for NM_ prefix
-        display_name: str = str(transcript.get("display_name", ""))
-        if display_name and display_name.startswith("NM_"):
-            return display_name
-
-        # Check external references if available
-        external_refs: str = str(transcript.get("external_name", ""))
-        if external_refs and "NM_" in external_refs:
-            return external_refs
-
-        return None
-
-    async def _fetch_refseq_id(self, transcript_id: str) -> str | None:
-        """
-        Fetch RefSeq transcript ID from Ensembl xrefs endpoint.
-
-        Uses /xrefs/id/{id} to get cross-references including RefSeq NM_ IDs.
-
-        Args:
-            transcript_id: Ensembl transcript ID (e.g., ENST00000262304)
-
-        Returns:
-            RefSeq NM transcript ID or None
-        """
-        if not transcript_id:
-            return None
-
-        try:
-            await self.rate_limiter.wait()
-            client = await self.get_http_client()
-
-            url = f"{self.base_url}/xrefs/id/{transcript_id}"
-            # Filter for RefSeq mRNA only - returns versioned NM_ IDs
-            params = {"external_db": "RefSeq_mRNA"}
-
-            response = await client.get(
-                url,
-                params=params,
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                },
-            )
-
-            if response.status_code != 200:
-                return None
-
-            xrefs: list[dict[str, Any]] = response.json()
-
-            # Find the best RefSeq transcript ID (prefer NM_ with version)
-            refseq_ids: list[str] = []
-            for xref in xrefs:
-                display_id: str = xref.get("display_id", "")
-                if display_id.startswith("NM_"):
-                    refseq_ids.append(display_id)
-
-            # Return the one with version number if available
-            versioned: list[str] = [r for r in refseq_ids if "." in r]
-            if versioned:
-                return versioned[0]
-            if refseq_ids:
-                return refseq_ids[0]
-
-            return None
-
-        except Exception as e:
-            logger.sync_debug(
-                "Could not fetch RefSeq xref",
-                transcript_id=transcript_id,
-                error=str(e),
-            )
-            return None
-
     async def fetch_batch(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
-        """
-        Fetch annotations for multiple genes using POST lookup/symbol.
-
-        Loads the MANE bulk file once so that RefSeq ID resolution for all
-        genes uses dict lookups instead of per-transcript API calls.
+        """Fetch annotations for multiple genes via GTF dict lookups.
 
         Args:
-            genes: List of Gene objects
+            genes: List of Gene objects.
 
         Returns:
-            Dictionary mapping gene IDs to annotation data
+            Dictionary mapping gene IDs to annotation data.
         """
         if not genes:
             return {}
 
-        # Ensure MANE data is loaded once for the entire batch
         await self.ensure_bulk_data_loaded()
 
-        results = {}
+        results: dict[int, dict[str, Any]] = {}
+        for gene in genes:
+            annotation = self.lookup_gene(gene.approved_symbol)
+            if annotation:
+                results[gene.id] = annotation
 
-        # Process in chunks of batch_size
-        for i in range(0, len(genes), self.batch_size):
-            batch = genes[i : i + self.batch_size]
-            batch_results = await self._fetch_batch_chunk(batch)
-            results.update(batch_results)
-
-            # Small delay between batches
-            if i + self.batch_size < len(genes):
-                await asyncio.sleep(0.5)
-
+        logger.sync_info(
+            "Batch fetch completed (GTF lookup)",
+            requested=len(genes),
+            successful=len(results),
+        )
         return results
-
-    @retry_with_backoff(config=RetryConfig(max_retries=5))
-    async def _fetch_batch_chunk(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
-        """
-        Fetch a single batch of genes using POST endpoint.
-
-        Args:
-            genes: List of genes (max batch_size)
-
-        Returns:
-            Dictionary mapping gene IDs to annotations
-        """
-        await self.rate_limiter.wait()
-
-        try:
-            client = await self.get_http_client()
-
-            # Build POST request body
-            symbols = [g.approved_symbol for g in genes]
-            url = f"{self.base_url}/lookup/symbol/homo_sapiens"
-
-            response = await client.post(
-                url,
-                json={"symbols": symbols},
-                params={"expand": "1"},
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                },
-            )
-
-            if response.status_code != 200:
-                logger.sync_warning(
-                    "Batch request failed",
-                    status_code=response.status_code,
-                    batch_size=len(genes),
-                )
-                return {}
-
-            data = response.json()
-
-            # Parse results
-            results = {}
-            for gene in genes:
-                symbol = gene.approved_symbol
-                if symbol in data and data[symbol]:
-                    annotation = self._parse_gene_data(symbol, data[symbol])
-                    if annotation:
-                        results[gene.id] = annotation
-
-            # Resolve RefSeq IDs via MANE lookup (with API fallback)
-            for _gene_id, annotation in results.items():
-                if annotation.get("canonical_transcript"):
-                    transcript_id = annotation["canonical_transcript"].get("transcript_id")
-                    if transcript_id:
-                        refseq_id = await self._resolve_refseq_id(transcript_id)
-                        if refseq_id:
-                            annotation["canonical_transcript"]["refseq_transcript_id"] = refseq_id
-
-            logger.sync_info(
-                "Batch fetch completed",
-                requested=len(genes),
-                successful=len(results),
-            )
-
-            return results
-
-        except httpx.HTTPStatusError as e:
-            logger.sync_error(
-                "HTTP error in batch fetch",
-                status_code=e.response.status_code,
-                batch_size=len(genes),
-            )
-            raise
-
-        except Exception as e:
-            logger.sync_error(
-                "Error in batch fetch",
-                error_detail=str(e),
-                batch_size=len(genes),
-            )
-            return {}
