@@ -453,9 +453,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         out: dict[str, dict[str, Any]] = {}
         for sym in gene_symbols:
             kidney = gene_kidney_pheno.get(sym, {})
-            kidney_list = [
-                {"term": tid, "name": name} for tid, name in sorted(kidney.items())
-            ]
+            kidney_list = [{"term": tid, "name": name} for tid, name in sorted(kidney.items())]
             out[sym] = {
                 "has_kidney_phenotype": len(kidney) > 0,
                 "mouse_orthologs": sorted(gene_mouse_symbols.get(sym, set())),
@@ -554,23 +552,15 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                         bucket["other"].append(entry)
 
             except Exception as e:
-                logger.sync_error(
-                    f"Bulk _Genotype_Phenotype error (chunk {chunk_start}): {e}"
-                )
+                logger.sync_error(f"Bulk _Genotype_Phenotype error (chunk {chunk_start}): {e}")
                 continue
 
         # Build per-gene zygosity analysis
         out: dict[str, dict[str, Any]] = {}
         for human_sym, zyg in gene_zyg.items():
-            hm_kidney = list(
-                {p["term"]: p for p in zyg["hm"] if p["term"] in mpo_terms}.values()
-            )
-            ht_kidney = list(
-                {p["term"]: p for p in zyg["ht"] if p["term"] in mpo_terms}.values()
-            )
-            cn_kidney = list(
-                {p["term"]: p for p in zyg["cn"] if p["term"] in mpo_terms}.values()
-            )
+            hm_kidney = list({p["term"]: p for p in zyg["hm"] if p["term"] in mpo_terms}.values())
+            ht_kidney = list({p["term"]: p for p in zyg["ht"] if p["term"] in mpo_terms}.values())
+            cn_kidney = list({p["term"]: p for p in zyg["cn"] if p["term"] in mpo_terms}.values())
 
             hm_result = "true" if hm_kidney else "false"
             ht_result = "true" if ht_kidney else "false"
@@ -864,18 +854,14 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         # Step 4: Fallback — per-gene query for any genes not in bulk results
         missing_genes = [g for g in genes if g.id not in results]
         if missing_genes:
-            logger.sync_info(
-                f"Falling back to per-gene queries for {len(missing_genes)} genes"
-            )
+            logger.sync_info(f"Falling back to per-gene queries for {len(missing_genes)} genes")
             for gene in missing_genes:
                 try:
                     result = await self.fetch_annotation(gene)
                     if isinstance(result, dict):
                         results[gene.id] = result
                 except Exception as e:
-                    logger.sync_error(
-                        f"Per-gene fallback failed for {gene.approved_symbol}: {e}"
-                    )
+                    logger.sync_error(f"Per-gene fallback failed for {gene.approved_symbol}: {e}")
 
         return results
 

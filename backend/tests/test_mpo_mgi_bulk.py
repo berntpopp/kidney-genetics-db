@@ -40,9 +40,36 @@ async def test_bulk_phenotypes_parses_results(source):
     # MouseMine HGene_MPhenotype returns rows:
     # [human_id, human_symbol, human_organism, mouse_id, mouse_symbol, mouse_organism, mpo_id, mpo_name]
     mock_rows = [
-        ["HGNC:9008", "PKD1", "H. sapiens", "MGI:1", "Pkd1", "M. musculus", "MP:0000519", "hydroureter"],
-        ["HGNC:9008", "PKD1", "H. sapiens", "MGI:1", "Pkd1", "M. musculus", "MP:0099999", "some phenotype"],
-        ["HGNC:9009", "PKD2", "H. sapiens", "MGI:2", "Pkd2", "M. musculus", "MP:0000520", "kidney hemorrhage"],
+        [
+            "HGNC:9008",
+            "PKD1",
+            "H. sapiens",
+            "MGI:1",
+            "Pkd1",
+            "M. musculus",
+            "MP:0000519",
+            "hydroureter",
+        ],
+        [
+            "HGNC:9008",
+            "PKD1",
+            "H. sapiens",
+            "MGI:1",
+            "Pkd1",
+            "M. musculus",
+            "MP:0099999",
+            "some phenotype",
+        ],
+        [
+            "HGNC:9009",
+            "PKD2",
+            "H. sapiens",
+            "MGI:2",
+            "Pkd2",
+            "M. musculus",
+            "MP:0000520",
+            "kidney hemorrhage",
+        ],
     ]
 
     mock_response = MagicMock()
@@ -154,9 +181,7 @@ async def test_bulk_zygosity_parses_results(source):
 
     with patch.object(source, "get_http_client", return_value=mock_client):
         with patch.object(source, "apply_rate_limit", new_callable=AsyncMock):
-            result = await source._bulk_query_zygosity(
-                gene_mouse_map, source._mpo_terms_cache
-            )
+            result = await source._bulk_query_zygosity(gene_mouse_map, source._mpo_terms_cache)
 
     # PKD1 hm: MP:0000519 is kidney, MP:0099999 is not
     assert result["PKD1"]["homozygous"]["phenotype_count"] == 1
@@ -183,9 +208,7 @@ async def test_bulk_zygosity_handles_api_error(source):
 
     with patch.object(source, "get_http_client", return_value=mock_client):
         with patch.object(source, "apply_rate_limit", new_callable=AsyncMock):
-            result = await source._bulk_query_zygosity(
-                {"PKD1": ["Pkd1"]}, source._mpo_terms_cache
-            )
+            result = await source._bulk_query_zygosity({"PKD1": ["Pkd1"]}, source._mpo_terms_cache)
 
     assert result["PKD1"]["homozygous"]["phenotype_count"] == 0
     assert result["PKD1"]["heterozygous"]["phenotype_count"] == 0
@@ -289,9 +312,7 @@ async def test_fetch_batch_fallback_for_missing_genes(source):
     with patch.object(
         source, "_bulk_query_phenotypes", new_callable=AsyncMock, return_value=pheno_map
     ):
-        with patch.object(
-            source, "_bulk_query_zygosity", new_callable=AsyncMock, return_value={}
-        ):
+        with patch.object(source, "_bulk_query_zygosity", new_callable=AsyncMock, return_value={}):
             results = await source.fetch_batch(genes)
 
     # Both genes should be in results
@@ -303,12 +324,8 @@ async def test_fetch_batch_fallback_for_missing_genes(source):
 @pytest.mark.asyncio
 async def test_fetch_batch_empty_gene_list(source):
     """fetch_batch handles empty gene list gracefully."""
-    with patch.object(
-        source, "_bulk_query_phenotypes", new_callable=AsyncMock, return_value={}
-    ):
-        with patch.object(
-            source, "_bulk_query_zygosity", new_callable=AsyncMock, return_value={}
-        ):
+    with patch.object(source, "_bulk_query_phenotypes", new_callable=AsyncMock, return_value={}):
+        with patch.object(source, "_bulk_query_zygosity", new_callable=AsyncMock, return_value={}):
             results = await source.fetch_batch([])
 
     assert results == {}
@@ -372,9 +389,7 @@ async def test_zygosity_summary_format(source):
 
     with patch.object(source, "get_http_client", return_value=mock_client):
         with patch.object(source, "apply_rate_limit", new_callable=AsyncMock):
-            result = await source._bulk_query_zygosity(
-                {"PKD1": ["Pkd1"]}, source._mpo_terms_cache
-            )
+            result = await source._bulk_query_zygosity({"PKD1": ["Pkd1"]}, source._mpo_terms_cache)
 
     assert result["PKD1"]["summary"] == "hm (true); ht (false)"
 
