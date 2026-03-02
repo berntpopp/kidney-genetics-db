@@ -1,40 +1,61 @@
 """
 GTEx annotation source for gene expression data.
 
-Supports bulk GCT download of median gene expression for fast batch
-processing, with GTEx Portal API fallback for genes not in the bulk file.
+Uses bulk GCT download of median gene expression for fast batch processing.
+No per-gene API calls — the GCT file covers all genes measured by GTEx.
 """
 
 import csv
+import re
 from pathlib import Path
 from typing import Any
 
-import httpx
-
 from app.core.logging import get_logger
-from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin
 
 logger = get_logger(__name__)
 
+# Pre-compiled regex for parenthetical clean-up in tissue IDs
+_PARENS_RE = re.compile(r"[()]")
+
+
+def _normalise_tissue_id(raw: str) -> str:
+    """Convert a GCT human-readable tissue name to GTEx API-style ID.
+
+    Examples::
+
+        "Kidney - Cortex"                        → "Kidney_Cortex"
+        "Adipose - Visceral (Omentum)"           → "Adipose_Visceral_Omentum"
+        "Brain - Anterior cingulate cortex (BA24)" → "Brain_Anterior_cingulate_cortex_BA24"
+        "Brain - Spinal cord (cervical c-1)"     → "Brain_Spinal_cord_cervical_c-1"
+        "Whole Blood"                            → "Whole_Blood"
+    """
+    # 1. Replace " - " separator with underscore
+    s = raw.replace(" - ", "_")
+    # 2. Strip parentheses (keep content)
+    s = _PARENS_RE.sub("", s)
+    # 3. Replace remaining spaces with underscores
+    s = s.replace(" ", "_")
+    # 4. Collapse any double underscores left from stripping
+    while "__" in s:
+        s = s.replace("__", "_")
+    # 5. Strip trailing underscores
+    return s.rstrip("_")
+
 
 class GTExAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     """
     GTEx (Genotype-Tissue Expression) annotation source.
 
-    Uses bulk GCT download of median gene expression for fast batch processing.
-    Falls back to GTEx Portal API for genes not found in the bulk file.
+    Uses bulk GCT download of median gene expression for fast batch
+    processing.  No per-gene API calls required.
     """
 
     source_name = "gtex"
     display_name = "GTEx"
     version = "v8"
-
-    # API configuration (fallback)
-    base_url = "https://gtexportal.org/api/v2"
-    headers = {"Accept": "application/json", "User-Agent": "KidneyGeneticsDB/1.0"}
 
     # Cache configuration
     cache_ttl_days = 90
@@ -86,12 +107,18 @@ class GTExAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                     continue
 
                 # Build tissue expression map (same structure as API path)
+                # GCT uses human-readable names ("Kidney - Cortex") but the
+                # GTEx API / frontend expects tissueSiteDetailId format
+                # ("Kidney_Cortex"), so normalise: strip, replace " - " / " "
+                # with "_", then collapse parenthetical details.
                 tissues: dict[str, dict[str, Any]] = {}
                 for i, tissue_id in enumerate(tissue_ids):
                     val = row[i + 2] if i + 2 < len(row) else ""
                     if val and val != "NA":
                         try:
-                            tissues[tissue_id] = {
+                            # Normalise GCT tissue name to API-style ID
+                            norm_id = _normalise_tissue_id(tissue_id)
+                            tissues[norm_id] = {
                                 "median_tpm": float(val),
                                 "unit": "TPM",
                             }
@@ -109,153 +136,43 @@ class GTExAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
         return data
 
     async def fetch_annotation(self, gene: Gene) -> dict[str, Any] | None:
-        """Fetch GTEx expression data for a single gene.
-
-        Tries bulk data first, then falls back to GTEx Portal API.
-        """
+        """Fetch GTEx expression data for a single gene via bulk lookup."""
         if not gene.approved_symbol:
             return None
 
-        # Try bulk lookup first
         if self._bulk_data is not None:
-            bulk_result = self.lookup_gene(gene.approved_symbol)
-            if bulk_result is not None:
-                return bulk_result
-
-        # Fall back to API
-        return await self._fetch_via_api(gene)
-
-    async def _fetch_via_api(self, gene: Gene) -> dict[str, Any] | None:
-        """Fetch GTEx data via Portal API (original implementation)."""
-        if not gene.approved_symbol:
-            return None
-
-        expression_data = await self._fetch_by_symbol(gene.approved_symbol)
-
-        if not expression_data:
-            logger.sync_debug("No GTEx data found for gene", gene_symbol=gene.approved_symbol)
-            return None
-
-        result: dict[str, Any] = expression_data
-        return result
-
-    @retry_with_backoff(config=RetryConfig(max_retries=3))
-    async def _fetch_by_symbol(self, symbol: str) -> dict | None:
-        """Fetch GTEx data using gene symbol via API."""
-        await self.apply_rate_limit()
-        client = await self.get_http_client()
-
-        try:
-            # First, search for the gene to get its gencode ID
-            search_response = await client.get(
-                f"{self.base_url}/reference/geneSearch",
-                params={"geneId": symbol, "limit": 1},
-                headers=self.headers,
-            )
-
-            search_data = search_response.json()
-            if not search_data.get("data"):
-                logger.sync_debug("Gene not found in GTEx", symbol=symbol)
-                return None
-
-            # Get the gencode ID from search results
-            gene_info = search_data["data"][0]
-            gencode_id = gene_info.get("gencodeId")
-            if not gencode_id:
-                logger.sync_warning("No gencode ID in GTEx response", symbol=symbol)
-                return None
-
-            # Now fetch expression data using the gencode ID
-            expr_response = await client.get(
-                f"{self.base_url}/expression/medianGeneExpression",
-                params={"gencodeId": gencode_id, "datasetId": "gtex_v8", "format": "json"},
-                headers=self.headers,
-            )
-
-            expr_data = expr_response.json()
-            if not expr_data.get("data"):
-                logger.sync_debug(
-                    "No expression data in GTEx", symbol=symbol, gencode_id=gencode_id
-                )
-                return None
-
-            # Build tissue expression map
-            tissues = {}
-            for expr in expr_data["data"]:
-                tissue_id = expr.get("tissueSiteDetailId")
-                if tissue_id:
-                    tissues[tissue_id] = {
-                        "median_tpm": expr.get("median", 0),
-                        "unit": expr.get("unit", "TPM"),
-                    }
-
-            return {
-                "tissues": tissues,
-                "dataset_version": "gtex_v8",
-                "gencode_id": gencode_id,
-                "gene_symbol": symbol,
-            }
-
-        except httpx.HTTPStatusError as e:
-            logger.sync_error("GTEx API error", symbol=symbol, status_code=e.response.status_code)
-            raise
-        except Exception as e:
-            logger.sync_error(f"Error fetching GTEx data: {str(e)}", symbol=symbol)
-            raise
+            return self.lookup_gene(gene.approved_symbol)
+        return None
 
     async def fetch_batch(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
-        """Fetch annotations for multiple genes.
+        """Fetch annotations for multiple genes via bulk data lookup.
 
-        Loads bulk data once, then does fast local lookups. Falls back to
-        GTEx Portal API for genes not found in the bulk file.
+        Loads the GCT bulk file once, then does fast local lookups by
+        gene symbol. Genes not found in the GCT file simply have no
+        GTEx expression data (the GCT covers all measured genes).
         """
-        # Load bulk data if not already loaded
         try:
             await self.ensure_bulk_data_loaded()
         except Exception as e:
-            logger.sync_warning(
-                f"Failed to load GTEx bulk data, falling back to API: {e}",
-            )
+            logger.sync_warning(f"Failed to load GTEx bulk data: {e}")
+            return {}
 
         results: dict[int, dict[str, Any]] = {}
-        api_fallback_genes: list[Gene] = []
+        misses = 0
 
-        # Fast bulk lookups
         for gene in genes:
             if self._bulk_data is not None and gene.approved_symbol:
                 bulk_result = self.lookup_gene(gene.approved_symbol)
                 if bulk_result is not None:
                     results[gene.id] = bulk_result
-                    continue
-            api_fallback_genes.append(gene)
+                else:
+                    misses += 1
 
-        if api_fallback_genes:
-            logger.sync_info(
-                "GTEx bulk miss, falling back to API",
-                bulk_hits=len(results),
-                api_fallback=len(api_fallback_genes),
+        if misses:
+            logger.sync_debug(
+                "GTEx bulk lookup complete",
+                hits=len(results),
+                misses=misses,
             )
-
-        # API fallback for misses
-        for i, gene in enumerate(api_fallback_genes):
-            try:
-                if i % 10 == 0 and api_fallback_genes:
-                    logger.sync_info(
-                        "Processing GTEx API fallback",
-                        progress=f"{i}/{len(api_fallback_genes)}",
-                    )
-                annotation = await self._fetch_via_api(gene)
-                if annotation:
-                    results[gene.id] = annotation
-            except Exception as e:
-                logger.sync_error(
-                    f"Failed to fetch GTEx annotation for {gene.approved_symbol}",
-                    error_detail=str(e),
-                )
-                if self.circuit_breaker and self.circuit_breaker.state == "open":
-                    logger.sync_error(
-                        "Circuit breaker open, stopping API fallback",
-                    )
-                    break
 
         return results
