@@ -73,6 +73,52 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
             return True
         return datetime.now(timezone.utc) - self._mpo_cache_timestamp > self.mpo_cache_ttl
 
+    async def _load_mpo_terms(self) -> None:
+        """
+        Load kidney MPO terms from file cache, falling back to JAX API.
+
+        Sets self._mpo_terms_cache and self._mpo_cache_timestamp.
+        Used by both fetch_annotation() and fetch_batch() to ensure
+        consistent MPO term loading regardless of code path.
+        """
+        import json
+        from pathlib import Path
+
+        from app.core.datasource_config import ANNOTATION_SOURCE_CONFIG
+
+        config = ANNOTATION_SOURCE_CONFIG.get("mpo_mgi", {})
+        cache_file_relative = config.get("mpo_kidney_terms_file", "data/mpo_kidney_terms.json")
+
+        backend_dir = Path(__file__).parent.parent.parent.parent
+        cache_file = backend_dir / cache_file_relative
+
+        if cache_file.exists():
+
+            def read_json_file(path: Path) -> set[str]:
+                """Read and parse JSON file synchronously."""
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+                    return {str(item) for item in data}
+
+            loaded_terms: set[str] = await asyncio.to_thread(read_json_file, cache_file)
+            self._mpo_terms_cache = loaded_terms
+            logger.sync_info(f"Loaded {len(loaded_terms)} MPO terms from cache file")
+        else:
+            logger.sync_info("MPO terms cache file not found, fetching from API...")
+            fetched_terms = await self.fetch_kidney_mpo_terms()
+            self._mpo_terms_cache = fetched_terms
+
+            def write_json_file(path: Path, data: set[str]) -> None:
+                """Write JSON file synchronously."""
+                path.parent.mkdir(exist_ok=True, parents=True)
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(sorted(data), f, indent=2)
+
+            await asyncio.to_thread(write_json_file, cache_file, fetched_terms)
+            logger.sync_info(f"Fetched {len(fetched_terms)} MPO terms and saved to cache")
+
+        self._mpo_cache_timestamp = datetime.now(timezone.utc)
+
     @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _get_mousemine_version(self) -> str:
         """Fetch the current MouseMine version"""
@@ -363,7 +409,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                     "value1": csv_value,
                     "extra1": "H. sapiens",
                     "format": "json",
-                    "size": "0",  # unlimited
+                    # Note: omit "size" param — InterMine treats size=0 as "return 0 rows"
                 }
 
                 response = await client.get(url, params=params, timeout=120.0)
@@ -469,7 +515,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                     "op1": "CONTAINS",
                     "value1": csv_value,
                     "format": "json",
-                    "size": "0",  # unlimited
+                    # Note: omit "size" param — InterMine treats size=0 as "return 0 rows"
                 }
 
                 response = await client.get(url, params=params, timeout=120.0)
@@ -663,54 +709,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         try:
             # Get MPO terms (with caching)
             if self._mpo_terms_cache is None or self._is_mpo_cache_expired():
-                logger.sync_info("Loading MPO terms from cache or fetching")
-                # Try to load from file first
-                import json
-                from pathlib import Path
-
-                # Get cache file path from config
-                from app.core.datasource_config import ANNOTATION_SOURCE_CONFIG
-
-                config = ANNOTATION_SOURCE_CONFIG.get("mpo_mgi", {})
-                cache_file_relative = config.get(
-                    "mpo_kidney_terms_file", "data/mpo_kidney_terms.json"
-                )
-
-                # Build absolute path relative to backend directory
-                backend_dir = Path(__file__).parent.parent.parent.parent
-                cache_file = backend_dir / cache_file_relative
-
-                if cache_file.exists():
-                    # Read file in thread pool (non-blocking)
-                    def read_json_file(path: Path) -> set[str]:
-                        """Read and parse JSON file synchronously."""
-                        with open(path, encoding="utf-8") as f:
-                            data = json.load(f)
-                            return {str(item) for item in data}
-
-                    loaded_terms: set[str] = await asyncio.to_thread(read_json_file, cache_file)
-                    self._mpo_terms_cache = loaded_terms
-                    logger.sync_info(
-                        f"Loaded {len(loaded_terms)} MPO terms from cache file (non-blocking)"
-                    )
-                else:
-                    # Fetch terms from API and create cache file
-                    logger.sync_info("MPO terms cache not found, fetching from API...")
-                    fetched_terms = await self.fetch_kidney_mpo_terms()
-                    self._mpo_terms_cache = fetched_terms
-
-                    # Write file in thread pool (non-blocking)
-                    def write_json_file(path: Path, data: set[str]) -> None:
-                        """Write JSON file synchronously."""
-                        path.parent.mkdir(exist_ok=True, parents=True)
-                        with open(path, "w", encoding="utf-8") as f:
-                            json.dump(sorted(data), f, indent=2)
-
-                    await asyncio.to_thread(write_json_file, cache_file, fetched_terms)
-                    logger.sync_info(
-                        f"Fetched {len(fetched_terms)} MPO terms and saved to cache (non-blocking)"
-                    )
-                self._mpo_cache_timestamp = datetime.now(timezone.utc)
+                await self._load_mpo_terms()
 
             # At this point, _mpo_terms_cache is guaranteed to be set
             mpo_terms = self._mpo_terms_cache
@@ -778,11 +777,9 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         """
         results: dict[int, dict[str, Any]] = {}
 
-        # Pre-fetch MPO terms once for the batch
+        # Pre-fetch MPO terms once for the batch (file cache → API fallback)
         if self._mpo_terms_cache is None or self._is_mpo_cache_expired():
-            logger.sync_info("Pre-fetching MPO terms for batch processing")
-            self._mpo_terms_cache = await self.fetch_kidney_mpo_terms()
-            self._mpo_cache_timestamp = datetime.now(timezone.utc)
+            await self._load_mpo_terms()
 
         mpo_terms = self._mpo_terms_cache
         if mpo_terms is None:

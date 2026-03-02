@@ -1,6 +1,7 @@
 """Tests for MPO/MGI bulk MouseMine query optimisation."""
 
 import json
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
@@ -316,14 +317,18 @@ async def test_fetch_batch_empty_gene_list(source):
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_fetch_batch_loads_mpo_terms_once(source):
-    """fetch_batch pre-loads MPO terms before bulk queries."""
+    """fetch_batch pre-loads MPO terms via _load_mpo_terms when cache is empty."""
     source._mpo_terms_cache = None  # Force reload
 
     mock_terms = {"MP:0000519", "MP:0000520"}
 
+    async def fake_load_mpo_terms():
+        source._mpo_terms_cache = mock_terms
+        source._mpo_cache_timestamp = datetime.now(timezone.utc)
+
     with patch.object(
-        source, "fetch_kidney_mpo_terms", new_callable=AsyncMock, return_value=mock_terms
-    ) as mock_fetch:
+        source, "_load_mpo_terms", new_callable=AsyncMock, side_effect=fake_load_mpo_terms
+    ) as mock_load:
         with patch.object(
             source, "_bulk_query_phenotypes", new_callable=AsyncMock, return_value={}
         ):
@@ -332,7 +337,7 @@ async def test_fetch_batch_loads_mpo_terms_once(source):
             ):
                 await source.fetch_batch([_make_gene(1, "PKD1")])
 
-    mock_fetch.assert_called_once()
+    mock_load.assert_called_once()
     assert source._mpo_terms_cache == mock_terms
 
 
@@ -441,3 +446,79 @@ async def test_batch_result_structure_matches_single(source):
     assert "heterozygous" in zyg
     assert "conditional" in zyg
     assert "summary" in zyg
+
+
+# ── _load_mpo_terms (file cache vs API fallback) ────────────────────
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_load_mpo_terms_uses_file_cache(source, tmp_path):
+    """_load_mpo_terms loads from file cache when it exists."""
+    source._mpo_terms_cache = None
+    source._mpo_cache_timestamp = None
+
+    # Create a temporary cache file
+    cache_file = tmp_path / "data" / "mpo_kidney_terms.json"
+    cache_file.parent.mkdir(parents=True)
+    terms = ["MP:0000519", "MP:0000520", "MP:0002135"]
+    cache_file.write_text(json.dumps(terms))
+
+    with patch(
+        "app.core.datasource_config.ANNOTATION_SOURCE_CONFIG",
+        {"mpo_mgi": {"mpo_kidney_terms_file": "data/mpo_kidney_terms.json"}},
+    ):
+        # Point backend_dir to tmp_path so it resolves to our cache file
+        from pathlib import Path
+
+        with patch.object(
+            Path,
+            "parents",
+            new_callable=lambda: property(lambda self: [tmp_path] * 5),
+        ):
+            pass  # Can't easily mock Path chaining
+
+    # Simpler approach: just call with the real file that exists in the repo
+    with patch.object(
+        source,
+        "fetch_kidney_mpo_terms",
+        new_callable=AsyncMock,
+    ) as mock_api:
+        await source._load_mpo_terms()
+
+    # API should NOT have been called — the real file cache was used
+    mock_api.assert_not_called()
+    assert source._mpo_terms_cache is not None
+    assert len(source._mpo_terms_cache) > 100  # Real file has 661 terms
+    assert source._mpo_cache_timestamp is not None
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_load_mpo_terms_falls_back_to_api(source, tmp_path):
+    """_load_mpo_terms falls back to API when file cache doesn't exist."""
+    source._mpo_terms_cache = None
+    source._mpo_cache_timestamp = None
+
+    mock_terms = {"MP:0000519", "MP:0000520"}
+
+    # Point config to a non-existent file
+    with patch(
+        "app.core.datasource_config.ANNOTATION_SOURCE_CONFIG",
+        {"mpo_mgi": {"mpo_kidney_terms_file": str(tmp_path / "nonexistent.json")}},
+    ):
+        with patch.object(
+            source,
+            "fetch_kidney_mpo_terms",
+            new_callable=AsyncMock,
+            return_value=mock_terms,
+        ) as mock_api:
+            await source._load_mpo_terms()
+
+    mock_api.assert_called_once()
+    assert source._mpo_terms_cache == mock_terms
+    assert source._mpo_cache_timestamp is not None
+    # Verify it wrote the cache file
+    written = tmp_path / "nonexistent.json"
+    assert written.exists()
+    assert set(json.loads(written.read_text())) == mock_terms
