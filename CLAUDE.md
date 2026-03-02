@@ -186,15 +186,16 @@ YAML-based configuration with environment variable overrides:
 - Environment variable override prefix: `KG_`
 - `backend/.env.example` for required environment variables
 
-### Data Pipeline (`backend/app/pipeline/sources/unified/`)
-All annotation sources inherit from `BaseAnnotationSource` (provides caching, retry, rate limiting, progress tracking):
-- `panelapp.py` - UK/Australia gene panels
-- `hpo.py` - Human Phenotype Ontology
-- `clingen.py` - Clinical Genome Resource
-- `gencc.py` - Gene Curation Coalition
-- `pubtator.py` - Literature mining
-- `diagnostic_panels.py` - Commercial panel scraping
+### Data Pipeline (`backend/app/pipeline/sources/`)
+Annotation sources are split across two directories:
+- **`unified/`** — Original sources extending `BaseAnnotationSource`: `panelapp.py`, `hpo.py`, `clingen.py`, `gencc.py`, `pubtator.py`, `diagnostic_panels.py`
+- **`annotations/`** — Newer annotation sources: `mpo_mgi.py`, `gtex.py`, `ensembl.py`, `hgnc.py`, `uniprot.py`, `gnomad.py`, `clinvar.py`, `string_ppi.py`
 - Evidence aggregation in `backend/app/pipeline/aggregate.py`
+
+#### External API Gotchas
+- **JAX API** (`informatics.jax.org`): Behind reCAPTCHA — cannot be called server-side. MPO terms are loaded from a static file cache at `backend/app/data/mpo_kidney_terms.json` (661 terms).
+- **InterMine/MouseMine**: `size=0` means "return 0 rows", NOT unlimited. Omit the `size` param entirely for unlimited results.
+- **GTEx**: Uses bulk GCT file download (not API). Tissue keys must be normalized from human-readable (`"Kidney - Cortex"`) to API-style (`"Kidney_Cortex"`) via `_normalise_tissue_id()`.
 
 ## Non-Blocking Pattern (CRITICAL)
 
