@@ -101,6 +101,20 @@ class AnnotationPipeline:
         """
         start_time = datetime.utcnow()
 
+        # Log connection pool status at pipeline start
+        try:
+            from app.core.database import get_pool_status
+
+            pool_status = get_pool_status()
+            logger.sync_info(
+                "Connection pool status at pipeline start",
+                checked_out=pool_status.get("checked_out"),
+                overflow=pool_status.get("overflow"),
+                total=pool_status.get("total"),
+            )
+        except Exception:
+            pass
+
         logger.sync_info(
             "AnnotationPipeline.run_update started",
             strategy=strategy.value,
@@ -286,6 +300,18 @@ class AnnotationPipeline:
                 )
 
             logger.sync_info("Annotation update completed", **summary)
+
+            # Log connection pool status at pipeline end
+            try:
+                pool_status = get_pool_status()
+                logger.sync_info(
+                    "Connection pool status at pipeline end",
+                    checked_out=pool_status.get("checked_out"),
+                    overflow=pool_status.get("overflow"),
+                    total=pool_status.get("total"),
+                )
+            except Exception:
+                pass
 
             return summary
 
