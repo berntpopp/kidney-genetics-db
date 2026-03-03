@@ -1,7 +1,7 @@
 # Kidney Genetics Database - Development Makefile
 # Usage: make [command]
 
-.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend worker lint lint-frontend format-check test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed test-frontend prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check security bandit pip-audit npm-audit ci
+.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend worker lint lint-frontend format-check test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed test-frontend prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check security bandit pip-audit npm-audit ci benchmark-pipeline benchmark-pipeline-fresh
 
 # Detect docker compose command (v2 vs v1)
 DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
@@ -58,6 +58,10 @@ help:
 	@echo "  make test-critical   - Run critical tests only"
 	@echo "  make test-coverage   - Run tests with coverage report"
 	@echo "  make test-failed     - Re-run only failed tests"
+	@echo ""
+	@echo "📊 BENCHMARKING:"
+	@echo "  make benchmark-pipeline       - Benchmark pipeline (uses existing cache)"
+	@echo "  make benchmark-pipeline-fresh  - Benchmark pipeline (clears cache first)"
 	@echo ""
 	@echo "🧹 CLEANUP:"
 	@echo "  make clean-backend   - Clean Python cache files (__pycache__, .pyc, etc.)"
@@ -248,6 +252,24 @@ except Exception as e: \
 	@echo ""
 	@echo "📡 Data Source Status:"
 	@-curl -s http://localhost:8000/api/progress/status 2>/dev/null | python3 -c "import sys, json; data = json.loads(sys.stdin.read()) if sys.stdin.read() else []; [print(f\"  {'✓' if s['status'] == 'completed' else '○' if s['status'] == 'idle' else '⏳'} {s['source_name']}: {s['status']} ({s['progress_percentage']}%)\") for s in data]" 2>/dev/null || echo "  Backend API not accessible"
+
+# ════════════════════════════════════════════════════════════════════
+# BENCHMARKING
+# ════════════════════════════════════════════════════════════════════
+
+# Run pipeline benchmark (uses existing bulk cache)
+benchmark-pipeline:
+	@echo "📊 Running pipeline resource benchmark..."
+	@echo "⚠️  Requires running backend (make backend) and admin credentials in backend/.env"
+	@cd backend && uv run python scripts/benchmark_pipeline.py
+	@echo "✅ Benchmark complete! Report: backend/benchmark_report.json"
+
+# Run pipeline benchmark after clearing bulk cache (simulates first run)
+benchmark-pipeline-fresh:
+	@echo "📊 Running pipeline resource benchmark (fresh, no cache)..."
+	@echo "⚠️  Requires running backend (make backend) and admin credentials in backend/.env"
+	@cd backend && uv run python scripts/benchmark_pipeline.py --clear-cache
+	@echo "✅ Benchmark complete! Report: backend/benchmark_report.json"
 
 # ════════════════════════════════════════════════════════════════════
 # CLEANUP

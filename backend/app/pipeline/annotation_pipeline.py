@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
+from app.core.resource_monitor import log_resource_checkpoint
 from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationSource, GeneAnnotation
@@ -204,6 +205,7 @@ class AnnotationPipeline:
             gene_ids_to_update = [g.id for g in genes_to_update]
 
             # Phase 1: HGNC must complete first (provides Ensembl IDs)
+            log_resource_checkpoint("pipeline.phase1_start")
             if "hgnc" in sources_to_update:
                 logger.sync_info("Processing HGNC first (dependency for other sources)")
                 hgnc_db = SessionLocal(expire_on_commit=False)
@@ -222,6 +224,7 @@ class AnnotationPipeline:
                     errors.append({"source": "hgnc", "error": str(e), "critical": True})
                 finally:
                     hgnc_db.close()
+                log_resource_checkpoint("pipeline.phase1_hgnc_done")
 
             # Phase 2: Process remaining sources in parallel
             if sources_to_update:
@@ -300,6 +303,7 @@ class AnnotationPipeline:
                     operation=f"Update completed in {duration:.1f} seconds"
                 )
 
+            log_resource_checkpoint("pipeline.complete")
             logger.sync_info("Annotation update completed", **summary)
 
             # Log connection pool status at pipeline end
@@ -619,6 +623,7 @@ class AnnotationPipeline:
                     source_db.execute(text("SELECT 1"))
                     source_db.commit()
 
+                    log_resource_checkpoint(f"source.{source_name}.start")
                     logger.sync_info(f"Starting parallel update for {source_name}")
                     result = await self._update_source_with_session(
                         source_name, gene_ids, force, source_db
@@ -703,6 +708,9 @@ class AnnotationPipeline:
             batch_data = await source.fetch_batch(genes)
             if batch_data is None:
                 batch_data = {}
+            log_resource_checkpoint(
+                f"source.{source_name}.fetch_done", extra={"fetched": len(batch_data)}
+            )
             logger.sync_info(
                 f"Batch fetch complete for {source_name}",
                 fetched=len(batch_data),
@@ -725,6 +733,9 @@ class AnnotationPipeline:
                 source_name, source.version, batch_data, source_db
             )
             successful = upsert_count
+            log_resource_checkpoint(
+                f"source.{source_name}.upsert_done", extra={"upserted": upsert_count}
+            )
             logger.sync_info(
                 f"Bulk upsert complete for {source_name}",
                 upserted=upsert_count,

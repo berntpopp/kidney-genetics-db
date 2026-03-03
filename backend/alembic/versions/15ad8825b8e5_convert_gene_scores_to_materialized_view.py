@@ -37,7 +37,11 @@ def upgrade() -> None:
     # Note: gene_list_detailed depends on gene_scores
     op.execute("DROP VIEW IF EXISTS gene_list_detailed CASCADE")
 
-    # Drop the existing regular view
+    # Drop the existing view (may be regular or materialized depending on
+    # whether ae289b364fa1 imported the current views.py definition).
+    # Must try MATERIALIZED VIEW first — PostgreSQL errors on DROP VIEW
+    # if the object is a materialized view, even with IF EXISTS.
+    op.execute("DROP MATERIALIZED VIEW IF EXISTS gene_scores CASCADE")
     op.execute("DROP VIEW IF EXISTS gene_scores CASCADE")
 
     # Create as materialized view (same SQL definition from views.py)
