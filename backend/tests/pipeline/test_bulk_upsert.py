@@ -25,11 +25,8 @@ class TestBulkUpsertAnnotations:
             pytest.skip("No genes in database")
 
         db_session.execute(
-            text(
-                "DELETE FROM gene_annotations "
-                "WHERE gene_id = :gid AND source = :src AND version = :ver"
-            ),
-            {"gid": gene.id, "src": "_test_bulk", "ver": "1.0"},
+            text("DELETE FROM gene_annotations WHERE gene_id = :gid AND source = :src"),
+            {"gid": gene.id, "src": "_test_bulk"},
         )
         db_session.commit()
 
@@ -43,7 +40,7 @@ class TestBulkUpsertAnnotations:
         assert count == 1
         ann = (
             db_session.query(GeneAnnotation)
-            .filter_by(gene_id=gene.id, source="_test_bulk", version="1.0")
+            .filter_by(gene_id=gene.id, source="_test_bulk")
             .first()
         )
         assert ann is not None
@@ -71,7 +68,7 @@ class TestBulkUpsertAnnotations:
         assert count == 1
         ann = (
             db_session.query(GeneAnnotation)
-            .filter_by(gene_id=gene.id, source="_test_bulk", version="1.0")
+            .filter_by(gene_id=gene.id, source="_test_bulk")
             .first()
         )
         assert ann is not None
@@ -98,7 +95,7 @@ class TestBulkUpsertAnnotations:
         for g in genes:
             ann = (
                 db_session.query(GeneAnnotation)
-                .filter_by(gene_id=g.id, source="_test_bulk", version="1.0")
+                .filter_by(gene_id=g.id, source="_test_bulk")
                 .first()
             )
             assert ann is not None
