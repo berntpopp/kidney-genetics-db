@@ -206,8 +206,10 @@ class AnnotationPipeline:
             # Phase 1: HGNC must complete first (provides Ensembl IDs)
             if "hgnc" in sources_to_update:
                 logger.sync_info("Processing HGNC first (dependency for other sources)")
-                hgnc_db = SessionLocal()
+                hgnc_db = SessionLocal(expire_on_commit=False)
                 try:
+                    hgnc_db.execute(text("SET idle_in_transaction_session_timeout = 0"))
+                    hgnc_db.commit()
                     hgnc_results = await self._update_source_with_session(
                         "hgnc", gene_ids_to_update, force, hgnc_db
                     )
@@ -610,9 +612,10 @@ class AnnotationPipeline:
         async def rate_limited_update(source_name: str) -> tuple[str, dict]:
             """Update single source with its own isolated session."""
             async with semaphore:
-                source_db = SessionLocal()
+                source_db = SessionLocal(expire_on_commit=False)
                 try:
-                    # Health-check on the NEW session
+                    # Disable idle-in-transaction timeout for long-running pipeline
+                    source_db.execute(text("SET idle_in_transaction_session_timeout = 0"))
                     source_db.execute(text("SELECT 1"))
                     source_db.commit()
 
@@ -808,11 +811,12 @@ class AnnotationPipeline:
         except Exception as e:
             logger.sync_debug(f"Cache clear failed: {e}")
 
-        # Update source metadata using the source-local session
-        source_record = source.source_record
-        source_record.last_update = datetime.utcnow()
-        source_record.next_update = datetime.utcnow() + timedelta(days=source.cache_ttl_days)
-        source_db.commit()
+        # Update source metadata only when at least one gene succeeded
+        if successful > 0:
+            source_record = source.source_record
+            source_record.last_update = datetime.utcnow()
+            source_record.next_update = datetime.utcnow() + timedelta(days=source.cache_ttl_days)
+            source_db.commit()
 
         return {
             "successful": successful,
@@ -867,7 +871,7 @@ class AnnotationPipeline:
                 f"INSERT INTO gene_annotations "
                 f"(gene_id, source, version, annotations, source_metadata, "
                 f"created_at, updated_at) VALUES {', '.join(values_clauses)} "
-                f"ON CONFLICT (gene_id, source) DO UPDATE SET "
+                f"ON CONFLICT ON CONSTRAINT unique_gene_source DO UPDATE SET "
                 f"version = EXCLUDED.version, "
                 f"annotations = EXCLUDED.annotations, "
                 f"source_metadata = EXCLUDED.source_metadata, "

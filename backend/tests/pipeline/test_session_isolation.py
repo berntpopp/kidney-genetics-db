@@ -24,10 +24,10 @@ class TestParallelSessionIsolation:
         created_sessions: list[Session] = []
 
         # Patch SessionLocal to track every session created
-        def tracking_session_local():
+        def tracking_session_local(**kwargs):
             from app.core.database import SessionLocal as RealSessionLocal
 
-            sess = RealSessionLocal()
+            sess = RealSessionLocal(**kwargs)
             created_sessions.append(sess)
             return sess
 
@@ -103,7 +103,7 @@ class TestParallelSessionIsolation:
 
         mock_sessions: list[MagicMock] = []
 
-        def tracking_session_local():
+        def tracking_session_local(**kwargs):
             mock_sess = MagicMock(spec=Session)
             mock_sessions.append(mock_sess)
             return mock_sess

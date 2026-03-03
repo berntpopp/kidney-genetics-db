@@ -149,6 +149,10 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
             kidney_genes.append(symbol)
             evidence_scores[symbol] = float(score)
 
+        # Commit to close the read transaction — prevents idle-in-transaction
+        # timeout during the long PPI computation that follows.
+        self.session.commit()
+
         self._kidney_genes = set(kidney_genes)
         self._gene_evidence_scores = evidence_scores
 

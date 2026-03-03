@@ -473,38 +473,26 @@ async def test_load_mpo_terms_uses_file_cache(source, tmp_path):
     source._mpo_terms_cache = None
     source._mpo_cache_timestamp = None
 
-    # Create a temporary cache file
-    cache_file = tmp_path / "data" / "mpo_kidney_terms.json"
-    cache_file.parent.mkdir(parents=True)
+    # Create a temporary cache file with known terms
+    cache_file = tmp_path / "mpo_kidney_terms.json"
     terms = ["MP:0000519", "MP:0000520", "MP:0002135"]
     cache_file.write_text(json.dumps(terms))
 
+    # Use absolute path so Path(backend_dir) / abs_path resolves to our file
     with patch(
         "app.core.datasource_config.ANNOTATION_SOURCE_CONFIG",
-        {"mpo_mgi": {"mpo_kidney_terms_file": "data/mpo_kidney_terms.json"}},
+        {"mpo_mgi": {"mpo_kidney_terms_file": str(cache_file)}},
     ):
-        # Point backend_dir to tmp_path so it resolves to our cache file
-        from pathlib import Path
-
         with patch.object(
-            Path,
-            "parents",
-            new_callable=lambda: property(lambda self: [tmp_path] * 5),
-        ):
-            pass  # Can't easily mock Path chaining
+            source,
+            "fetch_kidney_mpo_terms",
+            new_callable=AsyncMock,
+        ) as mock_api:
+            await source._load_mpo_terms()
 
-    # Simpler approach: just call with the real file that exists in the repo
-    with patch.object(
-        source,
-        "fetch_kidney_mpo_terms",
-        new_callable=AsyncMock,
-    ) as mock_api:
-        await source._load_mpo_terms()
-
-    # API should NOT have been called — the real file cache was used
+    # API should NOT have been called — the file cache was used
     mock_api.assert_not_called()
-    assert source._mpo_terms_cache is not None
-    assert len(source._mpo_terms_cache) > 100  # Real file has 661 terms
+    assert source._mpo_terms_cache == {"MP:0000519", "MP:0000520", "MP:0002135"}
     assert source._mpo_cache_timestamp is not None
 
 
