@@ -1,4 +1,4 @@
-"""Tests for AnnotationPipeline._bulk_upsert_annotations."""
+"""Tests for AnnotationPipeline._bulk_upsert_annotations_with_session."""
 
 import pytest
 from sqlalchemy import text
@@ -36,7 +36,9 @@ class TestBulkUpsertAnnotations:
         pipeline = self._make_pipeline(db_session)
         batch_data = {gene.id: {"test_field": "test_value", "score": 0.95}}
 
-        count = pipeline._bulk_upsert_annotations("_test_bulk", "1.0", batch_data)
+        count = pipeline._bulk_upsert_annotations_with_session(
+            "_test_bulk", "1.0", batch_data, db_session
+        )
 
         assert count == 1
         ann = (
@@ -58,10 +60,12 @@ class TestBulkUpsertAnnotations:
             pytest.skip("No genes in database")
 
         pipeline = self._make_pipeline(db_session)
-        pipeline._bulk_upsert_annotations("_test_bulk", "1.0", {gene.id: {"value": "old"}})
+        pipeline._bulk_upsert_annotations_with_session(
+            "_test_bulk", "1.0", {gene.id: {"value": "old"}}, db_session
+        )
 
-        count = pipeline._bulk_upsert_annotations(
-            "_test_bulk", "1.0", {gene.id: {"value": "new", "extra": 42}}
+        count = pipeline._bulk_upsert_annotations_with_session(
+            "_test_bulk", "1.0", {gene.id: {"value": "new", "extra": 42}}, db_session
         )
 
         assert count == 1
@@ -86,7 +90,9 @@ class TestBulkUpsertAnnotations:
         pipeline = self._make_pipeline(db_session)
         batch_data = {g.id: {"symbol": g.approved_symbol} for g in genes}
 
-        count = pipeline._bulk_upsert_annotations("_test_bulk", "1.0", batch_data)
+        count = pipeline._bulk_upsert_annotations_with_session(
+            "_test_bulk", "1.0", batch_data, db_session
+        )
         assert count == len(genes)
 
         for g in genes:
@@ -106,7 +112,9 @@ class TestBulkUpsertAnnotations:
     def test_bulk_upsert_empty_dict_returns_zero(self, db_session: Session):
         """Empty batch_data returns 0 without DB interaction."""
         pipeline = self._make_pipeline(db_session)
-        count = pipeline._bulk_upsert_annotations("_test_bulk", "1.0", {})
+        count = pipeline._bulk_upsert_annotations_with_session(
+            "_test_bulk", "1.0", {}, db_session
+        )
         assert count == 0
 
     def test_bulk_upsert_handles_large_batch(self, db_session: Session):
@@ -118,7 +126,9 @@ class TestBulkUpsertAnnotations:
         pipeline = self._make_pipeline(db_session)
         batch_data = {g.id: {"idx": i} for i, g in enumerate(genes)}
 
-        count = pipeline._bulk_upsert_annotations("_test_bulk", "1.0", batch_data)
+        count = pipeline._bulk_upsert_annotations_with_session(
+            "_test_bulk", "1.0", batch_data, db_session
+        )
         assert count == len(genes)
 
         db_session.execute(
