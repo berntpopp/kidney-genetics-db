@@ -54,27 +54,29 @@ class MaterializedViewManager:
         "source_overlap_statistics": MaterializedViewConfig(
             name="source_overlap_statistics",
             definition="""
+            WITH source_totals AS (
+                SELECT source_name, COUNT(DISTINCT gene_id) AS total
+                FROM gene_evidence
+                GROUP BY source_name
+            )
             SELECT
-                s1.source_name AS source1,
-                s2.source_name AS source2,
-                COUNT(DISTINCT CASE
-                    WHEN s1.gene_id = s2.gene_id
-                    THEN s1.gene_id
-                END)::integer AS overlap_count,
-                COUNT(DISTINCT s1.gene_id)::integer AS source1_total,
-                COUNT(DISTINCT s2.gene_id)::integer AS source2_total,
+                e1.source_name AS source1,
+                e2.source_name AS source2,
+                COUNT(DISTINCT e1.gene_id)::integer AS overlap_count,
+                st1.total::integer AS source1_total,
+                st2.total::integer AS source2_total,
                 ROUND(
-                    COUNT(DISTINCT CASE
-                        WHEN s1.gene_id = s2.gene_id
-                        THEN s1.gene_id
-                    END)::numeric /
-                    NULLIF(COUNT(DISTINCT s1.gene_id), 0) * 100,
+                    COUNT(DISTINCT e1.gene_id)::numeric /
+                    NULLIF(st1.total, 0) * 100,
                     2
                 )::float8 AS overlap_percentage
-            FROM gene_evidence s1
-            CROSS JOIN gene_evidence s2
-            WHERE s1.source_name < s2.source_name  -- Avoid duplicates
-            GROUP BY s1.source_name, s2.source_name
+            FROM gene_evidence e1
+            JOIN gene_evidence e2
+                ON e1.gene_id = e2.gene_id
+                AND e1.source_name < e2.source_name
+            JOIN source_totals st1 ON st1.source_name = e1.source_name
+            JOIN source_totals st2 ON st2.source_name = e2.source_name
+            GROUP BY e1.source_name, e2.source_name, st1.total, st2.total
             """,
             indexes=[
                 "CREATE INDEX idx_source_overlap_sources ON source_overlap_statistics(source1, source2)",
