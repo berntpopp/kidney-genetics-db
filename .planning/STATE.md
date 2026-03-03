@@ -1,116 +1,81 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.2
-milestone_name: milestone
-status: unknown
-last_updated: "2026-02-28T22:07:35.759Z"
+milestone: v0.2.0
+milestone_name: Frontend Migration
+status: complete
+last_updated: "2026-03-03T16:00:00.000Z"
 progress:
   total_phases: 9
-  completed_phases: 2
-  total_plans: 24
-  completed_plans: 8
+  completed_phases: 9
+  total_plans: 23
+  completed_plans: 23
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-28)
+See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Researchers and clinicians can quickly find, explore, and evaluate kidney disease gene evidence
-**Current focus:** v0.2.0 Frontend Migration — Phase 3 in progress
+**Current status:** v0.2.0 Frontend Migration — COMPLETE. No active milestone.
 
 ## Current Position
 
-Phase: 3 of 9 (03-app-shell-nav-auth-icons)
-Plan: 1 of 5 in phase (03-01 complete)
-Status: Executing Phase 3 plans
-Last activity: 2026-02-28 - Completed 03-01-PLAN.md (app shell migrated to Tailwind, 15 shadcn-vue components added, toast provider wired)
+Milestone v0.2.0 complete. All 9 phases (23 plans) executed and merged to main.
 
-Progress: [██████░░░░] ~30%
+Progress: [██████████] 100%
+
+## Post-Milestone Work (on main, after v0.2.0)
+
+Backend improvements shipped after the frontend migration:
+- Pipeline session isolation: per-source DB sessions for parallel updates
+- All 10 annotation sources: bulk file/batch API optimizations
+- Stale annotation version fix: unique constraint (gene_id, source)
+- Pipeline resource benchmarking: peak RSS 2,227 MB, full run ~582s
+- Gene count: 571 → 5,080+ curated genes
 
 ## Performance Metrics
 
-**Velocity:**
-- Total plans completed: 6
-- Average duration: 7m 55s
-- Total execution time: 47m 29s (Phase 01: 12m 0s, Phase 02: 35m 29s)
+**Velocity (v0.2.0):**
+- Total plans completed: 23
+- Total phases: 9
 
 **By Phase:**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01-foundation-setup | 3 | 12m 0s | 4m 0s |
-| 02-typescript-migration | 3 (complete) | 35m 29s | 11m 50s |
-| 03-app-shell-nav-auth-icons | 1 of 5 | ~20m | ~20m |
-
-*Updated after each plan completion*
-| Phase 07 P07-02 | 5m 10s | 5 tasks | 19 files |
-| Phase 07 P07-03 | 5m 37s | 5 tasks | 4 files |
+| Phase | Plans | Status |
+|-------|-------|--------|
+| 01-foundation-setup | 3 | Complete |
+| 02-typescript-migration | 3 | Complete |
+| 03-app-shell-nav-auth-icons | 5 | Complete |
+| 04-public-pages-footer | 2 | Complete |
+| 05-gene-detail-evidence | 3 | Complete |
+| 06-data-tables | 2 | Complete |
+| 07-admin-panel | 4 | Complete |
+| 08-network-visualizations | 3 | Complete |
+| 09-cleanup-vuetify-removal | 1 | Complete |
 
 ## Accumulated Context
 
-### Decisions
+### Key Decisions (v0.2.0)
 
-- Feature branch strategy with worktrees for parallel execution
-- Vitest component testing added during migration (not deferred)
-- All 9 phases in single milestone to minimize coexistence window
-- zod pinned to v3.24 (v4 incompatible with vee-validate peer deps)
-- tailwind-merge must be v3.x for Tailwind v4 compatibility
 - shadcn-vue uses reka-ui (not radix-vue) — use shadcn-vue.com docs only
-- **01-01:** allowJs: true + checkJs: false chosen to coexist with legacy JS without type errors
-- **01-01:** verbatimModuleSyntax: true enforced from day one for ESM-only import style
-- **01-01:** @tsconfig/node22 explicitly installed (not relied on as transitive dep)
-- **01-01:** git mv used for vite.config rename to preserve commit history
-- **01-02:** @tailwindcss/vite plugin (no tailwind.config.js needed for v4)
-- **01-02:** CSS layer order: theme < base < vuetify < components < utilities
-- **01-02:** vuetify/styles imported via @layer(vuetify) in main.css (removed from vuetify.js)
-- **01-02:** OKLCH color space for all CSS custom properties
-- **01-02:** components.json uses "config": "" (empty) — correct for Tailwind v4
-- **01-02:** @typescript-eslint/parser added to eslint.config.js (pre-existing ESLint gap fixed)
-- **01-03:** jsdom over happy-dom for Vitest (better DOM spec compliance, plan spec)
-- **01-03:** Separate vitest.config.ts from vite.config.ts (test isolation)
-- **01-03:** No custom SVGs for icon migration (context from labels, not icons)
-- **01-03:** mdi-vuejs dropped (1 icon total) — purely decorative Vue.js logo
-- **01-03:** 198 MDI icons mapped: 92 direct / 68 close / 29 generic / 9 drop
-- **02-01:** WindowLogService inline interface in env.d.ts (not import from logService.js) to avoid forward reference — refine in 02-02 when logService.ts migrated
-- **02-01:** EvidenceData union includes Record<string, unknown> fallback for HGNC/gnomAD/GTEx (not rendered by frontend views)
-- **02-01:** debounce.ts flush() accepts args for type compat but uses lastArgs internally (documented)
-- **02-01:** 4 pre-existing JS silent bugs fixed by TypeScript strict mode (warning→warn, 3-arg error, undefined vs null, index access)
-- **02-02:** LogService exported as class so Window.logService in env.d.ts uses actual class type (import() syntax avoids top-level import in declaration file)
-- **02-02:** Admin modules return Promise<AxiosResponse<T>> (raw response) — callers use .data, preserving existing behavior without component changes
-- **02-02:** getCacheNamespaces exception: returns processed CacheNamespacesResult (not raw AxiosResponse) to preserve async aggregation logic
-- **02-02:** LogLevel as const for literal string type inference on _log() level parameter
-- **02-02:** LOG_LEVEL_PRIORITY lookup uses ?? 0 for TypeScript strict no-unchecked-indexed-access compliance
-- **02-03:** @types/d3 installed as devDependency — d3 package lacks bundled TypeScript types, @types/d3 v7.4.3 provides full typed Selection, Transition, etc.
-- **02-03:** D3 tooltip typed as Selection<HTMLDivElement, unknown, HTMLElement, unknown> — precise generic avoids any
-- **02-03:** catch (err unknown) narrowing pattern: cast to { response?: { data?: { detail?: string } } } for Axios errors
-- **02-03:** RouteMeta module augmentation: eslint-disable-next-line no-unused-vars for false positive
-- **02-03:** hasPermission/hasRole computed<(arg) => R> pattern: eslint-disable-next-line on the computed wrapping to suppress false-positive no-unused-vars
-- **02-03:** ESLint globals extended for TypeScript files: MouseEvent, HTMLElement, HTMLDivElement, DOMRect, RequestInit, MessageEvent, Event, Element, Node, FormData, File
-- **02-03:** ESLint errors in debounce.ts (@typescript-eslint comments) and client.spec.ts (global) fixed during verification
-- **03-01:** zod resolved to ^3.25.76 (v3.x, not v4) - satisfies @vee-validate/zod peer dep
-- **03-01:** Dialog component created manually after shadcn-vue CLI interactive prompt blocked automation
-- **03-01:** Added @radix-icons/vue as dependency (required by shadcn-vue dialog/sheet close icons)
-- **03-01:** Added KeyboardEvent to ESLint Vue globals for TypeScript type annotations in Vue SFCs
-- [Phase 07]: AlertDialog created manually (CLI interactive prompt blocks automation); uses DialogRootProps types
-
-### Pending Todos
-
-None yet.
+- zod pinned to v3.x (v4 incompatible with vee-validate peer deps at migration time)
+- tailwind-merge must be v3.x for Tailwind v4 compatibility
+- jsdom over happy-dom for Vitest (better DOM spec compliance)
+- allowJs: true + checkJs: false for JS/TS coexistence during migration
+- CSS layer order: theme < base < vuetify < components < utilities (during coexistence)
+- OKLCH color space for all CSS custom properties
+- AlertDialog/Dialog components created manually (shadcn-vue CLI interactive prompt blocks automation)
 
 ### Blockers / Concerns
 
-- **Phase 3 prerequisite: RESOLVED** — Icon audit complete (01-icon-audit.md). All 198 MDI icons mapped. 1 dropped (mdi-vuejs). Phase 3 planning can now finalize.
-- **Phase 5 prerequisite:** Evidence tier OKLCH color values require design sign-off before GeneDetail migration
-- **Phase 6 research flag:** Multi-select chip pattern (Combobox + TagsInput) is MEDIUM confidence — build isolated prototype before planning Phase 6
-- **02-02: RESOLVED** — Window.logService now uses actual LogService class type (inline interface removed)
-- **02-03: Phase 2 COMPLETE** — TSML-08 verified (vue-tsc --noEmit exits 0), TEST-04 satisfied (50 new store/composable tests), zero .js files remain in src/
+None — milestone complete.
 
 ## Session Continuity
 
-Last session: 2026-02-28T22:15:00Z
-Stopped at: Completed 07-03-PLAN.md — AdminUserManagement, AdminCacheManagement, AdminPipeline migrated to shadcn-vue
+Last session: 2026-03-03
+Status: Between milestones. No active work.
 Resume file: None
 
 Config:

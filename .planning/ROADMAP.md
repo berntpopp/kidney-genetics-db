@@ -6,7 +6,7 @@ Migrate the entire frontend from JavaScript + Vuetify 3 to TypeScript + Tailwind
 
 ## Milestones
 
-- 🚧 **v0.2.0 Frontend Migration** — Phases 1-9 (in progress)
+- ✅ **v0.2.0 Frontend Migration** — All 9 phases complete
 
 ## Phases
 
@@ -15,13 +15,13 @@ Migrate the entire frontend from JavaScript + Vuetify 3 to TypeScript + Tailwind
 - Decimal phases: Urgent insertions via `/gsd:insert-phase` if needed
 
 - [x] **Phase 1: Foundation Setup** — Install and configure TypeScript, Tailwind v4, shadcn-vue, Vitest, and audit icons without changing any UI
-- [ ] **Phase 2: TypeScript Migration** — Migrate all non-component files (stores, API modules, composables, utils, router) to TypeScript
-- [ ] **Phase 3: App Shell, Navigation, Auth, Feedback, Icons** — Migrate the application skeleton, authentication UI, toast system, and replace all icons
-- [ ] **Phase 4: Simple Public Pages** — Migrate five low-complexity public views using established component patterns
-- [ ] **Phase 5: Gene Detail and Evidence Components** — Migrate the primary public detail page and all associated domain components
-- [ ] **Phase 6: Data Tables** — Migrate GeneTable and all admin data tables to TanStack Table with server-side pagination
-- [ ] **Phase 7: Admin Panel** — Migrate all 11 admin views, forms, and the sidebar navigation
-- [ ] **Phase 8: Network Analysis and Visualizations** — Migrate visualization wrappers while preserving D3/Cytoscape rendering internals
+- [x] **Phase 2: TypeScript Migration** — Migrate all non-component files (stores, API modules, composables, utils, router) to TypeScript
+- [x] **Phase 3: App Shell, Navigation, Auth, Feedback, Icons** — Migrate the application skeleton, authentication UI, toast system, and replace all icons
+- [x] **Phase 4: Simple Public Pages** — Migrate five low-complexity public views using established component patterns
+- [x] **Phase 5: Gene Detail and Evidence Components** — Migrate the primary public detail page and all associated domain components
+- [x] **Phase 6: Data Tables** — Migrate GeneTable and all admin data tables to TanStack Table with server-side pagination
+- [x] **Phase 7: Admin Panel** — Migrate all 11 admin views, forms, and the sidebar navigation
+- [x] **Phase 8: Network Analysis and Visualizations** — Migrate visualization wrappers while preserving D3/Cytoscape rendering internals
 - [x] **Phase 9: Cleanup and Vuetify Removal** — Remove all Vuetify dependencies, clean coexistence hacks, verify zero references
 
 ## Phase Details
@@ -96,15 +96,15 @@ Plans:
 5. All navigation icons render as Lucide SVG components — no MDI font glyphs visible in the header, footer, or user menu
 
 **Estimated complexity:** HIGH
-**Research needed:** Yes — icon mapping for the 198 unique MDI icons (gap audit from Phase 1) must be finalized before Phase 3 begins. Visual testing at 320px/768px/1280px breakpoints required after completion. Dark mode dual-system synchronization watcher must be manually verified.
 
-**Plans:** TBD
+**Plans:** 5 plans in 5 waves (sequential)
 
 Plans:
-- [ ] 03-01: App shell and layout migration (LNAV-01, LNAV-02, LNAV-03, LNAV-04)
-- [ ] 03-02: User menu, breadcrumbs, and dark mode toggle (LNAV-05, LNAV-06, LNAV-07)
-- [ ] 03-03: Auth modals with vee-validate + Zod (AUTH-01, AUTH-02, AUTH-03, AUTH-04)
-- [ ] 03-04: Toast system and icon replacement (TFBK-01, TFBK-02, TFBK-03, ICON-01, ICON-02, ICON-03, ICON-04, TEST-02)
+- [x] 03-01-PLAN.md — App shell and layout migration (LNAV-01, LNAV-02, LNAV-03, LNAV-04)
+- [x] 03-02-PLAN.md — User menu, breadcrumbs, and dark mode toggle (LNAV-05, LNAV-06, LNAV-07)
+- [x] 03-03-PLAN.md — Auth modals with vee-validate + Zod (AUTH-01, AUTH-02, AUTH-03, AUTH-04)
+- [x] 03-04-PLAN.md — Toast system replacement (TFBK-01, TFBK-02, TFBK-03)
+- [x] 03-05-PLAN.md — Icon replacement — all v-icon to Lucide (ICON-01, ICON-02, ICON-03, ICON-04, TEST-02)
 
 ---
 
@@ -123,13 +123,12 @@ Plans:
 4. All five pages pass `npm run build` with no TypeScript errors in their component files
 
 **Estimated complexity:** LOW
-**Research needed:** No — straightforward component mapping; all patterns are established in Phase 3.
 
-**Plans:** TBD
+**Plans:** 2 plans in 2 waves (sequential)
 
 Plans:
-- [ ] 04-01: Home, About, DataSources migration (SPGE-01, SPGE-02, SPGE-03)
-- [ ] 04-02: Profile and Dashboard migration (SPGE-04, SPGE-05)
+- [x] 04-01-PLAN.md — Home, About, DataSources migration (SPGE-01, SPGE-02, SPGE-03)
+- [x] 04-02-PLAN.md — Profile and Dashboard migration (SPGE-04, SPGE-05)
 
 ---
 
@@ -149,14 +148,13 @@ Plans:
 5. Vitest component tests for EvidenceCard and EvidenceTierBadge pass
 
 **Estimated complexity:** HIGH
-**Research needed:** Yes — evidence tier OKLCH color values must be mapped from Vuetify semantic colors before migration. Accordion + Tabs composition in GeneDetail needs manual testing with real data (571+ genes). Requires design sign-off on color mapping.
 
-**Plans:** TBD
+**Plans:** 3 plans in 3 waves (sequential)
 
 Plans:
-- [ ] 05-01: GeneDetail tabs and Accordion structure (GDEV-01, GDEV-07)
-- [ ] 05-02: Gene info components (GDEV-02)
-- [ ] 05-03: Evidence components and tier system (GDEV-03, GDEV-04, GDEV-05, GDEV-06, TEST-03)
+- [x] 05-01-PLAN.md — GeneDetail tabs and Accordion structure (GDEV-01, GDEV-07)
+- [x] 05-02-PLAN.md — Gene info components (GDEV-02)
+- [x] 05-03-PLAN.md — Evidence components and tier system (GDEV-03, GDEV-04, GDEV-05, GDEV-06, TEST-03)
 
 ---
 
@@ -176,15 +174,12 @@ Plans:
 5. Score and evidence tier columns render correctly with badge/chip styling (not plain text)
 
 **Estimated complexity:** HIGH
-**Research needed:** Yes — the multi-select chip pattern (Combobox + TagsInput composition) is MEDIUM confidence from research; build an isolated `MultiSelect.vue` prototype before committing the full GeneTable migration. URL sync from `parseUrlParams`/`updateUrl` → TanStack Table state needs explicit mapping documented before planning begins.
 
-**Plans:** TBD
+**Plans:** 2 plans in 2 waves (sequential)
 
 Plans:
-- [ ] 06-01: TanStack Table infrastructure and DataTable wrapper (DTBL-01)
-- [ ] 06-02: GeneTable core migration — pagination and sorting (DTBL-02, DTBL-03, DTBL-05, DTBL-09)
-- [ ] 06-03: GeneTable filtering, cell renderers, and Genes.vue controls (DTBL-04, DTBL-06, DTBL-07)
-- [ ] 06-04: EnrichmentTable and admin data tables (DTBL-08)
+- [x] 06-01-PLAN.md — TanStack Table infrastructure, DataTable wrapper, GeneTable core (DTBL-01, DTBL-02, DTBL-03, DTBL-05, DTBL-09)
+- [x] 06-02-PLAN.md — GeneTable filtering, cell renderers, EnrichmentTable (DTBL-04, DTBL-06, DTBL-07, DTBL-08)
 
 ---
 
@@ -204,15 +199,14 @@ Plans:
 5. All 5 backup dialogs (Create, Delete, Details, Filters, Restore) open and close correctly and their forms validate with Zod schemas
 
 **Estimated complexity:** HIGH
-**Research needed:** No — admin forms and dialogs use patterns established in Phase 3; admin tables use infrastructure from Phase 6.
 
-**Plans:** TBD
+**Plans:** 4 plans in 4 waves (sequential)
 
 Plans:
-- [ ] 07-01: Admin layout and dashboard (ADMN-01, ADMN-02)
-- [ ] 07-02: AdminPipeline with WebSocket (ADMN-03)
-- [ ] 07-03: Admin data tables — UserManagement, GeneStaging, Annotations, CacheManagement, LogViewer, Releases, HybridSources (ADMN-04, ADMN-05, ADMN-06, ADMN-07, ADMN-08, ADMN-09, ADMN-12)
-- [ ] 07-04: Admin dialogs — Backups and Settings with typed Zod forms (ADMN-10, ADMN-11, ADMN-13)
+- [x] 07-01-PLAN.md — Admin layout and dashboard (ADMN-01, ADMN-02)
+- [x] 07-02-PLAN.md — Backup and Settings dialogs (ADMN-10, ADMN-11)
+- [x] 07-03-PLAN.md — Admin data tables — UserManagement, CacheManagement, Pipeline (ADMN-03, ADMN-04, ADMN-07)
+- [x] 07-04-PLAN.md — Remaining admin views — GeneStaging, Annotations, LogViewer, Releases, HybridSources (ADMN-05, ADMN-06, ADMN-08, ADMN-09, ADMN-12, ADMN-13)
 
 ---
 
@@ -232,13 +226,13 @@ Plans:
 5. GeneStructure.vue renders its visualization without layout regressions
 
 **Estimated complexity:** MEDIUM
-**Research needed:** No — D3/Cytoscape internals are unchanged; only wrapper layout classes migrate. All component patterns are established by Phase 3.
 
-**Plans:** TBD
+**Plans:** 3 plans in 3 waves (sequential)
 
 Plans:
-- [ ] 08-01: NetworkAnalysis layout, NetworkGraph wrapper, search overlay (NTVZ-01, NTVZ-02, NTVZ-03)
-- [ ] 08-02: ClusterDetailsDialog, D3 chart wrappers, GeneStructure (NTVZ-04, NTVZ-05, NTVZ-06)
+- [x] 08-01-PLAN.md — D3 chart wrappers and search overlay (NTVZ-03, NTVZ-05)
+- [x] 08-02-PLAN.md — ClusterDetailsDialog and GeneStructure (NTVZ-04, NTVZ-06)
+- [x] 08-03-PLAN.md — NetworkAnalysis layout and NetworkGraph wrapper (NTVZ-01, NTVZ-02)
 
 ---
 
@@ -276,12 +270,12 @@ Plans:
 |-------|------|-------|--------|-----------|
 | 1. Foundation Setup | Install TypeScript, Tailwind v4, shadcn-vue, Vitest; icon audit | 3 plans | ✓ Complete | 2026-02-28 |
 | 2. TypeScript Migration | Migrate stores, API modules, composables, utils to TS | 3 plans | ✓ Complete | 2026-02-28 |
-| 3. App Shell + Navigation + Auth + Icons | Migrate app skeleton, auth, toast, all icons | TBD | Not started | - |
-| 4. Simple Public Pages | Migrate Home, About, DataSources, Profile, Dashboard | TBD | Not started | - |
-| 5. Gene Detail + Evidence | Migrate GeneDetail and 16 domain components | TBD | Not started | - |
-| 6. Data Tables | Migrate GeneTable + admin tables to TanStack Table | TBD | Not started | - |
-| 7. Admin Panel | Migrate 11 admin views + 13 form dialogs | TBD | Not started | - |
-| 8. Network + Visualizations | Migrate network and D3 wrappers | TBD | Not started | - |
+| 3. App Shell + Navigation + Auth + Icons | Migrate app skeleton, auth, toast, all icons | 5 plans | ✓ Complete | 2026-02-28 |
+| 4. Simple Public Pages | Migrate Home, About, DataSources, Profile, Dashboard | 2 plans | ✓ Complete | 2026-02-28 |
+| 5. Gene Detail + Evidence | Migrate GeneDetail and 16 domain components | 3 plans | ✓ Complete | 2026-02-28 |
+| 6. Data Tables | Migrate GeneTable + admin tables to TanStack Table | 2 plans | ✓ Complete | 2026-02-28 |
+| 7. Admin Panel | Migrate 11 admin views + 13 form dialogs | 4 plans | ✓ Complete | 2026-03-01 |
+| 8. Network + Visualizations | Migrate network and D3 wrappers | 3 plans | ✓ Complete | 2026-03-01 |
 | 9. Cleanup + Vuetify Removal | Remove all Vuetify; verify zero references | 1 plan | ✓ Complete | 2026-03-01 |
 
 ---
@@ -316,4 +310,5 @@ Plans:
 ---
 
 *Roadmap created: 2026-02-28*
-*Milestone: v0.2.0 Frontend Migration*
+*Milestone: v0.2.0 Frontend Migration — COMPLETE (2026-03-01)*
+*Last updated: 2026-03-03*

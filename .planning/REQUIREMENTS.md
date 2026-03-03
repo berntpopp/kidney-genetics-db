@@ -33,108 +33,108 @@ Requirements for milestone v0.2.0 — Frontend Migration. Each maps to roadmap p
 
 ### Layout & Navigation (LNAV)
 
-- [ ] **LNAV-01**: App shell replaced (v-app/v-main → Tailwind layout with min-h-screen)
-- [ ] **LNAV-02**: Header/app bar replaced with shadcn-vue NavigationMenu (responsive)
-- [ ] **LNAV-03**: Mobile navigation drawer replaced with shadcn-vue Sheet
-- [ ] **LNAV-04**: Footer replaced with Tailwind-styled custom footer
-- [ ] **LNAV-05**: User menu replaced with shadcn-vue DropdownMenu + Avatar
-- [ ] **LNAV-06**: Breadcrumbs replaced with shadcn-vue Breadcrumb component
-- [ ] **LNAV-07**: Theme toggle replaced with VueUse useColorMode() + ModeToggle component
+- [x] **LNAV-01**: App shell replaced (v-app/v-main → Tailwind layout with min-h-screen)
+- [x] **LNAV-02**: Header/app bar replaced with shadcn-vue NavigationMenu (responsive)
+- [x] **LNAV-03**: Mobile navigation drawer replaced with shadcn-vue Sheet
+- [x] **LNAV-04**: Footer replaced with Tailwind-styled custom footer
+- [x] **LNAV-05**: User menu replaced with shadcn-vue DropdownMenu + Avatar
+- [x] **LNAV-06**: Breadcrumbs replaced with shadcn-vue Breadcrumb component
+- [x] **LNAV-07**: Theme toggle replaced with VueUse useColorMode() + ModeToggle component
 
 ### Authentication UI (AUTH)
 
-- [ ] **AUTH-01**: LoginModal migrated to shadcn-vue Dialog + Form (vee-validate + Zod schema)
-- [ ] **AUTH-02**: ForgotPasswordModal migrated to shadcn-vue Dialog + Form
-- [ ] **AUTH-03**: ChangePasswordModal migrated to shadcn-vue Dialog + Form
-- [ ] **AUTH-04**: Login/ForgotPassword views migrated with shadcn-vue components
+- [x] **AUTH-01**: LoginModal migrated to shadcn-vue Dialog + Form (vee-validate + Zod schema)
+- [x] **AUTH-02**: ForgotPasswordModal migrated to shadcn-vue Dialog + Form
+- [x] **AUTH-03**: ChangePasswordModal migrated to shadcn-vue Dialog + Form
+- [x] **AUTH-04**: Login/ForgotPassword views migrated with shadcn-vue components
 
 ### Toast & Feedback (TFBK)
 
-- [ ] **TFBK-01**: vue-sonner installed and configured as toast provider
-- [ ] **TFBK-02**: All v-snackbar usages replaced with toast() from vue-sonner
-- [ ] **TFBK-03**: Loading/success/error sequences use toast.promise() pattern
+- [x] **TFBK-01**: vue-sonner installed and configured as toast provider
+- [x] **TFBK-02**: All v-snackbar usages replaced with toast() from vue-sonner
+- [x] **TFBK-03**: Loading/success/error sequences use toast.promise() pattern
 
 ### Icons (ICON)
 
-- [ ] **ICON-01**: Lucide Vue Next installed and configured
-- [ ] **ICON-02**: Icon mapping module created (src/utils/icons.ts) mapping MDI names to Lucide components
-- [ ] **ICON-03**: All 431 v-icon usages replaced with Lucide components
-- [ ] **ICON-04**: Custom icon solutions for medical/scientific icons without Lucide equivalents
+- [x] **ICON-01**: Lucide Vue Next installed and configured
+- [x] **ICON-02**: Icon mapping module created (src/utils/icons.ts) mapping MDI names to Lucide components
+- [x] **ICON-03**: All 431 v-icon usages replaced with Lucide components
+- [x] **ICON-04**: Custom icon solutions for medical/scientific icons without Lucide equivalents
 
 ### Simple Pages (SPGE)
 
-- [ ] **SPGE-01**: Home.vue migrated (hero, feature cards, CTA with Tailwind + shadcn-vue)
-- [ ] **SPGE-02**: About.vue migrated (static content with Tailwind layout)
-- [ ] **SPGE-03**: DataSources.vue migrated (data source display)
-- [ ] **SPGE-04**: Profile.vue migrated (user profile page)
-- [ ] **SPGE-05**: Dashboard.vue migrated (statistics cards, overview metrics)
+- [x] **SPGE-01**: Home.vue migrated (hero, feature cards, CTA with Tailwind + shadcn-vue)
+- [x] **SPGE-02**: About.vue migrated (static content with Tailwind layout)
+- [x] **SPGE-03**: DataSources.vue migrated (data source display)
+- [x] **SPGE-04**: Profile.vue migrated (user profile page)
+- [x] **SPGE-05**: Dashboard.vue migrated (statistics cards, overview metrics)
 
 ### Gene Detail & Evidence (GDEV)
 
-- [ ] **GDEV-01**: GeneDetail.vue migrated with shadcn-vue Tabs replacing v-tabs
-- [ ] **GDEV-02**: All 8 gene info components migrated (BasicInfo, Constraints, Expression, ClinVar, Phenotypes, MousePhenotypes, ProteinInteractions, InformationCard)
-- [ ] **GDEV-03**: All 8 evidence components migrated (EvidenceCard, ClinGen, GenCC, HPO, PanelApp, DiagnosticPanels, Literature, PubTator)
-- [ ] **GDEV-04**: EvidenceTierBadge migrated to shadcn-vue Badge with correct tier colors
-- [ ] **GDEV-05**: ScoreBreakdown migrated to shadcn-vue Card
-- [ ] **GDEV-06**: TierHelpDialog migrated to shadcn-vue Dialog
-- [ ] **GDEV-07**: Expansion panels replaced with shadcn-vue Accordion
+- [x] **GDEV-01**: GeneDetail.vue migrated with shadcn-vue Tabs replacing v-tabs
+- [x] **GDEV-02**: All 8 gene info components migrated (BasicInfo, Constraints, Expression, ClinVar, Phenotypes, MousePhenotypes, ProteinInteractions, InformationCard)
+- [x] **GDEV-03**: All 8 evidence components migrated (EvidenceCard, ClinGen, GenCC, HPO, PanelApp, DiagnosticPanels, Literature, PubTator)
+- [x] **GDEV-04**: EvidenceTierBadge migrated to shadcn-vue Badge with correct tier colors
+- [x] **GDEV-05**: ScoreBreakdown migrated to shadcn-vue Card
+- [x] **GDEV-06**: TierHelpDialog migrated to shadcn-vue Dialog
+- [x] **GDEV-07**: Expansion panels replaced with shadcn-vue Accordion
 
 ### Data Tables (DTBL)
 
-- [ ] **DTBL-01**: Reusable DataTable infrastructure created (DataTable, ColumnHeader, Pagination, ViewOptions, FacetedFilter)
-- [ ] **DTBL-02**: GeneTable migrated to TanStack Table with server-side pagination (manualPagination, 0-based pageIndex handling)
-- [ ] **DTBL-03**: GeneTable server-side sorting works correctly
-- [ ] **DTBL-04**: GeneTable column-level filtering works (including multi-select with chips for sources/tiers)
-- [ ] **DTBL-05**: GeneTable row click navigation to gene detail preserved
-- [ ] **DTBL-06**: GeneTable custom cell renderers (score badges, evidence tiers) working
-- [ ] **DTBL-07**: Genes.vue search/filter controls migrated
-- [ ] **DTBL-08**: EnrichmentTable (network analysis) migrated to TanStack Table
-- [ ] **DTBL-09**: Pagination auto-resets on filter/sort changes (explicit watch implementation)
+- [x] **DTBL-01**: Reusable DataTable infrastructure created (DataTable, ColumnHeader, Pagination, ViewOptions, FacetedFilter)
+- [x] **DTBL-02**: GeneTable migrated to TanStack Table with server-side pagination (manualPagination, 0-based pageIndex handling)
+- [x] **DTBL-03**: GeneTable server-side sorting works correctly
+- [x] **DTBL-04**: GeneTable column-level filtering works (including multi-select with chips for sources/tiers)
+- [x] **DTBL-05**: GeneTable row click navigation to gene detail preserved
+- [x] **DTBL-06**: GeneTable custom cell renderers (score badges, evidence tiers) working
+- [x] **DTBL-07**: Genes.vue search/filter controls migrated
+- [x] **DTBL-08**: EnrichmentTable (network analysis) migrated to TanStack Table
+- [x] **DTBL-09**: Pagination auto-resets on filter/sort changes (explicit watch implementation)
 
 ### Admin Panel (ADMN)
 
-- [ ] **ADMN-01**: Admin layout migrated (AdminHeader, AdminStatsCard, sidebar navigation)
-- [ ] **ADMN-02**: AdminDashboard.vue migrated (stats cards, overview)
-- [ ] **ADMN-03**: AdminPipeline.vue migrated (pipeline controls, Progress component, WebSocket integration preserved)
-- [ ] **ADMN-04**: AdminUserManagement migrated with TanStack Table + forms
-- [ ] **ADMN-05**: AdminGeneStaging migrated with TanStack Table
-- [ ] **ADMN-06**: AdminAnnotations migrated with TanStack Table
-- [ ] **ADMN-07**: AdminCacheManagement migrated with TanStack Table
-- [ ] **ADMN-08**: AdminLogViewer migrated with TanStack Table
-- [ ] **ADMN-09**: AdminReleases migrated with TanStack Table
-- [ ] **ADMN-10**: AdminBackups migrated (5 dialogs: Create, Delete, Details, Filters, Restore)
-- [ ] **ADMN-11**: AdminSettings migrated (SettingEditDialog, SettingHistoryDialog)
-- [ ] **ADMN-12**: AdminHybridSources migrated with TanStack Table
-- [ ] **ADMN-13**: All admin forms use vee-validate + Zod schemas
+- [x] **ADMN-01**: Admin layout migrated (AdminHeader, AdminStatsCard, sidebar navigation)
+- [x] **ADMN-02**: AdminDashboard.vue migrated (stats cards, overview)
+- [x] **ADMN-03**: AdminPipeline.vue migrated (pipeline controls, Progress component, WebSocket integration preserved)
+- [x] **ADMN-04**: AdminUserManagement migrated with TanStack Table + forms
+- [x] **ADMN-05**: AdminGeneStaging migrated with TanStack Table
+- [x] **ADMN-06**: AdminAnnotations migrated with TanStack Table
+- [x] **ADMN-07**: AdminCacheManagement migrated with TanStack Table
+- [x] **ADMN-08**: AdminLogViewer migrated with TanStack Table
+- [x] **ADMN-09**: AdminReleases migrated with TanStack Table
+- [x] **ADMN-10**: AdminBackups migrated (5 dialogs: Create, Delete, Details, Filters, Restore)
+- [x] **ADMN-11**: AdminSettings migrated (SettingEditDialog, SettingHistoryDialog)
+- [x] **ADMN-12**: AdminHybridSources migrated with TanStack Table
+- [x] **ADMN-13**: All admin forms use vee-validate + Zod schemas
 
 ### Network & Visualizations (NTVZ)
 
-- [ ] **NTVZ-01**: NetworkAnalysis.vue layout migrated to Tailwind (Cytoscape integration preserved)
-- [ ] **NTVZ-02**: NetworkGraph.vue wrapper migrated (Cytoscape internals unchanged)
-- [ ] **NTVZ-03**: NetworkSearchOverlay migrated (Input + Card replacing v-text-field/v-card)
-- [ ] **NTVZ-04**: ClusterDetailsDialog migrated to shadcn-vue Dialog
-- [ ] **NTVZ-05**: All D3 chart Vue wrappers migrated (layout/styling only; D3 rendering unchanged)
-- [ ] **NTVZ-06**: GeneStructure.vue view migrated
+- [x] **NTVZ-01**: NetworkAnalysis.vue layout migrated to Tailwind (Cytoscape integration preserved)
+- [x] **NTVZ-02**: NetworkGraph.vue wrapper migrated (Cytoscape internals unchanged)
+- [x] **NTVZ-03**: NetworkSearchOverlay migrated (Input + Card replacing v-text-field/v-card)
+- [x] **NTVZ-04**: ClusterDetailsDialog migrated to shadcn-vue Dialog
+- [x] **NTVZ-05**: All D3 chart Vue wrappers migrated (layout/styling only; D3 rendering unchanged)
+- [x] **NTVZ-06**: GeneStructure.vue view migrated
 
 ### Cleanup & Removal (CLNP)
 
-- [ ] **CLNP-01**: Zero v- component tags remain in codebase
-- [ ] **CLNP-02**: Zero Vuetify utility classes remain in codebase
-- [ ] **CLNP-03**: Zero --v-theme-* CSS variable references remain in scoped styles
-- [ ] **CLNP-04**: vuetify and @mdi/font removed from package.json
-- [ ] **CLNP-05**: src/plugins/vuetify.js deleted and Vuetify plugin registration removed from main.ts
-- [ ] **CLNP-06**: Tailwind CSS coexistence hacks removed (selective imports replaced with full @import "tailwindcss")
-- [ ] **CLNP-07**: npm run build succeeds with zero Vuetify references
-- [ ] **CLNP-08**: Bundle size measured and reduced compared to pre-migration baseline
+- [x] **CLNP-01**: Zero v- component tags remain in codebase
+- [x] **CLNP-02**: Zero Vuetify utility classes remain in codebase
+- [x] **CLNP-03**: Zero --v-theme-* CSS variable references remain in scoped styles
+- [x] **CLNP-04**: vuetify and @mdi/font removed from package.json
+- [x] **CLNP-05**: src/plugins/vuetify.js deleted and Vuetify plugin registration removed from main.ts
+- [x] **CLNP-06**: Tailwind CSS coexistence hacks removed (selective imports replaced with full @import "tailwindcss")
+- [x] **CLNP-07**: npm run build succeeds with zero Vuetify references
+- [x] **CLNP-08**: Bundle size measured and reduced compared to pre-migration baseline
 
 ### Testing (TEST)
 
 - [x] **TEST-01**: Vitest configured with Vue Test Utils and happy-dom/jsdom
-- [ ] **TEST-02**: Component tests written for all migrated shadcn-vue UI wrapper components
-- [ ] **TEST-03**: Component tests written for key domain components (GeneTable, EvidenceCard, LoginModal)
+- [x] **TEST-02**: Component tests written for all migrated shadcn-vue UI wrapper components
+- [x] **TEST-03**: Component tests written for key domain components (GeneTable, EvidenceCard, LoginModal)
 - [x] **TEST-04**: Composable tests written for all 6 migrated composables
 - [x] **TEST-05**: API module tests written for typed API client and interceptors
-- [ ] **TEST-06**: All Vitest tests pass in CI pipeline
+- [x] **TEST-06**: All Vitest tests pass in CI pipeline
 
 ## v2 Requirements
 
@@ -196,75 +196,75 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | TSML-08 | Phase 2 | Complete |
 | TEST-04 | Phase 2 | Complete |
 | TEST-05 | Phase 2 | Complete |
-| LNAV-01 | Phase 3 | Pending |
-| LNAV-02 | Phase 3 | Pending |
-| LNAV-03 | Phase 3 | Pending |
-| LNAV-04 | Phase 3 | Pending |
-| LNAV-05 | Phase 3 | Pending |
-| LNAV-06 | Phase 3 | Pending |
-| LNAV-07 | Phase 3 | Pending |
-| AUTH-01 | Phase 3 | Pending |
-| AUTH-02 | Phase 3 | Pending |
-| AUTH-03 | Phase 3 | Pending |
-| AUTH-04 | Phase 3 | Pending |
-| TFBK-01 | Phase 3 | Pending |
-| TFBK-02 | Phase 3 | Pending |
-| TFBK-03 | Phase 3 | Pending |
-| ICON-01 | Phase 3 | Pending |
-| ICON-02 | Phase 3 | Pending |
-| ICON-03 | Phase 3 | Pending |
-| ICON-04 | Phase 3 | Pending |
-| TEST-02 | Phase 3 (ongoing through Phase 8) | Pending |
-| SPGE-01 | Phase 4 | Pending |
-| SPGE-02 | Phase 4 | Pending |
-| SPGE-03 | Phase 4 | Pending |
-| SPGE-04 | Phase 4 | Pending |
-| SPGE-05 | Phase 4 | Pending |
-| GDEV-01 | Phase 5 | Pending |
-| GDEV-02 | Phase 5 | Pending |
-| GDEV-03 | Phase 5 | Pending |
-| GDEV-04 | Phase 5 | Pending |
-| GDEV-05 | Phase 5 | Pending |
-| GDEV-06 | Phase 5 | Pending |
-| GDEV-07 | Phase 5 | Pending |
-| TEST-03 | Phase 5 (ongoing through Phase 7) | Pending |
-| DTBL-01 | Phase 6 | Pending |
-| DTBL-02 | Phase 6 | Pending |
-| DTBL-03 | Phase 6 | Pending |
-| DTBL-04 | Phase 6 | Pending |
-| DTBL-05 | Phase 6 | Pending |
-| DTBL-06 | Phase 6 | Pending |
-| DTBL-07 | Phase 6 | Pending |
-| DTBL-08 | Phase 6 | Pending |
-| DTBL-09 | Phase 6 | Pending |
-| ADMN-01 | Phase 7 | Pending |
-| ADMN-02 | Phase 7 | Pending |
-| ADMN-03 | Phase 7 | Pending |
-| ADMN-04 | Phase 7 | Pending |
-| ADMN-05 | Phase 7 | Pending |
-| ADMN-06 | Phase 7 | Pending |
-| ADMN-07 | Phase 7 | Pending |
-| ADMN-08 | Phase 7 | Pending |
-| ADMN-09 | Phase 7 | Pending |
-| ADMN-10 | Phase 7 | Pending |
-| ADMN-11 | Phase 7 | Pending |
-| ADMN-12 | Phase 7 | Pending |
-| ADMN-13 | Phase 7 | Pending |
-| NTVZ-01 | Phase 8 | Pending |
-| NTVZ-02 | Phase 8 | Pending |
-| NTVZ-03 | Phase 8 | Pending |
-| NTVZ-04 | Phase 8 | Pending |
-| NTVZ-05 | Phase 8 | Pending |
-| NTVZ-06 | Phase 8 | Pending |
-| CLNP-01 | Phase 9 | Pending |
-| CLNP-02 | Phase 9 | Pending |
-| CLNP-03 | Phase 9 | Pending |
-| CLNP-04 | Phase 9 | Pending |
-| CLNP-05 | Phase 9 | Pending |
-| CLNP-06 | Phase 9 | Pending |
-| CLNP-07 | Phase 9 | Pending |
-| CLNP-08 | Phase 9 | Pending |
-| TEST-06 | Phase 9 | Pending |
+| LNAV-01 | Phase 3 | Complete |
+| LNAV-02 | Phase 3 | Complete |
+| LNAV-03 | Phase 3 | Complete |
+| LNAV-04 | Phase 3 | Complete |
+| LNAV-05 | Phase 3 | Complete |
+| LNAV-06 | Phase 3 | Complete |
+| LNAV-07 | Phase 3 | Complete |
+| AUTH-01 | Phase 3 | Complete |
+| AUTH-02 | Phase 3 | Complete |
+| AUTH-03 | Phase 3 | Complete |
+| AUTH-04 | Phase 3 | Complete |
+| TFBK-01 | Phase 3 | Complete |
+| TFBK-02 | Phase 3 | Complete |
+| TFBK-03 | Phase 3 | Complete |
+| ICON-01 | Phase 3 | Complete |
+| ICON-02 | Phase 3 | Complete |
+| ICON-03 | Phase 3 | Complete |
+| ICON-04 | Phase 3 | Complete |
+| TEST-02 | Phase 3 (ongoing through Phase 8) | Complete |
+| SPGE-01 | Phase 4 | Complete |
+| SPGE-02 | Phase 4 | Complete |
+| SPGE-03 | Phase 4 | Complete |
+| SPGE-04 | Phase 4 | Complete |
+| SPGE-05 | Phase 4 | Complete |
+| GDEV-01 | Phase 5 | Complete |
+| GDEV-02 | Phase 5 | Complete |
+| GDEV-03 | Phase 5 | Complete |
+| GDEV-04 | Phase 5 | Complete |
+| GDEV-05 | Phase 5 | Complete |
+| GDEV-06 | Phase 5 | Complete |
+| GDEV-07 | Phase 5 | Complete |
+| TEST-03 | Phase 5 (ongoing through Phase 7) | Complete |
+| DTBL-01 | Phase 6 | Complete |
+| DTBL-02 | Phase 6 | Complete |
+| DTBL-03 | Phase 6 | Complete |
+| DTBL-04 | Phase 6 | Complete |
+| DTBL-05 | Phase 6 | Complete |
+| DTBL-06 | Phase 6 | Complete |
+| DTBL-07 | Phase 6 | Complete |
+| DTBL-08 | Phase 6 | Complete |
+| DTBL-09 | Phase 6 | Complete |
+| ADMN-01 | Phase 7 | Complete |
+| ADMN-02 | Phase 7 | Complete |
+| ADMN-03 | Phase 7 | Complete |
+| ADMN-04 | Phase 7 | Complete |
+| ADMN-05 | Phase 7 | Complete |
+| ADMN-06 | Phase 7 | Complete |
+| ADMN-07 | Phase 7 | Complete |
+| ADMN-08 | Phase 7 | Complete |
+| ADMN-09 | Phase 7 | Complete |
+| ADMN-10 | Phase 7 | Complete |
+| ADMN-11 | Phase 7 | Complete |
+| ADMN-12 | Phase 7 | Complete |
+| ADMN-13 | Phase 7 | Complete |
+| NTVZ-01 | Phase 8 | Complete |
+| NTVZ-02 | Phase 8 | Complete |
+| NTVZ-03 | Phase 8 | Complete |
+| NTVZ-04 | Phase 8 | Complete |
+| NTVZ-05 | Phase 8 | Complete |
+| NTVZ-06 | Phase 8 | Complete |
+| CLNP-01 | Phase 9 | Complete |
+| CLNP-02 | Phase 9 | Complete |
+| CLNP-03 | Phase 9 | Complete |
+| CLNP-04 | Phase 9 | Complete |
+| CLNP-05 | Phase 9 | Complete |
+| CLNP-06 | Phase 9 | Complete |
+| CLNP-07 | Phase 9 | Complete |
+| CLNP-08 | Phase 9 | Complete |
+| TEST-06 | Phase 9 | Complete |
 
 **Coverage:**
 - v1 requirements: 90 total
@@ -275,4 +275,4 @@ Deferred to future milestones. Tracked but not in current roadmap.
 
 ---
 *Requirements defined: 2026-02-28*
-*Last updated: 2026-02-28 — Phase 2 requirements marked Complete*
+*Last updated: 2026-03-03 — All 90 requirements marked Complete (v0.2.0 migration finished)*
