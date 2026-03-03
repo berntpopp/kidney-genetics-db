@@ -217,13 +217,13 @@ def test_store_annotation_overwrites_on_version_change(db_session: Session):
     # Simulate store_annotation lookup with version 2.0
     # (mimics what BaseAnnotationSource.store_annotation does)
     existing = (
-        db_session.query(GeneAnnotation)
-        .filter_by(gene_id=gene.id, source="test_src")
-        .first()
+        db_session.query(GeneAnnotation).filter_by(gene_id=gene.id, source="test_src").first()
     )
 
     # With the fix, existing should find the v1.0 row (query is version-independent)
-    assert existing is not None, "store_annotation lookup should find existing row regardless of version"
+    assert existing is not None, (
+        "store_annotation lookup should find existing row regardless of version"
+    )
     assert existing.version == "1.0"
 
     # Simulate updating version + data
@@ -232,11 +232,7 @@ def test_store_annotation_overwrites_on_version_change(db_session: Session):
     db_session.commit()
 
     # Verify only one row exists
-    rows = (
-        db_session.query(GeneAnnotation)
-        .filter_by(gene_id=gene.id, source="test_src")
-        .all()
-    )
+    rows = db_session.query(GeneAnnotation).filter_by(gene_id=gene.id, source="test_src").all()
     assert len(rows) == 1
     assert rows[0].version == "2.0"
     assert rows[0].annotations["data"] == "new"
@@ -245,10 +241,10 @@ def test_store_annotation_overwrites_on_version_change(db_session: Session):
 def test_model_unique_constraint_is_gene_source_only():
     """Regression guard: GeneAnnotation unique constraint must be (gene_id, source), NOT (gene_id, source, version)."""
     constraints = GeneAnnotation.__table_args__
-    unique_constraints = [
-        c for c in constraints if isinstance(c, UniqueConstraint)
-    ]
-    assert len(unique_constraints) == 1, f"Expected 1 unique constraint, found {len(unique_constraints)}"
+    unique_constraints = [c for c in constraints if isinstance(c, UniqueConstraint)]
+    assert len(unique_constraints) == 1, (
+        f"Expected 1 unique constraint, found {len(unique_constraints)}"
+    )
 
     uc = unique_constraints[0]
     col_names = [col.name for col in uc.columns]

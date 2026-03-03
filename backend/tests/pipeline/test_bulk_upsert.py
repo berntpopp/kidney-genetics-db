@@ -39,9 +39,7 @@ class TestBulkUpsertAnnotations:
 
         assert count == 1
         ann = (
-            db_session.query(GeneAnnotation)
-            .filter_by(gene_id=gene.id, source="_test_bulk")
-            .first()
+            db_session.query(GeneAnnotation).filter_by(gene_id=gene.id, source="_test_bulk").first()
         )
         assert ann is not None
         assert ann.annotations["test_field"] == "test_value"
@@ -67,9 +65,7 @@ class TestBulkUpsertAnnotations:
 
         assert count == 1
         ann = (
-            db_session.query(GeneAnnotation)
-            .filter_by(gene_id=gene.id, source="_test_bulk")
-            .first()
+            db_session.query(GeneAnnotation).filter_by(gene_id=gene.id, source="_test_bulk").first()
         )
         assert ann is not None
         assert ann.annotations["value"] == "new"
@@ -101,17 +97,13 @@ class TestBulkUpsertAnnotations:
             assert ann is not None
             assert ann.annotations["symbol"] == g.approved_symbol
 
-        db_session.execute(
-            text("DELETE FROM gene_annotations WHERE source = '_test_bulk'")
-        )
+        db_session.execute(text("DELETE FROM gene_annotations WHERE source = '_test_bulk'"))
         db_session.commit()
 
     def test_bulk_upsert_empty_dict_returns_zero(self, db_session: Session):
         """Empty batch_data returns 0 without DB interaction."""
         pipeline = self._make_pipeline(db_session)
-        count = pipeline._bulk_upsert_annotations_with_session(
-            "_test_bulk", "1.0", {}, db_session
-        )
+        count = pipeline._bulk_upsert_annotations_with_session("_test_bulk", "1.0", {}, db_session)
         assert count == 0
 
     def test_bulk_upsert_handles_large_batch(self, db_session: Session):
@@ -128,9 +120,7 @@ class TestBulkUpsertAnnotations:
         )
         assert count == len(genes)
 
-        db_session.execute(
-            text("DELETE FROM gene_annotations WHERE source = '_test_bulk'")
-        )
+        db_session.execute(text("DELETE FROM gene_annotations WHERE source = '_test_bulk'"))
         db_session.commit()
 
     def test_bulk_upsert_overwrites_on_version_change(self, db_session: Session):
@@ -151,18 +141,14 @@ class TestBulkUpsertAnnotations:
         )
 
         rows = (
-            db_session.query(GeneAnnotation)
-            .filter_by(gene_id=gene.id, source="_test_bulk")
-            .all()
+            db_session.query(GeneAnnotation).filter_by(gene_id=gene.id, source="_test_bulk").all()
         )
         assert len(rows) == 1, f"Expected 1 row, got {len(rows)} (stale version not cleaned)"
         assert rows[0].version == "2.0"
         assert rows[0].annotations["value"] == "new"
 
         # Cleanup
-        db_session.execute(
-            text("DELETE FROM gene_annotations WHERE source = '_test_bulk'")
-        )
+        db_session.execute(text("DELETE FROM gene_annotations WHERE source = '_test_bulk'"))
         db_session.commit()
 
     def test_bulk_upsert_updates_version_column(self, db_session: Session):
@@ -182,9 +168,7 @@ class TestBulkUpsertAnnotations:
         )
 
         ann = (
-            db_session.query(GeneAnnotation)
-            .filter_by(gene_id=gene.id, source="_test_bulk")
-            .first()
+            db_session.query(GeneAnnotation).filter_by(gene_id=gene.id, source="_test_bulk").first()
         )
         assert ann is not None
         assert ann.version == "2.0"
