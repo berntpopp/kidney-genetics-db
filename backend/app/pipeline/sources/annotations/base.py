@@ -111,10 +111,18 @@ class BaseAnnotationSource(ABC):
             source = AnnotationSource(
                 source_name=self.source_name,
                 display_name=self.display_name or self.source_name,
+                version=self.version or "1.0",
                 is_active=True,
                 config=self.get_default_config(),
             )
             self.session.add(source)
+            self.session.commit()
+        elif self.version and source.version != self.version:
+            logger.sync_info(
+                f"Source version changed: {source.version} -> {self.version}",
+                source=self.source_name,
+            )
+            source.version = self.version
             self.session.commit()
 
         return source
