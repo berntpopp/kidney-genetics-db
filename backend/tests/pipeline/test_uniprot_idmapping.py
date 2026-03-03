@@ -207,9 +207,7 @@ class TestPKD1Disambiguation:
             "uniProtkbId": "KPCD1_HUMAN",
             "organism": {"scientificName": "Homo sapiens"},
             "proteinDescription": {
-                "recommendedName": {
-                    "fullName": {"value": "Serine/threonine-protein kinase D1"}
-                },
+                "recommendedName": {"fullName": {"value": "Serine/threonine-protein kinase D1"}},
             },
             "genes": [{"geneName": {"value": "PRKD1"}}],
             "sequence": {"length": 912},

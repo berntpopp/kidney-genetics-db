@@ -236,6 +236,7 @@ evidence_summary_view = ReplaceableObject(
 
 gene_scores = ReplaceableObject(
     name="gene_scores",
+    object_type="MATERIALIZED VIEW",
     sqltext="""
     WITH source_scores_per_gene AS (
         SELECT g.id AS gene_id,

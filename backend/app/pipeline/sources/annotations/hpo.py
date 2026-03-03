@@ -44,9 +44,7 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
     # Bulk download configuration
     # genes_to_phenotype.txt: gene→phenotype associations (~15 MB)
-    bulk_file_url = (
-        "http://purl.obolibrary.org/obo/hp/hpoa/genes_to_phenotype.txt"
-    )
+    bulk_file_url = "http://purl.obolibrary.org/obo/hp/hpoa/genes_to_phenotype.txt"
     bulk_cache_ttl_hours = 168  # 7 days
     bulk_file_format = "txt"
 
@@ -118,25 +116,33 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                 # Add phenotype (deduplicated by HPO ID)
                 if hpo_id not in seen_phenotypes[gene_symbol]:
                     seen_phenotypes[gene_symbol].add(hpo_id)
-                    data[gene_symbol]["phenotypes"].append({
-                        "id": hpo_id,
-                        "name": hpo_name,
-                    })
+                    data[gene_symbol]["phenotypes"].append(
+                        {
+                            "id": hpo_id,
+                            "name": hpo_name,
+                        }
+                    )
 
                 # Add disease (deduplicated by disease ID)
-                if disease_id and disease_id != "-" and disease_id not in seen_diseases[gene_symbol]:
+                if (
+                    disease_id
+                    and disease_id != "-"
+                    and disease_id not in seen_diseases[gene_symbol]
+                ):
                     seen_diseases[gene_symbol].add(disease_id)
                     # Parse disease_id into db and dbId (e.g., "OMIM:173900")
                     db = ""
                     db_id = disease_id
                     if ":" in disease_id:
                         db, db_id = disease_id.split(":", 1)
-                    data[gene_symbol]["diseases"].append({
-                        "id": disease_id,
-                        "name": None,
-                        "db": db,
-                        "dbId": db_id,
-                    })
+                    data[gene_symbol]["diseases"].append(
+                        {
+                            "id": disease_id,
+                            "name": None,
+                            "db": db,
+                            "dbId": db_id,
+                        }
+                    )
 
         return data
 

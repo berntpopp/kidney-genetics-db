@@ -14,6 +14,7 @@ Revises: be048c9b1b53
 Create Date: 2025-10-03
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -21,8 +22,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '68b329da9893'
-down_revision: str | None = 'be048c9b1b53'
+revision: str = "68b329da9893"
+down_revision: str | None = "be048c9b1b53"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -31,15 +32,27 @@ def upgrade() -> None:
     """Add temporal versioning columns and GiST index"""
     # Add valid_from column with default of NOW()
     # All existing genes start being valid from now
-    op.add_column('genes',
-        sa.Column('valid_from', sa.TIMESTAMP(timezone=True),
-                  nullable=False, server_default=sa.text('NOW()')))
+    op.add_column(
+        "genes",
+        sa.Column(
+            "valid_from",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("NOW()"),
+        ),
+    )
 
     # Add valid_to column with default of 'infinity'
     # All existing genes are currently valid (no end date)
-    op.add_column('genes',
-        sa.Column('valid_to', sa.TIMESTAMP(timezone=True),
-                  nullable=False, server_default=sa.text("'infinity'::timestamptz")))
+    op.add_column(
+        "genes",
+        sa.Column(
+            "valid_to",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("'infinity'::timestamptz"),
+        ),
+    )
 
     # Create GiST index on temporal range for fast temporal queries
     # tstzrange(valid_from, valid_to) creates a timestamp range
@@ -53,5 +66,5 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Remove temporal versioning"""
     op.execute("DROP INDEX IF EXISTS idx_genes_valid_time;")
-    op.drop_column('genes', 'valid_to')
-    op.drop_column('genes', 'valid_from')
+    op.drop_column("genes", "valid_to")
+    op.drop_column("genes", "valid_from")

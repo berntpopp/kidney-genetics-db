@@ -10,6 +10,7 @@ from app.db.views import ALL_VIEWS
 DATABASE_URL = "postgresql://kidney_user:kidney_pass@localhost:5432/kidney_genetics"
 engine = create_engine(DATABASE_URL)
 
+
 def apply_views():
     """Apply all views in dependency order."""
     # Sort views by dependencies
@@ -35,17 +36,20 @@ def apply_views():
 
     # Verify views exist
     with engine.connect() as conn:
-        result = conn.execute(text("""
+        result = conn.execute(
+            text("""
             SELECT table_name
             FROM information_schema.views
             WHERE table_schema = 'public'
             ORDER BY table_name
-        """))
+        """)
+        )
 
         views = [row[0] for row in result]
         print(f"\nTotal views in database: {len(views)}")
         for view in views:
             print(f"  - {view}")
+
 
 if __name__ == "__main__":
     apply_views()

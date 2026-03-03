@@ -25,7 +25,9 @@ class ReplaceableObject:
 
     def create_statement(self) -> str:
         """Generate CREATE statement for this object."""
-        if self.object_type == "VIEW":
+        if self.object_type == "MATERIALIZED VIEW":
+            return f"CREATE MATERIALIZED VIEW {self.name} AS {self.sqltext}"
+        elif self.object_type == "VIEW":
             return f"CREATE VIEW {self.name} AS {self.sqltext}"
         elif self.object_type == "FUNCTION":
             return f"CREATE FUNCTION {self.name} {self.sqltext}"
@@ -34,7 +36,9 @@ class ReplaceableObject:
 
     def drop_statement(self) -> str:
         """Generate DROP statement for this object."""
-        if self.object_type == "VIEW":
+        if self.object_type == "MATERIALIZED VIEW":
+            return f"DROP MATERIALIZED VIEW IF EXISTS {self.name} CASCADE"
+        elif self.object_type == "VIEW":
             return f"DROP VIEW IF EXISTS {self.name} CASCADE"
         elif self.object_type == "FUNCTION":
             return f"DROP FUNCTION IF EXISTS {self.name} CASCADE"
@@ -43,7 +47,12 @@ class ReplaceableObject:
 
     def replace_statement(self) -> str:
         """Generate CREATE OR REPLACE statement for this object."""
-        if self.object_type == "VIEW":
+        if self.object_type == "MATERIALIZED VIEW":
+            return (
+                f"DROP MATERIALIZED VIEW IF EXISTS {self.name} CASCADE;\n"
+                f"CREATE MATERIALIZED VIEW {self.name} AS {self.sqltext}"
+            )
+        elif self.object_type == "VIEW":
             return f"CREATE OR REPLACE VIEW {self.name} AS {self.sqltext}"
         elif self.object_type == "FUNCTION":
             return f"CREATE OR REPLACE FUNCTION {self.name} {self.sqltext}"

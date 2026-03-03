@@ -334,35 +334,66 @@ class TestCanonicalTranscriptSelection:
     def test_mane_select_preferred(self) -> None:
         """MANE_Select transcript wins over Ensembl_canonical."""
         transcripts = {
-            "TX1": {"is_mane_select": False, "is_canonical": True, "biotype": "protein_coding", "length": 5000},
-            "TX2": {"is_mane_select": True, "is_canonical": False, "biotype": "protein_coding", "length": 3000},
+            "TX1": {
+                "is_mane_select": False,
+                "is_canonical": True,
+                "biotype": "protein_coding",
+                "length": 5000,
+            },
+            "TX2": {
+                "is_mane_select": True,
+                "is_canonical": False,
+                "biotype": "protein_coding",
+                "length": 3000,
+            },
         }
 
-        result = EnsemblAnnotationSource._select_canonical_transcript(
-            ["TX1", "TX2"], transcripts
-        )
+        result = EnsemblAnnotationSource._select_canonical_transcript(["TX1", "TX2"], transcripts)
 
         assert result == "TX2"
 
     def test_ensembl_canonical_second(self) -> None:
         """Ensembl_canonical wins when no MANE_Select."""
         transcripts = {
-            "TX1": {"is_mane_select": False, "is_canonical": True, "biotype": "protein_coding", "length": 3000},
-            "TX2": {"is_mane_select": False, "is_canonical": False, "biotype": "protein_coding", "length": 5000},
+            "TX1": {
+                "is_mane_select": False,
+                "is_canonical": True,
+                "biotype": "protein_coding",
+                "length": 3000,
+            },
+            "TX2": {
+                "is_mane_select": False,
+                "is_canonical": False,
+                "biotype": "protein_coding",
+                "length": 5000,
+            },
         }
 
-        result = EnsemblAnnotationSource._select_canonical_transcript(
-            ["TX1", "TX2"], transcripts
-        )
+        result = EnsemblAnnotationSource._select_canonical_transcript(["TX1", "TX2"], transcripts)
 
         assert result == "TX1"
 
     def test_longest_protein_coding_third(self) -> None:
         """Longest protein-coding wins when no tagged transcript."""
         transcripts = {
-            "TX1": {"is_mane_select": False, "is_canonical": False, "biotype": "protein_coding", "length": 3000},
-            "TX2": {"is_mane_select": False, "is_canonical": False, "biotype": "protein_coding", "length": 5000},
-            "TX3": {"is_mane_select": False, "is_canonical": False, "biotype": "lncRNA", "length": 9000},
+            "TX1": {
+                "is_mane_select": False,
+                "is_canonical": False,
+                "biotype": "protein_coding",
+                "length": 3000,
+            },
+            "TX2": {
+                "is_mane_select": False,
+                "is_canonical": False,
+                "biotype": "protein_coding",
+                "length": 5000,
+            },
+            "TX3": {
+                "is_mane_select": False,
+                "is_canonical": False,
+                "biotype": "lncRNA",
+                "length": 9000,
+            },
         }
 
         result = EnsemblAnnotationSource._select_canonical_transcript(
@@ -374,13 +405,21 @@ class TestCanonicalTranscriptSelection:
     def test_fallback_to_first(self) -> None:
         """Falls back to first transcript when nothing else matches."""
         transcripts = {
-            "TX1": {"is_mane_select": False, "is_canonical": False, "biotype": "lncRNA", "length": 3000},
-            "TX2": {"is_mane_select": False, "is_canonical": False, "biotype": "lncRNA", "length": 5000},
+            "TX1": {
+                "is_mane_select": False,
+                "is_canonical": False,
+                "biotype": "lncRNA",
+                "length": 3000,
+            },
+            "TX2": {
+                "is_mane_select": False,
+                "is_canonical": False,
+                "biotype": "lncRNA",
+                "length": 5000,
+            },
         }
 
-        result = EnsemblAnnotationSource._select_canonical_transcript(
-            ["TX1", "TX2"], transcripts
-        )
+        result = EnsemblAnnotationSource._select_canonical_transcript(["TX1", "TX2"], transcripts)
 
         assert result == "TX1"
 
@@ -495,12 +534,12 @@ class TestCrossReference:
         source = _make_source()
         # GTF with a gene not in MANE
         gtf_content = (
-            '1\tensembl\tgene\t100\t200\t.\t+\t.\t'
+            "1\tensembl\tgene\t100\t200\t.\t+\t.\t"
             'gene_id "ENSG99999"; gene_name "FAKEGENE"; gene_biotype "protein_coding";\n'
-            '1\tensembl\ttranscript\t100\t200\t.\t+\t.\t'
+            "1\tensembl\ttranscript\t100\t200\t.\t+\t.\t"
             'gene_id "ENSG99999"; transcript_id "ENST88888"; gene_name "FAKEGENE"; '
             'transcript_name "FAKE-201"; transcript_biotype "protein_coding"; tag "Ensembl_canonical";\n'
-            '1\tensembl\texon\t100\t200\t.\t+\t.\t'
+            "1\tensembl\texon\t100\t200\t.\t+\t.\t"
             'gene_id "ENSG99999"; transcript_id "ENST88888"; exon_number "1"; exon_id "ENSE88888";\n'
         )
         gtf_file = _create_gtf_file(tmp_path, content=gtf_content)

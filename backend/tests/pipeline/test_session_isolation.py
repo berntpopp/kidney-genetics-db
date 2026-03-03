@@ -122,9 +122,7 @@ class TestParallelSessionIsolation:
                 side_effect=exploding_update,
             ),
         ):
-            results = await pipeline._update_sources_parallel(
-                ["gnomad"], gene_ids=[1], force=False
-            )
+            results = await pipeline._update_sources_parallel(["gnomad"], gene_ids=[1], force=False)
 
         assert len(mock_sessions) == 1
         mock_sessions[0].rollback.assert_called_once()
@@ -207,6 +205,4 @@ class TestHGNCPhaseIsolation:
             await pipeline.run_update(sources=["hgnc"], gene_ids=[1], force=True)
 
         assert len(hgnc_session_ids) == 1
-        assert hgnc_session_ids[0] != id(db_session), (
-            "HGNC must not use the orchestration session"
-        )
+        assert hgnc_session_ids[0] != id(db_session), "HGNC must not use the orchestration session"

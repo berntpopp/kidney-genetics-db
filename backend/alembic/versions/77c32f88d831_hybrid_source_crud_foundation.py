@@ -5,13 +5,14 @@ Revises: 8f42e6080805
 Create Date: 2025-10-08 10:06:58.769046
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '77c32f88d831'
-down_revision: str | Sequence[str] | None = '8f42e6080805'
+revision: str = "77c32f88d831"
+down_revision: str | Sequence[str] | None = "8f42e6080805"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

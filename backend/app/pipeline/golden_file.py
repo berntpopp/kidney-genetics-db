@@ -131,9 +131,7 @@ def compare_snapshots(
         before_sources = before[gene]
         after_sources = after[gene]
 
-        all_sources = sorted(
-            set(before_sources.keys()) | set(after_sources.keys())
-        )
+        all_sources = sorted(set(before_sources.keys()) | set(after_sources.keys()))
         for source in all_sources:
             if source not in before_sources:
                 differences.append(
@@ -232,16 +230,14 @@ def generate_parity_report(comparison: dict[str, Any]) -> str:
             before_val = _fmt(d["before"])
             after_val = _fmt(d["after"])
             lines.append(
-                f"| {d['gene']} | {d['source']} | {d['field']} "
-                f"| {before_val} | {after_val} |"
+                f"| {d['gene']} | {d['source']} | {d['field']} | {before_val} | {after_val} |"
             )
 
         if len(diffs) > _MAX_REPORT_DIFFERENCES:
             remaining = len(diffs) - _MAX_REPORT_DIFFERENCES
             lines.append("")
             lines.append(
-                f"... and {remaining} more differences "
-                f"(truncated at {_MAX_REPORT_DIFFERENCES})"
+                f"... and {remaining} more differences (truncated at {_MAX_REPORT_DIFFERENCES})"
             )
         lines.append("")
 

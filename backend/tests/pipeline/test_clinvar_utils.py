@@ -273,14 +273,10 @@ class TestMapReviewConfidence:
         assert result == 3
 
     def test_single_submitter(self) -> None:
-        assert (
-            map_review_confidence("criteria provided, single submitter", CONFIDENCE_LEVELS) == 2
-        )
+        assert map_review_confidence("criteria provided, single submitter", CONFIDENCE_LEVELS) == 2
 
     def test_no_assertion(self) -> None:
-        assert (
-            map_review_confidence("no assertion criteria provided", CONFIDENCE_LEVELS) == 1
-        )
+        assert map_review_confidence("no assertion criteria provided", CONFIDENCE_LEVELS) == 1
 
     def test_empty(self) -> None:
         assert map_review_confidence("", CONFIDENCE_LEVELS) == 0
@@ -457,13 +453,9 @@ class TestGeneAccumulator:
     def test_high_confidence_counting(self) -> None:
         acc = GeneAccumulator(CONFIDENCE_LEVELS)
         acc.add_variant(
-            self._make_variant(
-                review_status="criteria provided, multiple submitters, no conflicts"
-            )
+            self._make_variant(review_status="criteria provided, multiple submitters, no conflicts")
         )
-        acc.add_variant(
-            self._make_variant(review_status="criteria provided, single submitter")
-        )
+        acc.add_variant(self._make_variant(review_status="criteria provided, single submitter"))
         stats = acc.finalize()
         assert stats["high_confidence_count"] == 1
 
@@ -494,9 +486,7 @@ class TestGeneAccumulator:
 
     def test_traits_aggregation(self) -> None:
         acc = GeneAccumulator(CONFIDENCE_LEVELS)
-        acc.add_variant(
-            self._make_variant(traits=[{"name": "PKD"}, {"name": "ADPKD"}])
-        )
+        acc.add_variant(self._make_variant(traits=[{"name": "PKD"}, {"name": "ADPKD"}]))
         acc.add_variant(self._make_variant(traits=[{"name": "PKD"}]))
         stats = acc.finalize()
         assert stats["top_traits"][0]["trait"] == "PKD"

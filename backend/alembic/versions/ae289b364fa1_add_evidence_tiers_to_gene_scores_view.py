@@ -8,14 +8,15 @@ Revises: 001_modern_complete
 Create Date: 2025-09-30 10:42:53.432432
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 from app.db.views import gene_scores
 
 # revision identifiers, used by Alembic.
-revision: str = 'ae289b364fa1'
-down_revision: str | Sequence[str] | None = '001_modern_complete'
+revision: str = "ae289b364fa1"
+down_revision: str | Sequence[str] | None = "001_modern_complete"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -48,12 +48,8 @@ class GeneFactory(BaseFactory):
         model = Gene
 
     # Core identifiers matching actual Gene model - use UUID for guaranteed uniqueness
-    approved_symbol = factory.LazyFunction(
-        lambda: f"TG{fake.uuid4()[:8].upper().replace('-', '')}"
-    )
-    hgnc_id = factory.LazyFunction(
-        lambda: f"HGNC:T{fake.uuid4()[:10].upper().replace('-', '')}"
-    )
+    approved_symbol = factory.LazyFunction(lambda: f"TG{fake.uuid4()[:8].upper().replace('-', '')}")
+    hgnc_id = factory.LazyFunction(lambda: f"HGNC:T{fake.uuid4()[:10].upper().replace('-', '')}")
 
     # Aliases as an array of strings
     aliases = factory.LazyFunction(
@@ -145,6 +141,7 @@ class GeneFactoryBatch:
     def create_kidney_panel(session, count: int = 10) -> list[Gene]:
         """Create genes specifically for kidney disease testing."""
         import uuid
+
         genes = []
         kidney_genes = [
             "PKD1",
@@ -190,6 +187,7 @@ class GeneFactoryBatch:
         Those are in GeneCuration. This method creates basic Gene records.
         """
         import uuid
+
         genes = []
         for i in range(count):
             # Use unique HGNC ID to avoid conflicts with dev database

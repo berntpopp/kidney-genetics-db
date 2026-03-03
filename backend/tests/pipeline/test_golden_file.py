@@ -115,9 +115,7 @@ class TestCompareFloatTolerance:
         assert result["total_differences"] == 0
 
         # Tight tolerance should catch the difference
-        result_strict = compare_snapshots(
-            str(before), str(after), float_tolerance=1e-12
-        )
+        result_strict = compare_snapshots(str(before), str(after), float_tolerance=1e-12)
         assert result_strict["total_differences"] == 1
 
 
@@ -319,9 +317,7 @@ class TestGenerateParityReport:
 class TestExportCreatesFile:
     """Export produces valid JSON from the database."""
 
-    def test_export_creates_file(
-        self, db_session: Session, tmp_path: Path
-    ) -> None:
+    def test_export_creates_file(self, db_session: Session, tmp_path: Path) -> None:
         # Insert test gene
         gene = Gene(
             approved_symbol="GOLDEN_TEST_A",

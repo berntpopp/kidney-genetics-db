@@ -70,8 +70,7 @@ class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
     # GTF bulk file (replaces REST API)
     bulk_file_url = (
-        "https://ftp.ensembl.org/pub/current_gtf/homo_sapiens/"
-        "Homo_sapiens.GRCh38.115.chr.gtf.gz"
+        "https://ftp.ensembl.org/pub/current_gtf/homo_sapiens/Homo_sapiens.GRCh38.115.chr.gtf.gz"
     )
     bulk_cache_ttl_hours = 168  # 7 days
     bulk_file_format = "gtf.gz"

@@ -327,9 +327,7 @@ class UniProtAnnotationSource(BaseAnnotationSource):
     # ID Mapping API (batch optimization)
     # ------------------------------------------------------------------
 
-    def _parse_id_mapping_results(
-        self, response_data: dict[str, Any]
-    ) -> dict[str, dict[str, Any]]:
+    def _parse_id_mapping_results(self, response_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
         """Parse ID Mapping results into a gene-symbol-keyed dict.
 
         Each result has ``{"from": "PKD1", "to": {UniProtKB entry}}``.
@@ -401,9 +399,7 @@ class UniProtAnnotationSource(BaseAnnotationSource):
         """
         symbols = [g.approved_symbol for g in genes]
 
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(60.0), follow_redirects=True
-        ) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0), follow_redirects=True) as client:
             # Step 1: Submit ID mapping job
             submit_response = await client.post(
                 f"{self.base_url}/idmapping/run",
@@ -444,14 +440,11 @@ class UniProtAnnotationSource(BaseAnnotationSource):
                 break
             else:
                 raise TimeoutError(
-                    f"ID Mapping job {job_id} did not complete within "
-                    f"{_ID_MAPPING_TIMEOUT}s"
+                    f"ID Mapping job {job_id} did not complete within {_ID_MAPPING_TIMEOUT}s"
                 )
 
             # Step 3: Fetch results
-            results_url = (
-                f"{self.base_url}/idmapping/uniprotkb/results/{job_id}"
-            )
+            results_url = f"{self.base_url}/idmapping/uniprotkb/results/{job_id}"
             results_response = await client.get(
                 results_url,
                 params={

@@ -191,6 +191,7 @@ class TestL1L2CacheLayers:
         # Set max size to a small value for testing
         # Need to recreate LRU cache with new maxsize
         import cachetools
+
         cache_service.memory_cache = cachetools.LRUCache(maxsize=3)
 
         # Add entries to fill cache
@@ -391,6 +392,7 @@ class TestCacheServiceFactory:
         """Test getting cache service with session."""
         # Reset global singleton for clean test
         import app.core.cache_service as cache_module
+
         cache_module.cache_service = None
 
         service = get_cache_service(db_session)
@@ -401,6 +403,7 @@ class TestCacheServiceFactory:
         """Test getting cache service without session."""
         # Reset global singleton for clean test
         import app.core.cache_service as cache_module
+
         cache_module.cache_service = None
 
         service = get_cache_service(None)
@@ -412,6 +415,7 @@ class TestCacheServiceFactory:
         """Test that same session returns same service instance."""
         # Reset global singleton for clean test
         import app.core.cache_service as cache_module
+
         cache_module.cache_service = None
 
         service1 = get_cache_service(db_session)

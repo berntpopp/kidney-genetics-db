@@ -15,6 +15,7 @@ Revises: 02bb6061236e
 Create Date: 2025-10-03 19:59:17.837085
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
@@ -28,8 +29,8 @@ from app.db.views import (
 )
 
 # revision identifiers, used by Alembic.
-revision: str = '8f42e6080805'
-down_revision: str | Sequence[str] | None = '02bb6061236e'
+revision: str = "8f42e6080805"
+down_revision: str | Sequence[str] | None = "02bb6061236e"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

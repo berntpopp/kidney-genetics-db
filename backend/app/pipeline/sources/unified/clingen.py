@@ -156,9 +156,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
 
             response = await self.http_client.get(self.csv_url, timeout=60)
             if response.status_code != 200:
-                logger.sync_warning(
-                    "ClinGen CSV download failed", status_code=response.status_code
-                )
+                logger.sync_warning("ClinGen CSV download failed", status_code=response.status_code)
                 return None
 
             text = response.text

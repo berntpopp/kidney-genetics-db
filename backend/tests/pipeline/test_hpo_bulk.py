@@ -12,8 +12,7 @@ import pytest
 # Sample genes_to_phenotype.txt content
 # Format: ncbi_gene_id\tgene_symbol\thpo_id\thpo_name\tfrequency\tdisease_id
 SAMPLE_HEADER = (
-    "#Format: ncbi_gene_id<tab>gene_symbol<tab>hpo_id<tab>hpo_name"
-    "<tab>frequency<tab>disease_id\n"
+    "#Format: ncbi_gene_id<tab>gene_symbol<tab>hpo_id<tab>hpo_name<tab>frequency<tab>disease_id\n"
 )
 
 SAMPLE_ROWS = """\

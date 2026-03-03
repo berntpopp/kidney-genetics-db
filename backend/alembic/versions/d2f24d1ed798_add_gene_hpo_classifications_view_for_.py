@@ -13,14 +13,15 @@ Revises: 77c32f88d831
 Create Date: 2025-10-09 10:31:23.917000
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 from app.db.views import gene_hpo_classifications
 
 # revision identifiers, used by Alembic.
-revision: str = 'd2f24d1ed798'
-down_revision: str | Sequence[str] | None = '77c32f88d831'
+revision: str = "d2f24d1ed798"
+down_revision: str | Sequence[str] | None = "77c32f88d831"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

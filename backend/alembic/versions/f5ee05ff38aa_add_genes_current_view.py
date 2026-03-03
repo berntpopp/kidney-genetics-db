@@ -9,14 +9,15 @@ Revises: 68b329da9893
 Create Date: 2025-10-03
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 from app.db.views import genes_current
 
 # revision identifiers, used by Alembic.
-revision: str = 'f5ee05ff38aa'
-down_revision: str | None = '68b329da9893'
+revision: str = "f5ee05ff38aa"
+down_revision: str | None = "68b329da9893"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

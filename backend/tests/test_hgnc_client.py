@@ -50,9 +50,7 @@ class TestHGNCClientCached:
     def client(self, mock_cache_service, mock_http_client):
         """Create HGNCClientCached instance for testing."""
         # Patch get_cache_service to return our mock
-        with patch(
-            "app.core.hgnc_client.get_cache_service", return_value=mock_cache_service
-        ):
+        with patch("app.core.hgnc_client.get_cache_service", return_value=mock_cache_service):
             return HGNCClientCached(
                 cache_service=mock_cache_service,
                 http_client=mock_http_client,
@@ -115,9 +113,7 @@ class TestHGNCClientCached:
         assert client.NAMESPACE == "hgnc"
 
     @pytest.mark.asyncio
-    async def test_make_request_success(
-        self, client, mock_http_client, mock_successful_response
-    ):
+    async def test_make_request_success(self, client, mock_http_client, mock_successful_response):
         """Test successful API request."""
         mock_response = MagicMock()
         mock_response.raise_for_status.return_value = None
@@ -138,19 +134,16 @@ class TestHGNCClientCached:
             await client._make_request("search/symbol", {"symbol": "PKD1"})
 
     @pytest.mark.asyncio
-    async def test_symbol_to_hgnc_id_success(
-        self, client, mock_successful_response
-    ):
+    async def test_symbol_to_hgnc_id_success(self, client, mock_successful_response):
         """Test successful symbol to HGNC ID conversion."""
 
         async def bypass_cache(key, fetch_func, namespace, ttl, db_session):
             """Bypass cache and call fetch function directly."""
             return await fetch_func()
 
-        with patch.object(
-            client, "_make_request", new_callable=AsyncMock
-        ) as mock_request, patch(
-            "app.core.hgnc_client.cached", side_effect=bypass_cache
+        with (
+            patch.object(client, "_make_request", new_callable=AsyncMock) as mock_request,
+            patch("app.core.hgnc_client.cached", side_effect=bypass_cache),
         ):
             mock_request.return_value = mock_successful_response
 
@@ -166,10 +159,9 @@ class TestHGNCClientCached:
             """Bypass cache and call fetch function directly."""
             return await fetch_func()
 
-        with patch.object(
-            client, "_make_request", new_callable=AsyncMock
-        ) as mock_request, patch(
-            "app.core.hgnc_client.cached", side_effect=bypass_cache
+        with (
+            patch.object(client, "_make_request", new_callable=AsyncMock) as mock_request,
+            patch("app.core.hgnc_client.cached", side_effect=bypass_cache),
         ):
             mock_request.return_value = mock_empty_response
 
@@ -185,10 +177,9 @@ class TestHGNCClientCached:
             """Bypass cache and call fetch function directly."""
             return await fetch_func()
 
-        with patch.object(
-            client, "_make_request", new_callable=AsyncMock
-        ) as mock_request, patch(
-            "app.core.hgnc_client.cached", side_effect=bypass_cache
+        with (
+            patch.object(client, "_make_request", new_callable=AsyncMock) as mock_request,
+            patch("app.core.hgnc_client.cached", side_effect=bypass_cache),
         ):
             mock_request.side_effect = Exception("API Error")
 
@@ -204,10 +195,9 @@ class TestHGNCClientCached:
             """Bypass cache and call fetch function directly."""
             return await fetch_func()
 
-        with patch.object(
-            client, "_make_request", new_callable=AsyncMock
-        ) as mock_request, patch(
-            "app.core.hgnc_client.cached", side_effect=bypass_cache
+        with (
+            patch.object(client, "_make_request", new_callable=AsyncMock) as mock_request,
+            patch("app.core.hgnc_client.cached", side_effect=bypass_cache),
         ):
             mock_request.return_value = mock_successful_response
 
@@ -224,10 +214,9 @@ class TestHGNCClientCached:
             """Bypass cache and call fetch function directly."""
             return await fetch_func()
 
-        with patch.object(
-            client, "_make_request", new_callable=AsyncMock
-        ) as mock_request, patch(
-            "app.core.hgnc_client.cached", side_effect=bypass_cache
+        with (
+            patch.object(client, "_make_request", new_callable=AsyncMock) as mock_request,
+            patch("app.core.hgnc_client.cached", side_effect=bypass_cache),
         ):
             mock_request.return_value = mock_empty_response
 
@@ -243,10 +232,9 @@ class TestHGNCClientCached:
             """Bypass cache and call fetch function directly."""
             return await fetch_func()
 
-        with patch.object(
-            client, "_make_request", new_callable=AsyncMock
-        ) as mock_request, patch(
-            "app.core.hgnc_client.cached", side_effect=bypass_cache
+        with (
+            patch.object(client, "_make_request", new_callable=AsyncMock) as mock_request,
+            patch("app.core.hgnc_client.cached", side_effect=bypass_cache),
         ):
             mock_request.return_value = mock_successful_response
 
@@ -267,10 +255,9 @@ class TestHGNCClientCached:
             """Bypass cache and call fetch function directly."""
             return await fetch_func()
 
-        with patch.object(
-            client, "_make_request", new_callable=AsyncMock
-        ) as mock_request, patch(
-            "app.core.hgnc_client.cached", side_effect=bypass_cache
+        with (
+            patch.object(client, "_make_request", new_callable=AsyncMock) as mock_request,
+            patch("app.core.hgnc_client.cached", side_effect=bypass_cache),
         ):
             # Direct lookup fails, previous symbol lookup succeeds
             mock_request.side_effect = [
@@ -293,10 +280,9 @@ class TestHGNCClientCached:
             """Bypass cache and call fetch function directly."""
             return await fetch_func()
 
-        with patch.object(
-            client, "_make_request", new_callable=AsyncMock
-        ) as mock_request, patch(
-            "app.core.hgnc_client.cached", side_effect=bypass_cache
+        with (
+            patch.object(client, "_make_request", new_callable=AsyncMock) as mock_request,
+            patch("app.core.hgnc_client.cached", side_effect=bypass_cache),
         ):
             # Direct and previous lookups fail, alias lookup succeeds
             mock_request.side_effect = [
@@ -318,10 +304,9 @@ class TestHGNCClientCached:
             """Bypass cache and call fetch function directly."""
             return await fetch_func()
 
-        with patch.object(
-            client, "_make_request", new_callable=AsyncMock
-        ) as mock_request, patch(
-            "app.core.hgnc_client.cached", side_effect=bypass_cache
+        with (
+            patch.object(client, "_make_request", new_callable=AsyncMock) as mock_request,
+            patch("app.core.hgnc_client.cached", side_effect=bypass_cache),
         ):
             mock_request.return_value = mock_empty_response
 
@@ -362,11 +347,10 @@ class TestHGNCClientCached:
             # Batch request fails completely
             mock_request.side_effect = Exception("Batch failed")
 
-        with patch.object(
-            client, "standardize_symbol", new_callable=AsyncMock
-        ) as mock_standardize, patch.object(
-            client, "get_gene_info", new_callable=AsyncMock
-        ) as mock_get_info:
+        with (
+            patch.object(client, "standardize_symbol", new_callable=AsyncMock) as mock_standardize,
+            patch.object(client, "get_gene_info", new_callable=AsyncMock) as mock_get_info,
+        ):
             # Individual lookups succeed
             mock_standardize.side_effect = ["PKD1", "PKD2"]
             mock_get_info.side_effect = [
@@ -390,9 +374,7 @@ class TestHGNCClientCached:
         assert result == {}
 
     @pytest.mark.asyncio
-    async def test_standardize_symbols_parallel_single_batch(
-        self, client, mock_cache_service
-    ):
+    async def test_standardize_symbols_parallel_single_batch(self, client, mock_cache_service):
         """Test parallel standardization with single batch."""
         with patch.object(
             client, "standardize_symbols_batch", new_callable=AsyncMock
@@ -407,9 +389,7 @@ class TestHGNCClientCached:
             mock_batch.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_standardize_symbols_parallel_multiple_batches(
-        self, client, mock_cache_service
-    ):
+    async def test_standardize_symbols_parallel_multiple_batches(self, client, mock_cache_service):
         """Test parallel standardization with multiple batches."""
         client.batch_size = 1  # Force one symbol per batch
 
@@ -441,11 +421,10 @@ class TestHGNCClientCached:
         client.batch_size = 1
         symbols = ["PKD1", "PKD2"]
 
-        with patch.object(
-            client, "standardize_symbols_batch", new_callable=AsyncMock
-        ) as mock_batch, patch.object(
-            client, "get_gene_info", new_callable=AsyncMock
-        ) as mock_get_info:
+        with (
+            patch.object(client, "standardize_symbols_batch", new_callable=AsyncMock) as mock_batch,
+            patch.object(client, "get_gene_info", new_callable=AsyncMock) as mock_get_info,
+        ):
             # First batch succeeds, second fails
             mock_batch.side_effect = [
                 {"PKD1": {"approved_symbol": "PKD1", "hgnc_id": "HGNC:8945"}},
@@ -492,10 +471,9 @@ class TestHGNCClientCached:
             """Bypass cache and call fetch function directly."""
             return await fetch_func()
 
-        with patch.object(
-            client, "_make_request", new_callable=AsyncMock
-        ) as mock_request, patch(
-            "app.core.hgnc_client.cached", side_effect=bypass_cache
+        with (
+            patch.object(client, "_make_request", new_callable=AsyncMock) as mock_request,
+            patch("app.core.hgnc_client.cached", side_effect=bypass_cache),
         ):
             mock_request.return_value = {
                 "response": {"docs": [{"symbol": "PKD1", "hgnc_id": "HGNC:8945"}]}
@@ -549,11 +527,10 @@ class TestHGNCClientCached:
     @pytest.mark.asyncio
     async def test_warm_cache(self, client, mock_cache_service):
         """Test cache warming functionality."""
-        with patch.object(
-            client, "standardize_symbols_batch", new_callable=AsyncMock
-        ) as mock_batch, patch.object(
-            client, "get_gene_info", new_callable=AsyncMock
-        ) as mock_get_info:
+        with (
+            patch.object(client, "standardize_symbols_batch", new_callable=AsyncMock) as mock_batch,
+            patch.object(client, "get_gene_info", new_callable=AsyncMock) as mock_get_info,
+        ):
             mock_batch.return_value = {}
             mock_get_info.return_value = None
 

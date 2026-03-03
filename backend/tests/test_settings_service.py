@@ -101,7 +101,7 @@ class TestSettingsService:
             new_value=7200,
             user_id=1,
             ip_address="127.0.0.1",
-            change_reason="Testing update"
+            change_reason="Testing update",
         )
 
         # Verify results
@@ -119,7 +119,7 @@ class TestSettingsService:
             await service.update_setting(
                 setting_id=1,
                 new_value="invalid_string",  # Should be number
-                user_id=1
+                user_id=1,
             )
 
     async def test_update_readonly_setting(self, service, mock_db):
@@ -137,11 +137,7 @@ class TestSettingsService:
 
         # Attempt to update
         with pytest.raises(ValueError, match="read-only"):
-            await service.update_setting(
-                setting_id=1,
-                new_value="2.0.0",
-                user_id=1
-            )
+            await service.update_setting(setting_id=1, new_value="2.0.0", user_id=1)
 
     async def test_sensitive_value_masking(self, service, mock_db):
         """Test that sensitive values are masked in responses"""
@@ -195,11 +191,7 @@ class TestSettingsService:
         mock_query_recent.scalar.return_value = 2
 
         # Set up mock to return different query objects for different queries
-        mock_db.query.side_effect = [
-            mock_query_total,
-            mock_query_restart,
-            mock_query_recent
-        ]
+        mock_db.query.side_effect = [mock_query_total, mock_query_restart, mock_query_recent]
 
         # Call service method
         stats = await service.get_stats()
@@ -221,7 +213,7 @@ class TestSettingsService:
             user_id=1,
             ip_address="192.168.1.1",
             user_agent="Mozilla/5.0",
-            change_reason="Performance optimization"
+            change_reason="Performance optimization",
         )
 
         # Verify audit log was added
@@ -242,9 +234,7 @@ class TestSettingsService:
 
         # Get settings filtered by category
         settings = await service.get_all_settings(
-            category=SettingCategory.CACHE,
-            limit=100,
-            offset=0
+            category=SettingCategory.CACHE, limit=100, offset=0
         )
 
         # Verify filtering was applied

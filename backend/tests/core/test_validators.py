@@ -176,14 +176,16 @@ class TestScoreAggregation:
 
             # Property: average should be within min and max of inputs
             # Use math.isclose for floating-point comparisons to handle precision issues
+            assert min_score <= avg_score or math.isclose(min_score, avg_score, rel_tol=1e-9), (
+                "Average should be >= min"
+            )
+            assert avg_score <= max_score or math.isclose(avg_score, max_score, rel_tol=1e-9), (
+                "Average should be <= max"
+            )
             assert (
-                min_score <= avg_score or math.isclose(min_score, avg_score, rel_tol=1e-9)
-            ), "Average should be >= min"
-            assert (
-                avg_score <= max_score or math.isclose(avg_score, max_score, rel_tol=1e-9)
-            ), "Average should be <= max"
-            assert 0 <= avg_score <= 1 or math.isclose(avg_score, 0, rel_tol=1e-9) or math.isclose(
-                avg_score, 1, rel_tol=1e-9
+                0 <= avg_score <= 1
+                or math.isclose(avg_score, 0, rel_tol=1e-9)
+                or math.isclose(avg_score, 1, rel_tol=1e-9)
             ), "Average should be in [0, 1]"
 
     @given(
@@ -208,11 +210,11 @@ class TestScoreAggregation:
                 or math.isclose(weighted_avg, 0, rel_tol=1e-9)
                 or math.isclose(weighted_avg, 1, rel_tol=1e-9)
             ), "Weighted average should be in [0, 1]"
-            assert (
-                min_score <= weighted_avg or math.isclose(min_score, weighted_avg, rel_tol=1e-9)
+            assert min_score <= weighted_avg or math.isclose(
+                min_score, weighted_avg, rel_tol=1e-9
             ), "Weighted average should be >= min"
-            assert (
-                weighted_avg <= max_score or math.isclose(weighted_avg, max_score, rel_tol=1e-9)
+            assert weighted_avg <= max_score or math.isclose(
+                weighted_avg, max_score, rel_tol=1e-9
             ), "Weighted average should be <= max"
 
 
@@ -243,7 +245,9 @@ class TestStringCleaning:
 
         # Property: cleaned text should not be longer than uppercased original
         # (uppercasing can expand some chars like ß → SS, which is expected)
-        assert len(cleaned) <= len(text.upper()), "Cleaning should not increase length beyond case expansion"
+        assert len(cleaned) <= len(text.upper()), (
+            "Cleaning should not increase length beyond case expansion"
+        )
 
     @given(st.text())
     def test_clean_text_preserves_alphanumeric(self, text: str):

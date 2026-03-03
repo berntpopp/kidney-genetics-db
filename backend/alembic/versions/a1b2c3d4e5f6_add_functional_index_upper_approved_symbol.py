@@ -23,10 +23,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Add functional index on UPPER(approved_symbol) for case-insensitive lookups."""
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS idx_gene_symbol_upper "
-        "ON genes (UPPER(approved_symbol))"
-    )
+    op.execute("CREATE INDEX IF NOT EXISTS idx_gene_symbol_upper ON genes (UPPER(approved_symbol))")
 
 
 def downgrade() -> None:

@@ -39,8 +39,7 @@ class HGNCAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
     # Bulk download configuration
     bulk_file_url = (
-        "https://storage.googleapis.com/public-download-files"
-        "/hgnc/json/json/hgnc_complete_set.json"
+        "https://storage.googleapis.com/public-download-files/hgnc/json/json/hgnc_complete_set.json"
     )
     bulk_cache_ttl_hours = 168  # 7 days
     bulk_file_format = "json"

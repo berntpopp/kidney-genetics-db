@@ -134,9 +134,7 @@ def test_get_genes_default_hides_zero_scores(db_session, sample_genes_with_evide
         WHERE {where_clause}
         AND g.id = ANY(:test_gene_ids)
     """
-    result = db_session.execute(
-        text(count_query), {"test_gene_ids": test_gene_ids}
-    ).scalar()
+    result = db_session.execute(text(count_query), {"test_gene_ids": test_gene_ids}).scalar()
 
     # With hide_zero_scores=True, we should only see genes that have evidence
     # TESTGENE1 and TESTGENE2 have evidence, TESTGENE3 and TESTGENE4 don't
@@ -169,9 +167,7 @@ def test_get_genes_show_all_includes_zero_scores(db_session, sample_genes_with_e
         WHERE {where_clause}
         AND g.id = ANY(:test_gene_ids)
     """
-    result = db_session.execute(
-        text(count_query), {"test_gene_ids": test_gene_ids}
-    ).scalar()
+    result = db_session.execute(text(count_query), {"test_gene_ids": test_gene_ids}).scalar()
 
     # Should see all 4 test genes
     assert result == 4

@@ -123,9 +123,7 @@ class TestGnomADBulkParsing:
         """Non-canonical transcripts are excluded from bulk data."""
         from app.pipeline.sources.annotations.gnomad import GnomADAnnotationSource
 
-        tsv_file = _create_tsv(
-            tmp_path, SAMPLE_PKD1_ROW, SAMPLE_NON_CANONICAL_ROW
-        )
+        tsv_file = _create_tsv(tmp_path, SAMPLE_PKD1_ROW, SAMPLE_NON_CANONICAL_ROW)
 
         source = GnomADAnnotationSource.__new__(GnomADAnnotationSource)
         data = source.parse_bulk_file(tsv_file)
