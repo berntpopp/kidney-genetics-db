@@ -899,19 +899,13 @@ class AnnotationPipeline:
 
                 for view_name in views_to_refresh:
                     try:
-                        view_db.execute(
-                            text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}")
-                        )
+                        view_db.execute(text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}"))
                         view_db.commit()
-                        logger.sync_info(
-                            f"Materialized view {view_name} refreshed concurrently"
-                        )
+                        logger.sync_info(f"Materialized view {view_name} refreshed concurrently")
                     except Exception:
                         view_db.rollback()
                         try:
-                            view_db.execute(
-                                text(f"REFRESH MATERIALIZED VIEW {view_name}")
-                            )
+                            view_db.execute(text(f"REFRESH MATERIALIZED VIEW {view_name}"))
                             view_db.commit()
                             logger.sync_info(
                                 f"Materialized view {view_name} refreshed (non-concurrent)"
