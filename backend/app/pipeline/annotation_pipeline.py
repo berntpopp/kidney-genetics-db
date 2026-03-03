@@ -12,7 +12,6 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
-
 from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
 from app.core.retry_utils import RetryConfig, retry_with_backoff
