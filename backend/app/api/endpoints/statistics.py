@@ -271,10 +271,17 @@ async def get_statistics_summary(db: Session = Depends(get_db)) -> dict[str, Any
             with SessionLocal() as s:
                 return statistics_crud.get_source_distributions(s)
 
-        overlap_data, composition_data, distribution_data = await asyncio.gather(
-            run_in_threadpool(_get_overlaps),
-            run_in_threadpool(_get_composition),
-            run_in_threadpool(_get_distributions),
+        def _get_pairwise_overlaps() -> list[dict[str, Any]]:
+            with SessionLocal() as s:
+                return statistics_crud.get_pairwise_overlaps_from_view(s)
+
+        overlap_data, composition_data, distribution_data, pairwise_overlaps = (
+            await asyncio.gather(
+                run_in_threadpool(_get_overlaps),
+                run_in_threadpool(_get_composition),
+                run_in_threadpool(_get_distributions),
+                run_in_threadpool(_get_pairwise_overlaps),
+            )
         )
 
         # Extract key summary metrics
@@ -306,6 +313,7 @@ async def get_statistics_summary(db: Session = Depends(get_db)) -> dict[str, Any
                 - overlap_data["overlap_statistics"]["single_source_combinations"],
                 "source_distribution_variety": len(distribution_data),
             },
+            "pairwise_overlaps": pairwise_overlaps,
         }
 
         query_duration_ms = round((time.time() - start_time) * 1000, 2)
