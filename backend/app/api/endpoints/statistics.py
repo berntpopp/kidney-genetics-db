@@ -300,7 +300,8 @@ async def get_statistics_summary(db: Session = Depends(get_db)) -> dict[str, Any
                 "high_confidence_genes": sum(
                     item["gene_count"]
                     for item in composition_data["evidence_quality_distribution"]
-                    if "High" in item["label"]
+                    if item.get("tier_label", "").startswith("Comprehensive")
+                    or item.get("tier_label", "").startswith("Multi-Source")
                 ),
             },
             "coverage": {
