@@ -193,17 +193,20 @@ class AnnotationPipeline:
             # Phase 1: HGNC must complete first (provides Ensembl IDs)
             if "hgnc" in sources_to_update:
                 logger.sync_info("Processing HGNC first (dependency for other sources)")
+                hgnc_db = SessionLocal()
                 try:
-                    hgnc_results = await self._update_source_with_recovery(
-                        "hgnc", gene_ids_to_update, force
+                    hgnc_results = await self._update_source_with_session(
+                        "hgnc", gene_ids_to_update, force, hgnc_db
                     )
                     results["hgnc"] = hgnc_results
                     sources_completed.append("hgnc")
                     sources_to_update.remove("hgnc")
                 except Exception as e:
+                    hgnc_db.rollback()
                     logger.sync_error(f"HGNC update failed - critical dependency: {e}")
                     errors.append({"source": "hgnc", "error": str(e), "critical": True})
-                    # HGNC failure may impact other sources
+                finally:
+                    hgnc_db.close()
 
             # Phase 2: Process remaining sources in parallel
             if sources_to_update:

@@ -161,3 +161,52 @@ class TestMaterializedViewRefresh:
         # The fresh session must have been closed
         for sess in created_sessions:
             sess.close.assert_called_once()
+
+
+@pytest.mark.unit
+class TestHGNCPhaseIsolation:
+    """HGNC (Phase 1) should also use a dedicated session."""
+
+    @pytest.mark.asyncio
+    async def test_hgnc_uses_dedicated_session(self, db_session: Session):
+        """Phase 1 HGNC must not use self.db for the actual source update."""
+        pipeline = AnnotationPipeline(db_session)
+
+        hgnc_session_ids: list[int] = []
+
+        async def fake_update(source_name, gene_ids, force, source_db):
+            hgnc_session_ids.append(id(source_db))
+            return {"successful": 1, "failed": 0, "total": 1}
+
+        # Stub out methods that we don't want to exercise
+        async def get_sources(*a, **kw):
+            return ["hgnc"]
+
+        async def get_genes(*a, **kw):
+            return [MagicMock(id=1, approved_symbol="TEST")]
+
+        async def noop_refresh():
+            return True
+
+        async def noop_save(*a):
+            return None
+
+        async def noop_load():
+            return None
+
+        pipeline._get_sources_to_update = get_sources
+        pipeline._get_genes_to_update = get_genes
+        pipeline._refresh_materialized_view = noop_refresh
+        pipeline._save_checkpoint = noop_save
+        pipeline._load_checkpoint = noop_load
+
+        with (
+            patch("app.pipeline.annotation_pipeline.SessionLocal"),
+            patch.object(pipeline, "_update_source_with_session", side_effect=fake_update),
+        ):
+            await pipeline.run_update(sources=["hgnc"], gene_ids=[1], force=True)
+
+        assert len(hgnc_session_ids) == 1
+        assert hgnc_session_ids[0] != id(db_session), (
+            "HGNC must not use the orchestration session"
+        )
