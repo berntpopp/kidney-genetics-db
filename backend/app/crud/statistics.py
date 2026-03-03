@@ -208,6 +208,36 @@ class CRUDStatistics:
             )
             raise
 
+    def get_pairwise_overlaps_from_view(self, db: Session) -> list[dict[str, Any]]:
+        """
+        Read pre-computed pairwise source overlap statistics from the materialized view.
+
+        Returns unfiltered overlap data. For filtered queries, use get_source_overlaps() instead.
+        """
+        try:
+            rows = db.execute(
+                text(
+                    "SELECT source1, source2, overlap_count, "
+                    "source1_total, source2_total, overlap_percentage "
+                    "FROM source_overlap_statistics "
+                    "ORDER BY overlap_count DESC"
+                )
+            ).fetchall()
+            return [
+                {
+                    "source1": r[0],
+                    "source2": r[1],
+                    "overlap_count": r[2],
+                    "source1_total": r[3],
+                    "source2_total": r[4],
+                    "overlap_percentage": float(r[5]),
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            logger.sync_error("Error reading source_overlap_statistics view", error=e)
+            raise
+
     def get_source_distributions(
         self, db: Session, hide_zero_scores: bool = True, filter_tiers: list[str] | None = None
     ) -> dict[str, Any]:
