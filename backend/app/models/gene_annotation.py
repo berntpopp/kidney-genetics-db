@@ -40,7 +40,7 @@ class GeneAnnotation(Base, TimestampMixin):
 
     __tablename__ = "gene_annotations"
     __table_args__ = (
-        UniqueConstraint("gene_id", "source", "version", name="unique_gene_source_version"),
+        UniqueConstraint("gene_id", "source", name="unique_gene_source"),
     )
 
     id = Column(BigInteger, primary_key=True, index=True)
