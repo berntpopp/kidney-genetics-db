@@ -11,6 +11,8 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.database import SessionLocal
+
 from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
 from app.core.retry_utils import RetryConfig, retry_with_backoff
@@ -563,32 +565,40 @@ class AnnotationPipeline:
     ) -> dict[str, Any]:
         """Update multiple sources with controlled parallelism.
 
+        Each source gets its own dedicated SQLAlchemy session to prevent
+        concurrent-commit errors on a shared session.  The orchestration
+        session (self.db) is NOT used inside parallel tasks.
+
         Args:
             sources: List of source names to update
             gene_ids: List of gene IDs (not Gene objects) to avoid session conflicts
             force: Whether to force update existing annotations
         """
-        results = {}
+        results: dict[str, Any] = {}
 
         # Limit concurrent sources to respect API limits
         semaphore = asyncio.Semaphore(3)  # Max 3 concurrent sources
 
         async def rate_limited_update(source_name: str) -> tuple[str, dict]:
-            """Update single source with rate limiting."""
+            """Update single source with its own isolated session."""
             async with semaphore:
+                source_db = SessionLocal()
                 try:
-                    # Ping database to ensure connection is alive, then
-                    # commit immediately so no transaction stays open.
-                    if hasattr(self.db, "execute"):
-                        self.db.execute(text("SELECT 1"))
-                        self.db.commit()
+                    # Health-check on the NEW session
+                    source_db.execute(text("SELECT 1"))
+                    source_db.commit()
 
                     logger.sync_info(f"Starting parallel update for {source_name}")
-                    result = await self._update_source_with_recovery(source_name, gene_ids, force)
+                    result = await self._update_source_with_session(
+                        source_name, gene_ids, force, source_db
+                    )
                     return (source_name, result)
                 except Exception as e:
+                    source_db.rollback()
                     logger.sync_error(f"Error in parallel update for {source_name}: {e}")
                     return (source_name, {"error": str(e)})
+                finally:
+                    source_db.close()
 
         # Create tasks for all sources
         tasks = [rate_limited_update(src) for src in sources]
@@ -606,6 +616,183 @@ class AnnotationPipeline:
                 results[source_name] = source_result
 
         return results
+
+    async def _update_source_with_session(
+        self,
+        source_name: str,
+        gene_ids: list[int],
+        force: bool,
+        source_db: Session,
+    ) -> dict[str, Any]:
+        """Run a single source update with a dedicated session.
+
+        Identical logic to ``_update_source_with_recovery`` but uses the
+        provided ``source_db`` session instead of ``self.db``, ensuring
+        full isolation from other concurrent source updates.
+
+        Args:
+            source_name: Name of the annotation source to update
+            gene_ids: List of gene IDs
+            force: Whether to force update existing annotations
+            source_db: Dedicated session for this source (caller manages lifecycle)
+        """
+        logger.sync_info(
+            f"Starting batch update for {source_name}",
+            source_name=source_name,
+            gene_count=len(gene_ids),
+            force=force,
+        )
+
+        # Re-fetch genes using the source-local session
+        genes = source_db.query(Gene).filter(Gene.id.in_(gene_ids)).all()
+        source_db.commit()  # Release read lock before long fetch
+
+        if len(genes) != len(gene_ids):
+            logger.sync_warning(
+                f"Gene count mismatch: requested {len(gene_ids)}, found {len(genes)}"
+            )
+
+        source_class = self.sources[source_name]
+        source = source_class(source_db)  # Source gets the dedicated session
+        source.batch_mode = True
+
+        total_genes = len(genes)
+        successful = 0
+        failed = 0
+        failed_genes: list[Gene] = []
+
+        # Phase 1: Batch fetch
+        if self.progress_tracker:
+            self.progress_tracker.update(
+                current_item=0,
+                operation=f"Fetching {source_name} annotations (batch)",
+            )
+
+        batch_data: dict[int, dict[str, Any]] = {}
+        try:
+            batch_data = await source.fetch_batch(genes)
+            if batch_data is None:
+                batch_data = {}
+            logger.sync_info(
+                f"Batch fetch complete for {source_name}",
+                fetched=len(batch_data),
+                total=total_genes,
+            )
+        except Exception as e:
+            logger.sync_warning(
+                f"Batch fetch failed for {source_name}, falling back to per-gene: {e}",
+            )
+
+        # Phase 2: Bulk upsert using the source-local session
+        if batch_data:
+            if self.progress_tracker:
+                self.progress_tracker.update(
+                    current_item=0,
+                    operation=f"Writing {source_name}: {len(batch_data)} annotations (bulk)",
+                )
+
+            upsert_count = self._bulk_upsert_annotations_with_session(
+                source_name, source.version, batch_data, source_db
+            )
+            successful = upsert_count
+            logger.sync_info(
+                f"Bulk upsert complete for {source_name}",
+                upserted=upsert_count,
+            )
+
+        source_db.commit()  # Release between phases
+
+        # Phase 3: Per-gene fallback
+        missed_genes = [g for g in genes if g.id not in batch_data]
+        if missed_genes:
+            logger.sync_info(
+                f"Per-gene fallback for {source_name}",
+                missed=len(missed_genes),
+            )
+            for i, gene in enumerate(missed_genes):
+                if self.progress_tracker and i % 100 == 0:
+                    self.progress_tracker.update(
+                        current_item=len(batch_data) + i,
+                        operation=(
+                            f"Updating {source_name}: fallback {i}/{len(missed_genes)} genes"
+                        ),
+                    )
+                try:
+                    if await source.update_gene(gene):
+                        successful += 1
+                    else:
+                        failed_genes.append(gene)
+                        failed += 1
+                except Exception as e:
+                    logger.sync_warning(f"Failed to update {gene.approved_symbol}: {e}")
+                    failed_genes.append(gene)
+                    failed += 1
+
+            try:
+                source_db.commit()
+            except Exception as e:
+                logger.sync_warning(f"Fallback commit failed: {e}")
+                source_db.rollback()
+
+        # Phase 4: Retry failed genes
+        if failed_genes:
+            logger.sync_info(f"Retrying {len(failed_genes)} failed genes with backoff")
+            retry_config = RetryConfig(
+                max_retries=3, initial_delay=2.0, exponential_base=2.0, max_delay=30.0
+            )
+
+            @retry_with_backoff(config=retry_config)
+            async def retry_gene(gene: Gene) -> bool:
+                return await source.update_gene(gene)
+
+            for gene in failed_genes:
+                try:
+                    if await retry_gene(gene):
+                        successful += 1
+                        failed -= 1
+                        logger.sync_info(f"Successfully retried {gene.approved_symbol}")
+                except Exception as e:
+                    logger.sync_error(f"Failed to retry {gene.approved_symbol}: {e}")
+
+        source.batch_mode = False
+
+        # Clear caches in background using a dedicated session
+        try:
+            from concurrent.futures import ThreadPoolExecutor
+
+            from app.core.cache_service import get_cache_service
+
+            if not hasattr(self, "_executor"):
+                self._executor = ThreadPoolExecutor(max_workers=2)
+
+            def clear_cache_sync() -> None:
+                thread_db = SessionLocal()
+                try:
+                    cache_service = get_cache_service(thread_db)
+                    if cache_service:
+                        cache_service.clear_namespace_sync(source_name.lower())
+                        cache_service.clear_namespace_sync("annotations")
+                        logger.sync_debug(f"Cleared cache for {source_name}")
+                finally:
+                    thread_db.close()
+
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(self._executor, clear_cache_sync)
+        except Exception as e:
+            logger.sync_debug(f"Cache clear failed: {e}")
+
+        # Update source metadata using the source-local session
+        source_record = source.source_record
+        source_record.last_update = datetime.utcnow()
+        source_record.next_update = datetime.utcnow() + timedelta(days=source.cache_ttl_days)
+        source_db.commit()
+
+        return {
+            "successful": successful,
+            "failed": failed,
+            "total": total_genes,
+            "recovery_attempted": len(failed_genes) > 0,
+        }
 
     async def _update_source_with_recovery(
         self, source_name: str, gene_ids: list[int], force: bool = False
@@ -859,43 +1046,126 @@ class AnnotationPipeline:
 
         return upserted
 
+    def _bulk_upsert_annotations_with_session(
+        self,
+        source_name: str,
+        version: str | None,
+        batch_data: dict[int, dict[str, Any]],
+        db: Session,
+    ) -> int:
+        """Bulk upsert using a caller-provided session.
+
+        Identical to ``_bulk_upsert_annotations`` but uses the passed ``db``
+        session instead of ``self.db``.  This keeps each parallel source's
+        writes fully isolated.
+        """
+        if not batch_data:
+            return 0
+
+        now = datetime.utcnow()
+        metadata_json = json.dumps({"retrieved_at": now.isoformat(), "batch_fetch": True})
+
+        upserted = 0
+        chunk_size = 500
+        items = list(batch_data.items())
+
+        for chunk_start in range(0, len(items), chunk_size):
+            chunk = items[chunk_start : chunk_start + chunk_size]
+
+            values_clauses = []
+            params: dict[str, Any] = {}
+            for idx, (gene_id, annotations) in enumerate(chunk):
+                values_clauses.append(
+                    f"(:gene_id_{idx}, :source, :version, "
+                    f"CAST(:annotations_{idx} AS jsonb), "
+                    f"CAST(:metadata AS jsonb), :now, :now)"
+                )
+                params[f"gene_id_{idx}"] = gene_id
+                params[f"annotations_{idx}"] = json.dumps(annotations)
+
+            params["source"] = source_name
+            params["version"] = version
+            params["metadata"] = metadata_json
+            params["now"] = now
+
+            sql = text(
+                f"INSERT INTO gene_annotations "
+                f"(gene_id, source, version, annotations, source_metadata, "
+                f"created_at, updated_at) VALUES {', '.join(values_clauses)} "
+                f"ON CONFLICT (gene_id, source, version) DO UPDATE SET "
+                f"annotations = EXCLUDED.annotations, "
+                f"source_metadata = EXCLUDED.source_metadata, "
+                f"updated_at = EXCLUDED.updated_at"
+            )
+
+            try:
+                db.execute(sql, params)
+                db.commit()
+                upserted += len(chunk)
+            except Exception as e:
+                logger.sync_error(f"Bulk upsert failed for {source_name} chunk: {e}")
+                db.rollback()
+
+        return upserted
+
     async def _refresh_materialized_view(self) -> bool:
-        """Refresh all materialized views without blocking."""
+        """Refresh all materialized views using a dedicated session.
 
-        def refresh_sync() -> bool:
-            views_to_refresh = ["gene_scores", "gene_annotations_summary"]
-            all_success = True
+        Uses a fresh SessionLocal() instead of self.db to avoid inheriting
+        any poisoned state from the parallel source phase.
+        """
+        view_db = SessionLocal()
+        try:
 
-            for view_name in views_to_refresh:
-                try:
-                    # Try concurrent refresh first
-                    self.db.execute(text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}"))
-                    self.db.commit()
-                    logger.sync_info(f"Materialized view {view_name} refreshed concurrently")
-                except Exception:
-                    # Fallback to non-concurrent
+            def refresh_sync() -> bool:
+                views_to_refresh = ["gene_scores", "gene_annotations_summary"]
+                all_success = True
+
+                for view_name in views_to_refresh:
                     try:
-                        self.db.execute(text(f"REFRESH MATERIALIZED VIEW {view_name}"))
-                        self.db.commit()
-                        logger.sync_info(
-                            f"Materialized view {view_name} refreshed (non-concurrent)"
+                        view_db.execute(
+                            text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}")
                         )
-                    except Exception as e:
-                        logger.sync_error(f"Failed to refresh materialized view {view_name}: {e}")
-                        self.db.rollback()
-                        all_success = False
+                        view_db.commit()
+                        logger.sync_info(
+                            f"Materialized view {view_name} refreshed concurrently"
+                        )
+                    except Exception:
+                        view_db.rollback()
+                        try:
+                            view_db.execute(
+                                text(f"REFRESH MATERIALIZED VIEW {view_name}")
+                            )
+                            view_db.commit()
+                            logger.sync_info(
+                                f"Materialized view {view_name} refreshed (non-concurrent)"
+                            )
+                        except Exception as e:
+                            logger.sync_error(
+                                f"Failed to refresh materialized view {view_name}: {e}"
+                            )
+                            view_db.rollback()
+                            all_success = False
 
-            return all_success
+                return all_success
 
-        # Execute in thread pool to avoid blocking
-        if not hasattr(self, "_executor"):
-            from concurrent.futures import ThreadPoolExecutor
+            if not hasattr(self, "_executor"):
+                from concurrent.futures import ThreadPoolExecutor
 
-            self._executor = ThreadPoolExecutor(max_workers=2)
+                self._executor = ThreadPoolExecutor(max_workers=2)
 
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(self._executor, refresh_sync)
-        return result
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(self._executor, refresh_sync)
+            return result
+        except Exception as e:
+            logger.sync_error(f"Materialized view refresh failed: {e}")
+            try:
+                view_db.rollback()
+            except Exception:
+                pass
+            return False
+        finally:
+            view_db.close()
 
     async def check_source_status(self) -> list[dict[str, Any]]:
         """
