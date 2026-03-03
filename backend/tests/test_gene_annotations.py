@@ -9,6 +9,8 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app.models.gene import Gene
+from sqlalchemy import UniqueConstraint
+
 from app.models.gene_annotation import AnnotationHistory, AnnotationSource, GeneAnnotation
 
 
@@ -138,7 +140,7 @@ def test_annotation_history(db_session: Session):
 
 
 def test_unique_constraint(db_session: Session):
-    """Test unique constraint on gene_id, source, version."""
+    """Test unique constraint on gene_id, source (version-independent)."""
     gene = Gene(approved_symbol=f"TEST{uuid.uuid4().hex[:6].upper()}", hgnc_id=unique_hgnc_id())
     db_session.add(gene)
     db_session.commit()
@@ -150,9 +152,9 @@ def test_unique_constraint(db_session: Session):
     db_session.add(ann1)
     db_session.commit()
 
-    # Duplicate should fail
+    # Same gene+source with different version should ALSO fail (new behavior)
     ann2 = GeneAnnotation(
-        gene_id=gene.id, source="hgnc", version="v1", annotations={"test": "data2"}
+        gene_id=gene.id, source="hgnc", version="v2", annotations={"test": "data2"}
     )
     db_session.add(ann2)
 
@@ -163,13 +165,12 @@ def test_unique_constraint(db_session: Session):
 
     db_session.rollback()
 
-    # Different version should work
+    # Different source for the same gene should still work
     ann3 = GeneAnnotation(
-        gene_id=gene.id, source="hgnc", version="v2", annotations={"test": "data3"}
+        gene_id=gene.id, source="gnomad", version="v1", annotations={"test": "data3"}
     )
     db_session.add(ann3)
     db_session.commit()
-
     assert ann3.id is not None
 
 
@@ -195,3 +196,63 @@ def test_annotation_source_update_check(db_session: Session):
     db_session.commit()
 
     assert source.is_update_due() is False
+
+
+def test_store_annotation_overwrites_on_version_change(db_session: Session):
+    """BaseAnnotationSource.store_annotation() overwrites existing row on version change."""
+    gene = Gene(approved_symbol=f"TEST{uuid.uuid4().hex[:6].upper()}", hgnc_id=unique_hgnc_id())
+    db_session.add(gene)
+    db_session.commit()
+
+    # Insert annotation with version 1.0
+    ann_v1 = GeneAnnotation(
+        gene_id=gene.id,
+        source="test_src",
+        version="1.0",
+        annotations={"data": "old"},
+    )
+    db_session.add(ann_v1)
+    db_session.commit()
+
+    # Simulate store_annotation lookup with version 2.0
+    # (mimics what BaseAnnotationSource.store_annotation does)
+    existing = (
+        db_session.query(GeneAnnotation)
+        .filter_by(gene_id=gene.id, source="test_src")
+        .first()
+    )
+
+    # With the fix, existing should find the v1.0 row (query is version-independent)
+    assert existing is not None, "store_annotation lookup should find existing row regardless of version"
+    assert existing.version == "1.0"
+
+    # Simulate updating version + data
+    existing.version = "2.0"
+    existing.annotations = {"data": "new"}
+    db_session.commit()
+
+    # Verify only one row exists
+    rows = (
+        db_session.query(GeneAnnotation)
+        .filter_by(gene_id=gene.id, source="test_src")
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].version == "2.0"
+    assert rows[0].annotations["data"] == "new"
+
+
+def test_model_unique_constraint_is_gene_source_only():
+    """Regression guard: GeneAnnotation unique constraint must be (gene_id, source), NOT (gene_id, source, version)."""
+    constraints = GeneAnnotation.__table_args__
+    unique_constraints = [
+        c for c in constraints if isinstance(c, UniqueConstraint)
+    ]
+    assert len(unique_constraints) == 1, f"Expected 1 unique constraint, found {len(unique_constraints)}"
+
+    uc = unique_constraints[0]
+    col_names = [col.name for col in uc.columns]
+    assert col_names == ["gene_id", "source"], (
+        f"Unique constraint columns should be ['gene_id', 'source'], "
+        f"got {col_names}. Do NOT add 'version' back to this constraint."
+    )

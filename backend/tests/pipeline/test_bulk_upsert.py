@@ -135,3 +135,63 @@ class TestBulkUpsertAnnotations:
             text("DELETE FROM gene_annotations WHERE source = '_test_bulk'")
         )
         db_session.commit()
+
+    def test_bulk_upsert_overwrites_on_version_change(self, db_session: Session):
+        """Version bump overwrites existing row instead of creating a duplicate."""
+        gene = db_session.query(Gene).first()
+        if not gene:
+            pytest.skip("No genes in database")
+
+        # Insert with version 1.0
+        pipeline = self._make_pipeline(db_session)
+        pipeline._bulk_upsert_annotations_with_session(
+            "_test_bulk", "1.0", {gene.id: {"value": "old"}}, db_session
+        )
+
+        # Upsert with version 2.0 — should overwrite, NOT create a second row
+        pipeline._bulk_upsert_annotations_with_session(
+            "_test_bulk", "2.0", {gene.id: {"value": "new"}}, db_session
+        )
+
+        rows = (
+            db_session.query(GeneAnnotation)
+            .filter_by(gene_id=gene.id, source="_test_bulk")
+            .all()
+        )
+        assert len(rows) == 1, f"Expected 1 row, got {len(rows)} (stale version not cleaned)"
+        assert rows[0].version == "2.0"
+        assert rows[0].annotations["value"] == "new"
+
+        # Cleanup
+        db_session.execute(
+            text("DELETE FROM gene_annotations WHERE source = '_test_bulk'")
+        )
+        db_session.commit()
+
+    def test_bulk_upsert_updates_version_column(self, db_session: Session):
+        """The version column is updated when a new version overwrites an old one."""
+        gene = db_session.query(Gene).first()
+        if not gene:
+            pytest.skip("No genes in database")
+
+        pipeline = self._make_pipeline(db_session)
+        pipeline._bulk_upsert_annotations_with_session(
+            "_test_bulk", "1.0", {gene.id: {"score": 0.5}}, db_session
+        )
+
+        # Overwrite with new version
+        pipeline._bulk_upsert_annotations_with_session(
+            "_test_bulk", "2.0", {gene.id: {"score": 0.9}}, db_session
+        )
+
+        ann = (
+            db_session.query(GeneAnnotation)
+            .filter_by(gene_id=gene.id, source="_test_bulk")
+            .first()
+        )
+        assert ann is not None
+        assert ann.version == "2.0"
+        assert ann.annotations["score"] == 0.9
+
+        db_session.delete(ann)
+        db_session.commit()
