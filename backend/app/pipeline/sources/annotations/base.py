@@ -199,7 +199,7 @@ class BaseAnnotationSource(ABC):
         # Check for existing annotation
         existing: GeneAnnotation | None = (
             self.session.query(GeneAnnotation)
-            .filter_by(gene_id=gene.id, source=self.source_name, version=self.version)
+            .filter_by(gene_id=gene.id, source=self.source_name)
             .first()
         )
 
@@ -213,6 +213,8 @@ class BaseAnnotationSource(ABC):
                 new_data=annotation_data,
             )
 
+            if existing.version != self.version:
+                existing.version = self.version
             existing.annotations = annotation_data
             existing.source_metadata = metadata
             existing.updated_at = datetime.now(timezone.utc)
