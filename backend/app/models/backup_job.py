@@ -61,13 +61,26 @@ class BackupJob(Base, TimestampMixin):
     parallel_jobs = Column(SmallInteger, default=1, nullable=True)
 
     # Status tracking
+    # CRITICAL: values_callable ensures PostgreSQL enum uses VALUES ("pending") not NAMES (PENDING)
+    # Without this, SQLAlchemy creates enum as ('PENDING', ...) instead of ('pending', ...)
+    # which causes 503 errors when querying the backup service.
     status = Column(
-        ENUM(BackupStatus, name="backup_status", create_type=False),
+        ENUM(
+            BackupStatus,
+            values_callable=lambda x: [e.value for e in x],
+            name="backup_status",
+            create_type=False,
+        ),
         default=BackupStatus.PENDING,
         nullable=True,
     )
     trigger_source = Column(
-        ENUM(BackupTrigger, name="backup_trigger", create_type=False),
+        ENUM(
+            BackupTrigger,
+            values_callable=lambda x: [e.value for e in x],
+            name="backup_trigger",
+            create_type=False,
+        ),
         default=BackupTrigger.MANUAL_API,
         nullable=True,
     )
