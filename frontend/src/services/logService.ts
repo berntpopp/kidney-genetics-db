@@ -5,6 +5,7 @@
  * Inspired by agde-frontend but adapted for kidney-genetics-db requirements
  */
 
+import { config } from '@/config'
 import { sanitizeLogEntry } from '@/utils/logSanitizer'
 import type { LogEntry, LogLevel as LogLevelType } from '@/types/log'
 
@@ -65,6 +66,10 @@ export class LogService {
   minLogLevel: string
   correlationId: string | null
   metadata: Record<string, unknown>
+  private _reportQueue: Array<Record<string, unknown>> = []
+  private _reportTimer: ReturnType<typeof setTimeout> | null = null
+  private _reportInterval = 5000 // 5 seconds between batches
+  private _maxQueueSize = 10
 
   constructor() {
     this.store = null
@@ -73,6 +78,10 @@ export class LogService {
     this.minLogLevel = this.loadLogLevelFromStorage()
     this.correlationId = null
     this.metadata = {}
+
+    window.addEventListener('beforeunload', () => {
+      this._flushReportQueue()
+    })
   }
 
   /**
@@ -154,6 +163,76 @@ export class LogService {
       } catch (error) {
         // Fallback to console if store fails
         console.error('Failed to add log to store:', error)
+      }
+    }
+
+    // Report ERROR and CRITICAL to backend
+    this._reportToBackend(entry)
+  }
+
+  /**
+   * Queue an ERROR or CRITICAL log entry for backend reporting
+   * @private
+   */
+  private _reportToBackend(entry: LogEntry): void {
+    // Only report ERROR and CRITICAL to backend
+    if (entry.level !== 'ERROR' && entry.level !== 'CRITICAL') return
+
+    this._reportQueue.push({
+      level: entry.level,
+      message: entry.message,
+      error_type:
+        typeof entry.data === 'object' && entry.data !== null
+          ? ((entry.data as Record<string, unknown>).error_type ??
+            (entry.data as Record<string, unknown>).error ??
+            undefined)
+          : undefined,
+      error_message:
+        typeof entry.data === 'object' && entry.data !== null
+          ? ((entry.data as Record<string, unknown>).error_message ??
+            (entry.data as Record<string, unknown>).error ??
+            undefined)
+          : undefined,
+      stack_trace:
+        typeof entry.data === 'object' && entry.data !== null
+          ? ((entry.data as Record<string, unknown>).stack ?? undefined)
+          : undefined,
+      url: window.location.href,
+      user_agent: navigator.userAgent,
+      context: entry.data
+    })
+
+    // Trim queue if too large
+    if (this._reportQueue.length > this._maxQueueSize) {
+      this._reportQueue = this._reportQueue.slice(-this._maxQueueSize)
+    }
+
+    // Debounce: send batch after interval
+    if (!this._reportTimer) {
+      this._reportTimer = setTimeout(() => {
+        this._flushReportQueue()
+        this._reportTimer = null
+      }, this._reportInterval)
+    }
+  }
+
+  /**
+   * Flush all queued backend reports using sendBeacon
+   * @private
+   */
+  private _flushReportQueue(): void {
+    if (this._reportQueue.length === 0) return
+
+    const batch = [...this._reportQueue]
+    this._reportQueue = []
+
+    const apiBase = config.apiBaseUrl
+    for (const entry of batch) {
+      try {
+        const blob = new Blob([JSON.stringify(entry)], { type: 'application/json' })
+        navigator.sendBeacon(`${apiBase}/api/client-logs`, blob)
+      } catch {
+        // Silently fail — backend reporting is best-effort
       }
     }
   }
