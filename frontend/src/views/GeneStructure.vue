@@ -102,13 +102,14 @@
                 Retry
               </Button>
             </div>
-            <GeneStructureVisualization
-              v-else
-              :gene-symbol="gene.approved_symbol"
-              :ensembl-data="ensemblData"
-              :clinvar-data="clinvarData"
-              :uniprot-data="uniprotData"
-            />
+            <ErrorBoundary v-else fallback-message="Gene structure visualization failed to render.">
+              <GeneStructureVisualization
+                :gene-symbol="gene.approved_symbol"
+                :ensembl-data="ensemblData"
+                :clinvar-data="clinvarData"
+                :uniprot-data="uniprotData"
+              />
+            </ErrorBoundary>
           </CardContent>
         </Card>
 
@@ -141,11 +142,9 @@
                 Retry
               </Button>
             </div>
-            <ProteinDomainVisualization
-              v-else
-              :uniprot-data="uniprotData"
-              :clinvar-data="clinvarData"
-            />
+            <ErrorBoundary v-else fallback-message="Protein domain visualization failed to render.">
+              <ProteinDomainVisualization :uniprot-data="uniprotData" :clinvar-data="clinvarData" />
+            </ErrorBoundary>
           </CardContent>
         </Card>
 
@@ -303,6 +302,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
+import ErrorBoundary from '@/components/ui/error-boundary/ErrorBoundary.vue'
 import ComponentSkeleton from '@/components/ui/ComponentSkeleton.vue'
 import ComponentError from '@/components/ui/ComponentError.vue'
 import { geneApi } from '@/api/genes'

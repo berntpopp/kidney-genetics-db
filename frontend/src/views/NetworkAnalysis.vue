@@ -304,25 +304,27 @@
     </Card>
 
     <!-- Network Visualization -->
-    <NetworkGraph
-      v-if="displayNetwork"
-      v-model:color-mode="nodeColorMode"
-      :network-data="displayNetwork"
-      :loading="buildingNetwork || clustering"
-      :error="networkError"
-      :min-string-score="minStringScore"
-      :cluster-id-mapping="clusterIdMapping"
-      :cluster-colors-map="clusterColors"
-      :hpo-classifications="hpoClassifications"
-      :loading-h-p-o-data="loadingHPOClassifications"
-      :height="networkAnalysisConfig.ui.defaultGraphHeight"
-      class="mb-6"
-      @refresh="buildNetwork"
-      @cluster="handleClusterRequest"
-      @node-click="handleNodeClick"
-      @update:min-string-score="minStringScore = $event"
-      @select-cluster="handleClusterSelection"
-    />
+    <ErrorBoundary fallback-message="Network visualization failed to render.">
+      <NetworkGraph
+        v-if="displayNetwork"
+        v-model:color-mode="nodeColorMode"
+        :network-data="displayNetwork"
+        :loading="buildingNetwork || clustering"
+        :error="networkError"
+        :min-string-score="minStringScore"
+        :cluster-id-mapping="clusterIdMapping"
+        :cluster-colors-map="clusterColors"
+        :hpo-classifications="hpoClassifications"
+        :loading-h-p-o-data="loadingHPOClassifications"
+        :height="networkAnalysisConfig.ui.defaultGraphHeight"
+        class="mb-6"
+        @refresh="buildNetwork"
+        @cluster="handleClusterRequest"
+        @node-click="handleNodeClick"
+        @update:min-string-score="minStringScore = $event"
+        @select-cluster="handleClusterSelection"
+      />
+    </ErrorBoundary>
 
     <!-- Cluster Selection & Enrichment -->
     <Card v-if="clusterStats" ref="enrichmentCard" class="mb-6">
@@ -533,6 +535,7 @@ import {
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
 
+import ErrorBoundary from '@/components/ui/error-boundary/ErrorBoundary.vue'
 import { geneApi } from '../api/genes'
 import { networkApi } from '../api/network'
 const NetworkGraph = defineAsyncComponent({

@@ -21,7 +21,9 @@
       </p>
     </div>
 
-    <GeneTable />
+    <ErrorBoundary fallback-message="Gene table failed to render.">
+      <GeneTable />
+    </ErrorBoundary>
   </div>
 </template>
 
@@ -37,6 +39,7 @@ import {
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
 import GeneTable from '@/components/GeneTable.vue'
+import ErrorBoundary from '@/components/ui/error-boundary/ErrorBoundary.vue'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'

@@ -85,24 +85,30 @@
         </CardHeader>
         <CardContent>
           <TabsContent value="overlaps">
-            <UpSetChart
-              :selected-tiers="selectedTiers"
-              :show-insufficient-evidence="showInsufficientEvidence"
-            />
+            <ErrorBoundary fallback-message="Chart failed to render.">
+              <UpSetChart
+                :selected-tiers="selectedTiers"
+                :show-insufficient-evidence="showInsufficientEvidence"
+              />
+            </ErrorBoundary>
           </TabsContent>
           <TabsContent value="distributions">
-            <SourceDistributionsChart
-              v-if="activeTab === 'distributions'"
-              :selected-tiers="selectedTiers"
-              :show-insufficient-evidence="showInsufficientEvidence"
-            />
+            <ErrorBoundary fallback-message="Chart failed to render.">
+              <SourceDistributionsChart
+                v-if="activeTab === 'distributions'"
+                :selected-tiers="selectedTiers"
+                :show-insufficient-evidence="showInsufficientEvidence"
+              />
+            </ErrorBoundary>
           </TabsContent>
           <TabsContent value="composition">
-            <EvidenceCompositionChart
-              v-if="activeTab === 'composition'"
-              :selected-tiers="selectedTiers"
-              :show-insufficient-evidence="showInsufficientEvidence"
-            />
+            <ErrorBoundary fallback-message="Chart failed to render.">
+              <EvidenceCompositionChart
+                v-if="activeTab === 'composition'"
+                :selected-tiers="selectedTiers"
+                :show-insufficient-evidence="showInsufficientEvidence"
+              />
+            </ErrorBoundary>
           </TabsContent>
         </CardContent>
       </Tabs>
@@ -113,6 +119,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { LayoutDashboard, ChartScatter, ChartBar, Circle } from 'lucide-vue-next'
+import ErrorBoundary from '@/components/ui/error-boundary/ErrorBoundary.vue'
 import { ref, watch, onMounted, computed, defineAsyncComponent } from 'vue'
 import ComponentSkeleton from '@/components/ui/ComponentSkeleton.vue'
 import ComponentError from '@/components/ui/ComponentError.vue'
