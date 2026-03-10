@@ -20,6 +20,18 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(packageJson.version)
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-vue': ['vue', 'vue-router', 'pinia'],
+          'vendor-tanstack': ['@tanstack/vue-table'],
+          'vendor-d3': ['d3'],
+          'vendor-cytoscape': ['cytoscape'],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {
