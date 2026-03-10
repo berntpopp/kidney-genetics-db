@@ -173,6 +173,7 @@ import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import {
   Cog,
   DatabaseBackup,
+  FileText,
   RefreshCw,
   ScanSearch,
   Settings,
@@ -235,7 +236,8 @@ const categoryOptions = [
   { title: 'Security', value: 'security' },
   { title: 'Pipeline', value: 'pipeline' },
   { title: 'Backup', value: 'backup' },
-  { title: 'Features', value: 'features' }
+  { title: 'Features', value: 'features' },
+  { title: 'Logging', value: 'logging' }
 ]
 
 // Computed
@@ -320,7 +322,8 @@ const getCategoryIcon = category => {
     security: ShieldAlert,
     pipeline: Workflow,
     backup: DatabaseBackup,
-    features: ScanSearch
+    features: ScanSearch,
+    logging: FileText
   }
   return icons[category] || Cog
 }

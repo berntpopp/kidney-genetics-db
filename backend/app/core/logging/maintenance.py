@@ -96,7 +96,23 @@ class LogMaintenance:
 
         db = next(get_db())
         try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(days=self.retention_days)
+            # Try to read retention days from system_settings table first
+            try:
+                from app.models.system_setting import SystemSetting
+
+                setting = (
+                    db.query(SystemSetting)
+                    .filter(SystemSetting.key == "logging.log_retention_days")
+                    .first()
+                )
+                if setting is not None:
+                    retention_days = int(setting.value)
+                else:
+                    retention_days = self.retention_days
+            except Exception:
+                retention_days = self.retention_days
+
+            cutoff_time = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
             # Count logs to be deleted
             count_query = "SELECT COUNT(*) FROM system_logs WHERE timestamp < :cutoff"
