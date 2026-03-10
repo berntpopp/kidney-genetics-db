@@ -5,13 +5,14 @@ API endpoints for gene annotations.
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import require_admin
 from app.core.logging import get_logger
+from app.core.rate_limit import LIMIT_PIPELINE, limiter
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationSource, GeneAnnotation
 from app.models.user import User
@@ -726,7 +727,9 @@ async def get_annotation_statistics(db: Session = Depends(get_db)) -> dict[str, 
 
 
 @router.post("/pipeline/update", dependencies=[Depends(require_admin)])
+@limiter.limit(LIMIT_PIPELINE)
 async def trigger_pipeline_update(
+    request: Request,
     background_tasks: BackgroundTasks,
     strategy: str = Query(
         "incremental", description="Update strategy: full, incremental, forced, selective"
@@ -793,7 +796,9 @@ async def trigger_pipeline_update(
 
 
 @router.post("/pipeline/update-failed", dependencies=[Depends(require_admin)])
+@limiter.limit(LIMIT_PIPELINE)
 async def update_failed_annotations(
+    request: Request,
     background_tasks: BackgroundTasks,
     sources: list[str] | None = Query(None, description="Specific sources to retry"),
     db: Session = Depends(get_db),
@@ -872,7 +877,9 @@ async def update_failed_annotations(
 
 
 @router.post("/pipeline/update-new", dependencies=[Depends(require_admin)])
+@limiter.limit(LIMIT_PIPELINE)
 async def update_new_genes(
+    request: Request,
     background_tasks: BackgroundTasks,
     days_back: int = Query(7, description="Number of days to look back for new genes"),
     db: Session = Depends(get_db),
@@ -946,7 +953,9 @@ async def update_new_genes(
 
 
 @router.post("/pipeline/update-missing/{source_name}", dependencies=[Depends(require_admin)])
+@limiter.limit(LIMIT_PIPELINE)
 async def update_missing_source(
+    request: Request,
     source_name: str,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),

@@ -5,14 +5,16 @@ Authentication endpoints for user login, registration, and token management
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.logging import get_logger
+from app.core.rate_limit import LIMIT_AUTH_LOGIN, LIMIT_AUTH_REGISTER, limiter
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -106,8 +108,11 @@ async def get_current_user_optional(
 
 
 @router.post("/login", response_model=Token)
+@limiter.limit(LIMIT_AUTH_LOGIN, key_func=get_remote_address)
 async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
     Login with username/email and password.
@@ -374,7 +379,9 @@ async def change_password(
 
 
 @router.post("/register", response_model=UserResponse)
+@limiter.limit(LIMIT_AUTH_REGISTER, key_func=get_remote_address)
 async def register_user(
+    request: Request,
     user_data: UserRegister,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

@@ -157,6 +157,18 @@ def mock_cache_entries(db_session):
 
 # Note: Cache service instances are isolated per test through database transactions
 
+
+@pytest.fixture(autouse=True)
+def disable_rate_limits():
+    """Disable rate limiting during tests."""
+    from app.core.rate_limit import limiter
+
+    original = limiter.enabled
+    limiter.enabled = False
+    yield
+    limiter.enabled = original
+
+
 # Import fixtures from fixture modules to make them available globally
 # These imports make fixtures available to all test files
 from tests.fixtures.auth import *  # noqa: F401, F403, E402

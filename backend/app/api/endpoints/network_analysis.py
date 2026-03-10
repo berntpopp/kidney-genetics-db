@@ -6,13 +6,14 @@ import time
 from typing import Any
 
 import igraph as ig
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.cache_decorator import cache
 from app.core.exceptions import ValidationError
 from app.core.logging import get_logger
+from app.core.rate_limit import LIMIT_NETWORK, limiter
 from app.models.gene import Gene
 from app.schemas.network import (
     GOEnrichmentRequest,
@@ -138,8 +139,10 @@ def generate_cluster_colors(num_clusters: int) -> dict[int, str]:
 
 
 @router.post("/build", response_model=NetworkBuildResponse)
+@limiter.limit(LIMIT_NETWORK)
 @cache(namespace="network_analysis", ttl=3600)
 async def build_network(
+    http_request: Request,
     request: NetworkBuildRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -223,8 +226,10 @@ async def build_network(
 
 
 @router.post("/cluster", response_model=NetworkClusterResponse)
+@limiter.limit(LIMIT_NETWORK)
 @cache(namespace="network_analysis", ttl=3600)
 async def cluster_network(
+    http_request: Request,
     request: NetworkClusterRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -350,8 +355,10 @@ async def cluster_network(
 
 
 @router.post("/subgraph", response_model=NetworkBuildResponse)
+@limiter.limit(LIMIT_NETWORK)
 @cache(namespace="network_analysis", ttl=3600)
 async def extract_subgraph(
+    http_request: Request,
     request: SubgraphRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -401,8 +408,10 @@ async def extract_subgraph(
 
 
 @router.post("/enrich/hpo", response_model=HPOEnrichmentResponse)
+@limiter.limit(LIMIT_NETWORK)
 @cache(namespace="network_analysis", ttl=1800)
 async def enrich_hpo(
+    http_request: Request,
     request: HPOEnrichmentRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -443,8 +452,10 @@ async def enrich_hpo(
 
 
 @router.post("/enrich/go", response_model=GOEnrichmentResponse)
+@limiter.limit(LIMIT_NETWORK)
 @cache(namespace="network_analysis", ttl=1800)
 async def enrich_go(
+    http_request: Request,
     request: GOEnrichmentRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:

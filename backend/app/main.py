@@ -8,6 +8,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy.orm import Session
 
 from app.api.endpoints import (
@@ -34,6 +37,7 @@ from app.core.config import settings
 from app.core.database import engine, get_db
 from app.core.events import event_bus
 from app.core.logging import configure_logging, get_logger
+from app.core.rate_limit import limiter
 from app.core.startup import run_startup_tasks
 from app.middleware.error_handling import register_error_handlers
 from app.middleware.logging_middleware import LoggingMiddleware
@@ -133,6 +137,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # Add unified logging middleware (replaces basic error handling)
 app.add_middleware(

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,7 @@ from app.core.jsonapi import (
     jsonapi_endpoint,
 )
 from app.core.logging import get_logger
+from app.core.rate_limit import LIMIT_GENE_LIST, limiter
 from app.models.gene import Gene, GeneEvidence
 from app.schemas.gene import GeneCreate
 from app.schemas.network import (
@@ -246,10 +247,12 @@ def transform_gene_to_jsonapi(results: Any) -> list[dict[str, Any]]:
 
 
 @router.get("/", response_model=dict)
+@limiter.limit(LIMIT_GENE_LIST)
 @jsonapi_endpoint(
     resource_type="genes", model=Gene, searchable_fields=["approved_symbol", "hgnc_id"]
 )
 async def get_genes(
+    request: Request,
     db: Session = Depends(get_db),
     # JSON:API pagination
     params: dict = Depends(get_jsonapi_params),
