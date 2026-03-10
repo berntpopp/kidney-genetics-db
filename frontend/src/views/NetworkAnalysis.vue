@@ -483,7 +483,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, defineAsyncComponent } from 'vue'
+import ComponentSkeleton from '@/components/ui/ComponentSkeleton.vue'
+import ComponentError from '@/components/ui/ComponentError.vue'
 import {
   AlertTriangle,
   ChartBarBig,
@@ -533,7 +535,13 @@ import {
 
 import { geneApi } from '../api/genes'
 import { networkApi } from '../api/network'
-import NetworkGraph from '../components/network/NetworkGraph.vue'
+const NetworkGraph = defineAsyncComponent({
+  loader: () => import('../components/network/NetworkGraph.vue'),
+  loadingComponent: ComponentSkeleton,
+  errorComponent: ComponentError,
+  delay: 200,
+  timeout: 10000
+})
 import EnrichmentTable from '../components/network/EnrichmentTable.vue'
 import { networkAnalysisConfig } from '../config/networkAnalysis'
 import { TIER_CONFIG } from '../utils/evidenceTiers'

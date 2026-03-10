@@ -302,11 +302,26 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
+import ComponentSkeleton from '@/components/ui/ComponentSkeleton.vue'
+import ComponentError from '@/components/ui/ComponentError.vue'
 import { geneApi } from '@/api/genes'
 import { getGeneStructureBreadcrumbs } from '@/utils/publicBreadcrumbs'
-import GeneStructureVisualization from '@/components/visualizations/GeneStructureVisualization.vue'
-import ProteinDomainVisualization from '@/components/visualizations/ProteinDomainVisualization.vue'
+const GeneStructureVisualization = defineAsyncComponent({
+  loader: () => import('@/components/visualizations/GeneStructureVisualization.vue'),
+  loadingComponent: ComponentSkeleton,
+  errorComponent: ComponentError,
+  delay: 200,
+  timeout: 10000
+})
+
+const ProteinDomainVisualization = defineAsyncComponent({
+  loader: () => import('@/components/visualizations/ProteinDomainVisualization.vue'),
+  loadingComponent: ComponentSkeleton,
+  errorComponent: ComponentError,
+  delay: 200,
+  timeout: 10000
+})
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'

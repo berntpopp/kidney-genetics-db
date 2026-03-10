@@ -113,13 +113,33 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { LayoutDashboard, ChartScatter, ChartBar, Circle } from 'lucide-vue-next'
-import { ref, watch, onMounted, computed } from 'vue'
+import { ref, watch, onMounted, computed, defineAsyncComponent } from 'vue'
+import ComponentSkeleton from '@/components/ui/ComponentSkeleton.vue'
+import ComponentError from '@/components/ui/ComponentError.vue'
 import { useRoute, useRouter } from 'vue-router'
-import {
-  UpSetChart,
-  SourceDistributionsChart,
-  EvidenceCompositionChart
-} from '@/components/visualizations'
+const UpSetChart = defineAsyncComponent({
+  loader: () => import('@/components/visualizations/UpSetChart.vue'),
+  loadingComponent: ComponentSkeleton,
+  errorComponent: ComponentError,
+  delay: 200,
+  timeout: 10000
+})
+
+const SourceDistributionsChart = defineAsyncComponent({
+  loader: () => import('@/components/visualizations/SourceDistributionsChart.vue'),
+  loadingComponent: ComponentSkeleton,
+  errorComponent: ComponentError,
+  delay: 200,
+  timeout: 10000
+})
+
+const EvidenceCompositionChart = defineAsyncComponent({
+  loader: () => import('@/components/visualizations/EvidenceCompositionChart.vue'),
+  loadingComponent: ComponentSkeleton,
+  errorComponent: ComponentError,
+  delay: 200,
+  timeout: 10000
+})
 import { TIER_CONFIG } from '@/utils/evidenceTiers'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
 import { useSeoMeta } from '@/composables/useSeoMeta'
