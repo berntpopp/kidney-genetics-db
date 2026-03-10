@@ -47,6 +47,34 @@ window.snackbar = {
 // Continue with other plugins
 app.use(router)
 
+// Global Vue error handler — catches unhandled errors in components
+app.config.errorHandler = (err, instance, info) => {
+  const ls = window.logService
+  if (ls) {
+    ls.error('Unhandled Vue error', {
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+      info,
+      component: (instance as { $options?: { name?: string } } | null)?.$options?.name || 'unknown'
+    })
+  } else {
+    console.error('Unhandled Vue error:', err, info)
+  }
+}
+
+// Catch unhandled promise rejections
+window.addEventListener('unhandledrejection', event => {
+  const ls = window.logService
+  if (ls) {
+    ls.error('Unhandled promise rejection', {
+      reason:
+        event.reason instanceof Error
+          ? { message: event.reason.message, stack: event.reason.stack }
+          : String(event.reason)
+    })
+  }
+})
+
 // Mount application
 app.mount('#app')
 
