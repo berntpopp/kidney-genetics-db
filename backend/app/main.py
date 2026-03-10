@@ -19,6 +19,7 @@ from app.api.endpoints import (
     admin_settings,
     auth,
     cache,
+    client_logs,
     datasources,
     gene_annotations,
     gene_staging,
@@ -194,7 +195,10 @@ app.include_router(
     tags=["Analytics - Network Analysis & Enrichment"],
 )
 
-# 5. Administration - System management and monitoring
+# 5. Client reporting - Frontend error logging
+app.include_router(client_logs.router, prefix="/api", tags=["Client Reporting"])
+
+# 6. Administration - System management and monitoring
 app.include_router(admin_logs.router, prefix="/api/admin/logs", tags=["Administration - Logging"])
 app.include_router(
     admin_backups.router, prefix="/api/admin/backups", tags=["Administration - Backups"]
