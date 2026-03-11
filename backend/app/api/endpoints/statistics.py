@@ -7,7 +7,7 @@ import time
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
@@ -25,6 +25,7 @@ router = APIRouter()
 @limiter.limit(LIMIT_STATISTICS)
 async def get_source_overlaps(
     request: Request,
+    response: Response,
     sources: list[str] | None = Query(
         None, description="Specific source names to include in analysis"
     ),
@@ -105,6 +106,7 @@ async def get_source_overlaps(
 @limiter.limit(LIMIT_STATISTICS)
 async def get_source_distributions(
     request: Request,
+    response: Response,
     hide_zero_scores: bool = Query(
         True,
         alias="filter[hide_zero_scores]",
@@ -180,6 +182,7 @@ async def get_source_distributions(
 @limiter.limit(LIMIT_STATISTICS)
 async def get_evidence_composition(
     request: Request,
+    response: Response,
     hide_zero_scores: bool = Query(
         True,
         alias="filter[hide_zero_scores]",
@@ -256,7 +259,9 @@ async def get_evidence_composition(
 
 @router.get("/summary")
 @limiter.limit(LIMIT_STATISTICS)
-async def get_statistics_summary(request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
+async def get_statistics_summary(
+    request: Request, response: Response, db: Session = Depends(get_db)
+) -> dict[str, Any]:
     """
     Get summary statistics for dashboard overview.
 

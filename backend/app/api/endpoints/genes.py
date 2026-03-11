@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
@@ -253,6 +253,7 @@ def transform_gene_to_jsonapi(results: Any) -> list[dict[str, Any]]:
 )
 async def get_genes(
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
     # JSON:API pagination
     params: dict = Depends(get_jsonapi_params),

@@ -6,7 +6,7 @@ import time
 from typing import Any
 
 import igraph as ig
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -143,6 +143,7 @@ def generate_cluster_colors(num_clusters: int) -> dict[int, str]:
 @cache(namespace="network_analysis", ttl=3600)
 async def build_network(
     http_request: Request,
+    response: Response,
     request: NetworkBuildRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -230,6 +231,7 @@ async def build_network(
 @cache(namespace="network_analysis", ttl=3600)
 async def cluster_network(
     http_request: Request,
+    response: Response,
     request: NetworkClusterRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -359,6 +361,7 @@ async def cluster_network(
 @cache(namespace="network_analysis", ttl=3600)
 async def extract_subgraph(
     http_request: Request,
+    response: Response,
     request: SubgraphRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -412,6 +415,7 @@ async def extract_subgraph(
 @cache(namespace="network_analysis", ttl=1800)
 async def enrich_hpo(
     http_request: Request,
+    response: Response,
     request: HPOEnrichmentRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -456,6 +460,7 @@ async def enrich_hpo(
 @cache(namespace="network_analysis", ttl=1800)
 async def enrich_go(
     http_request: Request,
+    response: Response,
     request: GOEnrichmentRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:

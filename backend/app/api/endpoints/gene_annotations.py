@@ -5,7 +5,7 @@ API endpoints for gene annotations.
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -730,6 +730,7 @@ async def get_annotation_statistics(db: Session = Depends(get_db)) -> dict[str, 
 @limiter.limit(LIMIT_PIPELINE)
 async def trigger_pipeline_update(
     request: Request,
+    response: Response,
     background_tasks: BackgroundTasks,
     strategy: str = Query(
         "incremental", description="Update strategy: full, incremental, forced, selective"
@@ -799,6 +800,7 @@ async def trigger_pipeline_update(
 @limiter.limit(LIMIT_PIPELINE)
 async def update_failed_annotations(
     request: Request,
+    response: Response,
     background_tasks: BackgroundTasks,
     sources: list[str] | None = Query(None, description="Specific sources to retry"),
     db: Session = Depends(get_db),
@@ -880,6 +882,7 @@ async def update_failed_annotations(
 @limiter.limit(LIMIT_PIPELINE)
 async def update_new_genes(
     request: Request,
+    response: Response,
     background_tasks: BackgroundTasks,
     days_back: int = Query(7, description="Number of days to look back for new genes"),
     db: Session = Depends(get_db),
@@ -956,6 +959,7 @@ async def update_new_genes(
 @limiter.limit(LIMIT_PIPELINE)
 async def update_missing_source(
     request: Request,
+    response: Response,
     source_name: str,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),

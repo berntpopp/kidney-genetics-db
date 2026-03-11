@@ -1,6 +1,6 @@
 """Client-side log reporting endpoint."""
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
@@ -19,6 +19,7 @@ router = APIRouter(prefix="/client-logs", tags=["client-logs"])
 @limiter.limit(LIMIT_CLIENT_LOGS)
 async def report_client_log(
     request: Request,
+    response: Response,
     log_entry: ClientLogCreate,
     db: Session = Depends(get_db),
 ) -> ClientLogResponse:
