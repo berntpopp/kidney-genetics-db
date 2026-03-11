@@ -242,7 +242,9 @@ function decodeNetworkStateV2(query: QueryParams): NetworkState {
     if (window.logService) {
       window.logService.error('[NetworkStateCodec] v2 decoding failed:', error)
     }
-    throw new Error(`Failed to decode compressed URL state: ${(error as Error).message}`)
+    throw new Error(`Failed to decode compressed URL state: ${(error as Error).message}`, {
+      cause: error
+    })
   }
 }
 

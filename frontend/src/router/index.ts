@@ -4,7 +4,7 @@
 
 import 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
-import type { RouteRecordRaw, NavigationGuardNext, RouteLocationNormalized } from 'vue-router'
+import type { RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 declare module 'vue-router' {
@@ -58,18 +58,12 @@ const routes: RouteRecordRaw[] = [
       title: 'Gene Structure',
       description: 'Gene structure visualization with exon maps and protein domains.'
     },
-    beforeEnter: async (
-      to: RouteLocationNormalized,
-      _from: RouteLocationNormalized,
-      next: NavigationGuardNext
-    ) => {
+    beforeEnter: to => {
       // Validate gene symbol format
       const symbol = to.params['symbol']
       if (typeof symbol !== 'string' || !/^[A-Z0-9][A-Z0-9-]*$/i.test(symbol)) {
-        next({ name: 'genes' })
-        return
+        return { name: 'genes' }
       }
-      next()
     }
   },
   {
@@ -205,15 +199,13 @@ const router = createRouter({
 })
 
 // Navigation guards
-router.beforeEach((to, _from, next) => {
+router.beforeEach(to => {
   const authStore = useAuthStore()
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next('/login?redirect=' + to.fullPath)
+    return '/login?redirect=' + to.fullPath
   } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
-    next('/')
-  } else {
-    next()
+    return '/'
   }
 })
 
