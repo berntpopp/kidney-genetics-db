@@ -7,7 +7,6 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -108,7 +107,7 @@ async def get_current_user_optional(
 
 
 @router.post("/login", response_model=Token)
-@limiter.limit(LIMIT_AUTH_LOGIN, key_func=get_remote_address)
+@limiter.limit(LIMIT_AUTH_LOGIN)
 async def login(
     request: Request,
     response: Response,
@@ -380,7 +379,7 @@ async def change_password(
 
 
 @router.post("/register", response_model=UserResponse)
-@limiter.limit(LIMIT_AUTH_REGISTER, key_func=get_remote_address)
+@limiter.limit(LIMIT_AUTH_REGISTER)
 async def register_user(
     request: Request,
     response: Response,

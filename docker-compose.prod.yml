@@ -79,12 +79,39 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+
+    # SECURITY: Capability dropping
+    security_opt:
+      - no-new-privileges:true
     cap_drop:
       - ALL
     cap_add:
       - SETGID
       - SETUID
       - DAC_OVERRIDE  # Needed for AOF persistence on volumes
+
+    # SECURITY: Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+          pids: 100
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    ulimits:
+      nproc: 256
+      nofile:
+        soft: 2048
+        hard: 4096
+
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+        compress: "true"
 
   backend:
     build:

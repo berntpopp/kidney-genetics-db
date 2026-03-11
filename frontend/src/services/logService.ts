@@ -230,7 +230,7 @@ export class LogService {
     for (const entry of batch) {
       try {
         const blob = new Blob([JSON.stringify(entry)], { type: 'application/json' })
-        navigator.sendBeacon(`${apiBase}/api/client-logs`, blob)
+        navigator.sendBeacon(`${apiBase}/client-logs`, blob)
       } catch {
         // Silently fail — backend reporting is best-effort
       }

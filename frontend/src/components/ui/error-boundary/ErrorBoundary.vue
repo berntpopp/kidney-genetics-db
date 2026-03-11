@@ -16,14 +16,16 @@ const props = withDefaults(
 const hasError = ref(false)
 const errorMessage = ref('')
 
-onErrorCaptured((err: Error, instance, info) => {
+onErrorCaptured((err: unknown, instance, info) => {
   hasError.value = true
-  errorMessage.value = err.message || 'Unknown error'
+  const message = err instanceof Error ? err.message : String(err)
+  const stack = err instanceof Error ? err.stack : undefined
+  errorMessage.value = message || 'Unknown error'
 
   // Log via logService (feeds into logStore → LogViewer + backend reporting)
   window.logService?.error('ErrorBoundary caught render error', {
-    error: err.message,
-    stack: err.stack,
+    error: message,
+    stack,
     info,
     component: instance?.$options?.name || instance?.$options?.__name || 'unknown'
   })
