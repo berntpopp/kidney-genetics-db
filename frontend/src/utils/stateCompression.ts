@@ -60,7 +60,7 @@ export function compressState(state: Record<string, unknown>): CompressionResult
     if (window.logService) {
       window.logService.error('[StateCompression] Compression failed:', error)
     }
-    throw new Error(`Failed to compress state: ${(error as Error).message}`)
+    throw new Error(`Failed to compress state: ${(error as Error).message}`, { cause: error })
   }
 }
 
@@ -103,7 +103,7 @@ export function decompressState(compressed: string): Record<string, unknown> {
         firstChars: compressed?.substring(0, 20) || 'null'
       })
     }
-    throw new Error(`Failed to decompress state: ${(error as Error).message}`)
+    throw new Error(`Failed to decompress state: ${(error as Error).message}`, { cause: error })
   }
 }
 
