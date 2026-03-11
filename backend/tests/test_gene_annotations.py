@@ -6,11 +6,10 @@ import uuid
 from datetime import datetime
 
 import pytest
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import Session
 
 from app.models.gene import Gene
-from sqlalchemy import UniqueConstraint
-
 from app.models.gene_annotation import AnnotationHistory, AnnotationSource, GeneAnnotation
 
 

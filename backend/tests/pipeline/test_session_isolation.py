@@ -1,6 +1,5 @@
 """Tests for pipeline session isolation during parallel source updates."""
 
-import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest

@@ -1783,7 +1783,7 @@ test.describe('Hybrid Source CRUD', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/login')
     await page.fill('[name="username"]', 'admin')
-    await page.fill('[name="password"]', 'ChangeMe!Admin2024')
+    await page.fill('[name="password"]', '!Admin2024')
     await page.click('button[type="submit"]')
     await page.goto('/admin/hybrid-sources')
   })

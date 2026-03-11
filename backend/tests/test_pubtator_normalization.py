@@ -13,8 +13,9 @@ The new PubTatorUnifiedSource uses a streaming architecture with:
 These tests have been updated to test the new API structure.
 """
 
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from sqlalchemy.orm import Session
 
 from app.pipeline.sources.unified.pubtator import PubTatorUnifiedSource

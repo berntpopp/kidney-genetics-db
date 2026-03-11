@@ -8,7 +8,6 @@ import pytest
 
 from app.pipeline.sources.annotations.mpo_mgi import MPOMGIAnnotationSource
 
-
 # ── Fixtures ────────────────────────────────────────────────────────────
 
 

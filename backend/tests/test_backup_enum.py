@@ -1,4 +1,5 @@
 """Test backup enum values match PostgreSQL expectations."""
+
 import pytest
 
 from app.models.backup_job import BackupStatus, BackupTrigger
@@ -24,6 +25,7 @@ class TestBackupEnums:
 
     def test_backup_status_column_uses_values_callable(self):
         from app.models.backup_job import BackupJob
+
         status_col = BackupJob.__table__.columns["status"]
         assert "completed" in status_col.type.enums, (
             "BackupJob.status ENUM must contain lowercase 'completed' — "
@@ -32,6 +34,7 @@ class TestBackupEnums:
 
     def test_backup_trigger_column_uses_values_callable(self):
         from app.models.backup_job import BackupJob
+
         trigger_col = BackupJob.__table__.columns["trigger_source"]
         assert "manual_api" in trigger_col.type.enums, (
             "BackupJob.trigger_source ENUM must contain lowercase 'manual_api' — "
