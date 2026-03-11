@@ -102,13 +102,14 @@
                 Retry
               </Button>
             </div>
-            <GeneStructureVisualization
-              v-else
-              :gene-symbol="gene.approved_symbol"
-              :ensembl-data="ensemblData"
-              :clinvar-data="clinvarData"
-              :uniprot-data="uniprotData"
-            />
+            <ErrorBoundary v-else fallback-message="Gene structure visualization failed to render.">
+              <GeneStructureVisualization
+                :gene-symbol="gene.approved_symbol"
+                :ensembl-data="ensemblData"
+                :clinvar-data="clinvarData"
+                :uniprot-data="uniprotData"
+              />
+            </ErrorBoundary>
           </CardContent>
         </Card>
 
@@ -141,11 +142,9 @@
                 Retry
               </Button>
             </div>
-            <ProteinDomainVisualization
-              v-else
-              :uniprot-data="uniprotData"
-              :clinvar-data="clinvarData"
-            />
+            <ErrorBoundary v-else fallback-message="Protein domain visualization failed to render.">
+              <ProteinDomainVisualization :uniprot-data="uniprotData" :clinvar-data="clinvarData" />
+            </ErrorBoundary>
           </CardContent>
         </Card>
 
@@ -302,11 +301,27 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
+import ErrorBoundary from '@/components/ui/error-boundary/ErrorBoundary.vue'
+import ComponentSkeleton from '@/components/ui/ComponentSkeleton.vue'
+import ComponentError from '@/components/ui/ComponentError.vue'
 import { geneApi } from '@/api/genes'
 import { getGeneStructureBreadcrumbs } from '@/utils/publicBreadcrumbs'
-import GeneStructureVisualization from '@/components/visualizations/GeneStructureVisualization.vue'
-import ProteinDomainVisualization from '@/components/visualizations/ProteinDomainVisualization.vue'
+const GeneStructureVisualization = defineAsyncComponent({
+  loader: () => import('@/components/visualizations/GeneStructureVisualization.vue'),
+  loadingComponent: ComponentSkeleton,
+  errorComponent: ComponentError,
+  delay: 200,
+  timeout: 10000
+})
+
+const ProteinDomainVisualization = defineAsyncComponent({
+  loader: () => import('@/components/visualizations/ProteinDomainVisualization.vue'),
+  loadingComponent: ComponentSkeleton,
+  errorComponent: ComponentError,
+  delay: 200,
+  timeout: 10000
+})
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'

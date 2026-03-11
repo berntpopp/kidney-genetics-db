@@ -556,7 +556,7 @@ class BackupService:
         total_size = (
             self.db.execute(
                 text(
-                    "SELECT COALESCE(SUM(file_size), 0) FROM backup_jobs WHERE status = 'COMPLETED'"
+                    "SELECT COALESCE(SUM(file_size), 0) FROM backup_jobs WHERE status = 'completed'"
                 )
             ).scalar()
             or 0

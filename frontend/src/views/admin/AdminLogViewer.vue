@@ -71,7 +71,34 @@
           </div>
           <div class="space-y-2">
             <Label>Source Module</Label>
-            <Input v-model="filters.source" placeholder="Filter by source..." />
+            <div class="flex items-center gap-2">
+              <Input v-model="filters.source" placeholder="Filter by source..." class="flex-1" />
+              <button
+                class="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
+                :class="
+                  filters.source === 'frontend'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-muted-foreground hover:bg-muted'
+                "
+                @click="toggleFrontendFilter"
+              >
+                <svg
+                  class="h-4 w-4"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a9 9 0 01-9 9m9-15a9 9 0 00-9-9"
+                  />
+                </svg>
+                Frontend Errors
+              </button>
+            </div>
           </div>
           <div class="space-y-2">
             <Label>Request ID</Label>
@@ -846,6 +873,16 @@ const applySorting = () => {
 
 const filterByRequestId = requestId => {
   filters.value.requestId = requestId
+  currentPage.value = 1
+  loadLogs()
+}
+
+const toggleFrontendFilter = () => {
+  if (filters.value.source === 'frontend') {
+    filters.value.source = ''
+  } else {
+    filters.value.source = 'frontend'
+  }
   currentPage.value = 1
   loadLogs()
 }

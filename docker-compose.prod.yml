@@ -8,6 +8,8 @@ networks:
 
 volumes:
   postgres_data:
+  redis_data:
+  db-backups:
 
 services:
   postgres:
@@ -63,6 +65,54 @@ services:
         max-file: "10"
         compress: "true"
 
+  redis:
+    image: redis:7-alpine
+    container_name: kidney_genetics_redis
+    networks:
+      - kidney_genetics_internal_net
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+    # SECURITY: Capability dropping
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE  # Needed for AOF persistence on volumes
+
+    # SECURITY: Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+          pids: 100
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    ulimits:
+      nproc: 256
+      nofile:
+        soft: 2048
+        hard: 4096
+
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+        compress: "true"
+
   backend:
     build:
       context: ./backend
@@ -77,6 +127,8 @@ services:
       - .env.production
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       # Note: Uses /health (not /api/health) - this is the actual endpoint defined in backend/app/main.py
@@ -169,3 +221,28 @@ services:
         max-size: 10m
         max-file: "10"
         compress: "true"
+
+  db-backup:
+    image: prodrigestivill/postgres-backup-local:16
+    container_name: kidney_genetics_db_backup
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SCHEDULE: "0 2 * * *"
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 6
+      POSTGRES_EXTRA_OPTS: "--clean --if-exists --no-owner"
+      HEALTHCHECK_PORT: 8081
+    networks:
+      - kidney_genetics_internal_net
+    volumes:
+      - db-backups:/backups
+    restart: unless-stopped
+    cap_drop:
+      - ALL

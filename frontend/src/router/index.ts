@@ -217,4 +217,19 @@ router.beforeEach((to, _from, next) => {
   }
 })
 
+// Handle chunk load failures and other navigation errors
+router.onError((error, to) => {
+  if (error.message.includes('Failed to fetch dynamically imported module')) {
+    // Chunk load failure — full page reload to get new chunks
+    window.location.href = to.fullPath
+  } else {
+    // Log other navigation errors
+    window.logService?.error('Navigation error', {
+      error: error.message,
+      stack: error.stack,
+      route: to.fullPath
+    })
+  }
+})
+
 export default router

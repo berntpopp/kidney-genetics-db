@@ -8,6 +8,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy.orm import Session
 
 from app.api.endpoints import (
@@ -16,6 +19,7 @@ from app.api.endpoints import (
     admin_settings,
     auth,
     cache,
+    client_logs,
     datasources,
     gene_annotations,
     gene_staging,
@@ -34,6 +38,7 @@ from app.core.config import settings
 from app.core.database import engine, get_db
 from app.core.events import event_bus
 from app.core.logging import configure_logging, get_logger
+from app.core.rate_limit import limiter
 from app.core.startup import run_startup_tasks
 from app.middleware.error_handling import register_error_handlers
 from app.middleware.logging_middleware import LoggingMiddleware
@@ -134,6 +139,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 # Add unified logging middleware (replaces basic error handling)
 app.add_middleware(
     LoggingMiddleware,
@@ -185,7 +195,10 @@ app.include_router(
     tags=["Analytics - Network Analysis & Enrichment"],
 )
 
-# 5. Administration - System management and monitoring
+# 5. Client reporting - Frontend error logging
+app.include_router(client_logs.router, prefix="/api", tags=["Client Reporting"])
+
+# 6. Administration - System management and monitoring
 app.include_router(admin_logs.router, prefix="/api/admin/logs", tags=["Administration - Logging"])
 app.include_router(
     admin_backups.router, prefix="/api/admin/backups", tags=["Administration - Backups"]

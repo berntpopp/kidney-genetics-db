@@ -1,11 +1,10 @@
 """Tests for ClinGen CSV bulk download optimisation."""
 
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.pipeline.sources.unified.clingen import ClinGenUnifiedSource
-
 
 # ── Fixtures ────────────────────────────────────────────────────────────
 

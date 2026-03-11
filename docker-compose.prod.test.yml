@@ -5,6 +5,7 @@ networks:
 
 volumes:
   postgres_data:
+  redis_data:
 
 services:
   postgres:
@@ -61,6 +62,49 @@ services:
         max-file: "10"
         compress: "true"
 
+  redis:
+    image: redis:7-alpine
+    container_name: kidney_genetics_redis
+    networks:
+      - kidney_genetics_internal
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+    # SECURITY: Capability dropping
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE  # Needed for AOF persistence on volumes
+
+    # SECURITY: Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+          pids: 100
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+        compress: "true"
+
   backend:
     build:
       context: ./backend
@@ -74,6 +118,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-kidney_user}:${POSTGRES_PASSWORD}@kidney_genetics_postgres:5432/${POSTGRES_DB:-kidney_genetics}
       SECRET_KEY: ${SECRET_KEY}
+      REDIS_URL: redis://kidney_genetics_redis:6379/0
       BACKEND_CORS_ORIGINS: '["http://localhost:8080"]'  # Explicit localhost whitelist
       API_V1_STR: /api/v1
       PROJECT_NAME: "Kidney Genetics Database"
@@ -82,6 +127,8 @@ services:
       ALLOWED_HOSTS: "*"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       # Note: Uses /health (not /api/health) - this is the actual endpoint defined in backend/app/main.py

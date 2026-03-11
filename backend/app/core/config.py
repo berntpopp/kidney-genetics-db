@@ -66,6 +66,7 @@ class Settings(BaseSettings):
 
     # Redis & ARQ Task Queue
     REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_RATE_LIMIT_DB: int = 1  # Separate DB from ARQ (DB 0)
     ARQ_QUEUE_NAME: str = "kidney_genetics_tasks"
     ARQ_MAX_JOBS: int = 3  # Max concurrent jobs per worker
     ARQ_JOB_TIMEOUT: int = 21600  # 6 hours max per job (annotation pipelines need this)

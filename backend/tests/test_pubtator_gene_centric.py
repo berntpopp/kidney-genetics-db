@@ -5,9 +5,9 @@ Verifies that gene-centric queries (one request per known gene)
 produce correct evidence data and fall back to keyword search on failure.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+import pytest
 from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService
@@ -301,7 +301,6 @@ class TestGeneCentricProcess:
 
         # Mock _fetch_gene_publications directly (bypasses retry decorator)
         call_count = 0
-        original_fetch = source._fetch_gene_publications
 
         async def mock_fetch(symbol):
             nonlocal call_count

@@ -14,11 +14,11 @@ from sqlalchemy import text
 
 from app.core.cache_service import (
     CacheService,
-    get_cache_service,
     get_annotation,
-    set_annotation,
-    invalidate_gene,
+    get_cache_service,
     get_summary,
+    invalidate_gene,
+    set_annotation,
     set_summary,
 )
 

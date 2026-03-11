@@ -48,7 +48,7 @@ async def query_logs(
             params["level"] = level.upper()
 
         if source:
-            query += " AND source ILIKE :source"
+            query += " AND logger ILIKE :source"
             params["source"] = f"%{source}%"
 
         if request_id:
@@ -137,7 +137,7 @@ async def query_logs(
             count_query += " AND level = :level"
             count_params["level"] = level.upper()
         if source:
-            count_query += " AND source ILIKE :source"
+            count_query += " AND logger ILIKE :source"
             count_params["source"] = f"%{source}%"
         if request_id:
             count_query += " AND request_id = :request_id"
