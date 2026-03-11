@@ -85,6 +85,7 @@ services:
     cap_add:
       - SETGID
       - SETUID
+      - DAC_OVERRIDE  # Needed for AOF persistence on volumes
 
     # SECURITY: Resource limits
     deploy:
