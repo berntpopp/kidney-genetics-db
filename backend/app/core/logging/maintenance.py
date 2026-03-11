@@ -92,10 +92,9 @@ class LogMaintenance:
             Statistics about the cleanup operation
         """
         # Import here to avoid circular import
-        from app.core.database import get_db
+        from app.core.database import get_db_context
 
-        db = next(get_db())
-        try:
+        with get_db_context() as db:
             # Try to read retention days from system_settings table first
             try:
                 from app.models.system_setting import SystemSetting
@@ -157,12 +156,6 @@ class LogMaintenance:
                 await logger.debug("No logs to cleanup", cutoff_date=cutoff_time.isoformat())
                 return {"logs_deleted": 0}
 
-        except Exception as e:
-            await logger.error("Log cleanup failed", error=e)
-            raise
-        finally:
-            db.close()
-
     async def monitor_log_volume(self) -> dict[str, Any]:
         """
         Monitor log volume and alert if growing too fast.
@@ -171,10 +164,9 @@ class LogMaintenance:
             Current log volume statistics
         """
         # Import here to avoid circular import
-        from app.core.database import get_db
+        from app.core.database import get_db_context
 
-        db = next(get_db())
-        try:
+        with get_db_context() as db:
             # Get current statistics
             stats_query = """
                 SELECT
@@ -210,12 +202,6 @@ class LogMaintenance:
 
             return stats
 
-        except Exception as e:
-            await logger.error("Log monitoring failed", error=e)
-            raise
-        finally:
-            db.close()
-
     async def optimize_log_table(self) -> None:
         """
         Optimize the log table for better performance.
@@ -223,21 +209,14 @@ class LogMaintenance:
         Runs VACUUM and ANALYZE on the system_logs table.
         """
         # Import here to avoid circular import
-        from app.core.database import get_db
+        from app.core.database import get_db_context
 
-        db = next(get_db())
-        try:
+        with get_db_context() as db:
             # Note: VACUUM cannot run in a transaction
             db.execute(text("COMMIT"))  # End any existing transaction
             db.execute(text("VACUUM ANALYZE system_logs"))
 
             await logger.info("Log table optimized")
-
-        except Exception as e:
-            await logger.error("Table optimization failed", error=e)
-            raise
-        finally:
-            db.close()
 
 
 # Global instance
