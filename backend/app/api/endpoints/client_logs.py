@@ -15,6 +15,14 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/client-logs", tags=["client-logs"])
 
 
+def _get_client_ip(request: Request) -> str:
+    """Get real client IP, respecting X-Forwarded-For behind reverse proxy."""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 @router.post("", response_model=ClientLogResponse, status_code=201)
 @limiter.limit(LIMIT_CLIENT_LOGS)
 async def report_client_log(
@@ -24,7 +32,7 @@ async def report_client_log(
     db: Session = Depends(get_db),
 ) -> ClientLogResponse:
     """Accept a client-side log entry and store in system_logs."""
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = _get_client_ip(request)
 
     system_log = SystemLog(
         level=log_entry.level,
