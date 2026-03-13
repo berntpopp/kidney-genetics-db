@@ -39,6 +39,9 @@ async def get_source_overlaps(
         alias="filter[tier]",
         description="Filter by evidence tier (comma-separated for multiple: comprehensive_support,multi_source_support,established_support,preliminary_evidence,minimal_evidence)",
     ),
+    detail: bool = Query(
+        False, description="Include full gene lists in intersections"
+    ),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
@@ -82,6 +85,11 @@ async def get_source_overlaps(
             hide_zero_scores=hide_zero_scores,
             filter_tiers=requested_tiers,
         )
+
+        # Strip gene lists from intersections when detail=False (default) to reduce payload
+        if not detail:
+            for intersection in overlap_data.get("intersections", []):
+                intersection.pop("genes", None)
 
         query_duration_ms = round((time.time() - start_time) * 1000, 2)
 

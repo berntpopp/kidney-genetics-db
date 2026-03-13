@@ -859,7 +859,7 @@ class AnnotationPipeline:
         metadata_json = json.dumps({"retrieved_at": now.isoformat(), "batch_fetch": True})
 
         upserted = 0
-        chunk_size = 500
+        chunk_size = 1500  # Tuned from resource benchmarking (baseline ~1.2GB, peak ~2.2GB)
         items = list(batch_data.items())
 
         for chunk_start in range(0, len(items), chunk_size):
