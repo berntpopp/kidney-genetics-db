@@ -540,6 +540,8 @@ class BaseAnnotationSource(ABC):
                 safe_refresh_matview(self.session, view_name, concurrent=True)
                 logger.sync_info(f"Materialized view {view_name} refreshed")
             except Exception:
+                # Rollback failed concurrent refresh before retrying
+                self.session.rollback()
                 # Try without CONCURRENTLY if it fails
                 try:
                     safe_refresh_matview(self.session, view_name, concurrent=False)

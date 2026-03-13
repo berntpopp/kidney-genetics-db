@@ -71,7 +71,7 @@ def create_admin_user():
         print("✅ Admin user created successfully!")
         print(f"📧 Email: {settings.ADMIN_EMAIL}")
         print(f"👤 Username: {settings.ADMIN_USERNAME}")
-        print(f"🔑 Password: {settings.ADMIN_PASSWORD.get_secret_value()}")
+        print("🔑 Password: ********** (as configured in ADMIN_PASSWORD env var)")
         print("⚠️  Please change this password after first login!")
         print("\n📝 Note: These credentials are defined in app/core/config.py")
 

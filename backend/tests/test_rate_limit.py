@@ -42,10 +42,17 @@ class TestRateLimitModule:
 
         assert callable(verify_token)
 
-    def test_decode_access_token_does_not_exist(self):
-        """Confirm decode_access_token does not exist."""
-        with pytest.raises(ImportError):
-            from app.core.security import decode_access_token  # noqa: F401
+    def test_invalid_bearer_falls_back_to_ip(self):
+        """Invalid bearer tokens must not crash and should fall back to IP."""
+        from app.core.rate_limit import _get_rate_limit_key
+
+        request = MagicMock()
+        request.headers = {"Authorization": "Bearer totally.bogus.jwt"}
+        request.client.host = "10.0.0.1"
+        request.scope = {"type": "http"}
+
+        key = _get_rate_limit_key(request)
+        assert "10.0.0.1" in key
 
     def test_limiter_is_configured(self):
         """Limiter should be configured with default limits."""

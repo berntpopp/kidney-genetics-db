@@ -18,7 +18,8 @@ from sqlalchemy.pool import NullPool
 def get_test_database_url() -> str:
     """
     Get the database URL for testing.
-    Requires TEST_DATABASE_URL or DATABASE_URL environment variable.
+    Checks TEST_DATABASE_URL, then DATABASE_URL env vars, then falls back
+    to the application settings (which reads from .env file).
     """
     test_url = os.environ.get("TEST_DATABASE_URL")
     if test_url:

@@ -156,6 +156,7 @@ async def refresh_materialized_view(
             await run_in_threadpool(safe_refresh_matview, db, view_name, True)
             results.append(f"{view_name}: refreshed concurrently")
         except Exception:
+            db.rollback()
             try:
                 await run_in_threadpool(safe_refresh_matview, db, view_name, False)
                 results.append(f"{view_name}: refreshed (non-concurrent)")

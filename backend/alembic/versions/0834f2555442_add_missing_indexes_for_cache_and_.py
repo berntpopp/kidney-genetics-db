@@ -41,6 +41,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("idx_cache_entries_namespace", table_name="cache_entries")
-    op.drop_index("idx_gene_evidence_gene_source", table_name="gene_evidence")
-    op.drop_index("idx_cache_entries_key_expires", table_name="cache_entries")
+    op.execute(text("DROP INDEX IF EXISTS idx_cache_entries_namespace"))
+    op.execute(text("DROP INDEX IF EXISTS idx_gene_evidence_gene_source"))
+    op.execute(text("DROP INDEX IF EXISTS idx_cache_entries_key_expires"))

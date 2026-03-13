@@ -44,22 +44,40 @@ class TestSecretStrConfig:
         )
 
     def test_repr_hides_secrets(self):
-        from app.core.config import settings
+        from app.core.config import Settings
 
-        repr_str = repr(settings)
-        assert "kidney_pass" not in repr_str
+        known_password = "test_secret_value_12345"
+        s = Settings(
+            DATABASE_URL="postgresql://u:p@localhost/db",
+            JWT_SECRET_KEY="a" * 32,
+            ADMIN_PASSWORD=known_password,
+            POSTGRES_PASSWORD="pg_secret_xyz",
+        )
+        repr_str = repr(s)
+        assert known_password not in repr_str
+        assert "pg_secret_xyz" not in repr_str
 
     def test_jwt_secret_key_min_length_validator(self):
         from app.core.config import Settings
 
         with pytest.raises(Exception):
-            Settings(JWT_SECRET_KEY="short")
+            Settings(
+                JWT_SECRET_KEY="short",
+                DATABASE_URL="postgresql://x:x@localhost/x",
+                ADMIN_PASSWORD="dummy-password",
+                POSTGRES_PASSWORD="dummy-password",
+            )
 
     def test_jwt_secret_key_rejects_placeholder(self):
         from app.core.config import Settings
 
         with pytest.raises(Exception):
-            Settings(JWT_SECRET_KEY="CHANGE_THIS_TO_A_SECURE_SECRET_KEY")
+            Settings(
+                JWT_SECRET_KEY="CHANGE_THIS_TO_A_SECURE_SECRET_KEY",
+                DATABASE_URL="postgresql://x:x@localhost/x",
+                ADMIN_PASSWORD="dummy-password",
+                POSTGRES_PASSWORD="dummy-password",
+            )
 
 
 @pytest.mark.unit
