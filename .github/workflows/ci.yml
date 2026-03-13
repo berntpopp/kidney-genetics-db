@@ -115,8 +115,9 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgresql://kidney_user:kidney_pass@localhost:5432/kidney_genetics_test
-          JWT_SECRET: test-secret-key-for-ci
-          SECRET_KEY: test-secret-key-for-ci
+          JWT_SECRET_KEY: ${{ secrets.TEST_JWT_SECRET_KEY || 'test-jwt-secret-key-minimum-32-characters-long' }}
+          ADMIN_PASSWORD: ${{ secrets.TEST_ADMIN_PASSWORD || 'TestAdmin!2024Secure' }}
+          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD || 'kidney_pass' }}
         run: uv run alembic upgrade head
 
       # Tests - matches `make test`
@@ -124,8 +125,10 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgresql://kidney_user:kidney_pass@localhost:5432/kidney_genetics_test
-          JWT_SECRET: test-secret-key-for-ci
-          SECRET_KEY: test-secret-key-for-ci
+          JWT_SECRET_KEY: ${{ secrets.TEST_JWT_SECRET_KEY || 'test-jwt-secret-key-minimum-32-characters-long' }}
+          ADMIN_PASSWORD: ${{ secrets.TEST_ADMIN_PASSWORD || 'TestAdmin!2024Secure' }}
+          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD || 'kidney_pass' }}
+          TEST_DATABASE_URL: postgresql://kidney_user:kidney_pass@localhost:5432/kidney_genetics_test
           TESTING: "true"
         # Timeout after 10 minutes to prevent hanging
         timeout-minutes: 10
