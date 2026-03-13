@@ -101,4 +101,19 @@ apiClient.interceptors.response.use(
   }
 )
 
+/** Normalize response — extract data from JSON:API wrapper if present */
+export function normalizeResponse<T>(response: T | { data: T }): T {
+  if (
+    response &&
+    typeof response === 'object' &&
+    'data' in response &&
+    response.data &&
+    typeof response.data === 'object' &&
+    'type' in (response.data as Record<string, unknown>)
+  ) {
+    return (response as { data: T }).data
+  }
+  return response as T
+}
+
 export default apiClient

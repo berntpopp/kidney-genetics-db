@@ -85,14 +85,6 @@
               <DropdownMenuContent align="end">
                 <DropdownMenuItem @click="copyGeneId"> Copy Gene ID </DropdownMenuItem>
                 <DropdownMenuItem @click="viewInHGNC"> View in HGNC </DropdownMenuItem>
-                <DropdownMenuItem
-                  v-if="authStore.isAdmin"
-                  class="text-destructive focus:text-destructive"
-                  @click="deleteGene"
-                >
-                  <Trash2 :size="16" />
-                  Delete Gene
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -233,7 +225,6 @@ import {
   EllipsisVertical,
   RefreshCw,
   Filter,
-  Trash2,
   Pencil
 } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
@@ -270,7 +261,6 @@ import {
 void ChevronRight
 
 const route = useRoute()
-// const router = useRouter() // Currently unused but may be needed for navigation
 const authStore = useAuthStore()
 
 // Data
@@ -435,26 +425,6 @@ const editGene = () => {
   // TODO: Implement gene editing functionality
   window.logService.info('Edit gene:', gene.value?.approved_symbol)
   // Could navigate to an edit page or open a modal
-}
-
-const deleteGene = async () => {
-  if (!gene.value) return
-
-  if (
-    confirm(
-      `Are you sure you want to delete ${gene.value.approved_symbol}? This action cannot be undone.`
-    )
-  ) {
-    try {
-      // TODO: Implement API call to delete gene
-      window.logService.info('Delete gene:', gene.value?.approved_symbol)
-      // await geneApi.deleteGene(gene.value.id)
-      // router.push('/genes')
-    } catch (error) {
-      window.logService.error('Failed to delete gene:', error)
-      alert('Failed to delete gene. Please try again.') // eslint-disable-line no-undef
-    }
-  }
 }
 
 // Lifecycle

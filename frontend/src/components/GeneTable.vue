@@ -29,12 +29,33 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
 
+// Gene row type for table data
+interface GeneRow {
+  id: number
+  approved_symbol: string
+  hgnc_id: string
+  aliases?: string[]
+  evidence_count?: number
+  percentage_score?: number
+  source_count?: number
+  sources?: string[]
+  evidence_tier?: string
+  evidence_group?: string
+}
+
+interface FilterMetadata {
+  total_sources?: number
+  available_sources?: string[]
+  score_range?: { min: number; max: number }
+  active_filters?: Record<string, unknown>
+}
+
 // Route
 const route = useRoute()
 const router = useRouter()
 
 // Data
-const genes = ref<any[]>([])
+const genes = ref<GeneRow[]>([])
 const loading = ref(false)
 const totalItems = ref(0)
 const page = ref(1)
@@ -45,7 +66,7 @@ const selectedSources = ref<string[]>([])
 const selectedTiers = ref<string[]>([])
 const evidenceCountRange = ref([0, 7])
 const sortOption = ref('score_desc')
-const filterMeta = ref<any>(null)
+const filterMeta = ref<FilterMetadata | null>(null)
 const sortBy = ref([{ key: 'evidence_score', order: 'desc' }])
 const showZeroScoreGenes = ref(false)
 
@@ -80,7 +101,7 @@ const sortOptions = [
 ]
 
 // Column definitions
-const columns: ColumnDef<any>[] = [
+const columns: ColumnDef<GeneRow>[] = [
   {
     accessorKey: 'approved_symbol',
     header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Gene' }),
@@ -333,7 +354,7 @@ const parseUrlParams = () => {
 const updateUrl = () => {
   if (isInitializing.value) return
 
-  const query: Record<string, any> = {}
+  const query: Record<string, string | number | boolean> = {}
 
   if (page.value !== 1) query.page = page.value
   if (itemsPerPage.value !== 10) query.per_page = itemsPerPage.value
