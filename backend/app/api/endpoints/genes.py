@@ -53,7 +53,9 @@ GENE_IDS_CACHE_TTL = 3600  # 1 hour
 async def get_filter_metadata(db: Session) -> dict[str, Any]:
     """Get filter metadata with CacheService caching."""
     cache = get_cache_service(db)
-    cached = await cache.get(METADATA_CACHE_KEY, namespace=METADATA_CACHE_NAMESPACE)
+    cached: dict[str, Any] | None = await cache.get(
+        METADATA_CACHE_KEY, namespace=METADATA_CACHE_NAMESPACE
+    )
     if cached is not None:
         return cached
 

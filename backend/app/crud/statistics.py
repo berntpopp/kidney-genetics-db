@@ -117,9 +117,7 @@ class CRUDStatistics:
             # Build CASE expression for bitmask
             case_parts = []
             for i, _name in enumerate(source_names):
-                case_parts.append(
-                    f"WHEN gene_evidence.source_name = :src_{i} THEN {1 << i}"
-                )
+                case_parts.append(f"WHEN gene_evidence.source_name = :src_{i} THEN {1 << i}")
             case_expr = " ".join(case_parts)
 
             source_params = {f"src_{i}": name for i, name in enumerate(source_names)}
@@ -157,9 +155,7 @@ class CRUDStatistics:
                 ORDER BY bg.gene_count DESC
             """
 
-            bitmask_results = db.execute(
-                text(bitmask_query), all_params
-            ).fetchall()
+            bitmask_results = db.execute(text(bitmask_query), all_params).fetchall()
 
             # Step 3: Decode bitmasks into source combinations
             source_gene_counts: dict[str, int] = dict.fromkeys(source_names, 0)
@@ -172,26 +168,23 @@ class CRUDStatistics:
 
                 # Decode which sources this bitmask represents
                 combo_sources = [
-                    source_names[i]
-                    for i in range(len(source_names))
-                    if bitmask & (1 << i)
+                    source_names[i] for i in range(len(source_names)) if bitmask & (1 << i)
                 ]
 
                 # Accumulate per-source totals
                 for src in combo_sources:
                     source_gene_counts[src] += gene_count
 
-                intersections.append({
-                    "sets": combo_sources,
-                    "size": gene_count,
-                    "genes": gene_symbols,
-                })
+                intersections.append(
+                    {
+                        "sets": combo_sources,
+                        "size": gene_count,
+                        "genes": gene_symbols,
+                    }
+                )
 
             # Build sets list
-            sets = [
-                {"name": name, "size": source_gene_counts[name]}
-                for name in source_names
-            ]
+            sets = [{"name": name, "size": source_gene_counts[name]} for name in source_names]
 
             # Sort intersections by size descending
             intersections.sort(key=lambda x: x["size"], reverse=True)
@@ -219,9 +212,7 @@ class CRUDStatistics:
                     {join_clause}
                     WHERE {filter_clause}
                 """
-                total_unique_genes = (
-                    db.execute(text(total_genes_query)).scalar() or 0
-                )
+                total_unique_genes = db.execute(text(total_genes_query)).scalar() or 0
 
             # Find genes in all sources from bitmask results
             genes_in_all_sources = 0
@@ -232,9 +223,7 @@ class CRUDStatistics:
 
             # Count single-source combinations
             single_source_count = sum(
-                1
-                for intersection in intersections
-                if len(intersection["sets"]) == 1
+                1 for intersection in intersections if len(intersection["sets"]) == 1
             )
 
             return {

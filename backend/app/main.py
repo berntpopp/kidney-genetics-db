@@ -192,9 +192,7 @@ async def gene_not_found_handler(request: Request, exc: GeneNotFoundError) -> JS
 
 
 @app.exception_handler(DomainValidationError)
-async def domain_validation_handler(
-    request: Request, exc: DomainValidationError
-) -> JSONResponse:
+async def domain_validation_handler(request: Request, exc: DomainValidationError) -> JSONResponse:
     return JSONResponse(
         status_code=422,
         content={
@@ -222,9 +220,7 @@ async def authentication_handler(request: Request, exc: AuthenticationError) -> 
 
 
 @app.exception_handler(PermissionDeniedError)
-async def permission_denied_handler(
-    request: Request, exc: PermissionDeniedError
-) -> JSONResponse:
+async def permission_denied_handler(request: Request, exc: PermissionDeniedError) -> JSONResponse:
     return JSONResponse(
         status_code=403,
         content={
@@ -238,9 +234,7 @@ async def permission_denied_handler(
 
 
 @app.exception_handler(ResourceConflictError)
-async def resource_conflict_handler(
-    request: Request, exc: ResourceConflictError
-) -> JSONResponse:
+async def resource_conflict_handler(request: Request, exc: ResourceConflictError) -> JSONResponse:
     return JSONResponse(
         status_code=409,
         content={
@@ -269,9 +263,7 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceededError) -> J
 
 
 @app.exception_handler(KidneyGeneticsException)
-async def kidney_genetics_handler(
-    request: Request, exc: KidneyGeneticsException
-) -> JSONResponse:
+async def kidney_genetics_handler(request: Request, exc: KidneyGeneticsException) -> JSONResponse:
     return JSONResponse(
         status_code=500,
         content={

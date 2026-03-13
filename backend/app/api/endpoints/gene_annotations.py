@@ -1260,9 +1260,7 @@ async def batch_get_annotations(
     """
     # Limit batch size
     if len(gene_ids) > 100:
-        raise DomainValidationError(
-            field="gene_ids", reason="Batch size limited to 100 genes"
-        )
+        raise DomainValidationError(field="gene_ids", reason="Batch size limited to 100 genes")
 
     # Build query
     query = db.query(GeneAnnotation).filter(GeneAnnotation.gene_id.in_(gene_ids))
