@@ -55,6 +55,7 @@ from app.core.rate_limit import limiter
 from app.core.startup import run_startup_tasks
 from app.middleware.error_handling import register_error_handlers
 from app.middleware.logging_middleware import LoggingMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.models import Base
 
 # Configure unified logging system
@@ -154,8 +155,6 @@ app.add_middleware(
 )
 
 # Security headers
-from app.middleware.security_headers import SecurityHeadersMiddleware
-
 app.add_middleware(SecurityHeadersMiddleware)
 
 # Rate limiting

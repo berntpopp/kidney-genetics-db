@@ -49,11 +49,11 @@ describe('authApi', () => {
 
       const result = await login('testuser', 'testpass')
 
-      // Verify endpoint
+      // Verify endpoint (now includes withCredentials for cookie-based auth)
       expect(mockApiClient.post).toHaveBeenCalledWith(
         '/api/auth/login',
         expect.any(URLSearchParams),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, withCredentials: true }
       )
 
       // Verify form data contains correct fields
@@ -89,16 +89,21 @@ describe('authApi', () => {
   })
 
   describe('refreshToken', () => {
-    it('should POST refresh token to /api/auth/refresh', async () => {
+    it('should POST to /api/auth/refresh with cookie credentials', async () => {
       mockApiClient.post.mockResolvedValue({
         data: { access_token: 'new-token', token_type: 'bearer' }
       })
 
-      const result = await refreshToken('old-refresh-token')
+      const result = await refreshToken()
 
-      expect(mockApiClient.post).toHaveBeenCalledWith('/api/auth/refresh', {
-        refresh_token: 'old-refresh-token'
-      })
+      expect(mockApiClient.post).toHaveBeenCalledWith(
+        '/api/auth/refresh',
+        {},
+        {
+          withCredentials: true,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }
+      )
       expect(result.access_token).toBe('new-token')
     })
   })
