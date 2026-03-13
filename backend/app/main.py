@@ -45,7 +45,7 @@ from app.middleware.logging_middleware import LoggingMiddleware
 from app.models import Base
 
 # Configure unified logging system
-configure_logging(log_level="DEBUG", database_enabled=True, console_enabled=True)
+configure_logging(log_level=settings.LOG_LEVEL, database_enabled=True, console_enabled=True)
 
 # Get unified logger for main application
 logger = get_logger(__name__)

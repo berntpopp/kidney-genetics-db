@@ -18,20 +18,20 @@ from sqlalchemy.pool import NullPool
 def get_test_database_url() -> str:
     """
     Get the database URL for testing.
-    Uses the existing PostgreSQL instance from Docker/hybrid setup.
-    Falls back to the default development database URL.
+    Requires TEST_DATABASE_URL or DATABASE_URL environment variable.
     """
-    # Allow override via environment variable for CI/CD
     test_url = os.environ.get("TEST_DATABASE_URL")
     if test_url:
         return test_url
 
-    # Use the main DATABASE_URL if available (hybrid/docker mode)
-    db_url = os.environ.get(
-        "DATABASE_URL",
-        "postgresql://kidney_user:kidney_pass@localhost:5432/kidney_genetics",
-    )
-    return db_url
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url:
+        return db_url
+
+    # Fall back to settings (which reads from .env file)
+    from app.core.config import settings
+
+    return settings.DATABASE_URL.get_secret_value()
 
 
 # Create engine once for all tests - uses existing PostgreSQL from Docker
