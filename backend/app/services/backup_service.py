@@ -197,7 +197,7 @@ class BackupService:
             "exec",
             "-i",
             "-e",
-            f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
+            f"PGPASSWORD={settings.POSTGRES_PASSWORD.get_secret_value()}",
             container_name,
         ] + pg_dump_args
 
@@ -361,7 +361,7 @@ class BackupService:
             "exec",
             "-i",
             "-e",
-            f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
+            f"PGPASSWORD={settings.POSTGRES_PASSWORD.get_secret_value()}",
             container_name,
         ] + pg_restore_args
 
@@ -417,7 +417,7 @@ class BackupService:
             "exec",
             "-i",
             "-e",
-            f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
+            f"PGPASSWORD={settings.POSTGRES_PASSWORD.get_secret_value()}",
             container_name,
         ] + psql_drop_args
 
@@ -426,7 +426,7 @@ class BackupService:
             "exec",
             "-i",
             "-e",
-            f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
+            f"PGPASSWORD={settings.POSTGRES_PASSWORD.get_secret_value()}",
             container_name,
         ] + psql_create_args
 
@@ -460,7 +460,7 @@ class BackupService:
             "exec",
             "-i",
             "-e",
-            f"PGPASSWORD={settings.POSTGRES_PASSWORD}",
+            f"PGPASSWORD={settings.POSTGRES_PASSWORD.get_secret_value()}",
             container_name,
         ] + psql_args
         subprocess.run(cmd, check=True, capture_output=True)

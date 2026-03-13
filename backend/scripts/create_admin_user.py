@@ -21,7 +21,7 @@ from app.models.user import User
 def create_admin_user():
     """Create an admin user using configuration values."""
     # Create database engine
-    engine = create_engine(settings.DATABASE_URL)
+    engine = create_engine(settings.DATABASE_URL.get_secret_value())
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
     # Create session
@@ -43,7 +43,7 @@ def create_admin_user():
             existing_admin.username = settings.ADMIN_USERNAME
             existing_admin.email = settings.ADMIN_EMAIL
             existing_admin.hashed_password = get_password_hash(
-                settings.ADMIN_PASSWORD
+                settings.ADMIN_PASSWORD.get_secret_value()
             )  # Update password too!
             existing_admin.role = "admin"
             existing_admin.is_active = True
@@ -57,7 +57,7 @@ def create_admin_user():
         admin_user = User(
             email=settings.ADMIN_EMAIL,
             username=settings.ADMIN_USERNAME,
-            hashed_password=get_password_hash(settings.ADMIN_PASSWORD),
+            hashed_password=get_password_hash(settings.ADMIN_PASSWORD.get_secret_value()),
             full_name="Administrator",
             role="admin",
             is_active=True,
@@ -71,7 +71,7 @@ def create_admin_user():
         print("✅ Admin user created successfully!")
         print(f"📧 Email: {settings.ADMIN_EMAIL}")
         print(f"👤 Username: {settings.ADMIN_USERNAME}")
-        print(f"🔑 Password: {settings.ADMIN_PASSWORD}")
+        print(f"🔑 Password: {settings.ADMIN_PASSWORD.get_secret_value()}")
         print("⚠️  Please change this password after first login!")
         print("\n📝 Note: These credentials are defined in app/core/config.py")
 

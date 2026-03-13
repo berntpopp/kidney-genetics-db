@@ -25,7 +25,7 @@ from app.models import Base
 config = context.config
 
 # Set database URL from settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.get_secret_value())
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:

@@ -29,7 +29,7 @@ logger = get_logger(__name__)
 def cleanup_data_sources():
     """Remove obsolete entries and add missing ones to data_source_progress"""
 
-    engine = create_engine(settings.DATABASE_URL)
+    engine = create_engine(settings.DATABASE_URL.get_secret_value())
 
     with Session(engine) as db:
         # Get current entries

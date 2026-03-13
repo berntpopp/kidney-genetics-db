@@ -7,7 +7,7 @@ from app.core.config import settings
 
 
 def clean_database():
-    engine = create_engine(settings.DATABASE_URL)
+    engine = create_engine(settings.DATABASE_URL.get_secret_value())
     with engine.connect() as conn:
         tables = [
             "gene_annotations",

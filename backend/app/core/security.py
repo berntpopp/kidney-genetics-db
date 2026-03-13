@@ -77,7 +77,7 @@ def create_access_token(
     }
 
     encoded_jwt: str = jwt.encode(
-        to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+        to_encode, settings.JWT_SECRET_KEY.get_secret_value(), algorithm=settings.JWT_ALGORITHM
     )
     return encoded_jwt
 
@@ -108,7 +108,7 @@ def create_refresh_token(
     }
 
     encoded_jwt: str = jwt.encode(
-        to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+        to_encode, settings.JWT_SECRET_KEY.get_secret_value(), algorithm=settings.JWT_ALGORITHM
     )
     return encoded_jwt
 
@@ -126,7 +126,7 @@ def verify_token(token: str, token_type: str = "access") -> dict[str, Any] | Non
     """
     try:
         payload: dict[str, Any] = jwt.decode(
-            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+            token, settings.JWT_SECRET_KEY.get_secret_value(), algorithms=[settings.JWT_ALGORITHM]
         )
 
         # Check token type
