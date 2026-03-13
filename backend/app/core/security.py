@@ -2,6 +2,8 @@
 Security utilities for JWT tokens, password hashing, and authentication.
 """
 
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -145,8 +147,6 @@ def generate_password_reset_token() -> str:
     Returns:
         A secure random token string
     """
-    import secrets
-
     return secrets.token_urlsafe(32)
 
 
@@ -157,9 +157,24 @@ def generate_email_verification_token() -> str:
     Returns:
         A secure random token string
     """
-    import secrets
-
     return secrets.token_urlsafe(32)
+
+
+def hash_token(token: str) -> str:
+    """SHA-256 hash a token for storage."""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def create_opaque_refresh_token() -> tuple[str, str]:
+    """Create an opaque refresh token.
+
+    Returns:
+        Tuple of (raw_token, sha256_hash).
+        The raw_token is sent to the client; the hash is stored in the DB.
+    """
+    raw_token = secrets.token_urlsafe(48)
+    token_hash = hash_token(raw_token)
+    return raw_token, token_hash
 
 
 def validate_password_strength(password: str) -> tuple[bool, list[str]]:
