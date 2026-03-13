@@ -5,10 +5,9 @@
 import apiClient from './client'
 import type { User } from '@/types/auth'
 
-/** Response from login endpoint */
+/** Response from login endpoint (refresh_token is now in HttpOnly cookie) */
 export interface LoginResponse {
   access_token: string
-  refresh_token: string
   token_type: string
   user?: User
 }
@@ -32,7 +31,8 @@ export const login = async (username: string, password: string): Promise<LoginRe
   const response = await apiClient.post<LoginResponse>('/api/auth/login', formData, {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded'
-    }
+    },
+    withCredentials: true
   })
 
   return response.data
@@ -60,12 +60,17 @@ export const getCurrentUser = async (): Promise<User> => {
 }
 
 /**
- * Refresh access token
+ * Refresh access token using HttpOnly cookie
  */
-export const refreshToken = async (token: string): Promise<RefreshResponse> => {
-  const response = await apiClient.post<RefreshResponse>('/api/auth/refresh', {
-    refresh_token: token
-  })
+export const refreshToken = async (): Promise<RefreshResponse> => {
+  const response = await apiClient.post<RefreshResponse>(
+    '/api/auth/refresh',
+    {},
+    {
+      withCredentials: true,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    }
+  )
 
   return response.data
 }

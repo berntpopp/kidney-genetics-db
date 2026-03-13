@@ -187,23 +187,52 @@ async def login(
 
     await logger.info("User logged in successfully", username=user.username, role=user.role)
 
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-    }
+    from fastapi.responses import JSONResponse
+
+    json_response = JSONResponse(
+        content={
+            "access_token": access_token,
+            "token_type": "bearer",
+            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        }
+    )
+    json_response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        path="/api/auth",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+    )
+    return json_response
 
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    request: RefreshTokenRequest, db: Session = Depends(get_db)
+    request: Request,
+    body: RefreshTokenRequest | None = None,
+    db: Session = Depends(get_db),
+    cookie_refresh_token: str | None = None,
 ) -> dict[str, Any]:
     """
-    Refresh access token using refresh token.
+    Refresh access token using refresh token from HttpOnly cookie or request body.
     """
+    # Lightweight CSRF check — SameSite=Strict handles most cases
+    if request.headers.get("X-Requested-With") != "XMLHttpRequest":
+        raise HTTPException(status_code=403, detail="CSRF check failed")
+
+    # Accept token from cookie first, then body (backward compat)
+    token = request.cookies.get("refresh_token") or cookie_refresh_token
+    if not token and body:
+        token = body.refresh_token
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="No refresh token"
+        )
+
     # Verify refresh token
-    payload = verify_token(request.refresh_token, token_type="refresh")
+    payload = verify_token(token, token_type="refresh")
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
@@ -214,7 +243,7 @@ async def refresh_token(
     result = db.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()
 
-    if not user or user.refresh_token != request.refresh_token:
+    if not user or user.refresh_token != token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
@@ -229,7 +258,7 @@ async def refresh_token(
 
     return {
         "access_token": access_token,
-        "refresh_token": request.refresh_token,  # Keep same refresh token
+        "refresh_token": token,  # Keep same refresh token
         "token_type": "bearer",
         "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }

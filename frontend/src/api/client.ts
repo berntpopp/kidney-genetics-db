@@ -17,23 +17,43 @@ declare module 'axios' {
   }
 }
 
+/** Response from token refresh endpoint */
+interface TokenRefreshResponse {
+  access_token: string
+  token_type?: string
+}
+
 const API_BASE_URL = config.apiBaseUrl
+
+// Module-level token storage (avoids circular dependency with auth store)
+let _accessToken: string | null = null
+
+/** Set the current access token (called by auth store) */
+export function setClientAccessToken(token: string | null): void {
+  _accessToken = token
+}
+
+/** Get the current access token */
+export function getClientAccessToken(): string | null {
+  return _accessToken
+}
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  withCredentials: true
 })
 
 // Request interceptor for auth
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Add auth token if available (only for protected endpoints)
-    const token = localStorage.getItem('access_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    if (_accessToken) {
+      config.headers.Authorization = `Bearer ${_accessToken}`
     }
+    // Add CSRF header for all requests
+    config.headers['X-Requested-With'] = 'XMLHttpRequest'
     return config
   },
   (error: AxiosError) => Promise.reject(error)
@@ -45,32 +65,35 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig
 
-    // If 401 and we have a refresh token, try to refresh
+    // If 401, try to refresh via HttpOnly cookie
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true
 
-      const refreshToken = localStorage.getItem('refresh_token')
-      if (refreshToken) {
-        try {
-          const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
-            refresh_token: refreshToken
-          })
+      try {
+        // Cookie is sent automatically with withCredentials
+        const response = await axios.post(
+          `${API_BASE_URL}/api/auth/refresh`,
+          {},
+          {
+            withCredentials: true,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          }
+        )
 
-          const { access_token } = response.data as { access_token: string; refresh_token?: string }
-          localStorage.setItem('access_token', access_token)
+        const tokenData: TokenRefreshResponse = response.data
+        const { access_token } = tokenData
 
-          // Retry original request with new token
-          originalRequest.headers.Authorization = `Bearer ${access_token}`
-          return apiClient(originalRequest)
-        } catch {
-          // Refresh failed, clear tokens and redirect to login
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
-          localStorage.removeItem('user')
+        // Update module-level token
+        _accessToken = access_token
 
-          // Dispatch event for auth store to handle
-          window.dispatchEvent(new CustomEvent('auth:logout'))
-        }
+        // Retry original request with new token
+        originalRequest.headers.Authorization = `Bearer ${access_token}`
+        return apiClient(originalRequest)
+      } catch {
+        // Refresh failed — dispatch logout
+        _accessToken = null
+        localStorage.removeItem('user')
+        window.dispatchEvent(new CustomEvent('auth:logout'))
       }
     }
 

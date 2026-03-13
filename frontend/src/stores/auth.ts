@@ -5,9 +5,10 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { User, UserRole } from '@/types/auth'
 import * as authApi from '@/api/auth'
+import { setClientAccessToken } from '@/api/client'
 
 /** Extract detail message from API error responses (supports JSON:API wrapper format) */
 type ApiError = { response?: { data?: { detail?: string; error?: { detail?: string } } } }
@@ -18,9 +19,11 @@ function extractErrorDetail(err: unknown, fallback: string): string {
 
 export const useAuthStore = defineStore('auth', () => {
   // State - using refs for reactivity
+  // Access token is memory-only (not persisted to localStorage)
+  // Refresh token is now in HttpOnly cookie — not accessible from JS
   const user = ref<User | null>(null)
-  const accessToken = ref<string | null>(localStorage.getItem('access_token'))
-  const refreshToken = ref<string | null>(localStorage.getItem('refresh_token'))
+  const accessToken = ref<string | null>(null)
+  const refreshToken = ref<string | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
@@ -64,11 +67,8 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authApi.login(username, password)
 
-      // Store tokens
+      // Store access token in memory only (refresh token is in HttpOnly cookie)
       accessToken.value = response.access_token
-      refreshToken.value = response.refresh_token
-      localStorage.setItem('access_token', response.access_token)
-      localStorage.setItem('refresh_token', response.refresh_token)
 
       // Fetch user info
       await fetchCurrentUser()
@@ -94,12 +94,10 @@ export const useAuthStore = defineStore('auth', () => {
       // Continue with logout even if request fails
       window.logService.error('Logout request failed:', err)
     } finally {
-      // Clear local state
+      // Clear local state (refresh token cookie is cleared by server)
       user.value = null
       accessToken.value = null
       refreshToken.value = null
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
       localStorage.removeItem('user')
 
       // Redirect to home (let router handle this via navigation guard)
@@ -128,10 +126,10 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * Initialize auth state from localStorage
+   * Initialize auth state — attempts silent refresh via HttpOnly cookie
    */
   async function initialize(): Promise<void> {
-    // Try to restore user from localStorage
+    // Try to restore user from localStorage as initial state
     const storedUser = localStorage.getItem('user')
     if (storedUser) {
       try {
@@ -141,22 +139,26 @@ export const useAuthStore = defineStore('auth', () => {
       }
     }
 
-    // If we have a token but no user, fetch user info
-    if (accessToken.value && !user.value) {
+    // Attempt silent refresh to get a fresh access token from cookie
+    try {
+      const response = await authApi.refreshToken()
+      accessToken.value = response.access_token
       await fetchCurrentUser()
+    } catch {
+      // No valid refresh cookie — user is not authenticated
+      accessToken.value = null
+      user.value = null
+      localStorage.removeItem('user')
     }
   }
 
   /**
-   * Refresh access token using refresh token
+   * Refresh access token using HttpOnly cookie
    */
   async function refreshAccessToken(): Promise<boolean> {
-    if (!refreshToken.value) return false
-
     try {
-      const response = await authApi.refreshToken(refreshToken.value)
+      const response = await authApi.refreshToken()
       accessToken.value = response.access_token
-      localStorage.setItem('access_token', response.access_token)
       return true
     } catch (err: unknown) {
       window.logService.error('Token refresh failed:', err)
@@ -292,6 +294,11 @@ export const useAuthStore = defineStore('auth', () => {
   function clearError(): void {
     error.value = null
   }
+
+  // Sync access token to API client module-level variable
+  watch(accessToken, newToken => {
+    setClientAccessToken(newToken)
+  })
 
   // Listen for logout event from API client
   window.addEventListener('auth:logout', logout)
