@@ -11,6 +11,7 @@ This module provides a unified caching interface that combines:
 import asyncio
 import hashlib
 import json
+import threading
 import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
@@ -64,7 +65,10 @@ class CacheEntry:
 
 
 class CacheStats:
-    """Cache statistics container."""
+    """Cache statistics container with thread-safe batched persistence tracking."""
+
+    PERSIST_THRESHOLD = 100
+    PERSIST_INTERVAL_SECONDS = 60
 
     def __init__(self) -> None:
         self.hits = 0
@@ -75,6 +79,47 @@ class CacheStats:
         self.total_size = 0
         self.memory_entries = 0
         self.db_entries = 0
+        self.operations_since_persist = 0
+        self._last_persist_time = time.monotonic()
+        self._lock = threading.Lock()
+
+    def record_hit(self) -> None:
+        with self._lock:
+            self.hits += 1
+            self.operations_since_persist += 1
+
+    def record_miss(self) -> None:
+        with self._lock:
+            self.misses += 1
+            self.operations_since_persist += 1
+
+    def record_set(self) -> None:
+        with self._lock:
+            self.sets += 1
+            self.operations_since_persist += 1
+
+    def record_delete(self) -> None:
+        with self._lock:
+            self.deletes += 1
+            self.operations_since_persist += 1
+
+    def record_error(self) -> None:
+        with self._lock:
+            self.errors += 1
+            self.operations_since_persist += 1
+
+    def should_persist(self) -> bool:
+        with self._lock:
+            if self.operations_since_persist >= self.PERSIST_THRESHOLD:
+                return True
+            if time.monotonic() - self._last_persist_time >= self.PERSIST_INTERVAL_SECONDS:
+                return True
+            return False
+
+    def mark_persisted(self) -> None:
+        with self._lock:
+            self.operations_since_persist = 0
+            self._last_persist_time = time.monotonic()
 
     @property
     def hit_rate(self) -> float:
@@ -113,7 +158,8 @@ class CacheService:
         self.db_session = db_session
         self.enabled = settings.CACHE_ENABLED
 
-        # L1 Cache: In-memory LRU cache
+        # L1 Cache: In-memory LRU cache with thread-safe access
+        self._memory_lock = threading.Lock()
         self.memory_cache: cachetools.LRUCache = cachetools.LRUCache(
             maxsize=settings.CACHE_MAX_MEMORY_SIZE
         )
@@ -262,18 +308,21 @@ class CacheService:
 
         try:
             # L1 Cache: Check memory first
-            if cache_key in self.memory_cache:
-                entry = self.memory_cache[cache_key]
-                if not entry.is_expired():
-                    entry.touch()
-                    self.stats.hits += 1
-                    logger.sync_debug("Cache hit (memory)", namespace=namespace, key=str(key))
-                    return entry.value
-                else:
-                    # Remove expired entry
-                    del self.memory_cache[cache_key]
+            with self._memory_lock:
+                if cache_key in self.memory_cache:
+                    entry = self.memory_cache[cache_key]
+                    if not entry.is_expired():
+                        entry.touch()
+                        self.stats.record_hit()
+                        logger.sync_debug(
+                            "Cache hit (memory)", namespace=namespace, key=str(key)
+                        )
+                        return entry.value
+                    else:
+                        # Remove expired entry
+                        del self.memory_cache[cache_key]
 
-            # L2 Cache: Check database
+            # L2 Cache: Check database (no lock held during I/O)
             if self.db_session:
                 db_entry = await self._get_from_db(cache_key)
                 if db_entry:
@@ -283,19 +332,22 @@ class CacheService:
                     # Store in memory cache for future hits
                     ttl = self._get_ttl_for_namespace(namespace)
                     memory_entry = CacheEntry(key, db_entry, namespace, ttl)
-                    self.memory_cache[cache_key] = memory_entry
+                    with self._memory_lock:
+                        self.memory_cache[cache_key] = memory_entry
 
-                    self.stats.hits += 1
-                    logger.sync_debug("Cache hit (database)", namespace=namespace, key=str(key))
+                    self.stats.record_hit()
+                    logger.sync_debug(
+                        "Cache hit (database)", namespace=namespace, key=str(key)
+                    )
                     return db_entry
 
             # Cache miss
-            self.stats.misses += 1
+            self.stats.record_miss()
             logger.sync_debug("Cache miss", namespace=namespace, key=str(key))
             return default
 
         except Exception as e:
-            self.stats.errors += 1
+            self.stats.record_error()
             logger.sync_error(
                 "Error getting cache entry", namespace=namespace, key=str(key), error=str(e)
             )
@@ -322,18 +374,19 @@ class CacheService:
             entry = CacheEntry(key, value, namespace, ttl)
 
             # L1 Cache: Store in memory
-            self.memory_cache[cache_key] = entry
+            with self._memory_lock:
+                self.memory_cache[cache_key] = entry
 
-            # L2 Cache: Store in database
+            # L2 Cache: Store in database (no lock held during I/O)
             if self.db_session:
                 await self._set_in_db(cache_key, entry)
 
-            self.stats.sets += 1
+            self.stats.record_set()
             logger.sync_debug("Cache set", namespace=namespace, key=str(key), ttl=ttl)
             return True
 
         except Exception as e:
-            self.stats.errors += 1
+            self.stats.record_error()
             logger.sync_error(
                 "Error setting cache entry",
                 namespace=namespace,
@@ -354,19 +407,20 @@ class CacheService:
 
         try:
             # L1 Cache: Remove from memory
-            if cache_key in self.memory_cache:
-                del self.memory_cache[cache_key]
+            with self._memory_lock:
+                if cache_key in self.memory_cache:
+                    del self.memory_cache[cache_key]
 
-            # L2 Cache: Remove from database
+            # L2 Cache: Remove from database (no lock held during I/O)
             if self.db_session:
                 await self._delete_from_db(cache_key)
 
-            self.stats.deletes += 1
+            self.stats.record_delete()
             logger.sync_debug("Cache delete", namespace=namespace, key=str(key))
             return True
 
         except Exception as e:
-            self.stats.errors += 1
+            self.stats.record_error()
             logger.sync_error(
                 "Error deleting cache entry", namespace=namespace, key=str(key), error=str(e)
             )
@@ -415,12 +469,15 @@ class CacheService:
             count = 0
 
             # L1 Cache: Clear memory entries
-            keys_to_remove = [k for k, v in self.memory_cache.items() if v.namespace == namespace]
-            for key in keys_to_remove:
-                del self.memory_cache[key]
-                count += 1
+            with self._memory_lock:
+                keys_to_remove = [
+                    k for k, v in self.memory_cache.items() if v.namespace == namespace
+                ]
+                for key in keys_to_remove:
+                    del self.memory_cache[key]
+                    count += 1
 
-            # L2 Cache: Clear database entries
+            # L2 Cache: Clear database entries (no lock held during I/O)
             if self.db_session:
                 db_count = await self._clear_namespace_from_db(namespace)
                 count += db_count
@@ -429,7 +486,7 @@ class CacheService:
             return count
 
         except Exception as e:
-            self.stats.errors += 1
+            self.stats.record_error()
             logger.sync_error("Error clearing namespace", namespace=namespace, error=str(e))
             return 0
 
@@ -442,10 +499,13 @@ class CacheService:
             count = 0
 
             # L1 Cache: Clear memory entries (fast)
-            keys_to_remove = [k for k, v in self.memory_cache.items() if v.namespace == namespace]
-            for key in keys_to_remove:
-                del self.memory_cache[key]
-                count += 1
+            with self._memory_lock:
+                keys_to_remove = [
+                    k for k, v in self.memory_cache.items() if v.namespace == namespace
+                ]
+                for key in keys_to_remove:
+                    del self.memory_cache[key]
+                    count += 1
 
             # L2 Cache: Clear database entries in chunks
             if self.db_session:
@@ -481,7 +541,7 @@ class CacheService:
             return count
 
         except Exception as e:
-            self.stats.errors += 1
+            self.stats.record_error()
             logger.sync_error("Error clearing namespace", namespace=namespace, error=str(e))
             if self.db_session:
                 self.db_session.rollback()
@@ -496,13 +556,13 @@ class CacheService:
             count = 0
 
             # L1 Cache: Clean expired memory entries
-            datetime.now(timezone.utc)
-            expired_keys = [k for k, v in self.memory_cache.items() if v.is_expired()]
-            for key in expired_keys:
-                del self.memory_cache[key]
-                count += 1
+            with self._memory_lock:
+                expired_keys = [k for k, v in self.memory_cache.items() if v.is_expired()]
+                for key in expired_keys:
+                    del self.memory_cache[key]
+                    count += 1
 
-            # L2 Cache: Clean expired database entries
+            # L2 Cache: Clean expired database entries (no lock held during I/O)
             if self.db_session:
                 db_count = await self._cleanup_expired_from_db()
                 count += db_count
@@ -512,7 +572,7 @@ class CacheService:
             return count
 
         except Exception as e:
-            self.stats.errors += 1
+            self.stats.record_error()
             logger.sync_error("Error cleaning up expired entries", error=str(e))
             return 0
 
@@ -520,7 +580,8 @@ class CacheService:
         """Get cache statistics."""
         try:
             # Update current stats
-            self.stats.memory_entries = len(self.memory_cache)
+            with self._memory_lock:
+                self.stats.memory_entries = len(self.memory_cache)
 
             if self.db_session:
                 self.stats.db_entries = await self._get_db_entry_count(namespace)
