@@ -61,5 +61,9 @@ async def report_client_log(
 
 def _save_log(db: Session, log: SystemLog) -> None:
     """Save log entry to database (sync, runs in thread pool)."""
-    db.add(log)
-    db.commit()
+    try:
+        db.add(log)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise

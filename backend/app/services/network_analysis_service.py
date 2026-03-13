@@ -48,7 +48,9 @@ class NetworkAnalysisService:
 
         # LRU cache with TTL - prevents memory leaks
         # Max 50 graphs @ ~50MB each = ~2.5GB max memory
-        self._graph_cache = TTLCache(maxsize=50, ttl=3600)  # 1 hour TTL
+        from app.core.constants import CACHE_TTL_LONG
+
+        self._graph_cache = TTLCache(maxsize=50, ttl=CACHE_TTL_LONG)
         self._cache_lock = threading.Lock()
 
     async def build_network_from_string_data(

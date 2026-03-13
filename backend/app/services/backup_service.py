@@ -19,6 +19,8 @@ from typing import Any, cast
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.constants import BACKUP_TIMEOUT_EXTENDED, BACKUP_TIMEOUT_STANDARD
+
 from app.core.config import settings
 from app.core.database import get_thread_pool_executor
 from app.core.logging import get_logger
@@ -205,7 +207,7 @@ class BackupService:
         result = subprocess.run(
             cmd,
             capture_output=True,
-            timeout=3600,  # 1 hour timeout
+            timeout=BACKUP_TIMEOUT_STANDARD,
         )
 
         if result.returncode != 0:
@@ -372,7 +374,7 @@ class BackupService:
                 stdin=backup_file,
                 capture_output=True,
                 text=True,
-                timeout=7200,  # 2 hour timeout
+                timeout=BACKUP_TIMEOUT_EXTENDED,
             )
 
         if result.returncode != 0:
