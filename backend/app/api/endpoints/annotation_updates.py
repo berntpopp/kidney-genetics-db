@@ -87,9 +87,7 @@ async def update_gene_annotations(
     for source_name in sources:
         source_class = SOURCE_CLASSES.get(source_name)
         if source_class:
-            background_tasks.add_task(
-                _update_single_source, gene, source_name, source_class, db
-            )
+            background_tasks.add_task(_update_single_source, gene, source_name, source_class, db)
 
     return {
         "status": "update_scheduled",

@@ -19,9 +19,8 @@ from typing import Any, cast
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.core.constants import BACKUP_TIMEOUT_EXTENDED, BACKUP_TIMEOUT_STANDARD
-
 from app.core.config import settings
+from app.core.constants import BACKUP_TIMEOUT_EXTENDED, BACKUP_TIMEOUT_STANDARD
 from app.core.database import get_thread_pool_executor
 from app.core.logging import get_logger
 from app.models.backup_job import BackupJob, BackupStatus, BackupTrigger

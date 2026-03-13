@@ -39,9 +39,7 @@ async def get_source_overlaps(
         alias="filter[tier]",
         description="Filter by evidence tier (comma-separated for multiple: comprehensive_support,multi_source_support,established_support,preliminary_evidence,minimal_evidence)",
     ),
-    detail: bool = Query(
-        False, description="Include full gene lists in intersections"
-    ),
+    detail: bool = Query(False, description="Include full gene lists in intersections"),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """

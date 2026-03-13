@@ -32,17 +32,11 @@ def transform_evidence_to_jsonapi(
                     "source_name": e.source_name,
                     "source_detail": e.source_detail,
                     "evidence_data": e.evidence_data,
-                    "evidence_date": (
-                        e.evidence_date.isoformat() if e.evidence_date else None
-                    ),
-                    "created_at": (
-                        e.created_at.isoformat() if e.created_at else None
-                    ),
+                    "evidence_date": (e.evidence_date.isoformat() if e.evidence_date else None),
+                    "created_at": (e.created_at.isoformat() if e.created_at else None),
                     "normalized_score": scores.get(e.id, 0.0),
                 },
-                "relationships": {
-                    "gene": {"data": {"type": "genes", "id": str(gene_id)}}
-                },
+                "relationships": {"gene": {"data": {"type": "genes", "id": str(gene_id)}}},
             }
         )
     return evidence_data

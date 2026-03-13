@@ -82,7 +82,9 @@ async def get_gene_annotations(
     # Cache the result
     from app.core.constants import CACHE_TTL_LONG
 
-    await cache_service.set(key=cache_key, value=result, namespace="annotations", ttl=CACHE_TTL_LONG)
+    await cache_service.set(
+        key=cache_key, value=result, namespace="annotations", ttl=CACHE_TTL_LONG
+    )
 
     return result
 
@@ -166,7 +168,9 @@ async def get_gene_annotation_summary(
     # Cache the result
     from app.core.constants import CACHE_TTL_EXTENDED
 
-    await cache_service.set(key=cache_key, value=summary, namespace="annotations", ttl=CACHE_TTL_EXTENDED)
+    await cache_service.set(
+        key=cache_key, value=summary, namespace="annotations", ttl=CACHE_TTL_EXTENDED
+    )
 
     return summary
 

@@ -315,7 +315,9 @@ class CacheService:
                         entry.touch()
                         self.stats.record_hit()
                         if settings.LOG_LEVEL == "DEBUG":
-                            logger.sync_debug("Cache hit (memory)", namespace=namespace, key=str(key))
+                            logger.sync_debug(
+                                "Cache hit (memory)", namespace=namespace, key=str(key)
+                            )
                         return entry.value
                     else:
                         # Remove expired entry
