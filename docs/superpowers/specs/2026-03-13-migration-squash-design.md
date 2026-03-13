@@ -441,7 +441,7 @@ make test
 |------|--------|------------|
 | 0 | PR: SQLAlchemy model fixes | Nothing |
 | 1 | Backup + schema baseline | PR 0 merged |
-| 2 | Autogenerate + manual edits + delete old | Step 1 |
+| 2 | Delete old migrations + autogenerate + manual edits | Step 1 |
 | 3 | Verification (blank DB + structured diff + stamp + tests) | Step 2 |
 | 4 | Cleanup + commit + PR | Step 3 |
 | — | PR: Pydantic v2 migration (independent) | Nothing |
