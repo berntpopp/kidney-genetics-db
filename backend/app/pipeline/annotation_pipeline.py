@@ -260,8 +260,10 @@ class AnnotationPipeline:
             if results:
                 try:
                     from app.api.endpoints.genes import (
-                        clear_gene_ids_cache,
-                        invalidate_metadata_cache,
+                        clear_gene_ids_cache_sync as clear_gene_ids_cache,
+                    )
+                    from app.api.endpoints.genes import (
+                        invalidate_metadata_cache_sync as invalidate_metadata_cache,
                     )
 
                     clear_gene_ids_cache()
