@@ -5,7 +5,7 @@ Pydantic schemas for genes
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class GeneBase(BaseModel):
@@ -37,8 +37,7 @@ class GeneInDB(GeneBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Gene(GeneInDB):
@@ -81,5 +80,4 @@ class GeneCurationSummary(BaseModel):
     panelapp_panels: list[str] = []
     hpo_terms: list[str] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

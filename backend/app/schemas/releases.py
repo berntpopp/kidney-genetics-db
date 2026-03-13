@@ -5,7 +5,7 @@ Data Release schemas for request/response validation
 import re
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # CalVer validation pattern
 CALVER_PATTERN = re.compile(r"^\d{4}\.\d{1,2}$")  # YYYY.M or YYYY.MM
@@ -64,8 +64,7 @@ class ReleaseResponse(ReleaseBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True  # Allows conversion from SQLAlchemy models
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ReleaseList(BaseModel):

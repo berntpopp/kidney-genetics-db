@@ -5,7 +5,7 @@ Pydantic schemas for gene normalization staging
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class GeneNormalizationStagingResponse(BaseModel):
@@ -32,8 +32,7 @@ class GeneNormalizationStagingResponse(BaseModel):
     manual_hgnc_id: str | None = None
     manual_aliases: list[str] | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GeneNormalizationLogResponse(BaseModel):
@@ -50,8 +49,7 @@ class GeneNormalizationLogResponse(BaseModel):
     processing_time_ms: int | None = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StagingApprovalRequest(BaseModel):
