@@ -251,13 +251,16 @@ async def logout(
 
 
 @router.post("/forgot-password")
-async def forgot_password(request: PasswordReset, db: Session = Depends(get_db)) -> dict[str, str]:
+@limiter.limit("3/hour")
+async def forgot_password(
+    request: Request, body: PasswordReset, db: Session = Depends(get_db)
+) -> dict[str, str]:
     """
     Request password reset token.
     Always returns success to prevent email enumeration.
     """
     # Find user by email
-    result = db.execute(select(User).where(User.email == request.email))
+    result = db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
 
     if user and user.is_active:
@@ -267,11 +270,9 @@ async def forgot_password(request: PasswordReset, db: Session = Depends(get_db))
         user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
         db.commit()
 
-        # TODO: Send email with reset token
-        # For now, log the token (remove in production!)
-        await logger.info(
-            "Password reset requested", email=request.email, token=reset_token[:8] + "..."
-        )
+        # NOTE: Email service integration is a separate feature.
+        # Reset token is stored in DB; email delivery TBD.
+        await logger.info("Password reset requested", email=body.email)
 
     return {"message": "If an account with that email exists, a password reset link has been sent."}
 
