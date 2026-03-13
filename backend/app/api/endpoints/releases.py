@@ -7,12 +7,14 @@ Supports creating releases, publishing with temporal snapshots, and downloading 
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import require_admin
+from app.core.exceptions import GeneNotFoundError
+from app.core.exceptions import ValidationError as DomainValidationError
 from app.core.logging import get_logger
 from app.models.data_release import DataRelease
 from app.models.user import User
@@ -67,7 +69,7 @@ async def get_release(version: str, db: Session = Depends(get_db)) -> DataReleas
 
     release: DataRelease | None = db.query(DataRelease).filter_by(version=version).first()
     if not release:
-        raise HTTPException(status_code=404, detail=f"Release {version} not found")
+        raise GeneNotFoundError(version)
 
     return release
 
@@ -112,9 +114,9 @@ async def get_release_genes(
         }
     except ValueError as e:
         if "not found" in str(e):
-            raise HTTPException(status_code=404, detail=str(e)) from e
+            raise GeneNotFoundError(version) from e
         else:
-            raise HTTPException(status_code=400, detail=str(e)) from e
+            raise DomainValidationError(reason=str(e)) from e
 
 
 @router.get("/{version}/export")
@@ -135,12 +137,10 @@ async def download_export(version: str, db: Session = Depends(get_db)) -> FileRe
 
     release = db.query(DataRelease).filter_by(version=version).first()
     if not release:
-        raise HTTPException(status_code=404, detail=f"Release {version} not found")
+        raise GeneNotFoundError(version)
 
     if not release.export_file_path:
-        raise HTTPException(
-            status_code=404, detail=f"Export file not available for release {version}"
-        )
+        raise GeneNotFoundError(version)
 
     return FileResponse(
         path=release.export_file_path,
@@ -179,7 +179,7 @@ async def create_release(
         )
         return release
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise DomainValidationError(reason=str(e)) from e
 
 
 @router.post(
@@ -215,9 +215,9 @@ async def publish_release(
         return release
     except ValueError as e:
         if "not found" in str(e):
-            raise HTTPException(status_code=404, detail=str(e)) from e
+            raise GeneNotFoundError(release_id) from e
         else:
-            raise HTTPException(status_code=400, detail=str(e)) from e
+            raise DomainValidationError(reason=str(e)) from e
 
 
 @router.patch(
@@ -257,9 +257,9 @@ async def update_release(
         return release
     except ValueError as e:
         if "not found" in str(e):
-            raise HTTPException(status_code=404, detail=str(e)) from e
+            raise GeneNotFoundError(release_id) from e
         else:
-            raise HTTPException(status_code=400, detail=str(e)) from e
+            raise DomainValidationError(reason=str(e)) from e
 
 
 @router.delete("/{release_id}", dependencies=[Depends(require_admin)])
@@ -290,6 +290,6 @@ async def delete_release(
         return {"message": f"Release {release_id} deleted successfully"}
     except ValueError as e:
         if "not found" in str(e):
-            raise HTTPException(status_code=404, detail=str(e)) from e
+            raise GeneNotFoundError(release_id) from e
         else:
-            raise HTTPException(status_code=400, detail=str(e)) from e
+            raise DomainValidationError(reason=str(e)) from e

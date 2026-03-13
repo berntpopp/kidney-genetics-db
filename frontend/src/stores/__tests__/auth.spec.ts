@@ -5,7 +5,7 @@
  * - Initial state
  * - Login success/failure
  * - Logout behavior
- * - Initialize from localStorage
+ * - Initialize with silent refresh
  * - isAdmin / hasRole computed properties
  */
 
@@ -35,6 +35,18 @@ vi.mock('@/api/auth', () => ({
   updateUser: vi.fn(),
   deleteUser: vi.fn(),
   default: {}
+}))
+
+// Mock the client module
+vi.mock('@/api/client', () => ({
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn()
+  },
+  setClientAccessToken: vi.fn(),
+  getClientAccessToken: vi.fn()
 }))
 
 import * as authApi from '@/api/auth'
@@ -91,30 +103,29 @@ describe('useAuthStore', () => {
       expect(store.error).toBeNull()
     })
 
-    it('reads tokens from localStorage on init', () => {
+    it('tokens are memory-only (not read from localStorage)', () => {
       localStorage.setItem('access_token', 'stored-access')
       localStorage.setItem('refresh_token', 'stored-refresh')
 
       const store = useAuthStore()
 
-      expect(store.accessToken).toBe('stored-access')
-      expect(store.refreshToken).toBe('stored-refresh')
+      // Tokens should be null — no longer read from localStorage
+      expect(store.accessToken).toBeNull()
+      expect(store.refreshToken).toBeNull()
     })
 
     it('isAuthenticated is false when user is null even with token', () => {
-      localStorage.setItem('access_token', 'some-token')
-
       const store = useAuthStore()
+      store.accessToken = 'some-token'
       // user is null, so not authenticated
       expect(store.isAuthenticated).toBe(false)
     })
   })
 
   describe('login', () => {
-    it('returns true and sets tokens on successful login', async () => {
+    it('returns true and sets access token on successful login', async () => {
       mockAuthApi.login.mockResolvedValue({
         access_token: 'new-access',
-        refresh_token: 'new-refresh',
         token_type: 'bearer'
       })
       mockAuthApi.getCurrentUser.mockResolvedValue(mockAdminUser)
@@ -124,10 +135,10 @@ describe('useAuthStore', () => {
 
       expect(result).toBe(true)
       expect(store.accessToken).toBe('new-access')
-      expect(store.refreshToken).toBe('new-refresh')
       expect(store.user).toEqual(mockAdminUser)
       expect(store.error).toBeNull()
-      expect(localStorage.getItem('access_token')).toBe('new-access')
+      // Access token should NOT be in localStorage
+      expect(localStorage.getItem('access_token')).toBeNull()
     })
 
     it('returns false and sets error on failed login', async () => {
@@ -149,7 +160,6 @@ describe('useAuthStore', () => {
         loadingDuringCall = true
         return {
           access_token: 'tok',
-          refresh_token: 'ref',
           token_type: 'bearer'
         }
       })
@@ -170,7 +180,6 @@ describe('useAuthStore', () => {
     it('isAdmin is true for admin user', async () => {
       mockAuthApi.login.mockResolvedValue({
         access_token: 'tok',
-        refresh_token: 'ref',
         token_type: 'bearer'
       })
       mockAuthApi.getCurrentUser.mockResolvedValue(mockAdminUser)
@@ -185,7 +194,6 @@ describe('useAuthStore', () => {
     it('isAdmin is false for curator user', async () => {
       mockAuthApi.login.mockResolvedValue({
         access_token: 'tok',
-        refresh_token: 'ref',
         token_type: 'bearer'
       })
       mockAuthApi.getCurrentUser.mockResolvedValue(mockCuratorUser)
@@ -200,7 +208,6 @@ describe('useAuthStore', () => {
     it('hasRole returns true when role matches', async () => {
       mockAuthApi.login.mockResolvedValue({
         access_token: 'tok',
-        refresh_token: 'ref',
         token_type: 'bearer'
       })
       mockAuthApi.getCurrentUser.mockResolvedValue(mockAdminUser)
@@ -220,27 +227,40 @@ describe('useAuthStore', () => {
   })
 
   describe('initialize', () => {
-    it('restores user from localStorage on initialize', async () => {
-      localStorage.setItem('user', JSON.stringify(mockAdminUser))
-      localStorage.setItem('access_token', 'stored-token')
-
+    it('skips refresh when no prior session exists (no stored user)', async () => {
+      // No 'user' in localStorage → anonymous visitor, should not call refresh
       const store = useAuthStore()
       await store.initialize()
 
-      expect(store.user).toEqual(mockAdminUser)
-      // Should not call getCurrentUser because user was restored from storage
-      expect(mockAuthApi.getCurrentUser).not.toHaveBeenCalled()
+      expect(mockAuthApi.refreshToken).not.toHaveBeenCalled()
+      expect(store.user).toBeNull()
+      expect(store.accessToken).toBeNull()
     })
 
-    it('fetches user if token exists but no user in localStorage', async () => {
-      localStorage.setItem('access_token', 'stored-token')
+    it('restores user from localStorage and attempts silent refresh', async () => {
+      localStorage.setItem('user', JSON.stringify(mockAdminUser))
+      mockAuthApi.refreshToken.mockResolvedValue({ access_token: 'refreshed-token' })
       mockAuthApi.getCurrentUser.mockResolvedValue(mockAdminUser)
 
       const store = useAuthStore()
       await store.initialize()
 
-      expect(mockAuthApi.getCurrentUser).toHaveBeenCalled()
       expect(store.user).toEqual(mockAdminUser)
+      // Should attempt silent refresh via cookie
+      expect(mockAuthApi.refreshToken).toHaveBeenCalled()
+      expect(store.accessToken).toBe('refreshed-token')
+    })
+
+    it('clears auth state when silent refresh fails', async () => {
+      localStorage.setItem('user', JSON.stringify(mockAdminUser))
+      mockAuthApi.refreshToken.mockRejectedValue(new Error('No cookie'))
+
+      const store = useAuthStore()
+      await store.initialize()
+
+      // User should be cleared since refresh failed
+      expect(store.user).toBeNull()
+      expect(store.accessToken).toBeNull()
     })
   })
 

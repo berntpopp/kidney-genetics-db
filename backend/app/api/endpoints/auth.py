@@ -29,7 +29,6 @@ from app.schemas.auth import (
     PasswordChange,
     PasswordReset,
     PasswordResetConfirm,
-    RefreshTokenRequest,
     Token,
     UserRegister,
     UserResponse,
@@ -187,23 +186,55 @@ async def login(
 
     await logger.info("User logged in successfully", username=user.username, role=user.role)
 
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-    }
+    from fastapi.responses import JSONResponse
+
+    json_response = JSONResponse(
+        content={
+            "access_token": access_token,
+            "token_type": "bearer",
+            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        }
+    )
+    # secure=True requires HTTPS; disable in dev so cookies work on localhost
+    is_production = settings.ENVIRONMENT not in ("dev", "development", "test")
+    json_response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=is_production,
+        samesite="lax" if not is_production else "strict",
+        path="/api/auth",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+    )
+    return json_response
 
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    request: RefreshTokenRequest, db: Session = Depends(get_db)
+    request: Request,
+    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
-    Refresh access token using refresh token.
+    Refresh access token using refresh token from HttpOnly cookie or request body.
     """
+    # Lightweight CSRF check — SameSite handles most cases
+    if request.headers.get("X-Requested-With") != "XMLHttpRequest":
+        raise HTTPException(status_code=403, detail="CSRF check failed")
+
+    # Accept token from cookie first, then JSON body (backward compat)
+    token = request.cookies.get("refresh_token")
+    if not token:
+        # Try to read from JSON body for backward compatibility
+        try:
+            body = await request.json()
+            token = body.get("refresh_token") if isinstance(body, dict) else None
+        except Exception:
+            token = None
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No refresh token")
+
     # Verify refresh token
-    payload = verify_token(request.refresh_token, token_type="refresh")
+    payload = verify_token(token, token_type="refresh")
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
@@ -214,7 +245,7 @@ async def refresh_token(
     result = db.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()
 
-    if not user or user.refresh_token != request.refresh_token:
+    if not user or user.refresh_token != token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
@@ -229,7 +260,7 @@ async def refresh_token(
 
     return {
         "access_token": access_token,
-        "refresh_token": request.refresh_token,  # Keep same refresh token
+        "refresh_token": token,  # Keep same refresh token
         "token_type": "bearer",
         "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
@@ -251,13 +282,16 @@ async def logout(
 
 
 @router.post("/forgot-password")
-async def forgot_password(request: PasswordReset, db: Session = Depends(get_db)) -> dict[str, str]:
+@limiter.limit("3/hour")
+async def forgot_password(
+    request: Request, body: PasswordReset, db: Session = Depends(get_db)
+) -> dict[str, str]:
     """
     Request password reset token.
     Always returns success to prevent email enumeration.
     """
     # Find user by email
-    result = db.execute(select(User).where(User.email == request.email))
+    result = db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
 
     if user and user.is_active:
@@ -267,11 +301,9 @@ async def forgot_password(request: PasswordReset, db: Session = Depends(get_db))
         user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
         db.commit()
 
-        # TODO: Send email with reset token
-        # For now, log the token (remove in production!)
-        await logger.info(
-            "Password reset requested", email=request.email, token=reset_token[:8] + "..."
-        )
+        # NOTE: Email service integration is a separate feature.
+        # Reset token is stored in DB; email delivery TBD.
+        await logger.info("Password reset requested", email=body.email)
 
     return {"message": "If an account with that email exists, a password reset link has been sent."}
 

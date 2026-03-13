@@ -3,11 +3,13 @@ Kidney Genetics Database API
 Main FastAPI application
 """
 
+import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -17,15 +19,17 @@ from app.api.endpoints import (
     admin_backups,
     admin_logs,
     admin_settings,
+    annotation_retrieval,
+    annotation_updates,
     auth,
     cache,
     client_logs,
     datasources,
-    gene_annotations,
     gene_staging,
     genes,
     ingestion,
     network_analysis,
+    percentile_management,
     progress,
     releases,
     seo,
@@ -37,15 +41,25 @@ from app.core.background_tasks import task_manager
 from app.core.config import settings
 from app.core.database import engine, get_db
 from app.core.events import event_bus
+from app.core.exceptions import (
+    AuthenticationError,
+    GeneNotFoundError,
+    KidneyGeneticsException,
+    PermissionDeniedError,
+    RateLimitExceededError,
+    ResourceConflictError,
+)
+from app.core.exceptions import ValidationError as DomainValidationError
 from app.core.logging import configure_logging, get_logger
 from app.core.rate_limit import limiter
 from app.core.startup import run_startup_tasks
 from app.middleware.error_handling import register_error_handlers
 from app.middleware.logging_middleware import LoggingMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.models import Base
 
 # Configure unified logging system
-configure_logging(log_level="DEBUG", database_enabled=True, console_enabled=True)
+configure_logging(log_level=settings.LOG_LEVEL, database_enabled=True, console_enabled=True)
 
 # Get unified logger for main application
 logger = get_logger(__name__)
@@ -135,9 +149,13 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Request-ID", "X-Requested-With"],
+    max_age=600,  # Cache preflight for 10 minutes
 )
+
+# Security headers
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Rate limiting
 app.state.limiter = limiter
@@ -164,6 +182,107 @@ app.add_middleware(
 # Register standardized error handlers (enhanced by logging middleware)
 register_error_handlers(app)
 
+
+# --- Domain exception handlers ---
+@app.exception_handler(GeneNotFoundError)
+async def gene_not_found_handler(request: Request, exc: GeneNotFoundError) -> JSONResponse:
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": {
+                "type": "not_found",
+                "message": exc.message,
+                "error_id": str(uuid.uuid4()),
+            },
+        },
+    )
+
+
+@app.exception_handler(DomainValidationError)
+async def domain_validation_handler(request: Request, exc: DomainValidationError) -> JSONResponse:
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": {
+                "type": "validation_error",
+                "message": exc.message,
+                "error_id": str(uuid.uuid4()),
+            },
+        },
+    )
+
+
+@app.exception_handler(AuthenticationError)
+async def authentication_handler(request: Request, exc: AuthenticationError) -> JSONResponse:
+    return JSONResponse(
+        status_code=401,
+        content={
+            "error": {
+                "type": "authentication_error",
+                "message": exc.message,
+                "error_id": str(uuid.uuid4()),
+            },
+        },
+    )
+
+
+@app.exception_handler(PermissionDeniedError)
+async def permission_denied_handler(request: Request, exc: PermissionDeniedError) -> JSONResponse:
+    return JSONResponse(
+        status_code=403,
+        content={
+            "error": {
+                "type": "permission_denied",
+                "message": exc.message,
+                "error_id": str(uuid.uuid4()),
+            },
+        },
+    )
+
+
+@app.exception_handler(ResourceConflictError)
+async def resource_conflict_handler(request: Request, exc: ResourceConflictError) -> JSONResponse:
+    return JSONResponse(
+        status_code=409,
+        content={
+            "error": {
+                "type": "resource_conflict",
+                "message": exc.message,
+                "error_id": str(uuid.uuid4()),
+            },
+        },
+    )
+
+
+@app.exception_handler(RateLimitExceededError)
+async def rate_limit_handler(request: Request, exc: RateLimitExceededError) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={
+            "error": {
+                "type": "rate_limit_exceeded",
+                "message": exc.message,
+                "error_id": str(uuid.uuid4()),
+            },
+        },
+        headers={"Retry-After": str(exc.retry_after)} if exc.retry_after else {},
+    )
+
+
+@app.exception_handler(KidneyGeneticsException)
+async def kidney_genetics_handler(request: Request, exc: KidneyGeneticsException) -> JSONResponse:
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": {
+                "type": "internal_error",
+                "message": exc.message,
+                "error_id": str(uuid.uuid4()),
+            },
+        },
+    )
+
+
 # Include routers - organized by functional areas
 # 0. System - Health, version, SEO, and root endpoints
 app.include_router(version.router, tags=["System"])
@@ -175,7 +294,15 @@ app.include_router(auth.router, tags=["Authentication"])
 # 2. Core Resources - Primary domain entities
 app.include_router(genes.router, prefix="/api/genes", tags=["Core Resources - Genes"])
 app.include_router(
-    gene_annotations.router, prefix="/api/annotations", tags=["Core Resources - Annotations"]
+    annotation_retrieval.router, prefix="/api/annotations", tags=["Core Resources - Annotations"]
+)
+app.include_router(
+    annotation_updates.router, prefix="/api/annotations", tags=["Core Resources - Annotations"]
+)
+app.include_router(
+    percentile_management.router,
+    prefix="/api/annotations",
+    tags=["Core Resources - Annotations"],
 )
 app.include_router(
     datasources.router, prefix="/api/datasources", tags=["Core Resources - Data Sources"]

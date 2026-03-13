@@ -1,0 +1,9 @@
+[allowlist]
+paths = [
+    '''.planning/''',
+    '''node_modules/''',
+    '''\.env\.example''',
+    '''uv\.lock''',
+    '''package-lock\.json''',
+    '''\.gitleaks\.toml''',
+]

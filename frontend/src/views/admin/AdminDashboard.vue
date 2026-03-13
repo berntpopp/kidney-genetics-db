@@ -457,14 +457,18 @@ const cleanupLogs = async () => {
 const exportStats = async () => {
   exportingStats.value = true
   try {
+    const logStatsPromise = async () => {
+      const r = await fetch('/api/admin/logs/statistics?hours=24', {
+        headers: { Authorization: `Bearer ${authStore.accessToken}` }
+      })
+      return r.json()
+    }
     const [users, cache, pipeline, staging, logs] = await Promise.all([
       fetchUserStats(),
       fetchCacheStats(),
       fetchPipelineStats(),
       fetchStagingStats(),
-      fetch('/api/admin/logs/statistics?hours=24', {
-        headers: { Authorization: `Bearer ${authStore.accessToken}` }
-      }).then(r => r.json())
+      logStatsPromise()
     ])
 
     const exportData = {

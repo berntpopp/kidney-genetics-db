@@ -2,6 +2,7 @@
 Configuration settings for the application
 """
 
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,7 +10,10 @@ class Settings(BaseSettings):
     """Application settings"""
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=False
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        secrets_dir="/run/secrets",
     )
 
     # Application
@@ -18,12 +22,15 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     SITE_URL: str = "https://kidney-genetics.org"
 
-    # Database
-    DATABASE_URL: str = "postgresql://kidney_user:kidney_pass@localhost:5432/kidney_genetics"
+    # Logging
+    LOG_LEVEL: str = "INFO"
+
+    # Database — REQUIRED, no default (must be set via .env or env var)
+    DATABASE_URL: SecretStr
     DATABASE_ECHO: bool = False
 
-    # Security - JWT
-    JWT_SECRET_KEY: str = "13b45dbb75d5b321d69c6b71101c3d7b1e11d980cdb79b3eeab700d440b01c63"
+    # Security - JWT — REQUIRED, no default
+    JWT_SECRET_KEY: SecretStr
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -36,10 +43,10 @@ class Settings(BaseSettings):
     MAX_LOGIN_ATTEMPTS: int = 5
     ACCOUNT_LOCKOUT_MINUTES: int = 15
 
-    # Default Admin (for initial setup only)
+    # Default Admin (for initial setup only) — REQUIRED, no default
     ADMIN_USERNAME: str = "admin"
     ADMIN_EMAIL: str = "admin@kidney-genetics.local"
-    ADMIN_PASSWORD: str = "ChangeMe!Admin2024"  # Change immediately after first login
+    ADMIN_PASSWORD: SecretStr
 
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = [
@@ -91,7 +98,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "dev"  # Environment: dev, staging, prod
 
     # API Keys (optional)
-    OPENAI_API_KEY: str | None = None
+    OPENAI_API_KEY: SecretStr | None = None
 
     # Backup Configuration
     BACKUP_DIR: str = "backups"  # Directory for backup files
@@ -104,8 +111,19 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "kidney_user"
-    POSTGRES_PASSWORD: str = "kidney_pass"
+    POSTGRES_PASSWORD: SecretStr
     POSTGRES_DB: str = "kidney_genetics"
+
+    @field_validator("JWT_SECRET_KEY")
+    @classmethod
+    def validate_jwt_secret(cls, v: SecretStr) -> SecretStr:
+        secret = v.get_secret_value()
+        if len(secret) < 32:
+            raise ValueError("JWT_SECRET_KEY must be at least 32 characters")
+        placeholders = {"change_this_to_a_secure_secret_key", "changeme", "secret"}
+        if secret.lower() in placeholders:
+            raise ValueError("JWT_SECRET_KEY must not be a placeholder value")
+        return v
 
 
 # Create settings instance

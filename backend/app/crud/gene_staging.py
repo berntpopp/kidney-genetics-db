@@ -154,7 +154,7 @@ class GeneNormalizationStagingCRUD:
 
         # By source breakdown
         source_stats = {}
-        sources = db.query(GeneNormalizationStaging.source_name).distinct().all()
+        sources = db.query(GeneNormalizationStaging.source_name).distinct().limit(10000).all()
         for (source,) in sources:
             source_pending = (
                 db.query(GeneNormalizationStaging)
@@ -293,7 +293,7 @@ class GeneNormalizationLogCRUD:
 
         # By source stats
         source_stats = {}
-        sources = db.query(GeneNormalizationLog.source_name).distinct().all()
+        sources = db.query(GeneNormalizationLog.source_name).distinct().limit(10000).all()
         for (source,) in sources:
             source_total = (
                 db.query(GeneNormalizationLog)

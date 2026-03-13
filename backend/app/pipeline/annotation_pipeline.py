@@ -16,6 +16,7 @@ from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
 from app.core.resource_monitor import log_resource_checkpoint
 from app.core.retry_utils import RetryConfig, retry_with_backoff
+from app.db.safe_sql import refresh_materialized_view as safe_refresh_matview
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationSource, GeneAnnotation
 from app.models.progress import DataSourceProgress
@@ -259,8 +260,10 @@ class AnnotationPipeline:
             if results:
                 try:
                     from app.api.endpoints.genes import (
-                        clear_gene_ids_cache,
-                        invalidate_metadata_cache,
+                        clear_gene_ids_cache_sync as clear_gene_ids_cache,
+                    )
+                    from app.api.endpoints.genes import (
+                        invalidate_metadata_cache_sync as invalidate_metadata_cache,
                     )
 
                     clear_gene_ids_cache()
@@ -856,7 +859,7 @@ class AnnotationPipeline:
         metadata_json = json.dumps({"retrieved_at": now.isoformat(), "batch_fetch": True})
 
         upserted = 0
-        chunk_size = 500
+        chunk_size = 1500  # Tuned from resource benchmarking (baseline ~1.2GB, peak ~2.2GB)
         items = list(batch_data.items())
 
         for chunk_start in range(0, len(items), chunk_size):
@@ -914,14 +917,12 @@ class AnnotationPipeline:
 
                 for view_name in views_to_refresh:
                     try:
-                        view_db.execute(text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}"))
-                        view_db.commit()
+                        safe_refresh_matview(view_db, view_name, concurrent=True)
                         logger.sync_info(f"Materialized view {view_name} refreshed concurrently")
                     except Exception:
                         view_db.rollback()
                         try:
-                            view_db.execute(text(f"REFRESH MATERIALIZED VIEW {view_name}"))
-                            view_db.commit()
+                            safe_refresh_matview(view_db, view_name, concurrent=False)
                             logger.sync_info(
                                 f"Materialized view {view_name} refreshed (non-concurrent)"
                             )

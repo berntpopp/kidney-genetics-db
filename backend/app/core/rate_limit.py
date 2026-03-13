@@ -21,11 +21,13 @@ logger = get_logger(__name__)
 
 def _get_real_ip(request: Request) -> str:
     """Get real client IP, respecting X-Forwarded-For behind reverse proxy."""
-    forwarded = request.headers.get("X-Forwarded-For")
+    forwarded: str | None = request.headers.get("X-Forwarded-For")
     if forwarded:
         # First IP in the chain is the real client
-        return forwarded.split(",")[0].strip()
-    return get_remote_address(request)
+        ip: str = forwarded.split(",")[0].strip()
+        return ip
+    result: str = get_remote_address(request)
+    return result
 
 
 def _get_rate_limit_key(request: Request) -> str:
@@ -33,9 +35,9 @@ def _get_rate_limit_key(request: Request) -> str:
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         try:
-            from app.core.security import decode_access_token
+            from app.core.security import verify_token
 
-            payload = decode_access_token(auth_header.split(" ", 1)[1])
+            payload = verify_token(auth_header.split(" ", 1)[1], token_type="access")
             if payload and "sub" in payload:
                 # Check for admin role — give higher limits
                 role = payload.get("role", "")

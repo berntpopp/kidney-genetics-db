@@ -4,7 +4,7 @@ Authentication schemas for request/response validation
 
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class Token(BaseModel):
@@ -66,8 +66,7 @@ class UserResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserUpdate(BaseModel):

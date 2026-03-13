@@ -44,6 +44,9 @@ class User(Base, TimestampMixin):
 
     # Relationships
     logs = relationship("SystemLog", back_populates="user")
+    refresh_tokens = relationship(
+        "RefreshToken", back_populates="user", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<User(username='{self.username}', email='{self.email}', role='{self.role}')>"

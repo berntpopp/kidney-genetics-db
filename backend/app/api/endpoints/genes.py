@@ -3,7 +3,6 @@ Gene API endpoints - JSON:API compliant using reusable components
 """
 
 import time
-from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Any
 
@@ -12,6 +11,7 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.cache_service import get_cache_service
 from app.core.datasource_config import API_DEFAULTS_CONFIG
 from app.core.exceptions import GeneNotFoundError, ValidationError
 from app.core.jsonapi import (
@@ -35,128 +35,102 @@ from app.schemas.network import (
 router = APIRouter()
 logger = get_logger(__name__)
 
-# Module-level cache for filter metadata (FastAPI recommended pattern)
-_metadata_cache: dict[str, Any] = {"data": None, "timestamp": None}
-_CACHE_TTL = timedelta(minutes=5)  # Semi-static data standard
+# Cache constants for CacheService integration
+METADATA_CACHE_KEY = "filter_metadata"
+METADATA_CACHE_NAMESPACE = "genes_metadata"
+METADATA_CACHE_TTL = 300  # 5 minutes
 
-# Module-level cache for HPO classifications (static data until pipeline runs)
-_hpo_classifications_cache: dict[str, Any] = {"data": None, "timestamp": None}
-_HPO_CACHE_TTL = timedelta(hours=1)  # HPO data changes infrequently
+HPO_CACHE_NAMESPACE = "hpo_classifications"
+HPO_CACHE_TTL = 3600  # 1 hour
 
-# Module-level cache for gene IDs queries (for URL state restoration)
-_gene_ids_cache: dict[str, Any] = {}
-_GENE_IDS_CACHE_TTL = timedelta(hours=1)  # Genes are semi-static
+GENE_IDS_CACHE_NAMESPACE = "gene_ids"
+GENE_IDS_CACHE_TTL = 3600  # 1 hour
 
-# Note: Gene annotations endpoint has been moved to the gene_annotations module
-# to maintain better separation of concerns and avoid duplicate endpoints
-
-
-def get_filter_metadata(db: Session) -> dict[str, Any]:
-    """
-    Get filter metadata with TTL-based caching.
-
-    Caches for 5 minutes (metadata only changes when pipeline runs).
-    Follows FastAPI best practice for semi-static data.
-
-    Returns:
-        dict: Filter metadata including max_count, sources, and tier distribution
-    """
-    now = datetime.utcnow()
-
-    # Check cache validity
-    cached_data: dict[str, Any] | None = _metadata_cache["data"]
-    if cached_data and _metadata_cache["timestamp"]:
-        age = now - _metadata_cache["timestamp"]
-        if age < _CACHE_TTL:
-            logger.sync_debug("Metadata cache HIT", age_seconds=round(age.total_seconds(), 2))
-            return cached_data
-
-    logger.sync_debug("Metadata cache MISS - fetching fresh data")
-
-    # Cache miss or expired - fetch fresh data
-    try:
-        # Max evidence count
-        max_count_result = db.execute(text("SELECT MAX(evidence_count) FROM gene_scores")).scalar()
-
-        # Available sources
-        sources_result = db.execute(
-            text("SELECT DISTINCT source_name FROM gene_evidence ORDER BY source_name")
-        ).fetchall()
-
-        # Tier distribution
-        tier_distribution_query = text("""
-            SELECT
-                evidence_group,
-                evidence_tier,
-                COUNT(*) as gene_count
-            FROM gene_scores
-            WHERE percentage_score > 0
-            GROUP BY evidence_group, evidence_tier
-            ORDER BY
-                CASE evidence_group
-                    WHEN 'well_supported' THEN 1
-                    WHEN 'emerging_evidence' THEN 2
-                    ELSE 3
-                END,
-                MIN(percentage_score) DESC
-        """)
-        tier_results = db.execute(tier_distribution_query).fetchall()
-
-        # Build tier metadata structure
-        tier_meta: dict[str, dict[str, int]] = {"well_supported": {}, "emerging_evidence": {}}
-
-        for row in tier_results:
-            group = row.evidence_group
-            tier = row.evidence_tier
-            count = row.gene_count
-            if group in tier_meta:
-                tier_meta[group][tier] = count
-
-        # Calculate group totals
-        tier_meta["well_supported"]["total"] = sum(tier_meta["well_supported"].values())
-        tier_meta["emerging_evidence"]["total"] = sum(tier_meta["emerging_evidence"].values())
-
-        metadata = {
-            "max_count": max_count_result or 0,
-            "sources": [row[0] for row in sources_result],
-            "tier_distribution": tier_meta,
-        }
-
-        # Update cache
-        _metadata_cache["data"] = metadata
-        _metadata_cache["timestamp"] = now
-
-        return metadata
-
-    except Exception as e:
-        # On error, return cached data if available, otherwise raise
-        logger.sync_error(f"Error fetching filter metadata: {e}")
-        stale_data: dict[str, Any] | None = _metadata_cache["data"]
-        if stale_data:
-            logger.sync_warning("Returning stale cached metadata due to error")
-            return stale_data
-        raise
+# Note: Gene annotations endpoints are in annotation_retrieval, annotation_updates,
+# and percentile_management modules
 
 
-def invalidate_metadata_cache() -> None:
-    """
-    Invalidate metadata cache.
-    Call this after pipeline updates to force fresh data on next request.
-    """
-    _metadata_cache["data"] = None
-    _metadata_cache["timestamp"] = None
+async def get_filter_metadata(db: Session) -> dict[str, Any]:
+    """Get filter metadata with CacheService caching."""
+    cache = get_cache_service(db)
+    cached: dict[str, Any] | None = await cache.get(
+        METADATA_CACHE_KEY, namespace=METADATA_CACHE_NAMESPACE
+    )
+    if cached is not None:
+        return cached
+
+    # Fetch fresh data
+    max_count_result = db.execute(text("SELECT MAX(evidence_count) FROM gene_scores")).scalar()
+    sources_result = db.execute(
+        text("SELECT DISTINCT source_name FROM gene_evidence ORDER BY source_name")
+    ).fetchall()
+
+    tier_distribution_query = text("""
+        SELECT evidence_group, evidence_tier, COUNT(*) as gene_count
+        FROM gene_scores WHERE percentage_score > 0
+        GROUP BY evidence_group, evidence_tier
+        ORDER BY
+            CASE evidence_group
+                WHEN 'well_supported' THEN 1
+                WHEN 'emerging_evidence' THEN 2
+                ELSE 3
+            END,
+            MIN(percentage_score) DESC
+    """)
+    tier_results = db.execute(tier_distribution_query).fetchall()
+
+    tier_meta: dict[str, dict[str, int]] = {"well_supported": {}, "emerging_evidence": {}}
+    for row in tier_results:
+        group = row.evidence_group
+        tier = row.evidence_tier
+        count = row.gene_count
+        if group in tier_meta:
+            tier_meta[group][tier] = count
+
+    tier_meta["well_supported"]["total"] = sum(tier_meta["well_supported"].values())
+    tier_meta["emerging_evidence"]["total"] = sum(tier_meta["emerging_evidence"].values())
+
+    metadata = {
+        "max_count": max_count_result or 0,
+        "sources": [row[0] for row in sources_result],
+        "tier_distribution": tier_meta,
+    }
+
+    await cache.set(
+        METADATA_CACHE_KEY,
+        metadata,
+        namespace=METADATA_CACHE_NAMESPACE,
+        ttl=METADATA_CACHE_TTL,
+    )
+    return metadata
+
+
+async def invalidate_metadata_cache(db: Session) -> None:
+    """Invalidate metadata cache via CacheService."""
+    cache = get_cache_service(db)
+    await cache.clear_namespace(METADATA_CACHE_NAMESPACE)
     logger.sync_info("Metadata cache invalidated")
 
 
-def clear_gene_ids_cache() -> None:
-    """
-    Clear gene IDs cache.
-    Call this after pipeline updates to force fresh data on next request.
-    Used for URL state restoration queries.
-    """
-    global _gene_ids_cache
-    _gene_ids_cache = {}
+async def clear_gene_ids_cache(db: Session) -> None:
+    """Clear gene IDs cache via CacheService."""
+    cache = get_cache_service(db)
+    await cache.clear_namespace(GENE_IDS_CACHE_NAMESPACE)
     logger.sync_info("Gene IDs cache cleared")
+
+
+def invalidate_metadata_cache_sync() -> None:
+    """Sync version for pipeline use."""
+    cache = get_cache_service(None)
+    cache.clear_namespace_sync(METADATA_CACHE_NAMESPACE)
+    logger.sync_info("Metadata cache invalidated (sync)")
+
+
+def clear_gene_ids_cache_sync() -> None:
+    """Sync version for pipeline use."""
+    cache = get_cache_service(None)
+    cache.clear_namespace_sync(GENE_IDS_CACHE_NAMESPACE)
+    logger.sync_info("Gene IDs cache cleared (sync)")
 
 
 @lru_cache(maxsize=1)
@@ -530,7 +504,7 @@ async def get_genes(
     data = transform_gene_to_jsonapi(results)
 
     # Get cached filter metadata (replaces 3 queries with single cached call)
-    cached_metadata = get_filter_metadata(db)
+    cached_metadata = await get_filter_metadata(db)
 
     filter_meta = {
         "evidence_score": {"min": 0, "max": 100},
@@ -692,23 +666,9 @@ async def get_gene_evidence(
             normalized_scores[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
 
     # Format evidence as JSON:API
-    evidence_data = []
-    for e in evidence:
-        evidence_data.append(
-            {
-                "type": "evidence",
-                "id": str(e.id),
-                "attributes": {
-                    "source_name": e.source_name,
-                    "source_detail": e.source_detail,
-                    "evidence_data": e.evidence_data,
-                    "evidence_date": e.evidence_date.isoformat() if e.evidence_date else None,
-                    "created_at": e.created_at.isoformat() if e.created_at else None,
-                    "normalized_score": normalized_scores.get(e.id, 0.0),
-                },
-                "relationships": {"gene": {"data": {"type": "genes", "id": str(gene.id)}}},
-            }
-        )
+    from app.crud.evidence_transform import transform_evidence_to_jsonapi
+
+    evidence_data = transform_evidence_to_jsonapi(evidence, gene.id, normalized_scores)
 
     return {
         "data": evidence_data,
@@ -799,28 +759,28 @@ async def get_hpo_classifications(
         cache_key=cache_key,
     )
 
-    # Check cache
-    now = datetime.utcnow()
-    if _hpo_classifications_cache.get(cache_key):
-        cached_data = _hpo_classifications_cache[cache_key]
-        if cached_data.get("timestamp"):
-            age = now - cached_data["timestamp"]
-            if age < _HPO_CACHE_TTL:
-                fetch_time_ms = round((time.time() - start_time) * 1000, 2)
-                await logger.info(
-                    "HPO classifications cache HIT",
-                    cache_age_seconds=round(age.total_seconds(), 2),
-                    fetch_time_ms=fetch_time_ms,
-                )
-                return {
-                    "data": cached_data["data"],
-                    "metadata": {
-                        "cached": True,
-                        "gene_count": len(cached_data["data"]),
-                        "fetch_time_ms": fetch_time_ms,
-                        "cache_age_seconds": round(age.total_seconds(), 2),
-                    },
-                }
+    # Check CacheService
+    cache = get_cache_service(db)
+    cached_data = await cache.get(cache_key, namespace=HPO_CACHE_NAMESPACE)
+    if cached_data is not None:
+        fetch_time_ms = round((time.time() - start_time) * 1000, 2)
+        await logger.info(
+            "HPO classifications cache HIT",
+            fetch_time_ms=fetch_time_ms,
+        )
+        # Reconstruct Pydantic models from cached dicts
+        classifications = [
+            HPOClassificationData(**item) if isinstance(item, dict) else item
+            for item in cached_data
+        ]
+        return {
+            "data": classifications,
+            "metadata": {
+                "cached": True,
+                "gene_count": len(classifications),
+                "fetch_time_ms": fetch_time_ms,
+            },
+        }
 
     await logger.debug("HPO classifications cache MISS - fetching from database")
 
@@ -860,11 +820,13 @@ async def get_hpo_classifications(
             fetch_time_ms=fetch_time_ms,
         )
 
-        # Update cache
-        _hpo_classifications_cache[cache_key] = {
-            "data": classifications,
-            "timestamp": now,
-        }
+        # Store in CacheService (serialize Pydantic models to dicts)
+        await cache.set(
+            cache_key,
+            [c.model_dump() if hasattr(c, "model_dump") else c.dict() for c in classifications],
+            namespace=HPO_CACHE_NAMESPACE,
+            ttl=HPO_CACHE_TTL,
+        )
 
         return {
             "data": classifications,

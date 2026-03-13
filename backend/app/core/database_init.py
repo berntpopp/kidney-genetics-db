@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
 from app.core.security import get_password_hash
+from app.db.safe_sql import safe_identifier
 from app.models.cache import CacheEntry
 from app.models.user import User
 from app.pipeline.aggregate import update_all_curations
@@ -117,9 +118,8 @@ async def create_database_views(db: Session) -> None:
             if view_def.name not in existing_views:
                 try:
                     # Use CREATE OR REPLACE for safer operation
-                    db.execute(
-                        text(f"CREATE OR REPLACE VIEW {view_def.name} AS {view_def.sqltext}")
-                    )
+                    name = safe_identifier(view_def.name)
+                    db.execute(text(f"CREATE OR REPLACE VIEW {name} AS {view_def.sqltext}"))
                     db.commit()  # Commit each view independently
                     created_count += 1
                     await logger.info(f"Created view: {view_def.name}")
@@ -228,7 +228,7 @@ async def create_default_admin(db: Session) -> bool:
             admin_user = User(
                 email=settings.ADMIN_EMAIL,
                 username=settings.ADMIN_USERNAME,
-                hashed_password=get_password_hash(settings.ADMIN_PASSWORD),
+                hashed_password=get_password_hash(settings.ADMIN_PASSWORD.get_secret_value()),
                 full_name="Administrator",
                 role="admin",
                 is_active=True,

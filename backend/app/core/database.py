@@ -59,8 +59,10 @@ def _cleanup_executor() -> None:
 atexit.register(_cleanup_executor)
 
 # Create database engine with robust connection management
+_database_url = settings.DATABASE_URL.get_secret_value()
+
 engine = create_engine(
-    settings.DATABASE_URL,
+    _database_url,
     echo=settings.DATABASE_ECHO,
     # Connection pooling with robustness settings
     pool_size=10,
@@ -75,7 +77,7 @@ engine = create_engine(
         "options": "-c idle_in_transaction_session_timeout=30000",  # 30 second timeout
         "connect_timeout": 10,
     }
-    if "postgresql" in settings.DATABASE_URL
+    if "postgresql" in _database_url
     else {},
     # Enable pool logging for debugging
     echo_pool=settings.DATABASE_ECHO,
@@ -165,7 +167,7 @@ def transactional_context(timeout_seconds: int = 300) -> Generator[Session, None
         db = SessionLocal()
 
         # Set a statement timeout for long-running operations
-        if "postgresql" in settings.DATABASE_URL:
+        if "postgresql" in _database_url:
             db.execute(text(f"SET statement_timeout = {timeout_seconds * 1000}"))
 
         yield db
@@ -322,7 +324,7 @@ def cleanup_idle_sessions() -> dict[str, Any]:
     """
     try:
         with get_db_context() as db:
-            if "postgresql" in settings.DATABASE_URL:
+            if "postgresql" in _database_url:
                 # Find idle transactions older than 5 minutes
                 result = db.execute(
                     text("""

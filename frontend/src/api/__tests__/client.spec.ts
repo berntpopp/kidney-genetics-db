@@ -37,7 +37,7 @@ vi.stubGlobal('_env_', { API_BASE_URL: 'http://test-api:8000' })
 vi.stubGlobal('localStorage', localStorageMock)
 
 // Import after mocks are set up
-import apiClient from '@/api/client'
+import apiClient, { setClientAccessToken } from '@/api/client'
 
 describe('apiClient', () => {
   beforeEach(() => {
@@ -71,9 +71,9 @@ describe('apiClient', () => {
     expect(responseHandlers.length).toBeGreaterThan(0)
   })
 
-  it('should set Authorization header when access_token is in localStorage', () => {
-    // Simulate a stored token
-    localStorageMock.setItem('access_token', 'test-jwt-token')
+  it('should set Authorization header when access token is set via setClientAccessToken', () => {
+    // Set token via module-level function (replaces localStorage approach)
+    setClientAccessToken('test-jwt-token')
 
     // Manually invoke the request interceptor
     const requestInterceptor = (
@@ -94,5 +94,8 @@ describe('apiClient', () => {
     expect((result.headers as Record<string, string>)['Authorization']).toBe(
       'Bearer test-jwt-token'
     )
+
+    // Cleanup
+    setClientAccessToken(null)
   })
 })
