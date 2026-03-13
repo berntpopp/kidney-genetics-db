@@ -227,7 +227,8 @@ def discover_from_database(connection: Connection) -> None:
     for view_name in inspector.get_view_names():
         # Get view definition from PostgreSQL
         result = connection.execute(
-            text(f"SELECT pg_get_viewdef('{view_name}'::regclass, true)")
+            text("SELECT pg_get_viewdef(:name::regclass, true)"),
+            {"name": view_name},
         ).scalar()
 
         obj = DatabaseObject(name=view_name, type=ObjectType.VIEW, definition=result)

@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_thread_pool_executor
 from app.core.logging import get_logger
 from app.core.view_monitoring import track_materialized_view_refresh
+from app.db.safe_sql import safe_identifier
 
 logger = get_logger(__name__)
 
@@ -102,30 +103,30 @@ class MaterializedViewManager:
                         WHEN percentage_score < 90 THEN '80-90%'
                         ELSE '90-100%'
                     END AS score_bin,
-                    classification,
+                    evidence_tier,
                     COUNT(*)::integer AS gene_count
                 FROM gene_scores
-                GROUP BY score_bin, classification
+                GROUP BY score_bin, evidence_tier
             ),
             source_distribution AS (
                 SELECT
                     source_count,
-                    classification,
+                    evidence_tier,
                     COUNT(*)::integer AS gene_count
                 FROM gene_scores
-                GROUP BY source_count, classification
+                GROUP BY source_count, evidence_tier
             )
             SELECT
                 'score_distribution'::text AS analysis_type,
                 score_bin AS category,
-                classification,
+                evidence_tier,
                 gene_count
             FROM score_bins
             UNION ALL
             SELECT
                 'source_distribution'::text AS analysis_type,
                 source_count::text AS category,
-                classification,
+                evidence_tier,
                 gene_count
             FROM source_distribution
             """,
@@ -349,7 +350,8 @@ class MaterializedViewManager:
             logger.sync_info(f"Refreshing materialized view: {view_name} ({refresh_clause})")
 
             start_time = datetime.now()
-            self.db.execute(text(f"REFRESH MATERIALIZED VIEW {refresh_clause} {view_name}"))
+            name = safe_identifier(view_name)
+            self.db.execute(text(f"REFRESH MATERIALIZED VIEW {refresh_clause} {name}"))
             self.db.commit()
 
             duration = (datetime.now() - start_time).total_seconds()
@@ -429,7 +431,8 @@ class MaterializedViewManager:
 
         try:
             logger.sync_info(f"Dropping materialized view: {view_name}")
-            self.db.execute(text(f"DROP MATERIALIZED VIEW IF EXISTS {view_name} CASCADE"))
+            name = safe_identifier(view_name)
+            self.db.execute(text(f"DROP MATERIALIZED VIEW IF EXISTS {name} CASCADE"))
             self.db.commit()
             logger.sync_info(f"Dropped materialized view: {view_name}")
 
@@ -458,7 +461,8 @@ class MaterializedViewManager:
             ).first()
 
             if size_result and size_result.exists:
-                row_count = self.db.execute(text(f"SELECT COUNT(*) FROM {view_name}")).scalar()
+                name = safe_identifier(view_name)
+                row_count = self.db.execute(text(f"SELECT COUNT(*) FROM {name}")).scalar()
 
                 stats.append(
                     {

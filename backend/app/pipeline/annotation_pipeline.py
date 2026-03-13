@@ -16,6 +16,7 @@ from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
 from app.core.resource_monitor import log_resource_checkpoint
 from app.core.retry_utils import RetryConfig, retry_with_backoff
+from app.db.safe_sql import refresh_materialized_view as safe_refresh_matview
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationSource, GeneAnnotation
 from app.models.progress import DataSourceProgress
@@ -914,14 +915,12 @@ class AnnotationPipeline:
 
                 for view_name in views_to_refresh:
                     try:
-                        view_db.execute(text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}"))
-                        view_db.commit()
+                        safe_refresh_matview(view_db, view_name, concurrent=True)
                         logger.sync_info(f"Materialized view {view_name} refreshed concurrently")
                     except Exception:
                         view_db.rollback()
                         try:
-                            view_db.execute(text(f"REFRESH MATERIALIZED VIEW {view_name}"))
-                            view_db.commit()
+                            safe_refresh_matview(view_db, view_name, concurrent=False)
                             logger.sync_info(
                                 f"Materialized view {view_name} refreshed (non-concurrent)"
                             )

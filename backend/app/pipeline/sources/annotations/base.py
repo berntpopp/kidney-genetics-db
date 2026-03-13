@@ -8,7 +8,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.cache_service import get_cache_service
@@ -18,6 +17,7 @@ from app.core.retry_utils import (
     RetryableHTTPClient,
     RetryConfig,
 )
+from app.db.safe_sql import refresh_materialized_view as safe_refresh_matview
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationHistory, AnnotationSource, GeneAnnotation
 
@@ -537,14 +537,12 @@ class BaseAnnotationSource(ABC):
 
         for view_name in views_to_refresh:
             try:
-                self.session.execute(text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}"))
-                self.session.commit()
+                safe_refresh_matview(self.session, view_name, concurrent=True)
                 logger.sync_info(f"Materialized view {view_name} refreshed")
             except Exception:
                 # Try without CONCURRENTLY if it fails
                 try:
-                    self.session.execute(text(f"REFRESH MATERIALIZED VIEW {view_name}"))
-                    self.session.commit()
+                    safe_refresh_matview(self.session, view_name, concurrent=False)
                     logger.sync_info(f"Materialized view {view_name} refreshed (non-concurrent)")
                 except Exception as e2:
                     logger.sync_error(f"Failed to refresh materialized view {view_name}: {e2}")
