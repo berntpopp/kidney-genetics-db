@@ -85,78 +85,119 @@ class CRUDStatistics:
 
             logger.sync_debug("WHERE clause built", where_clause=where_clause, params=params)
 
-            # Get source names and their gene counts (filtered by both source and score)
-            sources_query = f"""
+            # Single-query bitmask approach: assign a power-of-2 per source,
+            # sum per gene, group by bitmask. O(1) DB queries instead of O(2^n).
+
+            # Step 1: Get all source names for bitmask mapping
+            source_names_result = db.execute(
+                text(f"""
+                    SELECT DISTINCT gene_evidence.source_name
+                    FROM gene_evidence
+                    {join_clause}
+                    {where_clause}
+                    ORDER BY gene_evidence.source_name
+                """),
+                params,
+            ).fetchall()
+            source_names = [row[0] for row in source_names_result]
+
+            if not source_names:
+                return {
+                    "sets": [],
+                    "intersections": [],
+                    "total_unique_genes": 0,
+                    "overlap_statistics": {
+                        "highest_overlap_count": 0,
+                        "genes_in_all_sources": 0,
+                        "single_source_combinations": 0,
+                        "total_combinations": 0,
+                    },
+                }
+
+            # Build CASE expression for bitmask
+            case_parts = []
+            for i, _name in enumerate(source_names):
+                case_parts.append(
+                    f"WHEN gene_evidence.source_name = :src_{i} THEN {1 << i}"
+                )
+            case_expr = " ".join(case_parts)
+
+            source_params = {f"src_{i}": name for i, name in enumerate(source_names)}
+            all_params = {**params, **source_params}
+
+            # Step 2: Single query -- bitmask per gene, grouped
+            bitmask_query = f"""
+                WITH gene_bitmasks AS (
+                    SELECT
+                        gene_evidence.gene_id,
+                        SUM(DISTINCT CASE {case_expr} ELSE 0 END)::bigint
+                            AS source_bitmask
+                    FROM gene_evidence
+                    {join_clause}
+                    {where_clause}
+                    GROUP BY gene_evidence.gene_id
+                ),
+                bitmask_groups AS (
+                    SELECT
+                        source_bitmask,
+                        COUNT(*) AS gene_count,
+                        array_agg(gene_id ORDER BY gene_id) AS gene_ids
+                    FROM gene_bitmasks
+                    GROUP BY source_bitmask
+                )
                 SELECT
-                    gene_evidence.source_name,
-                    COUNT(DISTINCT gene_evidence.gene_id) as gene_count,
-                    array_agg(DISTINCT gene_evidence.gene_id ORDER BY gene_evidence.gene_id) as gene_ids
-                FROM gene_evidence
-                {join_clause}
-                {where_clause}
-                GROUP BY gene_evidence.source_name
-                ORDER BY gene_evidence.source_name
+                    bg.source_bitmask,
+                    bg.gene_count,
+                    array_agg(g.approved_symbol ORDER BY g.approved_symbol)
+                        AS gene_symbols
+                FROM bitmask_groups bg
+                JOIN LATERAL unnest(bg.gene_ids) AS gid ON true
+                JOIN genes g ON g.id = gid
+                GROUP BY bg.source_bitmask, bg.gene_count
+                ORDER BY bg.gene_count DESC
             """
 
-            sources_result = db.execute(text(sources_query), params).fetchall()
+            bitmask_results = db.execute(
+                text(bitmask_query), all_params
+            ).fetchall()
 
-            # Build sets data
-            sets = []
-            source_gene_map = {}
-
-            for row in sources_result:
-                source_name = row[0]
-                gene_count = row[1]
-                gene_ids = list(row[2]) if row[2] else []
-
-                sets.append({"name": source_name, "size": gene_count})
-                source_gene_map[source_name] = set(gene_ids)
-
-            # Calculate all possible intersections using set theory
-            source_names = list(source_gene_map.keys())
+            # Step 3: Decode bitmasks into source combinations
+            source_gene_counts: dict[str, int] = dict.fromkeys(source_names, 0)
             intersections: list[IntersectionDict] = []
 
-            # Generate all possible combinations (2^n - 1, excluding empty set)
-            from itertools import combinations
+            for row in bitmask_results:
+                bitmask = int(row[0])
+                gene_count = row[1]
+                gene_symbols = list(row[2]) if row[2] else []
 
-            for r in range(1, len(source_names) + 1):
-                for combo in combinations(source_names, r):
-                    # Find intersection of all sources in this combination
-                    gene_intersection = source_gene_map[combo[0]].copy()
-                    for source in combo[1:]:
-                        gene_intersection &= source_gene_map[source]
+                # Decode which sources this bitmask represents
+                combo_sources = [
+                    source_names[i]
+                    for i in range(len(source_names))
+                    if bitmask & (1 << i)
+                ]
 
-                    # Exclude genes that appear in sources not in this combination
-                    for source in source_names:
-                        if source not in combo:
-                            gene_intersection -= source_gene_map[source]
+                # Accumulate per-source totals
+                for src in combo_sources:
+                    source_gene_counts[src] += gene_count
 
-                    if gene_intersection:  # Only include non-empty intersections
-                        # Get gene symbols for the intersection
-                        gene_symbols = db.execute(
-                            text("""
-                                SELECT approved_symbol
-                                FROM genes
-                                WHERE id = ANY(:gene_ids)
-                                ORDER BY approved_symbol
-                            """),
-                            {"gene_ids": list(gene_intersection)},
-                        ).fetchall()
+                intersections.append({
+                    "sets": combo_sources,
+                    "size": gene_count,
+                    "genes": gene_symbols,
+                })
 
-                        intersections.append(
-                            {
-                                "sets": list(combo),
-                                "size": len(gene_intersection),
-                                "genes": [row[0] for row in gene_symbols],
-                            }
-                        )
+            # Build sets list
+            sets = [
+                {"name": name, "size": source_gene_counts[name]}
+                for name in source_names
+            ]
 
-            # Sort intersections by size (descending) for better visualization
+            # Sort intersections by size descending
             intersections.sort(key=lambda x: x["size"], reverse=True)
 
-            # Calculate summary statistics - count unique genes in selected sources
+            # Summary statistics - count unique genes
             if selected_sources:
-                # Use the same tier filter as the main query
                 total_genes_query = f"""
                     SELECT COUNT(DISTINCT gene_evidence.gene_id)
                     FROM gene_evidence
@@ -166,28 +207,34 @@ class CRUDStatistics:
                 """
                 total_unique_genes = (
                     db.execute(
-                        text(total_genes_query), {"selected_sources": selected_sources}
+                        text(total_genes_query),
+                        {"selected_sources": selected_sources},
                     ).scalar()
                     or 0
                 )
             else:
-                # If no source filter, count all genes respecting tier filter
                 total_genes_query = f"""
                     SELECT COUNT(DISTINCT gene_evidence.gene_id)
                     FROM gene_evidence
                     {join_clause}
                     WHERE {filter_clause}
                 """
-                total_unique_genes = db.execute(text(total_genes_query)).scalar() or 0
+                total_unique_genes = (
+                    db.execute(text(total_genes_query)).scalar() or 0
+                )
 
-            # Find genes that appear in all sources
-            all_sources_genes = set(source_gene_map[source_names[0]])
-            for source in source_names[1:]:
-                all_sources_genes &= source_gene_map[source]
+            # Find genes in all sources from bitmask results
+            genes_in_all_sources = 0
+            for intersection in intersections:
+                if len(intersection["sets"]) == len(source_names):
+                    genes_in_all_sources = intersection["size"]
+                    break
 
-            # Find genes that appear in only one source
+            # Count single-source combinations
             single_source_count = sum(
-                1 for intersection in intersections if len(intersection["sets"]) == 1
+                1
+                for intersection in intersections
+                if len(intersection["sets"]) == 1
             )
 
             return {
@@ -196,7 +243,7 @@ class CRUDStatistics:
                 "total_unique_genes": total_unique_genes,
                 "overlap_statistics": {
                     "highest_overlap_count": len(source_names),
-                    "genes_in_all_sources": len(all_sources_genes),
+                    "genes_in_all_sources": genes_in_all_sources,
                     "single_source_combinations": single_source_count,
                     "total_combinations": len(intersections),
                 },
