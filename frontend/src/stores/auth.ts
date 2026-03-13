@@ -126,26 +126,34 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * Initialize auth state — attempts silent refresh via HttpOnly cookie
+   * Initialize auth state — attempts silent refresh only if a prior session exists.
+   *
+   * A stored 'user' in localStorage signals the user was previously logged in,
+   * meaning an HttpOnly refresh cookie may still be valid. Without this guard,
+   * every anonymous page load would fire a failing POST /api/auth/refresh.
    */
   async function initialize(): Promise<void> {
-    // Try to restore user from localStorage as initial state
     const storedUser = localStorage.getItem('user')
-    if (storedUser) {
-      try {
-        user.value = JSON.parse(storedUser) as User
-      } catch (err: unknown) {
-        window.logService.error('Failed to parse stored user:', err)
-      }
+    if (!storedUser) {
+      // Never logged in — skip the network request entirely
+      return
     }
 
-    // Attempt silent refresh to get a fresh access token from cookie
+    // Restore cached user as optimistic state while we verify the session
+    try {
+      user.value = JSON.parse(storedUser) as User
+    } catch {
+      localStorage.removeItem('user')
+      return
+    }
+
+    // Attempt silent refresh to get a fresh access token from the cookie
     try {
       const response = await authApi.refreshToken()
       accessToken.value = response.access_token
       await fetchCurrentUser()
     } catch {
-      // No valid refresh cookie — user is not authenticated
+      // Cookie expired or was cleared — clean up stale local state
       accessToken.value = null
       user.value = null
       localStorage.removeItem('user')

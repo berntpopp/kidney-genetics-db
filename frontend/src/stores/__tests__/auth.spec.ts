@@ -227,6 +227,16 @@ describe('useAuthStore', () => {
   })
 
   describe('initialize', () => {
+    it('skips refresh when no prior session exists (no stored user)', async () => {
+      // No 'user' in localStorage → anonymous visitor, should not call refresh
+      const store = useAuthStore()
+      await store.initialize()
+
+      expect(mockAuthApi.refreshToken).not.toHaveBeenCalled()
+      expect(store.user).toBeNull()
+      expect(store.accessToken).toBeNull()
+    })
+
     it('restores user from localStorage and attempts silent refresh', async () => {
       localStorage.setItem('user', JSON.stringify(mockAdminUser))
       mockAuthApi.refreshToken.mockResolvedValue({ access_token: 'refreshed-token' })
