@@ -19,15 +19,17 @@ from app.api.endpoints import (
     admin_backups,
     admin_logs,
     admin_settings,
+    annotation_retrieval,
+    annotation_updates,
     auth,
     cache,
     client_logs,
     datasources,
-    gene_annotations,
     gene_staging,
     genes,
     ingestion,
     network_analysis,
+    percentile_management,
     progress,
     releases,
     seo,
@@ -287,7 +289,15 @@ app.include_router(auth.router, tags=["Authentication"])
 # 2. Core Resources - Primary domain entities
 app.include_router(genes.router, prefix="/api/genes", tags=["Core Resources - Genes"])
 app.include_router(
-    gene_annotations.router, prefix="/api/annotations", tags=["Core Resources - Annotations"]
+    annotation_retrieval.router, prefix="/api/annotations", tags=["Core Resources - Annotations"]
+)
+app.include_router(
+    annotation_updates.router, prefix="/api/annotations", tags=["Core Resources - Annotations"]
+)
+app.include_router(
+    percentile_management.router,
+    prefix="/api/annotations",
+    tags=["Core Resources - Annotations"],
 )
 app.include_router(
     datasources.router, prefix="/api/datasources", tags=["Core Resources - Data Sources"]

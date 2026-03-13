@@ -46,8 +46,8 @@ HPO_CACHE_TTL = 3600  # 1 hour
 GENE_IDS_CACHE_NAMESPACE = "gene_ids"
 GENE_IDS_CACHE_TTL = 3600  # 1 hour
 
-# Note: Gene annotations endpoint has been moved to the gene_annotations module
-# to maintain better separation of concerns and avoid duplicate endpoints
+# Note: Gene annotations endpoints are in annotation_retrieval, annotation_updates,
+# and percentile_management modules
 
 
 async def get_filter_metadata(db: Session) -> dict[str, Any]:
@@ -666,23 +666,9 @@ async def get_gene_evidence(
             normalized_scores[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
 
     # Format evidence as JSON:API
-    evidence_data = []
-    for e in evidence:
-        evidence_data.append(
-            {
-                "type": "evidence",
-                "id": str(e.id),
-                "attributes": {
-                    "source_name": e.source_name,
-                    "source_detail": e.source_detail,
-                    "evidence_data": e.evidence_data,
-                    "evidence_date": e.evidence_date.isoformat() if e.evidence_date else None,
-                    "created_at": e.created_at.isoformat() if e.created_at else None,
-                    "normalized_score": normalized_scores.get(e.id, 0.0),
-                },
-                "relationships": {"gene": {"data": {"type": "genes", "id": str(gene.id)}}},
-            }
-        )
+    from app.crud.evidence_transform import transform_evidence_to_jsonapi
+
+    evidence_data = transform_evidence_to_jsonapi(evidence, gene.id, normalized_scores)
 
     return {
         "data": evidence_data,
