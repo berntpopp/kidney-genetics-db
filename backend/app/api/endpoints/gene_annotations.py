@@ -12,6 +12,8 @@ from starlette.concurrency import run_in_threadpool
 
 from app.core.database import get_db
 from app.core.dependencies import require_admin
+from app.core.exceptions import GeneNotFoundError
+from app.core.exceptions import ValidationError as DomainValidationError
 from app.core.logging import get_logger
 from app.core.rate_limit import LIMIT_PIPELINE, limiter
 from app.db.safe_sql import refresh_materialized_view as safe_refresh_matview
@@ -71,7 +73,7 @@ async def get_gene_annotations(
     # Get the gene
     gene = db.query(Gene).filter(Gene.id == gene_id).first()
     if not gene:
-        raise HTTPException(status_code=404, detail="Gene not found")
+        raise GeneNotFoundError(gene_id)
 
     # Build query
     query = db.query(GeneAnnotation).filter(GeneAnnotation.gene_id == gene_id)
@@ -158,7 +160,7 @@ async def get_gene_annotation_summary(
 
     row = result.first()
     if not row:
-        raise HTTPException(status_code=404, detail="Gene annotation summary not found")
+        raise GeneNotFoundError(gene_id)
 
     summary = {
         "gene_id": row.gene_id,
@@ -222,7 +224,7 @@ async def update_gene_annotations(
     # Get the gene
     gene = db.query(Gene).filter(Gene.id == gene_id).first()
     if not gene:
-        raise HTTPException(status_code=404, detail="Gene not found")
+        raise GeneNotFoundError(gene_id)
 
     # Schedule background updates
     for source_name in sources:
@@ -619,8 +621,8 @@ async def refresh_global_percentiles(
     # Validate source
     valid_sources = ["string_ppi", "gnomad", "gtex"]
     if source not in valid_sources:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid source. Must be one of: {valid_sources}"
+        raise DomainValidationError(
+            field="source", reason=f"Invalid source. Must be one of: {valid_sources}"
         )
 
     # Schedule background task
@@ -770,9 +772,9 @@ async def trigger_pipeline_update(
     try:
         update_strategy = UpdateStrategy(strategy)
     except ValueError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid strategy. Must be one of: {[s.value for s in UpdateStrategy]}",
+        raise DomainValidationError(
+            field="strategy",
+            reason=f"Invalid strategy. Must be one of: {[s.value for s in UpdateStrategy]}",
         ) from e
 
     # Generate task ID
@@ -986,7 +988,7 @@ async def update_missing_source(
     source = db.query(AnnotationSource).filter_by(source_name=source_name, is_active=True).first()
 
     if not source:
-        raise HTTPException(status_code=404, detail=f"Source {source_name} not found or inactive")
+        raise GeneNotFoundError(source_name)
 
     # Generate task ID
     import uuid
@@ -1229,7 +1231,7 @@ async def trigger_scheduled_job(
             "message": f"Job {job_id} has been triggered",
         }
     else:
-        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+        raise GeneNotFoundError(job_id)
 
 
 # Cache management endpoints have been moved to /api/admin/cache
@@ -1258,7 +1260,9 @@ async def batch_get_annotations(
     """
     # Limit batch size
     if len(gene_ids) > 100:
-        raise HTTPException(status_code=400, detail="Batch size limited to 100 genes")
+        raise DomainValidationError(
+            field="gene_ids", reason="Batch size limited to 100 genes"
+        )
 
     # Build query
     query = db.query(GeneAnnotation).filter(GeneAnnotation.gene_id.in_(gene_ids))
