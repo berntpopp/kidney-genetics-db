@@ -29,7 +29,6 @@ from app.schemas.auth import (
     PasswordChange,
     PasswordReset,
     PasswordResetConfirm,
-    RefreshTokenRequest,
     Token,
     UserRegister,
     UserResponse,
@@ -196,12 +195,14 @@ async def login(
             "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         }
     )
+    # secure=True requires HTTPS; disable in dev so cookies work on localhost
+    is_production = settings.ENVIRONMENT not in ("dev", "development", "test")
     json_response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,
-        samesite="strict",
+        secure=is_production,
+        samesite="lax" if not is_production else "strict",
         path="/api/auth",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
     )
@@ -211,21 +212,24 @@ async def login(
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
     request: Request,
-    body: RefreshTokenRequest | None = None,
     db: Session = Depends(get_db),
-    cookie_refresh_token: str | None = None,
 ) -> dict[str, Any]:
     """
     Refresh access token using refresh token from HttpOnly cookie or request body.
     """
-    # Lightweight CSRF check — SameSite=Strict handles most cases
+    # Lightweight CSRF check — SameSite handles most cases
     if request.headers.get("X-Requested-With") != "XMLHttpRequest":
         raise HTTPException(status_code=403, detail="CSRF check failed")
 
-    # Accept token from cookie first, then body (backward compat)
-    token = request.cookies.get("refresh_token") or cookie_refresh_token
-    if not token and body:
-        token = body.refresh_token
+    # Accept token from cookie first, then JSON body (backward compat)
+    token = request.cookies.get("refresh_token")
+    if not token:
+        # Try to read from JSON body for backward compatibility
+        try:
+            body = await request.json()
+            token = body.get("refresh_token") if isinstance(body, dict) else None
+        except Exception:
+            token = None
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No refresh token")
 
