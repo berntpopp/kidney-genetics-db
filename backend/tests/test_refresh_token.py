@@ -60,6 +60,16 @@ class TestOpaqueRefreshToken:
 class TestTokenRotation:
     """Verify refresh token rotation and family-based reuse detection."""
 
+    @pytest.fixture(autouse=True)
+    def _create_test_user(self, db_session):
+        """Create a test user for FK constraint satisfaction."""
+        from tests.factories import UserFactory
+
+        self.user = UserFactory.build()
+        self.user._session = db_session
+        db_session.add(self.user)
+        db_session.flush()
+
     def test_refresh_returns_new_token(self, db_session):
         """Creating and revoking a token should work."""
         from app.core.security import create_opaque_refresh_token
@@ -69,7 +79,7 @@ class TestTokenRotation:
         rt = RefreshToken(
             token_hash=token_hash,
             family_id="test-family",
-            user_id=1,
+            user_id=self.user.id,
             expires_at=datetime.now(timezone.utc) + timedelta(days=7),
         )
         db_session.add(rt)
@@ -85,14 +95,14 @@ class TestTokenRotation:
         rt1 = RefreshToken(
             token_hash="hash1_unique_test",
             family_id=family_id,
-            user_id=1,
+            user_id=self.user.id,
             is_revoked=True,
             expires_at=datetime.now(timezone.utc) + timedelta(days=7),
         )
         rt2 = RefreshToken(
             token_hash="hash2_unique_test",
             family_id=family_id,
-            user_id=1,
+            user_id=self.user.id,
             is_revoked=False,
             expires_at=datetime.now(timezone.utc) + timedelta(days=7),
         )
