@@ -275,5 +275,7 @@ import { useWebSocket } from '@/services/websocket'
 - Environment-based secrets configuration
 - Bcrypt password hashing (12 rounds)
 
-## Historical Documentation
-Implementation notes and planning documents are archived in `.planning/archive/`.
+## Planning & Documentation
+- **All planning documents** live in `.planning/` (PROJECT.md, ROADMAP.md, REQUIREMENTS.md, STATE.md, MILESTONES.md)
+- **Archived/completed plans** are in `.planning/archive/`
+- There is no separate `docs/` directory — `.planning/` is the single location for all project documentation.
