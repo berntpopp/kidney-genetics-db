@@ -7,7 +7,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from jose import JWTError, jwt
+import jwt
 from passlib.context import CryptContext
 
 from app.core.config import settings
@@ -136,7 +136,7 @@ def verify_token(token: str, token_type: str = "access") -> dict[str, Any] | Non
             return None
 
         return payload
-    except JWTError:
+    except jwt.PyJWTError:
         return None
 
 
