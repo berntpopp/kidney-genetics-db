@@ -142,9 +142,9 @@ def generate_cluster_colors(num_clusters: int) -> dict[int, str]:
 @limiter.limit(LIMIT_NETWORK)
 @cache(namespace="network_analysis", ttl=3600)
 async def build_network(
-    http_request: Request,
+    request: Request,
     response: Response,
-    request: NetworkBuildRequest,
+    body: NetworkBuildRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
@@ -158,25 +158,25 @@ async def build_network(
     start_time = time.time()
 
     # Validate max nodes
-    if len(request.gene_ids) > 2000:
+    if len(body.gene_ids) > 2000:
         raise ValidationError(
-            field="gene_ids", reason=f"Maximum 2000 genes allowed, got {len(request.gene_ids)}"
+            field="gene_ids", reason=f"Maximum 2000 genes allowed, got {len(body.gene_ids)}"
         )
 
     # Get gene symbols for Cytoscape labels
-    genes = db.query(Gene).filter(Gene.id.in_(request.gene_ids)).all()
+    genes = db.query(Gene).filter(Gene.id.in_(body.gene_ids)).all()
     gene_id_to_symbol = {g.id: g.approved_symbol for g in genes}
 
     if not gene_id_to_symbol:
         raise HTTPException(status_code=404, detail="No valid genes found")
 
     await logger.info(
-        "Building network", gene_count=len(request.gene_ids), min_score=request.min_string_score
+        "Building network", gene_count=len(body.gene_ids), min_score=body.min_string_score
     )
 
     # Build network using service
     graph = await network_service.build_network_from_string_data(
-        gene_ids=request.gene_ids, session=db, min_string_score=request.min_string_score
+        gene_ids=body.gene_ids, session=db, min_string_score=body.min_string_score
     )
 
     await logger.info(
@@ -187,19 +187,19 @@ async def build_network(
     )
 
     # Apply filtering if requested
-    if request.min_degree > 0 or request.remove_isolated or request.largest_component_only:
+    if body.min_degree > 0 or body.remove_isolated or body.largest_component_only:
         await logger.info(
             "Applying network filters",
-            min_degree=request.min_degree,
-            remove_isolated=request.remove_isolated,
-            largest_component_only=request.largest_component_only,
+            min_degree=body.min_degree,
+            remove_isolated=body.remove_isolated,
+            largest_component_only=body.largest_component_only,
         )
         graph = await network_service.filter_network(
             graph=graph,
             session=db,
-            min_degree=request.min_degree,
-            remove_isolated=request.remove_isolated,
-            largest_component_only=request.largest_component_only,
+            min_degree=body.min_degree,
+            remove_isolated=body.remove_isolated,
+            largest_component_only=body.largest_component_only,
         )
         await logger.info(
             "Network filtering applied", final_nodes=graph.vcount(), final_edges=graph.ecount()
@@ -230,9 +230,9 @@ async def build_network(
 @limiter.limit(LIMIT_NETWORK)
 @cache(namespace="network_analysis", ttl=3600)
 async def cluster_network(
-    http_request: Request,
+    request: Request,
     response: Response,
-    request: NetworkClusterRequest,
+    body: NetworkClusterRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
@@ -245,13 +245,13 @@ async def cluster_network(
     start_time = time.time()
 
     # Validate max nodes
-    if len(request.gene_ids) > 2000:
+    if len(body.gene_ids) > 2000:
         raise ValidationError(
-            field="gene_ids", reason=f"Maximum 2000 genes allowed, got {len(request.gene_ids)}"
+            field="gene_ids", reason=f"Maximum 2000 genes allowed, got {len(body.gene_ids)}"
         )
 
     # Get gene symbols
-    genes = db.query(Gene).filter(Gene.id.in_(request.gene_ids)).all()
+    genes = db.query(Gene).filter(Gene.id.in_(body.gene_ids)).all()
     gene_id_to_symbol = {g.id: g.approved_symbol for g in genes}
 
     if not gene_id_to_symbol:
@@ -259,35 +259,35 @@ async def cluster_network(
 
     await logger.info(
         "Clustering network",
-        gene_count=len(request.gene_ids),
-        algorithm=request.algorithm,
-        remove_isolated=request.remove_isolated,
-        min_degree=request.min_degree,
-        min_cluster_size=request.min_cluster_size,
-        largest_component_only=request.largest_component_only,
+        gene_count=len(body.gene_ids),
+        algorithm=body.algorithm,
+        remove_isolated=body.remove_isolated,
+        min_degree=body.min_degree,
+        min_cluster_size=body.min_cluster_size,
+        largest_component_only=body.largest_component_only,
     )
 
     # Build network
     graph = await network_service.build_network_from_string_data(
-        gene_ids=request.gene_ids, session=db, min_string_score=request.min_string_score
+        gene_ids=body.gene_ids, session=db, min_string_score=body.min_string_score
     )
 
     await logger.info("Initial network for clustering", nodes=graph.vcount(), edges=graph.ecount())
 
     # Apply node filtering if requested
-    if request.min_degree > 0 or request.remove_isolated or request.largest_component_only:
+    if body.min_degree > 0 or body.remove_isolated or body.largest_component_only:
         await logger.info(
             "Applying node filters before clustering",
-            min_degree=request.min_degree,
-            remove_isolated=request.remove_isolated,
-            largest_component_only=request.largest_component_only,
+            min_degree=body.min_degree,
+            remove_isolated=body.remove_isolated,
+            largest_component_only=body.largest_component_only,
         )
         graph = await network_service.filter_network(
             graph=graph,
             session=db,
-            min_degree=request.min_degree,
-            remove_isolated=request.remove_isolated,
-            largest_component_only=request.largest_component_only,
+            min_degree=body.min_degree,
+            remove_isolated=body.remove_isolated,
+            largest_component_only=body.largest_component_only,
         )
         await logger.info(
             "Node filtering complete", filtered_nodes=graph.vcount(), filtered_edges=graph.ecount()
@@ -295,18 +295,18 @@ async def cluster_network(
 
     # Detect communities
     gene_to_cluster, modularity = await network_service.detect_communities(
-        graph=graph, session=db, algorithm=request.algorithm
+        graph=graph, session=db, algorithm=body.algorithm
     )
 
     # Apply cluster size filtering if requested
-    if request.min_cluster_size > 1:
+    if body.min_cluster_size > 1:
         await logger.info(
             "Filtering clusters by size",
             original_clusters=len(set(gene_to_cluster.values())),
-            min_cluster_size=request.min_cluster_size,
+            min_cluster_size=body.min_cluster_size,
         )
         gene_to_cluster = await network_service.filter_clusters_by_size(
-            gene_to_cluster=gene_to_cluster, session=db, min_cluster_size=request.min_cluster_size
+            gene_to_cluster=gene_to_cluster, session=db, min_cluster_size=body.min_cluster_size
         )
 
         # CRITICAL: Filter graph to only include genes in filtered clusters
