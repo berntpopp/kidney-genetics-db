@@ -137,11 +137,20 @@ function acknowledgeDisclaimer() {
             </TooltipContent>
           </Tooltip>
 
-          <!-- Research disclaimer (center) -->
-          <Separator orientation="vertical" class="h-4 mx-1" />
-          <span class="text-[10px] text-muted-foreground hidden sm:inline">
-            For research use only — not for clinical decisions
-          </span>
+          <!-- Backend status -->
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <div class="flex items-center">
+                <Server
+                  class="size-3"
+                  :class="backendReachable ? 'text-green-500' : 'text-destructive'"
+                />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>Backend: {{ backendReachable ? `v${backendVersion}` : 'unreachable' }}</p>
+            </TooltipContent>
+          </Tooltip>
         </TooltipProvider>
       </div>
 
@@ -262,28 +271,22 @@ function acknowledgeDisclaimer() {
         </DialogHeader>
         <div class="space-y-3 text-sm">
           <p>
-            The <strong>Kidney Genetics Database (KGDB)</strong> is a research tool that aggregates
-            gene-disease associations from multiple public databases. It is provided
-            <strong>as-is</strong> for informational and research purposes only.
+            The <strong>Kidney Genetics Database (KGDB)</strong> aggregates gene-disease association
+            data from multiple public sources including ClinGen, GenCC, PanelApp, HPO, ClinVar,
+            gnomAD, and PubMed.
           </p>
           <div class="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-3">
-            <p class="font-medium text-amber-800 dark:text-amber-200">
-              This tool is NOT intended for:
+            <p class="text-amber-800 dark:text-amber-200 text-xs">
+              The information on this website is not intended for direct diagnostic use or medical
+              decision-making without review by a genetics professional. Individuals should not
+              change their health behavior solely on the basis of information contained on this
+              website. KGDB does not independently verify the data obtained from these sources.
             </p>
-            <ul class="list-disc list-inside mt-1 text-amber-700 dark:text-amber-300 text-xs">
-              <li>Clinical diagnosis or treatment decisions</li>
-              <li>Genetic counseling or patient care</li>
-              <li>Regulatory or compliance purposes</li>
-            </ul>
           </div>
           <p class="text-xs text-muted-foreground">
-            Data is sourced from ClinGen, GenCC, PanelApp, HPO, PubTator, and other public
-            databases. While we strive for accuracy, data may be incomplete, outdated, or contain
-            errors. Always verify findings against primary sources and consult qualified
-            professionals for clinical decisions.
-          </p>
-          <p class="text-xs text-muted-foreground">
-            Licensed under the
+            Data may be incomplete, outdated, or contain errors inherent to the original sources.
+            Researchers should always verify findings against primary source databases. This tool is
+            provided as-is under the
             <a
               :href="`${GITHUB_URL}/blob/main/LICENSE`"
               target="_blank"
@@ -291,11 +294,6 @@ function acknowledgeDisclaimer() {
               class="underline"
             >
               MIT License
-              <ExternalLink class="size-2.5 inline" />
-            </a>
-            . Source code available on
-            <a :href="GITHUB_URL" target="_blank" rel="noopener noreferrer" class="underline">
-              GitHub
               <ExternalLink class="size-2.5 inline" />
             </a>
             .
