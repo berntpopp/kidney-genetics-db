@@ -10,7 +10,7 @@ import { useHead } from '@unhead/vue'
 
 const SITE_URL = (import.meta.env.VITE_SITE_URL as string) || 'https://kidney-genetics.org'
 const SITE_NAME = 'Kidney Genetics Database'
-const DEFAULT_OG_IMAGE = `${SITE_URL}/icon-512.png`
+const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`
 
 export interface SeoMetaOptions {
   /** Page title — will be suffixed with " | KGDB" */
