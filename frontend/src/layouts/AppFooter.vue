@@ -61,7 +61,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <footer class="border-t bg-background py-1">
+  <footer class="fixed bottom-0 left-0 right-0 z-40 border-t bg-background py-1">
     <div class="container mx-auto flex items-center justify-between px-4">
       <!-- Left: Version Information -->
       <Popover>

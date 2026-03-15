@@ -6,7 +6,6 @@ import {
   FileJson,
   Download,
   Trash,
-  X,
   Search,
   Filter,
   Copy,
@@ -225,15 +224,6 @@ watch(
               @click="clearLogs"
             >
               <Trash :size="16" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
-              title="Close log viewer"
-              @click="logStore.hideViewer"
-            >
-              <X :size="16" />
             </Button>
           </div>
         </div>
