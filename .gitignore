@@ -1,6 +1,9 @@
 # Worktrees
 .worktrees/
 
+# Superpowers brainstorm sessions
+.superpowers/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -93,6 +96,9 @@ backend/backend/
 
 # Backup files
 *.backup
+
+# Lighthouse reports
+.planning/seo/lighthouse/
 
 # Release exports
 backend/exports/
