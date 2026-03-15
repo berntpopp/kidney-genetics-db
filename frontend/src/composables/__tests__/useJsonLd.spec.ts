@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getGeneSchema } from '../useJsonLd'
+import { getGeneSchema, getDatasetSchema, getOrganizationWebSiteSchema } from '../useJsonLd'
 
 describe('getGeneSchema', () => {
   it('includes BioSchemas conformsTo and required properties', () => {
@@ -37,5 +37,26 @@ describe('getGeneSchema', () => {
     expect(schema.name).toBe('UNKNOWN')
     expect(schema.identifier).toBe('UNKNOWN')
     expect(schema.sameAs).toEqual([])
+  })
+})
+
+describe('getDatasetSchema', () => {
+  it('includes distribution and isAccessibleForFree', () => {
+    const schema = getDatasetSchema(5183, '2026-03-15')
+    expect(schema.isAccessibleForFree).toBe(true)
+    expect(schema.distribution).toBeDefined()
+    expect(schema.distribution['@type']).toBe('DataDownload')
+    expect(schema.variableMeasured['@type']).toBe('PropertyValue')
+    expect(schema.keywords).toContain('nephrology gene panel')
+  })
+})
+
+describe('getOrganizationWebSiteSchema', () => {
+  it('includes sameAs and description on Organization', () => {
+    const schema = getOrganizationWebSiteSchema()
+    const org = schema['@graph'].find((e: Record<string, unknown>) => e['@type'] === 'Organization')
+    expect(org).toBeDefined()
+    expect(org!.sameAs).toBeInstanceOf(Array)
+    expect(org!.description).toBeDefined()
   })
 })

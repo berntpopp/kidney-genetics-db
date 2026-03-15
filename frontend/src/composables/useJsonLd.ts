@@ -43,7 +43,15 @@ export function getOrganizationWebSiteSchema() {
         '@id': `${SITE_URL}/#organization`,
         name: SITE_NAME,
         url: SITE_URL,
-        logo: `${SITE_URL}/icon-512.png`
+        description:
+          'Research platform for evidence-based kidney disease gene curation with multi-source integration.',
+        logo: {
+          '@type': 'ImageObject',
+          url: `${SITE_URL}/icon-512.png`,
+          width: 512,
+          height: 512
+        },
+        sameAs: ['https://github.com/berntpopp/kidney-genetics-db']
       },
       {
         '@type': 'WebSite',
@@ -71,9 +79,10 @@ export function getDatasetSchema(geneCount?: number, lastUpdate?: string) {
     '@type': 'Dataset',
     name: 'Kidney Genetics Database',
     description:
-      'Evidence-based kidney disease gene curation with multi-source integration from PanelApp, ClinGen, GenCC, HPO, and more.',
+      'Evidence-based kidney disease gene curation with multi-source integration. Curated nephrology gene panel and renal genetics resource from PanelApp, ClinGen, GenCC, HPO, and more.',
     url: SITE_URL,
     license: 'https://creativecommons.org/licenses/by/4.0/',
+    isAccessibleForFree: true,
     creator: { '@id': `${SITE_URL}/#organization` },
     keywords: [
       'kidney genetics',
@@ -81,9 +90,26 @@ export function getDatasetSchema(geneCount?: number, lastUpdate?: string) {
       'genomics',
       'gene curation',
       'kidney disease',
-      'genetic research'
+      'genetic research',
+      'nephrology gene panel',
+      'renal genetics database',
+      'nephropathy gene list',
+      'kidney genomics resource'
     ],
-    ...(geneCount != null ? { variableMeasured: `${geneCount} genes` } : {}),
+    distribution: {
+      '@type': 'DataDownload',
+      encodingFormat: 'application/json',
+      contentUrl: `${SITE_URL}/api/genes`
+    },
+    ...(geneCount != null
+      ? {
+          variableMeasured: {
+            '@type': 'PropertyValue',
+            name: 'Number of curated genes',
+            value: geneCount
+          }
+        }
+      : {}),
     ...(lastUpdate ? { dateModified: lastUpdate } : {})
   }
 }
