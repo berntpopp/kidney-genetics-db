@@ -628,6 +628,20 @@ db-verify-tables:
 db-verify-complete: db-verify-tables db-verify-views db-validate-schema
 	@echo "✅ Complete schema verification done"
 
+# Seed initial data from backend/app/data/seed/ (DiagnosticPanels + Literature)
+db-seed-initial:
+	@echo "Seeding initial data from seed files..."
+	@cd backend && uv run python -c "\
+		from app.core.database import SessionLocal; \
+		from app.core.initial_seeder import needs_initial_seeding, run_initial_seeding; \
+		import asyncio; \
+		db = SessionLocal(); \
+		print('Needs seeding:', needs_initial_seeding(db)); \
+		results = asyncio.run(run_initial_seeding(db)); \
+		print('Results:', results); \
+		db.close()"
+	@echo "Initial seeding complete!"
+
 # Show detailed view dependencies
 db-show-view-deps:
 	@echo "📊 View dependency hierarchy:"
