@@ -65,9 +65,9 @@ engine = create_engine(
     _database_url,
     echo=settings.DATABASE_ECHO,
     # Connection pooling with robustness settings
-    pool_size=10,
-    max_overflow=15,
-    pool_timeout=30,
+    pool_size=15,
+    max_overflow=20,
+    pool_timeout=10,  # Fail fast rather than hang for 30 seconds
     pool_recycle=3600,  # Recycle connections after 1 hour
     pool_pre_ping=True,  # Test connections before use
     pool_use_lifo=True,  # Use LIFO for better connection reuse
