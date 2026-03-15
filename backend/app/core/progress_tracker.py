@@ -40,16 +40,6 @@ class ProgressTracker:
 
     def _get_or_create_progress(self) -> DataSourceProgress:
         """Get or create progress record for this source"""
-        # Don't create progress records for manual upload sources
-        manual_upload_sources = ["DiagnosticPanels"]
-        if self.source_name in manual_upload_sources:
-            # Return a temporary non-persisted record for manual sources
-            return DataSourceProgress(
-                source_name=self.source_name,
-                status=SourceStatus.idle,
-                progress_metadata={"upload_type": "manual"},
-            )
-
         progress: DataSourceProgress | None = (
             self.db.query(DataSourceProgress).filter_by(source_name=self.source_name).first()
         )
@@ -335,78 +325,61 @@ class ProgressTracker:
         )
 
         try:
-            # Don't commit manual upload sources to database
-            manual_upload_sources = ["DiagnosticPanels"]
-            if self.source_name not in manual_upload_sources:
-                logger.sync_debug(
-                    "Committing to database",
-                    source_name=self.source_name,
-                    progress_id=self.progress_record.id
-                    if hasattr(self.progress_record, "id")
-                    else None,
-                )
+            logger.sync_debug(
+                "Committing to database",
+                source_name=self.source_name,
+                progress_id=self.progress_record.id
+                if hasattr(self.progress_record, "id")
+                else None,
+            )
 
-                # Ensure the progress record is marked as modified
-                if self.progress_record in self.db:
-                    # Mark object as dirty to ensure SQLAlchemy tracks changes
-                    # Explicitly set the status to ensure it's not overwritten
-                    current_status = self.progress_record.status
-                    self.db.add(self.progress_record)
-                    # Double-check status didn't change after adding to session
-                    if self.progress_record.status != current_status:
-                        logger.sync_warning(
-                            "Status changed after adding to session!",
-                            source_name=self.source_name,
-                            expected_status=str(current_status),
-                            actual_status=str(self.progress_record.status),
-                        )
-                        # Force the correct status
-                        self.progress_record.status = current_status
-                else:
+            # Ensure the progress record is in the session
+            if self.progress_record in self.db:
+                current_status = self.progress_record.status
+                self.db.add(self.progress_record)
+                if self.progress_record.status != current_status:
                     logger.sync_warning(
-                        "Progress record not in session, merging it",
+                        "Status changed after adding to session!",
                         source_name=self.source_name,
+                        expected_status=str(current_status),
+                        actual_status=str(self.progress_record.status),
                     )
-                    # Use merge instead of add to avoid conflicts
-                    self.progress_record = self.db.merge(self.progress_record)
+                    self.progress_record.status = current_status
+            else:
+                logger.sync_warning(
+                    "Progress record not in session, merging it",
+                    source_name=self.source_name,
+                )
+                self.progress_record = self.db.merge(self.progress_record)
 
-                # BUGFIX: Handle stale database connections with retry
-                # SQLAlchemy's pool_pre_ping handles most cases, but we add retry for edge cases
-                max_retries = 2
-                for attempt in range(max_retries):
-                    try:
-                        self.db.commit()
-                        logger.sync_debug(
-                            "Database commit successful",
+            # Handle stale database connections with retry
+            max_retries = 2
+            for attempt in range(max_retries):
+                try:
+                    self.db.commit()
+                    logger.sync_debug(
+                        "Database commit successful",
+                        source_name=self.source_name,
+                        attempt=attempt + 1,
+                    )
+                    break
+                except (DisconnectionError, OperationalError) as e:
+                    if attempt < max_retries - 1:
+                        logger.sync_warning(
+                            "Database connection error, retrying",
                             source_name=self.source_name,
                             attempt=attempt + 1,
+                            error=str(e),
                         )
-                        break
-                    except (DisconnectionError, OperationalError) as e:
-                        # Connection was lost - SQLAlchemy will handle reconnection
-                        if attempt < max_retries - 1:
-                            logger.sync_warning(
-                                "Database connection error, retrying",
-                                source_name=self.source_name,
-                                attempt=attempt + 1,
-                                error=str(e),
-                            )
-                            self.db.rollback()
-                            # SQLAlchemy's pool_pre_ping will test connection on next use
-                            continue
-                        else:
-                            # Final retry failed
-                            logger.sync_error(
-                                "Database commit failed after retries",
-                                source_name=self.source_name,
-                                error=str(e),
-                            )
-                            raise
-            else:
-                logger.sync_debug(
-                    "Skipping database commit for manual upload source",
-                    source_name=self.source_name,
-                )
+                        self.db.rollback()
+                        continue
+                    else:
+                        logger.sync_error(
+                            "Database commit failed after retries",
+                            source_name=self.source_name,
+                            error=str(e),
+                        )
+                        raise
 
             # Publish to event bus instead of direct callback
             # This eliminates the need for complex async/sync handling
