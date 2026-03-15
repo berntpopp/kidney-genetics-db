@@ -14,7 +14,8 @@ const props = defineProps<AlertDialogContentProps & { class?: HTMLAttributes['cl
 const emits = defineEmits<AlertDialogContentEmits>()
 
 const delegatedProps = computed(() => {
-  const { class: _, ...delegated } = props
+  // eslint-disable-next-line no-unused-vars
+  const { class: _cls, ...delegated } = props
   return delegated
 })
 

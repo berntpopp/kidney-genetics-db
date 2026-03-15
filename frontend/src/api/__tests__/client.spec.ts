@@ -78,7 +78,9 @@ describe('apiClient', () => {
     // Manually invoke the request interceptor
     const requestInterceptor = (
       apiClient.interceptors.request as unknown as {
-        handlers: Array<{ fulfilled: (config: Record<string, unknown>) => Record<string, unknown> }>
+        handlers: Array<{
+          fulfilled: (_config: Record<string, unknown>) => Record<string, unknown>
+        }>
       }
     ).handlers[0]
 

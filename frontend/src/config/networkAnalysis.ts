@@ -16,7 +16,7 @@ export interface ColorModeOption {
 export interface WarningMessageConfig {
   title: string
   threshold: number
-  message: (count: number) => string
+  message: (_count: number) => string
 }
 
 /** Network analysis configuration shape */

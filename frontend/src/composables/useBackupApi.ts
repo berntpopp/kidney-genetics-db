@@ -43,11 +43,11 @@ export interface BackupApiReturn {
   loading: Ref<boolean>
   error: Ref<string | null>
   loadStats: () => Promise<unknown>
-  loadBackups: (params?: BackupListParams) => Promise<unknown>
-  createBackup: (backupData: BackupCreateOptions) => Promise<unknown>
-  restoreBackup: (backupId: number, restoreOptions: RestoreOptions) => Promise<unknown>
-  downloadBackup: (backup: BackupRecord) => Promise<boolean>
-  deleteBackup: (backupId: number) => Promise<unknown>
+  loadBackups: (_params?: BackupListParams) => Promise<unknown>
+  createBackup: (_backupData: BackupCreateOptions) => Promise<unknown>
+  restoreBackup: (_backupId: number, _restoreOptions: RestoreOptions) => Promise<unknown>
+  downloadBackup: (_backup: BackupRecord) => Promise<boolean>
+  deleteBackup: (_backupId: number) => Promise<unknown>
   cleanupOldBackups: () => Promise<unknown>
 }
 

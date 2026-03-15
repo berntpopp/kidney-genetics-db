@@ -43,8 +43,8 @@ const STORAGE_KEYS = {
 /** Minimal interface for the Pinia log store used by LogService */
 interface LogStore {
   logs: LogEntry[]
-  addLogEntry(entry: LogEntry, maxEntries?: number): void
-  trimLogs(maxEntries: number): void
+  addLogEntry(_entry: LogEntry, _maxEntries?: number): void
+  trimLogs(_maxEntries: number): void
   clearLogs(): void
 }
 

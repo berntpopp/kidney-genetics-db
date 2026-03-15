@@ -7,14 +7,13 @@
  */
 
 import axios from 'axios'
+
 import type { AxiosInstance, InternalAxiosRequestConfig, AxiosError } from 'axios'
 import { config } from '@/config'
 
-// Augment Axios to support _retry flag on request config
-declare module 'axios' {
-  interface InternalAxiosRequestConfig {
-    _retry?: boolean
-  }
+/** Extended request config with retry flag */
+interface RetryableRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean
 }
 
 /** Response from token refresh endpoint */
@@ -48,7 +47,7 @@ const apiClient: AxiosInstance = axios.create({
 
 // Request interceptor for auth
 apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  (config: RetryableRequestConfig) => {
     if (_accessToken) {
       config.headers.Authorization = `Bearer ${_accessToken}`
     }
@@ -63,7 +62,7 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   response => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig
+    const originalRequest = error.config as RetryableRequestConfig
 
     // If 401, try to refresh via HttpOnly cookie
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {

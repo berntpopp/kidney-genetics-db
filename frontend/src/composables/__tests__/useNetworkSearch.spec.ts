@@ -32,7 +32,7 @@ function makeMockNode(label: string, gene_id?: string) {
 function makeMockCy(nodes: ReturnType<typeof makeMockNode>[]) {
   return {
     nodes: () => ({
-      forEach: (cb: (node: ReturnType<typeof makeMockNode>) => void) => nodes.forEach(cb)
+      forEach: (cb: (_node: ReturnType<typeof makeMockNode>) => void) => nodes.forEach(cb)
     })
   }
 }

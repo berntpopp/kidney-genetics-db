@@ -20,9 +20,9 @@ interface TooltipShowOptions {
 
 /** Return type for useD3Tooltip */
 export interface D3TooltipReturn {
-  show: (event: MouseEvent, content: string, options?: TooltipShowOptions) => void
+  show: (_event: MouseEvent, _content: string, _options?: TooltipShowOptions) => void
   hide: () => void
-  pin: (event: MouseEvent, content: string) => void
+  pin: (_event: MouseEvent, _content: string) => void
   unpin: () => void
   remove: () => void
   isPinned: Ref<boolean>

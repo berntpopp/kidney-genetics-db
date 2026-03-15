@@ -18,16 +18,16 @@ interface SettingsListParams {
 export interface SettingsApiReturn {
   loading: Ref<boolean>
   error: Ref<string | null>
-  loadSettings: (params?: SettingsListParams) => Promise<unknown>
+  loadSettings: (_params?: SettingsListParams) => Promise<unknown>
   loadCategories: () => Promise<unknown>
   loadStats: () => Promise<unknown>
   updateSetting: (
-    settingId: number | string,
-    value: unknown,
-    changeReason?: string | null
+    _settingId: number | string,
+    _value: unknown,
+    _changeReason?: string | null
   ) => Promise<unknown>
-  getSettingHistory: (settingId: number | string, limit?: number) => Promise<unknown>
-  getAllAuditHistory: (limit?: number) => Promise<unknown>
+  getSettingHistory: (_settingId: number | string, _limit?: number) => Promise<unknown>
+  getAllAuditHistory: (_limit?: number) => Promise<unknown>
 }
 
 export function useSettingsApi(): SettingsApiReturn {

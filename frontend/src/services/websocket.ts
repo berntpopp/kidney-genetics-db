@@ -7,10 +7,10 @@ import { ref, type Ref } from 'vue'
 import type { WebSocketMessage } from '@/types/pipeline'
 
 /** Handler for typed WebSocket messages */
-export type MessageHandler = (data: unknown) => void
+export type MessageHandler = (_data: unknown) => void
 
 /** Wildcard handler receives the full message */
-export type WildcardHandler = (message: WebSocketMessage | { type: string }) => void
+export type WildcardHandler = (_message: WebSocketMessage | { type: string }) => void
 
 export class WebSocketService {
   ws: WebSocket | null
