@@ -139,11 +139,11 @@ class PipelineOrchestrator:
         asyncio.create_task(self._seed_and_annotate())
 
     async def _seed_and_annotate(self) -> None:
-        """Seed static evidence data, then run annotation pipeline."""
-        # Seed DiagnosticPanels/Literature now that genes exist from evidence sources
+        """Seed static evidence, re-run PubTator, then run annotation pipeline."""
         from app.core.database import SessionLocal
         from app.core.initial_seeder import needs_initial_seeding, run_initial_seeding
 
+        # Step 1: Seed DiagnosticPanels/Literature (creates missing genes too)
         db = SessionLocal()
         try:
             if needs_initial_seeding(db):
@@ -160,7 +160,22 @@ class PipelineOrchestrator:
         finally:
             db.close()
 
-        # Now run annotations
+        # Step 2: Re-run PubTator now that genes exist (it's gene-centric)
+        try:
+            logger.sync_info("Re-running PubTator now that genes exist")
+            await self.task_manager.run_source("PubTator", mode="smart")
+            # Wait for PubTator to finish before annotations
+            pubtator_task = self.task_manager.running_tasks.get("PubTator")
+            if pubtator_task and not pubtator_task.done():
+                await pubtator_task
+            logger.sync_info("PubTator re-run complete")
+        except Exception as e:
+            logger.sync_warning(
+                "PubTator re-run failed — continuing to annotations",
+                error=str(e),
+            )
+
+        # Step 3: Run annotations
         await self._run_annotations()
 
     async def _run_annotations(self) -> None:
