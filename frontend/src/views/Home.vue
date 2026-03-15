@@ -101,12 +101,6 @@ import { useJsonLd, getDatasetSchema } from '@/composables/useJsonLd'
 
 const router = useRouter()
 
-useSeoMeta({
-  title: 'Home',
-  description:
-    'Evidence-based kidney disease gene curation with multi-source integration. Explore 571+ genes with comprehensive annotations from 9 sources.',
-  canonicalPath: '/'
-})
 const { width } = useWindowSize()
 const hoveredCard = ref<number | null>(null)
 const statsLoaded = ref(false)
@@ -141,6 +135,25 @@ const stats = ref([
     route: null
   }
 ])
+
+// Reactive gene count for SEO
+const geneCountLabel = computed(() => {
+  const raw = stats.value[0].value
+  if (typeof raw === 'string') {
+    const n = parseInt(raw.replace(/,/g, ''), 10)
+    return n > 0 ? raw : '5,000+'
+  }
+  return (raw as number) > 0 ? (raw as number).toLocaleString() : '5,000+'
+})
+
+useSeoMeta({
+  title: 'Kidney Genetics Database — Renal & Nephrology Gene Evidence Scores',
+  description: computed(
+    () =>
+      `Kidney Genetics Database (KGDB) — the definitive nephrology gene panel and renal genetics resource. Evidence-based curation of ${geneCountLabel.value} kidney disease genes from ClinGen, PanelApp, GenCC, and more.`
+  ),
+  canonicalPath: '/'
+})
 
 // Dataset JSON-LD (reactive — updates when stats load)
 useJsonLd(

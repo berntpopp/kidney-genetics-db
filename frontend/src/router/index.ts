@@ -26,7 +26,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: 'Home',
       description:
-        'Evidence-based kidney disease gene curation with multi-source integration. Explore 571+ genes with comprehensive annotations.'
+        'Kidney Genetics Database (KGDB) — evidence-based nephrology gene panel and renal genetics resource. Curated kidney disease genes with multi-source evidence scores.'
     }
   },
   {
