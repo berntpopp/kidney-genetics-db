@@ -16,25 +16,38 @@
           />
         </div>
 
-        <h1 class="text-lg md:text-xl font-semibold text-foreground mb-2">
-          Kidney Genetics Database
+        <h1 class="sr-only">
+          Kidney Genetics Database — Renal &amp; Nephrology Gene Evidence Curation
         </h1>
-        <p class="text-base md:text-lg text-muted-foreground mx-auto max-w-[600px] mb-6">
+        <p
+          class="text-base md:text-lg text-muted-foreground mx-auto max-w-[600px] whitespace-nowrap mb-10"
+        >
           Evidence-based renal &amp; nephrology gene curation with multi-source integration
         </p>
-        <form class="flex items-center gap-2 max-w-md mx-auto" @submit.prevent="handleSearch">
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search PKD1, HGNC:9008, polycystin..."
-            aria-label="Search genes"
-            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
+
+        <!-- Gene search -->
+        <form
+          class="flex items-center gap-3 max-w-xl mx-auto px-4 mb-4"
+          @submit.prevent="handleSearch"
+        >
+          <div class="relative w-full">
+            <Search
+              class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none"
+            />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search by gene symbol, HGNC ID, or keyword..."
+              aria-label="Search genes"
+              class="flex h-11 w-full rounded-lg border border-input bg-background pl-10 pr-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </div>
           <button
             type="submit"
-            class="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 bg-primary text-primary-foreground hover:bg-primary/90"
+            aria-label="Search genes"
+            class="inline-flex items-center justify-center rounded-lg text-sm font-medium h-11 px-5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
           >
-            <Search class="size-4" />
+            Search
           </button>
         </form>
       </div>
@@ -45,12 +58,10 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <template v-if="statsLoaded">
           <div
-            v-for="(stat, index) in stats"
+            v-for="stat in stats"
             :key="stat.title"
             class="stat-card overflow-hidden rounded-lg shadow-sm transition-all"
             :class="{ 'stat-card-clickable cursor-pointer': stat.route }"
-            @mouseenter="hoveredCard = index"
-            @mouseleave="hoveredCard = null"
             @click="stat.route ? router.push(stat.route) : null"
           >
             <div
@@ -192,7 +203,7 @@
                 target="_blank"
                 rel="noopener noreferrer"
                 class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-                aria-label="GitHub repository"
+                aria-label="Open Source on GitHub"
               >
                 <Github class="size-4" /> Open Source
               </a>
@@ -236,7 +247,6 @@ import { useJsonLd, getDatasetSchema } from '@/composables/useJsonLd'
 const router = useRouter()
 
 const { width } = useWindowSize()
-const hoveredCard = ref<number | null>(null)
 const statsLoaded = ref(false)
 
 const searchQuery = ref('')
