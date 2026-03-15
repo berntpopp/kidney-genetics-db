@@ -29,6 +29,7 @@ class BackgroundTaskManager(TaskMixin):
         self.running_tasks: dict[str, asyncio.Task[Any]] = {}
         self.executor = ThreadPoolExecutor(max_workers=4)
         self.broadcast_callback: Callable[..., Any] | None = None
+        self.orchestrator: Any | None = None
         self._shutdown = False
 
     def set_broadcast_callback(self, callback: Callable[..., Any]) -> None:
@@ -189,15 +190,29 @@ class BackgroundTaskManager(TaskMixin):
                 total_running=len(self.running_tasks),
             )
 
-            # Add task completion callback
-            task.add_done_callback(
-                lambda t: logger.sync_info(
+            # Add task completion callback with orchestrator notification
+            def _on_task_done(
+                t: asyncio.Task[Any],
+                _source: str = source_name,
+            ) -> None:
+                exc = t.exception() if t.done() else None
+                success = exc is None
+                logger.sync_info(
                     "Task completed",
-                    source_name=source_name,
+                    source_name=_source,
                     done=t.done(),
-                    exception=str(t.exception()) if t.done() and t.exception() else None,
+                    success=success,
+                    exception=str(exc) if exc else None,
                 )
-            )
+                # Notify orchestrator if present
+                if self.orchestrator is not None:
+                    asyncio.create_task(
+                        self.orchestrator.on_source_completed(
+                            _source, success=success
+                        )
+                    )
+
+            task.add_done_callback(_on_task_done)
 
         except Exception as e:
             logger.sync_error("Exception creating/storing task", error=e, source_name=source_name)
