@@ -161,7 +161,12 @@ function acknowledgeDisclaimer() {
           <Tooltip>
             <TooltipTrigger as-child>
               <Button variant="ghost" size="icon" class="size-6" as-child>
-                <a :href="GITHUB_URL" target="_blank" rel="noopener noreferrer">
+                <a
+                  :href="GITHUB_URL"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="GitHub Repository"
+                >
                   <Github class="size-3.5" />
                 </a>
               </Button>
@@ -173,7 +178,12 @@ function acknowledgeDisclaimer() {
           <Tooltip>
             <TooltipTrigger as-child>
               <Button variant="ghost" size="icon" class="size-6" as-child>
-                <a :href="`${GITHUB_URL}#readme`" target="_blank" rel="noopener noreferrer">
+                <a
+                  :href="`${GITHUB_URL}#readme`"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Documentation"
+                >
                   <BookOpen class="size-3.5" />
                 </a>
               </Button>
@@ -189,6 +199,7 @@ function acknowledgeDisclaimer() {
                   :href="`${GITHUB_URL}/blob/main/LICENSE`"
                   target="_blank"
                   rel="noopener noreferrer"
+                  aria-label="License"
                 >
                   <Scale class="size-3.5" />
                 </a>
@@ -201,7 +212,12 @@ function acknowledgeDisclaimer() {
           <Tooltip>
             <TooltipTrigger as-child>
               <Button variant="ghost" size="icon" class="size-6" as-child>
-                <a :href="`${GITHUB_URL}/issues`" target="_blank" rel="noopener noreferrer">
+                <a
+                  :href="`${GITHUB_URL}/issues`"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="FAQ and Issues"
+                >
                   <HelpCircle class="size-3.5" />
                 </a>
               </Button>
@@ -219,6 +235,7 @@ function acknowledgeDisclaimer() {
                 size="icon"
                 class="size-6"
                 :class="disclaimerAcknowledged ? 'text-green-600' : 'text-amber-500'"
+                :aria-label="disclaimerAcknowledged ? 'Disclaimer acknowledged' : 'View disclaimer'"
                 @click="disclaimerOpen = true"
               >
                 <ShieldCheck v-if="disclaimerAcknowledged" class="size-3.5" />
@@ -237,6 +254,7 @@ function acknowledgeDisclaimer() {
                 variant="ghost"
                 size="icon"
                 class="size-6 relative"
+                aria-label="Log Viewer"
                 @click="logStore.showViewer"
               >
                 <Terminal class="size-3.5" />
