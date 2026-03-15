@@ -9,20 +9,22 @@ from unittest.mock import MagicMock, patch
 class TestInitialSeeder:
     """Verify initial seeder detects empty DB and loads seed data."""
 
-    def test_needs_seeding_when_no_evidence(self):
-        """Should return True when gene_evidence table is empty."""
+    def test_needs_seeding_when_no_dp_or_lit_evidence(self):
+        """Should return True when neither DiagnosticPanels nor Literature has data."""
         from app.core.initial_seeder import needs_initial_seeding
 
         db = MagicMock()
-        db.query.return_value.count.return_value = 0
+        # Both filter chains return count() == 0
+        db.query.return_value.filter.return_value.count.return_value = 0
         assert needs_initial_seeding(db) is True
 
-    def test_no_seeding_when_evidence_exists(self):
-        """Should return False when gene_evidence has data."""
+    def test_no_seeding_when_dp_evidence_exists(self):
+        """Should return False when DiagnosticPanels has data."""
         from app.core.initial_seeder import needs_initial_seeding
 
         db = MagicMock()
-        db.query.return_value.count.return_value = 100
+        # First call returns 100 (DiagnosticPanels), second returns 0 (Literature)
+        db.query.return_value.filter.return_value.count.side_effect = [100, 0]
         assert needs_initial_seeding(db) is False
 
     def test_find_scraper_files_returns_paths(self):

@@ -92,27 +92,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Run startup tasks (register data sources, etc.)
     run_startup_tasks()
 
-    # Seed initial evidence data if database is empty
-    from app.core.initial_seeder import needs_initial_seeding, run_initial_seeding
-
-    seed_db = next(get_db())
-    try:
-        if needs_initial_seeding(seed_db):
-            logger.sync_info(
-                "Empty database detected — running initial seeding from seed files"
-            )
-            seed_results = await run_initial_seeding(seed_db)
-            logger.sync_info("Initial seeding results", results=seed_results)
-        else:
-            logger.sync_debug("Database already has evidence data — skipping seeding")
-    except Exception as e:
-        logger.sync_warning(
-            "Initial seeding failed — pipeline will populate data later",
-            error=str(e),
-        )
-    finally:
-        seed_db.close()
-
     # Start event bus for WebSocket pub/sub pattern - REPLACES POLLING!
     logger.sync_info("Starting event bus for optimized WebSocket communication...")
     await event_bus.start()

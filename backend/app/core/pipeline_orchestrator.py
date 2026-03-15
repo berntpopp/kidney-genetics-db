@@ -132,13 +132,40 @@ class PipelineOrchestrator:
             return
 
         logger.sync_info(
-            "All evidence sources done — Stage 2: Annotations",
+            "All evidence sources done — seeding then annotating",
             succeeded=succeeded,
             failed=failed,
         )
 
-        # Run annotation pipeline in background
-        asyncio.create_task(self._run_annotations())
+        # Run seeding (DiagnosticPanels/Literature) + annotations in background
+        asyncio.create_task(self._seed_and_annotate())
+
+    async def _seed_and_annotate(self) -> None:
+        """Seed static evidence data, then run annotation pipeline."""
+        # Seed DiagnosticPanels/Literature now that genes exist from evidence sources
+        from app.core.database import SessionLocal
+        from app.core.initial_seeder import needs_initial_seeding, run_initial_seeding
+
+        db = SessionLocal()
+        try:
+            if needs_initial_seeding(db):
+                logger.sync_info(
+                    "Seeding DiagnosticPanels/Literature after evidence sources"
+                )
+                seed_results = await run_initial_seeding(db)
+                logger.sync_info("Seeding complete", results=seed_results)
+            else:
+                logger.sync_debug("Seeding not needed — evidence data already exists")
+        except Exception as e:
+            logger.sync_warning(
+                "Initial seeding failed — continuing to annotations",
+                error=str(e),
+            )
+        finally:
+            db.close()
+
+        # Now run annotations
+        await self._run_annotations()
 
     async def _run_annotations(self) -> None:
         """Execute the annotation pipeline, then advance to aggregation."""

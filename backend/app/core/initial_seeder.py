@@ -33,9 +33,21 @@ SEED_CONFIGS: dict[str, dict[str, Any]] = {
 
 
 def needs_initial_seeding(db: Session) -> bool:
-    """Check if the database needs initial evidence seeding."""
-    count = db.query(GeneEvidence).count()
-    return count == 0
+    """Check if the database needs initial evidence seeding.
+
+    Returns True if neither DiagnosticPanels nor Literature evidence exists.
+    """
+    dp_count = (
+        db.query(GeneEvidence)
+        .filter(GeneEvidence.source_name == "DiagnosticPanels")
+        .count()
+    )
+    lit_count = (
+        db.query(GeneEvidence)
+        .filter(GeneEvidence.source_name == "Literature")
+        .count()
+    )
+    return dp_count == 0 and lit_count == 0
 
 
 def find_latest_scraper_output(base_dir: Path) -> Path | None:
