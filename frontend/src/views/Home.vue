@@ -130,6 +130,32 @@
           </div>
         </div>
       </div>
+
+      <!-- Who Is This For? -->
+      <div class="mt-12">
+        <h2 class="text-2xl font-medium text-center mb-8">Who Is This For?</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div
+            v-for="audience in audiences"
+            :key="audience.title"
+            class="rounded-lg border border-border p-6 text-center hover:shadow-sm transition-shadow"
+          >
+            <div
+              class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary mx-auto mb-4"
+            >
+              <component :is="audience.icon" class="size-7" />
+            </div>
+            <h3 class="text-lg font-semibold mb-2">{{ audience.title }}</h3>
+            <p class="text-sm text-muted-foreground mb-4">{{ audience.description }}</p>
+            <RouterLink
+              :to="audience.ctaRoute"
+              class="text-sm font-medium text-primary hover:text-primary/80"
+            >
+              {{ audience.cta }} &rarr;
+            </RouterLink>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -147,7 +173,8 @@ import {
   Code2,
   Download,
   BarChart3,
-  CheckCircle
+  CheckCircle,
+  Stethoscope
 } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { useWindowSize } from '@vueuse/core'
@@ -300,6 +327,32 @@ const pipelineSteps = [
     icon: CheckCircle,
     description:
       'Validated genes with annotations including expression, variants, interactions, and phenotypes'
+  }
+]
+
+const audiences = [
+  {
+    title: 'Nephrologists',
+    icon: Stethoscope,
+    description:
+      'Explore evidence-scored gene panels for kidney disease diagnostics and precision medicine',
+    cta: 'Browse Genes',
+    ctaRoute: '/genes'
+  },
+  {
+    title: 'Geneticists',
+    icon: Dna,
+    description:
+      'Access curated gene-disease associations with cross-referenced variant and phenotype data',
+    cta: 'View Data Sources',
+    ctaRoute: '/data-sources'
+  },
+  {
+    title: 'Bioinformaticians',
+    icon: Code2,
+    description: 'Query via REST API, download gene lists, and integrate with analysis pipelines',
+    cta: 'API Documentation',
+    ctaRoute: '/about'
   }
 ]
 
