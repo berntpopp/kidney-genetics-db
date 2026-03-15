@@ -88,23 +88,63 @@ export function getDatasetSchema(geneCount?: number, lastUpdate?: string) {
   }
 }
 
-/** Bioschemas Gene schema for gene detail pages */
+/** Bioschemas Gene schema for gene detail pages (Gene 1.0-RELEASE profile) */
 export function getGeneSchema(gene: {
   approved_symbol: string
+  approved_name?: string | null
   hgnc_id?: string | null
   aliases?: string[] | null
   evidence_score?: number | null
+  ensembl_gene_id?: string | null
+  ncbi_gene_id?: string | null
+  uniprot_id?: string | null
+  chromosome?: string | null
 }) {
+  const sameAs: string[] = []
+  if (gene.hgnc_id) {
+    sameAs.push(`https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/${gene.hgnc_id}`)
+  }
+  if (gene.ncbi_gene_id) {
+    sameAs.push(`https://www.ncbi.nlm.nih.gov/gene/${gene.ncbi_gene_id}`)
+  }
+  if (gene.ensembl_gene_id) {
+    sameAs.push(`https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=${gene.ensembl_gene_id}`)
+  }
+  if (gene.uniprot_id) {
+    sameAs.push(`https://www.uniprot.org/uniprot/${gene.uniprot_id}`)
+  }
+
   return {
     '@context': 'https://schema.org',
     '@type': 'Gene',
+    'dct:conformsTo': 'https://bioschemas.org/profiles/Gene/1.0-RELEASE',
+    '@id': `${SITE_URL}/genes/${gene.approved_symbol}`,
     name: gene.approved_symbol,
+    ...(gene.approved_name ? { description: gene.approved_name } : {}),
     identifier: gene.hgnc_id ?? gene.approved_symbol,
     url: `${SITE_URL}/genes/${gene.approved_symbol}`,
     ...(gene.aliases?.length ? { alternateName: gene.aliases } : {}),
-    ...(gene.hgnc_id
+    sameAs,
+    taxonomicRange: {
+      '@type': 'Taxon',
+      name: 'Homo sapiens',
+      '@id': 'https://identifiers.org/taxonomy:9606'
+    },
+    ...(gene.uniprot_id
       ? {
-          sameAs: `https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/${gene.hgnc_id}`
+          encodesBioChemEntity: {
+            '@type': 'BioChemEntity',
+            '@id': `https://www.uniprot.org/uniprot/${gene.uniprot_id}`,
+            name: `${gene.approved_symbol} protein`
+          }
+        }
+      : {}),
+    ...(gene.chromosome
+      ? {
+          isPartOfBioChemEntity: {
+            '@type': 'BioChemEntity',
+            name: `Chromosome ${gene.chromosome}`
+          }
         }
       : {}),
     isPartOf: { '@id': `${SITE_URL}/#website` }
