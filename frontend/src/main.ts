@@ -1,83 +1,98 @@
 import './assets/main.css'
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import { createHead } from '@unhead/vue/client'
+import { ViteSSG } from 'vite-ssg'
 import App from './App.vue'
-import router from './router'
+import { routes } from './router'
 
-// Import logging system
-import { logService } from './services/logService'
-import { useLogStore } from './stores/logStore'
+export const createApp = ViteSSG(
+  App,
+  {
+    routes,
+    base: import.meta.env.BASE_URL
+  },
+  async ({ app, router }) => {
+    // Navigation guards (work on both client and SSR)
+    const { useAuthStore } = await import('./stores/auth')
 
-const app = createApp(App)
-const pinia = createPinia()
+    router!.beforeEach(async to => {
+      const authStore = useAuthStore()
 
-// Initialize Pinia first (required for stores)
-app.use(pinia)
+      // Wait for the silent token refresh to complete before evaluating guards.
+      // This prevents redirecting to /login on page refresh while the HttpOnly
+      // cookie refresh is still in-flight.
+      if (to.meta.requiresAuth || to.meta.requiresAdmin) {
+        await authStore.initReady
+      }
 
-// Initialize @unhead/vue for SEO meta management
-const head = createHead()
-app.use(head)
-
-// Initialize logging system after Pinia is available
-const logStore = useLogStore()
-logService.initStore(logStore)
-
-// Make logService globally available
-app.config.globalProperties['$log'] = logService
-// Also make it available on window for non-component code
-window.logService = logService
-
-// Log application startup
-logService.info('Kidney Genetics Database application starting', {
-  timestamp: new Date().toISOString(),
-  environment: import.meta.env.MODE,
-  userAgent: navigator.userAgent,
-  url: window.location.href
-})
-
-// Bridge window.snackbar to vue-sonner toast
-import { toast } from 'vue-sonner'
-
-window.snackbar = {
-  success: (msg: string) => toast.success(msg, { duration: 5000 }),
-  error: (msg: string) => toast.error(msg, { duration: Infinity })
-}
-
-// Continue with other plugins
-app.use(router)
-
-// Global Vue error handler — catches unhandled errors in components
-app.config.errorHandler = (err, instance, info) => {
-  const ls = window.logService
-  if (ls) {
-    ls.error('Unhandled Vue error', {
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined,
-      info,
-      component: (instance as { $options?: { name?: string } } | null)?.$options?.name || 'unknown'
+      if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+        return '/login?redirect=' + to.fullPath
+      } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
+        return '/'
+      }
     })
-  } else {
-    // logService not yet initialized — log will be lost but this is a bootstrap edge case
-    window.logService?.error('Unhandled Vue error (pre-init):', { error: String(err), info })
+
+    if (!import.meta.env.SSR) {
+      // Browser-only initialization
+      const { logService } = await import('./services/logService')
+      const { useLogStore } = await import('./stores/logStore')
+      const { toast } = await import('vue-sonner')
+
+      const logStore = useLogStore()
+      logService.initStore(logStore)
+
+      app.config.globalProperties['$log'] = logService
+      window.logService = logService
+
+      logService.info('Kidney Genetics Database application starting', {
+        timestamp: new Date().toISOString(),
+        environment: import.meta.env.MODE,
+        userAgent: navigator.userAgent,
+        url: window.location.href
+      })
+
+      window.snackbar = {
+        success: (msg: string) => toast.success(msg, { duration: 5000 }),
+        error: (msg: string) => toast.error(msg, { duration: Infinity })
+      }
+
+      app.config.errorHandler = (err, instance, info) => {
+        const ls = window.logService
+        if (ls) {
+          ls.error('Unhandled Vue error', {
+            error: err instanceof Error ? err.message : String(err),
+            stack: err instanceof Error ? err.stack : undefined,
+            info,
+            component:
+              (instance as { $options?: { name?: string } } | null)?.$options?.name || 'unknown'
+          })
+        }
+      }
+
+      // Handle chunk load failures and other navigation errors
+      router!.onError((error, to) => {
+        if (error.message.includes('Failed to fetch dynamically imported module')) {
+          window.location.href = to.fullPath
+        } else {
+          window.logService?.error('Navigation error', {
+            error: error.message,
+            stack: error.stack,
+            route: to.fullPath
+          })
+        }
+      })
+
+      window.addEventListener('unhandledrejection', event => {
+        const ls = window.logService
+        if (ls) {
+          ls.error('Unhandled promise rejection', {
+            reason:
+              event.reason instanceof Error
+                ? { message: event.reason.message, stack: event.reason.stack }
+                : String(event.reason)
+          })
+        }
+      })
+
+      logService.info('Application mounted successfully')
+    }
   }
-}
-
-// Catch unhandled promise rejections
-window.addEventListener('unhandledrejection', event => {
-  const ls = window.logService
-  if (ls) {
-    ls.error('Unhandled promise rejection', {
-      reason:
-        event.reason instanceof Error
-          ? { message: event.reason.message, stack: event.reason.stack }
-          : String(event.reason)
-    })
-  }
-})
-
-// Mount application
-app.mount('#app')
-
-// Log successful mount
-logService.info('Application mounted successfully')
+)

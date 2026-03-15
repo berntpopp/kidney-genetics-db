@@ -1,11 +1,12 @@
 /**
  * Vue Router configuration
+ *
+ * Routes are exported for use by vite-ssg in main.ts.
+ * Navigation guards are registered in main.ts where the router instance is available.
  */
 
 import 'vue-router'
-import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
 
 declare module 'vue-router' {
   // eslint-disable-next-line no-unused-vars
@@ -18,7 +19,7 @@ declare module 'vue-router' {
   }
 }
 
-const routes: RouteRecordRaw[] = [
+export const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'home',
@@ -202,43 +203,3 @@ const routes: RouteRecordRaw[] = [
     }
   }
 ]
-
-const router = createRouter({
-  history: createWebHistory(),
-  routes
-})
-
-// Navigation guards — wait for auth initialization before checking protected routes
-router.beforeEach(async to => {
-  const authStore = useAuthStore()
-
-  // Wait for the silent token refresh to complete before evaluating guards.
-  // This prevents redirecting to /login on page refresh while the HttpOnly
-  // cookie refresh is still in-flight.
-  if (to.meta.requiresAuth || to.meta.requiresAdmin) {
-    await authStore.initReady
-  }
-
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    return '/login?redirect=' + to.fullPath
-  } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
-    return '/'
-  }
-})
-
-// Handle chunk load failures and other navigation errors
-router.onError((error, to) => {
-  if (error.message.includes('Failed to fetch dynamically imported module')) {
-    // Chunk load failure — full page reload to get new chunks
-    window.location.href = to.fullPath
-  } else {
-    // Log other navigation errors
-    window.logService?.error('Navigation error', {
-      error: error.message,
-      stack: error.stack,
-      route: to.fullPath
-    })
-  }
-})
-
-export default router

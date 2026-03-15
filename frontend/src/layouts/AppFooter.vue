@@ -40,8 +40,8 @@ const frontendVersion = ref(getFrontendVersion())
 const backendVersion = ref('...')
 const backendReachable = ref(false)
 
-// Network status
-const isOnline = ref(navigator.onLine)
+// Network status (SSR-safe default; actual value set in onMounted)
+const isOnline = ref(true)
 
 // Disclaimer
 const disclaimerOpen = ref(false)
@@ -71,6 +71,7 @@ async function checkBackend() {
 }
 
 onMounted(() => {
+  isOnline.value = navigator.onLine
   window.addEventListener('online', handleOnline)
   window.addEventListener('offline', handleOffline)
   // Check if disclaimer was previously acknowledged
