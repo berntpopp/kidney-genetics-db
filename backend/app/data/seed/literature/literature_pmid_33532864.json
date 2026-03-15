@@ -1909,7 +1909,7 @@
     }
   ],
   "gene_count": 316,
-  "source_file": "/home/bernt-popp/development/kidney-genetics-db/scrapers/literature/data/downloads/PMID_33532864.docx",
+  "source_file": "scrapers/literature/data/downloads/PMID_33532864.docx",
   "file_type": "docx",
   "extraction_method": "PMID33532864Processor",
   "extraction_timestamp": "2025-08-24T19:57:07.470552",

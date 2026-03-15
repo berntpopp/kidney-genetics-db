@@ -209,13 +209,43 @@ async def trigger_pipeline_update(
         body = {}
 
     if body.get("strategy"):
-        strategy = body["strategy"]
+        raw_strategy = body["strategy"]
+        if not isinstance(raw_strategy, str):
+            raise DomainValidationError(
+                field="strategy",
+                reason="strategy must be a string",
+            )
+        strategy = raw_strategy
     if body.get("sources") is not None:
-        sources = body["sources"]
+        raw_sources = body["sources"]
+        if not isinstance(raw_sources, list) or not all(isinstance(s, str) for s in raw_sources):
+            raise DomainValidationError(
+                field="sources",
+                reason="sources must be a list of strings",
+            )
+        sources = raw_sources
     if body.get("gene_ids") is not None:
-        gene_ids = body["gene_ids"]
+        raw_gene_ids = body["gene_ids"]
+        if not isinstance(raw_gene_ids, list):
+            raise DomainValidationError(
+                field="gene_ids",
+                reason="gene_ids must be a list of integers",
+            )
+        try:
+            gene_ids = [int(gid) for gid in raw_gene_ids]
+        except (TypeError, ValueError) as e:
+            raise DomainValidationError(
+                field="gene_ids",
+                reason="gene_ids must be a list of integers",
+            ) from e
     if body.get("force") is not None:
-        force = body["force"]
+        raw_force = body["force"]
+        if not isinstance(raw_force, bool):
+            raise DomainValidationError(
+                field="force",
+                reason="force must be a boolean",
+            )
+        force = raw_force
 
     await logger.info(
         "Admin action: Pipeline update triggered",

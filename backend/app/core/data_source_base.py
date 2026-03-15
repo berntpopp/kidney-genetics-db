@@ -304,6 +304,8 @@ class DataSourceClient(ABC):
             # Process each gene in the batch
             for symbol in batch_symbols:
                 try:
+                    # Use SAVEPOINT so failures only rollback this gene
+                    nested = db.begin_nested()
                     stats["genes_processed"] += 1
                     data = gene_data[symbol]
 
@@ -311,6 +313,7 @@ class DataSourceClient(ABC):
                     norm_result = normalization_results.get(symbol, {})
                     if norm_result.get("status") != "normalized":
                         logger.sync_debug("Skipping unnormalized gene", symbol=symbol)
+                        nested.rollback()
                         continue
 
                     # Get or create gene
@@ -330,9 +333,9 @@ class DataSourceClient(ABC):
                     logger.sync_error("Error processing gene", symbol=symbol, error=str(e))
                     stats["errors"] += 1
                     batch_failed += 1
-                    # Rollback broken transaction so subsequent queries work
+                    # Rollback only this gene's SAVEPOINT, preserving prior batch work
                     try:
-                        db.rollback()
+                        nested.rollback()
                     except Exception:
                         pass
 

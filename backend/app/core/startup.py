@@ -30,7 +30,6 @@ def register_data_sources() -> None:
         updated_count = 0
 
         for source_name, config in DATA_SOURCE_CONFIG.items():
-
             # Check if progress record exists
             existing = db.query(DataSourceProgress).filter_by(source_name=source_name).first()
 

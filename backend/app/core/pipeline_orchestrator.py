@@ -125,16 +125,14 @@ class PipelineOrchestrator:
                 # All evidence sources already finished — skip to annotations
                 if len(self._completed_sources) == 0:
                     logger.sync_error(
-                        "All evidence sources failed in previous run"
-                        " — not starting pipeline",
+                        "All evidence sources failed in previous run — not starting pipeline",
                         failed_sources=list(self._failed_sources),
                     )
                     return
                 self._current_stage = PipelineStage.ANNOTATIONS
                 skip_evidence = True
                 logger.sync_info(
-                    "All evidence sources already done"
-                    " — skipping to seed + annotate",
+                    "All evidence sources already done — skipping to seed + annotate",
                     completed=len(self._completed_sources),
                     failed=len(self._failed_sources),
                 )
@@ -276,12 +274,11 @@ class PipelineOrchestrator:
         from app.core.database import SessionLocal
         from app.pipeline.aggregate import update_all_curations
 
-        db = SessionLocal()
-        try:
+        def _aggregate_and_refresh() -> None:
+            from sqlalchemy import text
 
-            def _aggregate_and_refresh() -> None:
-                from sqlalchemy import text
-
+            db = SessionLocal()
+            try:
                 update_all_curations(db)
                 # Refresh gene_scores so the frontend can display data
                 try:
@@ -294,11 +291,11 @@ class PipelineOrchestrator:
                         "Failed to refresh gene_scores view",
                         error=str(e),
                     )
+            finally:
+                db.close()
 
-            await run_in_threadpool(_aggregate_and_refresh)
-            logger.sync_info("Aggregation and view refresh complete")
-        finally:
-            db.close()
+        await run_in_threadpool(_aggregate_and_refresh)
+        logger.sync_info("Aggregation and view refresh complete")
 
     async def _advance_to_aggregation(self) -> None:
         """Transition to Stage 3: Evidence aggregation + view refresh."""
@@ -320,7 +317,6 @@ class PipelineOrchestrator:
                 "Evidence aggregation failed",
                 error=str(e),
             )
-        finally:
             self._current_stage = PipelineStage.IDLE
 
     def reset(self) -> None:

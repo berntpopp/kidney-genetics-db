@@ -11,13 +11,16 @@ Set USE_ARQ_WORKER=true in environment to use ARQ mode.
 import asyncio
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.logging import get_logger
 from app.core.task_decorator import TaskMixin
 from app.models.progress import DataSourceProgress, SourceStatus
+
+if TYPE_CHECKING:
+    from app.core.pipeline_orchestrator import PipelineOrchestrator
 
 logger = get_logger(__name__)
 
@@ -29,7 +32,7 @@ class BackgroundTaskManager(TaskMixin):
         self.running_tasks: dict[str, asyncio.Task[Any]] = {}
         self.executor = ThreadPoolExecutor(max_workers=4)
         self.broadcast_callback: Callable[..., Any] | None = None
-        self.orchestrator: Any | None = None
+        self.orchestrator: PipelineOrchestrator | None = None
         self._shutdown = False
 
     def set_broadcast_callback(self, callback: Callable[..., Any]) -> None:

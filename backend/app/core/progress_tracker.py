@@ -113,6 +113,7 @@ class ProgressTracker:
             )
             # Update operation text but don't reset counters
             self.progress_record.current_operation = operation
+            self._commit_and_broadcast()
             return
 
         logger.sync_debug(

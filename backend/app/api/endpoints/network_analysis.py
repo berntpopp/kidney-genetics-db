@@ -379,9 +379,7 @@ async def extract_subgraph(
     genes = db.query(Gene).filter(Gene.id.in_(body.gene_ids)).all()
     gene_id_to_symbol = {g.id: g.approved_symbol for g in genes}
 
-    await logger.info(
-        "Extracting subgraph", seed_count=len(body.seed_gene_ids), k_hops=body.k
-    )
+    await logger.info("Extracting subgraph", seed_count=len(body.seed_gene_ids), k_hops=body.k)
 
     # Build full network
     full_graph = await network_service.build_network_from_string_data(
