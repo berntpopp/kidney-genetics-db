@@ -343,7 +343,7 @@ async def cluster_network(
         "Clustering complete",
         num_clusters=num_clusters,
         modularity=round(modularity, 3),
-        algorithm=request.algorithm,
+        algorithm=body.algorithm,
         elapsed_ms=round(elapsed_ms, 2),
     )
 
@@ -351,7 +351,7 @@ async def cluster_network(
         clusters=gene_to_cluster,
         num_clusters=num_clusters,
         modularity=round(modularity, 3),
-        algorithm=request.algorithm,
+        algorithm=body.algorithm,
         cytoscape_json=cytoscape_json,
     )
 
@@ -360,9 +360,9 @@ async def cluster_network(
 @limiter.limit(LIMIT_NETWORK)
 @cache(namespace="network_analysis", ttl=3600)
 async def extract_subgraph(
-    http_request: Request,
+    request: Request,
     response: Response,
-    request: SubgraphRequest,
+    body: SubgraphRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
@@ -373,21 +373,21 @@ async def extract_subgraph(
     start_time = time.time()
 
     # Get gene symbols
-    genes = db.query(Gene).filter(Gene.id.in_(request.gene_ids)).all()
+    genes = db.query(Gene).filter(Gene.id.in_(body.gene_ids)).all()
     gene_id_to_symbol = {g.id: g.approved_symbol for g in genes}
 
     await logger.info(
-        "Extracting subgraph", seed_count=len(request.seed_gene_ids), k_hops=request.k
+        "Extracting subgraph", seed_count=len(body.seed_gene_ids), k_hops=body.k
     )
 
     # Build full network
     full_graph = await network_service.build_network_from_string_data(
-        gene_ids=request.gene_ids, session=db, min_string_score=request.min_string_score
+        gene_ids=body.gene_ids, session=db, min_string_score=body.min_string_score
     )
 
     # Extract k-hop subgraph
     subgraph = await network_service.get_k_hop_subgraph(
-        graph=full_graph, seed_gene_ids=request.seed_gene_ids, session=db, k=request.k
+        graph=full_graph, seed_gene_ids=body.seed_gene_ids, session=db, k=body.k
     )
 
     # Convert to Cytoscape.js
@@ -414,9 +414,9 @@ async def extract_subgraph(
 @limiter.limit(LIMIT_NETWORK)
 @cache(namespace="network_analysis", ttl=1800)
 async def enrich_hpo(
-    http_request: Request,
+    request: Request,
     response: Response,
-    request: HPOEnrichmentRequest,
+    body: HPOEnrichmentRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
@@ -429,16 +429,16 @@ async def enrich_hpo(
 
     await logger.info(
         "Starting HPO enrichment",
-        cluster_size=len(request.cluster_genes),
-        fdr_threshold=request.fdr_threshold,
+        cluster_size=len(body.cluster_genes),
+        fdr_threshold=body.fdr_threshold,
     )
 
     # Perform enrichment
     results = await enrichment_service.enrich_hpo_terms(
-        cluster_genes=request.cluster_genes,
+        cluster_genes=body.cluster_genes,
         session=db,
-        background_genes=request.background_genes,
-        fdr_threshold=request.fdr_threshold,
+        background_genes=body.background_genes,
+        fdr_threshold=body.fdr_threshold,
     )
 
     elapsed_ms = (time.time() - start_time) * 1000
@@ -450,8 +450,8 @@ async def enrich_hpo(
     return HPOEnrichmentResponse(
         results=results,
         total_terms=len(results),
-        cluster_size=len(request.cluster_genes),
-        fdr_threshold=request.fdr_threshold,
+        cluster_size=len(body.cluster_genes),
+        fdr_threshold=body.fdr_threshold,
     )
 
 
@@ -459,9 +459,9 @@ async def enrich_hpo(
 @limiter.limit(LIMIT_NETWORK)
 @cache(namespace="network_analysis", ttl=1800)
 async def enrich_go(
-    http_request: Request,
+    request: Request,
     response: Response,
-    request: GOEnrichmentRequest,
+    body: GOEnrichmentRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
@@ -482,18 +482,18 @@ async def enrich_go(
 
     await logger.info(
         "Starting GO enrichment",
-        cluster_size=len(request.cluster_genes),
-        gene_set=request.gene_set,
-        timeout_seconds=request.timeout_seconds,
+        cluster_size=len(body.cluster_genes),
+        gene_set=body.gene_set,
+        timeout_seconds=body.timeout_seconds,
     )
 
     # Perform enrichment
     results = await enrichment_service.enrich_go_terms(
-        cluster_genes=request.cluster_genes,
+        cluster_genes=body.cluster_genes,
         session=db,
-        gene_set=request.gene_set,
-        fdr_threshold=request.fdr_threshold,
-        timeout_seconds=request.timeout_seconds,
+        gene_set=body.gene_set,
+        fdr_threshold=body.fdr_threshold,
+        timeout_seconds=body.timeout_seconds,
     )
 
     elapsed_ms = (time.time() - start_time) * 1000
@@ -505,7 +505,7 @@ async def enrich_go(
     return GOEnrichmentResponse(
         results=results,
         total_terms=len(results),
-        cluster_size=len(request.cluster_genes),
-        gene_set=request.gene_set,
-        fdr_threshold=request.fdr_threshold,
+        cluster_size=len(body.cluster_genes),
+        gene_set=body.gene_set,
+        fdr_threshold=body.fdr_threshold,
     )
