@@ -1,100 +1,151 @@
 <template>
   <div class="gene-structure-visualization">
-    <!-- Controls bar -->
-    <div v-if="hasVariants" class="flex flex-wrap items-center gap-2 mb-3">
-      <!-- Color by toggle -->
-      <div class="inline-flex rounded-md border">
-        <Button
-          :variant="colorBy === 'classification' ? 'default' : 'ghost'"
-          size="sm"
-          class="h-7 rounded-none rounded-l-md text-xs px-2"
+    <div v-if="hasVariants" class="space-y-1.5 mb-3">
+      <!-- Row 1: Classification chips -->
+      <div class="flex items-center gap-1.5">
+        <button
+          class="text-xs font-medium text-muted-foreground hover:text-foreground w-14 text-left"
+          :class="{ 'text-primary font-semibold': colorBy === 'classification' }"
+          title="Click to color by classification"
           @click="colorBy = 'classification'"
         >
-          Classification
-        </Button>
-        <Button
-          :variant="colorBy === 'effect' ? 'default' : 'ghost'"
-          size="sm"
-          class="h-7 rounded-none rounded-r-md text-xs px-2"
+          Class.
+          <Palette v-if="colorBy === 'classification'" class="size-2.5 inline ml-0.5" />
+        </button>
+        <div class="flex flex-wrap gap-0.5">
+          <Badge
+            v-for="cat in classificationOptions"
+            :key="cat.value"
+            :variant="selectedClassifications.includes(cat.value) ? 'default' : 'outline'"
+            class="cursor-pointer select-none text-xs px-1.5 py-0 h-5"
+            :style="
+              selectedClassifications.includes(cat.value)
+                ? {
+                    backgroundColor: getClassificationColor(cat.value),
+                    borderColor: getClassificationColor(cat.value),
+                    color: 'white'
+                  }
+                : {
+                    borderColor: getClassificationColor(cat.value),
+                    color: getClassificationColor(cat.value),
+                    opacity: 0.7
+                  }
+            "
+            @click="toggleClassification(cat.value)"
+          >
+            {{ cat.label }}
+          </Badge>
+        </div>
+        <button
+          class="text-xs text-muted-foreground hover:text-foreground ml-0.5"
+          @click="selectAllClassifications"
+        >
+          All
+        </button>
+        <button
+          class="text-xs text-muted-foreground hover:text-foreground"
+          @click="selectedClassifications = []"
+        >
+          None
+        </button>
+      </div>
+
+      <!-- Row 2: Effect chips -->
+      <div class="flex items-center gap-1.5">
+        <button
+          class="text-xs font-medium text-muted-foreground hover:text-foreground w-14 text-left"
+          :class="{ 'text-primary font-semibold': colorBy === 'effect' }"
+          title="Click to color by effect"
           @click="colorBy = 'effect'"
         >
           Effect
-        </Button>
+          <Palette v-if="colorBy === 'effect'" class="size-2.5 inline ml-0.5" />
+        </button>
+        <div class="flex flex-wrap gap-0.5">
+          <Badge
+            v-for="eff in effectOptions"
+            :key="eff.value"
+            :variant="selectedEffects.includes(eff.value) ? 'default' : 'outline'"
+            class="cursor-pointer select-none text-xs px-1.5 py-0 h-5"
+            :style="
+              selectedEffects.includes(eff.value)
+                ? {
+                    backgroundColor: getEffectColor(eff.value),
+                    borderColor: getEffectColor(eff.value),
+                    color: 'white'
+                  }
+                : {
+                    borderColor: getEffectColor(eff.value),
+                    color: getEffectColor(eff.value),
+                    opacity: 0.7
+                  }
+            "
+            @click="toggleEffect(eff.value)"
+          >
+            {{ eff.label }}
+          </Badge>
+        </div>
+        <button
+          class="text-xs text-muted-foreground hover:text-foreground ml-0.5"
+          @click="selectAllEffects"
+        >
+          All
+        </button>
+        <button
+          class="text-xs text-muted-foreground hover:text-foreground"
+          @click="selectedEffects = []"
+        >
+          None
+        </button>
       </div>
 
-      <!-- Active filter chips -->
-      <div class="flex flex-wrap gap-1">
-        <Badge
-          v-for="opt in activeFilterOptions"
-          :key="opt.value"
-          :variant="isFilterActive(opt.value) ? 'default' : 'outline'"
-          class="cursor-pointer select-none text-xs"
-          :style="
-            isFilterActive(opt.value)
-              ? {
-                  backgroundColor: getActiveColor(opt.value),
-                  borderColor: getActiveColor(opt.value),
-                  color: 'white'
-                }
-              : {
-                  borderColor: getActiveColor(opt.value),
-                  color: getActiveColor(opt.value)
-                }
-          "
-          @click="toggleActiveFilter(opt.value)"
-        >
-          {{ opt.label }} ({{ getActiveCount(opt.value) }})
-        </Badge>
-      </div>
-
-      <span class="text-xs text-muted-foreground">
-        {{ filteredVariants.length }}/{{ allVariants.length }}
-      </span>
-
-      <!-- Spacer -->
-      <div class="flex-1" />
-
-      <!-- Zoom + Download -->
-      <div class="inline-flex rounded-md border">
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-7 w-7 rounded-none rounded-l-md"
-          :disabled="!canZoomIn"
-          title="Zoom in"
-          @click="zoomIn"
-        >
-          <ZoomIn class="size-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-7 w-7 rounded-none"
-          :disabled="!canZoomOut"
-          title="Zoom out"
-          @click="zoomOut"
-        >
-          <ZoomOut class="size-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-7 w-7 rounded-none"
-          :disabled="!isZoomed"
-          title="Reset zoom"
-          @click="resetZoom"
-        >
-          <SearchX class="size-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-7 w-7 rounded-none rounded-r-md"
-          title="Download as PNG"
-          @click="downloadPng"
-        >
-          <Download class="size-3.5" />
-        </Button>
+      <!-- Row 3: Summary + tools -->
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-muted-foreground w-14">
+          {{ filteredVariants.length }}/{{ allVariants.length }}
+        </span>
+        <div class="flex-1" />
+        <div class="inline-flex rounded-md border">
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 rounded-none rounded-l-md"
+            :disabled="!canZoomIn"
+            title="Zoom in"
+            @click="zoomIn"
+          >
+            <ZoomIn class="size-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 rounded-none"
+            :disabled="!canZoomOut"
+            title="Zoom out"
+            @click="zoomOut"
+          >
+            <ZoomOut class="size-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 rounded-none"
+            :disabled="!isZoomed"
+            title="Reset zoom"
+            @click="resetZoom"
+          >
+            <SearchX class="size-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 rounded-none rounded-r-md"
+            title="Download as PNG"
+            @click="downloadPng"
+          >
+            <Download class="size-3" />
+          </Button>
+        </div>
       </div>
     </div>
 
@@ -105,7 +156,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
-import { Download, ZoomIn, ZoomOut, SearchX } from 'lucide-vue-next'
+import { Download, Palette, ZoomIn, ZoomOut, SearchX } from 'lucide-vue-next'
 import { useAppTheme } from '@/composables/useAppTheme'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -210,41 +261,12 @@ const allVariants = computed(() => {
 // Check if we have variants to display
 const hasVariants = computed(() => allVariants.value.length > 0)
 
-// Get count by classification
-const getClassificationCount = category => {
-  return allVariants.value.filter(v => v.category === category).length
+// Select all/none helpers
+const selectAllClassifications = () => {
+  selectedClassifications.value = classificationOptions.map(o => o.value)
 }
-
-// Get count by effect
-const getEffectCount = effect => {
-  return allVariants.value.filter(v => v.effect_category === effect).length
-}
-
-// Active filter options based on colorBy mode
-const activeFilterOptions = computed(() => {
-  return colorBy.value === 'classification' ? classificationOptions : effectOptions
-})
-
-const isFilterActive = value => {
-  return colorBy.value === 'classification'
-    ? selectedClassifications.value.includes(value)
-    : selectedEffects.value.includes(value)
-}
-
-const getActiveColor = value => {
-  return colorBy.value === 'classification' ? getClassificationColor(value) : getEffectColor(value)
-}
-
-const getActiveCount = value => {
-  return colorBy.value === 'classification' ? getClassificationCount(value) : getEffectCount(value)
-}
-
-const toggleActiveFilter = value => {
-  if (colorBy.value === 'classification') {
-    toggleClassification(value)
-  } else {
-    toggleEffect(value)
-  }
+const selectAllEffects = () => {
+  selectedEffects.value = effectOptions.map(o => o.value)
 }
 
 // Get lollipop color for a variant based on current colorBy mode
@@ -254,18 +276,19 @@ const getVariantColor = variant => {
     : getEffectColor(variant.effect_category)
 }
 
-// Filter variants — always filter by active colorBy dimension
+// Filter variants — both dimensions apply simultaneously (AND logic)
+// Empty selection in a dimension means "no filter" for that dimension
 const filteredVariants = computed(() => {
-  const variants = allVariants.value
-  if (colorBy.value === 'classification') {
-    return selectedClassifications.value.length > 0
-      ? variants.filter(v => selectedClassifications.value.includes(v.category))
-      : []
+  let variants = allVariants.value
+  if (selectedClassifications.value.length > 0) {
+    variants = variants.filter(v => selectedClassifications.value.includes(v.category))
   } else {
-    return selectedEffects.value.length > 0
-      ? variants.filter(v => selectedEffects.value.includes(v.effect_category))
-      : []
+    return [] // No classifications selected = show nothing
   }
+  if (selectedEffects.value.length > 0) {
+    variants = variants.filter(v => selectedEffects.value.includes(v.effect_category))
+  }
+  return variants
 })
 
 // Effect colors for variant types
