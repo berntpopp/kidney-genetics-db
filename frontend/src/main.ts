@@ -4,6 +4,22 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import { routes } from './router'
 
+// Intercept console.warn to catch Vue Router warnings from vite-ssg internals
+// and route them through our logging system instead of polluting the console.
+// vite-ssg v28.3.0 uses the deprecated next() callback pattern internally.
+if (typeof window !== 'undefined') {
+  const origWarn = console.warn
+  console.warn = (...args: unknown[]) => {
+    const msg = typeof args[0] === 'string' ? args[0] : ''
+    if (msg.includes('[Vue Router warn]')) {
+      // Route to our logging system once available, suppress from console
+      window.logService?.warn(msg)
+      return
+    }
+    origWarn.apply(console, args)
+  }
+}
+
 export const createApp = ViteSSG(
   App,
   {
@@ -53,6 +69,13 @@ export const createApp = ViteSSG(
         userAgent: navigator.userAgent,
         url: window.location.href
       })
+
+      // Catch Vue warnings and route them through our logging system
+      // instead of console.warn — this captures the vite-ssg next() deprecation
+      // warning and any other Vue warnings in the Log Viewer
+      app.config.warnHandler = (msg, _instance, trace) => {
+        logService.warn(`[Vue warn]: ${msg}`, { trace })
+      }
 
       window.snackbar = {
         success: (msg: string) => toast.success(msg, { duration: 5000 }),

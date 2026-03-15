@@ -9,17 +9,23 @@ export interface AppConfig {
   version: string
 }
 
+// Guard window access for SSR/SSG compatibility
+const env =
+  typeof window !== 'undefined'
+    ? ((window as Record<string, unknown>)._env_ as Record<string, string> | undefined)
+    : undefined
+
 export const config: AppConfig = {
   // Dev: VITE_API_BASE_URL=http://localhost:8000 (cross-origin)
   // Docker/prod: window._env_.API_BASE_URL="" (same-origin, nginx proxies /api/)
   // Fallback: empty string (same-origin)
-  apiBaseUrl: window._env_?.API_BASE_URL ?? import.meta.env.VITE_API_BASE_URL ?? '',
-  wsUrl: window._env_?.WS_URL ?? import.meta.env.VITE_WS_URL ?? '/ws',
-  environment: window._env_?.ENVIRONMENT ?? import.meta.env.MODE ?? 'development',
-  version: window._env_?.VERSION ?? '0.2.0'
+  apiBaseUrl: env?.API_BASE_URL ?? import.meta.env.VITE_API_BASE_URL ?? '',
+  wsUrl: env?.WS_URL ?? import.meta.env.VITE_WS_URL ?? '/ws',
+  environment: env?.ENVIRONMENT ?? import.meta.env.MODE ?? 'development',
+  version: env?.VERSION ?? '0.2.0'
 }
 
 // Log configuration in development mode for debugging
-if (config.environment === 'development') {
+if (typeof window !== 'undefined' && config.environment === 'development') {
   window.logService?.info('Runtime configuration:', config)
 }
