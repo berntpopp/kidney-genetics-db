@@ -16,8 +16,9 @@
           />
         </div>
 
+        <h1 class="text-2xl md:text-3xl font-bold mt-4 mb-2">Kidney Genetics Database</h1>
         <p class="text-base md:text-lg text-muted-foreground mx-auto max-w-[600px]">
-          Evidence-based kidney disease gene curation with multi-source integration
+          Evidence-based renal &amp; nephrology gene curation with multi-source integration
         </p>
       </div>
     </div>
