@@ -64,8 +64,16 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequestConfig
 
-    // If 401, try to refresh via HttpOnly cookie
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+    // If 401 on an authenticated request, try to refresh via HttpOnly cookie.
+    // Only attempt refresh if the request had an Authorization header (was authenticated),
+    // to avoid spurious logouts from public endpoints that return 401.
+    const hadAuthHeader = !!originalRequest?.headers?.Authorization
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      hadAuthHeader
+    ) {
       originalRequest._retry = true
 
       try {
