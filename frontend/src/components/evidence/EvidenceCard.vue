@@ -1,5 +1,5 @@
 <template>
-  <AccordionItem :value="evidence.source_name" class="border rounded-lg mb-2">
+  <AccordionItem :value="evidence.source_name" class="border rounded-lg mb-2 last:border-b">
     <AccordionTrigger class="px-4 py-3 hover:no-underline">
       <div class="flex items-center justify-between w-full mr-4">
         <div class="flex items-center gap-3">
