@@ -16,12 +16,27 @@
           />
         </div>
 
-        <h1 class="sr-only">
-          Kidney Genetics Database — Renal &amp; Nephrology Gene Evidence Curation
+        <h1 class="text-lg md:text-xl font-semibold text-foreground mb-2">
+          Kidney Genetics Database
         </h1>
-        <p class="text-base md:text-lg text-muted-foreground mx-auto max-w-[600px]">
+        <p class="text-base md:text-lg text-muted-foreground mx-auto max-w-[600px] mb-6">
           Evidence-based renal &amp; nephrology gene curation with multi-source integration
         </p>
+        <form class="flex items-center gap-2 max-w-md mx-auto" @submit.prevent="handleSearch">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search PKD1, HGNC:9008, polycystin..."
+            aria-label="Search genes"
+            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <button
+            type="submit"
+            class="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <Search class="size-4" />
+          </button>
+        </form>
       </div>
     </div>
 
@@ -91,7 +106,8 @@ import {
   AlarmClockCheck,
   ShieldCheck,
   RefreshCw,
-  Microscope
+  Microscope,
+  Search
 } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { useWindowSize } from '@vueuse/core'
@@ -106,6 +122,12 @@ const router = useRouter()
 const { width } = useWindowSize()
 const hoveredCard = ref<number | null>(null)
 const statsLoaded = ref(false)
+
+const searchQuery = ref('')
+function handleSearch() {
+  const q = searchQuery.value.trim()
+  if (q) router.push({ path: '/genes', query: { search: q } })
+}
 
 // Responsive logo sizing
 const logoSize = computed(() => {
