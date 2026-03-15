@@ -189,6 +189,8 @@ async def trigger_pipeline_update(
     """
     Trigger annotation pipeline update.
 
+    Accepts parameters as query params OR JSON body (body takes precedence).
+
     Args:
         strategy: Update strategy to use
         sources: Optional list of sources to update
@@ -200,6 +202,21 @@ async def trigger_pipeline_update(
     Returns:
         Update task information
     """
+    # Accept JSON body parameters (body takes precedence over query params)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    if body.get("strategy"):
+        strategy = body["strategy"]
+    if body.get("sources") is not None:
+        sources = body["sources"]
+    if body.get("gene_ids") is not None:
+        gene_ids = body["gene_ids"]
+    if body.get("force") is not None:
+        force = body["force"]
+
     await logger.info(
         "Admin action: Pipeline update triggered",
         user_id=current_user.id,
