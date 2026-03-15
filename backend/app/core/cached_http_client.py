@@ -72,7 +72,10 @@ class CachedHttpClient:
 
         # Create async HTTP client with caching
         self.http_client = hishel.AsyncCacheClient(
-            controller=self.controller, storage=self.storage, timeout=httpx.Timeout(timeout)
+            controller=self.controller,
+            storage=self.storage,
+            timeout=httpx.Timeout(timeout),
+            follow_redirects=True,
         )
 
         # Circuit breaker state per domain

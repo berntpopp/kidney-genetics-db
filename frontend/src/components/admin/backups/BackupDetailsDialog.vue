@@ -97,7 +97,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
-const { getStatusColor, formatSize, formatDate, formatDuration } = useBackupFormatters()
+const { formatSize, formatDate, formatDuration } = useBackupFormatters()
 
 const getStatusVariant = status => {
   const variants = {

@@ -29,14 +29,7 @@ def register_data_sources() -> None:
         registered_count = 0
         updated_count = 0
 
-        # Skip manual upload sources from progress tracking
-        manual_upload_sources = ["DiagnosticPanels"]
-
         for source_name, config in DATA_SOURCE_CONFIG.items():
-            # Skip manual upload sources - they don't need progress tracking
-            if source_name in manual_upload_sources:
-                continue
-
             # Check if progress record exists
             existing = db.query(DataSourceProgress).filter_by(source_name=source_name).first()
 
@@ -178,11 +171,7 @@ def cleanup_orphaned_sources() -> None:
 
     db = next(get_db())
     try:
-        # Exclude manual upload sources from configured sources for progress tracking
-        manual_upload_sources = ["DiagnosticPanels"]
-        configured_sources = {
-            k for k in DATA_SOURCE_CONFIG.keys() if k not in manual_upload_sources
-        }
+        configured_sources = set(DATA_SOURCE_CONFIG.keys())
 
         # Find progress records for sources not in current config
         orphaned = (

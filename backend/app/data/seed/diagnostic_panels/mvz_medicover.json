@@ -1,0 +1,1268 @@
+{
+  "id": "mvz_medicover",
+  "provider_id": "mvz_medicover",
+  "provider_name": "MVZ Medicover",
+  "provider_type": "single_panel",
+  "main_url": "https://www.medicover-diagnostics.de/leistungsverzeichnis/humangenetik/nierenerkrankungen",
+  "total_panels": 1,
+  "total_unique_genes": 125,
+  "genes": [
+    {
+      "symbol": "CHRM3",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CHRM3",
+      "hgnc_id": "HGNC:1952",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "XPNPEP3",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "XPNPEP3",
+      "hgnc_id": "HGNC:28052",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CD2AP",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CD2AP",
+      "hgnc_id": "HGNC:14258",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GREM1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GREM1",
+      "hgnc_id": "HGNC:2001",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EMP2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "EMP2",
+      "hgnc_id": "HGNC:3334",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GANAB",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GANAB",
+      "hgnc_id": "HGNC:4138",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AQP2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AQP2",
+      "hgnc_id": "HGNC:634",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BMP4",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BMP4",
+      "hgnc_id": "HGNC:1071",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ARHGAP24",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ARHGAP24",
+      "hgnc_id": "HGNC:25361",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SMARCAL1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SMARCAL1",
+      "hgnc_id": "HGNC:11102",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP83",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEP83",
+      "hgnc_id": "HGNC:17966",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKD2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PKD2",
+      "hgnc_id": "HGNC:9009",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PTPRO",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PTPRO",
+      "hgnc_id": "HGNC:9678",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGT",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AGT",
+      "hgnc_id": "HGNC:333",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MYO1E",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MYO1E",
+      "hgnc_id": "HGNC:7599",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A3",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COL4A3",
+      "hgnc_id": "HGNC:2204",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACTN4",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ACTN4",
+      "hgnc_id": "HGNC:166",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COQ2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COQ2",
+      "hgnc_id": "HGNC:25223",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NEIL1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NEIL1",
+      "hgnc_id": "HGNC:18448",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "UMOD",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "UMOD",
+      "hgnc_id": "HGNC:12559",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHS1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHS1",
+      "hgnc_id": "HGNC:7908",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "UPK3A",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "UPK3A",
+      "hgnc_id": "HGNC:12580",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DZIP1L",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DZIP1L",
+      "hgnc_id": "HGNC:26551",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COQ6",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COQ6",
+      "hgnc_id": "HGNC:20233",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFH",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFH",
+      "hgnc_id": "HGNC:4883",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC41A1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC41A1",
+      "hgnc_id": "HGNC:19429",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FGF20",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FGF20",
+      "hgnc_id": "HGNC:3677",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLIS2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GLIS2",
+      "hgnc_id": "HGNC:29450",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GDNF",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GDNF",
+      "hgnc_id": "HGNC:4232",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PAX8",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PAX8",
+      "hgnc_id": "HGNC:8622",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COQ8B",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COQ8B",
+      "hgnc_id": "HGNC:19041",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGTR1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AGTR1",
+      "hgnc_id": "HGNC:336",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CHD1L",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CHD1L",
+      "hgnc_id": "HGNC:1916",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ITGA3",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ITGA3",
+      "hgnc_id": "HGNC:6139",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SIX2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SIX2",
+      "hgnc_id": "HGNC:10888",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACE",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ACE",
+      "hgnc_id": "HGNC:2707",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MAPKBP1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MAPKBP1",
+      "hgnc_id": "HGNC:29536",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FOXC2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FOXC2",
+      "hgnc_id": "HGNC:3801",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SIX5",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SIX5",
+      "hgnc_id": "HGNC:10891",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "REN",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "REN",
+      "hgnc_id": "HGNC:9958",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAJB11",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAJB11",
+      "hgnc_id": "HGNC:14889",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP164",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEP164",
+      "hgnc_id": "HGNC:29182",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GRIP1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GRIP1",
+      "hgnc_id": "HGNC:18708",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APOL1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "APOL1",
+      "hgnc_id": "HGNC:618",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ETV5",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ETV5",
+      "hgnc_id": "HGNC:3494",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACTG2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ACTG2",
+      "hgnc_id": "HGNC:145",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KANK1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KANK1",
+      "hgnc_id": "HGNC:19309",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ITGA8",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ITGA8",
+      "hgnc_id": "HGNC:6144",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHS2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHS2",
+      "hgnc_id": "HGNC:13394",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BICC1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BICC1",
+      "hgnc_id": "HGNC:19351",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LRIG2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LRIG2",
+      "hgnc_id": "HGNC:20889",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BMP7",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BMP7",
+      "hgnc_id": "HGNC:1074",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MUC1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MUC1",
+      "hgnc_id": "HGNC:7508",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRAP1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TRAP1",
+      "hgnc_id": "HGNC:16264",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ETV4",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ETV4",
+      "hgnc_id": "HGNC:3493",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KANK2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KANK2",
+      "hgnc_id": "HGNC:29300",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FREM1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FREM1",
+      "hgnc_id": "HGNC:23399",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DACH1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DACH1",
+      "hgnc_id": "HGNC:2663",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A4",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COL4A4",
+      "hgnc_id": "HGNC:2206",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FRAS1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FRAS1",
+      "hgnc_id": "HGNC:19185",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HPSE2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HPSE2",
+      "hgnc_id": "HGNC:18374",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ROBO2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ROBO2",
+      "hgnc_id": "HGNC:10250",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PLCE1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PLCE1",
+      "hgnc_id": "HGNC:17175",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PDSS2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PDSS2",
+      "hgnc_id": "HGNC:23041",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KANK4",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KANK4",
+      "hgnc_id": "HGNC:27263",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ANLN",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ANLN",
+      "hgnc_id": "HGNC:14082",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CDC5L",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CDC5L",
+      "hgnc_id": "HGNC:1743",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKD1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PKD1",
+      "hgnc_id": "HGNC:9008",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LMX1B",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LMX1B",
+      "hgnc_id": "HGNC:6654",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SOX17",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SOX17",
+      "hgnc_id": "HGNC:18122",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "UPK2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "UPK2",
+      "hgnc_id": "HGNC:12579",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DGKE",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DGKE",
+      "hgnc_id": "HGNC:2852",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKHD1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PKHD1",
+      "hgnc_id": "HGNC:9016",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRPC6",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TRPC6",
+      "hgnc_id": "HGNC:12338",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ANKS6",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ANKS6",
+      "hgnc_id": "HGNC:26724",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PAX2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PAX2",
+      "hgnc_id": "HGNC:8616",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LAMB2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LAMB2",
+      "hgnc_id": "HGNC:6487",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AVPR2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AVPR2",
+      "hgnc_id": "HGNC:897",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ITGB4",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ITGB4",
+      "hgnc_id": "HGNC:6158",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FREM2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FREM2",
+      "hgnc_id": "HGNC:25396",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CRB2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CRB2",
+      "hgnc_id": "HGNC:18688",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ARHGDIA",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ARHGDIA",
+      "hgnc_id": "HGNC:678",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NEK8",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NEK8",
+      "hgnc_id": "HGNC:13387",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INF2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "INF2",
+      "hgnc_id": "HGNC:23791",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DSTYK",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DSTYK",
+      "hgnc_id": "HGNC:29043",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCARB2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SCARB2",
+      "hgnc_id": "HGNC:1665",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GRHPR",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GRHPR",
+      "hgnc_id": "HGNC:4570",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGXT",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AGXT",
+      "hgnc_id": "HGNC:341",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC7A7",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC7A7",
+      "hgnc_id": "HGNC:11065",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HOGA1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HOGA1",
+      "hgnc_id": "HGNC:25155",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CUBN",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CUBN",
+      "hgnc_id": "HGNC:2548",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DCDC2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DCDC2",
+      "hgnc_id": "HGNC:18141",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MYH9",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MYH9",
+      "hgnc_id": "HGNC:7579",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SIX1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SIX1",
+      "hgnc_id": "HGNC:10887",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GATA3",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GATA3",
+      "hgnc_id": "HGNC:4172",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EYA1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "EYA1",
+      "hgnc_id": "HGNC:3519",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HNF1B",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HNF1B",
+      "hgnc_id": "HGNC:11630",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RET",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RET",
+      "hgnc_id": "HGNC:9967",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNT4",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WNT4",
+      "hgnc_id": "HGNC:12783",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC12A3",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC12A3",
+      "hgnc_id": "HGNC:10912",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WT1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WT1",
+      "hgnc_id": "HGNC:12796",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ANOS1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ANOS1",
+      "hgnc_id": "HGNC:6211",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WDR19",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WDR19",
+      "hgnc_id": "HGNC:18340",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPGRIP1L",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RPGRIP1L",
+      "hgnc_id": "HGNC:29168",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT172",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT172",
+      "hgnc_id": "HGNC:30391",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TTC21B",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TTC21B",
+      "hgnc_id": "HGNC:25660",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP3",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHP3",
+      "hgnc_id": "HGNC:7907",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHP1",
+      "hgnc_id": "HGNC:7905",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INVS",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "INVS",
+      "hgnc_id": "HGNC:17870",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP290",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEP290",
+      "hgnc_id": "HGNC:29021",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM216",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM216",
+      "hgnc_id": "HGNC:25018",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CC2D2A",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CC2D2A",
+      "hgnc_id": "HGNC:29253",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AHI1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AHI1",
+      "hgnc_id": "HGNC:21575",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM237",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM237",
+      "hgnc_id": "HGNC:14432",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IQCB1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IQCB1",
+      "hgnc_id": "HGNC:28949",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SDCCAG8",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SDCCAG8",
+      "hgnc_id": "HGNC:10671",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM67",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM67",
+      "hgnc_id": "HGNC:28396",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ZNF423",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ZNF423",
+      "hgnc_id": "HGNC:16762",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A5",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COL4A5",
+      "hgnc_id": "HGNC:2207",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACTA2",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ACTA2",
+      "hgnc_id": "HGNC:130",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FOXC1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FOXC1",
+      "hgnc_id": "HGNC:3800",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SALL1",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SALL1",
+      "hgnc_id": "HGNC:10524",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP4",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHP4",
+      "hgnc_id": "HGNC:19104",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ZIC3",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ZIC3",
+      "hgnc_id": "HGNC:12874",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLA",
+      "panels": [
+        "Kidney Diseases Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GLA",
+      "hgnc_id": "HGNC:4296",
+      "normalization_status": "normalized"
+    }
+  ],
+  "sub_panels": null,
+  "metadata": {
+    "panel_name": "Kidney Diseases Panel",
+    "scraper_version": "1.0.0"
+  },
+  "errors": null,
+  "scraped_at": "2025-08-24T19:37:45.697552"
+}

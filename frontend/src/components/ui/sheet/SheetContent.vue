@@ -10,6 +10,7 @@ import SheetOverlay from './SheetOverlay.vue'
 interface SheetContentProps extends DialogContentProps {
   class?: HTMLAttributes['class']
   side?: 'top' | 'right' | 'bottom' | 'left'
+  hideClose?: boolean
 }
 
 defineOptions({
@@ -17,11 +18,12 @@ defineOptions({
 })
 
 const props = withDefaults(defineProps<SheetContentProps>(), {
-  side: 'right'
+  side: 'right',
+  hideClose: false
 })
 const emits = defineEmits<DialogContentEmits>()
 
-const delegatedProps = reactiveOmit(props, 'class', 'side')
+const delegatedProps = reactiveOmit(props, 'class', 'side', 'hideClose')
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
@@ -50,6 +52,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       <slot />
 
       <DialogClose
+        v-if="!hideClose"
         class="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none"
       >
         <Cross2Icon class="size-4" />

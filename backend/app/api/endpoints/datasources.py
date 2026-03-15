@@ -13,11 +13,13 @@ from app.core.background_tasks import task_manager
 from app.core.datasource_config import DATA_SOURCE_CONFIG, get_auto_update_sources
 from app.core.exceptions import DataSourceError
 from app.core.gene_filters import count_filtered_genes_from_evidence_sql
+from app.core.logging import get_logger
 from app.core.responses import ResponseBuilder
 from app.models.gene import PipelineRun
 from app.schemas.datasource import DataSource, DataSourceStats
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 @router.get("/")
@@ -48,6 +50,28 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             """
             )
         ).fetchall()
+
+        # Fallback: if gene_scores view is stale (0 rows), query gene_evidence directly
+        if not result:
+            view_count = db.execute(text("SELECT COUNT(*) FROM gene_scores")).scalar()
+            if view_count == 0:
+                logger.sync_warning(
+                    "gene_scores view has 0 rows — falling back to unfiltered query"
+                )
+            result = db.execute(
+                text(
+                    """
+                    SELECT
+                        source_name,
+                        COUNT(DISTINCT gene_id) as gene_count,
+                        COUNT(*) as evidence_count,
+                        MAX(updated_at) as last_updated
+                    FROM gene_evidence
+                    GROUP BY source_name
+                    ORDER BY source_name
+                """
+                )
+            ).fetchall()
     except Exception:
         # If query fails, return empty result
         result = []
@@ -267,6 +291,17 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
 
     # Get actual unique gene count (only genes with evidence, respecting score filter)
     unique_genes = db.execute(text(count_filtered_genes_from_evidence_sql())).scalar() or 0
+
+    # Fallback: count directly from gene_evidence when gene_scores view is stale (0 rows)
+    if unique_genes == 0:
+        view_row_count = db.execute(text("SELECT COUNT(*) FROM gene_scores")).scalar()
+        if view_row_count == 0:
+            logger.sync_warning(
+                "gene_scores view has 0 rows — falling back to unfiltered gene count"
+            )
+        unique_genes = (
+            db.execute(text("SELECT COUNT(DISTINCT gene_id) FROM gene_evidence")).scalar() or 0
+        )
 
     # Get orphaned gene count
     orphaned_genes = (

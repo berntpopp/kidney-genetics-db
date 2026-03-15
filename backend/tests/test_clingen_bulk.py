@@ -42,6 +42,15 @@ GLOM_ROW = (
     '"Glomerulopathy Gene Curation Expert Panel"\n'
 )
 
+# Non-kidney panel but kidney-related disease (should be included)
+CROSS_PANEL_KIDNEY_ROW = (
+    '"HNF1B","HGNC:11630","renal cysts and diabetes syndrome",'
+    '"MONDO:0010894","AD","SOP8","Definitive",'
+    '"https://search.clinicalgenome.org/kb/gene-validity/report4",'
+    '"2024-06-15T16:00:00.000Z",'
+    '"Monogenic Diabetes Gene Curation Expert Panel"\n'
+)
+
 
 @pytest.fixture
 def source():
@@ -58,6 +67,20 @@ def source():
             "Complement-Mediated Kidney Diseases Gene Curation Expert Panel",
             "Congenital Anomalies of the Kidney and Urinary Tract Gene Curation Expert Panel",
         }
+        src.kidney_keywords = [
+            "kidney",
+            "renal",
+            "nephro",
+            "glomerul",
+            "tubul",
+            "polycystic",
+            "alport",
+            "nephritis",
+            "cystic",
+            "ciliopathy",
+            "complement",
+            "cakut",
+        ]
         src.http_client = AsyncMock()
         src.cache_ttl = 86400
         return src
@@ -69,8 +92,8 @@ def source():
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_csv_parses_kidney_rows(source):
-    """CSV parser extracts only kidney panel rows."""
-    csv_text = CSV_HEADER + KIDNEY_ROW + NON_KIDNEY_ROW + GLOM_ROW
+    """CSV parser extracts kidney panel rows and cross-panel kidney diseases."""
+    csv_text = CSV_HEADER + KIDNEY_ROW + NON_KIDNEY_ROW + GLOM_ROW + CROSS_PANEL_KIDNEY_ROW
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -80,13 +103,34 @@ async def test_csv_parses_kidney_rows(source):
     result = await source._fetch_bulk_csv()
 
     assert result is not None
-    assert result["total_records"] == 2  # PKD1 + APOL1
-    assert len(result["validities"]) == 2
+    # PKD1 (kidney panel) + APOL1 (kidney panel) + HNF1B (kidney disease from other panel)
+    assert result["total_records"] == 3
+    assert len(result["validities"]) == 3
 
     symbols = {v["symbol"] for v in result["validities"]}
     assert "PKD1" in symbols
     assert "APOL1" in symbols
-    assert "BRCA1" not in symbols
+    assert "HNF1B" in symbols  # Cross-panel match via "renal" keyword
+    assert "BRCA1" not in symbols  # Non-kidney disease, non-kidney panel
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_csv_includes_cross_panel_kidney_disease(source):
+    """Genes from non-kidney panels are included if disease is kidney-related."""
+    csv_text = CSV_HEADER + CROSS_PANEL_KIDNEY_ROW + NON_KIDNEY_ROW
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = csv_text
+    source.http_client.get = AsyncMock(return_value=mock_resp)
+
+    result = await source._fetch_bulk_csv()
+
+    assert result is not None
+    assert len(result["validities"]) == 1
+    assert result["validities"][0]["symbol"] == "HNF1B"
+    assert result["validities"][0]["disease_name"] == "renal cysts and diabetes syndrome"
 
 
 @pytest.mark.unit

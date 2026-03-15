@@ -65,9 +65,11 @@ engine = create_engine(
     _database_url,
     echo=settings.DATABASE_ECHO,
     # Connection pooling with robustness settings
-    pool_size=10,
-    max_overflow=15,
-    pool_timeout=30,
+    pool_size=15,
+    max_overflow=20,
+    pool_timeout=10,  # Intentionally low: fail fast with clear error instead of
+    # silently hanging for 30s (default). Under pool exhaustion, a fast failure
+    # surfaces the real issue (connection leak / missing close) immediately.
     pool_recycle=3600,  # Recycle connections after 1 hour
     pool_pre_ping=True,  # Test connections before use
     pool_use_lifo=True,  # Use LIFO for better connection reuse

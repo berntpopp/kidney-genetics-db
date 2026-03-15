@@ -64,7 +64,7 @@ const search = ref('')
 const evidenceScoreRange = ref([0, 100])
 const selectedSources = ref<string[]>([])
 const selectedTiers = ref<string[]>([])
-const evidenceCountRange = ref([0, 7])
+const evidenceCountRange = ref([1, 7])
 const sortOption = ref('score_desc')
 const filterMeta = ref<FilterMetadata | null>(null)
 const sortBy = ref([{ key: 'evidence_score', order: 'desc' }])
@@ -233,8 +233,8 @@ const hasActiveFilters = computed(() => {
     search.value ||
     evidenceScoreRange.value[0] > 0 ||
     evidenceScoreRange.value[1] < 100 ||
-    evidenceCountRange.value[0] > 0 ||
-    evidenceCountRange.value[1] < (filterMeta.value?.evidence_count?.max || 6) ||
+    evidenceCountRange.value[0] > 1 ||
+    evidenceCountRange.value[1] < (filterMeta.value?.evidence_count?.max || 7) ||
     selectedSources.value.length > 0 ||
     selectedTiers.value.length > 0 ||
     showZeroScoreGenes.value
@@ -328,7 +328,7 @@ const parseUrlParams = () => {
   }
 
   if (query.min_count) {
-    evidenceCountRange.value[0] = parseInt(query.min_count as string) || 0
+    evidenceCountRange.value[0] = parseInt(query.min_count as string) || 1
   }
   if (query.max_count) {
     evidenceCountRange.value[1] = parseInt(query.max_count as string) || 7
@@ -367,7 +367,7 @@ const updateUrl = () => {
 
   if (evidenceScoreRange.value[0] > 0) query.min_score = evidenceScoreRange.value[0]
   if (evidenceScoreRange.value[1] < 100) query.max_score = evidenceScoreRange.value[1]
-  if (evidenceCountRange.value[0] > 0) query.min_count = evidenceCountRange.value[0]
+  if (evidenceCountRange.value[0] > 1) query.min_count = evidenceCountRange.value[0]
   if (evidenceCountRange.value[1] < 7) query.max_count = evidenceCountRange.value[1]
   if (selectedSources.value.length > 0) query.source = selectedSources.value[0]
   if (selectedTiers.value.length > 0) query.tier = selectedTiers.value.join(',')
@@ -416,7 +416,7 @@ const loadGenes = async () => {
       }
 
       if (response.meta.filters.evidence_count?.max && !filterMeta.value) {
-        evidenceCountRange.value = [0, response.meta.filters.evidence_count.max]
+        evidenceCountRange.value = [1, response.meta.filters.evidence_count.max]
       }
     }
   } catch (error) {
@@ -443,6 +443,13 @@ const applySorting = (value: string) => {
   loadGenes()
 }
 
+const toggleZeroScore = (val: boolean) => {
+  showZeroScoreGenes.value = val
+  page.value = 1
+  updateUrl()
+  loadGenes()
+}
+
 let searchTimeout: ReturnType<typeof setTimeout>
 const debouncedSearch = () => {
   clearTimeout(searchTimeout)
@@ -456,7 +463,7 @@ const debouncedSearch = () => {
 const clearAllFilters = () => {
   search.value = ''
   evidenceScoreRange.value = [0, 100]
-  evidenceCountRange.value = [0, filterMeta.value?.evidence_count?.max || 7]
+  evidenceCountRange.value = [1, filterMeta.value?.evidence_count?.max || 7]
   selectedSources.value = []
   selectedTiers.value = []
   sortOption.value = 'score_desc'
@@ -726,8 +733,8 @@ onMounted(async () => {
             <Label class="text-xs whitespace-nowrap">Count</Label>
             <Slider
               v-model="evidenceCountRange"
-              :min="0"
-              :max="filterMeta?.evidence_count?.max || 6"
+              :min="1"
+              :max="filterMeta?.evidence_count?.max || 7"
               :step="1"
               class="flex-1"
               @update:model-value="debouncedSearch"
@@ -741,12 +748,7 @@ onMounted(async () => {
             <Switch
               id="zero-score"
               :checked="showZeroScoreGenes"
-              @update:checked="
-                val => {
-                  showZeroScoreGenes = val
-                  debouncedSearch()
-                }
-              "
+              @click="toggleZeroScore(!showZeroScoreGenes)"
             />
             <Label for="zero-score" class="text-xs cursor-pointer whitespace-nowrap">
               Include zero-score

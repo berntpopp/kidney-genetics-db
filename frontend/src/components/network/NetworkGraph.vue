@@ -187,10 +187,9 @@
     <!-- Cytoscape Graph Container -->
     <CardContent class="p-0 network-container-wrapper">
       <div
-        v-show="!loading && !error"
         ref="cytoscapeContainer"
         class="cytoscape-container"
-        :style="{ height: graphHeight }"
+        :style="{ height: graphHeight, visibility: !loading && !error ? 'visible' : 'hidden' }"
       >
         <!-- Tooltip for node hover -->
         <div
@@ -1370,8 +1369,9 @@ const initializeCytoscape = () => {
 
 const destroyCytoscape = () => {
   if (cyInstance.value) {
-    cyInstance.value.destroy()
-    cyInstance.value = null
+    const instance = cyInstance.value
+    cyInstance.value = null // Null ref FIRST to prevent watchers from using destroyed instance
+    instance.destroy()
   }
 }
 
@@ -1428,8 +1428,12 @@ watch(
   newData => {
     destroyCytoscape()
     if (newData) {
+      // Double nextTick + rAF ensures the container is fully rendered
+      // before Cytoscape tries to measure it
       nextTick(() => {
-        initializeCytoscape()
+        window.requestAnimationFrame(() => {
+          initializeCytoscape()
+        })
       })
     }
   }
@@ -1445,7 +1449,7 @@ watch([() => props.colorMode, () => props.hpoClassifications], ([newColorMode], 
     hasCyInstance: !!cyInstance.value
   })
 
-  if (!cyInstance.value) {
+  if (!cyInstance.value || cyInstance.value.destroyed()) {
     window.logService?.warn('[NetworkGraph] No cytoscape instance, skipping color update')
     return
   }
@@ -1454,12 +1458,18 @@ watch([() => props.colorMode, () => props.hpoClassifications], ([newColorMode], 
   let updatedCount = 0
 
   // Update node colors based on new color map
-  cyInstance.value.nodes().forEach(node => {
-    const geneId = node.data('gene_id')
-    const color = nodeColorMap.value.get(geneId) || node.data('color') || '#1976D2'
-    node.style('background-color', color)
-    updatedCount++
-  })
+  try {
+    cyInstance.value.nodes().forEach(node => {
+      const geneId = node.data('gene_id')
+      const color = nodeColorMap.value.get(geneId) || node.data('color') || '#1976D2'
+      node.style('background-color', color)
+      updatedCount++
+    })
+  } catch {
+    // Cytoscape instance may be in a transitional state during destroy/recreate
+    window.logService?.warn('[NetworkGraph] Skipped color update — instance transitioning')
+    return
+  }
 
   window.logService?.info(
     `[NetworkGraph] ✓ Updated colors for ${updatedCount}/${nodeCount} nodes`,
@@ -1471,8 +1481,9 @@ watch([() => props.colorMode, () => props.hpoClassifications], ([newColorMode], 
 })
 
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
   if (props.networkData) {
+    await nextTick()
     initializeCytoscape()
   }
 })

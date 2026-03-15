@@ -8,10 +8,10 @@
  * @module utils/debounce
  */
 
-export interface DebouncedFunction<T extends (...args: any[]) => any> {
-  (...args: Parameters<T>): void
+export interface DebouncedFunction<T extends (..._args: any[]) => any> {
+  (..._args: Parameters<T>): void
   cancel(): void
-  flush(...args: Parameters<T>): void
+  flush(..._args: Parameters<T>): void
 }
 
 /**
@@ -35,7 +35,7 @@ export interface DebouncedFunction<T extends (...args: any[]) => any> {
  * // Cancel pending execution
  * debouncedUpdate.cancel()
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (..._args: any[]) => any>(
   fn: T,
   delay: number
 ): DebouncedFunction<T> {
@@ -103,10 +103,10 @@ export function debounce<T extends (...args: any[]) => any>(
  *
  * window.addEventListener('scroll', throttledScroll)
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (..._args: any[]) => any>(
   fn: T,
   delay: number
-): (...args: Parameters<T>) => void {
+): (..._args: Parameters<T>) => void {
   let lastCall = 0
 
   return function (this: unknown, ...args: Parameters<T>): void {

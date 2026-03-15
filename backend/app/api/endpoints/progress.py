@@ -206,7 +206,7 @@ async def get_all_status(db: Session = Depends(get_db)) -> dict[str, Any]:
     Returns:
         List of status dictionaries for all data sources
     """
-    all_progress = db.query(DataSourceProgress).all()
+    all_progress = db.query(DataSourceProgress).order_by(DataSourceProgress.source_name).all()
 
     # Get valid data sources from config - only include automated sources for pipeline
     automated_sources = get_auto_update_sources()

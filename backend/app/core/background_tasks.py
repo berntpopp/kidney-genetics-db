@@ -11,13 +11,16 @@ Set USE_ARQ_WORKER=true in environment to use ARQ mode.
 import asyncio
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.logging import get_logger
 from app.core.task_decorator import TaskMixin
 from app.models.progress import DataSourceProgress, SourceStatus
+
+if TYPE_CHECKING:
+    from app.core.pipeline_orchestrator import PipelineOrchestrator
 
 logger = get_logger(__name__)
 
@@ -29,6 +32,7 @@ class BackgroundTaskManager(TaskMixin):
         self.running_tasks: dict[str, asyncio.Task[Any]] = {}
         self.executor = ThreadPoolExecutor(max_workers=4)
         self.broadcast_callback: Callable[..., Any] | None = None
+        self.orchestrator: PipelineOrchestrator | None = None
         self._shutdown = False
 
     def set_broadcast_callback(self, callback: Callable[..., Any]) -> None:
@@ -189,15 +193,52 @@ class BackgroundTaskManager(TaskMixin):
                 total_running=len(self.running_tasks),
             )
 
-            # Add task completion callback
-            task.add_done_callback(
-                lambda t: logger.sync_info(
+            # Add task completion callback with orchestrator notification
+            def _on_task_done(
+                t: asyncio.Task[Any],
+                _source: str = source_name,
+            ) -> None:
+                if t.cancelled():
+                    logger.sync_warning(
+                        "Task cancelled",
+                        source_name=_source,
+                    )
+                    if self.orchestrator is not None:
+                        try:
+                            asyncio.create_task(
+                                self.orchestrator.on_source_completed(_source, success=False)
+                            )
+                        except RuntimeError:
+                            # Event loop may be closed during shutdown
+                            logger.sync_warning(
+                                "Cannot notify orchestrator — event loop closed",
+                                source_name=_source,
+                            )
+                    return
+
+                exc = t.exception()
+                success = exc is None
+                logger.sync_info(
                     "Task completed",
-                    source_name=source_name,
+                    source_name=_source,
                     done=t.done(),
-                    exception=str(t.exception()) if t.done() and t.exception() else None,
+                    success=success,
+                    exception=str(exc) if exc else None,
                 )
-            )
+                # Notify orchestrator if present
+                if self.orchestrator is not None:
+                    try:
+                        asyncio.create_task(
+                            self.orchestrator.on_source_completed(_source, success=success)
+                        )
+                    except RuntimeError:
+                        # Event loop may be closed during shutdown
+                        logger.sync_warning(
+                            "Cannot notify orchestrator — event loop closed",
+                            source_name=_source,
+                        )
+
+            task.add_done_callback(_on_task_done)
 
         except Exception as e:
             logger.sync_error("Exception creating/storing task", error=e, source_name=source_name)

@@ -4,7 +4,8 @@ SQLAlchemy models for data source progress tracking
 
 from enum import Enum as PyEnum
 
-from sqlalchemy import JSON, BigInteger, Column, DateTime, Enum, Float, Integer, String, Text
+from sqlalchemy import BigInteger, Column, DateTime, Enum, Float, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 
 from app.models.base import Base
@@ -51,7 +52,7 @@ class DataSourceProgress(Base):
     last_successful_item = Column(Text, nullable=True)
     rate_limit_remaining = Column(Integer, nullable=True)
     rate_limit_reset = Column(DateTime(timezone=True), nullable=True)
-    progress_metadata = Column("metadata", JSON, default={})
+    progress_metadata = Column("metadata", JSONB, default={})
 
     # Timestamps
     started_at = Column(DateTime(timezone=True), nullable=True)

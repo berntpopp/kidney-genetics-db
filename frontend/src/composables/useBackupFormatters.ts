@@ -5,13 +5,13 @@
 
 /** Return type for useBackupFormatters */
 export interface BackupFormatters {
-  getStatusColor: (status: string) => string
-  getStatusIcon: (status: string) => string
-  formatSize: (sizeMb: number | null | undefined) => string
-  formatDuration: (seconds: number | null | undefined) => string
-  formatDate: (date: string | Date | null | undefined) => string
-  formatRelativeTime: (date: string | Date | null | undefined) => string
-  formatBytes: (bytes: number | null | undefined) => string
+  getStatusColor: (_status: string) => string
+  getStatusIcon: (_status: string) => string
+  formatSize: (_sizeMb: number | null | undefined) => string
+  formatDuration: (_seconds: number | null | undefined) => string
+  formatDate: (_date: string | Date | null | undefined) => string
+  formatRelativeTime: (_date: string | Date | null | undefined) => string
+  formatBytes: (_bytes: number | null | undefined) => string
 }
 
 export function useBackupFormatters(): BackupFormatters {

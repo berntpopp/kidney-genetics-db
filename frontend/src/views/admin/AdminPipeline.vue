@@ -62,13 +62,23 @@ const selectedSource = ref(null)
 // WebSocket subscriptions
 const unsubscribers = []
 
-// Computed
+// Computed — filter by category, sort by source_name for stable tile order
 const dataSources = computed(() =>
-  sources.value.filter(s => s.category === 'data_source' || s.category === 'hybrid_source')
+  sources.value
+    .filter(s => s.category === 'data_source')
+    .sort((a, b) => a.source_name.localeCompare(b.source_name))
+)
+
+const hybridSources = computed(() =>
+  sources.value
+    .filter(s => s.category === 'hybrid_source')
+    .sort((a, b) => a.source_name.localeCompare(b.source_name))
 )
 
 const internalProcesses = computed(() =>
-  sources.value.filter(s => s.category === 'internal_process')
+  sources.value
+    .filter(s => s.category === 'internal_process')
+    .sort((a, b) => a.source_name.localeCompare(b.source_name))
 )
 
 const runningSources = computed(() => dataSources.value.filter(s => s.status === 'running').length)
@@ -221,9 +231,13 @@ const showSourceDetails = source => {
 
 // WebSocket handlers
 const handleProgressUpdate = data => {
-  const index = sources.value.findIndex(s => s.source_name === data.source_name)
-  if (index > -1) {
-    sources.value[index] = { ...sources.value[index], ...data }
+  // Backend wraps single updates in an array for consistency
+  const items = Array.isArray(data) ? data : [data]
+  for (const item of items) {
+    const index = sources.value.findIndex(s => s.source_name === item.source_name)
+    if (index > -1) {
+      sources.value[index] = { ...sources.value[index], ...item }
+    }
   }
 }
 
@@ -478,6 +492,33 @@ onUnmounted(() => {
           </Button>
         </div>
       </Card>
+    </div>
+
+    <!-- Hybrid Sources Section (manual upload sources like DiagnosticPanels, Literature) -->
+    <div v-if="hybridSources.length > 0" class="mt-8">
+      <h3 class="text-lg font-semibold mb-4">Upload Sources</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card
+          v-for="source in hybridSources"
+          :key="source.source_name"
+          class="flex flex-col border-dashed"
+        >
+          <CardHeader class="pb-2">
+            <div class="flex items-center justify-between">
+              <CardTitle class="text-sm flex items-center gap-2">
+                <component :is="getSourceIcon(source)" class="size-5" />
+                {{ source.source_name }}
+              </CardTitle>
+              <Badge variant="secondary">manual upload</Badge>
+            </div>
+          </CardHeader>
+          <CardContent class="flex-1 pt-2">
+            <p class="text-xs text-muted-foreground">
+              Upload via API or Admin panel. Not part of the automated pipeline.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
 
     <!-- Internal Processes Section -->

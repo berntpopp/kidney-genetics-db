@@ -112,7 +112,7 @@ async def login(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
-) -> dict[str, Any]:
+) -> Any:
     """
     Login with username/email and password.
     Returns access and refresh tokens.

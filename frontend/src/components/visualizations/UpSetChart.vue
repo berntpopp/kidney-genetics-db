@@ -234,31 +234,23 @@ const availableToAdd = computed(() =>
 const transformToUpSetFormat = apiData => {
   if (!apiData || !apiData.intersections) return { elements: [], sets: [] }
 
-  // Build elements array: each element is a gene with its sets
-  const geneToSetsMap = new Map()
+  // API returns intersections with {sets, size} but no gene lists.
+  // Generate synthetic elements: for each intersection, create `size`
+  // placeholder elements that belong to exactly those sets.
+  const elements = []
+  let elementIndex = 0
 
-  // Process each intersection
   apiData.intersections.forEach(intersection => {
     const sourceSets = intersection.sets
-    const genes = intersection.genes || []
+    const count = intersection.size || 0
 
-    // For each gene in this intersection, record which sets it belongs to
-    genes.forEach(geneName => {
-      if (!geneToSetsMap.has(geneName)) {
-        geneToSetsMap.set(geneName, new Set())
-      }
-      // Add all sources from this intersection
-      sourceSets.forEach(source => {
-        geneToSetsMap.get(geneName).add(source)
+    for (let i = 0; i < count; i++) {
+      elements.push({
+        name: `gene_${elementIndex++}`,
+        sets: [...sourceSets]
       })
-    })
+    }
   })
-
-  // Convert map to elements array
-  const elements = Array.from(geneToSetsMap.entries()).map(([geneName, sourceSets]) => ({
-    name: geneName,
-    sets: Array.from(sourceSets)
-  }))
 
   return { elements }
 }

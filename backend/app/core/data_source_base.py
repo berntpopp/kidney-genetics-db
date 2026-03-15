@@ -168,8 +168,13 @@ class DataSourceClient(ABC):
             stats["genes_found"] = len(processed_data)
 
             if not processed_data:
-                logger.sync_warning("No genes found in data", source_name=self.source_name)
-                tracker.complete(f"{self.source_name} update completed: 0 genes found")
+                msg = f"{self.source_name} update returned 0 genes"
+                logger.sync_error(
+                    "No genes found in data — marking as FAILED",
+                    source_name=self.source_name,
+                )
+                tracker.error(msg)
+                stats["error"] = msg
                 return stats
 
             # Step 3: Store in database
@@ -280,7 +285,16 @@ class DataSourceClient(ABC):
             end_idx = min(start_idx + batch_size, len(gene_symbols))
             batch_symbols = gene_symbols[start_idx:end_idx]
 
-            tracker.update(operation=f"Processing gene batch {batch_num + 1}/{total_batches}")
+            tracker.update(
+                operation=f"Processing gene batch {batch_num + 1}/{total_batches}",
+                current_item=start_idx,
+                total_items=len(gene_symbols),
+            )
+
+            # Track batch-level additions for tracker update
+            batch_added = 0
+            batch_updated = 0
+            batch_failed = 0
 
             # Normalize gene symbols
             normalization_results = await normalize_genes_batch_async(
@@ -290,28 +304,54 @@ class DataSourceClient(ABC):
             # Process each gene in the batch
             for symbol in batch_symbols:
                 try:
-                    stats["genes_processed"] += 1
-                    data = gene_data[symbol]
+                    # Use SAVEPOINT so failures only rollback this gene.
+                    # The context manager auto-commits on success and
+                    # auto-rolls-back on exception.
+                    with db.begin_nested():
+                        stats["genes_processed"] += 1
+                        data = gene_data[symbol]
 
-                    # Get normalized gene info
-                    norm_result = normalization_results.get(symbol, {})
-                    if norm_result.get("status") != "normalized":
-                        logger.sync_debug("Skipping unnormalized gene", symbol=symbol)
-                        continue
+                        # Get normalized gene info
+                        norm_result = normalization_results.get(symbol, {})
+                        if norm_result.get("status") != "normalized":
+                            logger.sync_debug("Skipping unnormalized gene", symbol=symbol)
+                            continue
 
-                    # Get or create gene
-                    gene = await self._get_or_create_gene(db, norm_result, symbol, stats)
+                        # Get or create gene
+                        gene = await self._get_or_create_gene(db, norm_result, symbol, stats)
 
-                    if gene:
-                        # Create or update evidence
-                        await self._create_or_update_evidence(db, gene, data, stats)
+                        if gene:
+                            # Create or update evidence
+                            prev_created = stats["evidence_created"]
+                            prev_updated = stats["evidence_updated"]
+                            await self._create_or_update_evidence(db, gene, data, stats)
+                            if stats["evidence_created"] > prev_created:
+                                batch_added += 1
+                            elif stats["evidence_updated"] > prev_updated:
+                                batch_updated += 1
 
                 except Exception as e:
                     logger.sync_error("Error processing gene", symbol=symbol, error=str(e))
                     stats["errors"] += 1
+                    batch_failed += 1
 
-            # Commit batch
-            db.commit()
+            # Commit batch (with rollback recovery)
+            try:
+                db.commit()
+            except Exception as e:
+                logger.sync_error(
+                    "Batch commit failed, rolling back",
+                    batch_num=batch_num + 1,
+                    error=str(e),
+                )
+                db.rollback()
+
+            # Update tracker with batch results
+            tracker.update(
+                items_added=batch_added,
+                items_updated=batch_updated,
+                items_failed=batch_failed,
+            )
 
     async def _get_or_create_gene(
         self, db: Session, norm_result: dict[str, Any], original_symbol: str, stats: dict[str, Any]

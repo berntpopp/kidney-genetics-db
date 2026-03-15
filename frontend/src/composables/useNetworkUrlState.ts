@@ -33,12 +33,12 @@ export interface NetworkUrlStateReturn {
   isDecoding: Ref<boolean>
   isUrlState: ComputedRef<boolean>
   lastError: Ref<string | null>
-  syncStateToUrl: DebouncedFunction<(state: NetworkState) => void>
-  syncStateToUrlImmediate: (state: NetworkState) => void
+  syncStateToUrl: DebouncedFunction<(_state: NetworkState) => void>
+  syncStateToUrlImmediate: (_state: NetworkState) => void
   restoreStateFromUrl: () => NetworkState | null
   clearUrlState: () => void
-  generateShareableUrl: (state: NetworkState) => string
-  copyShareableUrl: (state: NetworkState) => Promise<boolean>
+  generateShareableUrl: (_state: NetworkState) => string
+  copyShareableUrl: (_state: NetworkState) => Promise<boolean>
 }
 
 /**
@@ -153,7 +153,7 @@ export function useNetworkUrlState(options: NetworkUrlStateOptions = {}): Networ
    *
    * @param state - Network analysis state
    */
-  const syncStateToUrl: DebouncedFunction<(state: NetworkState) => void> = debounce(
+  const syncStateToUrl: DebouncedFunction<(_state: NetworkState) => void> = debounce(
     (state: NetworkState) => {
       isEncoding.value = true
       lastError.value = null

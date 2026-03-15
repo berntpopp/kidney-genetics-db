@@ -21,9 +21,9 @@ export interface NetworkSearchReturn {
   matchCount: ComputedRef<number>
   hasMatches: ComputedRef<boolean>
   hasPattern: ComputedRef<boolean>
-  searchNodes: (cyInstance: cytoscape.Core | null, pattern: string) => cytoscape.NodeSingular[]
+  searchNodes: (_cyInstance: cytoscape.Core | null, _pattern: string) => cytoscape.NodeSingular[]
   clearSearch: () => void
-  isNodeMatched: (nodeId: string) => boolean
+  isNodeMatched: (_nodeId: string) => boolean
   getSearchStats: () => SearchStats
 }
 

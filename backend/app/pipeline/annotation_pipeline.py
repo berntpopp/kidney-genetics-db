@@ -155,7 +155,9 @@ class AnnotationPipeline:
         try:
             # Determine which sources to update
             logger.sync_debug("Getting sources to update...")
-            sources_to_update = await self._get_sources_to_update(sources, force)
+            # FULL and FORCED strategies should bypass is_update_due() checks
+            effective_force = force or strategy in (UpdateStrategy.FULL, UpdateStrategy.FORCED)
+            sources_to_update = await self._get_sources_to_update(sources, effective_force)
             logger.sync_info(
                 "Sources to update determined",
                 sources_to_update=sources_to_update,
@@ -614,7 +616,7 @@ class AnnotationPipeline:
         results: dict[str, Any] = {}
 
         # Limit concurrent sources to respect API limits
-        semaphore = asyncio.Semaphore(3)  # Max 3 concurrent sources
+        semaphore = asyncio.Semaphore(1)  # Process sources sequentially to avoid DB pool starvation
 
         async def rate_limited_update(source_name: str) -> tuple[str, dict]:
             """Update single source with its own isolated session."""
@@ -825,12 +827,13 @@ class AnnotationPipeline:
         except Exception as e:
             logger.sync_debug(f"Cache clear failed: {e}")
 
-        # Update source metadata only when at least one gene succeeded
-        if successful > 0:
-            source_record = source.source_record
-            source_record.last_update = datetime.utcnow()
-            source_record.next_update = datetime.utcnow() + timedelta(days=source.cache_ttl_days)
-            source_db.commit()
+        # Always update source metadata after a run so the scheduler
+        # advances next_update even when no genes needed updating (avoids
+        # the source being perpetually "due" with nothing to do).
+        source_record = source.source_record
+        source_record.last_update = datetime.utcnow()
+        source_record.next_update = datetime.utcnow() + timedelta(days=source.cache_ttl_days)
+        source_db.commit()
 
         return {
             "successful": successful,

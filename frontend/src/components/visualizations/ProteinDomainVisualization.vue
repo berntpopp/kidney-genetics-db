@@ -1,16 +1,23 @@
 <template>
   <div class="protein-domain-visualization">
-    <!-- Filter Controls -->
-    <div v-if="hasVariants" class="filter-controls mb-4">
-      <!-- Classification Filter -->
-      <div class="filter-group mb-2">
-        <span class="filter-label text-xs text-muted-foreground mr-2">Classification:</span>
-        <div class="flex flex-wrap gap-1">
+    <div v-if="hasVariants" class="space-y-1.5 mb-3">
+      <!-- Row 1: Classification chips -->
+      <div class="flex items-center gap-1.5">
+        <button
+          class="text-xs font-medium text-muted-foreground hover:text-foreground w-14 text-left"
+          :class="{ 'text-primary font-semibold': colorBy === 'classification' }"
+          title="Click to color by classification"
+          @click="colorBy = 'classification'"
+        >
+          Class.
+          <Palette v-if="colorBy === 'classification'" class="size-2.5 inline ml-0.5" />
+        </button>
+        <div class="flex flex-wrap gap-0.5">
           <Badge
             v-for="cat in classificationOptions"
             :key="cat.value"
             :variant="selectedClassifications.includes(cat.value) ? 'default' : 'outline'"
-            class="cursor-pointer select-none"
+            class="cursor-pointer select-none text-xs px-1.5 py-0 h-5"
             :style="
               selectedClassifications.includes(cat.value)
                 ? {
@@ -20,25 +27,46 @@
                   }
                 : {
                     borderColor: getClassificationColor(cat.value),
-                    color: getClassificationColor(cat.value)
+                    color: getClassificationColor(cat.value),
+                    opacity: 0.7
                   }
             "
-            @click="toggleFilter(selectedClassifications, cat.value)"
+            @click="toggleClassification(cat.value)"
           >
-            {{ cat.label }} ({{ getClassificationCount(cat.value) }})
+            {{ cat.label }}
           </Badge>
         </div>
+        <button
+          class="text-xs text-muted-foreground hover:text-foreground ml-0.5"
+          @click="selectAllClassifications"
+        >
+          All
+        </button>
+        <button
+          class="text-xs text-muted-foreground hover:text-foreground"
+          @click="selectedClassifications = []"
+        >
+          None
+        </button>
       </div>
 
-      <!-- Effect Filter -->
-      <div class="filter-group">
-        <span class="filter-label text-xs text-muted-foreground mr-2">Effect:</span>
-        <div class="flex flex-wrap gap-1">
+      <!-- Row 2: Effect chips -->
+      <div class="flex items-center gap-1.5">
+        <button
+          class="text-xs font-medium text-muted-foreground hover:text-foreground w-14 text-left"
+          :class="{ 'text-primary font-semibold': colorBy === 'effect' }"
+          title="Click to color by effect"
+          @click="colorBy = 'effect'"
+        >
+          Effect
+          <Palette v-if="colorBy === 'effect'" class="size-2.5 inline ml-0.5" />
+        </button>
+        <div class="flex flex-wrap gap-0.5">
           <Badge
             v-for="eff in effectOptions"
             :key="eff.value"
             :variant="selectedEffects.includes(eff.value) ? 'default' : 'outline'"
-            class="cursor-pointer select-none"
+            class="cursor-pointer select-none text-xs px-1.5 py-0 h-5"
             :style="
               selectedEffects.includes(eff.value)
                 ? {
@@ -46,63 +74,79 @@
                     borderColor: getEffectColor(eff.value),
                     color: 'white'
                   }
-                : { borderColor: getEffectColor(eff.value), color: getEffectColor(eff.value) }
+                : {
+                    borderColor: getEffectColor(eff.value),
+                    color: getEffectColor(eff.value),
+                    opacity: 0.7
+                  }
             "
-            @click="toggleFilter(selectedEffects, eff.value)"
+            @click="toggleEffect(eff.value)"
           >
-            {{ eff.label }} ({{ getEffectCount(eff.value) }})
+            {{ eff.label }}
           </Badge>
         </div>
+        <button
+          class="text-xs text-muted-foreground hover:text-foreground ml-0.5"
+          @click="selectAllEffects"
+        >
+          All
+        </button>
+        <button
+          class="text-xs text-muted-foreground hover:text-foreground"
+          @click="selectedEffects = []"
+        >
+          None
+        </button>
       </div>
 
-      <!-- Variant count summary -->
-      <div class="text-xs text-muted-foreground mt-2">
-        Showing {{ filteredVariants.length }} of {{ allVariants.length }} variants with protein
-        positions
+      <!-- Row 3: Summary + tools -->
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-muted-foreground w-14">
+          {{ filteredVariants.length }}/{{ allVariants.length }}
+        </span>
+        <div class="flex-1" />
+        <div class="inline-flex rounded-md border">
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 rounded-none rounded-l-md"
+            :disabled="!canZoomIn"
+            title="Zoom in"
+            @click="zoomIn"
+          >
+            <ZoomIn class="size-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 rounded-none"
+            :disabled="!canZoomOut"
+            title="Zoom out"
+            @click="zoomOut"
+          >
+            <ZoomOut class="size-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 rounded-none"
+            :disabled="!isZoomed"
+            title="Reset zoom"
+            @click="resetZoom"
+          >
+            <SearchX class="size-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 rounded-none rounded-r-md"
+            title="Download as PNG"
+            @click="downloadPng"
+          >
+            <Download class="size-3" />
+          </Button>
+        </div>
       </div>
-    </div>
-
-    <!-- Zoom Controls -->
-    <div class="zoom-controls mb-2">
-      <div class="inline-flex rounded-md border">
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-8 w-8 rounded-none rounded-l-md"
-          :disabled="!canZoomIn"
-          @click="zoomIn"
-        >
-          <ZoomIn class="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-8 w-8 rounded-none"
-          :disabled="!canZoomOut"
-          @click="zoomOut"
-        >
-          <ZoomOut class="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          class="h-8 rounded-none rounded-r-md"
-          :disabled="!isZoomed"
-          @click="resetZoom"
-        >
-          <SearchX class="size-4 mr-1" />
-          Reset
-        </Button>
-      </div>
-      <span v-if="isZoomed" class="text-xs text-muted-foreground ml-2">
-        Viewing: {{ Math.round(zoomDomain[0]) }} - {{ Math.round(zoomDomain[1]) }} aa ({{
-          Math.round(zoomLevel * 100)
-        }}% zoom)
-      </span>
-      <span class="text-xs text-muted-foreground ml-2">
-        <MoveHorizontal class="size-3 mr-1" />
-        Drag to pan, scroll to zoom
-      </span>
     </div>
 
     <!-- Visualization Container -->
@@ -112,7 +156,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
-import { ZoomIn, ZoomOut, SearchX, MoveHorizontal } from 'lucide-vue-next'
+import { Download, Palette, ZoomIn, ZoomOut, SearchX } from 'lucide-vue-next'
 import { useAppTheme } from '@/composables/useAppTheme'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -148,8 +192,9 @@ const props = defineProps({
 })
 
 // Filter state
+const colorBy = ref('classification')
 const selectedClassifications = ref(['pathogenic', 'likely_pathogenic'])
-const selectedEffects = ref([])
+const selectedEffects = ref(['truncating', 'missense', 'inframe', 'splice_region'])
 
 // Zoom state
 const zoomDomain = ref([0, 0]) // Current visible domain [start, end]
@@ -191,30 +236,31 @@ const allVariants = computed(() => {
 // Check if we have variants to display
 const hasVariants = computed(() => allVariants.value.length > 0)
 
-// Get count by classification
-const getClassificationCount = category => {
-  return allVariants.value.filter(v => v.category === category).length
+// Select all/none helpers
+const selectAllClassifications = () => {
+  selectedClassifications.value = classificationOptions.map(o => o.value)
+}
+const selectAllEffects = () => {
+  selectedEffects.value = effectOptions.map(o => o.value)
 }
 
-// Get count by effect
-const getEffectCount = effect => {
-  return allVariants.value.filter(v => v.effect_category === effect).length
+const getVariantColor = variant => {
+  return colorBy.value === 'classification'
+    ? getClassificationColor(variant.category)
+    : getEffectColor(variant.effect_category)
 }
 
-// Filter variants based on selected filters
+// Filter variants — both dimensions apply simultaneously (AND logic)
 const filteredVariants = computed(() => {
   let variants = allVariants.value
-
-  // Filter by classification (if any selected)
   if (selectedClassifications.value.length > 0) {
     variants = variants.filter(v => selectedClassifications.value.includes(v.category))
+  } else {
+    return []
   }
-
-  // Filter by effect (if any selected)
   if (selectedEffects.value.length > 0) {
     variants = variants.filter(v => selectedEffects.value.includes(v.effect_category))
   }
-
   return variants
 })
 
@@ -276,6 +322,32 @@ const colors = computed(() => ({
   backbone: isDark.value ? '#616161' : '#E0E0E0',
   text: isDark.value ? '#FFFFFF' : '#333333'
 }))
+
+// Download as PNG
+const downloadPng = () => {
+  if (!chartContainer.value) return
+  const svgEl = chartContainer.value.querySelector('svg')
+  if (!svgEl) return
+
+  const svgData = new window.XMLSerializer().serializeToString(svgEl)
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+  const img = new window.Image()
+  canvas.width = svgEl.clientWidth * 2
+  canvas.height = svgEl.clientHeight * 2
+  ctx.scale(2, 2)
+
+  img.onload = () => {
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, 0, 0)
+    const link = document.createElement('a')
+    link.download = `${props.uniprotData?.accession || 'protein'}_domains.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  }
+  img.src = 'data:image/svg+xml;base64,' + window.btoa(unescape(encodeURIComponent(svgData)))
+}
 
 // Zoom control functions
 const zoomIn = () => {
@@ -548,7 +620,7 @@ const renderChart = () => {
       if (x < -10 || x > width + 10) return
 
       const variant = variants[0]
-      const color = getClassificationColor(variant.category)
+      const color = getVariantColor(variant)
       const count = variants.length
 
       // Stalk line
@@ -755,16 +827,30 @@ watch(
 )
 
 watch(
+  () => colorBy.value,
+  () => nextTick(renderChart)
+)
+
+watch(
   () => isDark.value,
   () => nextTick(renderChart)
 )
 
-const toggleFilter = (filterRef, value) => {
-  const idx = filterRef.value.indexOf(value)
+const toggleClassification = value => {
+  const idx = selectedClassifications.value.indexOf(value)
   if (idx === -1) {
-    filterRef.value = [...filterRef.value, value]
+    selectedClassifications.value = [...selectedClassifications.value, value]
   } else {
-    filterRef.value = filterRef.value.filter(v => v !== value)
+    selectedClassifications.value = selectedClassifications.value.filter(v => v !== value)
+  }
+}
+
+const toggleEffect = value => {
+  const idx = selectedEffects.value.indexOf(value)
+  if (idx === -1) {
+    selectedEffects.value = [...selectedEffects.value, value]
+  } else {
+    selectedEffects.value = selectedEffects.value.filter(v => v !== value)
   }
 }
 </script>

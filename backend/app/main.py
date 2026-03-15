@@ -104,22 +104,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     manager = get_connection_manager()
     task_manager.set_broadcast_callback(manager.broadcast)
 
-    # Start auto-updates for data sources
-    if settings.AUTO_UPDATE_ENABLED:
-        try:
-            await task_manager.start_auto_updates()
-        except Exception as e:
-            logger.sync_warning(
-                "Failed to start auto-updates. Continuing without auto-updates.",
-                error=e,
-                auto_update_enabled=settings.AUTO_UPDATE_ENABLED,
-            )
-
-    # Start annotation scheduler
+    # Start annotation scheduler (cron-based maintenance updates)
     logger.sync_info("Starting annotation scheduler...")
     from app.core.scheduler import annotation_scheduler
 
     annotation_scheduler.start()
+
+    # Start pipeline orchestrator (evidence -> annotations -> aggregation)
+    if settings.AUTO_UPDATE_ENABLED:
+        try:
+            from app.core.pipeline_orchestrator import PipelineOrchestrator
+
+            orchestrator = PipelineOrchestrator(task_manager)
+            task_manager.orchestrator = orchestrator
+            await orchestrator.start_pipeline()
+        except Exception as e:
+            logger.sync_warning(
+                "Failed to start pipeline. Continuing without auto-updates.",
+                error=e,
+            )
 
     yield
 

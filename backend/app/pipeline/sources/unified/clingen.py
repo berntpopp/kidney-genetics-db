@@ -186,7 +186,12 @@ class ClinGenUnifiedSource(UnifiedDataSource):
                     continue
 
                 gcep = row[9].strip()
-                if gcep not in self.kidney_panel_names:
+                disease = row[2].strip().lower()
+                is_kidney_panel = gcep in self.kidney_panel_names
+                # Also include entries from non-kidney panels if disease is kidney-related
+                is_kidney_disease = any(kw in disease for kw in self.kidney_keywords)
+
+                if not is_kidney_panel and not is_kidney_disease:
                     continue
 
                 # Convert to the same dict format as the API response

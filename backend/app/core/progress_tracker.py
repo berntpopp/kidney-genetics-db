@@ -40,16 +40,6 @@ class ProgressTracker:
 
     def _get_or_create_progress(self) -> DataSourceProgress:
         """Get or create progress record for this source"""
-        # Don't create progress records for manual upload sources
-        manual_upload_sources = ["DiagnosticPanels"]
-        if self.source_name in manual_upload_sources:
-            # Return a temporary non-persisted record for manual sources
-            return DataSourceProgress(
-                source_name=self.source_name,
-                status=SourceStatus.idle,
-                progress_metadata={"upload_type": "manual"},
-            )
-
         progress: DataSourceProgress | None = (
             self.db.query(DataSourceProgress).filter_by(source_name=self.source_name).first()
         )
@@ -115,7 +105,17 @@ class ProgressTracker:
                 self.complete()
 
     def start(self, operation: str = "Starting update") -> None:
-        """Mark source as running"""
+        """Start tracking progress. Idempotent — skips counter reset if already running."""
+        if self.progress_record.status == SourceStatus.running:
+            logger.sync_debug(
+                "ProgressTracker.start() skipped — already running",
+                source_name=self.source_name,
+            )
+            # Update operation text but don't reset counters
+            self.progress_record.current_operation = operation
+            self._commit_and_broadcast()
+            return
+
         logger.sync_debug(
             "ProgressTracker.start() called",
             source_name=self.source_name,
@@ -305,16 +305,16 @@ class ProgressTracker:
         """Commit to database and publish update to event bus - NO MORE DIRECT CALLBACKS!"""
         from sqlalchemy.exc import DisconnectionError, OperationalError
 
-        # Always recalculate progress percentage before committing
-        # Prefer pages over items for better accuracy when both are available
-        if self.progress_record.total_pages and self.progress_record.total_pages > 0:
-            self.progress_record.progress_percentage = (
-                self.progress_record.current_page / self.progress_record.total_pages * 100
-            )
-        elif self.progress_record.total_items and self.progress_record.total_items > 0:
-            self.progress_record.progress_percentage = (
-                self.progress_record.current_item / self.progress_record.total_items * 100
-            )
+        # Recalculate progress percentage before committing (skip if completed/failed)
+        if self.progress_record.status == SourceStatus.running:
+            if self.progress_record.total_pages and self.progress_record.total_pages > 0:
+                self.progress_record.progress_percentage = (
+                    self.progress_record.current_page / self.progress_record.total_pages * 100
+                )
+            elif self.progress_record.total_items and self.progress_record.total_items > 0:
+                self.progress_record.progress_percentage = (
+                    self.progress_record.current_item / self.progress_record.total_items * 100
+                )
 
         logger.sync_debug(
             "_commit_and_broadcast() called",
@@ -326,78 +326,47 @@ class ProgressTracker:
         )
 
         try:
-            # Don't commit manual upload sources to database
-            manual_upload_sources = ["DiagnosticPanels"]
-            if self.source_name not in manual_upload_sources:
-                logger.sync_debug(
-                    "Committing to database",
-                    source_name=self.source_name,
-                    progress_id=self.progress_record.id
-                    if hasattr(self.progress_record, "id")
-                    else None,
-                )
+            logger.sync_debug(
+                "Committing to database",
+                source_name=self.source_name,
+                progress_id=self.progress_record.id
+                if hasattr(self.progress_record, "id")
+                else None,
+            )
 
-                # Ensure the progress record is marked as modified
-                if self.progress_record in self.db:
-                    # Mark object as dirty to ensure SQLAlchemy tracks changes
-                    # Explicitly set the status to ensure it's not overwritten
-                    current_status = self.progress_record.status
-                    self.db.add(self.progress_record)
-                    # Double-check status didn't change after adding to session
-                    if self.progress_record.status != current_status:
-                        logger.sync_warning(
-                            "Status changed after adding to session!",
-                            source_name=self.source_name,
-                            expected_status=str(current_status),
-                            actual_status=str(self.progress_record.status),
-                        )
-                        # Force the correct status
-                        self.progress_record.status = current_status
-                else:
-                    logger.sync_warning(
-                        "Progress record not in session, merging it",
+            # Ensure the progress record is attached to the session.
+            # merge() handles both cases: returns the existing persistent
+            # instance if already in session, or merges a detached one.
+            self.progress_record = self.db.merge(self.progress_record)
+
+            # Handle stale database connections with retry
+            max_retries = 2
+            for attempt in range(max_retries):
+                try:
+                    self.db.commit()
+                    logger.sync_debug(
+                        "Database commit successful",
                         source_name=self.source_name,
+                        attempt=attempt + 1,
                     )
-                    # Use merge instead of add to avoid conflicts
-                    self.progress_record = self.db.merge(self.progress_record)
-
-                # BUGFIX: Handle stale database connections with retry
-                # SQLAlchemy's pool_pre_ping handles most cases, but we add retry for edge cases
-                max_retries = 2
-                for attempt in range(max_retries):
-                    try:
-                        self.db.commit()
-                        logger.sync_debug(
-                            "Database commit successful",
+                    break
+                except (DisconnectionError, OperationalError) as e:
+                    if attempt < max_retries - 1:
+                        logger.sync_warning(
+                            "Database connection error, retrying",
                             source_name=self.source_name,
                             attempt=attempt + 1,
+                            error=str(e),
                         )
-                        break
-                    except (DisconnectionError, OperationalError) as e:
-                        # Connection was lost - SQLAlchemy will handle reconnection
-                        if attempt < max_retries - 1:
-                            logger.sync_warning(
-                                "Database connection error, retrying",
-                                source_name=self.source_name,
-                                attempt=attempt + 1,
-                                error=str(e),
-                            )
-                            self.db.rollback()
-                            # SQLAlchemy's pool_pre_ping will test connection on next use
-                            continue
-                        else:
-                            # Final retry failed
-                            logger.sync_error(
-                                "Database commit failed after retries",
-                                source_name=self.source_name,
-                                error=str(e),
-                            )
-                            raise
-            else:
-                logger.sync_debug(
-                    "Skipping database commit for manual upload source",
-                    source_name=self.source_name,
-                )
+                        self.db.rollback()
+                        continue
+                    else:
+                        logger.sync_error(
+                            "Database commit failed after retries",
+                            source_name=self.source_name,
+                            error=str(e),
+                        )
+                        raise
 
             # Publish to event bus instead of direct callback
             # This eliminates the need for complex async/sync handling

@@ -60,6 +60,7 @@ redis_data/
 *.xlsx
 *.json.gz
 data/
+!backend/app/data/
 uploads/
 
 # Logs
