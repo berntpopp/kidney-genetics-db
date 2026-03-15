@@ -545,9 +545,9 @@ const breadcrumbs = PUBLIC_BREADCRUMBS.networkAnalysis
 useJsonLd(getBreadcrumbSchema(breadcrumbs))
 
 useSeoMeta({
-  title: 'Network Analysis',
+  title: 'Network Analysis — Kidney Gene Interactions',
   description:
-    'Explore protein-protein interaction networks and functional clusters across kidney disease genes using STRING-DB data.',
+    'Explore protein-protein interaction networks and functional clusters across kidney disease genes using STRING-DB data. Nephrology gene panel network visualization.',
   canonicalPath: '/network-analysis'
 })
 

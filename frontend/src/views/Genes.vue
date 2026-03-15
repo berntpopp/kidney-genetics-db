@@ -49,9 +49,9 @@ const breadcrumbs = PUBLIC_BREADCRUMBS.genes
 useJsonLd(getBreadcrumbSchema(breadcrumbs))
 
 useSeoMeta({
-  title: 'Gene Browser',
+  title: 'Gene Browser — Kidney Disease Genes',
   description:
-    'Search and explore curated kidney disease gene-disease associations with evidence scores from multiple genomic sources.',
+    'Browse and search curated kidney disease genes with evidence scores. Filter by gene symbol, nephropathy type, or annotation source. Comprehensive nephrology gene panel and renal genetics resource.',
   canonicalPath: '/genes'
 })
 </script>

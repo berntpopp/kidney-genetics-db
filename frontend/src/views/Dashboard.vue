@@ -178,9 +178,9 @@ const breadcrumbs = PUBLIC_BREADCRUMBS.dashboard
 useJsonLd(getBreadcrumbSchema(breadcrumbs))
 
 useSeoMeta({
-  title: 'Dashboard',
+  title: 'Data Overview — Gene Evidence Dashboard',
   description:
-    'Comprehensive analysis of kidney disease gene-disease associations across multiple genomic data sources.',
+    'Visualization dashboard for kidney disease gene-disease associations. Source overlap analysis, evidence distribution, and composition across ClinGen, PanelApp, GenCC, and more.',
   canonicalPath: '/dashboard'
 })
 

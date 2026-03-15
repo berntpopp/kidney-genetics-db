@@ -312,9 +312,9 @@ const breadcrumbs = PUBLIC_BREADCRUMBS.about
 useJsonLd(getBreadcrumbSchema(breadcrumbs))
 
 useSeoMeta({
-  title: 'About',
+  title: 'About — Kidney Genetics Database Methodology',
   description:
-    'Learn about the Kidney Genetics Database, its core concepts, data pipeline, and technical architecture.',
+    'Learn how the Kidney Genetics Database curates kidney disease genes. Evidence scoring methodology, multi-source integration, and kidney gene curation workflow.',
   canonicalPath: '/about'
 })
 
