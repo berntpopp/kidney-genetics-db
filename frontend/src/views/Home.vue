@@ -20,7 +20,7 @@
           Kidney Genetics Database — Renal &amp; Nephrology Gene Evidence Curation
         </h1>
         <p
-          class="text-base md:text-lg text-muted-foreground mx-auto max-w-[600px] whitespace-nowrap mb-10"
+          class="text-base md:text-lg text-muted-foreground mx-auto max-w-[600px] md:whitespace-nowrap mb-10"
         >
           Evidence-based renal &amp; nephrology gene curation with multi-source integration
         </p>
