@@ -747,8 +747,21 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 except Exception as e:
                     logger.sync_error("Error processing gene", symbol=symbol, error=str(e))
                     stats["errors"] += 1
+                    # Rollback broken transaction so subsequent queries work
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
 
-            db.commit()
+            try:
+                db.commit()
+            except Exception as e:
+                logger.sync_error(
+                    "Batch commit failed, rolling back",
+                    batch_num=batch_num + 1,
+                    error=str(e),
+                )
+                db.rollback()
 
     async def _create_or_update_evidence(
         self, db: Session, gene: Gene, evidence_data: dict[str, Any], stats: dict[str, Any]

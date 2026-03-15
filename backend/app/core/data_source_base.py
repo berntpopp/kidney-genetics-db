@@ -330,9 +330,22 @@ class DataSourceClient(ABC):
                     logger.sync_error("Error processing gene", symbol=symbol, error=str(e))
                     stats["errors"] += 1
                     batch_failed += 1
+                    # Rollback broken transaction so subsequent queries work
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
 
-            # Commit batch
-            db.commit()
+            # Commit batch (with rollback recovery)
+            try:
+                db.commit()
+            except Exception as e:
+                logger.sync_error(
+                    "Batch commit failed, rolling back",
+                    batch_num=batch_num + 1,
+                    error=str(e),
+                )
+                db.rollback()
 
             # Update tracker with batch results
             tracker.update(
