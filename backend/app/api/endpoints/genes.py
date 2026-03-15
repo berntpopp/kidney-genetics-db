@@ -261,7 +261,7 @@ async def get_genes(
     ),
     # JSON:API sorting
     sort: str | None = Depends(get_sort_param("-evidence_score,approved_symbol")),
-) -> dict[str, Any]:
+) -> Any:
     """
     Get genes with JSON:API compliant response using reusable components.
 

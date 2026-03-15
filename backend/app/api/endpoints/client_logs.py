@@ -17,10 +17,10 @@ router = APIRouter(prefix="/client-logs", tags=["client-logs"])
 
 def _get_client_ip(request: Request) -> str:
     """Get real client IP, respecting X-Forwarded-For behind reverse proxy."""
-    forwarded = request.headers.get("X-Forwarded-For")
+    forwarded: str | None = request.headers.get("X-Forwarded-For")
     if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+        return str(forwarded.split(",")[0].strip())
+    return str(request.client.host) if request.client else "unknown"
 
 
 @router.post("", response_model=ClientLogResponse, status_code=201)
