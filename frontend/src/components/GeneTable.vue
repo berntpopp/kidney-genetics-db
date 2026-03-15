@@ -443,6 +443,13 @@ const applySorting = (value: string) => {
   loadGenes()
 }
 
+const toggleZeroScore = (val: boolean) => {
+  showZeroScoreGenes.value = val
+  page.value = 1
+  updateUrl()
+  loadGenes()
+}
+
 let searchTimeout: ReturnType<typeof setTimeout>
 const debouncedSearch = () => {
   clearTimeout(searchTimeout)
@@ -741,12 +748,7 @@ onMounted(async () => {
             <Switch
               id="zero-score"
               :checked="showZeroScoreGenes"
-              @update:checked="
-                val => {
-                  showZeroScoreGenes.value = val
-                  debouncedSearch()
-                }
-              "
+              @click="toggleZeroScore(!showZeroScoreGenes)"
             />
             <Label for="zero-score" class="text-xs cursor-pointer whitespace-nowrap">
               Include zero-score
