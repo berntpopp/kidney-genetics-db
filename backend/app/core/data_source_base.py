@@ -285,7 +285,16 @@ class DataSourceClient(ABC):
             end_idx = min(start_idx + batch_size, len(gene_symbols))
             batch_symbols = gene_symbols[start_idx:end_idx]
 
-            tracker.update(operation=f"Processing gene batch {batch_num + 1}/{total_batches}")
+            tracker.update(
+                operation=f"Processing gene batch {batch_num + 1}/{total_batches}",
+                current_item=start_idx,
+                total_items=len(gene_symbols),
+            )
+
+            # Track batch-level additions for tracker update
+            batch_added = 0
+            batch_updated = 0
+            batch_failed = 0
 
             # Normalize gene symbols
             normalization_results = await normalize_genes_batch_async(
@@ -309,14 +318,28 @@ class DataSourceClient(ABC):
 
                     if gene:
                         # Create or update evidence
+                        prev_created = stats["evidence_created"]
+                        prev_updated = stats["evidence_updated"]
                         await self._create_or_update_evidence(db, gene, data, stats)
+                        if stats["evidence_created"] > prev_created:
+                            batch_added += 1
+                        elif stats["evidence_updated"] > prev_updated:
+                            batch_updated += 1
 
                 except Exception as e:
                     logger.sync_error("Error processing gene", symbol=symbol, error=str(e))
                     stats["errors"] += 1
+                    batch_failed += 1
 
             # Commit batch
             db.commit()
+
+            # Update tracker with batch results
+            tracker.update(
+                items_added=batch_added,
+                items_updated=batch_updated,
+                items_failed=batch_failed,
+            )
 
     async def _get_or_create_gene(
         self, db: Session, norm_result: dict[str, Any], original_symbol: str, stats: dict[str, Any]

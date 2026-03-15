@@ -198,9 +198,16 @@ const router = createRouter({
   routes
 })
 
-// Navigation guards
-router.beforeEach(to => {
+// Navigation guards — wait for auth initialization before checking protected routes
+router.beforeEach(async to => {
   const authStore = useAuthStore()
+
+  // Wait for the silent token refresh to complete before evaluating guards.
+  // This prevents redirecting to /login on page refresh while the HttpOnly
+  // cookie refresh is still in-flight.
+  if (to.meta.requiresAuth || to.meta.requiresAdmin) {
+    await authStore.initReady
+  }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return '/login?redirect=' + to.fullPath

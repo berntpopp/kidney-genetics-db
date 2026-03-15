@@ -27,6 +27,12 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
+  // Tracks whether initialize() has completed (awaited by router guard)
+  let _initResolve: (() => void) | null = null
+  const initReady: Promise<void> = new Promise(resolve => {
+    _initResolve = resolve
+  })
+
   // Getters - computed properties
   const isAuthenticated = computed<boolean>(() => !!accessToken.value && !!user.value)
   const isAdmin = computed<boolean>(() => user.value?.role === 'admin')
@@ -133,30 +139,35 @@ export const useAuthStore = defineStore('auth', () => {
    * every anonymous page load would fire a failing POST /api/auth/refresh.
    */
   async function initialize(): Promise<void> {
-    const storedUser = localStorage.getItem('user')
-    if (!storedUser) {
-      // Never logged in — skip the network request entirely
-      return
-    }
-
-    // Restore cached user as optimistic state while we verify the session
     try {
-      user.value = JSON.parse(storedUser) as User
-    } catch {
-      localStorage.removeItem('user')
-      return
-    }
+      const storedUser = localStorage.getItem('user')
+      if (!storedUser) {
+        // Never logged in — skip the network request entirely
+        return
+      }
 
-    // Attempt silent refresh to get a fresh access token from the cookie
-    try {
-      const response = await authApi.refreshToken()
-      accessToken.value = response.access_token
-      await fetchCurrentUser()
-    } catch {
-      // Cookie expired or was cleared — clean up stale local state
-      accessToken.value = null
-      user.value = null
-      localStorage.removeItem('user')
+      // Restore cached user as optimistic state while we verify the session
+      try {
+        user.value = JSON.parse(storedUser) as User
+      } catch {
+        localStorage.removeItem('user')
+        return
+      }
+
+      // Attempt silent refresh to get a fresh access token from the cookie
+      try {
+        const response = await authApi.refreshToken()
+        accessToken.value = response.access_token
+        await fetchCurrentUser()
+      } catch {
+        // Cookie expired or was cleared — clean up stale local state
+        accessToken.value = null
+        user.value = null
+        localStorage.removeItem('user')
+      }
+    } finally {
+      // Signal that initialization is complete (router guard awaits this)
+      _initResolve?.()
     }
   }
 
@@ -334,6 +345,7 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     fetchCurrentUser,
     initialize,
+    initReady,
     refreshAccessToken,
     requestPasswordReset,
     resetPassword,

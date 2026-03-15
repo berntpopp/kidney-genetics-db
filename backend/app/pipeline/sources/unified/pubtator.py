@@ -239,6 +239,13 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             )
 
             if tracker:
+                # Push final stats to tracker before completing
+                tracker.update(
+                    items_added=stats.get("evidence_created", 0),
+                    items_updated=stats.get("evidence_updated", 0),
+                    items_failed=stats.get("errors", 0),
+                    force=True,
+                )
                 tracker.complete(
                     f"{self.source_name}: {total_genes} genes, {total_evidence} evidence "
                     f"(+{stats.get('genes_created', 0)} new genes, +{stats.get('evidence_created', 0)} new evidence)"
