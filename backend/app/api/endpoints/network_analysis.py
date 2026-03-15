@@ -348,6 +348,9 @@ async def cluster_network(
     )
 
     return NetworkClusterResponse(
+        nodes=graph.vcount(),
+        edges=graph.ecount(),
+        components=len(graph.connected_components()),
         clusters=gene_to_cluster,
         num_clusters=num_clusters,
         modularity=round(modularity, 3),

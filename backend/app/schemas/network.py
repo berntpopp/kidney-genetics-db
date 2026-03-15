@@ -227,6 +227,9 @@ class NetworkBuildResponse(BaseModel):
 class NetworkClusterResponse(BaseModel):
     """Response from network clustering"""
 
+    nodes: int = Field(..., description="Number of nodes in clustered network")
+    edges: int = Field(..., description="Number of edges in clustered network")
+    components: int = Field(..., description="Number of connected components")
     clusters: dict[int, int] = Field(..., description="Gene ID -> cluster ID mapping")
     num_clusters: int = Field(..., description="Number of clusters detected")
     modularity: float = Field(..., description="Modularity score")

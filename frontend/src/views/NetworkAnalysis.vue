@@ -365,22 +365,27 @@
                   </div>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent class="w-[280px] p-2">
-                <div
-                  v-for="cluster in clusterList"
-                  :key="cluster.value"
-                  class="flex items-center space-x-2 py-1.5 px-1"
-                >
-                  <Checkbox
-                    :id="`cluster-${cluster.value}`"
-                    :checked="selectedClusters.includes(cluster.value)"
-                    @update:checked="toggleCluster(cluster.value, $event)"
-                  />
-                  <Circle class="size-4 flex-shrink-0" :style="{ color: cluster.color }" />
-                  <Label :for="`cluster-${cluster.value}`" class="text-sm cursor-pointer flex-1">
-                    {{ cluster.title }}
-                  </Label>
-                  <Badge variant="outline" class="text-xs">{{ cluster.size }}</Badge>
+              <PopoverContent class="w-[300px] p-2" align="start" side="top">
+                <div class="max-h-[300px] overflow-y-auto space-y-0.5">
+                  <div
+                    v-for="cluster in clusterList"
+                    :key="cluster.value"
+                    class="flex items-center space-x-2 py-1.5 px-1 rounded hover:bg-muted/50 cursor-pointer"
+                    @click="toggleCluster(cluster.value, !selectedClusters.includes(cluster.value))"
+                  >
+                    <Checkbox
+                      :id="`cluster-${cluster.value}`"
+                      :checked="selectedClusters.includes(cluster.value)"
+                      @update:checked="toggleCluster(cluster.value, $event)"
+                      @click.stop
+                    />
+                    <Circle
+                      class="size-3 flex-shrink-0"
+                      :style="{ color: cluster.color, fill: cluster.color }"
+                    />
+                    <span class="text-sm flex-1">{{ cluster.title }}</span>
+                    <Badge variant="outline" class="text-xs">{{ cluster.size }}</Badge>
+                  </div>
                 </div>
               </PopoverContent>
             </Popover>
