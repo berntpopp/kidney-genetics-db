@@ -10,7 +10,7 @@
             variant="with-text"
             text-layout="horizontal"
             :animated="true"
-            :breathing="true"
+            :breathing="false"
             :interactive="true"
             @click="router.push('/')"
           />
@@ -108,16 +108,15 @@
       </div>
 
       <!-- Key Benefits -->
-      <div class="mt-8">
+      <div class="py-12">
         <h2 class="text-2xl font-medium text-center mb-6">Why Use This Database?</h2>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div v-for="benefit in keyBenefits" :key="benefit.title" class="text-center p-4">
             <div
-              class="flex h-16 w-16 items-center justify-center rounded-full mx-auto mb-4"
-              :style="{ backgroundColor: benefit.bgColor }"
+              class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mx-auto mb-4"
             >
-              <component :is="benefit.icon" class="size-6 text-white" />
+              <component :is="benefit.icon" class="size-5" />
             </div>
             <h3 class="text-lg font-semibold mb-2">{{ benefit.title }}</h3>
             <p class="text-sm text-muted-foreground">{{ benefit.description }}</p>
@@ -126,7 +125,7 @@
       </div>
 
       <!-- How It Works -->
-      <div class="mt-12">
+      <div class="py-12 bg-muted/30 -mx-4 px-4 rounded-lg">
         <h2 class="text-2xl font-medium text-center mb-8">How It Works</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div v-for="step in pipelineSteps" :key="step.step" class="text-center p-4">
@@ -143,7 +142,7 @@
       </div>
 
       <!-- Who Is This For? -->
-      <div class="mt-12">
+      <div class="py-12">
         <h2 class="text-2xl font-medium text-center mb-8">Who Is This For?</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div
@@ -169,47 +168,43 @@
       </div>
 
       <!-- How to Cite + Affiliation -->
-      <div class="mt-12 mb-16 py-8 bg-muted/30 -mx-4 px-4 rounded-lg">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div>
-            <h2 class="text-xl font-medium mb-4">How to Cite</h2>
-            <div class="relative rounded-md border border-border bg-background p-4 text-sm">
-              <p class="text-muted-foreground pr-8">{{ primaryCitation }}</p>
-              <button
-                class="absolute top-3 right-3 p-1 rounded hover:bg-muted"
-                :aria-label="citationCopied ? 'Citation copied' : 'Copy citation'"
-                @click="copyCitation"
-              >
-                <Check v-if="citationCopied" class="size-4 text-green-600" />
-                <Copy v-else class="size-4 text-muted-foreground" />
-              </button>
-              <span class="sr-only" aria-live="polite">{{
-                citationCopied ? 'Citation copied to clipboard' : ''
-              }}</span>
-            </div>
-            <p class="text-xs text-muted-foreground mt-2">
-              Or cite as: Kidney Genetics Database. https://kidney-genetics.org. Accessed
-              {{ new Date().toISOString().slice(0, 10) }}.
-            </p>
+      <div class="py-12 bg-muted/30 -mx-4 px-4 rounded-lg mb-16">
+        <div class="max-w-2xl mx-auto">
+          <h2 class="text-2xl font-medium text-center mb-6">How to Cite</h2>
+          <div class="relative rounded-md border-l-4 border-primary bg-background p-4 text-sm mb-3">
+            <p class="text-muted-foreground pr-8">{{ primaryCitation }}</p>
+            <button
+              class="absolute top-3 right-3 p-1.5 rounded-md hover:bg-muted"
+              :aria-label="citationCopied ? 'Citation copied' : 'Copy citation'"
+              @click="copyCitation"
+            >
+              <Check v-if="citationCopied" class="size-4 text-green-600" />
+              <Copy v-else class="size-4 text-muted-foreground" />
+            </button>
+            <span class="sr-only" aria-live="polite">{{
+              citationCopied ? 'Citation copied to clipboard' : ''
+            }}</span>
           </div>
-          <div>
-            <h2 class="text-xl font-medium mb-4">Developed By</h2>
-            <p class="text-sm text-muted-foreground mb-3">
-              Halbritter Lab &mdash; Nephrology &amp; Clinical Genetics
-            </p>
-            <div class="flex flex-wrap items-center gap-3">
-              <a
-                href="https://github.com/berntpopp/kidney-genetics-db"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-                aria-label="Open Source on GitHub"
-              >
-                <Github class="size-4" /> Open Source
-              </a>
-              <span class="text-muted-foreground/40">|</span>
-              <span class="text-sm text-muted-foreground">CC BY 4.0</span>
-            </div>
+          <p class="text-xs text-muted-foreground text-center mb-8">
+            Or cite as: Kidney Genetics Database. https://kidney-genetics.org. Accessed
+            {{ new Date().toISOString().slice(0, 10) }}.
+          </p>
+
+          <div class="flex items-center justify-center gap-4 text-sm text-muted-foreground">
+            <span>Halbritter Lab — Nephrology &amp; Clinical Genetics</span>
+            <span class="text-border">·</span>
+            <a
+              href="https://github.com/berntpopp/kidney-genetics-db"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
+              aria-label="Open Source on GitHub"
+            >
+              <Github class="size-4" />
+              Open Source
+            </a>
+            <span class="text-border">·</span>
+            <span>CC BY 4.0</span>
           </div>
         </div>
       </div>
@@ -287,14 +282,14 @@ const stats = ref([
   {
     title: 'Active Sources',
     value: 0 as number | string,
-    color: 'success',
+    color: 'primary',
     icon: DatabaseZap,
     route: '/data-sources'
   },
   {
     title: 'Last Update',
     value: 'Loading...' as number | string,
-    color: 'info',
+    color: 'primary',
     icon: AlarmClockCheck,
     route: null
   }
@@ -344,38 +339,22 @@ const keyBenefits = [
   {
     title: 'Evidence-Based',
     description: 'Weighted multi-source scoring from 0-100 with tier classification',
-    icon: ShieldCheck,
-    bgColor: '#10B981'
+    icon: ShieldCheck
   },
   {
     title: 'Multi-Source',
     description: 'Aggregated from 7 clinical and research databases',
-    icon: RefreshCw,
-    bgColor: '#0EA5E9'
+    icon: RefreshCw
   },
   {
     title: 'Research-Grade',
     description: 'Professional-quality curation workflow with complete audit trails',
-    icon: Microscope,
-    bgColor: '#8B5CF6'
-  },
-  {
-    title: 'Regularly Updated',
-    description: 'Automated pipeline with continuous synchronization',
-    icon: AlarmClockCheck,
-    bgColor: '#3B82F6'
+    icon: Microscope
   },
   {
     title: 'Open Access',
     description: 'Free under CC BY 4.0 — no registration required for browsing',
-    icon: Unlock,
-    bgColor: '#F59E0B'
-  },
-  {
-    title: 'API Available',
-    description: 'JSON:API compliant REST API for programmatic access',
-    icon: Code2,
-    bgColor: '#EF4444'
+    icon: Unlock
   }
 ]
 
