@@ -58,7 +58,8 @@ app.config.errorHandler = (err, instance, info) => {
       component: (instance as { $options?: { name?: string } } | null)?.$options?.name || 'unknown'
     })
   } else {
-    console.error('Unhandled Vue error:', err, info)
+    // logService not yet initialized — log will be lost but this is a bootstrap edge case
+    window.logService?.error('Unhandled Vue error (pre-init):', { error: String(err), info })
   }
 }
 

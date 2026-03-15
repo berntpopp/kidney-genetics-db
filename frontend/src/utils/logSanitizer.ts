@@ -398,7 +398,7 @@ export function containsSensitiveData(value: unknown): boolean {
 export function addSensitiveKeys(keys: string[]): void {
   if (import.meta.env.DEV) {
     SENSITIVE_KEYS.push(...keys.map(k => k.toLowerCase()))
-    console.info('Added sensitive keys for development:', keys)
+    window.logService?.info('Added sensitive keys for development:', keys)
   }
 }
 

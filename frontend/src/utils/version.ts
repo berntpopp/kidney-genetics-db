@@ -63,7 +63,7 @@ export async function getAllVersions(): Promise<AllVersionsResult> {
       }
     }
   } catch (error) {
-    console.error('Failed to fetch versions:', error)
+    window.logService?.error('Failed to fetch versions:', error)
 
     // Return partial data with frontend version on error
     return {

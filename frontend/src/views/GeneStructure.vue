@@ -294,7 +294,7 @@ async function fetchGeneData() {
     // Fetch annotations
     await fetchAnnotations()
   } catch (e) {
-    console.error('Error fetching gene data:', e)
+    window.logService?.error('Error fetching gene data:', e)
     error.value = e.message || 'Failed to load gene data'
   } finally {
     loading.value = false
@@ -307,7 +307,7 @@ async function fetchAnnotations() {
   try {
     annotations.value = await geneApi.getGeneAnnotations(gene.value.id)
   } catch (e) {
-    console.warn('Error fetching annotations:', e)
+    window.logService?.warn('Error fetching annotations:', e)
     // Don't set error - annotations are optional
   }
 }

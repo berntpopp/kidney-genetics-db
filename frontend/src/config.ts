@@ -21,5 +21,5 @@ export const config: AppConfig = {
 
 // Log configuration in development mode for debugging
 if (config.environment === 'development') {
-  console.log('Runtime configuration:', config)
+  window.logService?.info('Runtime configuration:', config)
 }
