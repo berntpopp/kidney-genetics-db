@@ -204,9 +204,16 @@ class BackgroundTaskManager(TaskMixin):
                         source_name=_source,
                     )
                     if self.orchestrator is not None:
-                        asyncio.create_task(
-                            self.orchestrator.on_source_completed(_source, success=False)
-                        )
+                        try:
+                            asyncio.create_task(
+                                self.orchestrator.on_source_completed(_source, success=False)
+                            )
+                        except RuntimeError:
+                            # Event loop may be closed during shutdown
+                            logger.sync_warning(
+                                "Cannot notify orchestrator — event loop closed",
+                                source_name=_source,
+                            )
                     return
 
                 exc = t.exception()
@@ -220,9 +227,16 @@ class BackgroundTaskManager(TaskMixin):
                 )
                 # Notify orchestrator if present
                 if self.orchestrator is not None:
-                    asyncio.create_task(
-                        self.orchestrator.on_source_completed(_source, success=success)
-                    )
+                    try:
+                        asyncio.create_task(
+                            self.orchestrator.on_source_completed(_source, success=success)
+                        )
+                    except RuntimeError:
+                        # Event loop may be closed during shutdown
+                        logger.sync_warning(
+                            "Cannot notify orchestrator — event loop closed",
+                            source_name=_source,
+                        )
 
             task.add_done_callback(_on_task_done)
 

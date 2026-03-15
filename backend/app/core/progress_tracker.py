@@ -334,24 +334,10 @@ class ProgressTracker:
                 else None,
             )
 
-            # Ensure the progress record is in the session
-            if self.progress_record in self.db:
-                current_status = self.progress_record.status
-                self.db.add(self.progress_record)
-                if self.progress_record.status != current_status:
-                    logger.sync_warning(
-                        "Status changed after adding to session!",
-                        source_name=self.source_name,
-                        expected_status=str(current_status),
-                        actual_status=str(self.progress_record.status),
-                    )
-                    self.progress_record.status = current_status
-            else:
-                logger.sync_warning(
-                    "Progress record not in session, merging it",
-                    source_name=self.source_name,
-                )
-                self.progress_record = self.db.merge(self.progress_record)
+            # Ensure the progress record is attached to the session.
+            # merge() handles both cases: returns the existing persistent
+            # instance if already in session, or merges a detached one.
+            self.progress_record = self.db.merge(self.progress_record)
 
             # Handle stale database connections with retry
             max_retries = 2

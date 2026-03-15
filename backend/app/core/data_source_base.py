@@ -304,40 +304,36 @@ class DataSourceClient(ABC):
             # Process each gene in the batch
             for symbol in batch_symbols:
                 try:
-                    # Use SAVEPOINT so failures only rollback this gene
-                    nested = db.begin_nested()
-                    stats["genes_processed"] += 1
-                    data = gene_data[symbol]
+                    # Use SAVEPOINT so failures only rollback this gene.
+                    # The context manager auto-commits on success and
+                    # auto-rolls-back on exception.
+                    with db.begin_nested():
+                        stats["genes_processed"] += 1
+                        data = gene_data[symbol]
 
-                    # Get normalized gene info
-                    norm_result = normalization_results.get(symbol, {})
-                    if norm_result.get("status") != "normalized":
-                        logger.sync_debug("Skipping unnormalized gene", symbol=symbol)
-                        nested.rollback()
-                        continue
+                        # Get normalized gene info
+                        norm_result = normalization_results.get(symbol, {})
+                        if norm_result.get("status") != "normalized":
+                            logger.sync_debug("Skipping unnormalized gene", symbol=symbol)
+                            continue
 
-                    # Get or create gene
-                    gene = await self._get_or_create_gene(db, norm_result, symbol, stats)
+                        # Get or create gene
+                        gene = await self._get_or_create_gene(db, norm_result, symbol, stats)
 
-                    if gene:
-                        # Create or update evidence
-                        prev_created = stats["evidence_created"]
-                        prev_updated = stats["evidence_updated"]
-                        await self._create_or_update_evidence(db, gene, data, stats)
-                        if stats["evidence_created"] > prev_created:
-                            batch_added += 1
-                        elif stats["evidence_updated"] > prev_updated:
-                            batch_updated += 1
+                        if gene:
+                            # Create or update evidence
+                            prev_created = stats["evidence_created"]
+                            prev_updated = stats["evidence_updated"]
+                            await self._create_or_update_evidence(db, gene, data, stats)
+                            if stats["evidence_created"] > prev_created:
+                                batch_added += 1
+                            elif stats["evidence_updated"] > prev_updated:
+                                batch_updated += 1
 
                 except Exception as e:
                     logger.sync_error("Error processing gene", symbol=symbol, error=str(e))
                     stats["errors"] += 1
                     batch_failed += 1
-                    # Rollback only this gene's SAVEPOINT, preserving prior batch work
-                    try:
-                        nested.rollback()
-                    except Exception:
-                        pass
 
             # Commit batch (with rollback recovery)
             try:
