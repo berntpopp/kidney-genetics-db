@@ -185,19 +185,23 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             # Get the actual total counts from the database
             from sqlalchemy import text
 
-            result = db.execute(
-                text("""
-                    SELECT
-                        COUNT(DISTINCT gene_id) as total_genes,
-                        COUNT(*) as total_evidence
-                    FROM gene_evidence
-                    WHERE source_name = :source_name
-                """),
-                {"source_name": self.source_name},
-            ).fetchone()
-
-            total_genes = result[0] if result else 0
-            total_evidence = result[1] if result else 0
+            try:
+                result = db.execute(
+                    text("""
+                        SELECT
+                            COUNT(DISTINCT gene_id) as total_genes,
+                            COUNT(*) as total_evidence
+                        FROM gene_evidence
+                        WHERE source_name = :source_name
+                    """),
+                    {"source_name": self.source_name},
+                ).fetchone()
+                total_genes = result[0] if result else 0
+                total_evidence = result[1] if result else 0
+            except Exception:
+                db.rollback()
+                total_genes = stats.get("genes_found", 0)
+                total_evidence = stats.get("evidence_created", 0)
 
             logger.sync_info(
                 "Data update completed",
@@ -969,8 +973,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         Check which PMIDs already exist using database query.
 
         Uses PostgreSQL's efficient JSONB containment to check for existing PMIDs
-        without loading all PMIDs into memory. This reduces memory usage from O(n)
-        to O(batch_size).
+        without loading all PMIDs into memory. Returns empty set on DB errors
+        (safe fallback — just processes some duplicates, no data loss).
 
         Args:
             pmids: List of PMIDs to check
@@ -986,19 +990,31 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         from sqlalchemy import text
 
-        # Use PostgreSQL's efficient JSONB operations
-        result = self.db_session.execute(
-            text("""
-                SELECT DISTINCT pmid
-                FROM gene_evidence,
-                     LATERAL jsonb_array_elements_text(evidence_data->'pmids') AS pmid
-                WHERE source_name = 'PubTator'
-                AND pmid = ANY(:pmid_list)
-            """),
-            {"pmid_list": pmids},
-        ).fetchall()
+        try:
+            result = self.db_session.execute(
+                text("""
+                    SELECT DISTINCT pmid
+                    FROM gene_evidence,
+                         LATERAL jsonb_array_elements_text(evidence_data->'pmids') AS pmid
+                    WHERE source_name = 'PubTator'
+                    AND pmid = ANY(:pmid_list)
+                """),
+                {"pmid_list": pmids},
+            ).fetchall()
 
-        return {str(row[0]) for row in result}
+            return {str(row[0]) for row in result}
+        except Exception as e:
+            logger.sync_warning(
+                "PMID existence check failed — treating all as new",
+                error=str(e),
+                pmid_count=len(pmids),
+            )
+            # Rollback the broken transaction so subsequent queries work
+            try:
+                self.db_session.rollback()
+            except Exception:
+                pass
+            return set()
 
     def _extract_genes_from_highlight(self, text_hl: str | None) -> list[dict]:
         """Extract gene annotations from PubTator3's highlighted text."""
