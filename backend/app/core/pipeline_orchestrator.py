@@ -160,7 +160,14 @@ class PipelineOrchestrator:
         finally:
             db.close()
 
-        # Step 2: Re-run PubTator now that genes exist (it's gene-centric)
+        # Step 2: Run initial aggregation + refresh views so frontend works immediately
+        try:
+            logger.sync_info("Running initial aggregation so frontend has data")
+            await self._run_aggregation_only()
+        except Exception as e:
+            logger.sync_warning("Initial aggregation failed", error=str(e))
+
+        # Step 3: Re-run PubTator now that genes exist (it's gene-centric)
         try:
             logger.sync_info("Re-running PubTator now that genes exist")
             await self.task_manager.run_source("PubTator", mode="smart")
@@ -175,7 +182,7 @@ class PipelineOrchestrator:
                 error=str(e),
             )
 
-        # Step 3: Run annotations
+        # Step 4: Run annotations (will refresh views again at the end)
         await self._run_annotations()
 
     async def _run_annotations(self) -> None:
@@ -207,13 +214,8 @@ class PipelineOrchestrator:
         finally:
             db.close()
 
-    async def _advance_to_aggregation(self) -> None:
-        """Transition to Stage 3: Evidence aggregation."""
-        async with self._pipeline_lock:
-            self._current_stage = PipelineStage.AGGREGATION
-
-        logger.sync_info("Stage 3: Evidence aggregation")
-
+    async def _run_aggregation_only(self) -> None:
+        """Run aggregation + refresh materialized views (no stage transition)."""
         from starlette.concurrency import run_in_threadpool
 
         from app.core.database import SessionLocal
@@ -221,8 +223,37 @@ class PipelineOrchestrator:
 
         db = SessionLocal()
         try:
-            await run_in_threadpool(lambda: update_all_curations(db))
-            logger.sync_info("Evidence aggregation completed")
+
+            def _aggregate_and_refresh() -> None:
+                from sqlalchemy import text
+
+                update_all_curations(db)
+                # Refresh gene_scores so the frontend can display data
+                try:
+                    db.execute(text("REFRESH MATERIALIZED VIEW gene_scores"))
+                    db.commit()
+                    logger.sync_info("Refreshed gene_scores materialized view")
+                except Exception as e:
+                    db.rollback()
+                    logger.sync_warning(
+                        "Failed to refresh gene_scores view",
+                        error=str(e),
+                    )
+
+            await run_in_threadpool(_aggregate_and_refresh)
+            logger.sync_info("Aggregation and view refresh complete")
+        finally:
+            db.close()
+
+    async def _advance_to_aggregation(self) -> None:
+        """Transition to Stage 3: Evidence aggregation + view refresh."""
+        async with self._pipeline_lock:
+            self._current_stage = PipelineStage.AGGREGATION
+
+        logger.sync_info("Stage 3: Evidence aggregation")
+
+        try:
+            await self._run_aggregation_only()
             self._current_stage = PipelineStage.COMPLETE
             logger.sync_info(
                 "Pipeline complete — all stages finished",
@@ -236,7 +267,6 @@ class PipelineOrchestrator:
             )
         finally:
             self._current_stage = PipelineStage.IDLE
-            db.close()
 
     def reset(self) -> None:
         """Reset orchestrator to idle state."""
