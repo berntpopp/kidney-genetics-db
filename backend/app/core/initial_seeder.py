@@ -37,16 +37,10 @@ def needs_initial_seeding(db: Session) -> bool:
 
     Returns True if neither DiagnosticPanels nor Literature evidence exists.
     """
-    dp_count = (
-        db.query(GeneEvidence)
-        .filter(GeneEvidence.source_name == "DiagnosticPanels")
-        .count()
+    dp_count: int = (
+        db.query(GeneEvidence).filter(GeneEvidence.source_name == "DiagnosticPanels").count()
     )
-    lit_count = (
-        db.query(GeneEvidence)
-        .filter(GeneEvidence.source_name == "Literature")
-        .count()
-    )
+    lit_count: int = db.query(GeneEvidence).filter(GeneEvidence.source_name == "Literature").count()
     return dp_count == 0 and lit_count == 0
 
 
@@ -106,7 +100,7 @@ async def run_initial_seeding(db: Session) -> dict[str, Any]:
             file_count=len(json_files),
         )
 
-        source = get_unified_source(source_name, db_session=db)
+        source: Any = get_unified_source(source_name, db_session=db)
         total_genes = 0
         file_results = []
 
@@ -118,15 +112,8 @@ async def run_initial_seeding(db: Session) -> dict[str, Any]:
                 # Get the identifier for this file
                 identifier = file_data.get(id_field, json_file.stem)
 
-                # Parse using the source's parse method
-                if source_name == "DiagnosticPanels":
-                    raw_data = await source.parse_uploaded_file(
-                        file_content, "json", identifier
-                    )
-                else:
-                    raw_data = await source.parse_uploaded_file(
-                        file_content, "json", identifier
-                    )
+                # Parse using the source's parse method (both types take same args)
+                raw_data = await source.parse_uploaded_file(file_content, "json", identifier)
 
                 # Process into gene data
                 processed = await source.process_data(raw_data)
@@ -149,9 +136,7 @@ async def run_initial_seeding(db: Session) -> dict[str, Any]:
 
                 gene_count = stats.get("created", 0) + stats.get("merged", 0)
                 total_genes += gene_count
-                file_results.append(
-                    {"file": json_file.name, "genes": gene_count}
-                )
+                file_results.append({"file": json_file.name, "genes": gene_count})
 
                 logger.sync_debug(
                     "Seeded file",

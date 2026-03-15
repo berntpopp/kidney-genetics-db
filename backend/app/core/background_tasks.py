@@ -195,7 +195,18 @@ class BackgroundTaskManager(TaskMixin):
                 t: asyncio.Task[Any],
                 _source: str = source_name,
             ) -> None:
-                exc = t.exception() if t.done() else None
+                if t.cancelled():
+                    logger.sync_warning(
+                        "Task cancelled",
+                        source_name=_source,
+                    )
+                    if self.orchestrator is not None:
+                        asyncio.create_task(
+                            self.orchestrator.on_source_completed(_source, success=False)
+                        )
+                    return
+
+                exc = t.exception()
                 success = exc is None
                 logger.sync_info(
                     "Task completed",
@@ -207,9 +218,7 @@ class BackgroundTaskManager(TaskMixin):
                 # Notify orchestrator if present
                 if self.orchestrator is not None:
                     asyncio.create_task(
-                        self.orchestrator.on_source_completed(
-                            _source, success=success
-                        )
+                        self.orchestrator.on_source_completed(_source, success=success)
                     )
 
             task.add_done_callback(_on_task_done)

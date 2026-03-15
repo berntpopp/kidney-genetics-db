@@ -77,9 +77,7 @@ class PipelineOrchestrator:
         logger.sync_info("Pipeline started — Stage 1: Evidence collection")
         await self.task_manager.start_auto_updates()
 
-    async def on_source_completed(
-        self, source_name: str, success: bool = True
-    ) -> None:
+    async def on_source_completed(self, source_name: str, success: bool = True) -> None:
         """
         Called when an evidence source finishes (success or failure).
 
@@ -149,9 +147,7 @@ class PipelineOrchestrator:
         db = SessionLocal()
         try:
             if needs_initial_seeding(db):
-                logger.sync_info(
-                    "Seeding DiagnosticPanels/Literature after evidence sources"
-                )
+                logger.sync_info("Seeding DiagnosticPanels/Literature after evidence sources")
                 seed_results = await run_initial_seeding(db)
                 logger.sync_info("Seeding complete", results=seed_results)
             else:
