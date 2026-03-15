@@ -23,7 +23,7 @@
                     color: getClassificationColor(cat.value)
                   }
             "
-            @click="toggleFilter(selectedClassifications, cat.value)"
+            @click="toggleClassification(cat.value)"
           >
             {{ cat.label }} ({{ getClassificationCount(cat.value) }})
           </Badge>
@@ -48,7 +48,7 @@
                   }
                 : { borderColor: getEffectColor(eff.value), color: getEffectColor(eff.value) }
             "
-            @click="toggleFilter(selectedEffects, eff.value)"
+            @click="toggleEffect(eff.value)"
           >
             {{ eff.label }} ({{ getEffectCount(eff.value) }})
           </Badge>
@@ -759,12 +759,21 @@ watch(
   () => nextTick(renderChart)
 )
 
-const toggleFilter = (filterRef, value) => {
-  const idx = filterRef.value.indexOf(value)
+const toggleClassification = value => {
+  const idx = selectedClassifications.value.indexOf(value)
   if (idx === -1) {
-    filterRef.value = [...filterRef.value, value]
+    selectedClassifications.value = [...selectedClassifications.value, value]
   } else {
-    filterRef.value = filterRef.value.filter(v => v !== value)
+    selectedClassifications.value = selectedClassifications.value.filter(v => v !== value)
+  }
+}
+
+const toggleEffect = value => {
+  const idx = selectedEffects.value.indexOf(value)
+  if (idx === -1) {
+    selectedEffects.value = [...selectedEffects.value, value]
+  } else {
+    selectedEffects.value = selectedEffects.value.filter(v => v !== value)
   }
 }
 </script>
