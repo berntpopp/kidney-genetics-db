@@ -39,25 +39,27 @@ export function useSeoMeta(options: SeoMetaOptions) {
   const robots = computed(() => (toValue(options.noindex) ? 'noindex, nofollow' : undefined))
   const ogImage = computed(() => (options.ogImage ? toValue(options.ogImage) : DEFAULT_OG_IMAGE))
 
-  useHead({
-    title: fullTitle,
-    meta: [
-      { name: 'description', content: desc },
-      // Open Graph
-      { property: 'og:title', content: fullTitle },
-      { property: 'og:description', content: desc },
-      { property: 'og:image', content: ogImage },
-      { property: 'og:type', content: 'website' },
-      { property: 'og:site_name', content: SITE_NAME },
-      ...(canonical.value !== undefined ? [{ property: 'og:url', content: canonical }] : []),
-      // Twitter Card
-      { name: 'twitter:card', content: 'summary' },
-      { name: 'twitter:title', content: fullTitle },
-      { name: 'twitter:description', content: desc },
-      { name: 'twitter:image', content: ogImage },
-      // Robots (only when noindex)
-      ...(robots.value ? [{ name: 'robots', content: robots }] : [])
-    ],
-    link: canonical.value !== undefined ? [{ rel: 'canonical', href: canonical }] : []
-  })
+  useHead(
+    computed(() => ({
+      title: fullTitle.value,
+      meta: [
+        { name: 'description', content: desc.value },
+        // Open Graph
+        { property: 'og:title', content: fullTitle.value },
+        { property: 'og:description', content: desc.value },
+        { property: 'og:image', content: ogImage.value },
+        { property: 'og:type', content: 'website' },
+        { property: 'og:site_name', content: SITE_NAME },
+        ...(canonical.value ? [{ property: 'og:url', content: canonical.value }] : []),
+        // Twitter Card
+        { name: 'twitter:card', content: 'summary' },
+        { name: 'twitter:title', content: fullTitle.value },
+        { name: 'twitter:description', content: desc.value },
+        { name: 'twitter:image', content: ogImage.value },
+        // Robots (only when noindex)
+        ...(robots.value ? [{ name: 'robots', content: robots.value }] : [])
+      ],
+      link: canonical.value ? [{ rel: 'canonical', href: canonical.value }] : []
+    }))
+  )
 }
