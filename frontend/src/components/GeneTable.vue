@@ -743,7 +743,7 @@ onMounted(async () => {
               :checked="showZeroScoreGenes"
               @update:checked="
                 val => {
-                  showZeroScoreGenes = val
+                  showZeroScoreGenes.value = val
                   debouncedSearch()
                 }
               "
