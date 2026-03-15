@@ -78,6 +78,24 @@
         </template>
       </div>
 
+      <!-- Data Sources Strip -->
+      <div class="mt-8 py-6 bg-muted/50 -mx-4 px-4 rounded-lg">
+        <p class="text-sm text-muted-foreground text-center mb-4">
+          Integrated from 7 authoritative genomic sources
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-4 md:gap-8">
+          <RouterLink
+            v-for="source in dataSources"
+            :key="source.name"
+            to="/data-sources"
+            class="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <component :is="source.icon" class="size-4" />
+            {{ source.name }}
+          </RouterLink>
+        </div>
+      </div>
+
       <!-- Key Benefits -->
       <div class="mt-8">
         <h2 class="text-2xl font-medium text-center mb-6">Why Use This Database?</h2>
@@ -189,6 +207,16 @@ useJsonLd(
     return getDatasetSchema(geneCount)
   })
 )
+
+const dataSources = [
+  { name: 'PanelApp', icon: DatabaseZap },
+  { name: 'ClinGen', icon: ShieldCheck },
+  { name: 'GenCC', icon: RefreshCw },
+  { name: 'HPO', icon: Dna },
+  { name: 'PubTator', icon: Microscope },
+  { name: 'Literature', icon: Search },
+  { name: 'Diagnostic Panels', icon: AlarmClockCheck }
+]
 
 const keyBenefits = [
   {
