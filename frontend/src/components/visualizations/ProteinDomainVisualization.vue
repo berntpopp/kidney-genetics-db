@@ -160,7 +160,12 @@ import { Download, Palette, ZoomIn, ZoomOut, SearchX } from 'lucide-vue-next'
 import { useAppTheme } from '@/composables/useAppTheme'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import * as d3 from 'd3'
+import { select, selectAll } from 'd3-selection'
+import { scaleLinear } from 'd3-scale'
+import { axisBottom } from 'd3-axis'
+import { zoom, zoomIdentity } from 'd3-zoom'
+import { color as d3color } from 'd3-color'
+import 'd3-transition'
 import { useD3Tooltip } from '@/composables/useD3Tooltip'
 
 const { isDark } = useAppTheme()
@@ -205,7 +210,7 @@ const canZoomOut = computed(() => zoomLevel.value > 1.01)
 
 // D3 zoom behavior reference
 let zoomBehavior = null
-let currentTransform = d3.zoomIdentity
+let currentTransform = zoomIdentity
 
 // Classification options for filter
 const classificationOptions = [
@@ -352,20 +357,20 @@ const downloadPng = () => {
 // Zoom control functions
 const zoomIn = () => {
   if (!chartContainer.value || !zoomBehavior) return
-  const svg = d3.select(chartContainer.value).select('svg')
+  const svg = select(chartContainer.value).select('svg')
   svg.transition().duration(300).call(zoomBehavior.scaleBy, 1.5)
 }
 
 const zoomOut = () => {
   if (!chartContainer.value || !zoomBehavior) return
-  const svg = d3.select(chartContainer.value).select('svg')
+  const svg = select(chartContainer.value).select('svg')
   svg.transition().duration(300).call(zoomBehavior.scaleBy, 0.67)
 }
 
 const resetZoom = () => {
   if (!chartContainer.value || !zoomBehavior) return
-  const svg = d3.select(chartContainer.value).select('svg')
-  svg.transition().duration(300).call(zoomBehavior.transform, d3.zoomIdentity)
+  const svg = select(chartContainer.value).select('svg')
+  svg.transition().duration(300).call(zoomBehavior.transform, zoomIdentity)
 }
 
 // Build variant tooltip content (for both hover and pinned)
@@ -423,7 +428,7 @@ const renderChart = () => {
   unpinTooltip()
 
   // Clear previous chart
-  d3.select(chartContainer.value).selectAll('*').remove()
+  select(chartContainer.value).selectAll('*').remove()
 
   // Get container dimensions
   const containerWidth = chartContainer.value.clientWidth
@@ -437,7 +442,7 @@ const renderChart = () => {
 
   // Validate dimensions
   if (width < 200 || height < 60) {
-    d3.select(chartContainer.value)
+    select(chartContainer.value)
       .append('div')
       .style('display', 'flex')
       .style('align-items', 'center')
@@ -457,8 +462,7 @@ const renderChart = () => {
   }
 
   // Create SVG
-  const svg = d3
-    .select(chartContainer.value)
+  const svg = select(chartContainer.value)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', containerHeight)
@@ -480,7 +484,7 @@ const renderChart = () => {
   const contentGroup = g.append('g').attr('clip-path', 'url(#protein-clip)')
 
   // Create scales
-  const xScale = d3.scaleLinear().domain([0, proteinLength]).range([0, width])
+  const xScale = scaleLinear().domain([0, proteinLength]).range([0, width])
 
   // Create a zoom scale that can be transformed
   let xScaleZoomed = xScale.copy()
@@ -534,7 +538,7 @@ const renderChart = () => {
         .attr('height', domainHeight)
         .attr('fill', color)
         .attr('rx', 4)
-        .attr('stroke', d3.color(color).darker(0.3))
+        .attr('stroke', d3color(color).darker(0.3))
         .attr('stroke-width', 1)
         .style('cursor', 'pointer')
 
@@ -543,10 +547,10 @@ const renderChart = () => {
         .on('mouseover', function (event) {
           if (isPinned.value) return
 
-          d3.select(this)
+          select(this)
             .transition()
             .duration(150)
-            .attr('fill', d3.color(color).darker(0.2))
+            .attr('fill', d3color(color).darker(0.2))
             .attr('y', backboneY - domainHeight / 2 - 3)
             .attr('height', domainHeight + 6)
 
@@ -579,7 +583,7 @@ const renderChart = () => {
           )
         })
         .on('mouseout', function () {
-          d3.select(this)
+          select(this)
             .transition()
             .duration(150)
             .attr('fill', color)
@@ -643,7 +647,7 @@ const renderChart = () => {
         .attr('cy', lollipopBaseY - lollipopStalkHeight - radius)
         .attr('r', radius)
         .attr('fill', color)
-        .attr('stroke', d3.color(color).darker(0.5))
+        .attr('stroke', d3color(color).darker(0.5))
         .attr('stroke-width', 1)
         .style('cursor', 'pointer')
 
@@ -652,7 +656,7 @@ const renderChart = () => {
         .on('mouseover', function (event) {
           if (isPinned.value) return
 
-          d3.select(this)
+          select(this)
             .transition()
             .duration(150)
             .attr('r', radius + 2)
@@ -661,14 +665,14 @@ const renderChart = () => {
           showTooltip(event, buildVariantTooltip(variants, position, false))
         })
         .on('mouseout', function () {
-          d3.select(this).transition().duration(150).attr('r', radius).attr('stroke-width', 1)
+          select(this).transition().duration(150).attr('r', radius).attr('stroke-width', 1)
 
           hideTooltip()
         })
         .on('click', function (event) {
           event.stopPropagation()
 
-          d3.select(this)
+          select(this)
             .transition()
             .duration(150)
             .attr('r', radius + 3)
@@ -682,8 +686,7 @@ const renderChart = () => {
 
   // Draw axis at bottom
   const axisY = height + 5
-  const xAxis = d3
-    .axisBottom(xScale)
+  const xAxis = axisBottom(xScale)
     .ticks(Math.min(10, Math.floor(width / 80)))
     .tickFormat(d => d)
 
@@ -742,8 +745,7 @@ const renderChart = () => {
   drawLollipops(xScaleZoomed)
 
   // Setup zoom behavior
-  zoomBehavior = d3
-    .zoom()
+  zoomBehavior = zoom()
     .scaleExtent([1, 20])
     .translateExtent([
       [0, 0],
@@ -766,7 +768,7 @@ const renderChart = () => {
       drawLollipops(xScaleZoomed)
 
       // Update axis
-      axisGroup.call(d3.axisBottom(xScaleZoomed).ticks(Math.min(10, Math.floor(width / 80))))
+      axisGroup.call(axisBottom(xScaleZoomed).ticks(Math.min(10, Math.floor(width / 80))))
       axisGroup.selectAll('text').style('font-size', '10px').style('fill', colors.value.text)
       axisGroup.selectAll('.domain, line').style('stroke', colors.value.text).style('opacity', 0.5)
 
@@ -781,7 +783,7 @@ const renderChart = () => {
   svg.call(zoomBehavior)
 
   // Apply existing transform if any
-  if (currentTransform !== d3.zoomIdentity) {
+  if (currentTransform !== zoomIdentity) {
     svg.call(zoomBehavior.transform, currentTransform)
   }
 }
@@ -803,7 +805,7 @@ onUnmounted(() => {
   }
   removeTooltip()
   // Remove any orphaned tooltips
-  d3.selectAll('.visualization-tooltip').remove()
+  selectAll('.visualization-tooltip').remove()
 })
 
 // Re-render on data changes

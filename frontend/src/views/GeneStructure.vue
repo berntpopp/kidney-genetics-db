@@ -215,6 +215,8 @@ import ComponentSkeleton from '@/components/ui/ComponentSkeleton.vue'
 import ComponentError from '@/components/ui/ComponentError.vue'
 import { geneApi } from '@/api/genes'
 import { getGeneStructureBreadcrumbs } from '@/utils/publicBreadcrumbs'
+import { useSeoMeta } from '@/composables/useSeoMeta'
+import { useJsonLd, getGeneSchema, getBreadcrumbSchema } from '@/composables/useJsonLd'
 const GeneStructureVisualization = defineAsyncComponent({
   loader: () => import('@/components/visualizations/GeneStructureVisualization.vue'),
   loadingComponent: ComponentSkeleton,
@@ -263,6 +265,32 @@ const activeTab = ref('gene')
 
 // Computed
 const breadcrumbs = computed(() => getGeneStructureBreadcrumbs(props.symbol))
+
+// SEO meta tags (reactive — updates when gene data loads)
+useSeoMeta({
+  title: computed(() =>
+    gene.value
+      ? `${gene.value.approved_symbol} Gene Structure — Exon Map & Protein Domains`
+      : 'Gene Structure'
+  ),
+  description: computed(() => {
+    if (!gene.value) return 'Gene structure visualization with exon maps and protein domains.'
+    const g = gene.value
+    return `${g.approved_symbol} gene structure: exon map, protein domains, and ClinVar variant overlay. Interactive visualization from KGDB.`
+  }),
+  canonicalPath: computed(() => `/genes/${props.symbol}/structure`)
+})
+
+// Gene JSON-LD (reactive — updates when gene data loads)
+useJsonLd(
+  computed(() => {
+    if (!gene.value) return { '@context': 'https://schema.org', '@type': 'Gene', name: 'Loading' }
+    return getGeneSchema(gene.value)
+  })
+)
+
+// Breadcrumb JSON-LD
+useJsonLd(computed(() => getBreadcrumbSchema(breadcrumbs.value)))
 
 const ensemblData = computed(() => {
   if (!annotations.value?.annotations?.ensembl) return null

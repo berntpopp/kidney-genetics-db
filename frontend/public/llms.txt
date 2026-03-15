@@ -1,0 +1,13 @@
+# Kidney Genetics Database (KGDB)
+
+> Evidence-based kidney disease gene curation with multi-source integration
+
+The Kidney Genetics Database (KGDB) is a curated resource of kidney disease-associated genes with evidence scoring from multiple authoritative sources including ClinGen, PanelApp, GenCC, HPO, and PubTator.
+
+## Key Resources
+
+- [Gene Browser](https://kidney-genetics.org/genes): Search and filter 5,000+ kidney disease genes
+- [API Documentation](https://kidney-genetics.org/api/docs): JSON:API compliant REST API
+- [Data Sources](https://kidney-genetics.org/data-sources): Live status of integrated genomic data sources
+- [About](https://kidney-genetics.org/about): Methodology and core concepts
+- [GitHub](https://github.com/berntpopp/kidney-genetics-db): Open source repository

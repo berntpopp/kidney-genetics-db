@@ -5,7 +5,12 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useAppTheme } from '@/composables/useAppTheme'
-import * as d3 from 'd3'
+import { select } from 'd3-selection'
+import { scaleOrdinal } from 'd3-scale'
+import { schemeTableau10 } from 'd3-scale-chromatic'
+import { pie as d3pie, arc as d3arc } from 'd3-shape'
+import { interpolate } from 'd3-interpolate'
+import 'd3-transition'
 
 const { isDark } = useAppTheme()
 const chartContainer = ref(null)
@@ -70,10 +75,9 @@ const computedTotal = computed(() => {
 
 // Color scale for segments (use provided colors or generate)
 const colorScale = computed(() => {
-  return d3
-    .scaleOrdinal()
+  return scaleOrdinal()
     .domain(props.data.map(d => d.category))
-    .range(d3.schemeTableau10)
+    .range(schemeTableau10)
 })
 
 const renderChart = () => {
@@ -82,7 +86,7 @@ const renderChart = () => {
   }
 
   // Clear previous chart
-  d3.select(chartContainer.value).selectAll('*').remove()
+  select(chartContainer.value).selectAll('*').remove()
 
   // Get container dimensions
   const containerWidth = chartContainer.value.clientWidth
@@ -98,8 +102,7 @@ const renderChart = () => {
     })
 
     // Show message
-    d3
-      .select(chartContainer.value)
+    select(chartContainer.value)
       .append('div')
       .style('display', 'flex')
       .style('align-items', 'center')
@@ -123,30 +126,23 @@ const renderChart = () => {
   const radius = Math.min(width, height) / 2 - 20 // 20px margin
 
   // Create SVG
-  const svg = d3
-    .select(chartContainer.value)
-    .append('svg')
-    .attr('width', width)
-    .attr('height', height)
+  const svg = select(chartContainer.value).append('svg').attr('width', width).attr('height', height)
 
   // Create main group centered
   const g = svg.append('g').attr('transform', `translate(${width / 2}, ${height / 2})`)
 
   // Create pie layout
-  const pie = d3
-    .pie()
+  const pie = d3pie()
     .value(d => d.gene_count)
     .sort(null) // Keep original order
 
   // Create arc generator for donut
-  const arc = d3
-    .arc()
+  const arc = d3arc()
     .innerRadius(radius * 0.6) // Donut hole
     .outerRadius(radius)
 
   // Create arc generator for hover effect
-  const arcHover = d3
-    .arc()
+  const arcHover = d3arc()
     .innerRadius(radius * 0.6)
     .outerRadius(radius + 5) // Slightly larger on hover
 
@@ -172,14 +168,14 @@ const renderChart = () => {
     .style('cursor', 'pointer')
     .on('mouseover', function (event, d) {
       // Highlight segment
-      d3.select(this).transition().duration(200).attr('d', arcHover)
+      select(this).transition().duration(200).attr('d', arcHover)
 
       // Show tooltip
       showTooltip(event, d)
     })
     .on('mouseout', function () {
       // Return to normal
-      d3.select(this).transition().duration(200).attr('d', arc)
+      select(this).transition().duration(200).attr('d', arc)
 
       // Hide tooltip
       hideTooltip()
@@ -190,9 +186,9 @@ const renderChart = () => {
     .transition()
     .duration(750)
     .attrTween('d', function (d) {
-      const interpolate = d3.interpolate({ startAngle: 0, endAngle: 0 }, d)
+      const interp = interpolate({ startAngle: 0, endAngle: 0 }, d)
       return function (t) {
-        return arc(interpolate(t))
+        return arc(interp(t))
       }
     })
 
@@ -293,8 +289,7 @@ const renderChart = () => {
 // Tooltip functions
 const showTooltip = (event, d) => {
   if (!tooltip) {
-    tooltip = d3
-      .select('body')
+    tooltip = select('body')
       .append('div')
       .attr('class', 'chart-tooltip')
       .style('position', 'absolute')

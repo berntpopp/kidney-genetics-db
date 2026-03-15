@@ -241,9 +241,9 @@ const breadcrumbs = PUBLIC_BREADCRUMBS.dataSources
 useJsonLd(getBreadcrumbSchema(breadcrumbs))
 
 useSeoMeta({
-  title: 'Data Sources',
+  title: 'Data Sources — Integrated Genomic Databases',
   description:
-    'Live status and statistics from integrated genomic data sources including PanelApp, ClinGen, GenCC, HPO, and more.',
+    'Live status and statistics from integrated kidney genetics data sources: PanelApp, ClinGen, GenCC, HPO, PubTator, and diagnostic panels. Renal genetics database sources.',
   canonicalPath: '/data-sources'
 })
 

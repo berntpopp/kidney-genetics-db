@@ -160,7 +160,11 @@ import { Download, Palette, ZoomIn, ZoomOut, SearchX } from 'lucide-vue-next'
 import { useAppTheme } from '@/composables/useAppTheme'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import * as d3 from 'd3'
+import { select, selectAll } from 'd3-selection'
+import { scaleLinear } from 'd3-scale'
+import { zoom, zoomIdentity } from 'd3-zoom'
+import { color as d3color } from 'd3-color'
+import 'd3-transition'
 import { useD3Tooltip } from '@/composables/useD3Tooltip'
 
 const { isDark } = useAppTheme()
@@ -213,7 +217,7 @@ const canZoomOut = computed(() => zoomLevel.value > 1.01)
 
 // D3 zoom behavior reference
 let zoomBehavior = null
-let currentTransform = d3.zoomIdentity
+let currentTransform = zoomIdentity
 
 // Classification options for filter
 const classificationOptions = [
@@ -399,20 +403,20 @@ const downloadPng = () => {
 // Zoom control functions
 const zoomIn = () => {
   if (!chartContainer.value || !zoomBehavior) return
-  const svg = d3.select(chartContainer.value).select('svg')
+  const svg = select(chartContainer.value).select('svg')
   svg.transition().duration(300).call(zoomBehavior.scaleBy, 1.5)
 }
 
 const zoomOut = () => {
   if (!chartContainer.value || !zoomBehavior) return
-  const svg = d3.select(chartContainer.value).select('svg')
+  const svg = select(chartContainer.value).select('svg')
   svg.transition().duration(300).call(zoomBehavior.scaleBy, 0.67)
 }
 
 const resetZoom = () => {
   if (!chartContainer.value || !zoomBehavior) return
-  const svg = d3.select(chartContainer.value).select('svg')
-  svg.transition().duration(300).call(zoomBehavior.transform, d3.zoomIdentity)
+  const svg = select(chartContainer.value).select('svg')
+  svg.transition().duration(300).call(zoomBehavior.transform, zoomIdentity)
 }
 
 // Build variant tooltip content (for both hover and pinned)
@@ -466,7 +470,7 @@ const renderChart = () => {
   unpinTooltip()
 
   // Clear previous chart
-  d3.select(chartContainer.value).selectAll('*').remove()
+  select(chartContainer.value).selectAll('*').remove()
 
   // Get container dimensions
   const containerWidth = chartContainer.value.clientWidth
@@ -480,7 +484,7 @@ const renderChart = () => {
 
   // Validate dimensions
   if (width < 200 || height < 60) {
-    d3.select(chartContainer.value)
+    select(chartContainer.value)
       .append('div')
       .style('display', 'flex')
       .style('align-items', 'center')
@@ -502,8 +506,7 @@ const renderChart = () => {
   }
 
   // Create SVG
-  const svg = d3
-    .select(chartContainer.value)
+  const svg = select(chartContainer.value)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', containerHeight)
@@ -525,7 +528,7 @@ const renderChart = () => {
   const contentGroup = g.append('g').attr('clip-path', 'url(#gene-clip)')
 
   // Create scale
-  const xScale = d3.scaleLinear().domain([geneStart, geneEnd]).range([0, width])
+  const xScale = scaleLinear().domain([geneStart, geneEnd]).range([0, width])
 
   // Create a zoom scale that can be transformed
   let xScaleZoomed = xScale.copy()
@@ -602,7 +605,7 @@ const renderChart = () => {
         .on('mouseover', function (event) {
           if (isPinned.value) return
 
-          d3.select(this)
+          select(this)
             .transition()
             .duration(150)
             .attr('fill', colors.value.exonHover)
@@ -625,7 +628,7 @@ const renderChart = () => {
           )
         })
         .on('mouseout', function () {
-          d3.select(this)
+          select(this)
             .transition()
             .duration(150)
             .attr('fill', colors.value.exon)
@@ -703,7 +706,7 @@ const renderChart = () => {
         .attr('cy', lollipopBaseY - lollipopStalkHeight - radius)
         .attr('r', radius)
         .attr('fill', color)
-        .attr('stroke', d3.color(color).darker(0.5))
+        .attr('stroke', d3color(color).darker(0.5))
         .attr('stroke-width', 1)
         .style('cursor', 'pointer')
 
@@ -712,7 +715,7 @@ const renderChart = () => {
         .on('mouseover', function (event) {
           if (isPinned.value) return
 
-          d3.select(this)
+          select(this)
             .transition()
             .duration(150)
             .attr('r', radius + 2)
@@ -721,14 +724,14 @@ const renderChart = () => {
           showTooltip(event, buildVariantTooltip(variants, false))
         })
         .on('mouseout', function () {
-          d3.select(this).transition().duration(150).attr('r', radius).attr('stroke-width', 1)
+          select(this).transition().duration(150).attr('r', radius).attr('stroke-width', 1)
 
           hideTooltip()
         })
         .on('click', function (event) {
           event.stopPropagation()
 
-          d3.select(this)
+          select(this)
             .transition()
             .duration(150)
             .attr('r', radius + 3)
@@ -784,8 +787,7 @@ const renderChart = () => {
   drawLollipops(xScaleZoomed)
 
   // Setup zoom behavior
-  zoomBehavior = d3
-    .zoom()
+  zoomBehavior = zoom()
     .scaleExtent([1, 20])
     .translateExtent([
       [0, 0],
@@ -818,7 +820,7 @@ const renderChart = () => {
   svg.call(zoomBehavior)
 
   // Apply existing transform if any
-  if (currentTransform !== d3.zoomIdentity) {
+  if (currentTransform !== zoomIdentity) {
     svg.call(zoomBehavior.transform, currentTransform)
   }
 }
@@ -839,7 +841,7 @@ onUnmounted(() => {
     resizeObserver.disconnect()
   }
   removeTooltip()
-  d3.selectAll('.visualization-tooltip').remove()
+  selectAll('.visualization-tooltip').remove()
 })
 
 // Re-render on data changes

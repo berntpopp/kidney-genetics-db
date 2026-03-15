@@ -43,7 +43,15 @@ export function getOrganizationWebSiteSchema() {
         '@id': `${SITE_URL}/#organization`,
         name: SITE_NAME,
         url: SITE_URL,
-        logo: `${SITE_URL}/icon-512.png`
+        description:
+          'Research platform for evidence-based kidney disease gene curation with multi-source integration.',
+        logo: {
+          '@type': 'ImageObject',
+          url: `${SITE_URL}/icon-512.png`,
+          width: 512,
+          height: 512
+        },
+        sameAs: ['https://github.com/berntpopp/kidney-genetics-db']
       },
       {
         '@type': 'WebSite',
@@ -71,9 +79,10 @@ export function getDatasetSchema(geneCount?: number, lastUpdate?: string) {
     '@type': 'Dataset',
     name: 'Kidney Genetics Database',
     description:
-      'Evidence-based kidney disease gene curation with multi-source integration from PanelApp, ClinGen, GenCC, HPO, and more.',
+      'Evidence-based kidney disease gene curation with multi-source integration. Curated nephrology gene panel and renal genetics resource from PanelApp, ClinGen, GenCC, HPO, and more.',
     url: SITE_URL,
     license: 'https://creativecommons.org/licenses/by/4.0/',
+    isAccessibleForFree: true,
     creator: { '@id': `${SITE_URL}/#organization` },
     keywords: [
       'kidney genetics',
@@ -81,30 +90,87 @@ export function getDatasetSchema(geneCount?: number, lastUpdate?: string) {
       'genomics',
       'gene curation',
       'kidney disease',
-      'genetic research'
+      'genetic research',
+      'nephrology gene panel',
+      'renal genetics database',
+      'nephropathy gene list',
+      'kidney genomics resource'
     ],
-    ...(geneCount != null ? { variableMeasured: `${geneCount} genes` } : {}),
+    distribution: {
+      '@type': 'DataDownload',
+      encodingFormat: 'application/json',
+      contentUrl: `${SITE_URL}/api/genes`
+    },
+    ...(geneCount != null
+      ? {
+          variableMeasured: {
+            '@type': 'PropertyValue',
+            name: 'Number of curated genes',
+            value: geneCount
+          }
+        }
+      : {}),
     ...(lastUpdate ? { dateModified: lastUpdate } : {})
   }
 }
 
-/** Bioschemas Gene schema for gene detail pages */
+/** Bioschemas Gene schema for gene detail pages (Gene 1.0-RELEASE profile) */
 export function getGeneSchema(gene: {
   approved_symbol: string
+  approved_name?: string | null
   hgnc_id?: string | null
   aliases?: string[] | null
   evidence_score?: number | null
+  ensembl_gene_id?: string | null
+  ncbi_gene_id?: string | null
+  uniprot_id?: string | null
+  chromosome?: string | null
 }) {
+  const sameAs: string[] = []
+  if (gene.hgnc_id) {
+    sameAs.push(`https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/${gene.hgnc_id}`)
+  }
+  if (gene.ncbi_gene_id) {
+    sameAs.push(`https://www.ncbi.nlm.nih.gov/gene/${gene.ncbi_gene_id}`)
+  }
+  if (gene.ensembl_gene_id) {
+    sameAs.push(`https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=${gene.ensembl_gene_id}`)
+  }
+  if (gene.uniprot_id) {
+    sameAs.push(`https://www.uniprot.org/uniprot/${gene.uniprot_id}`)
+  }
+
   return {
     '@context': 'https://schema.org',
     '@type': 'Gene',
+    'dct:conformsTo': 'https://bioschemas.org/profiles/Gene/1.0-RELEASE',
+    '@id': `${SITE_URL}/genes/${gene.approved_symbol}`,
     name: gene.approved_symbol,
+    ...(gene.approved_name ? { description: gene.approved_name } : {}),
     identifier: gene.hgnc_id ?? gene.approved_symbol,
     url: `${SITE_URL}/genes/${gene.approved_symbol}`,
     ...(gene.aliases?.length ? { alternateName: gene.aliases } : {}),
-    ...(gene.hgnc_id
+    sameAs,
+    taxonomicRange: {
+      '@type': 'Taxon',
+      name: 'Homo sapiens',
+      '@id': 'https://identifiers.org/taxonomy:9606'
+    },
+    ...(gene.uniprot_id
       ? {
-          sameAs: `https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/${gene.hgnc_id}`
+          encodesBioChemEntity: {
+            '@type': 'BioChemEntity',
+            '@id': `https://www.uniprot.org/uniprot/${gene.uniprot_id}`,
+            name: `${gene.approved_symbol} protein`
+          }
+        }
+      : {}),
+    ...(gene.chromosome
+      ? {
+          isPartOfBioChemEntity: {
+            '@type': 'BioChemEntity',
+            name: `Chromosome ${gene.chromosome}`
+          }
         }
       : {}),
     isPartOf: { '@id': `${SITE_URL}/#website` }

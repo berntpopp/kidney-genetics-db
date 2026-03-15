@@ -276,13 +276,18 @@ const evidenceSortOrder = ref('score_desc')
 
 // SEO meta tags (reactive — updates when gene data loads)
 useSeoMeta({
-  title: computed(() =>
-    gene.value ? `${gene.value.approved_symbol} - Gene Detail` : 'Gene Detail'
-  ),
+  title: computed(() => {
+    if (!gene.value) return 'Gene Detail'
+    const name = gene.value.approved_name || ''
+    return name
+      ? `${gene.value.approved_symbol} (${name}) — Kidney Disease Gene Evidence`
+      : `${gene.value.approved_symbol} — Kidney Disease Gene Evidence`
+  }),
   description: computed(() => {
     if (!gene.value) return 'Detailed gene information with evidence scores and annotations.'
     const g = gene.value
     const parts = [`${g.approved_symbol} kidney disease gene`]
+    if (g.approved_name) parts.push(g.approved_name)
     if (g.hgnc_id) parts.push(g.hgnc_id)
     if (g.evidence_score != null)
       parts.push(`evidence score ${Math.round(g.evidence_score * 10) / 10}`)

@@ -1,9 +1,21 @@
 User-agent: *
 Allow: /
-
 Disallow: /admin
 Disallow: /login
 Disallow: /forgot-password
 Disallow: /profile
+
+# AI training crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Google-Extended
+Disallow: /
 
 Sitemap: https://kidney-genetics.org/sitemap.xml

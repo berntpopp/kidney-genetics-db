@@ -79,9 +79,11 @@ export class LogService {
     this.correlationId = null
     this.metadata = {}
 
-    window.addEventListener('beforeunload', () => {
-      this._flushReportQueue()
-    })
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', () => {
+        this._flushReportQueue()
+      })
+    }
   }
 
   /**
@@ -354,6 +356,7 @@ export class LogService {
    * @private
    */
   loadConsoleEchoFromStorage(): boolean {
+    if (typeof localStorage === 'undefined') return false
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.CONSOLE_ECHO)
       if (stored !== null) {
@@ -367,6 +370,7 @@ export class LogService {
   }
 
   loadMaxEntriesFromStorage(): number {
+    if (typeof localStorage === 'undefined') return import.meta.env.DEV ? 100 : 50
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.MAX_ENTRIES)
       if (stored !== null) {
@@ -383,6 +387,8 @@ export class LogService {
   }
 
   loadLogLevelFromStorage(): string {
+    if (typeof localStorage === 'undefined')
+      return import.meta.env.DEV ? LogLevel.DEBUG : LogLevel.WARN
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.LOG_LEVEL)
       if (stored && LOG_LEVEL_PRIORITY[stored] !== undefined) {

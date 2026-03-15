@@ -5,8 +5,9 @@
  * Supports pinning tooltips on click for interactive content (links, scrolling).
  */
 
-import * as d3 from 'd3'
-import type { Selection } from 'd3'
+import { select } from 'd3-selection'
+import type { Selection } from 'd3-selection'
+import 'd3-transition'
 import { ref, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
 
@@ -41,8 +42,7 @@ export function useD3Tooltip(): D3TooltipReturn {
    */
   const ensureTooltip = (): TooltipSelection => {
     if (!tooltip) {
-      tooltip = d3
-        .select<HTMLElement, unknown>('body')
+      tooltip = select<HTMLElement, unknown>('body')
         .append<HTMLDivElement>('div')
         .attr('class', 'visualization-tooltip')
         .style('position', 'absolute')
@@ -156,7 +156,7 @@ export function useD3Tooltip(): D3TooltipReturn {
 
     // Close on click outside
     setTimeout(() => {
-      d3.select('body').on('click.tooltip-close', (e: MouseEvent) => {
+      select('body').on('click.tooltip-close', (e: MouseEvent) => {
         const tooltipEl = tip.node()
         if (tooltipEl && !tooltipEl.contains(e.target as Node)) {
           unpin()
@@ -170,7 +170,7 @@ export function useD3Tooltip(): D3TooltipReturn {
    */
   const unpin = (): void => {
     isPinned.value = false
-    d3.select('body').on('click.tooltip-close', null)
+    select('body').on('click.tooltip-close', null)
     hide()
   }
 
@@ -188,7 +188,7 @@ export function useD3Tooltip(): D3TooltipReturn {
    */
   const remove = (): void => {
     isPinned.value = false
-    d3.select('body').on('click.tooltip-close', null)
+    select('body').on('click.tooltip-close', null)
     if (tooltip) {
       tooltip.remove()
       tooltip = null
