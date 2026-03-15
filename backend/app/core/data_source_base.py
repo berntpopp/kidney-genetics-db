@@ -168,8 +168,13 @@ class DataSourceClient(ABC):
             stats["genes_found"] = len(processed_data)
 
             if not processed_data:
-                logger.sync_warning("No genes found in data", source_name=self.source_name)
-                tracker.complete(f"{self.source_name} update completed: 0 genes found")
+                msg = f"{self.source_name} update returned 0 genes"
+                logger.sync_error(
+                    "No genes found in data — marking as FAILED",
+                    source_name=self.source_name,
+                )
+                tracker.error(msg)
+                stats["error"] = msg
                 return stats
 
             # Step 3: Store in database
