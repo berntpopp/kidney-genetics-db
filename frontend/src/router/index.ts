@@ -190,6 +190,16 @@ const routes: RouteRecordRaw[] = [
     name: 'admin-hybrid-sources',
     component: () => import('../views/admin/AdminHybridSources.vue'),
     meta: { requiresAuth: true, requiresAdmin: true, title: 'Hybrid Sources', noindex: true }
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('../views/NotFound.vue'),
+    meta: {
+      title: 'Page Not Found',
+      description: 'The requested page was not found.',
+      noindex: true
+    }
   }
 ]
 
