@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
+import { compression } from 'vite-plugin-compression2'
 import { fileURLToPath, URL } from 'node:url'
 import { readFileSync } from 'fs'
 
@@ -11,7 +12,12 @@ const packageJson = JSON.parse(
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [tailwindcss(), vue()],
+  plugins: [
+    tailwindcss(),
+    vue(),
+    compression({ algorithm: 'gzip', exclude: [/\.(br)$/] }),
+    compression({ algorithm: 'brotliCompress', exclude: [/\.(gz)$/] }),
+  ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
