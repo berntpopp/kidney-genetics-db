@@ -1,5 +1,6 @@
 import './assets/main.css'
 import { ViteSSG } from 'vite-ssg'
+import { createPinia } from 'pinia'
 import App from './App.vue'
 import { routes } from './router'
 
@@ -10,27 +11,31 @@ export const createApp = ViteSSG(
     base: import.meta.env.BASE_URL
   },
   async ({ app, router }) => {
-    // Navigation guards (work on both client and SSR)
-    const { useAuthStore } = await import('./stores/auth')
-
-    router!.beforeEach(async to => {
-      const authStore = useAuthStore()
-
-      // Wait for the silent token refresh to complete before evaluating guards.
-      // This prevents redirecting to /login on page refresh while the HttpOnly
-      // cookie refresh is still in-flight.
-      if (to.meta.requiresAuth || to.meta.requiresAdmin) {
-        await authStore.initReady
-      }
-
-      if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-        return '/login?redirect=' + to.fullPath
-      } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
-        return '/'
-      }
-    })
+    // Create and install Pinia (vite-ssg does NOT do this automatically)
+    const pinia = createPinia()
+    app.use(pinia)
 
     if (!import.meta.env.SSR) {
+      // Navigation guards (client-only — SSG doesn't need auth)
+      const { useAuthStore } = await import('./stores/auth')
+
+      router!.beforeEach(async to => {
+        const authStore = useAuthStore()
+
+        // Wait for the silent token refresh to complete before evaluating guards.
+        // This prevents redirecting to /login on page refresh while the HttpOnly
+        // cookie refresh is still in-flight.
+        if (to.meta.requiresAuth || to.meta.requiresAdmin) {
+          await authStore.initReady
+        }
+
+        if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+          return '/login?redirect=' + to.fullPath
+        } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
+          return '/'
+        }
+      })
+
       // Browser-only initialization
       const { logService } = await import('./services/logService')
       const { useLogStore } = await import('./stores/logStore')
