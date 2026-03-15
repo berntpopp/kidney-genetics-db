@@ -616,7 +616,7 @@ class AnnotationPipeline:
         results: dict[str, Any] = {}
 
         # Limit concurrent sources to respect API limits
-        semaphore = asyncio.Semaphore(3)  # Max 3 concurrent sources
+        semaphore = asyncio.Semaphore(1)  # Process sources sequentially to avoid DB pool starvation
 
         async def rate_limited_update(source_name: str) -> tuple[str, dict]:
             """Update single source with its own isolated session."""
