@@ -5,7 +5,13 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useAppTheme } from '@/composables/useAppTheme'
-import * as d3 from 'd3'
+import { select } from 'd3-selection'
+import { scaleBand, scaleLinear } from 'd3-scale'
+import { max } from 'd3-array'
+import { axisLeft, axisBottom } from 'd3-axis'
+import { format } from 'd3-format'
+import { color } from 'd3-color'
+import 'd3-transition'
 
 const { isDark } = useAppTheme()
 const chartContainer = ref(null)
@@ -67,7 +73,7 @@ const renderChart = () => {
   }
 
   // Clear previous chart
-  d3.select(chartContainer.value).selectAll('*').remove()
+  select(chartContainer.value).selectAll('*').remove()
 
   // Get container dimensions
   const containerWidth = chartContainer.value.clientWidth
@@ -92,8 +98,7 @@ const renderChart = () => {
     })
 
     // Show message
-    d3
-      .select(chartContainer.value)
+    select(chartContainer.value)
       .append('div')
       .style('display', 'flex')
       .style('align-items', 'center')
@@ -112,8 +117,7 @@ const renderChart = () => {
   }
 
   // Create SVG
-  const svg = d3
-    .select(chartContainer.value)
+  const svg = select(chartContainer.value)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', containerHeight)
@@ -131,21 +135,20 @@ const renderChart = () => {
     .trim()
 
   // Create scales
-  const xScale = d3
-    .scaleBand()
+  const xScale = scaleBand()
     .domain(props.data.map(d => String(d.category)))
     .range([0, width])
     .padding(0.2)
 
-  const maxValue = d3.max(props.data, d => d.gene_count) || 1
-  const yScale = d3.scaleLinear().domain([0, maxValue]).nice().range([height, 0])
+  const maxValue = max(props.data, d => d.gene_count) || 1
+  const yScale = scaleLinear().domain([0, maxValue]).nice().range([height, 0])
 
   // Add Y-axis grid lines
   g.append('g')
     .attr('class', 'grid')
     .style('stroke', gridColor)
     .style('stroke-opacity', 0.1)
-    .call(d3.axisLeft(yScale).tickSize(-width).tickFormat(''))
+    .call(axisLeft(yScale).tickSize(-width).tickFormat(''))
     .selectAll('line')
     .style('stroke-dasharray', '2,2')
 
@@ -154,7 +157,7 @@ const renderChart = () => {
     .append('g')
     .attr('class', 'x-axis')
     .attr('transform', `translate(0,${height})`)
-    .call(d3.axisBottom(xScale))
+    .call(axisBottom(xScale))
 
   // Style X axis
   xAxis
@@ -173,10 +176,9 @@ const renderChart = () => {
     .append('g')
     .attr('class', 'y-axis')
     .call(
-      d3
-        .axisLeft(yScale)
+      axisLeft(yScale)
         .ticks(5)
-        .tickFormat(d => d3.format('.0f')(d))
+        .tickFormat(d => format('.0f')(d))
     )
 
   // Style Y axis
@@ -200,17 +202,17 @@ const renderChart = () => {
     .style('cursor', 'pointer')
     .on('mouseover', function (event, d) {
       // Highlight bar
-      d3.select(this)
+      select(this)
         .transition()
         .duration(200)
-        .attr('fill', d3.color(computedBarColor.value).darker(0.3))
+        .attr('fill', color(computedBarColor.value).darker(0.3))
 
       // Show tooltip
       showTooltip(event, d)
     })
     .on('mouseout', function () {
       // Return to normal
-      d3.select(this).transition().duration(200).attr('fill', computedBarColor.value)
+      select(this).transition().duration(200).attr('fill', computedBarColor.value)
 
       // Hide tooltip
       hideTooltip()
@@ -251,8 +253,7 @@ const renderChart = () => {
 // Tooltip functions
 const showTooltip = (event, d) => {
   if (!tooltip) {
-    tooltip = d3
-      .select('body')
+    tooltip = select('body')
       .append('div')
       .attr('class', 'chart-tooltip')
       .style('position', 'absolute')

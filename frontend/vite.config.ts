@@ -45,7 +45,7 @@ export default defineConfig({
         manualChunks: {
           'vendor-vue': ['vue', 'vue-router', 'pinia'],
           'vendor-tanstack': ['@tanstack/vue-table'],
-          'vendor-d3': ['d3'],
+          'vendor-d3': ['d3-selection', 'd3-scale', 'd3-shape', 'd3-axis', 'd3-array', 'd3-transition', 'd3-format', 'd3-color', 'd3-scale-chromatic', 'd3-interpolate', 'd3-zoom'],
           'vendor-cytoscape': ['cytoscape'],
         },
       },
