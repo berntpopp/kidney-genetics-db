@@ -122,49 +122,17 @@ async def start_pipeline(self) -> None:
 
 ---
 
-## Issue 3: PubTator Smart Mode Not Working (5,734 Pages Instead of 500)
+## Issue 3: PubTator Smart Mode Early Stopping Broken (Affects Re-runs)
 
-**Severity**: HIGH — 32 minutes instead of ~3 minutes
+**Severity**: P2 — initial full run works correctly (all pages), but daily/weekly smart re-runs will be slow
 
-### Root Cause (Three Bugs)
+Full run processes all ~5,734 pages (~32 min) — this is correct. But **smart mode** (used for scheduled re-runs) should stop early when finding mostly duplicates. Three bugs prevent this:
 
-**Bug 1**: Early stopping threshold is hardcoded to `> 100` consecutive duplicate pages, not the configured `consecutive_pages: 3`
-- **File**: `pubtator.py:487` — `if consecutive_duplicates > 100`
-- **Should be**: `if consecutive_duplicates >= self.smart_consecutive_pages`
+1. Early stopping threshold hardcoded to `> 100` instead of configured `consecutive_pages: 3`
+2. Mode-specific `max_pages: 500` never loaded from config
+3. Duplicate detection rarely triggers with score-sorted results
 
-**Bug 2**: Mode-specific `max_pages` is never loaded from config
-- Config defines `smart_update.max_pages: 500` but the source only reads the top-level `max_pages: null`
-- The mode-specific config is never applied
-
-**Bug 3**: Duplicate detection rarely triggers with score-sorted results
-- PubTator API sorts by score descending
-- New high-score results appear at the top of later pages
-- Consecutive pages rarely hit 90% duplicate threshold
-
-### Affected Files
-
-| File | Line | Issue |
-|------|------|-------|
-| `backend/app/pipeline/sources/unified/pubtator.py` | 487 | Hardcoded `> 100` threshold |
-| `backend/app/pipeline/sources/unified/pubtator.py` | 80 | Only reads top-level `max_pages` |
-| `backend/config/datasources.yaml` | 37-40 | Smart config defined but never used |
-
-### Recommended Fix
-
-1. Load mode-specific max_pages in `update_data()`:
-   ```python
-   if mode == "smart":
-       effective_max_pages = get_source_parameter("PubTator", "smart_update.max_pages", 500)
-   else:
-       effective_max_pages = self.max_pages  # null = unlimited
-   ```
-
-2. Fix early stopping threshold:
-   ```python
-   consecutive_threshold = get_source_parameter("PubTator", "smart_update.consecutive_pages", 3)
-   if mode == "smart" and consecutive_duplicates >= consecutive_threshold:
-       break
-   ```
+These should be fixed for efficient re-runs but are **not blocking** initial pipeline setup.
 
 ---
 
@@ -287,7 +255,7 @@ Backend wraps progress updates in arrays (`[data]`), but frontend handler expect
 |----------|-------|--------|--------|
 | **P0** | #1 Annotations skip 9/10 sources | No annotations = unusable DB | Medium |
 | **P0** | #2 Orchestrator restart deadlock | Requires manual intervention | Small |
-| **P1** | #3 PubTator 32min instead of 3min | Blocks pipeline completion | Small |
+| **P2** | #3 PubTator smart mode broken | Re-runs/DB updates will be slow | Small |
 | **P1** | #4 Frontend shows 0 during pipeline | Bad first impression | Medium |
 | **P2** | #5 Progress bars wrong % | Cosmetic | Done (future runs) |
 | **P2** | #6 Auth lost on restart | Annoying but not blocking | Medium |
