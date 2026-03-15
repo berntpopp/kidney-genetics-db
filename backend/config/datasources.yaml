@@ -93,6 +93,7 @@ datasources:
     priority: 4
     # API settings
     api_url: https://search.thegencc.org/api/submissions
+    download_url: https://thegencc.org/download/action/submissions-export-xlsx
     excel_url: https://search.thegencc.org/download/action/submissions-export-csv
     # Filtering settings
     confidence_categories: [definitive, strong, moderate]

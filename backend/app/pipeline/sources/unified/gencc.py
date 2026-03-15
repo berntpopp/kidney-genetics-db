@@ -55,7 +55,11 @@ class GenCCUnifiedSource(UnifiedDataSource):
         super().__init__(cache_service, http_client, db_session, **kwargs)
 
         # GenCC configuration
-        self.download_url = "https://search.thegencc.org/download/action/submissions-export-xlsx"
+        self.download_url = get_source_parameter(
+            "GenCC",
+            "download_url",
+            "https://thegencc.org/download/action/submissions-export-xlsx",
+        )
 
         # Kidney-related keywords for filtering from config
         self.kidney_keywords = get_source_parameter(
