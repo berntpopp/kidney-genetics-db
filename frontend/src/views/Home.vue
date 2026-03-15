@@ -113,6 +113,23 @@
           </div>
         </div>
       </div>
+
+      <!-- How It Works -->
+      <div class="mt-12">
+        <h2 class="text-2xl font-medium text-center mb-8">How It Works</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div v-for="step in pipelineSteps" :key="step.step" class="text-center p-4">
+            <div
+              class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mx-auto mb-3"
+            >
+              <component :is="step.icon" class="size-6" />
+            </div>
+            <div class="text-xs font-bold text-primary mb-1">Step {{ step.step }}</div>
+            <h3 class="text-lg font-semibold mb-2">{{ step.title }}</h3>
+            <p class="text-sm text-muted-foreground">{{ step.description }}</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -127,7 +144,10 @@ import {
   Microscope,
   Search,
   Unlock,
-  Code2
+  Code2,
+  Download,
+  BarChart3,
+  CheckCircle
 } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { useWindowSize } from '@vueuse/core'
@@ -256,6 +276,30 @@ const keyBenefits = [
     description: 'JSON:API compliant REST API for programmatic access',
     icon: Code2,
     bgColor: '#EF4444'
+  }
+]
+
+const pipelineSteps = [
+  {
+    step: 1,
+    title: 'Collect',
+    icon: Download,
+    description:
+      'Gene-disease associations gathered from PanelApp, ClinGen, GenCC, HPO, PubTator, literature, and diagnostic panels'
+  },
+  {
+    step: 2,
+    title: 'Score',
+    icon: BarChart3,
+    description:
+      'Evidence aggregated into a weighted confidence score (0-100) with tier classification from Definitive to Minimal'
+  },
+  {
+    step: 3,
+    title: 'Curate',
+    icon: CheckCircle,
+    description:
+      'Validated genes with annotations including expression, variants, interactions, and phenotypes'
   }
 ]
 
