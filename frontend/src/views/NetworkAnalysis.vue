@@ -78,7 +78,14 @@
           </div>
           <div class="space-y-1 w-20">
             <label class="text-xs font-medium text-muted-foreground">Min Score</label>
-            <Input v-model.number="minScore" type="number" min="0" max="100" class="h-9" />
+            <Input
+              v-model.number="minScore"
+              type="number"
+              min="0"
+              max="100"
+              class="h-9"
+              aria-label="Minimum evidence score"
+            />
           </div>
           <div class="space-y-1 w-20">
             <label class="text-xs font-medium text-muted-foreground">Max Genes</label>
@@ -88,6 +95,7 @@
               :min="networkAnalysisConfig.geneSelection.minGenesLimit"
               :max="networkAnalysisConfig.geneSelection.maxGenesHardLimit"
               class="h-9"
+              aria-label="Maximum number of genes"
             />
           </div>
           <div class="space-y-1 w-24">
@@ -99,6 +107,7 @@
               :max="networkAnalysisConfig.networkConstruction.minStringScoreRange.max"
               :step="networkAnalysisConfig.networkConstruction.minStringScoreRange.step"
               class="h-9"
+              aria-label="Minimum STRING interaction score"
             />
           </div>
           <div class="space-y-1 w-40">
@@ -290,11 +299,25 @@
           </div>
           <div class="space-y-1 w-20">
             <label class="text-xs font-medium text-muted-foreground">Min Degree</label>
-            <Input v-model.number="minDegree" type="number" min="0" max="10" class="h-8" />
+            <Input
+              v-model.number="minDegree"
+              type="number"
+              min="0"
+              max="10"
+              class="h-8"
+              aria-label="Minimum node degree"
+            />
           </div>
           <div class="space-y-1 w-24">
             <label class="text-xs font-medium text-muted-foreground">Min Cluster</label>
-            <Input v-model.number="minClusterSize" type="number" min="1" max="20" class="h-8" />
+            <Input
+              v-model.number="minClusterSize"
+              type="number"
+              min="1"
+              max="20"
+              class="h-8"
+              aria-label="Minimum cluster size"
+            />
           </div>
           <div class="space-y-1 w-20">
             <label class="text-xs font-medium text-muted-foreground">FDR</label>
@@ -305,6 +328,7 @@
               max="0.2"
               step="0.01"
               class="h-8"
+              aria-label="FDR threshold"
             />
           </div>
         </div>
