@@ -24,8 +24,8 @@
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.141 0.005 285.823);
 
-    /* Primary — Sky blue (#0EA5E9) */
-    --primary: oklch(0.685 0.169 237.323);
+    /* Primary — Sky blue darkened for WCAG AA contrast (≈ sky-600/700) */
+    --primary: oklch(0.55 0.15 237.323);
     --primary-foreground: oklch(0.984 0.003 247.858);
 
     /* Secondary — Violet (#8B5CF6) */

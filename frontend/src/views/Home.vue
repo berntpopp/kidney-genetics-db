@@ -410,7 +410,7 @@ const audiences = [
 
 const getGradientColors = (color: string) => {
   const gradients: Record<string, string> = {
-    primary: '#0EA5E9, #0284C7',
+    primary: '#0284C7, #075985',
     success: '#10B981, #059669',
     info: '#3B82F6, #2563EB',
     secondary: '#8B5CF6, #7C3AED',
