@@ -12,6 +12,7 @@ from enum import IntEnum
 from typing import Any
 
 from app.core.logging import get_logger
+from app.models.progress import DataSourceProgress, SourceStatus
 
 logger = get_logger(__name__)
 
@@ -60,8 +61,50 @@ class PipelineOrchestrator:
     def current_stage(self) -> PipelineStage:
         return self._current_stage
 
+    def _load_state_from_db(self) -> None:
+        """Populate _completed_sources and _failed_sources from data_source_progress.
+
+        This allows the orchestrator to survive backend restarts by recovering
+        which evidence sources already finished in a previous run.
+        """
+        from app.core.database import SessionLocal
+
+        evidence_names = set(self.EVIDENCE_SOURCES)
+        db = SessionLocal()
+        try:
+            rows = (
+                db.query(DataSourceProgress)
+                .filter(DataSourceProgress.source_name.in_(evidence_names))
+                .all()
+            )
+            for row in rows:
+                if row.status == SourceStatus.completed:
+                    self._completed_sources.add(row.source_name)
+                elif row.status == SourceStatus.failed:
+                    self._failed_sources.add(row.source_name)
+            if self._completed_sources or self._failed_sources:
+                logger.sync_info(
+                    "Restored pipeline state from DB",
+                    completed=list(self._completed_sources),
+                    failed=list(self._failed_sources),
+                )
+        except Exception as e:
+            logger.sync_warning(
+                "Could not load pipeline state from DB — starting fresh",
+                error=str(e),
+            )
+        finally:
+            db.close()
+
     async def start_pipeline(self) -> None:
-        """Start the full pipeline from evidence collection."""
+        """Start the full pipeline from evidence collection.
+
+        On restart, recovers evidence source state from the database.
+        If all evidence sources already finished, skips directly to
+        seeding and annotations.
+        """
+        skip_evidence = False
+
         async with self._pipeline_lock:
             if self._current_stage != PipelineStage.IDLE:
                 logger.sync_warning(
@@ -70,12 +113,39 @@ class PipelineOrchestrator:
                 )
                 return
 
-            self._current_stage = PipelineStage.EVIDENCE
+            # Recover state from DB before deciding what to do
             self._completed_sources.clear()
             self._failed_sources.clear()
+            self._load_state_from_db()
 
-        logger.sync_info("Pipeline started — Stage 1: Evidence collection")
-        await self.task_manager.start_auto_updates()
+            all_evidence = set(self.EVIDENCE_SOURCES)
+            done_sources = self._completed_sources | self._failed_sources
+
+            if done_sources >= all_evidence:
+                # All evidence sources already finished — skip to annotations
+                if len(self._completed_sources) == 0:
+                    logger.sync_error(
+                        "All evidence sources failed in previous run"
+                        " — not starting pipeline",
+                        failed_sources=list(self._failed_sources),
+                    )
+                    return
+                self._current_stage = PipelineStage.ANNOTATIONS
+                skip_evidence = True
+                logger.sync_info(
+                    "All evidence sources already done"
+                    " — skipping to seed + annotate",
+                    completed=len(self._completed_sources),
+                    failed=len(self._failed_sources),
+                )
+            else:
+                self._current_stage = PipelineStage.EVIDENCE
+
+        if skip_evidence:
+            asyncio.create_task(self._seed_and_annotate())
+        else:
+            logger.sync_info("Pipeline started — Stage 1: Evidence collection")
+            await self.task_manager.start_auto_updates()
 
     async def on_source_completed(self, source_name: str, success: bool = True) -> None:
         """
