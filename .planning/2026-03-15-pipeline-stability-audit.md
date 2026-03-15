@@ -1,273 +1,36 @@
-# Pipeline Stability Audit Report — 2026-03-15
+# Pipeline Stability Audit — 2026-03-15
 
-> Deep investigation of all pipeline issues found during E2E testing.
-> Each issue includes root cause, affected files, and recommended fix.
+> Critical issues found during E2E testing. Fixes applied where possible.
 
----
+## Status Summary
 
-## Issue 1: Annotation Pipeline Only Runs string_ppi (9/10 Sources Skipped)
+| # | Issue | Status | Commit |
+|---|-------|--------|--------|
+| 1 | Annotations skip 9/10 sources | **FIXED** | `48e1eb6` |
+| 2 | Orchestrator restart deadlock | **FIXED** | `5115414` |
+| 3 | Frontend shows 0 during pipeline | **FIXED** (fallback) | `0219ff6` |
+| 4 | PubTator transaction crash | **FIXED** | `a619519` |
+| 5 | Progress bars wrong % | **FIXED** | `578861e` |
+| 6 | Annotation pipeline starves DB pool | **KNOWN** | Needs ARQ worker |
+| 7 | Stale annotation checkpoint | **WORKAROUND** | Clear metadata manually |
+| 8 | PubTator smart mode (re-runs) | **KNOWN** | P2 for future |
 
-**Severity**: CRITICAL — annotations are the core value-add of the database
+## Issue 6: Annotation Pipeline Starves DB Connection Pool (BLOCKING)
 
-### Root Cause
+**Severity**: CRITICAL — frontend completely unresponsive during annotations
 
-The annotation pipeline's `INCREMENTAL` strategy uses `AnnotationSource.is_update_due()` to decide which sources to run. But there's a cascading bug:
+The annotation pipeline creates multiple `SessionLocal()` instances (one per source, one for views, one for HGNC, plus ThreadPoolExecutor workers). With 10 sources + 2 thread workers + progress tracker, it can hold 15+ connections, exhausting the pool (15+20=35 max). API requests hang waiting for connections.
 
-1. **`next_update` never set on init**: `init_annotation_sources.py:131` creates `AnnotationSource` records without setting `next_update` → defaults to NULL
-2. **`is_update_due()` returns True for NULL**: `gene_annotation.py:112-116` treats NULL `next_update` as "due" — correct
-3. **`next_update` only set when `successful > 0`**: `annotation_pipeline.py:828-833` only updates `next_update` when at least one gene annotation succeeds
-4. **INCREMENTAL gene selection filters out completed genes**: `annotation_pipeline.py:417-429` uses `HAVING count(annotations) < len(sources)` to find genes needing updates. If a previous run annotated most genes, this returns very few/no genes
-5. **Result**: Sources run but find 0 genes to update → `successful = 0` → `next_update` stays NULL → stuck in permanent loop of "due but nothing to do"
+**Root cause**: Pipeline runs in-process via FastAPI BackgroundTasks, sharing the same connection pool as the API.
 
-### Why string_ppi Works
+**Solution**: Run annotation pipeline in the ARQ worker process (`USE_ARQ_WORKER=true` + `make worker`). This gives it a separate process with its own connection pool, completely isolating it from API connections.
 
-string_ppi likely has genes that still need its annotations (it was added later or has different coverage patterns).
+**Workaround**: Increase `pool_size` and `max_overflow` (already done: 15+20). Still not enough when all annotation sources run concurrently.
 
-### Why force=true Didn't Help
+## All Commits on This Branch
 
-The API endpoint at `annotation_updates.py` **ignores the request body** — it reads `strategy` and `force` from query parameters, not JSON body. The curl request sent JSON body but the endpoint uses `Query()` parameters:
-
-```python
-# What the endpoint expects:
-POST /api/annotations/pipeline/update?strategy=full&force=true
-
-# What was sent:
-POST /api/annotations/pipeline/update  body: {"strategy": "full", "force": true}
-```
-
-### Affected Files
-
-| File | Line | Issue |
-|------|------|-------|
-| `backend/app/scripts/init_annotation_sources.py` | 131 | No `next_update` on init |
-| `backend/app/pipeline/annotation_pipeline.py` | 828 | Only sets `next_update` when `successful > 0` |
-| `backend/app/pipeline/annotation_pipeline.py` | 417-429 | INCREMENTAL filters out already-annotated genes |
-| `backend/app/models/gene_annotation.py` | 112-116 | `is_update_due()` NULL handling |
-| `backend/app/api/endpoints/annotation_updates.py` | ~line 50 | Reads strategy/force from Query, not Body |
-
-### Recommended Fix
-
-1. **Always set `next_update`** after pipeline run, regardless of success count:
-   ```python
-   # annotation_pipeline.py:828 - remove the `if successful > 0` guard
-   source_record.last_update = datetime.utcnow()
-   source_record.next_update = datetime.utcnow() + timedelta(days=source.cache_ttl_days)
-   ```
-
-2. **Fix FULL strategy** to ignore `is_update_due()` and process ALL genes regardless
-
-3. **Fix the API endpoint** to also accept JSON body parameters (or document that it uses query params)
-
----
-
-## Issue 2: Orchestrator Loses State on Backend Restart
-
-**Severity**: HIGH — annotations never trigger after any restart
-
-### Root Cause
-
-The orchestrator tracks completed sources in `_completed_sources: set[str]` (in-memory). On restart:
-
-1. `reset_stale_running_status()` converts `running` → `paused`
-2. New `PipelineOrchestrator` created with empty `_completed_sources = set()`
-3. `start_pipeline()` sets stage to EVIDENCE, calls `start_auto_updates()`
-4. `start_auto_updates()` only starts `idle`/`failed`/`paused` sources — skips `completed`
-5. Completed sources never fire `on_source_completed()` callback
-6. Orchestrator waits forever for all 5 sources, but 4 are already done
-7. **DEADLOCK**: Annotations never trigger
-
-### Affected Files
-
-| File | Line | Issue |
-|------|------|-------|
-| `backend/app/core/pipeline_orchestrator.py` | 52-56 | In-memory only state |
-| `backend/app/core/pipeline_orchestrator.py` | 65 | `start_pipeline()` clears sets |
-| `backend/app/core/background_tasks.py` | 39-63 | `start_auto_updates()` skips completed |
-| `backend/app/main.py` | 113-125 | Creates fresh orchestrator each time |
-
-### Recommended Fix
-
-Add `_load_state_from_db()` to orchestrator init:
-
-```python
-def _load_state_from_db(self) -> None:
-    """Reconstruct completed/failed state from database."""
-    from app.core.database import SessionLocal
-    db = SessionLocal()
-    try:
-        for source_name in self.EVIDENCE_SOURCES:
-            progress = db.query(DataSourceProgress)\
-                .filter_by(source_name=source_name).first()
-            if progress:
-                if progress.status == SourceStatus.completed:
-                    self._completed_sources.add(source_name)
-                elif progress.status == SourceStatus.failed:
-                    self._failed_sources.add(source_name)
-    finally:
-        db.close()
-```
-
-Then in `start_pipeline()`, check if all sources are already done before waiting:
-
-```python
-async def start_pipeline(self) -> None:
-    self._load_state_from_db()
-    # ... existing logic ...
-    # If all sources already completed from a previous run, skip to next stage
-    if (self._completed_sources | self._failed_sources) >= set(self.EVIDENCE_SOURCES):
-        await self._advance_to_annotations()
-        return
-    await self.task_manager.start_auto_updates()
-```
-
----
-
-## Issue 3: PubTator Smart Mode Early Stopping Broken (Affects Re-runs)
-
-**Severity**: P2 — initial full run works correctly (all pages), but daily/weekly smart re-runs will be slow
-
-Full run processes all ~5,734 pages (~32 min) — this is correct. But **smart mode** (used for scheduled re-runs) should stop early when finding mostly duplicates. Three bugs prevent this:
-
-1. Early stopping threshold hardcoded to `> 100` instead of configured `consecutive_pages: 3`
-2. Mode-specific `max_pages: 500` never loaded from config
-3. Duplicate detection rarely triggers with score-sorted results
-
-These should be fixed for efficient re-runs but are **not blocking** initial pipeline setup.
-
----
-
-## Issue 4: Frontend Shows "0 Genes" During Pipeline Execution
-
-**Severity**: MEDIUM — bad UX but data is correct after pipeline completes
-
-### Root Cause
-
-The Home page calls `GET /api/datasources/` which counts genes using:
-```sql
-SELECT COUNT(DISTINCT ge.gene_id)
-FROM gene_evidence ge
-INNER JOIN gene_scores gs ON gs.gene_id = ge.gene_id
-WHERE gs.percentage_score > 0
-```
-
-This `INNER JOIN gene_scores` requires the materialized view to be refreshed. During pipeline execution:
-- `gene_evidence` has new genes (populated by evidence sources)
-- `gene_scores` is stale (last refreshed from previous run)
-- INNER JOIN eliminates all new genes → count = 0
-
-### Dependency Chain
-
-```
-Home.vue → datasources API → gene_filters.py → gene_scores (materialized view)
-                                                     ↓ depends on
-                                              combined_evidence_scores (view)
-                                                     ↓ depends on
-                                              evidence_normalized_scores (view)
-                                                     ↓ depends on
-                                              evidence_count_percentiles (view)
-                                                     ↓ depends on
-                                              gene_curations (table - needs aggregation)
-```
-
-### Affected Files
-
-| File | Line | Issue |
-|------|------|-------|
-| `frontend/src/views/Home.vue` | 204-206 | Displays `total_unique_genes` from API |
-| `backend/app/api/endpoints/datasources.py` | 268-269 | Queries via gene_filters |
-| `backend/app/core/gene_filters.py` | 90-107 | INNER JOIN on gene_scores |
-| `backend/app/db/views.py` | 237-307 | gene_scores materialized view |
-
-### Recommended Fix
-
-**Option A (Quick)**: Use `LEFT JOIN` or count from `gene_evidence` directly when `gene_scores` is empty:
-```sql
--- Fallback when gene_scores has no data
-SELECT COUNT(DISTINCT gene_id) FROM gene_evidence
-```
-
-**Option B (Better)**: Run aggregation + view refresh after EACH evidence source completes (not just after all 5). This gives progressive visibility.
-
-**Option C (Best)**: Decouple the Home page stats from the materialized view — count directly from `gene_evidence` for the "Genes with Evidence" stat.
-
----
-
-## Issue 5: Progress Bars Show Wrong Percentage for Completed Sources
-
-**Severity**: LOW — cosmetic, fixed for future runs
-
-### Root Cause (FIXED)
-
-`_commit_and_broadcast()` recalculated `progress_percentage` from `current_item/total_items` before every commit, overwriting the 100% set by `complete()`.
-
-**Fix applied**: Commit `578861e` — only recalculate when `status == running`.
-
-**Remaining issue**: Sources completed before the fix still have stale percentages in DB. These need a one-time DB update or will correct on next run.
-
----
-
-## Issue 6: Auth Session Lost on Backend Restart
-
-**Severity**: MEDIUM — users have to re-login after every restart
-
-### Root Cause
-
-Refresh tokens are stored in the `users.refresh_token` column. On backend restart, the refresh token cookie in the browser is still valid, but:
-1. The backend creates a new process
-2. The old refresh token in the cookie matches the DB record (this part works)
-3. BUT: if the backend crashed and didn't commit the token, or if the token was rotated, the mismatch causes 401
-
-Additionally, the 401 interceptor was too aggressive — triggering on public endpoints.
-
-**Fix applied**: Commit `b4cbdbc` — only attempt refresh on authenticated requests.
-
-**Remaining issue**: Backend restarts still invalidate sessions if the token rotation doesn't match.
-
----
-
-## Issue 7: Transaction Rollback Not Handled in Batch Processing
-
-**Severity**: HIGH — causes PubTator to crash mid-run
-
-### Root Cause (FIXED)
-
-When a DB query fails mid-batch (e.g., connection drop during long PubTator runs), SQLAlchemy enters `PendingRollbackError` state. All subsequent queries fail until `rollback()` is called. Neither PubTator nor the base `DataSourceClient` handled this.
-
-**Fix applied**: Commit `9b97dcc` — rollback after individual gene errors AND wrap batch commits with recovery.
-
----
-
-## Issue 8: WebSocket Progress Updates Not Arriving in Frontend
-
-**Severity**: MEDIUM — fixed
-
-### Root Cause (FIXED)
-
-Backend wraps progress updates in arrays (`[data]`), but frontend handler expected a single object. `data.source_name` was `undefined` on an array.
-
-**Fix applied**: Commit `ed0dd7e` — unwrap array in handler.
-
----
-
-## Summary: Priority Order for Fixes
-
-| Priority | Issue | Impact | Effort |
-|----------|-------|--------|--------|
-| **P0** | #1 Annotations skip 9/10 sources | No annotations = unusable DB | Medium |
-| **P0** | #2 Orchestrator restart deadlock | Requires manual intervention | Small |
-| **P2** | #3 PubTator smart mode broken | Re-runs/DB updates will be slow | Small |
-| **P1** | #4 Frontend shows 0 during pipeline | Bad first impression | Medium |
-| **P2** | #5 Progress bars wrong % | Cosmetic | Done (future runs) |
-| **P2** | #6 Auth lost on restart | Annoying but not blocking | Medium |
-| **Done** | #7 Transaction rollback | Was crashing PubTator | Done |
-| **Done** | #8 WebSocket format mismatch | Stats not updating | Done |
-
----
-
-## Already Fixed Today (18 commits)
-
-| Commit | Fix |
-|--------|-----|
+| Commit | Description |
+|--------|-------------|
 | `60d62e5` | CachedHttpClient follow_redirects |
 | `bafd460` | GenCC configurable download URL |
 | `4425ff7` | 0-gene results marked as failed |
@@ -289,3 +52,8 @@ Backend wraps progress updates in arrays (`[data]`), but frontend handler expect
 | `b4cbdbc` | Auth interceptor fix |
 | `9b97dcc` | Transaction rollback in batches |
 | `e3b7be8` | Frontend lint: 0 warnings |
+| `48e1eb6` | Annotations: run ALL sources, accept JSON body |
+| `5115414` | Orchestrator: survive restarts via DB state |
+| `0219ff6` | Datasources: fallback count when views stale |
+| `4736c39` | DB pool size increase |
+| `a619519` | PubTator: handle DB errors in PMID check |
