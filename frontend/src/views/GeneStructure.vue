@@ -61,28 +61,46 @@
         </div>
 
         <!-- Gene Structure Visualization -->
-        <Card class="mb-6">
-          <CardHeader>
-            <CardTitle class="flex items-center">
-              <Dna class="size-5 mr-2" />
-              Gene Structure
-            </CardTitle>
-            <CardDescription v-if="ensemblData">
-              {{
-                ensemblData.canonical_transcript?.refseq_transcript_id ||
-                ensemblData.canonical_transcript?.transcript_id ||
-                'Canonical transcript'
-              }}
-              <span
-                v-if="
-                  ensemblData.canonical_transcript?.refseq_transcript_id &&
-                  ensemblData.canonical_transcript?.transcript_id
-                "
-                class="text-muted-foreground"
-              >
-                ({{ ensemblData.canonical_transcript?.transcript_id }})
-              </span>
-            </CardDescription>
+        <Card class="mb-4">
+          <CardHeader class="py-3">
+            <div class="flex items-center justify-between">
+              <CardTitle class="flex items-center text-base">
+                <Dna class="size-4 mr-2" />
+                Gene Structure
+              </CardTitle>
+              <div v-if="ensemblData" class="flex items-center gap-2 text-xs text-muted-foreground">
+                <a
+                  v-if="ensemblData.canonical_transcript?.refseq_transcript_id"
+                  :href="`https://www.ncbi.nlm.nih.gov/nuccore/${ensemblData.canonical_transcript.refseq_transcript_id}`"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="hover:underline"
+                >
+                  {{ ensemblData.canonical_transcript.refseq_transcript_id }}
+                  <ExternalLink :size="10" class="inline" />
+                </a>
+                <span class="text-muted-foreground/50">|</span>
+                <a
+                  :href="`https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=${ensemblData.gene_id}`"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="hover:underline"
+                >
+                  {{ ensemblData.gene_id }}
+                  <ExternalLink :size="10" class="inline" />
+                </a>
+                <span class="text-muted-foreground/50">|</span>
+                <span>
+                  chr{{ ensemblData.chromosome }}:{{ ensemblData.start?.toLocaleString() }}-{{
+                    ensemblData.end?.toLocaleString()
+                  }}
+                </span>
+                <span class="text-muted-foreground/50">|</span>
+                <span>{{ ensemblData.exon_count }} exons</span>
+                <span class="text-muted-foreground/50">|</span>
+                <span>{{ ensemblData.gene_length?.toLocaleString() }} bp</span>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div v-if="loadingEnsembl" class="text-center py-8">
@@ -114,15 +132,33 @@
         </Card>
 
         <!-- Protein Domain Visualization -->
-        <Card class="mb-6">
-          <CardHeader>
-            <CardTitle class="flex items-center">
-              <Atom class="size-5 mr-2" />
-              Protein Domains
-            </CardTitle>
-            <CardDescription v-if="uniprotData">
-              {{ uniprotData.accession }} - {{ uniprotData.entry_name }}
-            </CardDescription>
+        <Card class="mb-4">
+          <CardHeader class="py-3">
+            <div class="flex items-center justify-between">
+              <CardTitle class="flex items-center text-base">
+                <Atom class="size-4 mr-2" />
+                Protein Domains
+              </CardTitle>
+              <div v-if="uniprotData" class="flex items-center gap-2 text-xs text-muted-foreground">
+                <a
+                  :href="`https://www.uniprot.org/uniprotkb/${uniprotData.accession}`"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="hover:underline"
+                >
+                  {{ uniprotData.accession }}
+                  <ExternalLink :size="10" class="inline" />
+                </a>
+                <span class="text-muted-foreground/50">|</span>
+                <span>{{ uniprotData.entry_name }}</span>
+                <span class="text-muted-foreground/50">|</span>
+                <span>{{ uniprotData.length?.toLocaleString() }} aa</span>
+                <span class="text-muted-foreground/50">|</span>
+                <span>{{ uniprotData.domain_count }} domains</span>
+                <span v-if="uniprotData.has_transmembrane" class="text-muted-foreground/50">|</span>
+                <span v-if="uniprotData.has_transmembrane">TM</span>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div v-if="loadingUniprot" class="text-center py-8">
@@ -148,153 +184,7 @@
           </CardContent>
         </Card>
 
-        <!-- Additional Information Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Ensembl Details -->
-          <Card v-if="ensemblData">
-            <CardHeader>
-              <CardTitle class="flex items-center">
-                <Info class="size-5 mr-2" />
-                Gene Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div class="space-y-3">
-                <div
-                  v-if="ensemblData.canonical_transcript?.refseq_transcript_id"
-                  class="flex items-center gap-3"
-                >
-                  <IdCard :size="16" class="text-muted-foreground shrink-0" />
-                  <div>
-                    <div class="text-xs text-muted-foreground">RefSeq Transcript</div>
-                    <a
-                      :href="`https://www.ncbi.nlm.nih.gov/nuccore/${ensemblData.canonical_transcript.refseq_transcript_id}`"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-sm hover:underline"
-                    >
-                      {{ ensemblData.canonical_transcript.refseq_transcript_id }}
-                      <ExternalLink :size="12" class="inline ml-1" />
-                    </a>
-                  </div>
-                </div>
-                <div class="flex items-center gap-3">
-                  <IdCard :size="16" class="text-muted-foreground shrink-0" />
-                  <div>
-                    <div class="text-xs text-muted-foreground">Ensembl Gene ID</div>
-                    <a
-                      :href="`https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=${ensemblData.gene_id}`"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-sm hover:underline"
-                    >
-                      {{ ensemblData.gene_id }}
-                      <ExternalLink :size="12" class="inline ml-1" />
-                    </a>
-                  </div>
-                </div>
-                <div
-                  v-if="ensemblData.canonical_transcript?.transcript_id"
-                  class="flex items-center gap-3"
-                >
-                  <Dna :size="16" class="text-muted-foreground shrink-0" />
-                  <div>
-                    <div class="text-xs text-muted-foreground">Ensembl Transcript</div>
-                    <a
-                      :href="`https://www.ensembl.org/Homo_sapiens/Transcript/Summary?t=${ensemblData.canonical_transcript.transcript_id}`"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-sm hover:underline"
-                    >
-                      {{ ensemblData.canonical_transcript.transcript_id }}
-                      <ExternalLink :size="12" class="inline ml-1" />
-                    </a>
-                  </div>
-                </div>
-                <div class="flex items-center gap-3">
-                  <MapPin :size="16" class="text-muted-foreground shrink-0" />
-                  <div>
-                    <div class="text-xs text-muted-foreground">Location</div>
-                    <div class="text-sm">
-                      chr{{ ensemblData.chromosome }}:{{ ensemblData.start?.toLocaleString() }}-{{
-                        ensemblData.end?.toLocaleString()
-                      }}
-                      ({{ ensemblData.strand }})
-                    </div>
-                  </div>
-                </div>
-                <div class="flex items-center gap-3">
-                  <Ruler :size="16" class="text-muted-foreground shrink-0" />
-                  <div>
-                    <div class="text-xs text-muted-foreground">Gene Length</div>
-                    <div class="text-sm">{{ ensemblData.gene_length?.toLocaleString() }} bp</div>
-                  </div>
-                </div>
-                <div class="flex items-center gap-3">
-                  <Hash :size="16" class="text-muted-foreground shrink-0" />
-                  <div>
-                    <div class="text-xs text-muted-foreground">Exons</div>
-                    <div class="text-sm">
-                      {{ ensemblData.exon_count }} exons in canonical transcript
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <!-- UniProt Details -->
-          <Card v-if="uniprotData">
-            <CardHeader>
-              <CardTitle class="flex items-center">
-                <Dna class="size-5 mr-2" />
-                Protein Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div class="space-y-3">
-                <div class="flex items-center gap-3">
-                  <IdCard :size="16" class="text-muted-foreground shrink-0" />
-                  <div>
-                    <div class="text-xs text-muted-foreground">UniProt Accession</div>
-                    <a
-                      :href="`https://www.uniprot.org/uniprotkb/${uniprotData.accession}`"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-sm hover:underline"
-                    >
-                      {{ uniprotData.accession }}
-                      <ExternalLink :size="12" class="inline ml-1" />
-                    </a>
-                  </div>
-                </div>
-                <div class="flex items-center gap-3">
-                  <Ruler :size="16" class="text-muted-foreground shrink-0" />
-                  <div>
-                    <div class="text-xs text-muted-foreground">Protein Length</div>
-                    <div class="text-sm">
-                      {{ uniprotData.length?.toLocaleString() }} amino acids
-                    </div>
-                  </div>
-                </div>
-                <div class="flex items-center gap-3">
-                  <Shapes :size="16" class="text-muted-foreground shrink-0" />
-                  <div>
-                    <div class="text-xs text-muted-foreground">Domains</div>
-                    <div class="text-sm">{{ uniprotData.domain_count }} annotated domains</div>
-                  </div>
-                </div>
-                <div v-if="uniprotData.has_transmembrane" class="flex items-center gap-3">
-                  <Network :size="16" class="text-muted-foreground shrink-0" />
-                  <div>
-                    <div class="text-xs text-muted-foreground">Transmembrane</div>
-                    <div class="text-sm">Contains transmembrane domains</div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <!-- Info cards removed — all metadata now shown inline in card headers above -->
       </div>
     </div>
   </div>
@@ -322,7 +212,7 @@ const ProteinDomainVisualization = defineAsyncComponent({
   delay: 200,
   timeout: 10000
 })
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -333,21 +223,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
-import {
-  ArrowLeft,
-  Atom,
-  CircleAlert,
-  Dna,
-  ExternalLink,
-  Hash,
-  Home,
-  IdCard,
-  Info,
-  MapPin,
-  Network,
-  Ruler,
-  Shapes
-} from 'lucide-vue-next'
+import { ArrowLeft, Atom, CircleAlert, Dna, ExternalLink, Home } from 'lucide-vue-next'
 
 // Props
 const props = defineProps({
