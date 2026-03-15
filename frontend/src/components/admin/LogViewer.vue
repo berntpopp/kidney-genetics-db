@@ -6,11 +6,13 @@ import {
   FileJson,
   Download,
   Trash,
+  X,
   Search,
   Filter,
   Copy,
   Settings
 } from 'lucide-vue-next'
+import { DialogClose } from 'reka-ui'
 import { useLogStore } from '@/stores/logStore'
 import { LogLevel } from '@/services/logService'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -193,7 +195,7 @@ watch(
     :open="logStore.isViewerVisible"
     @update:open="val => (val ? logStore.showViewer() : logStore.hideViewer())"
   >
-    <SheetContent side="right" class="w-[600px] sm:max-w-[600px] flex flex-col p-0">
+    <SheetContent side="right" class="w-[600px] sm:max-w-[600px] flex flex-col p-0" hide-close>
       <!-- Header -->
       <SheetHeader class="bg-primary text-primary-foreground px-4 py-3">
         <div class="flex items-center justify-between">
@@ -225,6 +227,16 @@ watch(
             >
               <Trash :size="16" />
             </Button>
+            <DialogClose as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
+                title="Close"
+              >
+                <X :size="16" />
+              </Button>
+            </DialogClose>
           </div>
         </div>
       </SheetHeader>
