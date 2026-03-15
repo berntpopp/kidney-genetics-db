@@ -115,7 +115,16 @@ class ProgressTracker:
                 self.complete()
 
     def start(self, operation: str = "Starting update") -> None:
-        """Mark source as running"""
+        """Start tracking progress. Idempotent — skips counter reset if already running."""
+        if self.progress_record.status == SourceStatus.running:
+            logger.sync_debug(
+                "ProgressTracker.start() skipped — already running",
+                source_name=self.source_name,
+            )
+            # Update operation text but don't reset counters
+            self.progress_record.current_operation = operation
+            return
+
         logger.sync_debug(
             "ProgressTracker.start() called",
             source_name=self.source_name,
