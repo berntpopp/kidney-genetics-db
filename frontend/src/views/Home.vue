@@ -156,6 +156,52 @@
           </div>
         </div>
       </div>
+
+      <!-- How to Cite + Affiliation -->
+      <div class="mt-12 mb-16 py-8 bg-muted/30 -mx-4 px-4 rounded-lg">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <h2 class="text-xl font-medium mb-4">How to Cite</h2>
+            <div class="relative rounded-md border border-border bg-background p-4 text-sm">
+              <p class="text-muted-foreground pr-8">{{ primaryCitation }}</p>
+              <button
+                class="absolute top-3 right-3 p-1 rounded hover:bg-muted"
+                :aria-label="citationCopied ? 'Citation copied' : 'Copy citation'"
+                @click="copyCitation"
+              >
+                <Check v-if="citationCopied" class="size-4 text-green-600" />
+                <Copy v-else class="size-4 text-muted-foreground" />
+              </button>
+              <span class="sr-only" aria-live="polite">{{
+                citationCopied ? 'Citation copied to clipboard' : ''
+              }}</span>
+            </div>
+            <p class="text-xs text-muted-foreground mt-2">
+              Or cite as: Kidney Genetics Database. https://kidney-genetics.org. Accessed
+              {{ new Date().toISOString().slice(0, 10) }}.
+            </p>
+          </div>
+          <div>
+            <h2 class="text-xl font-medium mb-4">Developed By</h2>
+            <p class="text-sm text-muted-foreground mb-3">
+              Halbritter Lab &mdash; Nephrology &amp; Clinical Genetics
+            </p>
+            <div class="flex flex-wrap items-center gap-3">
+              <a
+                href="https://github.com/berntpopp/kidney-genetics-db"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+                aria-label="GitHub repository"
+              >
+                <Github class="size-4" /> Open Source
+              </a>
+              <span class="text-muted-foreground/40">|</span>
+              <span class="text-sm text-muted-foreground">CC BY 4.0</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -174,7 +220,10 @@ import {
   Download,
   BarChart3,
   CheckCircle,
-  Stethoscope
+  Stethoscope,
+  Copy,
+  Check,
+  Github
 } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { useWindowSize } from '@vueuse/core'
@@ -194,6 +243,20 @@ const searchQuery = ref('')
 function handleSearch() {
   const q = searchQuery.value.trim()
   if (q) router.push({ path: '/genes', query: { search: q } })
+}
+
+const citationCopied = ref(false)
+const primaryCitation =
+  'Popp B, Rank N, Wolff A, Halbritter J. Kidney-Genetics: An evidence-based database for kidney disease associated genes. Nephrol Dial Transplant. 2024;39(Supplement_1):gfae069-0787-2170.'
+
+function copyCitation() {
+  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+    navigator.clipboard.writeText(primaryCitation)
+    citationCopied.value = true
+    setTimeout(() => {
+      citationCopied.value = false
+    }, 2000)
+  }
 }
 
 // Responsive logo sizing
