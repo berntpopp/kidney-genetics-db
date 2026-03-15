@@ -1,0 +1,4729 @@
+{
+  "id": "mgz_muenchen",
+  "provider_id": "mgz_muenchen",
+  "provider_name": "MGZ M\u00fcnchen",
+  "provider_type": "single_panel",
+  "main_url": "https://www.mgz-muenchen.de/gen-panels/section/nephrologie-endokrinologie-und-elektrolyte/tag/14.html",
+  "total_panels": 1,
+  "total_unique_genes": 471,
+  "genes": [
+    {
+      "symbol": "CYP11B2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYP11B2",
+      "hgnc_id": "HGNC:2592",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "YRDC",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "YRDC",
+      "hgnc_id": "HGNC:28905",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAH8",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAH8",
+      "hgnc_id": "HGNC:2952",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SPEF2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SPEF2",
+      "hgnc_id": "HGNC:26293",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TCTN1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TCTN1",
+      "hgnc_id": "HGNC:26113",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GATA4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GATA4",
+      "hgnc_id": "HGNC:4173",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAH6",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAH6",
+      "hgnc_id": "HGNC:2951",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "POR",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "POR",
+      "hgnc_id": "HGNC:9208",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ODAD1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ODAD1",
+      "hgnc_id": "HGNC:26560",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CDKN2B",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CDKN2B",
+      "hgnc_id": "HGNC:1788",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT122",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT122",
+      "hgnc_id": "HGNC:13556",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TSC1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TSC1",
+      "hgnc_id": "HGNC:12362",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MYO1E",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MYO1E",
+      "hgnc_id": "HGNC:7599",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MAGI2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MAGI2",
+      "hgnc_id": "HGNC:18957",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APRT",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "APRT",
+      "hgnc_id": "HGNC:626",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MCIDAS",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MCIDAS",
+      "hgnc_id": "HGNC:40050",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT140",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT140",
+      "hgnc_id": "HGNC:29077",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ANLN",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ANLN",
+      "hgnc_id": "HGNC:14082",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT172",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT172",
+      "hgnc_id": "HGNC:30391",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FAM20A",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FAM20A",
+      "hgnc_id": "HGNC:23015",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEL",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEL",
+      "hgnc_id": "HGNC:1848",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP290",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEP290",
+      "hgnc_id": "HGNC:29021",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "JAG1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AGS",
+      "hgnc_id": "HGNC:6188",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DGKE",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DGKE",
+      "hgnc_id": "HGNC:2852",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "UCP2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "UCP2",
+      "hgnc_id": "HGNC:12518",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DZIP1L",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DZIP1L",
+      "hgnc_id": "HGNC:26551",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NUP133",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NUP133",
+      "hgnc_id": "HGNC:18016",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS2",
+      "hgnc_id": "HGNC:967",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "REN",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "REN",
+      "hgnc_id": "HGNC:9958",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NEK8",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NEK8",
+      "hgnc_id": "HGNC:13387",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INS",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "INS",
+      "hgnc_id": "HGNC:6081",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NME8",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NME8",
+      "hgnc_id": "HGNC:16473",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CTU2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CTU2",
+      "hgnc_id": "HGNC:28005",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PIK3C2A",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PIK3C2A",
+      "hgnc_id": "HGNC:8971",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NME5",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NME5",
+      "hgnc_id": "HGNC:7853",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MKKS",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MKKS",
+      "hgnc_id": "HGNC:7108",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TNS2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TNS2",
+      "hgnc_id": "HGNC:19737",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNT4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WNT4",
+      "hgnc_id": "HGNC:12783",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CBY1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CBY1",
+      "hgnc_id": "HGNC:1307",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM138",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM138",
+      "hgnc_id": "HGNC:26944",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP17A1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYP17A1",
+      "hgnc_id": "HGNC:2593",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NR2F2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NR2F2",
+      "hgnc_id": "HGNC:7976",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PLCE1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PLCE1",
+      "hgnc_id": "HGNC:17175",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLA",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GLA",
+      "hgnc_id": "HGNC:4296",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COPB2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COPB2",
+      "hgnc_id": "HGNC:2232",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP164",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEP164",
+      "hgnc_id": "HGNC:29182",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AKT2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AKT2",
+      "hgnc_id": "HGNC:392",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "VDR",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "VDR",
+      "hgnc_id": "HGNC:12679",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCNN1G",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SCNN1G",
+      "hgnc_id": "HGNC:10602",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "XDH",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "XDH",
+      "hgnc_id": "HGNC:12805",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL1A2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COL1A2",
+      "hgnc_id": "HGNC:2198",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ARL3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ARL3",
+      "hgnc_id": "HGNC:694",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BLK",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BLK",
+      "hgnc_id": "HGNC:1057",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AMHR2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AMHR2",
+      "hgnc_id": "HGNC:465",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FRAS1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FRAS1",
+      "hgnc_id": "HGNC:19185",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KLHL3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KLHL3",
+      "hgnc_id": "HGNC:6354",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAAF3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAAF3",
+      "hgnc_id": "HGNC:30492",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INSR",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "INSR",
+      "hgnc_id": "HGNC:6091",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MUC1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MUC1",
+      "hgnc_id": "HGNC:7508",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FAT1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FAT1",
+      "hgnc_id": "HGNC:3595",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "XPNPEP3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "XPNPEP3",
+      "hgnc_id": "HGNC:28052",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ITSN1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ITSN1",
+      "hgnc_id": "HGNC:6183",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC26A7",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC26A7",
+      "hgnc_id": "HGNC:14467",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DUOXA2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DUOXA2",
+      "hgnc_id": "HGNC:32698",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALG5",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ALG5",
+      "hgnc_id": "HGNC:20266",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HNF1B",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HNF1B",
+      "hgnc_id": "HGNC:11630",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALG8",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ALG8",
+      "hgnc_id": "HGNC:23161",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GPC3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GPC3",
+      "hgnc_id": "HGNC:4451",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BICC1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BICC1",
+      "hgnc_id": "HGNC:19351",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PDE3A",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PDE3A",
+      "hgnc_id": "HGNC:8778",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TCTN3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TCTN3",
+      "hgnc_id": "HGNC:24519",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PDIA6",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PDIA6",
+      "hgnc_id": "HGNC:30168",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPGRIP1L",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RPGRIP1L",
+      "hgnc_id": "HGNC:29168",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MAMLD1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MAMLD1",
+      "hgnc_id": "HGNC:2568",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFAP74",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFAP74",
+      "hgnc_id": "HGNC:29368",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BMP1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BMP1",
+      "hgnc_id": "HGNC:1067",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAI2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAI2",
+      "hgnc_id": "HGNC:18744",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WBP11",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WBP11",
+      "hgnc_id": "HGNC:16461",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ROBO2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ROBO2",
+      "hgnc_id": "HGNC:10250",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AP2S1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AP2S1",
+      "hgnc_id": "HGNC:565",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HPRT1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HPRT1",
+      "hgnc_id": "HGNC:5157",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HOXA13",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HOXA13",
+      "hgnc_id": "HGNC:5102",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP21A2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYP21A2",
+      "hgnc_id": "HGNC:2600",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DYNC2I2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DYNC2I2",
+      "hgnc_id": "HGNC:28296",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TSC2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TSC2",
+      "hgnc_id": "HGNC:12363",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FGF20",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FGF20",
+      "hgnc_id": "HGNC:3677",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FLCN",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FLCN",
+      "hgnc_id": "HGNC:27310",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAL1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAL1",
+      "hgnc_id": "HGNC:23247",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC3A1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC3A1",
+      "hgnc_id": "HGNC:11025",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHS2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHS2",
+      "hgnc_id": "HGNC:13394",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TAPT1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TAPT1",
+      "hgnc_id": "HGNC:26887",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ZNF423",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ZNF423",
+      "hgnc_id": "HGNC:16762",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ZMYND10",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ZMYND10",
+      "hgnc_id": "HGNC:19412",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CHRNA3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CHRNA3",
+      "hgnc_id": "HGNC:1957",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A5",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COL4A5",
+      "hgnc_id": "HGNC:2207",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT80",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT80",
+      "hgnc_id": "HGNC:29262",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INTU",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "INTU",
+      "hgnc_id": "HGNC:29239",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GRIP1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GRIP1",
+      "hgnc_id": "HGNC:18708",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "POC1B",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "POC1B",
+      "hgnc_id": "HGNC:30836",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TPRKB",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TPRKB",
+      "hgnc_id": "HGNC:24259",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACE",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ACE",
+      "hgnc_id": "HGNC:2707",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MYH9",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MYH9",
+      "hgnc_id": "HGNC:7579",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SOX3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SOX3",
+      "hgnc_id": "HGNC:11199",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ODAD2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ODAD2",
+      "hgnc_id": "HGNC:25583",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MAPKBP1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MAPKBP1",
+      "hgnc_id": "HGNC:29536",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WDR73",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WDR73",
+      "hgnc_id": "HGNC:25928",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NEUROD1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NEUROD1",
+      "hgnc_id": "HGNC:7762",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IV",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IV",
+      "hgnc_id": "HGNC:6185",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TG",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TG",
+      "hgnc_id": "HGNC:11764",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP19A1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYP19A1",
+      "hgnc_id": "HGNC:2594",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRIM8",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TRIM8",
+      "hgnc_id": "HGNC:15579",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALG9",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ALG9",
+      "hgnc_id": "HGNC:15672",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NFKB2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NFKB2",
+      "hgnc_id": "HGNC:7795",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAJB13",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAJB13",
+      "hgnc_id": "HGNC:30718",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ANOS1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ANOS1",
+      "hgnc_id": "HGNC:6211",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SRD5A2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SRD5A2",
+      "hgnc_id": "HGNC:11285",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS4",
+      "hgnc_id": "HGNC:969",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NEK10",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NEK10",
+      "hgnc_id": "HGNC:18592",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CACNA1H",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CACNA1H",
+      "hgnc_id": "HGNC:1395",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT27",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT27",
+      "hgnc_id": "HGNC:18626",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHP3",
+      "hgnc_id": "HGNC:7907",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCNN1B",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SCNN1B",
+      "hgnc_id": "HGNC:10600",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LRP4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LRP4",
+      "hgnc_id": "HGNC:6696",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ARMC9",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ARMC9",
+      "hgnc_id": "HGNC:20730",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SGPL1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SGPL1",
+      "hgnc_id": "HGNC:10817",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HK1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HK1",
+      "hgnc_id": "HGNC:4922",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SEC63",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SEC63",
+      "hgnc_id": "HGNC:21082",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TOGARAM1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TOGARAM1",
+      "hgnc_id": "HGNC:19959",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "OCRL",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "OCRL",
+      "hgnc_id": "HGNC:8108",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ZSWIM6",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ZSWIM6",
+      "hgnc_id": "HGNC:29316",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EVC",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "EVC",
+      "hgnc_id": "HGNC:3497",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TTC12",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TTC12",
+      "hgnc_id": "HGNC:23700",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CDCA8",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CDCA8",
+      "hgnc_id": "HGNC:14629",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PTPRO",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PTPRO",
+      "hgnc_id": "HGNC:9678",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM67",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM67",
+      "hgnc_id": "HGNC:28396",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GON7",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GON7",
+      "hgnc_id": "HGNC:20356",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LCAT",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LCAT",
+      "hgnc_id": "HGNC:6522",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HOGA1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HOGA1",
+      "hgnc_id": "HGNC:25155",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HYDIN",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HYDIN",
+      "hgnc_id": "HGNC:19368",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "THRB",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "THRB",
+      "hgnc_id": "HGNC:11799",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DRC2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CCDC65",
+      "hgnc_id": "HGNC:29937",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "C2CD3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "C2CD3",
+      "hgnc_id": "HGNC:24564",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KIF7",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KIF7",
+      "hgnc_id": "HGNC:30497",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CUBN",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CUBN",
+      "hgnc_id": "HGNC:2548",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CHD1L",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CHD1L",
+      "hgnc_id": "HGNC:1916",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WT1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WT1",
+      "hgnc_id": "HGNC:12796",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFAP300",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFAP300",
+      "hgnc_id": "HGNC:28188",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COQ9",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COQ9",
+      "hgnc_id": "HGNC:25302",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WDR19",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WDR19",
+      "hgnc_id": "HGNC:18340",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DHX37",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DHX37",
+      "hgnc_id": "HGNC:17210",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "OFD1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "OFD1",
+      "hgnc_id": "HGNC:2567",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP104",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEP104",
+      "hgnc_id": "HGNC:24866",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HSD11B2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HSD11B2",
+      "hgnc_id": "HGNC:5209",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CDC73",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CDC73",
+      "hgnc_id": "HGNC:16783",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KMT2D",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KMT2D",
+      "hgnc_id": "HGNC:7133",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAAF5",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAAF5",
+      "hgnc_id": "HGNC:26013",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFAP221",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFAP221",
+      "hgnc_id": "HGNC:33720",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TBL1X",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TBL1X",
+      "hgnc_id": "HGNC:11585",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IQCB1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IQCB1",
+      "hgnc_id": "HGNC:28949",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AMH",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AMH",
+      "hgnc_id": "HGNC:464",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKHD1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PKHD1",
+      "hgnc_id": "HGNC:9016",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NADSYN1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NADSYN1",
+      "hgnc_id": "HGNC:29832",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PIK3CD",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PIK3CD",
+      "hgnc_id": "HGNC:8977",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DAAM2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DAAM2",
+      "hgnc_id": "HGNC:18143",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INF2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "INF2",
+      "hgnc_id": "HGNC:23791",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TBC1D8B",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TBC1D8B",
+      "hgnc_id": "HGNC:24715",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COL4A3",
+      "hgnc_id": "HGNC:2204",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "STRA6",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "STRA6",
+      "hgnc_id": "HGNC:30650",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NIPBL",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NIPBL",
+      "hgnc_id": "HGNC:28862",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TP53RK",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TP53RK",
+      "hgnc_id": "HGNC:16197",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LAMB2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LAMB2",
+      "hgnc_id": "HGNC:6487",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BMP4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BMP4",
+      "hgnc_id": "HGNC:1071",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNT11",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WNT11",
+      "hgnc_id": "HGNC:12776",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SIX1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SIX1",
+      "hgnc_id": "HGNC:10887",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WDR35",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WDR35",
+      "hgnc_id": "HGNC:29250",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAH5",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAH5",
+      "hgnc_id": "HGNC:2950",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC5A5",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC5A5",
+      "hgnc_id": "HGNC:11040",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAAF4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAAF4",
+      "hgnc_id": "HGNC:21493",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLCNKB",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CLCNKB",
+      "hgnc_id": "HGNC:2027",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS1",
+      "hgnc_id": "HGNC:966",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PODXL",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PODXL",
+      "hgnc_id": "HGNC:9171",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ARHGDIA",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ARHGDIA",
+      "hgnc_id": "HGNC:678",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HAAO",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HAAO",
+      "hgnc_id": "HGNC:4796",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DYNC2I1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DYNC2I1",
+      "hgnc_id": "HGNC:21862",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS5",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS5",
+      "hgnc_id": "HGNC:970",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BRWD1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BRWD1",
+      "hgnc_id": "HGNC:12760",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BNC2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BNC2",
+      "hgnc_id": "HGNC:30988",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT43",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT43",
+      "hgnc_id": "HGNC:29669",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NUP93",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NUP93",
+      "hgnc_id": "HGNC:28958",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC12A3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC12A3",
+      "hgnc_id": "HGNC:10912",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FN1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FN1",
+      "hgnc_id": "HGNC:3778",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NR0B1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NR0B1",
+      "hgnc_id": "HGNC:7960",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC34A1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC34A1",
+      "hgnc_id": "HGNC:11019",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TFAP2A",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TFAP2A",
+      "hgnc_id": "HGNC:11742",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PRKAR1A",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PRKAR1A",
+      "hgnc_id": "HGNC:9388",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GORAB",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GORAB",
+      "hgnc_id": "HGNC:25676",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC16A2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC16A2",
+      "hgnc_id": "HGNC:10923",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LZTFL1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LZTFL1",
+      "hgnc_id": "HGNC:6741",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNJ10",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KCNJ10",
+      "hgnc_id": "HGNC:6256",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INVS",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "INVS",
+      "hgnc_id": "HGNC:17870",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IGSF1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IGSF1",
+      "hgnc_id": "HGNC:5948",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KIF3B",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KIF3B",
+      "hgnc_id": "HGNC:6320",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "OSGEP",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "OSGEP",
+      "hgnc_id": "HGNC:18028",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PRKACA",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PRKACA",
+      "hgnc_id": "HGNC:9380",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHS1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHS1",
+      "hgnc_id": "HGNC:7908",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HADH",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HADH",
+      "hgnc_id": "HGNC:4799",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "OTX2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "OTX2",
+      "hgnc_id": "HGNC:8522",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAAF1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAAF1",
+      "hgnc_id": "HGNC:30539",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP41",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEP41",
+      "hgnc_id": "HGNC:12370",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TTC8",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TTC8",
+      "hgnc_id": "HGNC:20087",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HPSE2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HPSE2",
+      "hgnc_id": "HGNC:18374",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACTN4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ACTN4",
+      "hgnc_id": "HGNC:166",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MKS1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MKS1",
+      "hgnc_id": "HGNC:7121",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LHX4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LHX4",
+      "hgnc_id": "HGNC:21734",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HNF4A",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MODY",
+      "hgnc_id": "HGNC:5024",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NUP85",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NUP85",
+      "hgnc_id": "HGNC:8734",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IRS4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IRS4",
+      "hgnc_id": "HGNC:6128",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SPAG1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SPAG1",
+      "hgnc_id": "HGNC:11212",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KYNU",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KYNU",
+      "hgnc_id": "HGNC:6469",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC34A3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC34A3",
+      "hgnc_id": "HGNC:20305",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAAF11",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAAF11",
+      "hgnc_id": "HGNC:16725",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RFX6",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RFX6",
+      "hgnc_id": "HGNC:21478",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LRIG2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LRIG2",
+      "hgnc_id": "HGNC:20889",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FREM1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FREM1",
+      "hgnc_id": "HGNC:23399",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFAP418",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFAP418",
+      "hgnc_id": "HGNC:27232",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SECISBP2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SECISBP2",
+      "hgnc_id": "HGNC:30972",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "VIPAS39",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "VIPAS39",
+      "hgnc_id": "HGNC:20347",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LRP5",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LRP5",
+      "hgnc_id": "HGNC:6697",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HYLS1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HYLS1",
+      "hgnc_id": "HGNC:26558",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NR3C2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NR3C2",
+      "hgnc_id": "HGNC:7979",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM231",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM231",
+      "hgnc_id": "HGNC:37234",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CDKN1C",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CDKN1C",
+      "hgnc_id": "HGNC:1786",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FOXA2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FOXA2",
+      "hgnc_id": "HGNC:5022",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AMN",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AMN",
+      "hgnc_id": "HGNC:14604",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GCK",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GCK",
+      "hgnc_id": "HGNC:4195",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SOX17",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SOX17",
+      "hgnc_id": "HGNC:18122",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP55",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEP55",
+      "hgnc_id": "HGNC:1161",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFTR",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFTR",
+      "hgnc_id": "HGNC:1884",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KDM6A",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KDM6A",
+      "hgnc_id": "HGNC:12637",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGT",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AGT",
+      "hgnc_id": "HGNC:333",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHP4",
+      "hgnc_id": "HGNC:19104",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFAP410",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFAP410",
+      "hgnc_id": "HGNC:1260",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM218",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM218",
+      "hgnc_id": "HGNC:27344",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHP1",
+      "hgnc_id": "HGNC:7905",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INPP5E",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "INPP5E",
+      "hgnc_id": "HGNC:21474",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC26A4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC26A4",
+      "hgnc_id": "HGNC:8818",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL1A1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COL1A1",
+      "hgnc_id": "HGNC:2197",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS10",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS10",
+      "hgnc_id": "HGNC:26291",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALMS1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ALMS1",
+      "hgnc_id": "HGNC:428",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GREB1L",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GREB1L",
+      "hgnc_id": "HGNC:31042",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP11A1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYP11A1",
+      "hgnc_id": "HGNC:2590",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MOCOS",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MOCOS",
+      "hgnc_id": "HGNC:18234",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DCDC2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DCDC2",
+      "hgnc_id": "HGNC:18141",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CPLANE1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CPLANE1",
+      "hgnc_id": "HGNC:25801",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CENPF",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CENPF",
+      "hgnc_id": "HGNC:1857",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRAP1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TRAP1",
+      "hgnc_id": "HGNC:16264",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ODAD3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ODAD3",
+      "hgnc_id": "HGNC:28303",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLCN2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CLCN2",
+      "hgnc_id": "HGNC:2020",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APPL1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "APPL1",
+      "hgnc_id": "HGNC:24035",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KIF14",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KIF14",
+      "hgnc_id": "HGNC:19181",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC22A12",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC22A12",
+      "hgnc_id": "HGNC:17989",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLIS2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GLIS2",
+      "hgnc_id": "HGNC:29450",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CACNA1D",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CACNA1D",
+      "hgnc_id": "HGNC:1391",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FOXE1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FOXE1",
+      "hgnc_id": "HGNC:3806",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CILK1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CILK1",
+      "hgnc_id": "HGNC:21219",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAH1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAH1",
+      "hgnc_id": "HGNC:2940",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MEN1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MEN1",
+      "hgnc_id": "HGNC:7010",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CUL3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CUL3",
+      "hgnc_id": "HGNC:2553",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PLVAP",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PLVAP",
+      "hgnc_id": "HGNC:13635",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPGR",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RPGR",
+      "hgnc_id": "HGNC:10295",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TXNDC15",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TXNDC15",
+      "hgnc_id": "HGNC:20652",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DYNC2LI1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DYNC2LI1",
+      "hgnc_id": "HGNC:24595",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP120",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEP120",
+      "hgnc_id": "HGNC:26690",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT81",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT81",
+      "hgnc_id": "HGNC:14313",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ITGA8",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ITGA8",
+      "hgnc_id": "HGNC:6144",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GCM2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GCM2",
+      "hgnc_id": "HGNC:4198",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SIX5",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SIX5",
+      "hgnc_id": "HGNC:10891",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KIAA0586",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KIAA0586",
+      "hgnc_id": "HGNC:19960",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PIK3R1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PIK3R1",
+      "hgnc_id": "HGNC:8979",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKD2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PKD2",
+      "hgnc_id": "HGNC:9009",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGR2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AGR2",
+      "hgnc_id": "HGNC:328",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "THRA",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "THRA",
+      "hgnc_id": "HGNC:11796",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DRC4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GAS8",
+      "hgnc_id": "HGNC:4166",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DYNC2H1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DYNC2H1",
+      "hgnc_id": "HGNC:2962",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP83",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEP83",
+      "hgnc_id": "HGNC:17966",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PAX8",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PAX8",
+      "hgnc_id": "HGNC:8622",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PRKACB",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PRKACB",
+      "hgnc_id": "HGNC:9381",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM216",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM216",
+      "hgnc_id": "HGNC:25018",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAJB11",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAJB11",
+      "hgnc_id": "HGNC:14889",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LAGE3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LAGE3",
+      "hgnc_id": "HGNC:26058",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "VHL",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "VHL",
+      "hgnc_id": "HGNC:12687",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "B9D2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "B9D2",
+      "hgnc_id": "HGNC:28636",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM260",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM260",
+      "hgnc_id": "HGNC:20185",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAI1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAI1",
+      "hgnc_id": "HGNC:2954",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EVC2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "EVC2",
+      "hgnc_id": "HGNC:19747",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COQ2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COQ2",
+      "hgnc_id": "HGNC:25223",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP11B1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYP11B1",
+      "hgnc_id": "HGNC:2591",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AR",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AR",
+      "hgnc_id": "HGNC:644",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DRC1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DRC1",
+      "hgnc_id": "HGNC:24245",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LHX3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LHX3",
+      "hgnc_id": "HGNC:6595",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ZMYM2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ZMYM2",
+      "hgnc_id": "HGNC:12989",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SUFU",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SUFU",
+      "hgnc_id": "HGNC:16466",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "STK36",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "STK36",
+      "hgnc_id": "HGNC:17209",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAH9",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAH9",
+      "hgnc_id": "HGNC:2953",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HSD17B3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HSD17B3",
+      "hgnc_id": "HGNC:5212",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "STAR",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "STAR",
+      "hgnc_id": "HGNC:11359",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PROP1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PROP1",
+      "hgnc_id": "HGNC:9455",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ATP6V1B1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ATP6V1B1",
+      "hgnc_id": "HGNC:853",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PLAGL1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PLAGL1",
+      "hgnc_id": "HGNC:9046",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ARL13B",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ARL13B",
+      "hgnc_id": "HGNC:25419",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MYOCD",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MYOCD",
+      "hgnc_id": "HGNC:16067",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNK4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WNK4",
+      "hgnc_id": "HGNC:14544",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NR3C1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NR3C1",
+      "hgnc_id": "HGNC:7978",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ABCC8",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ABCC8",
+      "hgnc_id": "HGNC:59",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APOE",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "APOE",
+      "hgnc_id": "HGNC:613",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TCTN2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TCTN2",
+      "hgnc_id": "HGNC:25774",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRAF3IP1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TRAF3IP1",
+      "hgnc_id": "HGNC:17861",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLCN5",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CLCN5",
+      "hgnc_id": "HGNC:2023",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TPO",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TPO",
+      "hgnc_id": "HGNC:12015",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TSHB",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TSHB",
+      "hgnc_id": "HGNC:12372",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COQ8B",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COQ8B",
+      "hgnc_id": "HGNC:19041",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLUD1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GLUD1",
+      "hgnc_id": "HGNC:4335",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NUP107",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NUP107",
+      "hgnc_id": "HGNC:29914",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EMP2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "EMP2",
+      "hgnc_id": "HGNC:3334",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ITGA3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ITGA3",
+      "hgnc_id": "HGNC:6139",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DLC1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DLC1",
+      "hgnc_id": "HGNC:2897",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DYNLT2B",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DYNLT2B",
+      "hgnc_id": "HGNC:28482",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NEK1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NEK1",
+      "hgnc_id": "HGNC:7744",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GANAB",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GANAB",
+      "hgnc_id": "HGNC:4138",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PLS3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PLS3",
+      "hgnc_id": "HGNC:9091",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC7A9",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC7A9",
+      "hgnc_id": "HGNC:11067",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IYD",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IYD",
+      "hgnc_id": "HGNC:21071",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFAP298",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFAP298",
+      "hgnc_id": "HGNC:1301",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LGR4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LGR4",
+      "hgnc_id": "HGNC:13299",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT52",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT52",
+      "hgnc_id": "HGNC:15901",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKD1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PKD1",
+      "hgnc_id": "HGNC:9008",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LBR",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LBR",
+      "hgnc_id": "HGNC:6518",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SOX9",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SOX9",
+      "hgnc_id": "HGNC:11204",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBIP1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBIP1",
+      "hgnc_id": "HGNC:28093",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CA2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CA2",
+      "hgnc_id": "HGNC:1373",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNJ1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KCNJ1",
+      "hgnc_id": "HGNC:6255",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DAW1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DAW1",
+      "hgnc_id": "HGNC:26383",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALPL",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ALPL",
+      "hgnc_id": "HGNC:438",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COL4A4",
+      "hgnc_id": "HGNC:2206",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SDCCAG8",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SDCCAG8",
+      "hgnc_id": "HGNC:10671",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IQCE",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IQCE",
+      "hgnc_id": "HGNC:29171",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CRB2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CRB2",
+      "hgnc_id": "HGNC:18688",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HNF1A",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HNF1A",
+      "hgnc_id": "HGNC:11621",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SRY",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SRY",
+      "hgnc_id": "HGNC:11311",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APOL1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "APOL1",
+      "hgnc_id": "HGNC:618",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LMNA",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LMNA",
+      "hgnc_id": "HGNC:6636",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCARB2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SCARB2",
+      "hgnc_id": "HGNC:1665",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RSPH3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RSPH3",
+      "hgnc_id": "HGNC:21054",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAAF2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAAF2",
+      "hgnc_id": "HGNC:20188",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNJ11",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KCNJ11",
+      "hgnc_id": "HGNC:6257",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HESX1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HESX1",
+      "hgnc_id": "HGNC:4877",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DDX59",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DDX59",
+      "hgnc_id": "HGNC:25360",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNK1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WNK1",
+      "hgnc_id": "HGNC:14540",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KLF11",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KLF11",
+      "hgnc_id": "HGNC:11811",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CCDC39",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CCDC39",
+      "hgnc_id": "HGNC:25244",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP24A1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYP24A1",
+      "hgnc_id": "HGNC:2602",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LAMA1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LAMA1",
+      "hgnc_id": "HGNC:6481",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CD2AP",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CD2AP",
+      "hgnc_id": "HGNC:14258",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LIFR",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LIFR",
+      "hgnc_id": "HGNC:6597",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLDN19",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CLDN19",
+      "hgnc_id": "HGNC:2040",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCLT1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SCLT1",
+      "hgnc_id": "HGNC:26406",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RET",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RET",
+      "hgnc_id": "HGNC:9967",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RAG1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RAG1",
+      "hgnc_id": "HGNC:9831",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLI3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GLI3",
+      "hgnc_id": "HGNC:4319",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TBC1D1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TBC1D1",
+      "hgnc_id": "HGNC:11578",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TTC21B",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TTC21B",
+      "hgnc_id": "HGNC:25660",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CASR",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CASR",
+      "hgnc_id": "HGNC:1514",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SBDS",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SBDS",
+      "hgnc_id": "HGNC:19440",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFITM5",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFITM5",
+      "hgnc_id": "HGNC:16644",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT74",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT74",
+      "hgnc_id": "HGNC:21424",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PAX4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PAX4",
+      "hgnc_id": "HGNC:8618",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGXT",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AGXT",
+      "hgnc_id": "HGNC:341",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CDKN1B",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CDKN1B",
+      "hgnc_id": "HGNC:1785",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS7",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS7",
+      "hgnc_id": "HGNC:18758",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PHEX",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PHEX",
+      "hgnc_id": "HGNC:8918",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EYA1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "EYA1",
+      "hgnc_id": "HGNC:3519",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CC2D2A",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CC2D2A",
+      "hgnc_id": "HGNC:29253",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAH11",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAH11",
+      "hgnc_id": "HGNC:2942",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PDX1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PDX1",
+      "hgnc_id": "HGNC:6107",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACTG2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ACTG2",
+      "hgnc_id": "HGNC:145",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC12A1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC12A1",
+      "hgnc_id": "HGNC:10910",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ADAMTS9",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ADAMTS9",
+      "hgnc_id": "HGNC:13202",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PDSS2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PDSS2",
+      "hgnc_id": "HGNC:23041",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WDPCP",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WDPCP",
+      "hgnc_id": "HGNC:28027",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TBC1D32",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TBC1D32",
+      "hgnc_id": "HGNC:21485",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC16A1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC16A1",
+      "hgnc_id": "HGNC:10922",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CHRM3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CHRM3",
+      "hgnc_id": "HGNC:1952",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FREM2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FREM2",
+      "hgnc_id": "HGNC:25396",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCNN1A",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SCNN1A",
+      "hgnc_id": "HGNC:10599",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NOTCH2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NOTCH2",
+      "hgnc_id": "HGNC:7882",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COQ6",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COQ6",
+      "hgnc_id": "HGNC:20233",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PAX2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PAX2",
+      "hgnc_id": "HGNC:8616",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FOXJ1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FOXJ1",
+      "hgnc_id": "HGNC:3816",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLIS3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GLIS3",
+      "hgnc_id": "HGNC:28510",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RAG2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RAG2",
+      "hgnc_id": "HGNC:9832",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ANKS6",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ANKS6",
+      "hgnc_id": "HGNC:26724",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GATA3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GATA3",
+      "hgnc_id": "HGNC:4172",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HSD3B2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HSD3B2",
+      "hgnc_id": "HGNC:5218",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC4A9",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC4A9",
+      "hgnc_id": "HGNC:11035",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PMM2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PMM2",
+      "hgnc_id": "HGNC:9115",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SMARCAL1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SMARCAL1",
+      "hgnc_id": "HGNC:11102",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TSHR",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TSHR",
+      "hgnc_id": "HGNC:12373",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LMX1B",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LMX1B",
+      "hgnc_id": "HGNC:6654",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS12",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS12",
+      "hgnc_id": "HGNC:26648",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BMP7",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BMP7",
+      "hgnc_id": "HGNC:1074",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM237",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM237",
+      "hgnc_id": "HGNC:14432",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GAS2L2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GAS2L2",
+      "hgnc_id": "HGNC:24846",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLDN16",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CLDN16",
+      "hgnc_id": "HGNC:2037",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ARL6",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ARL6",
+      "hgnc_id": "HGNC:13210",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AHI1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AHI1",
+      "hgnc_id": "HGNC:21575",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CD151",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CD151",
+      "hgnc_id": "HGNC:1630",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LHCGR",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LHCGR",
+      "hgnc_id": "HGNC:6585",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PIBF1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PIBF1",
+      "hgnc_id": "HGNC:23352",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DUOX2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DUOX2",
+      "hgnc_id": "HGNC:13273",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNT1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WNT1",
+      "hgnc_id": "HGNC:12774",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM107",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM107",
+      "hgnc_id": "HGNC:28128",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NFKB1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NFKB1",
+      "hgnc_id": "HGNC:7794",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PRKCSH",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PRKCSH",
+      "hgnc_id": "HGNC:9411",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ZIC3",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ZIC3",
+      "hgnc_id": "HGNC:12874",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GRHPR",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GRHPR",
+      "hgnc_id": "HGNC:4570",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYB5A",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYB5A",
+      "hgnc_id": "HGNC:2570",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "POU1F1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "POU1F1",
+      "hgnc_id": "HGNC:9210",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNJ5",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KCNJ5",
+      "hgnc_id": "HGNC:6266",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGTR1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AGTR1",
+      "hgnc_id": "HGNC:336",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "JAG1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "JAG1",
+      "hgnc_id": "HGNC:6188",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EXOC3L2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "EXOC3L2",
+      "hgnc_id": "HGNC:30162",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EYA1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BOR",
+      "hgnc_id": "HGNC:3519",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GNA11",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GNA11",
+      "hgnc_id": "HGNC:4379",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PBX1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PBX1",
+      "hgnc_id": "HGNC:8632",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DHCR7",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DHCR7",
+      "hgnc_id": "HGNC:2860",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRHR",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TRHR",
+      "hgnc_id": "HGNC:12299",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RSPH1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RSPH1",
+      "hgnc_id": "HGNC:12371",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SALL1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SALL1",
+      "hgnc_id": "HGNC:10524",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NHERF1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NHERF1",
+      "hgnc_id": "HGNC:11075",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "UMOD",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "UMOD",
+      "hgnc_id": "HGNC:12559",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CCNO",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CCNO",
+      "hgnc_id": "HGNC:18576",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CHD7",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CHD7",
+      "hgnc_id": "HGNC:20626",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC2A9",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC2A9",
+      "hgnc_id": "HGNC:13446",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RSPH9",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RSPH9",
+      "hgnc_id": "HGNC:21057",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NR5A1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NR5A1",
+      "hgnc_id": "HGNC:7983",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DSTYK",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DSTYK",
+      "hgnc_id": "HGNC:29043",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CSPP1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CSPP1",
+      "hgnc_id": "HGNC:26193",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS9",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS9",
+      "hgnc_id": "HGNC:30000",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRPC6",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TRPC6",
+      "hgnc_id": "HGNC:12338",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC4A1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC4A1",
+      "hgnc_id": "HGNC:11027",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CCDC40",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CCDC40",
+      "hgnc_id": "HGNC:26090",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "VPS13B",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "VPS13B",
+      "hgnc_id": "HGNC:2183",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "STRADA",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "STRADA",
+      "hgnc_id": "HGNC:30172",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RSPH4A",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RSPH4A",
+      "hgnc_id": "HGNC:21558",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DHH",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DHH",
+      "hgnc_id": "HGNC:2865",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MYRF",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MYRF",
+      "hgnc_id": "HGNC:1181",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LRRC56",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LRRC56",
+      "hgnc_id": "HGNC:25430",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DLG5",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DLG5",
+      "hgnc_id": "HGNC:2904",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DIO1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DIO1",
+      "hgnc_id": "HGNC:2883",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FAM149B1",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FAM149B1",
+      "hgnc_id": "HGNC:29162",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CCDC32",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CCDC32",
+      "hgnc_id": "HGNC:28295",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HNF4A",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HNF4A",
+      "hgnc_id": "HGNC:5024",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAAF19",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAAF19",
+      "hgnc_id": "HGNC:32700",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TBX18",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TBX18",
+      "hgnc_id": "HGNC:11595",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ROR2",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ROR2",
+      "hgnc_id": "HGNC:10257",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "VPS33B",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "VPS33B",
+      "hgnc_id": "HGNC:12712",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KIAA0753",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KIAA0753",
+      "hgnc_id": "HGNC:29110",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLCNKA",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CLCNKA",
+      "hgnc_id": "HGNC:2026",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TBX6",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TBX6",
+      "hgnc_id": "HGNC:11605",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BSND",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BSND",
+      "hgnc_id": "HGNC:16512",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ATP6V0A4",
+      "panels": [
+        "Nierenerkrankungen Panel"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ATP6V0A4",
+      "hgnc_id": "HGNC:866",
+      "normalization_status": "normalized"
+    }
+  ],
+  "sub_panels": null,
+  "metadata": {
+    "panel_name": "Molekulargenetik Nierenerkrankungen",
+    "language": "de",
+    "scraper_version": "1.0.0"
+  },
+  "errors": null,
+  "scraped_at": "2025-08-24T19:30:24.429862"
+}

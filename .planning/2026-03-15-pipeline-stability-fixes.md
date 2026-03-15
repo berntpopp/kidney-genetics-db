@@ -34,7 +34,9 @@
 | `backend/app/core/pipeline_orchestrator.py` | Create | 3-stage DAG: evidence→annotations→aggregation |
 | `backend/app/core/background_tasks.py` | Modify (lines 38-62, 192-200) | Hook orchestrator into task completion |
 | `backend/app/main.py` | Modify (lines 107-122) | Use orchestrator instead of direct auto-update |
-| `backend/app/core/initial_seeder.py` | Create | Load DiagnosticPanels/Literature from scrapers on empty DB |
+| `backend/app/data/seed/diagnostic_panels/*.json` | Create (copied) | 9 provider seed files from scrapers output |
+| `backend/app/data/seed/literature/*.json` | Create (copied) | 12 publication seed files from scrapers output |
+| `backend/app/core/initial_seeder.py` | Create | Load seed data from `backend/app/data/seed/` on empty DB |
 | `backend/app/core/startup.py` | Modify | Call initial seeder if no evidence data exists |
 | `Makefile` | Modify | Add `db-seed-initial` target |
 | `backend/tests/test_pipeline_orchestrator.py` | Create | Tests for orchestrator |
@@ -859,8 +861,8 @@ Create `backend/app/core/initial_seeder.py`:
 Initial data seeder for empty databases.
 
 On first startup (when gene_evidence is empty), loads DiagnosticPanels
-and Literature data from scrapers/*/output/ directories. This provides
-baseline evidence data before the pipeline runs.
+and Literature data from backend/app/data/seed/ (version-controlled).
+This provides baseline evidence data before the pipeline runs.
 """
 
 import json
@@ -875,11 +877,12 @@ from app.models.gene import GeneEvidence
 logger = get_logger(__name__)
 
 # Project root (3 levels up from this file)
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+# Seed data lives in backend/app/data/seed/ (version-controlled)
+SEED_DATA_DIR = Path(__file__).parent.parent / "data" / "seed"
 
-SCRAPER_DIRS = {
-    "DiagnosticPanels": PROJECT_ROOT / "scrapers" / "diagnostics" / "output",
-    "Literature": PROJECT_ROOT / "scrapers" / "literature" / "output",
+SEED_DIRS = {
+    "DiagnosticPanels": SEED_DATA_DIR / "diagnostic_panels",
+    "Literature": SEED_DATA_DIR / "literature",
 }
 
 
@@ -932,8 +935,8 @@ async def run_initial_seeding(db: Session) -> dict[str, Any]:
 
     results: dict[str, Any] = {}
 
-    for source_name, base_dir in SCRAPER_DIRS.items():
-        output_dir = find_latest_scraper_output(base_dir)
+    for source_name, seed_dir in SEED_DIRS.items():
+        output_dir = seed_dir if seed_dir.exists() else None
         if output_dir is None:
             logger.sync_warning(
                 "No scraper output found",
@@ -1061,9 +1064,9 @@ Then add this call to `run_startup_tasks()` after `cleanup_orphaned_sources()`:
 Add to `Makefile` (in the database management section):
 
 ```makefile
-# Seed initial data from scrapers (DiagnosticPanels + Literature)
+# Seed initial data from backend/app/data/seed/ (DiagnosticPanels + Literature)
 db-seed-initial:
-	@echo "🌱 Seeding initial data from scrapers..."
+	@echo "🌱 Seeding initial data from seed files..."
 	cd backend && uv run python -c "\
 		from app.core.database import SessionLocal; \
 		from app.core.initial_seeder import needs_initial_seeding, run_initial_seeding; \

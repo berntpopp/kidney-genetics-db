@@ -1,0 +1,4089 @@
+{
+  "id": "natera",
+  "provider_id": "natera",
+  "provider_name": "Natera",
+  "provider_type": "single_panel",
+  "main_url": "https://www.natera.com/organ-health/renasight-genetic-testing/gene-conditions-list/",
+  "total_panels": 1,
+  "total_unique_genes": 407,
+  "genes": [
+    {
+      "symbol": "MAP2K1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MAP2K1",
+      "hgnc_id": "HGNC:6840",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM138",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM138",
+      "hgnc_id": "HGNC:26944",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LRP4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LRP4",
+      "hgnc_id": "HGNC:6696",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "G6PC1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "G6PC",
+      "hgnc_id": "HGNC:4056",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFHR2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFHR2",
+      "hgnc_id": "HGNC:4890",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NUP133",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NUP133",
+      "hgnc_id": "HGNC:18016",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AQP2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AQP2",
+      "hgnc_id": "HGNC:634",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ATP7B",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ATP7B",
+      "hgnc_id": "HGNC:870",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MMADHC",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MMADHC",
+      "hgnc_id": "HGNC:25221",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALG1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ALG1",
+      "hgnc_id": "HGNC:18294",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP83",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEP83",
+      "hgnc_id": "HGNC:17966",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLCN2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CLCN2",
+      "hgnc_id": "HGNC:2020",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC7A9",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC7A9",
+      "hgnc_id": "HGNC:11067",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SON",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SON",
+      "hgnc_id": "HGNC:11183",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "XRCC4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "XRCC4",
+      "hgnc_id": "HGNC:12831",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFAP418",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "C8ORF37",
+      "hgnc_id": "HGNC:27232",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LPIN1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LPIN1",
+      "hgnc_id": "HGNC:13345",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCC",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FANCC",
+      "hgnc_id": "HGNC:3584",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC5A2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC5A2",
+      "hgnc_id": "HGNC:11037",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLDN16",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CLDN16",
+      "hgnc_id": "HGNC:2037",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NSD1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NSD1",
+      "hgnc_id": "HGNC:14234",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "OPLAH",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "OPLAH",
+      "hgnc_id": "HGNC:8149",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INVS",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "INVS",
+      "hgnc_id": "HGNC:17870",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHP3",
+      "hgnc_id": "HGNC:7907",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ABCC6",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ABCC6",
+      "hgnc_id": "HGNC:57",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WFS1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WFS1",
+      "hgnc_id": "HGNC:12762",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPS19",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RPS19",
+      "hgnc_id": "HGNC:10402",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC7A7",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC7A7",
+      "hgnc_id": "HGNC:11065",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PHEX",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PHEX",
+      "hgnc_id": "HGNC:8918",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PBX1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PBX1",
+      "hgnc_id": "HGNC:8632",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WAS",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WAS",
+      "hgnc_id": "HGNC:12731",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGXT",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AGXT",
+      "hgnc_id": "HGNC:341",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DKC1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DKC1",
+      "hgnc_id": "HGNC:2890",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC26A1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC26A1",
+      "hgnc_id": "HGNC:10993",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KMT2D",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KMT2D",
+      "hgnc_id": "HGNC:7133",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "OCRL",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "OCRL",
+      "hgnc_id": "HGNC:8108",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM237",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM237",
+      "hgnc_id": "HGNC:14432",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PGK1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PGK1",
+      "hgnc_id": "HGNC:8896",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CDKN1C",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CDKN1C",
+      "hgnc_id": "HGNC:1786",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SALL4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SALL4",
+      "hgnc_id": "HGNC:15924",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PTH1R",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PTH1R",
+      "hgnc_id": "HGNC:9608",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKD1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PKD1",
+      "hgnc_id": "HGNC:9008",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COL4A4",
+      "hgnc_id": "HGNC:2206",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GNAS",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GNAS",
+      "hgnc_id": "HGNC:4392",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HBB",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HBB",
+      "hgnc_id": "HGNC:4827",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCTD1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KCTD1",
+      "hgnc_id": "HGNC:18249",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FOXC2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FOXC2",
+      "hgnc_id": "HGNC:3801",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM216",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM216",
+      "hgnc_id": "HGNC:25018",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FGF10",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FGF10",
+      "hgnc_id": "HGNC:3666",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APOL1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "APOL1",
+      "hgnc_id": "HGNC:618",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFD",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFD",
+      "hgnc_id": "HGNC:2771",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NEK8",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NEK8",
+      "hgnc_id": "HGNC:13387",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LAMA5",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LAMA5",
+      "hgnc_id": "HGNC:6485",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKHD1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PKHD1",
+      "hgnc_id": "HGNC:9016",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ROBO2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ROBO2",
+      "hgnc_id": "HGNC:10250",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LZTFL1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LZTFL1",
+      "hgnc_id": "HGNC:6741",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NLRP3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NLRP3",
+      "hgnc_id": "HGNC:16400",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT140",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT140",
+      "hgnc_id": "HGNC:29077",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NR3C2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NR3C2",
+      "hgnc_id": "HGNC:7979",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APRT",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "APRT",
+      "hgnc_id": "HGNC:626",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GRIP1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GRIP1",
+      "hgnc_id": "HGNC:18708",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AVPR2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AVPR2",
+      "hgnc_id": "HGNC:897",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "C1QB",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "C1QB",
+      "hgnc_id": "HGNC:1242",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HPSE2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HPSE2",
+      "hgnc_id": "HGNC:18374",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HSD11B2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HSD11B2",
+      "hgnc_id": "HGNC:5209",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TTC21B",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TTC21B",
+      "hgnc_id": "HGNC:25660",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACE",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ACE",
+      "hgnc_id": "HGNC:2707",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "B2M",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "B2M",
+      "hgnc_id": "HGNC:914",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP290",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEP290",
+      "hgnc_id": "HGNC:29021",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHP4",
+      "hgnc_id": "HGNC:19104",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MYH9",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MYH9",
+      "hgnc_id": "HGNC:7579",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNJ10",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KCNJ10",
+      "hgnc_id": "HGNC:6256",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCNN1B",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SCNN1B",
+      "hgnc_id": "HGNC:10600",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MOCOS",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MOCOS",
+      "hgnc_id": "HGNC:18234",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCE",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FANCE",
+      "hgnc_id": "HGNC:3586",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NEUROD1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NEUROD1",
+      "hgnc_id": "HGNC:7762",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SARS2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SARS2",
+      "hgnc_id": "HGNC:17697",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CHD7",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CHD7",
+      "hgnc_id": "HGNC:20626",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SEC63",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SEC63",
+      "hgnc_id": "HGNC:21082",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WT1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WT1",
+      "hgnc_id": "HGNC:12796",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BMP4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BMP4",
+      "hgnc_id": "HGNC:1071",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HPRT1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HPRT1",
+      "hgnc_id": "HGNC:5157",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCI",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FANCI",
+      "hgnc_id": "HGNC:25568",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "VIPAS39",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "VIPAS39",
+      "hgnc_id": "HGNC:20347",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "STAR",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "STAR",
+      "hgnc_id": "HGNC:11359",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CISD2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CISD2",
+      "hgnc_id": "HGNC:24212",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TTR",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TTR",
+      "hgnc_id": "HGNC:12405",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MOCS2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MOCS2",
+      "hgnc_id": "HGNC:7193",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TFAP2A",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TFAP2A",
+      "hgnc_id": "HGNC:11742",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ARHGDIA",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ARHGDIA",
+      "hgnc_id": "HGNC:678",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP27B1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYP27B1",
+      "hgnc_id": "HGNC:2606",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HOGA1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HOGA1",
+      "hgnc_id": "HGNC:25155",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCL",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FANCL",
+      "hgnc_id": "HGNC:20748",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EYA1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "EYA1",
+      "hgnc_id": "HGNC:3519",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PDX1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PDX1",
+      "hgnc_id": "HGNC:6107",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COL4A1",
+      "hgnc_id": "HGNC:2202",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PEX6",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PEX6",
+      "hgnc_id": "HGNC:8859",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SOX17",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SOX17",
+      "hgnc_id": "HGNC:18122",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ADCY10",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ADCY10",
+      "hgnc_id": "HGNC:21285",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MNX1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MNX1",
+      "hgnc_id": "HGNC:4979",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC6A19",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC6A19",
+      "hgnc_id": "HGNC:27960",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BRAF",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BRAF",
+      "hgnc_id": "HGNC:1097",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNK3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KCNK3",
+      "hgnc_id": "HGNC:6278",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP24A1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYP24A1",
+      "hgnc_id": "HGNC:2602",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APOA4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "APOA4",
+      "hgnc_id": "HGNC:602",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLCNKB",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CLCNKB",
+      "hgnc_id": "HGNC:2027",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DCDC2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DCDC2",
+      "hgnc_id": "HGNC:18141",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GCM2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GCM2",
+      "hgnc_id": "HGNC:4198",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GALNT3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GALNT3",
+      "hgnc_id": "HGNC:4125",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCNN1A",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SCNN1A",
+      "hgnc_id": "HGNC:10599",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GPC3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GPC3",
+      "hgnc_id": "HGNC:4451",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KDM6A",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KDM6A",
+      "hgnc_id": "HGNC:12637",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CUBN",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CUBN",
+      "hgnc_id": "HGNC:2548",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TNS2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TNS2",
+      "hgnc_id": "HGNC:19737",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CRB2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CRB2",
+      "hgnc_id": "HGNC:18688",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TTC8",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TTC8",
+      "hgnc_id": "HGNC:20087",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC4A1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC4A1",
+      "hgnc_id": "HGNC:11027",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LRP5",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LRP5",
+      "hgnc_id": "HGNC:6697",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RET",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RET",
+      "hgnc_id": "HGNC:9967",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WDPCP",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WDPCP",
+      "hgnc_id": "HGNC:28027",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WDR35",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WDR35",
+      "hgnc_id": "HGNC:29250",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALMS1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ALMS1",
+      "hgnc_id": "HGNC:428",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP11B2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYP11B2",
+      "hgnc_id": "HGNC:2592",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CDC73",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CDC73",
+      "hgnc_id": "HGNC:16783",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HNF1B",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HNF1B",
+      "hgnc_id": "HGNC:11630",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SOX18",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SOX18",
+      "hgnc_id": "HGNC:11194",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACTB",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ACTB",
+      "hgnc_id": "HGNC:132",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KLHL3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KLHL3",
+      "hgnc_id": "HGNC:6354",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TACO1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TACO1",
+      "hgnc_id": "HGNC:24316",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLCNKA",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CLCNKA",
+      "hgnc_id": "HGNC:2026",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IQCB1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IQCB1",
+      "hgnc_id": "HGNC:28949",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLCN5",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CLCN5",
+      "hgnc_id": "HGNC:2023",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PRODH",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PRODH",
+      "hgnc_id": "HGNC:9453",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PROKR2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PROKR2",
+      "hgnc_id": "HGNC:15836",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BSND",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BSND",
+      "hgnc_id": "HGNC:16512",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "C3AR1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "C3AR1",
+      "hgnc_id": "HGNC:1319",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS4",
+      "hgnc_id": "HGNC:969",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACTN4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ACTN4",
+      "hgnc_id": "HGNC:166",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ATP6V1B1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ATP6V1B1",
+      "hgnc_id": "HGNC:853",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INF2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "INF2",
+      "hgnc_id": "HGNC:23791",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ARL6",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ARL6",
+      "hgnc_id": "HGNC:13210",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NUP93",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NUP93",
+      "hgnc_id": "HGNC:28958",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCA",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FANCA",
+      "hgnc_id": "HGNC:3582",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FOXC1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FOXC1",
+      "hgnc_id": "HGNC:3800",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FAN1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FAN1",
+      "hgnc_id": "HGNC:29170",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MKS1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MKS1",
+      "hgnc_id": "HGNC:7121",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NEU1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NEU1",
+      "hgnc_id": "HGNC:7758",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ITGA3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ITGA3",
+      "hgnc_id": "HGNC:6139",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNJ16",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KCNJ16",
+      "hgnc_id": "HGNC:6262",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC19A2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC19A2",
+      "hgnc_id": "HGNC:10938",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LMNA",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LMNA",
+      "hgnc_id": "HGNC:6636",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCB",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FANCB",
+      "hgnc_id": "HGNC:3583",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FN1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FN1",
+      "hgnc_id": "HGNC:3778",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RMND1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RMND1",
+      "hgnc_id": "HGNC:21176",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PMM2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PMM2",
+      "hgnc_id": "HGNC:9115",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ENPP1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ENPP1",
+      "hgnc_id": "HGNC:3356",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MMAB",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MMAB",
+      "hgnc_id": "HGNC:19331",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DYNC2I2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WDR34",
+      "hgnc_id": "HGNC:28296",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FGF23",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FGF23",
+      "hgnc_id": "HGNC:3680",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ITGB4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ITGB4",
+      "hgnc_id": "HGNC:6158",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ZEB2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ZEB2",
+      "hgnc_id": "HGNC:14881",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRIM32",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TRIM32",
+      "hgnc_id": "HGNC:16380",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC5A1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC5A1",
+      "hgnc_id": "HGNC:11036",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GSN",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GSN",
+      "hgnc_id": "HGNC:4620",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALG9",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ALG9",
+      "hgnc_id": "HGNC:15672",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SEC61B",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SEC61B",
+      "hgnc_id": "HGNC:16993",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BMPR2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BMPR2",
+      "hgnc_id": "HGNC:1078",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFH",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFH",
+      "hgnc_id": "HGNC:4883",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FAT4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FAT4",
+      "hgnc_id": "HGNC:23109",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LRP2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LRP2",
+      "hgnc_id": "HGNC:6694",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DGKE",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DGKE",
+      "hgnc_id": "HGNC:2852",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFI",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFI",
+      "hgnc_id": "HGNC:5394",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC2A9",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC2A9",
+      "hgnc_id": "HGNC:13446",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "VPS33B",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "VPS33B",
+      "hgnc_id": "HGNC:12712",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "UMOD",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "UMOD",
+      "hgnc_id": "HGNC:12559",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ANLN",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ANLN",
+      "hgnc_id": "HGNC:14082",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFAP47",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFAP47",
+      "hgnc_id": "HGNC:26708",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLA",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GLA",
+      "hgnc_id": "HGNC:4296",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEP164",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEP164",
+      "hgnc_id": "HGNC:29182",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC2A2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC2A2",
+      "hgnc_id": "HGNC:11006",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BICC1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BICC1",
+      "hgnc_id": "HGNC:19351",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFHR1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFHR1",
+      "hgnc_id": "HGNC:4888",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNASE1L3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNASE1L3",
+      "hgnc_id": "HGNC:2959",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT122",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT122",
+      "hgnc_id": "HGNC:13556",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NHERF1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC9A3R1",
+      "hgnc_id": "HGNC:11075",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC17A5",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC17A5",
+      "hgnc_id": "HGNC:10933",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COQ2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COQ2",
+      "hgnc_id": "HGNC:25223",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GATM",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GATM",
+      "hgnc_id": "HGNC:4175",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PYGM",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PYGM",
+      "hgnc_id": "HGNC:9726",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TCTN2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TCTN2",
+      "hgnc_id": "HGNC:25774",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GDF2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GDF2",
+      "hgnc_id": "HGNC:4217",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AHI1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AHI1",
+      "hgnc_id": "HGNC:21575",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SALL1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SALL1",
+      "hgnc_id": "HGNC:10524",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SOX11",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SOX11",
+      "hgnc_id": "HGNC:11191",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GRHPR",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GRHPR",
+      "hgnc_id": "HGNC:4570",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TP53RK",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TP53RK",
+      "hgnc_id": "HGNC:16197",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LIFR",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LIFR",
+      "hgnc_id": "HGNC:6597",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS1",
+      "hgnc_id": "HGNC:966",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DLC1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DLC1",
+      "hgnc_id": "HGNC:2897",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT172",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT172",
+      "hgnc_id": "HGNC:30391",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INS",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "INS",
+      "hgnc_id": "HGNC:6081",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PKD2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PKD2",
+      "hgnc_id": "HGNC:9009",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHS1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHS1",
+      "hgnc_id": "HGNC:7908",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CD151",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CD151",
+      "hgnc_id": "HGNC:1630",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNA1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KCNA1",
+      "hgnc_id": "HGNC:6218",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRPM6",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TRPM6",
+      "hgnc_id": "HGNC:17995",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PAX2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PAX2",
+      "hgnc_id": "HGNC:8616",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SDCCAG8",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SDCCAG8",
+      "hgnc_id": "HGNC:10671",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FREM1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FREM1",
+      "hgnc_id": "HGNC:23399",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRPC6",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TRPC6",
+      "hgnc_id": "HGNC:12338",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MEFV",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MEFV",
+      "hgnc_id": "HGNC:6998",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HOXA13",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HOXA13",
+      "hgnc_id": "HGNC:5102",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC12A1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC12A1",
+      "hgnc_id": "HGNC:10910",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM231",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM231",
+      "hgnc_id": "HGNC:37234",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "JAG1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "JAG1",
+      "hgnc_id": "HGNC:6188",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLX4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLX4",
+      "hgnc_id": "HGNC:23845",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KANSL1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KANSL1",
+      "hgnc_id": "HGNC:24565",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SEC61A1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SEC61A1",
+      "hgnc_id": "HGNC:18276",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNT5A",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WNT5A",
+      "hgnc_id": "HGNC:12784",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FAM20A",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FAM20A",
+      "hgnc_id": "HGNC:23015",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC4A4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC4A4",
+      "hgnc_id": "HGNC:11030",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CD46",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CD46",
+      "hgnc_id": "HGNC:6953",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNK4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WNK4",
+      "hgnc_id": "HGNC:14544",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LDHA",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LDHA",
+      "hgnc_id": "HGNC:6535",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ADA2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ADA2",
+      "hgnc_id": "HGNC:1839",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APOA1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "APOA1",
+      "hgnc_id": "HGNC:600",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KAT6B",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KAT6B",
+      "hgnc_id": "HGNC:17582",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MYCN",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MYCN",
+      "hgnc_id": "HGNC:7559",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCN4A",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SCN4A",
+      "hgnc_id": "HGNC:10591",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AP2S1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AP2S1",
+      "hgnc_id": "HGNC:565",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PLCE1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PLCE1",
+      "hgnc_id": "HGNC:17175",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DZIP1L",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DZIP1L",
+      "hgnc_id": "HGNC:26551",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AVP",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AVP",
+      "hgnc_id": "HGNC:894",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COX20",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COX20",
+      "hgnc_id": "HGNC:26970",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PRPS1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PRPS1",
+      "hgnc_id": "HGNC:9462",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNJ11",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KCNJ11",
+      "hgnc_id": "HGNC:6257",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NR3C1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NR3C1",
+      "hgnc_id": "HGNC:7978",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCARB2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SCARB2",
+      "hgnc_id": "HGNC:1665",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TSC2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TSC2",
+      "hgnc_id": "HGNC:12363",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DMP1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DMP1",
+      "hgnc_id": "HGNC:2932",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MKKS",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MKKS",
+      "hgnc_id": "HGNC:7108",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NR0B1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NR0B1",
+      "hgnc_id": "HGNC:7960",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "VDR",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "VDR",
+      "hgnc_id": "HGNC:12679",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HNF1A",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HNF1A",
+      "hgnc_id": "HGNC:11621",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SI",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SI",
+      "hgnc_id": "HGNC:10856",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CA2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CA2",
+      "hgnc_id": "HGNC:1373",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PDSS1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PDSS1",
+      "hgnc_id": "HGNC:17759",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BSCL2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BSCL2",
+      "hgnc_id": "HGNC:15832",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACVRL1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ACVRL1",
+      "hgnc_id": "HGNC:175",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FLCN",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FLCN",
+      "hgnc_id": "HGNC:27310",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TRIM8",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TRIM8",
+      "hgnc_id": "HGNC:15579",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SCNN1G",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SCNN1G",
+      "hgnc_id": "HGNC:10602",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ANOS1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ANOS1",
+      "hgnc_id": "HGNC:6211",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SRCAP",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SRCAP",
+      "hgnc_id": "HGNC:16974",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BCS1L",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BCS1L",
+      "hgnc_id": "HGNC:1020",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KIF7",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KIF7",
+      "hgnc_id": "HGNC:30497",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COQ8B",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COQ8B",
+      "hgnc_id": "HGNC:19041",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCG",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FANCG",
+      "hgnc_id": "HGNC:3588",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CPT2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CPT2",
+      "hgnc_id": "HGNC:2330",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ITGA6",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ITGA6",
+      "hgnc_id": "HGNC:6142",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COA8",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "APOPT1",
+      "hgnc_id": "HGNC:20492",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CEL",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CEL",
+      "hgnc_id": "HGNC:1848",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COX10",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COX10",
+      "hgnc_id": "HGNC:2260",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RRM2B",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RRM2B",
+      "hgnc_id": "HGNC:17296",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC3A1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC3A1",
+      "hgnc_id": "HGNC:11025",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ACTG1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ACTG1",
+      "hgnc_id": "HGNC:144",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MAGED2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MAGED2",
+      "hgnc_id": "HGNC:16353",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ZNF423",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ZNF423",
+      "hgnc_id": "HGNC:16762",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS5",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS5",
+      "hgnc_id": "HGNC:970",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ADAMTS13",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ADAMTS13",
+      "hgnc_id": "HGNC:1366",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT80",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT80",
+      "hgnc_id": "HGNC:29262",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFHR3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFHR3",
+      "hgnc_id": "HGNC:16980",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SMARCAL1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SMARCAL1",
+      "hgnc_id": "HGNC:11102",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PRKCSH",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PRKCSH",
+      "hgnc_id": "HGNC:9411",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HGD",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HGD",
+      "hgnc_id": "HGNC:4892",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WDR73",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WDR73",
+      "hgnc_id": "HGNC:25928",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MVK",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MVK",
+      "hgnc_id": "HGNC:7530",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WNK1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WNK1",
+      "hgnc_id": "HGNC:14540",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KRAS",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KRAS",
+      "hgnc_id": "HGNC:6407",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGPAT2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AGPAT2",
+      "hgnc_id": "HGNC:325",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PTPRO",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PTPRO",
+      "hgnc_id": "HGNC:9678",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WDR19",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WDR19",
+      "hgnc_id": "HGNC:18340",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PDSS2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PDSS2",
+      "hgnc_id": "HGNC:23041",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP11A1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYP11A1",
+      "hgnc_id": "HGNC:2590",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLIS3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GLIS3",
+      "hgnc_id": "HGNC:28510",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ARL13B",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ARL13B",
+      "hgnc_id": "HGNC:25419",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CLDN19",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CLDN19",
+      "hgnc_id": "HGNC:2040",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MYO1E",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MYO1E",
+      "hgnc_id": "HGNC:7599",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LMX1B",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LMX1B",
+      "hgnc_id": "HGNC:6654",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MOCS1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MOCS1",
+      "hgnc_id": "HGNC:7190",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ROR2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ROR2",
+      "hgnc_id": "HGNC:10257",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GANAB",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GANAB",
+      "hgnc_id": "HGNC:4138",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FREM2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FREM2",
+      "hgnc_id": "HGNC:25396",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TMEM67",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TMEM67",
+      "hgnc_id": "HGNC:28396",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ELP1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ELP1",
+      "hgnc_id": "HGNC:5959",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COL4A3",
+      "hgnc_id": "HGNC:2204",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGT",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AGT",
+      "hgnc_id": "HGNC:333",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HSD3B2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HSD3B2",
+      "hgnc_id": "HGNC:5218",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLIS2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GLIS2",
+      "hgnc_id": "HGNC:29450",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CACNA1S",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CACNA1S",
+      "hgnc_id": "HGNC:1397",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MAP2K2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MAP2K2",
+      "hgnc_id": "HGNC:6842",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EBP",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "EBP",
+      "hgnc_id": "HGNC:3133",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CREBBP",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CREBBP",
+      "hgnc_id": "HGNC:2348",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS2",
+      "hgnc_id": "HGNC:967",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CUL3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CUL3",
+      "hgnc_id": "HGNC:2553",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CAV1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CAV1",
+      "hgnc_id": "HGNC:1527",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CPLANE1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CPLANE1",
+      "hgnc_id": "HGNC:25801",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GPHN",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GPHN",
+      "hgnc_id": "HGNC:15465",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HNF4A",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HNF4A",
+      "hgnc_id": "HGNC:5024",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHP1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHP1",
+      "hgnc_id": "HGNC:7905",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SMC1A",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SMC1A",
+      "hgnc_id": "HGNC:11111",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DNAJB11",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DNAJB11",
+      "hgnc_id": "HGNC:14889",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCF",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FANCF",
+      "hgnc_id": "HGNC:3587",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CACNA1H",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CACNA1H",
+      "hgnc_id": "HGNC:1395",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CC2D2A",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CC2D2A",
+      "hgnc_id": "HGNC:29253",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TSC1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TSC1",
+      "hgnc_id": "HGNC:12362",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "DHCR7",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "DHCR7",
+      "hgnc_id": "HGNC:2860",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PCBD1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PCBD1",
+      "hgnc_id": "HGNC:8646",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALG8",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ALG8",
+      "hgnc_id": "HGNC:23161",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CTNS",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CTNS",
+      "hgnc_id": "HGNC:2518",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FANCD2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FANCD2",
+      "hgnc_id": "HGNC:3585",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNJ1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KCNJ1",
+      "hgnc_id": "HGNC:6255",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ABCC8",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ABCC8",
+      "hgnc_id": "HGNC:59",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PHF6",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PHF6",
+      "hgnc_id": "HGNC:18145",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GNA11",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GNA11",
+      "hgnc_id": "HGNC:4379",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MAFB",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MAFB",
+      "hgnc_id": "HGNC:6408",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TP63",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TP63",
+      "hgnc_id": "HGNC:15979",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "THBD",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "THBD",
+      "hgnc_id": "HGNC:11784",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "EIF2AK3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "EIF2AK3",
+      "hgnc_id": "HGNC:3255",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FGFR2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FGFR2",
+      "hgnc_id": "HGNC:3689",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MMUT",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MUT",
+      "hgnc_id": "HGNC:7526",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC34A3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC34A3",
+      "hgnc_id": "HGNC:20305",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GLI3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GLI3",
+      "hgnc_id": "HGNC:4319",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FRAS1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FRAS1",
+      "hgnc_id": "HGNC:19185",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MAGI2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MAGI2",
+      "hgnc_id": "HGNC:18957",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC22A12",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC22A12",
+      "hgnc_id": "HGNC:17989",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALG5",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ALG5",
+      "hgnc_id": "HGNC:20266",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "C3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "C3",
+      "hgnc_id": "HGNC:1318",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "VTN",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "VTN",
+      "hgnc_id": "HGNC:12724",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ESCO2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ESCO2",
+      "hgnc_id": "HGNC:27230",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TBC1D8B",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TBC1D8B",
+      "hgnc_id": "HGNC:24715",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FAH",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FAH",
+      "hgnc_id": "HGNC:3579",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PREPL",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PREPL",
+      "hgnc_id": "HGNC:30228",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FOXP3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FOXP3",
+      "hgnc_id": "HGNC:6106",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GATA3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GATA3",
+      "hgnc_id": "HGNC:4172",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COQ6",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COQ6",
+      "hgnc_id": "HGNC:20233",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "XPNPEP3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "XPNPEP3",
+      "hgnc_id": "HGNC:28052",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NOTCH2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NOTCH2",
+      "hgnc_id": "HGNC:7882",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CASR",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CASR",
+      "hgnc_id": "HGNC:1514",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "REN",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "REN",
+      "hgnc_id": "HGNC:9958",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CNNM2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CNNM2",
+      "hgnc_id": "HGNC:103",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "STX16",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "STX16",
+      "hgnc_id": "HGNC:11431",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ANKS6",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ANKS6",
+      "hgnc_id": "HGNC:26724",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NSDHL",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NSDHL",
+      "hgnc_id": "HGNC:13398",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RPGRIP1L",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RPGRIP1L",
+      "hgnc_id": "HGNC:29168",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP17A1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYP17A1",
+      "hgnc_id": "HGNC:2593",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "VHL",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "VHL",
+      "hgnc_id": "HGNC:12687",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MMACHC",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MMACHC",
+      "hgnc_id": "HGNC:24525",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS12",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS12",
+      "hgnc_id": "HGNC:26648",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COL4A5",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COL4A5",
+      "hgnc_id": "HGNC:2207",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "POC1B",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "POC1B",
+      "hgnc_id": "HGNC:30836",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NF1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NF1",
+      "hgnc_id": "HGNC:7765",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AGTR1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AGTR1",
+      "hgnc_id": "HGNC:336",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NPHS2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NPHS2",
+      "hgnc_id": "HGNC:13394",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "GCK",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "GCK",
+      "hgnc_id": "HGNC:4195",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC37A4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC37A4",
+      "hgnc_id": "HGNC:4061",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFB",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFB",
+      "hgnc_id": "HGNC:1037",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FXYD2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FXYD2",
+      "hgnc_id": "HGNC:4026",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PTPN11",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PTPN11",
+      "hgnc_id": "HGNC:9644",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LAMB2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LAMB2",
+      "hgnc_id": "HGNC:6487",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "APOC2",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "APOC2",
+      "hgnc_id": "HGNC:609",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ALPL",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ALPL",
+      "hgnc_id": "HGNC:438",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MAPKBP1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MAPKBP1",
+      "hgnc_id": "HGNC:29536",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SMAD9",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SMAD9",
+      "hgnc_id": "HGNC:6774",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFHR5",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFHR5",
+      "hgnc_id": "HGNC:24668",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "NIPBL",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "NIPBL",
+      "hgnc_id": "HGNC:28862",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FGFR1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FGFR1",
+      "hgnc_id": "HGNC:3688",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "ATP6V0A4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "ATP6V0A4",
+      "hgnc_id": "HGNC:866",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LCAT",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LCAT",
+      "hgnc_id": "HGNC:6522",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "PLG",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "PLG",
+      "hgnc_id": "HGNC:9071",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "AMN",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "AMN",
+      "hgnc_id": "HGNC:14604",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "OFD1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "OFD1",
+      "hgnc_id": "HGNC:2567",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS10",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS10",
+      "hgnc_id": "HGNC:26291",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "LYZ",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "LYZ",
+      "hgnc_id": "HGNC:6740",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "INPP5E",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "INPP5E",
+      "hgnc_id": "HGNC:21474",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "MMAA",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "MMAA",
+      "hgnc_id": "HGNC:18871",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FGA",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FGA",
+      "hgnc_id": "HGNC:3661",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "KCNJ5",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "KCNJ5",
+      "hgnc_id": "HGNC:6266",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SIX1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SIX1",
+      "hgnc_id": "HGNC:10887",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "IFT43",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "IFT43",
+      "hgnc_id": "HGNC:29669",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "FOXI1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "FOXI1",
+      "hgnc_id": "HGNC:3815",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "XDH",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "XDH",
+      "hgnc_id": "HGNC:12805",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CHRNA3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CHRNA3",
+      "hgnc_id": "HGNC:1957",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SGPL1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SGPL1",
+      "hgnc_id": "HGNC:10817",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP2R1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYP2R1",
+      "hgnc_id": "HGNC:20580",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "RAD51C",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "RAD51C",
+      "hgnc_id": "HGNC:9820",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC34A1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC34A1",
+      "hgnc_id": "HGNC:11019",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CD2AP",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CD2AP",
+      "hgnc_id": "HGNC:14258",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "COPA",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "COPA",
+      "hgnc_id": "HGNC:2230",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "WDR72",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "WDR72",
+      "hgnc_id": "HGNC:26790",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CYP11B1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CYP11B1",
+      "hgnc_id": "HGNC:2591",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "CFHR4",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "CFHR4",
+      "hgnc_id": "HGNC:16979",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "TXNL4A",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "TXNL4A",
+      "hgnc_id": "HGNC:30551",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS7",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS7",
+      "hgnc_id": "HGNC:18758",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "SLC12A3",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "SLC12A3",
+      "hgnc_id": "HGNC:10912",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "BBS9",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "BBS9",
+      "hgnc_id": "HGNC:30000",
+      "normalization_status": "normalized"
+    },
+    {
+      "symbol": "HPS1",
+      "panels": [
+        "Renasight"
+      ],
+      "occurrence_count": 1,
+      "reported_as": "HPS1",
+      "hgnc_id": "HGNC:5163",
+      "normalization_status": "normalized"
+    }
+  ],
+  "sub_panels": null,
+  "metadata": {
+    "panel_name": "Renasight",
+    "description": "Comprehensive kidney gene panel",
+    "scraper_version": "1.0.0"
+  },
+  "errors": null,
+  "scraped_at": "2025-08-24T19:37:31.034930"
+}
