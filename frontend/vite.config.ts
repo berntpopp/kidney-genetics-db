@@ -20,6 +20,25 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(packageJson.version)
   },
+  ssgOptions: {
+    script: 'async',
+    formatting: 'minify',
+    dirStyle: 'nested',
+    beastiesOptions: {
+      preload: 'swap'
+    },
+    includedRoutes(paths) {
+      // Only prerender public static pages (not dynamic gene pages or auth/admin routes)
+      return paths.filter(
+        (p) =>
+          !p.startsWith('/admin') &&
+          !p.startsWith('/login') &&
+          !p.startsWith('/profile') &&
+          !p.startsWith('/forgot-password') &&
+          !p.includes(':')
+      )
+    }
+  },
   build: {
     rollupOptions: {
       output: {
