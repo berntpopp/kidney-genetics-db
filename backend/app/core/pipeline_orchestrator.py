@@ -167,22 +167,7 @@ class PipelineOrchestrator:
         except Exception as e:
             logger.sync_warning("Initial aggregation failed", error=str(e))
 
-        # Step 3: Re-run PubTator now that genes exist (it's gene-centric)
-        try:
-            logger.sync_info("Re-running PubTator now that genes exist")
-            await self.task_manager.run_source("PubTator", mode="smart")
-            # Wait for PubTator to finish before annotations
-            pubtator_task = self.task_manager.running_tasks.get("PubTator")
-            if pubtator_task and not pubtator_task.done():
-                await pubtator_task
-            logger.sync_info("PubTator re-run complete")
-        except Exception as e:
-            logger.sync_warning(
-                "PubTator re-run failed — continuing to annotations",
-                error=str(e),
-            )
-
-        # Step 4: Run annotations (will refresh views again at the end)
+        # Step 3: Run annotations (will refresh views again at the end)
         await self._run_annotations()
 
     async def _run_annotations(self) -> None:
