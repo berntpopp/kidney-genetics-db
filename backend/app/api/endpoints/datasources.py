@@ -48,6 +48,23 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             """
             )
         ).fetchall()
+
+        # Fallback: if gene_scores view is stale/empty, query gene_evidence directly
+        if not result:
+            result = db.execute(
+                text(
+                    """
+                    SELECT
+                        source_name,
+                        COUNT(DISTINCT gene_id) as gene_count,
+                        COUNT(*) as evidence_count,
+                        MAX(updated_at) as last_updated
+                    FROM gene_evidence
+                    GROUP BY source_name
+                    ORDER BY source_name
+                """
+                )
+            ).fetchall()
     except Exception:
         # If query fails, return empty result
         result = []
@@ -267,6 +284,12 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
 
     # Get actual unique gene count (only genes with evidence, respecting score filter)
     unique_genes = db.execute(text(count_filtered_genes_from_evidence_sql())).scalar() or 0
+
+    # Fallback: count directly from gene_evidence when gene_scores view is stale
+    if unique_genes == 0:
+        unique_genes = (
+            db.execute(text("SELECT COUNT(DISTINCT gene_id) FROM gene_evidence")).scalar() or 0
+        )
 
     # Get orphaned gene count
     orphaned_genes = (
