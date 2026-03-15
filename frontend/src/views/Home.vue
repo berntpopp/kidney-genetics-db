@@ -100,7 +100,7 @@
       <div class="mt-8">
         <h2 class="text-2xl font-medium text-center mb-6">Why Use This Database?</h2>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div v-for="benefit in keyBenefits" :key="benefit.title" class="text-center p-4">
             <div
               class="flex h-16 w-16 items-center justify-center rounded-full mx-auto mb-4"
@@ -125,7 +125,9 @@ import {
   ShieldCheck,
   RefreshCw,
   Microscope,
-  Search
+  Search,
+  Unlock,
+  Code2
 } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { useWindowSize } from '@vueuse/core'
@@ -221,22 +223,39 @@ const dataSources = [
 const keyBenefits = [
   {
     title: 'Evidence-Based',
-    description:
-      'Curated gene-disease associations with rigorous evidence scoring and quality assessment',
+    description: 'Weighted multi-source scoring from 0-100 with tier classification',
     icon: ShieldCheck,
     bgColor: '#10B981'
   },
   {
     title: 'Multi-Source',
-    description: 'Integrated data from PanelApp, HPO, literature mining, and clinical sources',
+    description: 'Aggregated from 7 clinical and research databases',
     icon: RefreshCw,
     bgColor: '#0EA5E9'
   },
   {
     title: 'Research-Grade',
-    description: 'Professional-quality curation workflow with complete audit trails and versioning',
+    description: 'Professional-quality curation workflow with complete audit trails',
     icon: Microscope,
     bgColor: '#8B5CF6'
+  },
+  {
+    title: 'Regularly Updated',
+    description: 'Automated pipeline with continuous synchronization',
+    icon: AlarmClockCheck,
+    bgColor: '#3B82F6'
+  },
+  {
+    title: 'Open Access',
+    description: 'Free under CC BY 4.0 — no registration required for browsing',
+    icon: Unlock,
+    bgColor: '#F59E0B'
+  },
+  {
+    title: 'API Available',
+    description: 'JSON:API compliant REST API for programmatic access',
+    icon: Code2,
+    bgColor: '#EF4444'
   }
 ]
 
