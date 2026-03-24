@@ -148,7 +148,7 @@ jobs:
           fi
 
       - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: 'ghcr.io/${{ github.repository }}/${{ matrix.image.name }}:${{ steps.tag.outputs.tag }}'
           format: sarif
