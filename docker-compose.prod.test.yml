@@ -6,6 +6,8 @@ networks:
 volumes:
   postgres_data:
   redis_data:
+  backend_cache:
+  backend_data:
 
 services:
   postgres:
@@ -111,6 +113,9 @@ services:
       dockerfile: Dockerfile
     image: kidney_genetics_backend:latest
     container_name: kidney_genetics_backend
+    volumes:
+      - backend_cache:/app/.cache
+      - backend_data:/app/data
     networks:
       - kidney_genetics_internal
     ports:
