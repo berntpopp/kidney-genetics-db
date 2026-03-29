@@ -58,8 +58,8 @@ RUN rm -rf /opt/venv/lib/python3*/site-packages/pip* \
 # Copy application code
 COPY --chown=kidney-api:kidney-api . .
 
-# Create writable cache directory for HTTP caching (hishel)
-RUN mkdir -p /app/.cache && chown kidney-api:kidney-api /app/.cache
+# Create writable directories for caching and bulk data downloads
+RUN mkdir -p /app/.cache /app/data && chown kidney-api:kidney-api /app/.cache /app/data
 
 # Switch to non-root user
 USER kidney-api
