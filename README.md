@@ -1,11 +1,6 @@
 # Kidney-Genetics Database
 
-[![DOI](https://zenodo.org/badge/1029597888.svg)](https://doi.org/10.5281/zenodo.19316248)
-[![CI](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/ci.yml/badge.svg)](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/ci.yml)
-[![Security](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/security.yml/badge.svg)](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/security.yml)
-
-**Version**: v0.3.1 (March 2026)
-**Status**: Production
+[![DOI](https://zenodo.org/badge/1029597888.svg)](https://doi.org/10.5281/zenodo.19316248) [![CI](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/ci.yml/badge.svg)](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/ci.yml) [![Security](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/security.yml/badge.svg)](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/security.yml) [![Version](https://img.shields.io/github/v/release/berntpopp/kidney-genetics-db?label=version)](https://github.com/berntpopp/kidney-genetics-db/releases/latest)
 
 A modern platform for curating and exploring kidney disease-related genes with evidence-based scoring. Modernizes the original [kidney-genetics](https://github.com/halbritter-lab/kidney-genetics) R-based pipeline into a scalable web application.
 
