@@ -1,87 +1,116 @@
 # Kidney-Genetics Database
 
 [![DOI](https://zenodo.org/badge/1029597888.svg)](https://doi.org/10.5281/zenodo.19316248)
+[![CI](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/ci.yml/badge.svg)](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/ci.yml)
+[![Security](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/security.yml/badge.svg)](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/security.yml)
 
-**Version**: v0.2.0 (March 2026)
-**Status**: Production-Ready
+**Version**: v0.3.1 (March 2026)
+**Status**: Production
 
-A modern platform for curating kidney disease-related genes with evidence-based scoring. Modernizes the original [kidney-genetics](https://github.com/halbritter-lab/kidney-genetics) R-based pipeline into a scalable web application.
+A modern platform for curating and exploring kidney disease-related genes with evidence-based scoring. Modernizes the original [kidney-genetics](https://github.com/halbritter-lab/kidney-genetics) R-based pipeline into a scalable web application.
 
 ## Overview
 
-Curates kidney disease genes from multiple authoritative sources with evidence scoring, two-stage data ingestion (staging → curated), and comprehensive annotations. Features unified caching, retry logic, and real-time progress tracking.
+Curates 5,080+ kidney disease genes from 17 authoritative sources with evidence scoring, two-stage data ingestion (staging → curated), and comprehensive annotations. Features unified caching, retry logic, real-time progress tracking, and an admin panel with pipeline management.
 
-## Implementation
+## Tech Stack
 
-**Backend**: Python/FastAPI with PostgreSQL (hybrid relational/JSONB), unified logging/caching/retry systems
-**Frontend**: Vue.js + Vuetify with WebSocket progress tracking
-**Data Sources**: HGNC, gnomAD, ClinVar, HPO, GTEx, Descartes, MPO/MGI, STRING PPI, PubTator
-**Architecture**: Non-blocking async/await with ThreadPoolExecutor, L1/L2 caching, exponential backoff retry
+| Layer | Technology |
+|-------|-----------|
+| **Backend** | Python 3.14, FastAPI, SQLAlchemy, PostgreSQL (relational + JSONB) |
+| **Frontend** | Vue 3, TypeScript, Tailwind CSS v4, shadcn-vue (reka-ui), TanStack Table, Pinia |
+| **Pipeline** | 17 annotation sources, bulk + per-gene fetching, async with ThreadPoolExecutor |
+| **Infrastructure** | Docker Compose, Redis (ARQ worker), Alembic migrations, GitHub Actions CI/CD |
+| **Data Sources** | HGNC, gnomAD, ClinVar, HPO, GTEx, Descartes, MPO/MGI, STRING PPI, Ensembl, UniProt, PanelApp, ClinGen, GenCC, PubTator |
 
 ## Quick Start
 
-### Option 1: Hybrid Development (Recommended)
+### Hybrid Development (Recommended)
+
 ```bash
-# Start database in Docker, run API/Frontend locally
+# Start database + Redis in Docker
 make hybrid-up
 
 # Then in separate terminals:
-cd backend && uv run uvicorn app.main:app --reload
-cd frontend && npm run dev
+make backend    # FastAPI API (localhost:8000/docs)
+make frontend   # Vite dev server (localhost:5173)
+make worker     # ARQ background worker (optional, requires Redis)
+
+# Stop everything
+make hybrid-down
 ```
 
-### Option 2: Full Docker Development
+### Full Docker Development
+
 ```bash
-# Start all services in Docker containers
-make dev-up
+make dev-up     # Start all services in Docker
+make dev-down   # Stop everything
 ```
 
-**Access Points:**
-- Frontend: http://localhost:5173 (hybrid) or http://localhost:3000 (docker)
-- API Docs: http://localhost:8000/docs
-- Database: localhost:5432
+### Access Points
+
+- **Frontend**: http://localhost:5173
+- **API / Swagger**: http://localhost:8000/docs
+- **PostgreSQL**: localhost:5432
+- **Redis**: localhost:6379
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.14+ (managed via [UV](https://docs.astral.sh/uv/))
 - Node.js 18+
-- Docker (for PostgreSQL)
+- Docker & Docker Compose
 
 ## Project Structure
 
-- `backend/` - FastAPI application with data pipeline
-- `backend/config/` - YAML configuration files (datasources, keywords, annotations)
-- `frontend/` - Vue.js/Vuetify web interface
-- `.planning/archive/docs/` - Historical documentation and implementation notes
-- `docker-compose.services.yml` - PostgreSQL database setup
+```
+backend/            FastAPI application with data pipeline
+  app/
+    api/endpoints/  REST API endpoints (21 modules)
+    pipeline/       Annotation sources (unified/ and annotations/)
+    core/           Shared utilities (logging, cache, retry, config)
+    models/         SQLAlchemy models (22 tables)
+    services/       Business logic (backup, enrichment, releases, Zenodo)
+    db/             View system with dependency-aware topological sorting
+frontend/           Vue 3 + TypeScript SPA
+  src/
+    views/          Page components
+    components/     Domain-organized + shadcn-vue primitives
+    api/            Axios-based API client modules
+    stores/         Pinia state management
+    composables/    Vue composition functions
+```
 
 ## Development
 
-### Available Commands
 ```bash
-make help           # Show all available commands
-make status         # Show system status and statistics
-make db-reset       # Complete database reset
-make clean-all      # Stop everything and clean data
+make help            # Show all available commands
+make status          # System status + DB stats
+make lint            # Backend: ruff check + fix
+make lint-frontend   # Frontend: ESLint
+make format-check    # Check formatting (backend + frontend)
+make test            # Run all backend tests
+make ci              # Run full CI checks locally
+make security        # All security scans
+make db-reset        # Complete database reset
 ```
 
-### Code Quality
-```bash
-# Backend linting
-cd backend && uv run ruff check . --fix
+See [CLAUDE.md](CLAUDE.md) for comprehensive development guidance and architecture details.
 
-# Frontend linting  
-cd frontend && npm run lint && npm run format
-```
+## Versioning
 
-## Status
+This project uses two independent version streams:
 
-**Current**: Production-ready alpha with core functionality operational
-**Working**: Multi-source gene curation, evidence scoring, admin panel, unified systems
-**In Progress**: Email verification, password reset, comprehensive test coverage
+- **Code**: SemVer (`0.3.1`) — tagged releases with Zenodo software DOI
+- **Data**: CalVer (`YYYY.MM`) — API-driven data releases with Zenodo dataset DOI
 
-See [CLAUDE.md](CLAUDE.md) for development guidance and architecture details.
+## Citation
+
+If you use the Kidney-Genetics Database, please cite:
+
+> Kidney-Genetics Database (v0.3.1). DOI: [10.5281/zenodo.19316248](https://doi.org/10.5281/zenodo.19316248)
+
+See [CITATION.cff](CITATION.cff) for full citation metadata.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file.
+MIT License — see [LICENSE](LICENSE) file.
