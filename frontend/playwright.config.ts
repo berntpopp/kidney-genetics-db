@@ -14,12 +14,14 @@ export default defineConfig({
   projects: [
     {
       name: 'Mobile Chrome',
-      use: { ...devices['iPhone SE'] },
+      use: {
+        ...devices['Pixel 5'],
+      },
     },
     {
       name: 'Mobile Chrome Dark',
       use: {
-        ...devices['iPhone SE'],
+        ...devices['Pixel 5'],
         colorScheme: 'dark',
       },
     },
