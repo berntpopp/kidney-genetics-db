@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Kidney-Genetics Database**: A modern web platform for curating and exploring kidney disease-related genes. Python/FastAPI + Vue.js architecture with PostgreSQL backend.
 
-**Current Status**: Production-ready Alpha (v0.1.0)
-- 571+ genes with comprehensive annotations from 9 sources
+**Current Status**: v0.2.0 (Frontend migrated from JS+Vuetify to TS+Tailwind+shadcn-vue)
+- 5,080+ genes with comprehensive annotations from 17 sources
 - Unified systems for logging, caching, and retry logic (MUST be reused)
 - Admin panel with user management, cache control, and pipeline management
 - Non-blocking architecture: event loop never blocks, all heavy operations use thread pools
@@ -55,6 +55,7 @@ make lint            # Backend: ruff check + fix (100-char line length)
 make lint-frontend   # Frontend: ESLint check
 make format-check    # Check formatting (backend + frontend, no auto-fix)
 cd backend && uv run mypy <file.py> --ignore-missing-imports  # Typecheck modified files
+# Pre-commit: gitleaks secret scanning (.pre-commit-config.yaml)
 ```
 
 ### Testing
@@ -66,11 +67,13 @@ make test-coverage   # Tests with HTML coverage report
 make test-failed     # Re-run only failed tests
 cd backend && uv run pytest tests/test_specific.py -v          # Single test file
 cd backend && uv run pytest tests/test_specific.py::test_name -v  # Single test
+cd frontend && npm run test:run                                   # Frontend tests (Vitest)
 ```
 
 Test markers: `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.e2e`, `@pytest.mark.critical`, `@pytest.mark.slow`
 Tests use the existing PostgreSQL from Docker/hybrid setup with transaction rollback isolation.
 Factory-Boy factories in `tests/factories.py` for test data generation.
+Frontend tests use Vitest + jsdom (13 spec files across `src/api/`, `src/stores/`, `src/composables/`, `src/views/`, `src/components/`).
 
 ### CI (Local Verification - Matches GitHub Actions)
 ```bash
@@ -145,8 +148,8 @@ Database (PostgreSQL)       ← Hybrid relational + JSONB + materialized views
 
 ### Backend Structure (`backend/app/`)
 - **`main.py`** - FastAPI app with lifespan, router registration, middleware
-- **`api/endpoints/`** - 14+ REST endpoint modules (genes, auth, admin, annotations, statistics, network, etc.)
-- **`models/`** - 13 SQLAlchemy models (genes, gene_evidence, gene_curations, gene_staging, users, etc.)
+- **`api/endpoints/`** - 21 REST endpoint modules (genes, auth, admin, annotations, statistics, network, seo, releases, etc.)
+- **`models/`** - 22 SQLAlchemy models (genes, gene_evidence, gene_curations, gene_staging, users, annotations, settings, etc.)
 - **`crud/`** - Database operations (gene, gene_staging, statistics)
 - **`schemas/`** - Pydantic request/response schemas
 - **`core/`** - Shared utilities (logging, cache, retry, config, ARQ, monitoring, etc.)
@@ -156,20 +159,21 @@ Database (PostgreSQL)       ← Hybrid relational + JSONB + materialized views
 - **`middleware/`** - Error handling + logging middleware
 
 ### Frontend Structure (`frontend/src/`)
+**Stack**: Vue 3 + TypeScript + Tailwind CSS v4 + shadcn-vue (reka-ui) + TanStack Table + Pinia + Vitest + vite-ssg (SSG/prerendering)
 - **`views/`** - Page components (Home, Genes, GeneDetail, Dashboard, Admin panels, etc.)
-- **`components/`** - Reusable components organized by domain (admin, auth, evidence, gene, network, visualizations)
+- **`components/`** - Reusable components organized by domain (admin, auth, evidence, gene, network, visualizations) + `ui/` (shadcn-vue primitives)
 - **`stores/`** - Pinia state management (auth, logs)
 - **`services/`** - WebSocket service for real-time updates
-- **`api/`** - API client modules (use these, not raw fetch/axios)
+- **`api/`** - Axios-based API client modules (use these, not raw fetch/axios)
 - **`composables/`** - Reusable Vue composition functions
 - **`router/`** - Vue Router with route guards
-- **`plugins/`** - App plugins (Vuetify removed)
+- **`plugins/`** - App plugins
 
 ### Database Design
 - **Hybrid architecture**: Relational columns for fast queries + JSONB for flexible detailed data
 - **Two-stage ingestion**: gene_staging (raw) → gene_curations (validated)
 - **View system** (`app.db.views`, `app.db.materialized_views`): SQL views with dependency-aware topological sorting for creation/drop ordering. Use `make db-refresh-views` to recreate.
-- **13 tables**, multiple views and materialized views (gene_scores, source_distribution, etc.)
+- **22 tables**, multiple views and materialized views (gene_scores, source_distribution, etc.)
 - **All schema changes** through Alembic migrations (`backend/alembic/versions/`)
 
 ### ARQ Background Worker
@@ -188,8 +192,8 @@ YAML-based configuration with environment variable overrides:
 
 ### Data Pipeline (`backend/app/pipeline/sources/`)
 Annotation sources are split across two directories:
-- **`unified/`** — Original sources extending `BaseAnnotationSource`: `panelapp.py`, `hpo.py`, `clingen.py`, `gencc.py`, `pubtator.py`, `diagnostic_panels.py`
-- **`annotations/`** — Newer annotation sources: `mpo_mgi.py`, `gtex.py`, `ensembl.py`, `hgnc.py`, `uniprot.py`, `gnomad.py`, `clinvar.py`, `string_ppi.py`
+- **`unified/`** — Original sources extending `BaseAnnotationSource`: `panelapp.py`, `hpo.py`, `clingen.py`, `gencc.py`, `pubtator.py`, `diagnostic_panels.py`, `literature.py`
+- **`annotations/`** — Newer annotation sources: `mpo_mgi.py`, `gtex.py`, `ensembl.py`, `hgnc.py`, `uniprot.py`, `gnomad.py`, `clinvar.py`, `string_ppi.py`, `descartes.py`, `hpo.py`
 - Evidence aggregation in `backend/app/pipeline/aggregate.py`
 
 #### External API Gotchas
@@ -258,15 +262,18 @@ class NewSource(BaseAnnotationSource):
 ```
 
 ### Frontend Patterns
-```javascript
-// API: Use existing API service modules in src/api/
-import api from '@/services/api'
+```typescript
+// API: Use existing API client modules in src/api/
+import { genesApi } from '@/api/genes'
 
 // State: Use Pinia stores for shared state
 import { useAuthStore } from '@/stores/auth'
 
 // Real-time: WebSocket service for pipeline progress
 import { useWebSocket } from '@/services/websocket'
+
+// UI components: Use shadcn-vue primitives from src/components/ui/
+import { Button } from '@/components/ui/button'
 ```
 
 ## Security
