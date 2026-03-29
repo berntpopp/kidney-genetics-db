@@ -15,9 +15,11 @@ from typing import Any, cast
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_thread_pool_executor
 from app.core.logging import get_logger
 from app.models.data_release import DataRelease
+from app.services.zenodo_service import ZenodoService
 
 logger = get_logger(__name__)
 
@@ -40,6 +42,20 @@ class ReleaseService:
         self.db: Session = db_session
         self._executor = get_thread_pool_executor()
         self.export_dir = Path("exports")
+
+    def _get_zenodo_service(self) -> ZenodoService | None:
+        """Create ZenodoService if configured, else return None."""
+        token = settings.ZENODO_API_TOKEN
+        if token is None:
+            return None
+        token_value = token.get_secret_value()
+        if not token_value:
+            return None
+        return ZenodoService(
+            api_token=token_value,
+            sandbox=settings.ZENODO_SANDBOX,
+            community=settings.ZENODO_COMMUNITY,
+        )
 
     async def create_release(
         self, version: str, user_id: int, release_notes: str = ""
@@ -134,6 +150,43 @@ class ReleaseService:
             checksum = await loop.run_in_executor(
                 self._executor, self._calculate_checksum, export_path
             )
+
+            # Step 2b: Mint DOI via Zenodo (if configured)
+            zenodo = self._get_zenodo_service()
+            if zenodo:
+                try:
+                    doi_result = await zenodo.mint_doi_for_release(
+                        version=release.version,
+                        export_file_path=export_path,
+                        gene_count=self._count_genes_current(),
+                        release_notes=release.release_notes or "",
+                    )
+                    release.doi = doi_result["doi"]
+                    release.citation_text = ZenodoService.generate_citation_text(
+                        version=release.version,
+                        gene_count=self._count_genes_current(),
+                        doi=doi_result["doi"],
+                        published_at=publish_time.isoformat(),
+                    )
+                    await logger.info(
+                        "DOI minted for release",
+                        version=release.version,
+                        doi=doi_result["doi"],
+                    )
+                except Exception as e:
+                    # DOI minting failure should NOT block release publish
+                    await logger.warning(
+                        "Zenodo DOI minting failed, continuing without DOI",
+                        error=str(e),
+                        version=release.version,
+                    )
+                finally:
+                    await zenodo.close()
+            else:
+                logger.sync_debug(
+                    "Zenodo not configured, skipping DOI minting",
+                    version=release.version,
+                )
 
             # Step 3: Count genes before closing (still at infinity)
             gene_count = self._count_genes_current()
