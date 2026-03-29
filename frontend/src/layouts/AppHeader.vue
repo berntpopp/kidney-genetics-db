@@ -165,7 +165,7 @@ const openLoginFromDrawer = () => {
         </div>
         <div class="mt-3 flex flex-col gap-1">
           <button
-            class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+            class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-accent"
             @click="navigateMobile('/profile')"
           >
             <CircleUser class="size-4" />
@@ -173,14 +173,14 @@ const openLoginFromDrawer = () => {
           </button>
           <button
             v-if="authStore.isAdmin"
-            class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+            class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-accent"
             @click="navigateMobile('/admin')"
           >
             <ShieldEllipsis class="size-4" />
             Admin Panel
           </button>
           <button
-            class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+            class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-accent"
             @click="handleLogout"
           >
             <LogOut class="size-4" />
@@ -210,7 +210,7 @@ const openLoginFromDrawer = () => {
           class="flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent"
           :class="{
             'bg-accent text-accent-foreground font-medium': isActive(link.to),
-            'text-foreground/70': !isActive(link.to)
+            'text-foreground': !isActive(link.to)
           }"
           @click="navigateMobile(link.to)"
         >
@@ -222,7 +222,7 @@ const openLoginFromDrawer = () => {
       <!-- Theme Toggle at Bottom -->
       <div class="mt-auto border-t px-4 py-3">
         <button
-          class="flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-accent w-full"
+          class="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-foreground hover:bg-accent w-full"
           @click="toggleTheme"
         >
           <Sun v-if="isDark" class="size-4" />
