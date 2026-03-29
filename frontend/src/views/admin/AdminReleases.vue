@@ -336,10 +336,23 @@
             <p v-else class="text-sm text-muted-foreground">No release notes provided.</p>
           </div>
 
-          <!-- Citation -->
+          <!-- DOI & Citation -->
           <Separator />
           <div>
             <h4 class="text-sm font-semibold mb-2">Citation</h4>
+            <div v-if="selectedRelease.doi" class="mb-2">
+              <Badge variant="outline" class="text-xs">
+                <ExternalLink class="size-3 mr-1" />
+                <a
+                  :href="`https://doi.org/${selectedRelease.doi}`"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="hover:underline"
+                >
+                  {{ selectedRelease.doi }}
+                </a>
+              </Badge>
+            </div>
             <div class="rounded-md border p-3 relative">
               <code class="text-xs">{{ generateCitation(selectedRelease) }}</code>
               <Button
@@ -420,6 +433,7 @@ import {
   Copy,
   Dna,
   Download,
+  ExternalLink,
   Info,
   Package,
   Pencil,
@@ -736,7 +750,14 @@ const downloadExport = async release => {
 
 const generateCitation = release => {
   const year = new Date(release.published_at).getFullYear()
-  return `Kidney Genetics Database. (${year}). Release ${release.version}. [Data set]. Retrieved from ${window.location.origin}/releases/${release.version}. SHA256: ${release.export_checksum}`
+  if (release.citation_text) {
+    return release.citation_text
+  }
+  const base = `Kidney Genetics Database Consortium. (${year}). Kidney Genetics Database - Version ${release.version}. [Data set].`
+  if (release.doi) {
+    return `${base} https://doi.org/${release.doi}`
+  }
+  return `${base} Retrieved from ${window.location.origin}/releases/${release.version}. SHA256: ${release.export_checksum}`
 }
 
 const copyToClipboard = async text => {
