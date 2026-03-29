@@ -100,32 +100,27 @@
           <div>
             <div class="text-xs text-muted-foreground mb-2">Score Breakdown</div>
             <div class="flex flex-wrap justify-center gap-1">
-              <TooltipProvider
-                v-for="[source, sourceScore] in sortedBreakdownEntries"
-                :key="source"
-              >
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <Badge
-                      class="cursor-help text-[10px]"
-                      :style="{
-                        backgroundColor: getSubScoreHexColor(sourceScore) + '20',
-                        color: getSubScoreHexColor(sourceScore),
-                        borderColor: getSubScoreHexColor(sourceScore) + '40'
-                      }"
-                      variant="outline"
-                    >
-                      {{ sourceAbbreviation(source) }}: {{ (sourceScore * 100).toFixed(0) }}
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p class="font-medium text-xs">{{ source }}</p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ getSourceDescription(source, sourceScore) }}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Popover v-for="[source, sourceScore] in sortedBreakdownEntries" :key="source">
+                <PopoverTrigger as-child>
+                  <Badge
+                    class="cursor-pointer text-[10px]"
+                    :style="{
+                      backgroundColor: getSubScoreHexColor(sourceScore) + '20',
+                      color: getSubScoreHexColor(sourceScore),
+                      borderColor: getSubScoreHexColor(sourceScore) + '40'
+                    }"
+                    variant="outline"
+                  >
+                    {{ sourceAbbreviation(source) }}: {{ (sourceScore * 100).toFixed(0) }}
+                  </Badge>
+                </PopoverTrigger>
+                <PopoverContent class="w-auto p-3" side="top">
+                  <p class="font-medium text-xs text-foreground">{{ source }}</p>
+                  <p class="text-xs text-foreground/70">
+                    {{ getSourceDescription(source, sourceScore) }}
+                  </p>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
@@ -183,6 +178,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
