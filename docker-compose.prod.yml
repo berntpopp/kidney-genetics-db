@@ -41,6 +41,8 @@ services:
       - CHOWN
       - SETGID
       - SETUID
+      - DAC_OVERRIDE  # Needed for data directory permissions
+      - FOWNER        # Needed for PostgreSQL to manage ownership
 
     # SECURITY: Resource limits
     deploy:
