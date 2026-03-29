@@ -1,0 +1,6 @@
+---
+# Hadolint configuration
+# DL3008: Pin versions in apt-get install — impractical for build-essential
+#         in multi-stage builds where the builder stage is discarded.
+ignored:
+  - DL3008
