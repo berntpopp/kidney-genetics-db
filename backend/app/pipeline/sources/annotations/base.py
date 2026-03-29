@@ -181,10 +181,25 @@ class BaseAnnotationSource(ABC):
 
         return self.http_client
 
-    async def apply_rate_limit(self) -> None:
-        """Apply rate limiting between requests."""
-        delay = 1.0 / self.requests_per_second
-        await asyncio.sleep(delay)
+    async def apply_rate_limit(self, url: str | None = None) -> None:
+        """
+        Apply rate limiting between requests.
+
+        Args:
+            url: Optional URL for per-domain rate limiting. If provided,
+                uses the shared DomainRateLimiterRegistry. If not provided,
+                falls back to simple sleep-based delay.
+        """
+        if url:
+            from app.core.domain_rate_limiter import get_domain_rate_limiter_registry
+
+            registry = get_domain_rate_limiter_registry()
+            limiter = registry.get_for_url(url)
+            async with limiter.acquire():
+                return
+        else:
+            delay = 1.0 / self.requests_per_second
+            await asyncio.sleep(delay)
 
     def store_annotation(
         self,
