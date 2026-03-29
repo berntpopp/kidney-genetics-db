@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-import hishel
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -30,9 +29,7 @@ class CachedHttpClient:
     HTTP client with intelligent caching capabilities.
 
     Features:
-    - RFC 9111 compliant HTTP caching via Hishel
-    - Custom cache policies per data source
-    - Database fallback for offline scenarios
+    - Database fallback cache for offline scenarios
     - Automatic retry logic with exponential backoff
     - Circuit breaker pattern for resilience
     """
@@ -54,26 +51,8 @@ class CachedHttpClient:
         self.cache_dir = Path(settings.HTTP_CACHE_DIR)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        # Configure Hishel controller for intelligent caching
-        self.controller = hishel.Controller(
-            cacheable_methods=["GET", "HEAD"],
-            cacheable_status_codes=[200, 301, 302, 304, 404],
-            allow_stale=True,  # Serve stale content during outages
-            always_revalidate=False,  # Only revalidate when necessary
-            allow_heuristics=True,  # Use heuristic caching for responses without cache headers
-        )
-
-        # Configure Hishel storage - use AsyncFileStorage for async client compatibility
-        self.storage = hishel.AsyncFileStorage(
-            base_path=str(self.cache_dir),
-            ttl=settings.HTTP_CACHE_TTL_DEFAULT,
-            check_ttl_every=3600,  # Check for expired entries every hour
-        )
-
-        # Create async HTTP client with caching
-        self.http_client = hishel.AsyncCacheClient(
-            controller=self.controller,
-            storage=self.storage,
+        # Create async HTTP client (plain httpx, no hishel caching layer)
+        self.http_client = httpx.AsyncClient(
             timeout=httpx.Timeout(timeout),
             follow_redirects=True,
         )
