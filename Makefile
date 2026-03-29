@@ -737,6 +737,101 @@ bump-all-patch:
 	@$(MAKE) version
 
 # ════════════════════════════════════════════════════════════════════
+# RELEASE MANAGEMENT
+# ════════════════════════════════════════════════════════════════════
+
+.PHONY: release-patch release-minor release-major release-tag release-verify
+
+# Helper: get current version from pyproject.toml
+define get_version
+$(shell cd backend && uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+endef
+
+# Helper: bump version in all 4 files (pyproject.toml, package.json, config.py, CITATION.cff)
+# Usage: $(call sync_version,NEW_VERSION)
+define sync_version_cmd
+	@echo "📦 Syncing version to $(1) across all files..."
+	@cd backend && uv run python -c "\
+import re; \
+f = open('pyproject.toml', 'r'); content = f.read(); f.close(); \
+old = re.search(r'version = \"([^\"]+)\"', content).group(1); \
+content = content.replace(f'version = \"{old}\"', f'version = \"$(1)\"', 1); \
+f = open('pyproject.toml', 'w'); f.write(content); f.close(); \
+print(f'   pyproject.toml: {old} → $(1)')"
+	@cd frontend && npm version $(1) --no-git-tag-version --allow-same-version > /dev/null && echo "   package.json: → $(1)"
+	@cd backend && sed -i 's/APP_VERSION: str = ".*"/APP_VERSION: str = "$(1)"/' app/core/config.py && echo "   config.py: → $(1)"
+	@sed -i 's/^version: .*/version: $(1)/' CITATION.cff && echo "   CITATION.cff: → $(1)"
+endef
+
+# Verify all 4 version files are in sync
+release-verify: ## Verify all version files are in sync
+	@echo "🔍 Checking version sync..."
+	@BACKEND=$$(cd backend && uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])") && \
+	FRONTEND=$$(cd frontend && node -p "require('./package.json').version") && \
+	CONFIG=$$(grep 'APP_VERSION' backend/app/core/config.py | grep -oP '"[^"]+"' | tr -d '"') && \
+	CFF=$$(grep '^version:' CITATION.cff | awk '{print $$2}') && \
+	echo "   pyproject.toml: $$BACKEND" && \
+	echo "   package.json:   $$FRONTEND" && \
+	echo "   config.py:      $$CONFIG" && \
+	echo "   CITATION.cff:   $$CFF" && \
+	if [ "$$BACKEND" = "$$FRONTEND" ] && [ "$$BACKEND" = "$$CONFIG" ] && [ "$$BACKEND" = "$$CFF" ]; then \
+		echo "" && echo "✅ All versions in sync: $$BACKEND"; \
+	else \
+		echo "" && echo "❌ Version mismatch! Run 'make release-patch' or fix manually." && exit 1; \
+	fi
+
+# Bump patch (0.2.0 → 0.2.1), commit, and tag
+release-patch: ## Bump patch version, commit, tag (then: git push && git push --tags)
+	$(eval CURRENT := $(call get_version))
+	$(eval NEW := $(shell echo $(CURRENT) | awk -F. '{print $$1"."$$2"."$$3+1}'))
+	@echo "🚀 Release: $(CURRENT) → $(NEW)"
+	$(call sync_version_cmd,$(NEW))
+	@echo ""
+	@git add backend/pyproject.toml frontend/package.json frontend/package-lock.json backend/app/core/config.py CITATION.cff
+	@git commit -m "chore: bump version to $(NEW)"
+	@git tag -a "v$(NEW)" -m "Release v$(NEW)"
+	@echo ""
+	@echo "✅ Tagged v$(NEW). Now run:"
+	@echo "   git push && git push --tags"
+
+# Bump minor (0.2.0 → 0.3.0), commit, and tag
+release-minor: ## Bump minor version, commit, tag (then: git push && git push --tags)
+	$(eval CURRENT := $(call get_version))
+	$(eval NEW := $(shell echo $(CURRENT) | awk -F. '{print $$1"."$$2+1".0"}'))
+	@echo "🚀 Release: $(CURRENT) → $(NEW)"
+	$(call sync_version_cmd,$(NEW))
+	@echo ""
+	@git add backend/pyproject.toml frontend/package.json frontend/package-lock.json backend/app/core/config.py CITATION.cff
+	@git commit -m "chore: bump version to $(NEW)"
+	@git tag -a "v$(NEW)" -m "Release v$(NEW)"
+	@echo ""
+	@echo "✅ Tagged v$(NEW). Now run:"
+	@echo "   git push && git push --tags"
+
+# Bump major (0.2.0 → 1.0.0), commit, and tag
+release-major: ## Bump major version, commit, tag (then: git push && git push --tags)
+	$(eval CURRENT := $(call get_version))
+	$(eval NEW := $(shell echo $(CURRENT) | awk -F. '{print $$1+1".0.0"}'))
+	@echo "🚀 Release: $(CURRENT) → $(NEW)"
+	$(call sync_version_cmd,$(NEW))
+	@echo ""
+	@git add backend/pyproject.toml frontend/package.json frontend/package-lock.json backend/app/core/config.py CITATION.cff
+	@git commit -m "chore: bump version to $(NEW)"
+	@git tag -a "v$(NEW)" -m "Release v$(NEW)"
+	@echo ""
+	@echo "✅ Tagged v$(NEW). Now run:"
+	@echo "   git push && git push --tags"
+
+# Tag current version without bumping (for initial release)
+release-tag: ## Tag current version without bumping (then: git push && git push --tags)
+	$(eval CURRENT := $(call get_version))
+	@$(MAKE) release-verify
+	@echo ""
+	@git tag -a "v$(CURRENT)" -m "Release v$(CURRENT)"
+	@echo "✅ Tagged v$(CURRENT). Now run:"
+	@echo "   git push && git push --tags"
+
+# ════════════════════════════════════════════════════════════════════
 # PRODUCTION DEPLOYMENT
 # ════════════════════════════════════════════════════════════════════
 
