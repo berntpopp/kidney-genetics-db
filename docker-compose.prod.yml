@@ -1,7 +1,7 @@
 networks:
   npm_proxy_network:
     external: true
-    name: npm_proxy_network
+    name: ${NPM_SHARED_NETWORK_NAME:-npm_default}
   kidney_genetics_internal_net:
     driver: bridge
     name: kidney_genetics_internal_net
