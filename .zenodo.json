@@ -1,0 +1,30 @@
+{
+  "title": "Kidney-Genetics Database",
+  "description": "<p>A curated database of kidney disease-related genes with comprehensive annotations from multiple sources including PanelApp, ClinGen, GenCC, HPO, ClinVar, gnomAD, GTEx, UniProt, and STRING PPI networks.</p><p>Features CalVer-versioned data releases with temporal database queries for historical data access, SHA256 checksums for integrity verification, and academic citation support.</p>",
+  "upload_type": "dataset",
+  "creators": [
+    {
+      "name": "Popp, Bernt",
+      "orcid": "0000-0002-3679-1081",
+      "affiliation": ""
+    }
+  ],
+  "keywords": [
+    "kidney genetics",
+    "gene curation",
+    "bioinformatics",
+    "nephrology",
+    "genomics",
+    "disease genes",
+    "variant interpretation"
+  ],
+  "license": "MIT",
+  "access_right": "open",
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/bernt-popp/kidney-genetics-db",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}
