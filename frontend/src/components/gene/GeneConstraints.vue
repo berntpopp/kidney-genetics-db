@@ -15,82 +15,70 @@
 
     <div v-else class="flex flex-wrap gap-2">
       <!-- pLI Score -->
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Badge
-              variant="outline"
-              class="cursor-help"
-              :style="{
-                backgroundColor: getPLIColor(gnomadData.pli) + '20',
-                color: getPLIColor(gnomadData.pli),
-                borderColor: getPLIColor(gnomadData.pli) + '40'
-              }"
-            >
-              pLI: {{ formatPLI(gnomadData.pli) }}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent class="max-w-xs">
-            <p class="font-medium text-xs">Loss-of-Function Intolerance</p>
-            <p class="text-xs text-muted-foreground">Probability of LoF intolerance (pLI)</p>
-            <p class="text-xs mt-1">Score: {{ gnomadData.pli?.toFixed(4) || 'N/A' }}</p>
-            <p class="text-xs">{{ getPLIInterpretation(gnomadData.pli) }}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <HoverPopover content-class="w-auto p-2 max-w-xs">
+        <Badge
+          variant="outline"
+          class="cursor-pointer"
+          :style="{
+            backgroundColor: getPLIColor(gnomadData.pli) + '20',
+            color: getPLIColor(gnomadData.pli),
+            borderColor: getPLIColor(gnomadData.pli) + '40'
+          }"
+        >
+          pLI: {{ formatPLI(gnomadData.pli) }}
+        </Badge>
+        <template #content>
+          <p class="font-medium text-xs">Loss-of-Function Intolerance</p>
+          <p class="text-xs text-muted-foreground">Probability of LoF intolerance (pLI)</p>
+          <p class="text-xs mt-1">Score: {{ gnomadData.pli?.toFixed(4) || 'N/A' }}</p>
+          <p class="text-xs">{{ getPLIInterpretation(gnomadData.pli) }}</p>
+        </template>
+      </HoverPopover>
 
       <!-- Missense Z-score -->
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Badge
-              variant="outline"
-              class="cursor-help"
-              :style="{
-                backgroundColor: getZScoreColor(gnomadData.mis_z) + '20',
-                color: getZScoreColor(gnomadData.mis_z),
-                borderColor: getZScoreColor(gnomadData.mis_z) + '40'
-              }"
-            >
-              Mis Z: {{ formatZScore(gnomadData.mis_z) }}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent class="max-w-xs">
-            <p class="font-medium text-xs">Missense Constraint</p>
-            <p class="text-xs text-muted-foreground">Z-score for missense variants</p>
-            <p class="text-xs mt-1">Score: {{ gnomadData.mis_z?.toFixed(2) || 'N/A' }}</p>
-            <p class="text-xs">{{ getZScoreInterpretation(gnomadData.mis_z) }}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <HoverPopover content-class="w-auto p-2 max-w-xs">
+        <Badge
+          variant="outline"
+          class="cursor-pointer"
+          :style="{
+            backgroundColor: getZScoreColor(gnomadData.mis_z) + '20',
+            color: getZScoreColor(gnomadData.mis_z),
+            borderColor: getZScoreColor(gnomadData.mis_z) + '40'
+          }"
+        >
+          Mis Z: {{ formatZScore(gnomadData.mis_z) }}
+        </Badge>
+        <template #content>
+          <p class="font-medium text-xs">Missense Constraint</p>
+          <p class="text-xs text-muted-foreground">Z-score for missense variants</p>
+          <p class="text-xs mt-1">Score: {{ gnomadData.mis_z?.toFixed(2) || 'N/A' }}</p>
+          <p class="text-xs">{{ getZScoreInterpretation(gnomadData.mis_z) }}</p>
+        </template>
+      </HoverPopover>
 
       <!-- LoF Z-score -->
-      <TooltipProvider v-if="gnomadData.lof_z">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Badge
-              variant="outline"
-              class="cursor-help"
-              :style="{ color: '#6b7280', borderColor: '#6b728040' }"
-            >
-              LoF Z: {{ formatZScore(gnomadData.lof_z) }}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent class="max-w-xs">
-            <p class="font-medium text-xs">LoF Constraint</p>
-            <p class="text-xs text-muted-foreground">Z-score for loss-of-function variants</p>
-            <p class="text-xs mt-1">Score: {{ gnomadData.lof_z?.toFixed(2) || 'N/A' }}</p>
-            <p class="text-xs">{{ getZScoreInterpretation(gnomadData.lof_z) }}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <HoverPopover v-if="gnomadData.lof_z" content-class="w-auto p-2 max-w-xs">
+        <Badge
+          variant="outline"
+          class="cursor-pointer"
+          :style="{ color: '#6b7280', borderColor: '#6b728040' }"
+        >
+          LoF Z: {{ formatZScore(gnomadData.lof_z) }}
+        </Badge>
+        <template #content>
+          <p class="font-medium text-xs">LoF Constraint</p>
+          <p class="text-xs text-muted-foreground">Z-score for loss-of-function variants</p>
+          <p class="text-xs mt-1">Score: {{ gnomadData.lof_z?.toFixed(2) || 'N/A' }}</p>
+          <p class="text-xs">{{ getZScoreInterpretation(gnomadData.lof_z) }}</p>
+        </template>
+      </HoverPopover>
     </div>
   </div>
 </template>
 
 <script setup>
 import { Badge } from '@/components/ui/badge'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import HoverPopover from '@/components/ui/HoverPopover.vue'
 import { Info } from 'lucide-vue-next'
 
 defineProps({

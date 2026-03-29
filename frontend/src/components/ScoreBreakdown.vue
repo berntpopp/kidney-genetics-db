@@ -2,43 +2,40 @@
   <div>
     <!-- Compact inline display for tables -->
     <div v-if="variant === 'inline'" class="inline-flex items-center">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Badge
-              :class="[chipSizeClasses, 'cursor-help font-medium tabular-nums']"
-              :style="{
-                backgroundColor: scoreHexColor + '20',
-                color: scoreHexColor,
-                borderColor: scoreHexColor + '40'
-              }"
-              variant="outline"
+      <HoverPopover content-class="max-w-xs p-3">
+        <Badge
+          :class="[chipSizeClasses, 'cursor-pointer font-medium tabular-nums']"
+          :style="{
+            backgroundColor: scoreHexColor + '20',
+            color: scoreHexColor,
+            borderColor: scoreHexColor + '40'
+          }"
+          variant="outline"
+        >
+          <component :is="scoreIcon" :size="12" class="mr-1" />
+          {{ formattedScore }}
+        </Badge>
+        <template #content>
+          <p class="text-xs text-foreground">
+            {{ getScoreExplanation(score, Object.keys(breakdown || {}).length) }}
+          </p>
+          <div v-if="sortedBreakdownEntries.length" class="mt-2 space-y-1">
+            <div
+              v-for="[source, sourceScore] in topSourceEntries"
+              :key="source"
+              class="flex justify-between text-xs"
             >
-              <component :is="scoreIcon" :size="12" class="mr-1" />
-              {{ formattedScore }}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent class="max-w-xs">
-            <p class="text-xs">
-              {{ getScoreExplanation(score, Object.keys(breakdown || {}).length) }}
-            </p>
-            <!-- Source breakdown in tooltip -->
-            <div v-if="sortedBreakdownEntries.length" class="mt-2 space-y-1">
-              <div
-                v-for="[source, sourceScore] in topSourceEntries"
-                :key="source"
-                class="flex justify-between text-xs"
+              <span class="text-foreground">{{ sourceAbbreviation(source) }}</span>
+              <span class="font-mono ml-3 text-foreground"
+                >{{ (sourceScore * 100).toFixed(1) }}%</span
               >
-                <span>{{ sourceAbbreviation(source) }}</span>
-                <span class="font-mono ml-3">{{ (sourceScore * 100).toFixed(1) }}%</span>
-              </div>
-              <p v-if="remainingSourceCount > 0" class="text-xs text-muted-foreground">
-                +{{ remainingSourceCount }} more
-              </p>
             </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+            <p v-if="remainingSourceCount > 0" class="text-xs text-foreground/60">
+              +{{ remainingSourceCount }} more
+            </p>
+          </div>
+        </template>
+      </HoverPopover>
     </div>
 
     <!-- Detailed card display for gene detail pages -->
@@ -100,27 +97,29 @@
           <div>
             <div class="text-xs text-muted-foreground mb-2">Score Breakdown</div>
             <div class="flex flex-wrap justify-center gap-1">
-              <Popover v-for="[source, sourceScore] in sortedBreakdownEntries" :key="source">
-                <PopoverTrigger as-child>
-                  <Badge
-                    class="cursor-pointer text-[10px]"
-                    :style="{
-                      backgroundColor: getSubScoreHexColor(sourceScore) + '20',
-                      color: getSubScoreHexColor(sourceScore),
-                      borderColor: getSubScoreHexColor(sourceScore) + '40'
-                    }"
-                    variant="outline"
-                  >
-                    {{ sourceAbbreviation(source) }}: {{ (sourceScore * 100).toFixed(0) }}
-                  </Badge>
-                </PopoverTrigger>
-                <PopoverContent class="w-auto p-3" side="top">
+              <HoverPopover
+                v-for="[source, sourceScore] in sortedBreakdownEntries"
+                :key="source"
+                content-class="w-auto p-3"
+              >
+                <Badge
+                  class="cursor-pointer text-[10px]"
+                  :style="{
+                    backgroundColor: getSubScoreHexColor(sourceScore) + '20',
+                    color: getSubScoreHexColor(sourceScore),
+                    borderColor: getSubScoreHexColor(sourceScore) + '40'
+                  }"
+                  variant="outline"
+                >
+                  {{ sourceAbbreviation(source) }}: {{ (sourceScore * 100).toFixed(0) }}
+                </Badge>
+                <template #content>
                   <p class="font-medium text-xs text-foreground">{{ source }}</p>
                   <p class="text-xs text-foreground/70">
                     {{ getSourceDescription(source, sourceScore) }}
                   </p>
-                </PopoverContent>
-              </Popover>
+                </template>
+              </HoverPopover>
             </div>
           </div>
         </div>
@@ -146,26 +145,24 @@
           {{ formattedScore }}
         </Badge>
         <div class="flex gap-1">
-          <TooltipProvider v-for="[source, sourceScore] in topSourceEntries" :key="source">
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Badge
-                  class="cursor-help text-[10px]"
-                  :style="{
-                    backgroundColor: getSubScoreHexColor(sourceScore) + '20',
-                    color: getSubScoreHexColor(sourceScore),
-                    borderColor: getSubScoreHexColor(sourceScore) + '40'
-                  }"
-                  variant="outline"
-                >
-                  {{ sourceAbbreviation(source) }}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>
-                <span>{{ source }}: {{ (sourceScore * 100).toFixed(1) }}%</span>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <HoverPopover v-for="[source, sourceScore] in topSourceEntries" :key="source">
+            <Badge
+              class="cursor-pointer text-[10px]"
+              :style="{
+                backgroundColor: getSubScoreHexColor(sourceScore) + '20',
+                color: getSubScoreHexColor(sourceScore),
+                borderColor: getSubScoreHexColor(sourceScore) + '40'
+              }"
+              variant="outline"
+            >
+              {{ sourceAbbreviation(source) }}
+            </Badge>
+            <template #content>
+              <span class="text-xs text-foreground"
+                >{{ source }}: {{ (sourceScore * 100).toFixed(1) }}%</span
+              >
+            </template>
+          </HoverPopover>
           <Badge v-if="remainingSourceCount > 0" variant="outline" class="text-[10px]">
             +{{ remainingSourceCount }}
           </Badge>
@@ -177,8 +174,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import HoverPopover from '@/components/ui/HoverPopover.vue'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'

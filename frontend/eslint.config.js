@@ -111,6 +111,7 @@ export default [
         confirm: 'readonly',
         CustomEvent: 'readonly',
         KeyboardEvent: 'readonly',
+        PointerEvent: 'readonly',
         __APP_VERSION__: 'readonly'
       }
     },

@@ -18,103 +18,96 @@
 
     <div v-else class="flex items-center flex-wrap gap-2">
       <!-- Phenotype count -->
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Badge
-              variant="outline"
-              class="cursor-help"
-              :style="{
-                color: getPhenotypeCountColor(mouseData.phenotype_count),
-                borderColor: getPhenotypeCountColor(mouseData.phenotype_count) + '40'
-              }"
+      <HoverPopover content-class="w-auto p-2 max-w-xs">
+        <Badge
+          variant="outline"
+          class="cursor-pointer"
+          :style="{
+            color: getPhenotypeCountColor(mouseData.phenotype_count),
+            borderColor: getPhenotypeCountColor(mouseData.phenotype_count) + '40'
+          }"
+        >
+          {{ mouseData.phenotype_count }} phenotypes
+        </Badge>
+        <template #content>
+          <p class="font-medium text-xs">Kidney-Related Phenotypes</p>
+          <p class="text-xs text-muted-foreground mb-2">
+            {{ mouseData.phenotype_count }} phenotypes found in mouse models
+          </p>
+          <div v-if="mouseData.phenotypes?.length" class="text-xs">
+            <p class="font-medium mb-1">Sample phenotypes:</p>
+            <div
+              v-for="phenotype in mouseData.phenotypes.slice(0, 5)"
+              :key="phenotype.term"
+              class="mb-1"
             >
-              {{ mouseData.phenotype_count }} phenotypes
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent class="max-w-xs">
-            <p class="font-medium text-xs">Kidney-Related Phenotypes</p>
-            <p class="text-xs text-muted-foreground mb-2">
-              {{ mouseData.phenotype_count }} phenotypes found in mouse models
-            </p>
-            <div v-if="mouseData.phenotypes?.length" class="text-xs">
-              <p class="font-medium mb-1">Sample phenotypes:</p>
-              <div
-                v-for="phenotype in mouseData.phenotypes.slice(0, 5)"
-                :key="phenotype.term"
-                class="mb-1"
-              >
-                <span class="font-mono">{{ phenotype.term }}</span
-                >: {{ phenotype.name }}
-              </div>
-              <p v-if="mouseData.phenotype_count > 5" class="text-muted-foreground">
-                +{{ mouseData.phenotype_count - 5 }} more phenotypes
-              </p>
+              <span class="font-mono">{{ phenotype.term }}</span
+              >: {{ phenotype.name }}
             </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+            <p v-if="mouseData.phenotype_count > 5" class="text-muted-foreground">
+              +{{ mouseData.phenotype_count - 5 }} more phenotypes
+            </p>
+          </div>
+        </template>
+      </HoverPopover>
 
       <!-- Zygosity breakdown -->
-      <TooltipProvider v-if="mouseData.zygosity_analysis?.homozygous?.phenotype_count > 0">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Badge
-              variant="outline"
-              class="cursor-help"
-              :style="{ color: '#ef4444', borderColor: '#ef444440' }"
-            >
-              {{ mouseData.zygosity_analysis.homozygous.phenotype_count }} hm
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p class="font-medium text-xs">Homozygous Knockout</p>
-            <p class="text-xs text-muted-foreground">
-              {{ mouseData.zygosity_analysis.homozygous.phenotype_count }} kidney phenotypes
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <HoverPopover
+        v-if="mouseData.zygosity_analysis?.homozygous?.phenotype_count > 0"
+        content-class="w-auto p-2"
+      >
+        <Badge
+          variant="outline"
+          class="cursor-pointer"
+          :style="{ color: '#ef4444', borderColor: '#ef444440' }"
+        >
+          {{ mouseData.zygosity_analysis.homozygous.phenotype_count }} hm
+        </Badge>
+        <template #content>
+          <p class="font-medium text-xs">Homozygous Knockout</p>
+          <p class="text-xs text-muted-foreground">
+            {{ mouseData.zygosity_analysis.homozygous.phenotype_count }} kidney phenotypes
+          </p>
+        </template>
+      </HoverPopover>
 
-      <TooltipProvider v-if="mouseData.zygosity_analysis?.heterozygous?.phenotype_count > 0">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Badge
-              variant="outline"
-              class="cursor-help"
-              :style="{ color: '#f59e0b', borderColor: '#f59e0b40' }"
-            >
-              {{ mouseData.zygosity_analysis.heterozygous.phenotype_count }} ht
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p class="font-medium text-xs">Heterozygous Knockout</p>
-            <p class="text-xs text-muted-foreground">
-              {{ mouseData.zygosity_analysis.heterozygous.phenotype_count }} kidney phenotypes
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <HoverPopover
+        v-if="mouseData.zygosity_analysis?.heterozygous?.phenotype_count > 0"
+        content-class="w-auto p-2"
+      >
+        <Badge
+          variant="outline"
+          class="cursor-pointer"
+          :style="{ color: '#f59e0b', borderColor: '#f59e0b40' }"
+        >
+          {{ mouseData.zygosity_analysis.heterozygous.phenotype_count }} ht
+        </Badge>
+        <template #content>
+          <p class="font-medium text-xs">Heterozygous Knockout</p>
+          <p class="text-xs text-muted-foreground">
+            {{ mouseData.zygosity_analysis.heterozygous.phenotype_count }} kidney phenotypes
+          </p>
+        </template>
+      </HoverPopover>
 
-      <TooltipProvider v-if="mouseData.zygosity_analysis?.conditional?.phenotype_count > 0">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Badge
-              variant="outline"
-              class="cursor-help"
-              :style="{ color: '#3b82f6', borderColor: '#3b82f640' }"
-            >
-              {{ mouseData.zygosity_analysis.conditional.phenotype_count }} cn
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p class="font-medium text-xs">Conditional Knockout</p>
-            <p class="text-xs text-muted-foreground">
-              {{ mouseData.zygosity_analysis.conditional.phenotype_count }} kidney phenotypes
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <HoverPopover
+        v-if="mouseData.zygosity_analysis?.conditional?.phenotype_count > 0"
+        content-class="w-auto p-2"
+      >
+        <Badge
+          variant="outline"
+          class="cursor-pointer"
+          :style="{ color: '#3b82f6', borderColor: '#3b82f640' }"
+        >
+          {{ mouseData.zygosity_analysis.conditional.phenotype_count }} cn
+        </Badge>
+        <template #content>
+          <p class="font-medium text-xs">Conditional Knockout</p>
+          <p class="text-xs text-muted-foreground">
+            {{ mouseData.zygosity_analysis.conditional.phenotype_count }} kidney phenotypes
+          </p>
+        </template>
+      </HoverPopover>
     </div>
 
     <!-- System analysis -->
@@ -131,7 +124,7 @@
 
 <script setup>
 import { Badge } from '@/components/ui/badge'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import HoverPopover from '@/components/ui/HoverPopover.vue'
 import { Info } from 'lucide-vue-next'
 
 defineProps({
