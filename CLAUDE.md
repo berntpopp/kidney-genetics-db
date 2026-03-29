@@ -126,7 +126,32 @@ make clean-all                 # Stop everything and clean all data
 - **Backend**: UV (not pip/poetry) - `uv sync --group dev`, `uv run <command>`
 - **Frontend**: npm - `npm install`, `npm run <script>`
 
-## Commit Requirements
+## Commit & Release Requirements
+
+### Commit Messages: Conventional Commits (REQUIRED)
+All commits MUST follow the [Conventional Commits](https://www.conventionalcommits.org/) spec:
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+| Type | When | Version Impact |
+|------|------|----------------|
+| `feat:` | New feature | Minor bump |
+| `fix:` | Bug fix | Patch bump |
+| `docs:` | Documentation only | None |
+| `style:` | Formatting, no logic change | None |
+| `refactor:` | Code change, no new feature/fix | None |
+| `test:` | Adding/updating tests | None |
+| `chore:` | Build, deps, tooling | None |
+| `ci:` | CI/CD workflow changes | None |
+| `perf:` | Performance improvement | Patch bump |
+| `feat!:` or `BREAKING CHANGE:` footer | Breaking change | Major bump |
+
+Optional scopes: `(backend)`, `(frontend)`, `(pipeline)`, `(deps)`, etc.
 
 **ALL code must pass lint, typecheck, and tests BEFORE committing.**
 - Backend: `make lint` + `uv run mypy <files> --ignore-missing-imports`
@@ -134,6 +159,42 @@ make clean-all                 # Stop everything and clean all data
 - Tests: `make test`
 - Fix ALL warnings, even in files you didn't create
 - No exceptions: do not commit code with lint errors, type errors, or failing tests
+
+### Versioning: Dual Version Scheme
+This project uses **two independent version streams**:
+
+| Stream | Scheme | Where | Tag Format | DOI Type |
+|--------|--------|-------|------------|----------|
+| **Code** | SemVer (`0.2.0`) | `pyproject.toml`, `package.json`, `config.py`, `CITATION.cff` | `v0.2.0` | `software` (Zenodo webhook) |
+| **Data** | CalVer (`YYYY.MM`) | `data_releases` table, admin UI | None (API-driven) | `dataset` (ZenodoService API) |
+
+**Code version** lives in 4 files that MUST stay in sync:
+- `backend/pyproject.toml` — `[project].version`
+- `frontend/package.json` — `version`
+- `backend/app/core/config.py` — `APP_VERSION`
+- `CITATION.cff` — `version`
+
+Never bump one without the others. Use `make release-patch` or `make release-tag`.
+
+### Release Flow
+**Code releases** (new features, bug fixes):
+```bash
+make release-patch            # Bumps version in all 4 files, commits, tags
+git push && git push --tags   # Triggers: cd.yml + release.yml + Zenodo webhook
+```
+
+**Data releases** (new gene annotations): Published via Admin UI → ReleaseService → ZenodoService mints dataset DOI automatically (if `ZENODO_API_TOKEN` configured).
+
+### CI/CD Pipeline (7 workflows)
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `ci.yml` | Push/PR to main | Lint, test, build |
+| `cd.yml` | `v*` tag push | Docker build, scan, deploy |
+| `release.yml` | `v*` tag push | Create GitHub Release + changelog |
+| `security.yml` | Push/PR + weekly | pip-audit, bandit, npm audit |
+| `trivy-security-scan.yml` | Push/PR + daily | Container + config scanning |
+| `gitleaks.yml` | Push/PR to main | Secret scanning |
+| `lighthouse.yml` | PR with frontend changes | Performance audit |
 
 ## Architecture
 
