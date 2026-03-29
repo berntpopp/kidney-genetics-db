@@ -1,20 +1,22 @@
 <template>
   <Card class="evidence-composition-container w-full">
-    <CardHeader class="flex flex-row items-center space-y-0 pb-2">
-      <Circle class="size-5 mr-2" />
-      <CardTitle class="text-base">Evidence Composition</CardTitle>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <CircleHelp class="size-4 ml-2 text-muted-foreground cursor-help" />
-          </TooltipTrigger>
-          <TooltipContent side="bottom" class="max-w-xs">
-            <span>{{ getViewDescription() }}</span>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <div class="flex-1" />
-      <div class="inline-flex rounded-md border mr-2">
+    <CardHeader class="flex flex-col sm:flex-row sm:items-center gap-2 pb-2">
+      <div class="flex items-center">
+        <Circle class="size-5 mr-2 shrink-0" />
+        <CardTitle class="text-base">Evidence Composition</CardTitle>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <CircleHelp class="size-4 ml-2 text-muted-foreground cursor-help shrink-0" />
+            </TooltipTrigger>
+            <TooltipContent side="bottom" class="max-w-xs">
+              <span>{{ getViewDescription() }}</span>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+      <div class="sm:flex-1" />
+      <div class="inline-flex rounded-md border">
         <Button
           :variant="activeView === 'tiers' ? 'default' : 'ghost'"
           size="sm"

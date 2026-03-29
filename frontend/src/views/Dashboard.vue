@@ -56,10 +56,10 @@
         >
           Clear
         </Button>
-        <div class="ml-auto flex items-center gap-2">
+        <div class="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
           <Label
             for="show-insufficient-global"
-            class="text-sm text-muted-foreground cursor-pointer"
+            class="text-sm text-muted-foreground cursor-pointer whitespace-nowrap"
           >
             Include zero-score genes
           </Label>
@@ -68,18 +68,18 @@
       </div>
       <Tabs v-model="activeTab" class="w-full">
         <CardHeader class="pb-0">
-          <TabsList class="w-full overflow-x-auto justify-start">
-            <TabsTrigger value="overlaps" class="whitespace-nowrap">
-              <ChartScatter :size="16" class="mr-2" />
-              <span class="hidden sm:inline">Gene Source </span>Overlaps
+          <TabsList class="w-full grid grid-cols-3">
+            <TabsTrigger value="overlaps">
+              <ChartScatter :size="16" class="mr-1 sm:mr-2 shrink-0" />
+              <span class="truncate">Overlaps</span>
             </TabsTrigger>
-            <TabsTrigger value="distributions" class="whitespace-nowrap">
-              <ChartBar :size="16" class="mr-2" />
-              <span class="hidden sm:inline">Source </span>Distributions
+            <TabsTrigger value="distributions">
+              <ChartBar :size="16" class="mr-1 sm:mr-2 shrink-0" />
+              <span class="truncate">Distributions</span>
             </TabsTrigger>
-            <TabsTrigger value="composition" class="whitespace-nowrap">
-              <Circle :size="16" class="mr-2" />
-              <span class="hidden sm:inline">Evidence </span>Composition
+            <TabsTrigger value="composition">
+              <Circle :size="16" class="mr-1 sm:mr-2 shrink-0" />
+              <span class="truncate">Composition</span>
             </TabsTrigger>
           </TabsList>
         </CardHeader>
