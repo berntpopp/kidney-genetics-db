@@ -193,6 +193,15 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresAdmin: true, title: 'Hybrid Sources', noindex: true }
   },
   {
+    path: '/faq',
+    name: 'faq',
+    component: () => import('../views/FAQ.vue'),
+    meta: {
+      title: 'FAQ',
+      description: 'Frequently asked questions about the Kidney Genetics Database.'
+    }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('../views/NotFound.vue'),
