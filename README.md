@@ -1,7 +1,9 @@
 # Kidney-Genetics Database
 
-**Version**: Alpha v0.1.0 (October 2025)
-**Status**: 🟢 Production-Ready
+[![DOI](https://zenodo.org/badge/1029597888.svg)](https://doi.org/10.5281/zenodo.19316248)
+
+**Version**: v0.2.0 (March 2026)
+**Status**: Production-Ready
 
 A modern platform for curating kidney disease-related genes with evidence-based scoring. Modernizes the original [kidney-genetics](https://github.com/halbritter-lab/kidney-genetics) R-based pipeline into a scalable web application.
 

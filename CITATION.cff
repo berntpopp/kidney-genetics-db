@@ -7,10 +7,18 @@ abstract: >-
   annotations from multiple sources including PanelApp, ClinGen, GenCC,
   HPO, ClinVar, gnomAD, GTEx, UniProt, and STRING PPI networks.
 version: 0.2.0
+doi: "10.5281/zenodo.19316248"
 date-released: "2026-03-29"
 url: "https://kidney-genetics.org"
 repository-code: "https://github.com/bernt-popp/kidney-genetics-db"
 license: MIT
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.19316248"
+    description: "Zenodo archive - all versions (always resolves to latest)"
+  - type: doi
+    value: "10.5281/zenodo.19316249"
+    description: "Zenodo archive - version 0.2.0"
 keywords:
   - kidney genetics
   - gene curation
