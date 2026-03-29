@@ -124,7 +124,7 @@ jobs:
       - name: Run Trivy on PostgreSQL base image
         uses: aquasecurity/trivy-action@v0.35.0
         with:
-          image-ref: 'postgres:17-alpine@sha256:ff4ccc02b97e0ebb6b328ef9ff92522f95586f83be6801896b615088defc8ad2'
+          image-ref: 'postgres:17-alpine@sha256:6f30057d31f5861b66f3545d4821f987aacf1dd920765f0acadea0c58ff975b1'
           format: 'table'
           exit-code: '0'
           ignore-unfixed: true
@@ -135,7 +135,7 @@ jobs:
       - name: Run Trivy on PostgreSQL base image (SARIF)
         uses: aquasecurity/trivy-action@v0.35.0
         with:
-          image-ref: 'postgres:17-alpine@sha256:ff4ccc02b97e0ebb6b328ef9ff92522f95586f83be6801896b615088defc8ad2'
+          image-ref: 'postgres:17-alpine@sha256:6f30057d31f5861b66f3545d4821f987aacf1dd920765f0acadea0c58ff975b1'
           format: 'sarif'
           output: 'trivy-results-postgres.sarif'
           exit-code: '0'
