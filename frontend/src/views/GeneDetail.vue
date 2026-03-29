@@ -92,22 +92,22 @@
 
         <!-- Overview Cards -->
         <div class="grid grid-cols-12 gap-6 mb-6 items-stretch">
+          <!-- Evidence Score Visualization with Breakdown (shown first on mobile) -->
+          <div class="col-span-12 md:col-span-4 flex order-first md:order-last">
+            <ScoreBreakdown
+              :score="gene.evidence_score"
+              :breakdown="gene.score_breakdown"
+              variant="card"
+              class="flex-1"
+            />
+          </div>
+
           <!-- Gene Information Card -->
           <div class="col-span-12 md:col-span-8 flex">
             <GeneInformationCard
               :gene="gene"
               :annotations="annotations"
               :loading-annotations="loadingAnnotations"
-              class="flex-1"
-            />
-          </div>
-
-          <!-- Evidence Score Visualization with Breakdown -->
-          <div class="col-span-12 md:col-span-4 flex">
-            <ScoreBreakdown
-              :score="gene.evidence_score"
-              :breakdown="gene.score_breakdown"
-              variant="card"
               class="flex-1"
             />
           </div>
