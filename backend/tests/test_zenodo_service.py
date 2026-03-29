@@ -103,9 +103,7 @@ class TestZenodoService:
                 creators=[{"name": "Test"}],
                 keywords=["test"],
             )
-        assert captured_payload["metadata"]["communities"] == [
-            {"identifier": "kidney-genetics"}
-        ]
+        assert captured_payload["metadata"]["communities"] == [{"identifier": "kidney-genetics"}]
 
     @pytest.mark.unit
     @pytest.mark.asyncio

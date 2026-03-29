@@ -54,7 +54,5 @@ class TestSourceCompletion:
         orch._completed_sources = {"PanelApp", "ClinGen"}
         orch._failed_sources = {"GenCC"}
 
-        all_done = (
-            orch._completed_sources | orch._failed_sources
-        ) >= set(orch.EVIDENCE_SOURCES)
+        all_done = (orch._completed_sources | orch._failed_sources) >= set(orch.EVIDENCE_SOURCES)
         assert all_done is True
