@@ -312,11 +312,7 @@ async def seed_annotation_sources(db: Session) -> int:
         created = 0
 
         for source_name, source_cls in pipeline.sources.items():
-            existing = (
-                db.query(AnnotationSource)
-                .filter_by(source_name=source_name)
-                .first()
-            )
+            existing = db.query(AnnotationSource).filter_by(source_name=source_name).first()
             if not existing:
                 source_record = AnnotationSource(
                     source_name=source_name,
