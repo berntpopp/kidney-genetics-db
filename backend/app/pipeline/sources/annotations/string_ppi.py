@@ -9,6 +9,7 @@ import math
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pandas as pd
 from sqlalchemy.orm import Session
 
@@ -45,6 +46,15 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
     protein_info_file = "9606.protein.info.v12.0.txt"
     physical_links_file = "9606.protein.physical.links.v12.0.txt"
 
+    # Download URLs for auto-download when files are missing
+    protein_info_url: str = (
+        "https://stringdb-downloads.org/download/protein.info.v12.0/9606.protein.info.v12.0.txt.gz"
+    )
+    physical_links_url: str = (
+        "https://stringdb-downloads.org/download/"
+        "protein.physical.links.v12.0/9606.protein.physical.links.v12.0.txt.gz"
+    )
+
     # Class-level flag for one-time warnings
     _percentile_warning_shown = False
 
@@ -59,10 +69,57 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         self._kidney_genes: set[str] | None = None
         self._gene_evidence_scores: dict[str, float] | None = None
 
+    async def _download_string_file(self, url: str, dest_path: Path) -> None:
+        """Download a STRING data file if it doesn't exist locally."""
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        if dest_path.exists():
+            logger.sync_debug("STRING file already exists", path=str(dest_path))
+            return
+
+        logger.sync_info("Downloading STRING data file", url=url, dest=str(dest_path))
+        tmp_path = dest_path.with_suffix(dest_path.suffix + ".tmp")
+        timeout = httpx.Timeout(connect=30.0, read=600.0, write=30.0, pool=30.0)
+        try:
+            async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+                async with client.stream("GET", url) as response:
+                    response.raise_for_status()
+                    with open(tmp_path, "wb") as f:
+                        async for chunk in response.aiter_bytes(chunk_size=65536):
+                            f.write(chunk)
+            tmp_path.replace(dest_path)
+        except Exception:
+            if tmp_path.exists():
+                tmp_path.unlink()
+            raise
+        logger.sync_info(
+            "STRING file downloaded",
+            path=str(dest_path),
+            size_bytes=dest_path.stat().st_size,
+        )
+
+    async def ensure_data_files(self) -> None:
+        """Download STRING data files if they are missing."""
+        protein_gz = self.data_dir / (self.protein_info_file + ".gz")
+        links_gz = self.data_dir / (self.physical_links_file + ".gz")
+
+        protein_exists = (self.data_dir / self.protein_info_file).exists() or protein_gz.exists()
+        links_exists = (self.data_dir / self.physical_links_file).exists() or links_gz.exists()
+
+        if protein_exists and links_exists:
+            return
+
+        logger.sync_info("STRING data files missing, downloading...")
+        if not protein_exists:
+            await self._download_string_file(self.protein_info_url, protein_gz)
+        if not links_exists:
+            await self._download_string_file(self.physical_links_url, links_gz)
+
     async def _load_data(self) -> None:
         """Load and prepare STRING data files."""
         if self._protein_to_gene is not None:
             return  # Already loaded
+
+        await self.ensure_data_files()
 
         logger.sync_info("Loading STRING data files", version=self.version)
 
