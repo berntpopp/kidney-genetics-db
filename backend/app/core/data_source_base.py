@@ -385,6 +385,7 @@ class DataSourceClient(ABC):
             except Exception as e:
                 # Handle race condition: another task may have created the gene
                 if "unique constraint" in str(e).lower() or "duplicate key" in str(e).lower():
+                    db.rollback()
                     logger.sync_debug(
                         "Gene constraint violation, retrying fetch",
                         approved_symbol=approved_symbol,
@@ -412,11 +413,14 @@ class DataSourceClient(ABC):
                         )
                         return None
                 else:
+                    db.rollback()
                     logger.sync_error(
                         "Error creating gene",
                         approved_symbol=approved_symbol,
+                        original_symbol=original_symbol,
                         hgnc_id=hgnc_id,
                         error=str(e),
+                        error_type=type(e).__name__,
                     )
                     return None
         else:
