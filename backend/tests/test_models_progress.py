@@ -16,4 +16,6 @@ class TestDataSourceProgressModel:
 
     def test_progress_metadata_maps_to_metadata_column(self):
         col = DataSourceProgress.__table__.columns["metadata"]
-        assert col.name == "metadata", "Python attr progress_metadata should map to DB column 'metadata'"
+        assert col.name == "metadata", (
+            "Python attr progress_metadata should map to DB column 'metadata'"
+        )

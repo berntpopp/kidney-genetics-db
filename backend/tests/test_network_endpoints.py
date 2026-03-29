@@ -253,7 +253,9 @@ class TestBuildNetworkEndpoint:
                 "query",
                 return_value=MagicMock(
                     filter=MagicMock(
-                        return_value=MagicMock(all=MagicMock(return_value=[mock_gene_1, mock_gene_2, mock_gene_3]))
+                        return_value=MagicMock(
+                            all=MagicMock(return_value=[mock_gene_1, mock_gene_2, mock_gene_3])
+                        )
                     )
                 ),
             ),
@@ -328,9 +330,7 @@ class TestClusterNetworkEndpoint:
                 db_session,
                 "query",
                 return_value=MagicMock(
-                    filter=MagicMock(
-                        return_value=MagicMock(all=MagicMock(return_value=mock_genes))
-                    )
+                    filter=MagicMock(return_value=MagicMock(all=MagicMock(return_value=mock_genes)))
                 ),
             ),
         ):

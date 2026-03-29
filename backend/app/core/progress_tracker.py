@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.events import EventTypes, event_bus
@@ -182,10 +183,11 @@ class ProgressTracker:
         # Preserve running status if already set
         if self.progress_record.status != SourceStatus.running:
             logger.sync_warning(
-                "Update called but status is not running!",
+                "Update called but status is not running, forcing to running",
                 source_name=self.source_name,
                 current_status=str(self.progress_record.status),
             )
+            self.progress_record.status = SourceStatus.running
 
         # Update counters
         if current_item is not None:
@@ -333,6 +335,12 @@ class ProgressTracker:
                 if hasattr(self.progress_record, "id")
                 else None,
             )
+
+            # Ensure session is usable before merge
+            try:
+                self.db.execute(text("SELECT 1"))
+            except Exception:
+                self.db.rollback()
 
             # Ensure the progress record is attached to the session.
             # merge() handles both cases: returns the existing persistent

@@ -34,4 +34,6 @@ class TestSecurityHeaders:
 
         client = TestClient(app)
         response = client.get("/api/version")
-        assert response.headers.get("Permissions-Policy") == "camera=(), microphone=(), geolocation=()"
+        assert (
+            response.headers.get("Permissions-Policy") == "camera=(), microphone=(), geolocation=()"
+        )

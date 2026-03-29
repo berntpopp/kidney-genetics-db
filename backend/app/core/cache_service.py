@@ -279,12 +279,17 @@ class CacheService:
                         return data
                 return data
 
-            # Handle other types by converting to string first
+            # Handle bytes
+            if isinstance(serialized, bytes | memoryview):
+                return json.loads(bytes(serialized))
+
+            # Handle other types — return as-is rather than risking json.loads failure
             logger.sync_warning(
-                "Unexpected type for cache value, converting to string",
+                "Unexpected type for cache value, returning as-is",
                 value_type=str(type(serialized)),
+                serialized_preview=str(serialized)[:100],
             )
-            return json.loads(str(serialized))
+            return serialized
 
         except (TypeError, ValueError) as e:
             logger.sync_error(
