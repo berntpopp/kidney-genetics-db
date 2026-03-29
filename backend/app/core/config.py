@@ -100,6 +100,11 @@ class Settings(BaseSettings):
     # API Keys (optional)
     OPENAI_API_KEY: SecretStr | None = None
 
+    # Zenodo DOI Integration
+    ZENODO_API_TOKEN: SecretStr | None = None  # Personal access token from zenodo.org
+    ZENODO_SANDBOX: bool = True  # True = sandbox.zenodo.org, False = zenodo.org
+    ZENODO_COMMUNITY: str | None = None  # Optional community identifier
+
     # Backup Configuration
     BACKUP_DIR: str = "backups"  # Directory for backup files
     BACKUP_RETENTION_DAYS: int = 7  # How long to keep backups
