@@ -87,7 +87,7 @@ async def update_gene_annotations(
     for source_name in sources:
         source_class = SOURCE_CLASSES.get(source_name)
         if source_class:
-            background_tasks.add_task(_update_single_source, gene, source_name, source_class)
+            background_tasks.add_task(_update_single_source, gene.id, source_name, source_class)
 
     return {
         "status": "update_scheduled",
@@ -97,20 +97,28 @@ async def update_gene_annotations(
     }
 
 
-async def _update_single_source(gene: Gene, source_name: str, source_class: type) -> None:
+async def _update_single_source(gene_id: int, source_name: str, source_class: type) -> None:
     """Update a single annotation source for a gene."""
     from app.core.cache_service import get_cache_service
     from app.core.database import SessionLocal
 
     db = SessionLocal()
     try:
+        gene = db.query(Gene).filter(Gene.id == gene_id).first()
+        if not gene:
+            await logger.warning(
+                f"Gene not found for {source_name} update",
+                gene_id=gene_id,
+            )
+            return
+
         source_instance = source_class(db)
         success = await source_instance.update_gene(gene)
 
         if success:
             # Invalidate cache for this gene
             cache_service = get_cache_service(db)
-            await cache_service.delete(f"{gene.id}:*", namespace="annotations")
+            await cache_service.delete(f"{gene_id}:*", namespace="annotations")
 
             await logger.info(
                 f"{source_name} annotation updated for gene",
@@ -125,7 +133,7 @@ async def _update_single_source(gene: Gene, source_name: str, source_class: type
         db.rollback()
         await logger.error(
             f"Error updating {source_name} annotation: {str(e)}",
-            gene_symbol=gene.approved_symbol,
+            gene_id=gene_id,
         )
     finally:
         db.close()
