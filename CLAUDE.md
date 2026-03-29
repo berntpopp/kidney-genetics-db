@@ -189,7 +189,7 @@ git push && git push --tags   # Triggers: cd.yml + release.yml + Zenodo webhook
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `ci.yml` | Push/PR to main | Lint, test, build |
-| `cd.yml` | `v*` tag push | Docker build, scan, deploy |
+| `cd.yml` | `v*` tag push | Docker build, scan, publish to GHCR |
 | `release.yml` | `v*` tag push | Create GitHub Release + changelog |
 | `security.yml` | Push/PR + weekly | pip-audit, bandit, npm audit |
 | `trivy-security-scan.yml` | Push/PR + daily | Container + config scanning |
