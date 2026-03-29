@@ -123,6 +123,9 @@ services:
       dockerfile: Dockerfile
     image: kidney_genetics_backend:latest
     container_name: kidney_genetics_backend
+    # Persistent storage for HTTP cache and bulk data downloads.
+    # Must be owned by uid=1000 (kidney-api). Fix if needed:
+    #   docker run --rm -v backend_cache:/d alpine chown -R 1000:1000 /d
     volumes:
       - backend_cache:/app/.cache
       - backend_data:/app/data
