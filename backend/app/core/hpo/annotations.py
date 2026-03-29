@@ -93,7 +93,7 @@ class HPOAnnotations(HPOAPIBase):
         return []
 
     async def batch_get_annotations(
-        self, hpo_ids: list[str], batch_size: int = 10, delay: float = 0.1
+        self, hpo_ids: list[str], batch_size: int = 3, delay: float = 1.0
     ) -> dict[str, TermAnnotations]:
         """
         Efficiently fetch annotations for multiple HPO terms.

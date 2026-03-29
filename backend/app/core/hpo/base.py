@@ -70,10 +70,10 @@ class HPOAPIBase:
         if self.http_client:
             # Configure retry with exponential backoff for rate limiting
             retry_config = RetryConfig(
-                max_retries=5,
-                initial_delay=1.0,
-                max_delay=32.0,
-                exponential_base=2.0,
+                max_retries=3,
+                initial_delay=5.0,
+                max_delay=120.0,
+                exponential_base=3.0,
                 jitter=True,
                 retry_on_status_codes=(429, 500, 502, 503, 504),
             )
@@ -89,6 +89,10 @@ class HPOAPIBase:
                     cache_key=cache_key,
                     fallback_ttl=ttl or self.ttl_annotations,
                 )
+
+                # Raise for retryable status codes so retry_with_backoff can handle them
+                if hasattr(response, "status_code"):
+                    response.raise_for_status()
 
                 # Handle both Response objects and dict responses
                 if hasattr(response, "json"):
