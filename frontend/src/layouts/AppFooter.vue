@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { RouterLink } from 'vue-router'
 import { getAllVersions, getFrontendVersion } from '@/utils/version'
 import { useLogStore } from '@/stores/logStore'
 import { Button } from '@/components/ui/button'
@@ -209,7 +210,19 @@ function acknowledgeDisclaimer() {
             <TooltipContent side="top"><p>License</p></TooltipContent>
           </Tooltip>
 
-          <!-- FAQ / Issues -->
+          <!-- FAQ -->
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="ghost" size="icon" class="size-6" as-child>
+                <RouterLink to="/faq" aria-label="FAQ">
+                  <HelpCircle class="size-3.5" />
+                </RouterLink>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p>FAQ</p></TooltipContent>
+          </Tooltip>
+
+          <!-- Issues -->
           <Tooltip>
             <TooltipTrigger as-child>
               <Button variant="ghost" size="icon" class="size-6" as-child>
@@ -217,13 +230,13 @@ function acknowledgeDisclaimer() {
                   :href="`${GITHUB_URL}/issues`"
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="FAQ and Issues"
+                  aria-label="Issues"
                 >
-                  <HelpCircle class="size-3.5" />
+                  <CircleAlert class="size-3.5" />
                 </a>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top"><p>FAQ &amp; Issues</p></TooltipContent>
+            <TooltipContent side="top"><p>Issues</p></TooltipContent>
           </Tooltip>
 
           <Separator orientation="vertical" class="h-4 mx-0.5" />
