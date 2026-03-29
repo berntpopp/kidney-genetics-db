@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     ADMIN_USERNAME: str = "admin"
     ADMIN_EMAIL: str = "admin@kidney-genetics.local"
     ADMIN_PASSWORD: SecretStr
+    ADMIN_FORCE_PASSWORD_RESET: bool = False  # Set True to update admin password on next restart
 
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = [

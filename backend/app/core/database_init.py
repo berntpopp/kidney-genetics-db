@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 from app.db.safe_sql import safe_identifier
 from app.models.cache import CacheEntry
 from app.models.user import User
@@ -246,14 +246,32 @@ async def create_default_admin(db: Session) -> bool:
             )
             return True
         else:
-            # Ensure admin has correct role and is active
+            # Admin exists — check if password reset is requested
+            updated = False
+
+            if settings.ADMIN_FORCE_PASSWORD_RESET:
+                new_password = settings.ADMIN_PASSWORD.get_secret_value()
+                if not verify_password(new_password, admin.hashed_password):
+                    admin.hashed_password = get_password_hash(new_password)
+                    updated = True
+                    await logger.warning(
+                        "Admin password updated via ADMIN_FORCE_PASSWORD_RESET. "
+                        "Set ADMIN_FORCE_PASSWORD_RESET=False after confirming login.",
+                        username=admin.username,
+                    )
+
+            # Ensure admin flags are correct
             if admin.role != "admin" or not admin.is_active:
                 admin.role = "admin"
                 admin.is_active = True
                 admin.is_verified = True
                 admin.is_admin = True
-                db.commit()
+                updated = True
                 await logger.info("Updated existing admin user settings")
+
+            if updated:
+                db.commit()
+
             return False
 
     except Exception as e:
