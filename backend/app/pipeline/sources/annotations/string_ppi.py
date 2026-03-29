@@ -5,6 +5,7 @@ Implements PPI scoring using STRING database physical interactions,
 weighted by partner kidney evidence scores and normalized to avoid hub bias.
 """
 
+import asyncio
 import math
 from pathlib import Path
 from typing import Any
@@ -79,23 +80,47 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         logger.sync_info("Downloading STRING data file", url=url, dest=str(dest_path))
         tmp_path = dest_path.with_suffix(dest_path.suffix + ".tmp")
         timeout = httpx.Timeout(connect=30.0, read=600.0, write=30.0, pool=30.0)
-        try:
-            async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-                async with client.stream("GET", url) as response:
-                    response.raise_for_status()
-                    with open(tmp_path, "wb") as f:
-                        async for chunk in response.aiter_bytes(chunk_size=65536):
-                            f.write(chunk)
-            tmp_path.replace(dest_path)
-        except Exception:
-            if tmp_path.exists():
-                tmp_path.unlink()
-            raise
-        logger.sync_info(
-            "STRING file downloaded",
-            path=str(dest_path),
-            size_bytes=dest_path.stat().st_size,
-        )
+        max_retries = 3
+        last_error: Exception | None = None
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+                    async with client.stream("GET", url) as response:
+                        response.raise_for_status()
+                        with open(tmp_path, "wb") as f:
+                            async for chunk in response.aiter_bytes(chunk_size=65536):
+                                f.write(chunk)
+                tmp_path.replace(dest_path)
+                logger.sync_info(
+                    "STRING file downloaded",
+                    path=str(dest_path),
+                    size_bytes=dest_path.stat().st_size,
+                )
+                return
+            except (httpx.TransportError, httpx.HTTPStatusError, OSError) as exc:
+                last_error = exc
+                if tmp_path.exists():
+                    tmp_path.unlink()
+                if attempt < max_retries:
+                    wait = 2**attempt
+                    logger.sync_warning(
+                        "STRING download failed, retrying",
+                        url=url,
+                        attempt=attempt,
+                        wait_seconds=wait,
+                        error=str(exc),
+                    )
+                    await asyncio.sleep(wait)
+                else:
+                    logger.sync_error(
+                        "STRING download failed after all retries",
+                        url=url,
+                        attempts=max_retries,
+                        error=str(exc),
+                    )
+
+        raise last_error  # type: ignore[misc]
 
     async def ensure_data_files(self) -> None:
         """Download STRING data files if they are missing."""

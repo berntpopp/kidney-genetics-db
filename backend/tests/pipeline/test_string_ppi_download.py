@@ -4,6 +4,7 @@ import gzip
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from app.pipeline.sources.annotations.string_ppi import StringPPIAnnotationSource
@@ -142,6 +143,31 @@ class TestDownloadStringFile:
         assert dest.parent.exists()
         assert dest.exists()
         assert dest.read_bytes() == b"chunk1chunk2"
+
+    @pytest.mark.asyncio
+    async def test_download_cleans_up_tmp_on_failure(self, source, tmp_path):
+        """Failed download must not leave partial files."""
+        dest = tmp_path / "file.txt.gz"
+        tmp_file = dest.with_suffix(".gz.tmp")
+
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = MagicMock(
+            side_effect=httpx.HTTPStatusError("fail", request=MagicMock(), response=MagicMock())
+        )
+
+        mock_client = AsyncMock()
+        mock_client.stream = MagicMock(return_value=_async_context_manager(mock_response))
+
+        with patch("app.pipeline.sources.annotations.string_ppi.httpx") as mock_httpx:
+            mock_httpx.AsyncClient = MagicMock(return_value=_async_context_manager(mock_client))
+            mock_httpx.Timeout = httpx.Timeout
+            mock_httpx.TransportError = httpx.TransportError
+            mock_httpx.HTTPStatusError = httpx.HTTPStatusError
+            with pytest.raises(httpx.HTTPStatusError):
+                await source._download_string_file("https://example.com/file.gz", dest)
+
+        assert not dest.exists()
+        assert not tmp_file.exists()
 
 
 @pytest.mark.unit

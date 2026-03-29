@@ -58,7 +58,11 @@ RUN rm -rf /opt/venv/lib/python3*/site-packages/pip* \
 # Copy application code
 COPY --chown=kidney-api:kidney-api . .
 
-# Create writable directories for caching and bulk data downloads
+# Create writable directories for caching and bulk data downloads.
+# In production, these are overridden by named Docker volumes (backend_cache
+# and backend_data) defined in docker-compose.prod.yml to persist bulk
+# downloads (~600 MB) and HTTP cache across container recreations.
+# Volumes must be owned by uid=1000 (kidney-api).
 RUN mkdir -p /app/.cache /app/data && chown kidney-api:kidney-api /app/.cache /app/data
 
 # Switch to non-root user
