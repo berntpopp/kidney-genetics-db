@@ -93,7 +93,9 @@ function acknowledgeDisclaimer() {
 </script>
 
 <template>
-  <footer class="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur-sm">
+  <footer
+    class="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]"
+  >
     <div class="container mx-auto flex items-center justify-between px-4 h-8">
       <!-- Left: Version + Online status -->
       <div class="flex items-center gap-1.5">
@@ -126,33 +128,36 @@ function acknowledgeDisclaimer() {
             </PopoverContent>
           </Popover>
 
-          <!-- Online indicator -->
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <div class="flex items-center">
-                <Wifi v-if="isOnline" class="size-3 text-green-500" />
-                <WifiOff v-else class="size-3 text-destructive" />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p>{{ isOnline ? 'Online' : 'Offline — some features unavailable' }}</p>
-            </TooltipContent>
-          </Tooltip>
+          <!-- Online + Backend indicators (hidden on mobile) -->
+          <div class="hidden md:flex items-center gap-1.5">
+            <!-- Online indicator -->
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <div class="flex items-center">
+                  <Wifi v-if="isOnline" class="size-3 text-green-500" />
+                  <WifiOff v-else class="size-3 text-destructive" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>{{ isOnline ? 'Online' : 'Offline — some features unavailable' }}</p>
+              </TooltipContent>
+            </Tooltip>
 
-          <!-- Backend status -->
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <div class="flex items-center">
-                <Server
-                  class="size-3"
-                  :class="backendReachable ? 'text-green-500' : 'text-destructive'"
-                />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p>Backend: {{ backendReachable ? `v${backendVersion}` : 'unreachable' }}</p>
-            </TooltipContent>
-          </Tooltip>
+            <!-- Backend status -->
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <div class="flex items-center">
+                  <Server
+                    class="size-3"
+                    :class="backendReachable ? 'text-green-500' : 'text-destructive'"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Backend: {{ backendReachable ? `v${backendVersion}` : 'unreachable' }}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </TooltipProvider>
       </div>
 
@@ -176,40 +181,6 @@ function acknowledgeDisclaimer() {
             <TooltipContent side="top"><p>GitHub Repository</p></TooltipContent>
           </Tooltip>
 
-          <!-- Docs -->
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon" class="size-6" as-child>
-                <a
-                  :href="`${GITHUB_URL}#readme`"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Documentation"
-                >
-                  <BookOpen class="size-3.5" />
-                </a>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top"><p>Documentation</p></TooltipContent>
-          </Tooltip>
-
-          <!-- License -->
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon" class="size-6" as-child>
-                <a
-                  :href="`${GITHUB_URL}/blob/main/LICENSE`"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="License"
-                >
-                  <Scale class="size-3.5" />
-                </a>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top"><p>License</p></TooltipContent>
-          </Tooltip>
-
           <!-- FAQ -->
           <Tooltip>
             <TooltipTrigger as-child>
@@ -222,69 +193,108 @@ function acknowledgeDisclaimer() {
             <TooltipContent side="top"><p>FAQ</p></TooltipContent>
           </Tooltip>
 
-          <!-- Issues -->
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon" class="size-6" as-child>
-                <a
-                  :href="`${GITHUB_URL}/issues`"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Issues"
+          <!-- Desktop-only: Docs, License, Issues, Disclaimer, Log Viewer -->
+          <div class="hidden md:flex items-center gap-0.5">
+            <!-- Docs -->
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button variant="ghost" size="icon" class="size-6" as-child>
+                  <a
+                    :href="`${GITHUB_URL}#readme`"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Documentation"
+                  >
+                    <BookOpen class="size-3.5" />
+                  </a>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top"><p>Documentation</p></TooltipContent>
+            </Tooltip>
+
+            <!-- License -->
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button variant="ghost" size="icon" class="size-6" as-child>
+                  <a
+                    :href="`${GITHUB_URL}/blob/main/LICENSE`"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="License"
+                  >
+                    <Scale class="size-3.5" />
+                  </a>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top"><p>License</p></TooltipContent>
+            </Tooltip>
+
+            <!-- Issues -->
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button variant="ghost" size="icon" class="size-6" as-child>
+                  <a
+                    :href="`${GITHUB_URL}/issues`"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Issues"
+                  >
+                    <CircleAlert class="size-3.5" />
+                  </a>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top"><p>Issues</p></TooltipContent>
+            </Tooltip>
+
+            <Separator orientation="vertical" class="h-4 mx-0.5" />
+
+            <!-- Disclaimer -->
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="size-6"
+                  :class="disclaimerAcknowledged ? 'text-green-600' : 'text-amber-500'"
+                  :aria-label="
+                    disclaimerAcknowledged ? 'Disclaimer acknowledged' : 'View disclaimer'
+                  "
+                  @click="disclaimerOpen = true"
                 >
-                  <CircleAlert class="size-3.5" />
-                </a>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top"><p>Issues</p></TooltipContent>
-          </Tooltip>
+                  <ShieldCheck v-if="disclaimerAcknowledged" class="size-3.5" />
+                  <ShieldAlert v-else class="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>{{ disclaimerAcknowledged ? 'Disclaimer acknowledged' : 'View disclaimer' }}</p>
+              </TooltipContent>
+            </Tooltip>
 
-          <Separator orientation="vertical" class="h-4 mx-0.5" />
-
-          <!-- Disclaimer -->
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="size-6"
-                :class="disclaimerAcknowledged ? 'text-green-600' : 'text-amber-500'"
-                :aria-label="disclaimerAcknowledged ? 'Disclaimer acknowledged' : 'View disclaimer'"
-                @click="disclaimerOpen = true"
-              >
-                <ShieldCheck v-if="disclaimerAcknowledged" class="size-3.5" />
-                <ShieldAlert v-else class="size-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p>{{ disclaimerAcknowledged ? 'Disclaimer acknowledged' : 'View disclaimer' }}</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <!-- Log Viewer -->
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="size-6 relative"
-                aria-label="Log Viewer"
-                @click="logStore.showViewer"
-              >
-                <Terminal class="size-3.5" />
-                <span
-                  v-if="errorCount > 0"
-                  class="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-destructive"
-                />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p>
-                Log Viewer
-                <kbd class="ml-1 text-[10px] opacity-60">Ctrl+Shift+L</kbd>
-              </p>
-            </TooltipContent>
-          </Tooltip>
+            <!-- Log Viewer -->
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="size-6 relative"
+                  aria-label="Log Viewer"
+                  @click="logStore.showViewer"
+                >
+                  <Terminal class="size-3.5" />
+                  <span
+                    v-if="errorCount > 0"
+                    class="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-destructive"
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>
+                  Log Viewer
+                  <kbd class="ml-1 text-[10px] opacity-60">Ctrl+Shift+L</kbd>
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </TooltipProvider>
       </div>
     </div>
