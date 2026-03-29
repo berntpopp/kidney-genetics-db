@@ -46,9 +46,7 @@ class ZenodoService:
         self._token = api_token
         self.sandbox = sandbox
         self.community = community
-        self.base_url = (
-            "https://sandbox.zenodo.org/api" if sandbox else "https://zenodo.org/api"
-        )
+        self.base_url = "https://sandbox.zenodo.org/api" if sandbox else "https://zenodo.org/api"
         self._client = RetryableHTTPClient(
             client=httpx.AsyncClient(timeout=120.0),
             retry_config=ZENODO_RETRY_CONFIG,
@@ -122,8 +120,7 @@ class ZenodoService:
         if response.status_code != 201:
             body = response.json() if response.content else {}
             raise ValueError(
-                f"Zenodo API error {response.status_code}: "
-                f"{body.get('message', 'Unknown error')}"
+                f"Zenodo API error {response.status_code}: {body.get('message', 'Unknown error')}"
             )
 
         data = response.json()
@@ -174,10 +171,7 @@ class ZenodoService:
         response = await self._put_file(upload_url, file_path)
 
         if response.status_code not in (200, 201):
-            raise ValueError(
-                f"Zenodo upload error {response.status_code}: "
-                f"{response.text[:200]}"
-            )
+            raise ValueError(f"Zenodo upload error {response.status_code}: {response.text[:200]}")
 
         data: dict[str, Any] = response.json()
         logger.sync_info("File uploaded to Zenodo", filename=data.get("key"))
