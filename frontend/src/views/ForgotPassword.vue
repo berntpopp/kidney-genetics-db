@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { z } from 'zod'
+import { z } from 'zod/v3'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import { useAuthStore } from '@/stores/auth'

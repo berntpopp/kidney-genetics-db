@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@radix-icons/vue": "^1.0.0",
-    "@tailwindcss/vite": "^4.2.1",
+    "@tailwindcss/vite": "^4.2.2",
     "@tanstack/vue-table": "^8.21.3",
     "@unhead/vue": "^2.1.10",
     "@upsetjs/bundle": "^1.11.0",
@@ -36,32 +36,36 @@
     "lucide-vue-next": "^0.577.0",
     "lz-string": "^1.5.0",
     "pinia": "^3.0.4",
-    "reka-ui": "^2.9.0",
+    "reka-ui": "^2.9.2",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
     "vee-validate": "^4.15.1",
     "vite-ssg": "^28.3.0",
     "vue": "^3.5.28",
-    "vue-router": "^5.0.3",
+    "vue-router": "^5.0.4",
     "vue-sonner": "^2.0.9",
-    "zod": "^3.25.76"
+    "zod": "^4.3.6"
   },
   "overrides": {
-    "undici": "^7.24.1"
+    "undici": "^7.24.1",
+    "beasties": "^0.4.1",
+    "@vee-validate/zod": {
+      "zod": "$zod"
+    }
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@pinia/testing": "^1.0.3",
     "@tsconfig/node22": "^22.0.5",
     "@types/d3": "^7.4.3",
-    "@types/node": "^25.3.3",
-    "@typescript-eslint/parser": "^8.56.1",
-    "@vitejs/plugin-vue": "^6.0.4",
+    "@types/node": "^25.5.0",
+    "@typescript-eslint/parser": "^8.57.2",
+    "@vitejs/plugin-vue": "^6.0.5",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.9.0",
-    "beasties": "^0.3.5",
-    "eslint": "^10.0.2",
+    "beasties": "^0.4.1",
+    "eslint": "^10.1.0",
     "eslint-plugin-vue": "^10.7.0",
     "jsdom": "^28.1.0",
     "playwright": "^1.58.2",
@@ -69,8 +73,8 @@
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.1.2",
-    "vite-plugin-compression2": "^2.5.2",
-    "vitest": "^4.0.18",
-    "vue-tsc": "^3.2.5"
+    "vite-plugin-compression2": "^2.5.3",
+    "vitest": "^4.1.2",
+    "vue-tsc": "^3.2.6"
   }
 }
