@@ -411,18 +411,31 @@ const renderUpSetPlot = () => {
   // Get container dimensions
   const containerWidth = upsetContainer.value.clientWidth
 
-  // Don't render if container is too small
+  // Show simplified table view on narrow screens instead of blocking
   if (containerWidth < 280) {
+    const topIntersections = data.value.intersections
+      .slice()
+      .sort((a, b) => (b.size || 0) - (a.size || 0))
+      .slice(0, 10)
+    const rows = topIntersections
+      .map(
+        i =>
+          `<tr><td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;">${(i.sets || []).join(' ∩ ')}</td><td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right;font-weight:600;font-size:12px;">${i.size || 0}</td></tr>`
+      )
+      .join('')
     upsetContainer.value.innerHTML = `
-      <div style="text-align: center; padding: 40px;">
-        <p>Screen too narrow</p>
-        <p>Please rotate to landscape or use a larger screen</p>
+      <div style="padding:12px 0;">
+        <p style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--foreground);">Top Source Overlaps</p>
+        <p style="font-size:11px;color:var(--muted-foreground);margin-bottom:12px;">Rotate device for full UpSet plot</p>
+        <table style="width:100%;border-collapse:collapse;color:var(--foreground);">
+          <thead><tr>
+            <th style="padding:6px 8px;text-align:left;font-size:11px;font-weight:500;color:var(--muted-foreground);border-bottom:2px solid var(--border);">Sources</th>
+            <th style="padding:6px 8px;text-align:right;font-size:11px;font-weight:500;color:var(--muted-foreground);border-bottom:2px solid var(--border);">Genes</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
       </div>
     `
-    window.logService.warn('Container too small for UpSet plot', {
-      containerWidth,
-      minimumWidth: 400
-    })
     return
   }
 
