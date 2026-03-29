@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use the Kidney-Genetics Database, please cite it as below."
+type: dataset
+title: "Kidney-Genetics Database"
+abstract: >-
+  A curated database of kidney disease-related genes with comprehensive
+  annotations from multiple sources including PanelApp, ClinGen, GenCC,
+  HPO, ClinVar, gnomAD, GTEx, UniProt, and STRING PPI networks.
+version: 0.2.0
+date-released: "2026-03-29"
+url: "https://kidney-genetics.org"
+repository-code: "https://github.com/bernt-popp/kidney-genetics-db"
+license: MIT
+keywords:
+  - kidney genetics
+  - gene curation
+  - bioinformatics database
+  - nephrology
+  - genomics
+authors:
+  - family-names: Popp
+    given-names: Bernt
+    orcid: "https://orcid.org/0000-0002-3679-1081"
