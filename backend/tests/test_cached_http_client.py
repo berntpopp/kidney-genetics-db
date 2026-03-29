@@ -1,7 +1,8 @@
 """Tests for CachedHttpClient redirect and resilience behavior."""
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from app.core.cached_http_client import CachedHttpClient
 
