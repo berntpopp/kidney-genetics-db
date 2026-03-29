@@ -201,6 +201,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { statisticsApi } from '@/api/statistics'
 import { extractCombinations, renderUpSet } from '@upsetjs/bundle'
+import { useAppTheme } from '@/composables/useAppTheme'
 
 // Props
 const props = defineProps({
@@ -213,6 +214,8 @@ const props = defineProps({
     default: false
   }
 })
+
+const { isDark } = useAppTheme()
 
 // Reactive data
 const loading = ref(false)
@@ -389,6 +392,16 @@ watch(
   }
 )
 
+// Watch for theme changes and re-render
+watch(
+  () => isDark.value,
+  () => {
+    if (data.value && upsetContainer.value) {
+      nextTick(renderUpSetPlot)
+    }
+  }
+)
+
 // Render UpSet plot using @upsetjs/bundle
 const renderUpSetPlot = () => {
   window.logService.info('renderUpSetPlot called', {
@@ -474,6 +487,7 @@ const renderUpSetPlot = () => {
         combinations,
         width: containerWidth,
         height: calculatedHeight,
+        theme: isDark.value ? 'dark' : 'light',
         selection: selectedIntersection.value,
         onClick: set => {
           // Toggle selection
