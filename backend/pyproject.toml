@@ -7,7 +7,7 @@ packages = ["app"]
 
 [project]
 name = "kidney-genetics-db"
-version = "0.3.1"
+version = "0.3.2"
 description = "Modern web platform for curating and exploring kidney disease-related genes"
 authors = [
     {name = "Kidney Genetics Team", email = "team@kidney-genetics.org"}
