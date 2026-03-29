@@ -59,15 +59,15 @@
             </Button>
 
             <!-- Full buttons on sm+, hidden on mobile -->
-            <Button variant="outline" size="sm" class="hidden sm:inline-flex">
+            <Button variant="outline" size="sm" class="hidden sm:inline-flex" @click="saveGene">
               <Download :size="16" />
               Save
             </Button>
-            <Button variant="outline" size="sm" class="hidden sm:inline-flex">
+            <Button variant="outline" size="sm" class="hidden sm:inline-flex" @click="shareGene">
               <Share2 :size="16" />
               Share
             </Button>
-            <Button variant="outline" size="sm" class="hidden sm:inline-flex">
+            <Button variant="outline" size="sm" class="hidden sm:inline-flex" @click="exportGene">
               <Upload :size="16" />
               Export
             </Button>
@@ -80,15 +80,15 @@
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <!-- Show Save/Share/Export in dropdown on mobile -->
-                <DropdownMenuItem class="sm:hidden">
+                <DropdownMenuItem class="sm:hidden" @click="saveGene">
                   <Download :size="16" class="mr-2" />
                   Save
                 </DropdownMenuItem>
-                <DropdownMenuItem class="sm:hidden">
+                <DropdownMenuItem class="sm:hidden" @click="shareGene">
                   <Share2 :size="16" class="mr-2" />
                   Share
                 </DropdownMenuItem>
-                <DropdownMenuItem class="sm:hidden">
+                <DropdownMenuItem class="sm:hidden" @click="exportGene">
                   <Upload :size="16" class="mr-2" />
                   Export
                 </DropdownMenuItem>
@@ -438,7 +438,46 @@ const viewInHGNC = () => {
 const editGene = () => {
   // TODO: Implement gene editing functionality
   window.logService.info('Edit gene:', gene.value?.approved_symbol)
-  // Could navigate to an edit page or open a modal
+}
+
+const saveGene = () => {
+  if (!gene.value) return
+  const data = JSON.stringify(gene.value, null, 2)
+  const blob = new Blob([data], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${gene.value.approved_symbol}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+const shareGene = async () => {
+  const url = window.location.href
+  if (navigator.share) {
+    await navigator.share({ title: gene.value?.approved_symbol, url })
+  } else {
+    await navigator.clipboard.writeText(url)
+  }
+}
+
+const exportGene = () => {
+  if (!gene.value) return
+  const headers = ['Symbol', 'HGNC ID', 'Evidence Score', 'Evidence Tier']
+  const row = [
+    gene.value.approved_symbol,
+    gene.value.hgnc_id || '',
+    gene.value.evidence_score ?? '',
+    gene.value.evidence_tier || ''
+  ]
+  const csv = [headers.join(','), row.join(',')].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${gene.value.approved_symbol}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 // Lifecycle
