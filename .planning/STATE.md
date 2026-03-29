@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: Frontend Migration + UI/Pipeline Improvements
 status: complete
-last_updated: "2026-03-15T17:14:00.000Z"
+last_updated: "2026-03-29T14:00:00.000Z"
 progress:
   total_phases: 9
   completed_phases: 9
@@ -47,11 +47,23 @@ Progress: [██████████] 100%
 - Log viewer: fixed double-X with hideClose prop
 - Cytoscape crash fix: :key re-creation + destroy ordering + .destroyed() guards
 
+### SEO Optimization (2026-03-29, PRs #99 + #115)
+- Build-time prerendering via vite-ssg (6 static pages SSG + 5,000+ gene page meta shells)
+- BioSchemas Gene 1.0-RELEASE structured data on all gene pages
+- Homepage redesign: 6 sections, ~300 words, inline search, citation block
+- Lighthouse scores: Accessibility 100, SEO 100, Best Practices 100
+- D3 tree-shaking, gzip/brotli pre-compression, immutable asset caching
+- FAQ page with FAQPage schema, 404 page, robots.txt with AI crawler rules, llms.txt
+- Sitemap: lastmod timestamps, structure pages, Cache-Control header
+- Lighthouse CI in GitHub Actions (a11y/SEO/best-practices >= 90)
+- Primary color darkened for WCAG AA contrast compliance
+- SSR-safety fixes across config, logService, auth store, AppFooter
+
 ### Code Quality
 - 14 Copilot review comments addressed (thread safety, SAVEPOINT, type safety, validation)
 - 43 new tests (20 frontend + 22 backend network + 1 ClinGen)
-- All 15 CI checks passing
-- Backend: 626 tests, Frontend: 112 tests
+- All 16 CI checks passing (added Lighthouse CI)
+- Backend: 626 tests, Frontend: 116 tests
 
 ## Performance Metrics
 
@@ -61,8 +73,8 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-03-15
-Status: Between milestones. No active work.
+Last session: 2026-03-29
+Status: Between milestones. SEO optimization complete (PRs #99, #115).
 Resume file: None
 
 Config:
