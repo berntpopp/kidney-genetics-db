@@ -320,7 +320,9 @@ export const useAuthStore = defineStore('auth', () => {
   })
 
   // Listen for logout event from API client
-  window.addEventListener('auth:logout', logout)
+  if (typeof window !== 'undefined') {
+    window.addEventListener('auth:logout', logout)
+  }
 
   // Return store properties and methods
   return {
