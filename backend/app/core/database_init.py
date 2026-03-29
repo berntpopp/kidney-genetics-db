@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 from app.db.safe_sql import safe_identifier
 from app.models.cache import CacheEntry
 from app.models.user import User
@@ -60,6 +60,15 @@ async def initialize_database(db: Session) -> dict:
             await logger.info("Admin user created successfully")
         else:
             await logger.info("Admin user already exists")
+
+        # Step 2b: Seed annotation sources
+        await logger.info("Seeding annotation sources...")
+        sources_created = await seed_annotation_sources(db)
+        status["sources_seeded"] = sources_created
+        if sources_created > 0:
+            await logger.info(f"Seeded {sources_created} annotation sources")
+        else:
+            await logger.info("All annotation sources already exist")
 
         # Step 3: Clear corrupted cache
         await logger.info("Clearing cache...")
@@ -246,14 +255,32 @@ async def create_default_admin(db: Session) -> bool:
             )
             return True
         else:
-            # Ensure admin has correct role and is active
+            # Admin exists — check if password reset is requested
+            updated = False
+
+            if settings.ADMIN_FORCE_PASSWORD_RESET:
+                new_password = settings.ADMIN_PASSWORD.get_secret_value()
+                if not verify_password(new_password, admin.hashed_password):
+                    admin.hashed_password = get_password_hash(new_password)
+                    updated = True
+                    await logger.warning(
+                        "Admin password updated via ADMIN_FORCE_PASSWORD_RESET. "
+                        "Set ADMIN_FORCE_PASSWORD_RESET=False after confirming login.",
+                        username=admin.username,
+                    )
+
+            # Ensure admin flags are correct
             if admin.role != "admin" or not admin.is_active:
                 admin.role = "admin"
                 admin.is_active = True
                 admin.is_verified = True
                 admin.is_admin = True
-                db.commit()
+                updated = True
                 await logger.info("Updated existing admin user settings")
+
+            if updated:
+                db.commit()
+
             return False
 
     except Exception as e:
@@ -265,6 +292,60 @@ async def create_default_admin(db: Session) -> bool:
             username=settings.ADMIN_USERNAME if hasattr(settings, "ADMIN_USERNAME") else "unknown",
         )
         return False
+
+
+async def seed_annotation_sources(db: Session) -> int:
+    """
+    Seed annotation_sources table with all known sources.
+
+    Idempotent: creates only sources that don't already exist.
+    Called on every startup to ensure fresh deployments have all sources.
+
+    Returns:
+        Number of newly created sources.
+    """
+    from app.models.gene_annotation import AnnotationSource
+    from app.pipeline.annotation_pipeline import AnnotationPipeline
+
+    try:
+        pipeline = AnnotationPipeline(db)
+        created = 0
+
+        for source_name, source_cls in pipeline.sources.items():
+            existing = (
+                db.query(AnnotationSource)
+                .filter_by(source_name=source_name)
+                .first()
+            )
+            if not existing:
+                source_record = AnnotationSource(
+                    source_name=source_name,
+                    display_name=getattr(source_cls, "display_name", source_name),
+                    version=getattr(source_cls, "version", "1.0"),
+                    is_active=True,
+                    config={},
+                )
+                db.add(source_record)
+                created += 1
+
+        if created:
+            db.commit()
+            await logger.info(
+                "Seeded annotation sources",
+                created=created,
+                total=len(pipeline.sources),
+            )
+
+        return created
+
+    except Exception as e:
+        db.rollback()
+        await logger.error(
+            "Error seeding annotation sources",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+        return 0
 
 
 async def clear_cache(db: Session) -> int:

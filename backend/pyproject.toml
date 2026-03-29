@@ -77,6 +77,7 @@ dependencies = [
     "statsmodels>=0.14.5",
     "gseapy>=1.1.10",
     "slowapi>=0.1.9",
+    "aiolimiter>=1.1.0,<2.0.0",
 ]
 
 [project.optional-dependencies]

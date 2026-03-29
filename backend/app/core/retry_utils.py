@@ -409,3 +409,19 @@ class SimpleRateLimiter:
         if elapsed < self.min_interval:
             await asyncio.sleep(self.min_interval - elapsed)
         self.last_request = time.monotonic()
+
+
+async def handle_rate_limit_response(response: httpx.Response) -> None:
+    """
+    If response is 429, pause the domain for Retry-After duration.
+
+    Call this after receiving an HTTP response to automatically pause
+    all requests to the same domain when rate-limited.
+    """
+    if response.status_code == 429:
+        from app.core.domain_rate_limiter import get_domain_rate_limiter_registry
+
+        retry_after = float(response.headers.get("Retry-After", "60"))
+        domain = response.request.url.host
+        registry = get_domain_rate_limiter_registry()
+        registry.pause_domain(domain, retry_after)
