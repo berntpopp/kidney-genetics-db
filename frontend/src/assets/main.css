@@ -34,7 +34,7 @@
 
     /* Muted */
     --muted: oklch(0.967 0.001 286.375);
-    --muted-foreground: oklch(0.552 0.016 285.938);
+    --muted-foreground: oklch(0.50 0.016 285.938);
 
     /* Accent */
     --accent: oklch(0.967 0.001 286.375);
@@ -99,7 +99,7 @@
 
     /* Muted */
     --muted: oklch(0.21 0.006 285.885);
-    --muted-foreground: oklch(0.705 0.015 286.067);
+    --muted-foreground: oklch(0.75 0.015 286.067);
 
     /* Accent */
     --accent: oklch(0.21 0.006 285.885);
@@ -136,6 +136,10 @@
     --kidney-secondary: oklch(0.763 0.124 179.87);
     --dna-primary: oklch(0.779 0.15 237.323);
     --dna-secondary: oklch(0.718 0.189 292.717);
+  }
+
+  html {
+    scroll-padding-bottom: 5rem;
   }
 }
 
