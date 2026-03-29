@@ -155,7 +155,7 @@ services:
       resources:
         limits:
           cpus: '4.0'
-          memory: 4G
+          memory: 8G
           pids: 1000
         reservations:
           cpus: '0.5'
