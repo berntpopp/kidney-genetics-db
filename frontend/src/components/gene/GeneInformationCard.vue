@@ -8,7 +8,16 @@
         <CardTitle tag="h2" class="flex items-center flex-wrap text-base">
           <span>Gene Information</span>
           <span class="ml-3 text-sm font-normal text-muted-foreground">
-            {{ gene.approved_symbol }} &bull; {{ gene.hgnc_id }}
+            {{ gene.approved_symbol }} &bull;
+            <a
+              v-if="gene.hgnc_id"
+              :href="`https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/${gene.hgnc_id}`"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-primary hover:underline"
+              >{{ gene.hgnc_id }}</a
+            >
+            <span v-else>{{ gene.hgnc_id }}</span>
             <template v-if="hgncData?.mane_select?.refseq_transcript_id">
               &bull; {{ hgncData.mane_select.refseq_transcript_id }}
             </template>

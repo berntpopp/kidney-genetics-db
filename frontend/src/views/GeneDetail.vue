@@ -57,7 +57,6 @@
                   <Copy :size="14" class="text-muted-foreground" />
                 </Button>
               </div>
-              <p class="text-sm text-muted-foreground">Gene information</p>
             </div>
           </div>
 
@@ -92,10 +91,6 @@
                   <FileSpreadsheet :size="16" class="mr-2" />
                   Export as CSV
                 </DropdownMenuItem>
-                <DropdownMenuItem @click="viewInHGNC">
-                  <ExternalLink :size="16" class="mr-2" />
-                  View in HGNC
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -126,63 +121,7 @@
 
         <!-- Evidence Details Section -->
         <div class="mb-6">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-2xl font-medium">Evidence Details</h2>
-            <div class="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                :disabled="loadingEvidence"
-                @click="refreshEvidence"
-              >
-                <RefreshCw :size="16" :class="{ 'animate-spin': loadingEvidence }" />
-                Refresh
-              </Button>
-              <Button variant="outline" size="sm" @click="showFilterPanel = !showFilterPanel">
-                <Filter :size="16" />
-                Filter
-              </Button>
-            </div>
-          </div>
-
-          <!-- Filter Panel -->
-          <Card v-show="showFilterPanel" class="mb-4">
-            <CardContent class="pt-6">
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <!-- Source filter -->
-                <div>
-                  <label class="text-sm font-medium mb-2 block">Filter by Source</label>
-                  <div class="flex flex-wrap gap-1">
-                    <Badge
-                      v-for="source in availableEvidenceSources"
-                      :key="source"
-                      :variant="selectedEvidenceSources.includes(source) ? 'default' : 'outline'"
-                      class="cursor-pointer"
-                      @click="toggleSource(source)"
-                    >
-                      {{ source }}
-                    </Badge>
-                  </div>
-                </div>
-                <!-- Sort -->
-                <div>
-                  <label class="text-sm font-medium mb-2 block">Sort by</label>
-                  <select
-                    v-model="evidenceSortOrder"
-                    class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  >
-                    <option v-for="opt in evidenceSortOptions" :key="opt.value" :value="opt.value">
-                      {{ opt.title }}
-                    </option>
-                  </select>
-                </div>
-                <!-- Clear -->
-                <div class="flex items-end">
-                  <Button variant="ghost" @click="clearEvidenceFilters">Clear Filters</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <h2 class="text-2xl font-medium mb-4">Evidence Details</h2>
 
           <!-- Evidence Cards -->
           <Accordion v-if="sortedEvidence.length > 0" type="multiple" class="space-y-2">
@@ -232,9 +171,6 @@ import {
   ArrowLeft,
   Download,
   Share2,
-  ExternalLink,
-  RefreshCw,
-  Filter,
   Pencil,
   Copy,
   FileJson,
@@ -252,8 +188,6 @@ import EvidenceCard from '../components/evidence/EvidenceCard.vue'
 import GeneInformationCard from '../components/gene/GeneInformationCard.vue'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Accordion } from '@/components/ui/accordion'
 import {
   Breadcrumb,
@@ -283,9 +217,6 @@ const annotations = ref(null)
 const loading = ref(true)
 const loadingEvidence = ref(false)
 const loadingAnnotations = ref(false)
-const showFilterPanel = ref(false)
-const selectedEvidenceSources = ref([])
-const evidenceSortOrder = ref('score_desc')
 
 // SEO meta tags (reactive — updates when gene data loads)
 useSeoMeta({
@@ -325,50 +256,9 @@ useJsonLd(
 // Breadcrumb JSON-LD
 useJsonLd(computed(() => getBreadcrumbSchema(breadcrumbs.value)))
 
-const availableEvidenceSources = computed(() => {
-  const sources = [...new Set(evidence.value.map(e => e.source))]
-  return sources.sort()
-})
-
-const evidenceSortOptions = [
-  { title: 'Score (High to Low)', value: 'score_desc' },
-  { title: 'Score (Low to High)', value: 'score_asc' },
-  { title: 'Source (A-Z)', value: 'source_asc' },
-  { title: 'Source (Z-A)', value: 'source_desc' }
-]
-
-const filteredEvidence = computed(() => {
-  if (selectedEvidenceSources.value.length === 0) {
-    return evidence.value
-  }
-  return evidence.value.filter(e => selectedEvidenceSources.value.includes(e.source))
-})
-
 const sortedEvidence = computed(() => {
-  const sorted = [...filteredEvidence.value]
-  switch (evidenceSortOrder.value) {
-    case 'score_asc':
-      return sorted.sort((a, b) => (a.score || 0) - (b.score || 0))
-    case 'score_desc':
-      return sorted.sort((a, b) => (b.score || 0) - (a.score || 0))
-    case 'source_asc':
-      return sorted.sort((a, b) => a.source.localeCompare(b.source))
-    case 'source_desc':
-      return sorted.sort((a, b) => b.source.localeCompare(a.source))
-    default:
-      return sorted
-  }
+  return [...evidence.value].sort((a, b) => (b.score || 0) - (a.score || 0))
 })
-
-// Methods
-const toggleSource = source => {
-  const idx = selectedEvidenceSources.value.indexOf(source)
-  if (idx >= 0) {
-    selectedEvidenceSources.value.splice(idx, 1)
-  } else {
-    selectedEvidenceSources.value.push(source)
-  }
-}
 
 const fetchGeneDetails = async () => {
   loading.value = true
@@ -414,28 +304,9 @@ const fetchAnnotations = async () => {
   }
 }
 
-const refreshEvidence = () => {
-  fetchEvidence()
-}
-
-const clearEvidenceFilters = () => {
-  selectedEvidenceSources.value = []
-  evidenceSortOrder.value = 'score_desc'
-}
-
 const copyGeneSymbol = () => {
   if (gene.value?.approved_symbol) {
     navigator.clipboard.writeText(gene.value.approved_symbol)
-  }
-}
-
-const viewInHGNC = () => {
-  if (gene.value?.hgnc_id) {
-    const hgncId = gene.value.hgnc_id.replace('HGNC:', '')
-    window.open(
-      `https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:${hgncId}`,
-      '_blank'
-    )
   }
 }
 
