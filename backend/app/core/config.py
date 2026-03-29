@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "Kidney Genetics API"
-    APP_VERSION: str = "0.1.0"
+    APP_VERSION: str = "0.2.0"
     DEBUG: bool = False
     SITE_URL: str = "https://kidney-genetics.org"
 
