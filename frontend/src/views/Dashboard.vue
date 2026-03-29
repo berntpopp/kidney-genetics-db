@@ -68,18 +68,18 @@
       </div>
       <Tabs v-model="activeTab" class="w-full">
         <CardHeader class="pb-0">
-          <TabsList>
-            <TabsTrigger value="overlaps">
+          <TabsList class="w-full overflow-x-auto justify-start">
+            <TabsTrigger value="overlaps" class="whitespace-nowrap">
               <ChartScatter :size="16" class="mr-2" />
-              Gene Source Overlaps
+              <span class="hidden sm:inline">Gene Source </span>Overlaps
             </TabsTrigger>
-            <TabsTrigger value="distributions">
+            <TabsTrigger value="distributions" class="whitespace-nowrap">
               <ChartBar :size="16" class="mr-2" />
-              Source Distributions
+              <span class="hidden sm:inline">Source </span>Distributions
             </TabsTrigger>
-            <TabsTrigger value="composition">
+            <TabsTrigger value="composition" class="whitespace-nowrap">
               <Circle :size="16" class="mr-2" />
-              Evidence Composition
+              <span class="hidden sm:inline">Evidence </span>Composition
             </TabsTrigger>
           </TabsList>
         </CardHeader>

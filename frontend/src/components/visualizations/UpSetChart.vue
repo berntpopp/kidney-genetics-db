@@ -412,7 +412,7 @@ const renderUpSetPlot = () => {
   const containerWidth = upsetContainer.value.clientWidth
 
   // Don't render if container is too small
-  if (containerWidth < 400) {
+  if (containerWidth < 280) {
     upsetContainer.value.innerHTML = `
       <div style="text-align: center; padding: 40px;">
         <p>Screen too narrow</p>
