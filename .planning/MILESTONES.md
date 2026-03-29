@@ -46,6 +46,28 @@
 
 ---
 
+## SEO Optimization (Completed)
+
+**Date:** 2026-03-29
+**PRs:** #99, #115
+**Goal:** Make KGDB the top-ranking kidney genetics database with proper indexing, structured data, and accessibility
+
+**What shipped:**
+- Build-time prerendering via vite-ssg (6 SSG pages + 5,000+ gene page meta shells)
+- BioSchemas Gene 1.0-RELEASE structured data on all gene pages
+- Homepage redesign: 6 sections (~300 words), inline search, data sources strip, pipeline visualization, audience cards, citation block
+- Lighthouse: Accessibility 100, SEO 100, Best Practices 100
+- D3 tree-shaking (5 files), gzip/brotli pre-compression, immutable asset caching
+- FAQ page with FAQPage schema + footer icon
+- 404 NotFound page with noindex
+- Sitemap: lastmod timestamps, gene structure pages, Cache-Control header
+- robots.txt with AI crawler rules, llms.txt for AI discoverability
+- Lighthouse CI workflow in GitHub Actions (a11y/SEO/best-practices >= 90)
+- Primary color darkened for WCAG AA contrast (sky-500 → sky-600/700)
+- SSR-safety fixes: config.ts, logService.ts, auth store, AppFooter
+
+---
+
 ## Next Milestone — TBD
 
 No next milestone defined yet.
