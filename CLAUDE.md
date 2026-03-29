@@ -196,6 +196,29 @@ git push && git push --tags   # Triggers: cd.yml + release.yml + Zenodo webhook
 | `gitleaks.yml` | Push/PR to main | Secret scanning |
 | `lighthouse.yml` | PR with frontend changes | Performance audit |
 
+### Zenodo DOI Integration
+Two independent DOI streams for citability:
+
+**Software DOI** (code repo archive):
+- Concept DOI: `10.5281/zenodo.19316248` (always resolves to latest release)
+- Minted automatically by Zenodo webhook when a GitHub Release is created from `v*` tag
+- Metadata controlled by `.zenodo.json` at repo root
+- Citation metadata in `CITATION.cff` (GitHub "Cite this repository" button)
+
+**Dataset DOI** (gene data export):
+- Minted by `ZenodoService` (`app.services.zenodo_service`) on data release publish
+- Triggered via Admin UI → Publish Release → `ReleaseService.publish_release()`
+- Uploads JSON export to Zenodo, stores DOI in `data_releases.doi` column
+- Non-blocking: Zenodo failure does not prevent release publish
+- Requires `ZENODO_API_TOKEN` in `backend/.env` (production Zenodo, not sandbox)
+
+**Key files:**
+- `CITATION.cff` — CFF 1.2.0 citation metadata (type: dataset)
+- `.zenodo.json` — Zenodo archive metadata (upload_type: dataset)
+- `backend/app/services/zenodo_service.py` — Zenodo REST API client
+- `backend/tests/test_zenodo_service.py` — 12 unit tests
+- `.github/workflows/release.yml` — GitHub Release creation on `v*` tags
+
 ## Architecture
 
 ### Layered Pattern
@@ -214,7 +237,7 @@ Database (PostgreSQL)       ← Hybrid relational + JSONB + materialized views
 - **`crud/`** - Database operations (gene, gene_staging, statistics)
 - **`schemas/`** - Pydantic request/response schemas
 - **`core/`** - Shared utilities (logging, cache, retry, config, ARQ, monitoring, etc.)
-- **`services/`** - Business logic (backup, enrichment, network_analysis, release, settings)
+- **`services/`** - Business logic (backup, enrichment, network_analysis, release, settings, zenodo)
 - **`pipeline/`** - Data ingestion pipeline and annotation sources
 - **`db/`** - Database view system with dependency tracking
 - **`middleware/`** - Error handling + logging middleware
