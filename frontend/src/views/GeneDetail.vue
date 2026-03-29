@@ -30,59 +30,68 @@
 
       <div class="container mx-auto px-4 py-6">
         <!-- Gene Header -->
-        <div class="flex items-start justify-between mb-6">
-          <div class="flex-1">
-            <div class="flex items-center mb-2">
-              <RouterLink to="/genes" aria-label="Back to gene browser">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="mr-3 min-h-11 min-w-11"
-                  aria-label="Back to gene browser"
-                >
-                  <ArrowLeft :size="16" />
-                </Button>
-              </RouterLink>
-              <div>
-                <h1 class="text-3xl font-bold">{{ gene.approved_symbol }}</h1>
-                <p class="text-base text-muted-foreground">Gene information</p>
-              </div>
+        <div class="flex items-start justify-between gap-2 mb-6">
+          <div class="flex items-center min-w-0">
+            <RouterLink to="/genes" aria-label="Back to gene browser">
+              <Button
+                variant="ghost"
+                size="icon"
+                class="mr-2 shrink-0"
+                aria-label="Back to gene browser"
+              >
+                <ArrowLeft :size="16" />
+              </Button>
+            </RouterLink>
+            <div class="min-w-0">
+              <h1 class="text-2xl sm:text-3xl font-bold truncate">
+                {{ gene.approved_symbol }}
+              </h1>
+              <p class="text-sm text-muted-foreground">Gene information</p>
             </div>
           </div>
 
-          <!-- Action Buttons -->
-          <div class="flex gap-2">
+          <!-- Action Buttons: collapsed to overflow menu on mobile -->
+          <div class="flex gap-1 sm:gap-2 shrink-0">
             <!-- Curator/Admin Edit Button -->
             <Button v-if="authStore.isCurator" variant="secondary" size="sm" @click="editGene">
               <Pencil :size="16" />
-              Edit
+              <span class="hidden sm:inline">Edit</span>
             </Button>
 
-            <Button variant="outline" size="sm">
+            <!-- Full buttons on sm+, hidden on mobile -->
+            <Button variant="outline" size="sm" class="hidden sm:inline-flex">
               <Download :size="16" />
               Save
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" class="hidden sm:inline-flex">
               <Share2 :size="16" />
               Share
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" class="hidden sm:inline-flex">
               <Upload :size="16" />
               Export
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger as-child>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="min-h-11 min-w-11"
-                  aria-label="More actions"
-                >
+                <Button variant="ghost" size="icon" aria-label="More actions">
                   <EllipsisVertical :size="16" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <!-- Show Save/Share/Export in dropdown on mobile -->
+                <DropdownMenuItem class="sm:hidden">
+                  <Download :size="16" class="mr-2" />
+                  Save
+                </DropdownMenuItem>
+                <DropdownMenuItem class="sm:hidden">
+                  <Share2 :size="16" class="mr-2" />
+                  Share
+                </DropdownMenuItem>
+                <DropdownMenuItem class="sm:hidden">
+                  <Upload :size="16" class="mr-2" />
+                  Export
+                </DropdownMenuItem>
                 <DropdownMenuItem @click="copyGeneId"> Copy Gene ID </DropdownMenuItem>
                 <DropdownMenuItem @click="viewInHGNC"> View in HGNC </DropdownMenuItem>
               </DropdownMenuContent>
