@@ -18,163 +18,147 @@
 
     <div v-else class="flex items-center flex-wrap gap-2">
       <!-- Clinical Group -->
-      <TooltipProvider v-if="hpoData.classification?.clinical_group?.primary">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Badge
-              variant="outline"
-              class="cursor-help"
-              :style="{
-                backgroundColor:
-                  getClinicalGroupColor(hpoData.classification.clinical_group.primary) + '20',
-                color: getClinicalGroupColor(hpoData.classification.clinical_group.primary),
-                borderColor:
-                  getClinicalGroupColor(hpoData.classification.clinical_group.primary) + '40'
-              }"
-            >
-              {{ formatClinicalGroup(hpoData.classification.clinical_group.primary) }}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent class="max-w-xs">
-            <p class="font-medium text-xs">Clinical Classification</p>
-            <p class="text-xs text-muted-foreground mb-1">
-              Primary: {{ formatClinicalGroup(hpoData.classification.clinical_group.primary) }}
-            </p>
-            <p class="text-xs">
-              Score:
-              {{
-                (
-                  hpoData.classification.clinical_group.scores[
-                    hpoData.classification.clinical_group.primary
-                  ] * 100
-                ).toFixed(0)
-              }}%
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <HoverPopover
+        v-if="hpoData.classification?.clinical_group?.primary"
+        content-class="w-auto p-2 max-w-xs"
+      >
+        <Badge
+          variant="outline"
+          class="cursor-pointer"
+          :style="{
+            backgroundColor:
+              getClinicalGroupColor(hpoData.classification.clinical_group.primary) + '20',
+            color: getClinicalGroupColor(hpoData.classification.clinical_group.primary),
+            borderColor: getClinicalGroupColor(hpoData.classification.clinical_group.primary) + '40'
+          }"
+        >
+          {{ formatClinicalGroup(hpoData.classification.clinical_group.primary) }}
+        </Badge>
+        <template #content>
+          <p class="font-medium text-xs">Clinical Classification</p>
+          <p class="text-xs text-muted-foreground mb-1">
+            Primary: {{ formatClinicalGroup(hpoData.classification.clinical_group.primary) }}
+          </p>
+          <p class="text-xs">
+            Score:
+            {{
+              (
+                hpoData.classification.clinical_group.scores[
+                  hpoData.classification.clinical_group.primary
+                ] * 100
+              ).toFixed(0)
+            }}%
+          </p>
+        </template>
+      </HoverPopover>
 
       <!-- Onset Group -->
-      <TooltipProvider v-if="hpoData.classification?.onset_group?.primary">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Badge
-              variant="outline"
-              class="cursor-help"
-              :style="{ color: '#6b7280', borderColor: '#6b728040' }"
-            >
-              {{ formatOnsetGroup(hpoData.classification.onset_group.primary) }} onset
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent class="max-w-xs">
-            <p class="font-medium text-xs">Age of Onset</p>
-            <p class="text-xs text-muted-foreground">
-              {{ formatOnsetGroup(hpoData.classification.onset_group.primary) }}
-              ({{
-                (
-                  hpoData.classification.onset_group.scores[
-                    hpoData.classification.onset_group.primary
-                  ] * 100
-                ).toFixed(0)
-              }}%)
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <HoverPopover
+        v-if="hpoData.classification?.onset_group?.primary"
+        content-class="w-auto p-2 max-w-xs"
+      >
+        <Badge
+          variant="outline"
+          class="cursor-pointer"
+          :style="{ color: '#6b7280', borderColor: '#6b728040' }"
+        >
+          {{ formatOnsetGroup(hpoData.classification.onset_group.primary) }} onset
+        </Badge>
+        <template #content>
+          <p class="font-medium text-xs">Age of Onset</p>
+          <p class="text-xs text-muted-foreground">
+            {{ formatOnsetGroup(hpoData.classification.onset_group.primary) }}
+            ({{
+              (
+                hpoData.classification.onset_group.scores[
+                  hpoData.classification.onset_group.primary
+                ] * 100
+              ).toFixed(0)
+            }}%)
+          </p>
+        </template>
+      </HoverPopover>
 
       <!-- Syndromic Badge -->
-      <TooltipProvider v-if="hpoData.classification?.syndromic_assessment">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Badge
-              variant="outline"
-              class="cursor-help"
-              :style="{
-                backgroundColor: hpoData.classification.syndromic_assessment.is_syndromic
-                  ? '#f59e0b20'
-                  : undefined,
-                color: hpoData.classification.syndromic_assessment.is_syndromic
-                  ? '#f59e0b'
-                  : '#6b7280',
-                borderColor: hpoData.classification.syndromic_assessment.is_syndromic
-                  ? '#f59e0b40'
-                  : '#6b728040'
-              }"
-            >
-              {{
-                hpoData.classification.syndromic_assessment.is_syndromic ? 'Syndromic' : 'Isolated'
-              }}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent class="max-w-xs">
-            <p class="font-medium text-xs">Presentation Type</p>
-            <p class="text-xs text-muted-foreground">
-              {{
-                hpoData.classification.syndromic_assessment.is_syndromic
-                  ? 'Syndromic kidney disease'
-                  : 'Isolated kidney phenotype'
-              }}
-            </p>
-            <p
-              v-if="hpoData.classification.syndromic_assessment.extra_renal_categories?.length"
-              class="text-xs mt-1"
-            >
-              Extra-renal:
-              {{ hpoData.classification.syndromic_assessment.extra_renal_categories.join(', ') }}
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <HoverPopover
+        v-if="hpoData.classification?.syndromic_assessment"
+        content-class="w-auto p-2 max-w-xs"
+      >
+        <Badge
+          variant="outline"
+          class="cursor-pointer"
+          :style="{
+            backgroundColor: hpoData.classification.syndromic_assessment.is_syndromic
+              ? '#f59e0b20'
+              : undefined,
+            color: hpoData.classification.syndromic_assessment.is_syndromic ? '#f59e0b' : '#6b7280',
+            borderColor: hpoData.classification.syndromic_assessment.is_syndromic
+              ? '#f59e0b40'
+              : '#6b728040'
+          }"
+        >
+          {{ hpoData.classification.syndromic_assessment.is_syndromic ? 'Syndromic' : 'Isolated' }}
+        </Badge>
+        <template #content>
+          <p class="font-medium text-xs">Presentation Type</p>
+          <p class="text-xs text-muted-foreground">
+            {{
+              hpoData.classification.syndromic_assessment.is_syndromic
+                ? 'Syndromic kidney disease'
+                : 'Isolated kidney phenotype'
+            }}
+          </p>
+          <p
+            v-if="hpoData.classification.syndromic_assessment.extra_renal_categories?.length"
+            class="text-xs mt-1"
+          >
+            Extra-renal:
+            {{ hpoData.classification.syndromic_assessment.extra_renal_categories.join(', ') }}
+          </p>
+        </template>
+      </HoverPopover>
 
       <!-- Phenotype Count -->
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Badge
-              variant="outline"
-              class="cursor-help"
-              :style="{ color: '#0ea5e9', borderColor: '#0ea5e940' }"
-            >
-              {{ hpoData.kidney_phenotype_count }}/{{ hpoData.phenotype_count }} kidney
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent class="max-w-xs">
-            <p class="font-medium text-xs">HPO Phenotypes</p>
-            <p class="text-xs text-muted-foreground">
-              {{ hpoData.kidney_phenotype_count }} kidney-related phenotypes out of
-              {{ hpoData.phenotype_count }} total
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <HoverPopover content-class="w-auto p-2 max-w-xs">
+        <Badge
+          variant="outline"
+          class="cursor-pointer"
+          :style="{ color: '#0ea5e9', borderColor: '#0ea5e940' }"
+        >
+          {{ hpoData.kidney_phenotype_count }}/{{ hpoData.phenotype_count }} kidney
+        </Badge>
+        <template #content>
+          <p class="font-medium text-xs">HPO Phenotypes</p>
+          <p class="text-xs text-muted-foreground">
+            {{ hpoData.kidney_phenotype_count }} kidney-related phenotypes out of
+            {{ hpoData.phenotype_count }} total
+          </p>
+        </template>
+      </HoverPopover>
 
       <!-- Disease associations -->
-      <TooltipProvider v-if="hpoData.disease_count > 0">
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Badge
-              variant="outline"
-              class="cursor-help"
-              :style="{ color: '#3b82f6', borderColor: '#3b82f640' }"
-            >
-              {{ hpoData.disease_count }} diseases
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent class="max-w-xs">
-            <p class="font-medium text-xs">Disease Associations</p>
-            <p class="text-xs text-muted-foreground">
-              {{ hpoData.disease_count }} disease associations in HPO
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <HoverPopover v-if="hpoData.disease_count > 0" content-class="w-auto p-2 max-w-xs">
+        <Badge
+          variant="outline"
+          class="cursor-pointer"
+          :style="{ color: '#3b82f6', borderColor: '#3b82f640' }"
+        >
+          {{ hpoData.disease_count }} diseases
+        </Badge>
+        <template #content>
+          <p class="font-medium text-xs">Disease Associations</p>
+          <p class="text-xs text-muted-foreground">
+            {{ hpoData.disease_count }} disease associations in HPO
+          </p>
+        </template>
+      </HoverPopover>
     </div>
   </div>
 </template>
 
 <script setup>
 import { Badge } from '@/components/ui/badge'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import HoverPopover from '@/components/ui/HoverPopover.vue'
 import { Info } from 'lucide-vue-next'
 
 defineProps({

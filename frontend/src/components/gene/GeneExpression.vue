@@ -19,62 +19,54 @@
         <span class="text-xs text-muted-foreground">GTEx:</span>
 
         <!-- Kidney Cortex -->
-        <TooltipProvider v-if="gtexData.tissues?.Kidney_Cortex">
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Badge
-                variant="outline"
-                class="cursor-help"
-                :style="{
-                  backgroundColor: getTPMColor(gtexData.tissues.Kidney_Cortex.median_tpm) + '20',
-                  color: getTPMColor(gtexData.tissues.Kidney_Cortex.median_tpm),
-                  borderColor: getTPMColor(gtexData.tissues.Kidney_Cortex.median_tpm) + '40'
-                }"
-              >
-                Cortex: {{ formatTPM(gtexData.tissues.Kidney_Cortex.median_tpm) }}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent class="max-w-xs">
-              <p class="font-medium text-xs">Kidney Cortex Expression</p>
-              <p class="text-xs text-muted-foreground">GTEx v8 median TPM</p>
-              <p class="text-xs mt-1">
-                Value: {{ gtexData.tissues.Kidney_Cortex.median_tpm?.toFixed(2) || 'N/A' }} TPM
-              </p>
-              <p class="text-xs">
-                {{ getTPMInterpretation(gtexData.tissues.Kidney_Cortex.median_tpm) }}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <HoverPopover v-if="gtexData.tissues?.Kidney_Cortex" content-class="w-auto p-2 max-w-xs">
+          <Badge
+            variant="outline"
+            class="cursor-pointer"
+            :style="{
+              backgroundColor: getTPMColor(gtexData.tissues.Kidney_Cortex.median_tpm) + '20',
+              color: getTPMColor(gtexData.tissues.Kidney_Cortex.median_tpm),
+              borderColor: getTPMColor(gtexData.tissues.Kidney_Cortex.median_tpm) + '40'
+            }"
+          >
+            Cortex: {{ formatTPM(gtexData.tissues.Kidney_Cortex.median_tpm) }}
+          </Badge>
+          <template #content>
+            <p class="font-medium text-xs">Kidney Cortex Expression</p>
+            <p class="text-xs text-muted-foreground">GTEx v8 median TPM</p>
+            <p class="text-xs mt-1">
+              Value: {{ gtexData.tissues.Kidney_Cortex.median_tpm?.toFixed(2) || 'N/A' }} TPM
+            </p>
+            <p class="text-xs">
+              {{ getTPMInterpretation(gtexData.tissues.Kidney_Cortex.median_tpm) }}
+            </p>
+          </template>
+        </HoverPopover>
 
         <!-- Kidney Medulla -->
-        <TooltipProvider v-if="gtexData.tissues?.Kidney_Medulla">
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Badge
-                variant="outline"
-                class="cursor-help"
-                :style="{
-                  backgroundColor: getTPMColor(gtexData.tissues.Kidney_Medulla.median_tpm) + '20',
-                  color: getTPMColor(gtexData.tissues.Kidney_Medulla.median_tpm),
-                  borderColor: getTPMColor(gtexData.tissues.Kidney_Medulla.median_tpm) + '40'
-                }"
-              >
-                Medulla: {{ formatTPM(gtexData.tissues.Kidney_Medulla.median_tpm) }}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent class="max-w-xs">
-              <p class="font-medium text-xs">Kidney Medulla Expression</p>
-              <p class="text-xs text-muted-foreground">GTEx v8 median TPM</p>
-              <p class="text-xs mt-1">
-                Value: {{ gtexData.tissues.Kidney_Medulla.median_tpm?.toFixed(2) || 'N/A' }} TPM
-              </p>
-              <p class="text-xs">
-                {{ getTPMInterpretation(gtexData.tissues.Kidney_Medulla.median_tpm) }}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <HoverPopover v-if="gtexData.tissues?.Kidney_Medulla" content-class="w-auto p-2 max-w-xs">
+          <Badge
+            variant="outline"
+            class="cursor-pointer"
+            :style="{
+              backgroundColor: getTPMColor(gtexData.tissues.Kidney_Medulla.median_tpm) + '20',
+              color: getTPMColor(gtexData.tissues.Kidney_Medulla.median_tpm),
+              borderColor: getTPMColor(gtexData.tissues.Kidney_Medulla.median_tpm) + '40'
+            }"
+          >
+            Medulla: {{ formatTPM(gtexData.tissues.Kidney_Medulla.median_tpm) }}
+          </Badge>
+          <template #content>
+            <p class="font-medium text-xs">Kidney Medulla Expression</p>
+            <p class="text-xs text-muted-foreground">GTEx v8 median TPM</p>
+            <p class="text-xs mt-1">
+              Value: {{ gtexData.tissues.Kidney_Medulla.median_tpm?.toFixed(2) || 'N/A' }} TPM
+            </p>
+            <p class="text-xs">
+              {{ getTPMInterpretation(gtexData.tissues.Kidney_Medulla.median_tpm) }}
+            </p>
+          </template>
+        </HoverPopover>
 
         <span
           v-if="!gtexData.tissues?.Kidney_Cortex && !gtexData.tissues?.Kidney_Medulla"
@@ -89,58 +81,53 @@
         <span class="text-xs text-muted-foreground ml-3">scRNA:</span>
 
         <!-- Kidney TPM -->
-        <TooltipProvider v-if="descartesData.kidney_tpm !== null">
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Badge
-                variant="outline"
-                class="cursor-help"
-                :style="{
-                  backgroundColor: getTPMColor(descartesData.kidney_tpm) + '20',
-                  color: getTPMColor(descartesData.kidney_tpm),
-                  borderColor: getTPMColor(descartesData.kidney_tpm) + '40'
-                }"
-              >
-                TPM: {{ formatTPM(descartesData.kidney_tpm) }}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent class="max-w-xs">
-              <p class="font-medium text-xs">Single-cell Kidney Expression</p>
-              <p class="text-xs text-muted-foreground">Descartes Human Cell Atlas</p>
-              <p class="text-xs mt-1">TPM: {{ descartesData.kidney_tpm?.toFixed(2) || 'N/A' }}</p>
-              <p v-if="descartesData.kidney_percentage" class="text-xs">
-                Cells expressing: {{ (descartesData.kidney_percentage * 100)?.toFixed(2) }}%
-              </p>
-              <p class="text-xs">{{ getTPMInterpretation(descartesData.kidney_tpm) }}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <HoverPopover v-if="descartesData.kidney_tpm !== null" content-class="w-auto p-2 max-w-xs">
+          <Badge
+            variant="outline"
+            class="cursor-pointer"
+            :style="{
+              backgroundColor: getTPMColor(descartesData.kidney_tpm) + '20',
+              color: getTPMColor(descartesData.kidney_tpm),
+              borderColor: getTPMColor(descartesData.kidney_tpm) + '40'
+            }"
+          >
+            TPM: {{ formatTPM(descartesData.kidney_tpm) }}
+          </Badge>
+          <template #content>
+            <p class="font-medium text-xs">Single-cell Kidney Expression</p>
+            <p class="text-xs text-muted-foreground">Descartes Human Cell Atlas</p>
+            <p class="text-xs mt-1">TPM: {{ descartesData.kidney_tpm?.toFixed(2) || 'N/A' }}</p>
+            <p v-if="descartesData.kidney_percentage" class="text-xs">
+              Cells expressing: {{ (descartesData.kidney_percentage * 100)?.toFixed(2) }}%
+            </p>
+            <p class="text-xs">{{ getTPMInterpretation(descartesData.kidney_tpm) }}</p>
+          </template>
+        </HoverPopover>
 
         <!-- Cell percentage -->
-        <TooltipProvider v-if="descartesData.kidney_percentage !== null">
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Badge
-                variant="outline"
-                class="cursor-help"
-                :style="{
-                  color: getPercentageColor(descartesData.kidney_percentage),
-                  borderColor: getPercentageColor(descartesData.kidney_percentage) + '40'
-                }"
-              >
-                {{ (descartesData.kidney_percentage * 100)?.toFixed(2) }}% cells
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent class="max-w-xs">
-              <p class="font-medium text-xs">Cell Expression Percentage</p>
-              <p class="text-xs text-muted-foreground">Descartes Human Cell Atlas</p>
-              <p class="text-xs mt-1">
-                {{ (descartesData.kidney_percentage * 100)?.toFixed(2) }}% of kidney cells express
-                this gene
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <HoverPopover
+          v-if="descartesData.kidney_percentage !== null"
+          content-class="w-auto p-2 max-w-xs"
+        >
+          <Badge
+            variant="outline"
+            class="cursor-pointer"
+            :style="{
+              color: getPercentageColor(descartesData.kidney_percentage),
+              borderColor: getPercentageColor(descartesData.kidney_percentage) + '40'
+            }"
+          >
+            {{ (descartesData.kidney_percentage * 100)?.toFixed(2) }}% cells
+          </Badge>
+          <template #content>
+            <p class="font-medium text-xs">Cell Expression Percentage</p>
+            <p class="text-xs text-muted-foreground">Descartes Human Cell Atlas</p>
+            <p class="text-xs mt-1">
+              {{ (descartesData.kidney_percentage * 100)?.toFixed(2) }}% of kidney cells express
+              this gene
+            </p>
+          </template>
+        </HoverPopover>
 
         <span
           v-if="descartesData.kidney_tpm === null && descartesData.kidney_percentage === null"
@@ -156,7 +143,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Badge } from '@/components/ui/badge'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import HoverPopover from '@/components/ui/HoverPopover.vue'
 import { Info } from 'lucide-vue-next'
 
 const props = defineProps({

@@ -4,6 +4,7 @@ import type { ColumnDef, SortingState, PaginationState } from '@tanstack/vue-tab
 import { useVueTable, getCoreRowModel } from '@tanstack/vue-table'
 import { Info, EyeOff, Search, Download, FilterX, RefreshCw } from 'lucide-vue-next'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useMediaQuery } from '@vueuse/core'
 import { geneApi } from '../api/genes'
 import ScoreBreakdown from './ScoreBreakdown.vue'
 import EvidenceTierBadge from './EvidenceTierBadge.vue'
@@ -73,6 +74,21 @@ const showZeroScoreGenes = ref(false)
 // Track initialization to prevent circular updates
 const isInitializing = ref(true)
 const isNavigating = ref(false)
+
+// Mobile responsive: hide non-essential columns
+const isMobile = useMediaQuery('(max-width: 640px)')
+const columnVisibility = ref<Record<string, boolean>>({})
+
+watch(
+  isMobile,
+  mobile => {
+    columnVisibility.value = {
+      hgnc_id: !mobile,
+      sources: !mobile
+    }
+  },
+  { immediate: true }
+)
 
 // Options
 const itemsPerPageOptions = [10, 20, 50, 100]
@@ -262,6 +278,9 @@ const table = useVueTable({
         id: s.key,
         desc: s.order === 'desc'
       }))
+    },
+    get columnVisibility() {
+      return columnVisibility.value
     }
   },
   onPaginationChange: updater => {
@@ -280,6 +299,12 @@ const table = useVueTable({
     sortBy.value = newState.map(s => ({ key: s.id, order: s.desc ? 'desc' : 'asc' }))
     updateUrl()
     loadGenes()
+  },
+  onColumnVisibilityChange: (updater: unknown) => {
+    columnVisibility.value =
+      typeof updater === 'function'
+        ? updater(columnVisibility.value)
+        : (updater as Record<string, boolean>)
   }
 })
 
@@ -693,6 +718,7 @@ onMounted(async () => {
               size="icon-sm"
               class="h-9 w-9"
               :disabled="loading"
+              aria-label="Download CSV"
               @click="exportData"
             >
               <Download class="h-4 w-4" />
@@ -702,11 +728,18 @@ onMounted(async () => {
               size="icon-sm"
               class="h-9 w-9"
               :disabled="!hasActiveFilters"
+              aria-label="Clear all filters"
               @click="clearAllFilters"
             >
               <FilterX class="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="icon-sm" class="h-9 w-9" @click="refreshData">
+            <Button
+              variant="outline"
+              size="icon-sm"
+              class="h-9 w-9"
+              aria-label="Refresh data"
+              @click="refreshData"
+            >
               <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
             </Button>
           </div>

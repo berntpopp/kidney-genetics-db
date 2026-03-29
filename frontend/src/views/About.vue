@@ -46,7 +46,11 @@
           <CardContent>
             <p class="text-sm text-muted-foreground mb-3">
               Navigate to the
-              <RouterLink to="/genes" class="text-primary hover:underline">Gene Browser</RouterLink>
+              <RouterLink
+                to="/genes"
+                class="text-primary underline underline-offset-4 hover:text-primary/80"
+                >Gene Browser</RouterLink
+              >
               to search curated kidney disease genes by symbol, HGNC ID, or disease association.
             </p>
             <div class="flex flex-wrap gap-2">
@@ -148,7 +152,12 @@
           <CardContent>
             <p class="text-sm text-muted-foreground mb-3">
               Access data programmatically via our JSON:API compliant REST API. Visit
-              <a href="/docs" target="_blank" class="text-primary hover:underline">/docs</a>
+              <a
+                href="/docs"
+                target="_blank"
+                class="text-primary underline underline-offset-4 hover:text-primary/80"
+                >/docs</a
+              >
               for interactive API documentation.
             </p>
             <div class="flex flex-wrap gap-2">

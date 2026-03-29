@@ -80,6 +80,7 @@ onMounted(() => {
                 v-model="username"
                 v-bind="usernameAttrs"
                 type="text"
+                autocomplete="username"
                 placeholder="Enter username or email"
                 :disabled="authStore.isLoading"
                 autofocus
@@ -99,6 +100,7 @@ onMounted(() => {
                   v-bind="passwordAttrs"
                   :type="showPassword ? 'text' : 'password'"
                   placeholder="Enter password"
+                  autocomplete="current-password"
                   :disabled="authStore.isLoading"
                   class="pr-10"
                   :class="{ 'border-destructive': errors.password }"
@@ -108,6 +110,7 @@ onMounted(() => {
                   type="button"
                   variant="ghost"
                   size="icon"
+                  :aria-label="showPassword ? 'Hide password' : 'Show password'"
                   class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                   :disabled="authStore.isLoading"
                   @click="showPassword = !showPassword"

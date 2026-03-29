@@ -1,28 +1,34 @@
 <template>
-  <AccordionItem :value="evidence.source_name" class="border rounded-lg mb-2 last:border-b">
+  <AccordionItem
+    :value="evidence.source_name"
+    class="border rounded-lg mb-2 last:border-b overflow-hidden"
+  >
     <AccordionTrigger class="px-4 py-3 hover:no-underline">
-      <div class="flex items-center justify-between w-full mr-4">
-        <div class="flex items-center gap-3">
-          <Avatar class="h-8 w-8" :style="{ backgroundColor: sourceColorHex + '20' }">
+      <div class="flex items-center justify-between w-full mr-4 min-w-0 gap-2">
+        <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+          <Avatar class="h-8 w-8 shrink-0" :style="{ backgroundColor: sourceColorHex + '20' }">
             <AvatarFallback>
               <component :is="sourceIconComponent" :size="16" :style="{ color: sourceColorHex }" />
             </AvatarFallback>
           </Avatar>
-          <div>
+          <div class="min-w-0">
             <span class="text-sm font-medium">{{ evidence.source_name }}</span>
-            <span class="text-xs text-muted-foreground ml-2">{{ evidenceSummary }}</span>
+            <span class="text-xs text-muted-foreground ml-1 sm:ml-2 hidden sm:inline">{{
+              evidenceSummary
+            }}</span>
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1 sm:gap-2 shrink-0">
           <Badge
             v-if="evidence.normalized_score"
             variant="outline"
+            class="text-xs whitespace-nowrap"
             :style="{
               backgroundColor: getScoreColorHex(evidence.normalized_score) + '20',
               color: getScoreColorHex(evidence.normalized_score)
             }"
           >
-            Score: {{ formatScore(evidence.normalized_score) }}
+            {{ formatScore(evidence.normalized_score) }}
           </Badge>
           <Badge v-if="primaryCount" variant="secondary" class="text-xs">
             {{ primaryCount }}

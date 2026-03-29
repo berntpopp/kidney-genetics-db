@@ -111,6 +111,7 @@ export default [
         confirm: 'readonly',
         CustomEvent: 'readonly',
         KeyboardEvent: 'readonly',
+        PointerEvent: 'readonly',
         __APP_VERSION__: 'readonly'
       }
     },
@@ -130,6 +131,6 @@ export default [
     }
   },
   {
-    ignores: ['dist/*', 'node_modules/*', '*.config.js', '*.config.ts']
+    ignores: ['dist/*', 'node_modules/*', 'e2e/*', '*.config.js', '*.config.ts']
   }
 ]

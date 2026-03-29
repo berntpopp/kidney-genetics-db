@@ -1,5 +1,5 @@
 <template>
-  <div ref="chartContainer" class="d3-donut-chart"></div>
+  <div ref="chartContainer" class="d3-donut-chart text-foreground"></div>
 </template>
 
 <script setup>
@@ -108,7 +108,7 @@ const renderChart = () => {
       .style('align-items', 'center')
       .style('justify-content', 'center')
       .style('height', containerHeight + 'px')
-      .style('color', 'var(--v-theme-on-surface-variant)')
+      .style('color', 'var(--muted-foreground)')
       .style('text-align', 'center').html(`
         <div>
           <p>Container too small for chart</p>
@@ -146,11 +146,8 @@ const renderChart = () => {
     .innerRadius(radius * 0.6)
     .outerRadius(radius + 5) // Slightly larger on hover
 
-  // Get theme colors
-  const textColor = window
-    .getComputedStyle(chartContainer.value)
-    .getPropertyValue('--v-theme-on-surface')
-    .trim()
+  // Get theme colors from computed style (SVG fill needs resolved color, not CSS var)
+  const textColor = window.getComputedStyle(chartContainer.value).color
 
   // Generate pie data
   const pieData = pie(props.data)
@@ -163,7 +160,7 @@ const renderChart = () => {
     .append('path')
     .attr('d', arc)
     .attr('fill', d => d.data.color || colorScale.value(d.data.category))
-    .attr('stroke', 'var(--v-theme-surface)')
+    .attr('stroke', 'var(--background)')
     .attr('stroke-width', 2)
     .style('cursor', 'pointer')
     .on('mouseover', function (event, d) {
@@ -294,9 +291,9 @@ const showTooltip = (event, d) => {
       .attr('class', 'chart-tooltip')
       .style('position', 'absolute')
       .style('pointer-events', 'none')
-      .style('background', 'var(--v-theme-surface)')
-      .style('color', 'var(--v-theme-on-surface)')
-      .style('border', '1px solid var(--v-theme-outline)')
+      .style('background', 'var(--card)')
+      .style('color', 'var(--foreground)')
+      .style('border', '1px solid var(--border)')
       .style('padding', '8px 12px')
       .style('border-radius', '4px')
       .style('font-size', '12px')
@@ -323,7 +320,7 @@ const showTooltip = (event, d) => {
     .html(
       `
     <div>
-      <strong style="color: var(--v-theme-primary); display: block; margin-bottom: 4px;">
+      <strong style="color: var(--primary); display: block; margin-bottom: 4px;">
         ${d.data.category}
       </strong>
       <div>${valueDisplay}</div>
@@ -398,8 +395,8 @@ watch(
 
 /* Ensure tooltip inherits theme colors */
 :deep(.chart-tooltip) {
-  background: var(--v-theme-surface);
-  color: var(--v-theme-on-surface);
-  border-color: var(--v-theme-outline);
+  background: var(--card);
+  color: var(--foreground);
+  border-color: var(--border);
 }
 </style>

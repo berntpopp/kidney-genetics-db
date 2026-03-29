@@ -50,7 +50,7 @@
             <div class="flex items-center gap-3">
               <component :is="getSourceIcon(source.name)" class="size-6 text-white" />
               <div>
-                <h3 class="text-lg font-bold text-white">{{ source.name }}</h3>
+                <h2 class="text-lg font-bold text-white">{{ source.name }}</h2>
                 <div class="text-xs text-white/95">{{ source.type || 'API' }}</div>
               </div>
             </div>

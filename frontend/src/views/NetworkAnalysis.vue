@@ -44,9 +44,9 @@
 
     <!-- Control Bar -->
     <Card class="mb-3">
-      <CardContent class="p-3">
+      <CardContent class="p-3 overflow-hidden">
         <!-- Row 1: Parameter inputs -->
-        <div class="grid grid-cols-[minmax(160px,280px)_auto_auto_auto_auto] gap-3 items-end">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
           <div class="space-y-1">
             <label class="text-xs font-medium text-muted-foreground">Evidence Tiers</label>
             <Popover>
@@ -76,7 +76,7 @@
               </PopoverContent>
             </Popover>
           </div>
-          <div class="space-y-1 w-20">
+          <div class="space-y-1">
             <label class="text-xs font-medium text-muted-foreground">Min Score</label>
             <Input
               v-model.number="minScore"
@@ -87,7 +87,7 @@
               aria-label="Minimum evidence score"
             />
           </div>
-          <div class="space-y-1 w-20">
+          <div class="space-y-1">
             <label class="text-xs font-medium text-muted-foreground">Max Genes</label>
             <Input
               v-model.number="maxGenes"
@@ -98,7 +98,7 @@
               aria-label="Maximum number of genes"
             />
           </div>
-          <div class="space-y-1 w-24">
+          <div class="space-y-1">
             <label class="text-xs font-medium text-muted-foreground">STRING</label>
             <Input
               v-model.number="minStringScore"
@@ -110,10 +110,10 @@
               aria-label="Minimum STRING interaction score"
             />
           </div>
-          <div class="space-y-1 w-40">
+          <div class="space-y-1">
             <label class="text-xs font-medium text-muted-foreground">Algorithm</label>
             <Select v-model="clusterAlgorithm">
-              <SelectTrigger class="h-9">
+              <SelectTrigger class="h-9" aria-label="Clustering algorithm">
                 <SelectValue placeholder="Algorithm" />
               </SelectTrigger>
               <SelectContent>

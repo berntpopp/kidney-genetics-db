@@ -30,61 +30,67 @@
 
       <div class="container mx-auto px-4 py-6">
         <!-- Gene Header -->
-        <div class="flex items-start justify-between mb-6">
-          <div class="flex-1">
-            <div class="flex items-center mb-2">
-              <RouterLink to="/genes" aria-label="Back to gene browser">
+        <div class="flex items-start justify-between gap-2 mb-6">
+          <div class="flex items-center min-w-0">
+            <RouterLink to="/genes" aria-label="Back to gene browser">
+              <Button
+                variant="ghost"
+                size="icon"
+                class="mr-2 shrink-0"
+                aria-label="Back to gene browser"
+              >
+                <ArrowLeft :size="16" />
+              </Button>
+            </RouterLink>
+            <div class="min-w-0">
+              <div class="flex items-center gap-1">
+                <h1 class="text-2xl sm:text-3xl font-bold truncate">
+                  {{ gene.approved_symbol }}
+                </h1>
                 <Button
                   variant="ghost"
                   size="icon"
-                  class="mr-3 min-h-11 min-w-11"
-                  aria-label="Back to gene browser"
+                  class="shrink-0 size-7"
+                  aria-label="Copy gene symbol"
+                  @click="copyGeneSymbol"
                 >
-                  <ArrowLeft :size="16" />
+                  <Copy :size="14" class="text-muted-foreground" />
                 </Button>
-              </RouterLink>
-              <div>
-                <h1 class="text-3xl font-bold">{{ gene.approved_symbol }}</h1>
-                <p class="text-base text-muted-foreground">Gene information</p>
               </div>
             </div>
           </div>
 
           <!-- Action Buttons -->
-          <div class="flex gap-2">
+          <div class="flex gap-1 sm:gap-2 shrink-0">
             <!-- Curator/Admin Edit Button -->
             <Button v-if="authStore.isCurator" variant="secondary" size="sm" @click="editGene">
               <Pencil :size="16" />
-              Edit
+              <span class="hidden sm:inline">Edit</span>
             </Button>
 
-            <Button variant="outline" size="sm">
-              <Download :size="16" />
-              Save
-            </Button>
-            <Button variant="outline" size="sm">
+            <!-- Share: copies URL -->
+            <Button variant="outline" size="sm" aria-label="Copy link to gene" @click="shareGene">
               <Share2 :size="16" />
-              Share
-            </Button>
-            <Button variant="outline" size="sm">
-              <Upload :size="16" />
-              Export
+              <span class="hidden sm:inline">Share</span>
             </Button>
 
+            <!-- Export dropdown with JSON/CSV -->
             <DropdownMenu>
               <DropdownMenuTrigger as-child>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="min-h-11 min-w-11"
-                  aria-label="More actions"
-                >
-                  <EllipsisVertical :size="16" />
+                <Button variant="outline" size="sm" aria-label="Export gene data">
+                  <Download :size="16" />
+                  <span class="hidden sm:inline">Export</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem @click="copyGeneId"> Copy Gene ID </DropdownMenuItem>
-                <DropdownMenuItem @click="viewInHGNC"> View in HGNC </DropdownMenuItem>
+                <DropdownMenuItem @click="exportJson">
+                  <FileJson :size="16" class="mr-2" />
+                  Export as JSON
+                </DropdownMenuItem>
+                <DropdownMenuItem @click="exportCsv">
+                  <FileSpreadsheet :size="16" class="mr-2" />
+                  Export as CSV
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -92,6 +98,16 @@
 
         <!-- Overview Cards -->
         <div class="grid grid-cols-12 gap-6 mb-6 items-stretch">
+          <!-- Evidence Score Visualization with Breakdown (shown first on mobile) -->
+          <div class="col-span-12 md:col-span-4 flex order-first md:order-last">
+            <ScoreBreakdown
+              :score="gene.evidence_score"
+              :breakdown="gene.score_breakdown"
+              variant="card"
+              class="flex-1"
+            />
+          </div>
+
           <!-- Gene Information Card -->
           <div class="col-span-12 md:col-span-8 flex">
             <GeneInformationCard
@@ -101,77 +117,11 @@
               class="flex-1"
             />
           </div>
-
-          <!-- Evidence Score Visualization with Breakdown -->
-          <div class="col-span-12 md:col-span-4 flex">
-            <ScoreBreakdown
-              :score="gene.evidence_score"
-              :breakdown="gene.score_breakdown"
-              variant="card"
-              class="flex-1"
-            />
-          </div>
         </div>
 
         <!-- Evidence Details Section -->
         <div class="mb-6">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-2xl font-medium">Evidence Details</h2>
-            <div class="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                :disabled="loadingEvidence"
-                @click="refreshEvidence"
-              >
-                <RefreshCw :size="16" :class="{ 'animate-spin': loadingEvidence }" />
-                Refresh
-              </Button>
-              <Button variant="outline" size="sm" @click="showFilterPanel = !showFilterPanel">
-                <Filter :size="16" />
-                Filter
-              </Button>
-            </div>
-          </div>
-
-          <!-- Filter Panel -->
-          <Card v-show="showFilterPanel" class="mb-4">
-            <CardContent class="pt-6">
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <!-- Source filter -->
-                <div>
-                  <label class="text-sm font-medium mb-2 block">Filter by Source</label>
-                  <div class="flex flex-wrap gap-1">
-                    <Badge
-                      v-for="source in availableEvidenceSources"
-                      :key="source"
-                      :variant="selectedEvidenceSources.includes(source) ? 'default' : 'outline'"
-                      class="cursor-pointer"
-                      @click="toggleSource(source)"
-                    >
-                      {{ source }}
-                    </Badge>
-                  </div>
-                </div>
-                <!-- Sort -->
-                <div>
-                  <label class="text-sm font-medium mb-2 block">Sort by</label>
-                  <select
-                    v-model="evidenceSortOrder"
-                    class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  >
-                    <option v-for="opt in evidenceSortOptions" :key="opt.value" :value="opt.value">
-                      {{ opt.title }}
-                    </option>
-                  </select>
-                </div>
-                <!-- Clear -->
-                <div class="flex items-end">
-                  <Button variant="ghost" @click="clearEvidenceFilters">Clear Filters</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <h2 class="text-2xl font-medium mb-4">Evidence Details</h2>
 
           <!-- Evidence Cards -->
           <Accordion v-if="sortedEvidence.length > 0" type="multiple" class="space-y-2">
@@ -221,11 +171,10 @@ import {
   ArrowLeft,
   Download,
   Share2,
-  Upload,
-  EllipsisVertical,
-  RefreshCw,
-  Filter,
-  Pencil
+  Pencil,
+  Copy,
+  FileJson,
+  FileSpreadsheet
 } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
@@ -239,8 +188,6 @@ import EvidenceCard from '../components/evidence/EvidenceCard.vue'
 import GeneInformationCard from '../components/gene/GeneInformationCard.vue'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Accordion } from '@/components/ui/accordion'
 import {
   Breadcrumb,
@@ -270,9 +217,6 @@ const annotations = ref(null)
 const loading = ref(true)
 const loadingEvidence = ref(false)
 const loadingAnnotations = ref(false)
-const showFilterPanel = ref(false)
-const selectedEvidenceSources = ref([])
-const evidenceSortOrder = ref('score_desc')
 
 // SEO meta tags (reactive — updates when gene data loads)
 useSeoMeta({
@@ -312,50 +256,9 @@ useJsonLd(
 // Breadcrumb JSON-LD
 useJsonLd(computed(() => getBreadcrumbSchema(breadcrumbs.value)))
 
-const availableEvidenceSources = computed(() => {
-  const sources = [...new Set(evidence.value.map(e => e.source))]
-  return sources.sort()
-})
-
-const evidenceSortOptions = [
-  { title: 'Score (High to Low)', value: 'score_desc' },
-  { title: 'Score (Low to High)', value: 'score_asc' },
-  { title: 'Source (A-Z)', value: 'source_asc' },
-  { title: 'Source (Z-A)', value: 'source_desc' }
-]
-
-const filteredEvidence = computed(() => {
-  if (selectedEvidenceSources.value.length === 0) {
-    return evidence.value
-  }
-  return evidence.value.filter(e => selectedEvidenceSources.value.includes(e.source))
-})
-
 const sortedEvidence = computed(() => {
-  const sorted = [...filteredEvidence.value]
-  switch (evidenceSortOrder.value) {
-    case 'score_asc':
-      return sorted.sort((a, b) => (a.score || 0) - (b.score || 0))
-    case 'score_desc':
-      return sorted.sort((a, b) => (b.score || 0) - (a.score || 0))
-    case 'source_asc':
-      return sorted.sort((a, b) => a.source.localeCompare(b.source))
-    case 'source_desc':
-      return sorted.sort((a, b) => b.source.localeCompare(a.source))
-    default:
-      return sorted
-  }
+  return [...evidence.value].sort((a, b) => (b.score || 0) - (a.score || 0))
 })
-
-// Methods
-const toggleSource = source => {
-  const idx = selectedEvidenceSources.value.indexOf(source)
-  if (idx >= 0) {
-    selectedEvidenceSources.value.splice(idx, 1)
-  } else {
-    selectedEvidenceSources.value.push(source)
-  }
-}
 
 const fetchGeneDetails = async () => {
   loading.value = true
@@ -401,35 +304,50 @@ const fetchAnnotations = async () => {
   }
 }
 
-const refreshEvidence = () => {
-  fetchEvidence()
-}
-
-const clearEvidenceFilters = () => {
-  selectedEvidenceSources.value = []
-  evidenceSortOrder.value = 'score_desc'
-}
-
-const copyGeneId = () => {
-  if (gene.value?.hgnc_id) {
-    navigator.clipboard.writeText(gene.value.hgnc_id)
-  }
-}
-
-const viewInHGNC = () => {
-  if (gene.value?.hgnc_id) {
-    const hgncId = gene.value.hgnc_id.replace('HGNC:', '')
-    window.open(
-      `https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:${hgncId}`,
-      '_blank'
-    )
+const copyGeneSymbol = () => {
+  if (gene.value?.approved_symbol) {
+    navigator.clipboard.writeText(gene.value.approved_symbol)
   }
 }
 
 const editGene = () => {
   // TODO: Implement gene editing functionality
   window.logService.info('Edit gene:', gene.value?.approved_symbol)
-  // Could navigate to an edit page or open a modal
+}
+
+const shareGene = () => {
+  navigator.clipboard.writeText(window.location.href)
+}
+
+const exportJson = () => {
+  if (!gene.value) return
+  const data = JSON.stringify(gene.value, null, 2)
+  const blob = new Blob([data], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${gene.value.approved_symbol}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+const exportCsv = () => {
+  if (!gene.value) return
+  const headers = ['Symbol', 'HGNC ID', 'Evidence Score', 'Evidence Tier']
+  const row = [
+    gene.value.approved_symbol,
+    gene.value.hgnc_id || '',
+    gene.value.evidence_score ?? '',
+    gene.value.evidence_tier || ''
+  ]
+  const csv = [headers.join(','), row.join(',')].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${gene.value.approved_symbol}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 // Lifecycle

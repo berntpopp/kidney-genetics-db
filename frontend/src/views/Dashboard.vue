@@ -56,10 +56,10 @@
         >
           Clear
         </Button>
-        <div class="ml-auto flex items-center gap-2">
+        <div class="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
           <Label
             for="show-insufficient-global"
-            class="text-sm text-muted-foreground cursor-pointer"
+            class="text-sm text-muted-foreground cursor-pointer whitespace-nowrap"
           >
             Include zero-score genes
           </Label>
@@ -68,18 +68,18 @@
       </div>
       <Tabs v-model="activeTab" class="w-full">
         <CardHeader class="pb-0">
-          <TabsList>
+          <TabsList class="w-full grid grid-cols-3">
             <TabsTrigger value="overlaps">
-              <ChartScatter :size="16" class="mr-2" />
-              Gene Source Overlaps
+              <ChartScatter :size="16" class="mr-1 sm:mr-2 shrink-0" />
+              <span class="truncate">Overlaps</span>
             </TabsTrigger>
             <TabsTrigger value="distributions">
-              <ChartBar :size="16" class="mr-2" />
-              Source Distributions
+              <ChartBar :size="16" class="mr-1 sm:mr-2 shrink-0" />
+              <span class="truncate">Distributions</span>
             </TabsTrigger>
             <TabsTrigger value="composition">
-              <Circle :size="16" class="mr-2" />
-              Evidence Composition
+              <Circle :size="16" class="mr-1 sm:mr-2 shrink-0" />
+              <span class="truncate">Composition</span>
             </TabsTrigger>
           </TabsList>
         </CardHeader>

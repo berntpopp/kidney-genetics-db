@@ -1,5 +1,5 @@
 <template>
-  <div ref="chartContainer" class="d3-bar-chart"></div>
+  <div ref="chartContainer" class="d3-bar-chart text-foreground"></div>
 </template>
 
 <script setup>
@@ -59,12 +59,9 @@ const props = defineProps({
 // Computed bar color (use theme primary if not provided)
 const computedBarColor = computed(() => {
   if (props.barColor) return props.barColor
-  return (
-    window
-      .getComputedStyle(chartContainer.value || document.documentElement)
-      .getPropertyValue('--v-theme-primary')
-      .trim() || '#1976D2'
-  )
+  const el = chartContainer.value || document.documentElement
+  const style = window.getComputedStyle(el)
+  return style.getPropertyValue('--primary').trim() || '#1976D2'
 })
 
 const renderChart = () => {
@@ -79,14 +76,20 @@ const renderChart = () => {
   const containerWidth = chartContainer.value.clientWidth
   const containerHeight = props.height
 
-  // Margins for axes and labels
-  const margin = { top: 20, right: 20, bottom: 80, left: 70 }
+  // Margins for axes and labels (reduced on narrow screens)
+  const isNarrow = containerWidth < 400
+  const margin = {
+    top: 20,
+    right: isNarrow ? 10 : 20,
+    bottom: isNarrow ? 60 : 80,
+    left: isNarrow ? 40 : 70
+  }
   const width = containerWidth - margin.left - margin.right
   const height = containerHeight - margin.top - margin.bottom
 
   // Validate dimensions
-  const minWidth = 200
-  const minHeight = 200
+  const minWidth = 100
+  const minHeight = 150
   if (width < minWidth || height < minHeight) {
     window.logService.warn('Container too small for bar chart', {
       containerWidth,
@@ -104,7 +107,7 @@ const renderChart = () => {
       .style('align-items', 'center')
       .style('justify-content', 'center')
       .style('height', containerHeight + 'px')
-      .style('color', 'var(--v-theme-on-surface-variant)')
+      .style('color', 'var(--muted-foreground)')
       .style('text-align', 'center').html(`
         <div>
           <p>Container too small for chart</p>
@@ -124,15 +127,10 @@ const renderChart = () => {
 
   const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
 
-  // Get theme colors
-  const textColor = window
-    .getComputedStyle(chartContainer.value)
-    .getPropertyValue('--v-theme-on-surface')
-    .trim()
-  const gridColor = window
-    .getComputedStyle(chartContainer.value)
-    .getPropertyValue('--v-theme-outline')
-    .trim()
+  // Get theme colors from computed style (SVG needs resolved color values)
+  const computedStyle = window.getComputedStyle(chartContainer.value)
+  const textColor = computedStyle.color
+  const gridColor = computedStyle.getPropertyValue('--border').trim()
 
   // Create scales
   const xScale = scaleBand()
@@ -258,9 +256,9 @@ const showTooltip = (event, d) => {
       .attr('class', 'chart-tooltip')
       .style('position', 'absolute')
       .style('pointer-events', 'none')
-      .style('background', 'var(--v-theme-surface)')
-      .style('color', 'var(--v-theme-on-surface)')
-      .style('border', '1px solid var(--v-theme-outline)')
+      .style('background', 'var(--card)')
+      .style('color', 'var(--foreground)')
+      .style('border', '1px solid var(--border)')
       .style('padding', '8px 12px')
       .style('border-radius', '4px')
       .style('font-size', '12px')
@@ -276,7 +274,7 @@ const showTooltip = (event, d) => {
     .html(
       `
     <div>
-      <strong style="color: var(--v-theme-primary); display: block; margin-bottom: 4px;">
+      <strong style="color: var(--primary); display: block; margin-bottom: 4px;">
         ${d.category}
       </strong>
       <div>${props.valueFormatter(d.gene_count)} ${props.valueLabel}</div>
@@ -347,9 +345,9 @@ watch(
 
 /* Ensure tooltip inherits theme colors */
 :deep(.chart-tooltip) {
-  background: var(--v-theme-surface);
-  color: var(--v-theme-on-surface);
-  border-color: var(--v-theme-outline);
+  background: var(--card);
+  color: var(--foreground);
+  border-color: var(--border);
 }
 
 /* Hide default D3 axis domain */

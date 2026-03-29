@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "engines": {
     "node": ">=20.19.0"
@@ -17,7 +17,9 @@
     "format": "prettier --write \"src/**/*.{js,ts,mjs,vue,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{js,ts,mjs,vue,css,md}\"",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:e2e": "npx playwright test",
+    "test:e2e:ui": "npx playwright test --ui"
   },
   "dependencies": {
     "@radix-icons/vue": "^1.0.0",

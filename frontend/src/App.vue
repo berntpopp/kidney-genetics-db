@@ -51,7 +51,7 @@ onUnmounted(() => {
   <TooltipProvider :delay-duration="0">
     <div class="min-h-screen flex flex-col bg-background text-foreground">
       <AppHeader />
-      <main class="flex-1 pb-16">
+      <main class="flex-1 pb-20">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <component :is="Component" />
