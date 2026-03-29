@@ -87,7 +87,7 @@ async def update_gene_annotations(
     for source_name in sources:
         source_class = SOURCE_CLASSES.get(source_name)
         if source_class:
-            background_tasks.add_task(_update_single_source, gene, source_name, source_class, db)
+            background_tasks.add_task(_update_single_source, gene, source_name, source_class)
 
     return {
         "status": "update_scheduled",
@@ -97,12 +97,12 @@ async def update_gene_annotations(
     }
 
 
-async def _update_single_source(
-    gene: Gene, source_name: str, source_class: type, db: Session
-) -> None:
+async def _update_single_source(gene: Gene, source_name: str, source_class: type) -> None:
     """Update a single annotation source for a gene."""
     from app.core.cache_service import get_cache_service
+    from app.core.database import SessionLocal
 
+    db = SessionLocal()
     try:
         source_instance = source_class(db)
         success = await source_instance.update_gene(gene)
@@ -122,10 +122,13 @@ async def _update_single_source(
                 gene_symbol=gene.approved_symbol,
             )
     except Exception as e:
+        db.rollback()
         await logger.error(
             f"Error updating {source_name} annotation: {str(e)}",
             gene_symbol=gene.approved_symbol,
         )
+    finally:
+        db.close()
 
 
 @router.post("/refresh-view", dependencies=[Depends(require_admin)])
