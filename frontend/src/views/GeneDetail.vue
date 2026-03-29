@@ -43,14 +43,25 @@
               </Button>
             </RouterLink>
             <div class="min-w-0">
-              <h1 class="text-2xl sm:text-3xl font-bold truncate">
-                {{ gene.approved_symbol }}
-              </h1>
+              <div class="flex items-center gap-1">
+                <h1 class="text-2xl sm:text-3xl font-bold truncate">
+                  {{ gene.approved_symbol }}
+                </h1>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="shrink-0 size-7"
+                  aria-label="Copy gene symbol"
+                  @click="copyGeneSymbol"
+                >
+                  <Copy :size="14" class="text-muted-foreground" />
+                </Button>
+              </div>
               <p class="text-sm text-muted-foreground">Gene information</p>
             </div>
           </div>
 
-          <!-- Action Buttons: collapsed to overflow menu on mobile -->
+          <!-- Action Buttons -->
           <div class="flex gap-1 sm:gap-2 shrink-0">
             <!-- Curator/Admin Edit Button -->
             <Button v-if="authStore.isCurator" variant="secondary" size="sm" @click="editGene">
@@ -58,42 +69,33 @@
               <span class="hidden sm:inline">Edit</span>
             </Button>
 
-            <!-- Full buttons on sm+, hidden on mobile -->
-            <Button variant="outline" size="sm" class="hidden sm:inline-flex" @click="saveGene">
-              <Download :size="16" />
-              Save
-            </Button>
-            <Button variant="outline" size="sm" class="hidden sm:inline-flex" @click="shareGene">
+            <!-- Share: copies URL -->
+            <Button variant="outline" size="sm" aria-label="Copy link to gene" @click="shareGene">
               <Share2 :size="16" />
-              Share
-            </Button>
-            <Button variant="outline" size="sm" class="hidden sm:inline-flex" @click="exportGene">
-              <Upload :size="16" />
-              Export
+              <span class="hidden sm:inline">Share</span>
             </Button>
 
+            <!-- Export dropdown with JSON/CSV -->
             <DropdownMenu>
               <DropdownMenuTrigger as-child>
-                <Button variant="ghost" size="icon" aria-label="More actions">
-                  <EllipsisVertical :size="16" />
+                <Button variant="outline" size="sm" aria-label="Export gene data">
+                  <Download :size="16" />
+                  <span class="hidden sm:inline">Export</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <!-- Show Save/Share/Export in dropdown on mobile -->
-                <DropdownMenuItem class="sm:hidden" @click="saveGene">
-                  <Download :size="16" class="mr-2" />
-                  Save
+                <DropdownMenuItem @click="exportJson">
+                  <FileJson :size="16" class="mr-2" />
+                  Export as JSON
                 </DropdownMenuItem>
-                <DropdownMenuItem class="sm:hidden" @click="shareGene">
-                  <Share2 :size="16" class="mr-2" />
-                  Share
+                <DropdownMenuItem @click="exportCsv">
+                  <FileSpreadsheet :size="16" class="mr-2" />
+                  Export as CSV
                 </DropdownMenuItem>
-                <DropdownMenuItem class="sm:hidden" @click="exportGene">
-                  <Upload :size="16" class="mr-2" />
-                  Export
+                <DropdownMenuItem @click="viewInHGNC">
+                  <ExternalLink :size="16" class="mr-2" />
+                  View in HGNC
                 </DropdownMenuItem>
-                <DropdownMenuItem @click="copyGeneId"> Copy Gene ID </DropdownMenuItem>
-                <DropdownMenuItem @click="viewInHGNC"> View in HGNC </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -230,11 +232,13 @@ import {
   ArrowLeft,
   Download,
   Share2,
-  Upload,
-  EllipsisVertical,
+  ExternalLink,
   RefreshCw,
   Filter,
-  Pencil
+  Pencil,
+  Copy,
+  FileJson,
+  FileSpreadsheet
 } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
@@ -419,9 +423,9 @@ const clearEvidenceFilters = () => {
   evidenceSortOrder.value = 'score_desc'
 }
 
-const copyGeneId = () => {
-  if (gene.value?.hgnc_id) {
-    navigator.clipboard.writeText(gene.value.hgnc_id)
+const copyGeneSymbol = () => {
+  if (gene.value?.approved_symbol) {
+    navigator.clipboard.writeText(gene.value.approved_symbol)
   }
 }
 
@@ -440,7 +444,11 @@ const editGene = () => {
   window.logService.info('Edit gene:', gene.value?.approved_symbol)
 }
 
-const saveGene = () => {
+const shareGene = () => {
+  navigator.clipboard.writeText(window.location.href)
+}
+
+const exportJson = () => {
   if (!gene.value) return
   const data = JSON.stringify(gene.value, null, 2)
   const blob = new Blob([data], { type: 'application/json' })
@@ -452,16 +460,7 @@ const saveGene = () => {
   URL.revokeObjectURL(url)
 }
 
-const shareGene = async () => {
-  const url = window.location.href
-  if (navigator.share) {
-    await navigator.share({ title: gene.value?.approved_symbol, url })
-  } else {
-    await navigator.clipboard.writeText(url)
-  }
-}
-
-const exportGene = () => {
+const exportCsv = () => {
   if (!gene.value) return
   const headers = ['Symbol', 'HGNC ID', 'Evidence Score', 'Evidence Tier']
   const row = [
