@@ -1434,7 +1434,7 @@ wheels = [
 
 [[package]]
 name = "kidney-genetics-db"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
@@ -1574,7 +1574,7 @@ requires-dist = [
     { name = "slowapi", specifier = ">=0.1.9" },
     { name = "sqlalchemy", specifier = ">=2.0,<3.0" },
     { name = "statsmodels", specifier = ">=0.14.5" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0,<0.43.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0,<0.44.0" },
 ]
 provides-extras = ["dev", "test"]
 
