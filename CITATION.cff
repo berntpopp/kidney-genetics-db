@@ -6,7 +6,7 @@ abstract: >-
   A curated database of kidney disease-related genes with comprehensive
   annotations from multiple sources including PanelApp, ClinGen, GenCC,
   HPO, ClinVar, gnomAD, GTEx, UniProt, and STRING PPI networks.
-version: 0.3.3
+version: 0.3.4
 doi: "10.5281/zenodo.19316248"
 date-released: "2026-03-30"
 url: "https://kidney-genetics.org"
