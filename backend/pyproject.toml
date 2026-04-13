@@ -61,7 +61,7 @@ dependencies = [
     "python-dateutil>=2.8.0,<3.0.0",
     "pytz>=2023.3",
     "click>=8.1.0,<9.0.0",
-    "asyncclick>=8.1.8",
+    "asyncclick>=8.3.0.3",
     # Pagination
     "fastapi-pagination>=0.12.0",
     "apscheduler>=3.11.0",
