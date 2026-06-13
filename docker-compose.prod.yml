@@ -233,7 +233,12 @@ services:
         compress: "true"
 
   db-backup:
-    image: prodrigestivill/postgres-backup-local:16
+    # Must match the postgres server major version (postgres:17-alpine above):
+    # pg_dump refuses to dump a server newer than itself ("aborting because of
+    # server version mismatch"), so the :16 client silently failed every nightly
+    # backup after the server was upgraded to 17. Keep this tag in lockstep with
+    # the postgres image major version.
+    image: prodrigestivill/postgres-backup-local:17
     container_name: kidney_genetics_db_backup
     depends_on:
       postgres:
