@@ -53,8 +53,12 @@ RUN chmod +x /docker-entrypoint.d/40-inject-runtime-env.sh
 USER nginx
 
 # Health check
+# Use 127.0.0.1 (not "localhost"): nginx binds IPv4 only (`listen 8080;`), but
+# the container's "localhost" resolves to IPv6 ::1 first, so wget gets
+# "connection refused" and the container is falsely marked unhealthy even while
+# serving traffic. 127.0.0.1 forces the IPv4 stack nginx actually listens on.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/health || exit 1
 
 EXPOSE 8080
 
