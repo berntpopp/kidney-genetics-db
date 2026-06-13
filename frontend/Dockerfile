@@ -14,7 +14,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Production
-FROM nginx:1.29-alpine@sha256:e7257f1ef28ba17cf7c248cb8ccf6f0c6e0228ab9c315c152f9c203cd34cf6d1 AS production
+FROM nginx:1.31-alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a AS production
 
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
