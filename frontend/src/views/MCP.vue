@@ -178,8 +178,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import { config, MCP_BASE_URL_DEFAULT } from '@/config'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
@@ -223,10 +224,16 @@ useSeoMeta({
   canonicalPath: '/mcp'
 })
 
-/** Production MCP transport endpoint (streamable HTTP). */
-const endpoint = 'https://mcp.kidney-genetics.org'
+// MCP transport endpoint (streamable HTTP), derived from config. During SSG/
+// hydration we render the build-time default (matches the prerendered HTML),
+// then swap to the runtime-injected value after mount to avoid a mismatch.
+const mounted = ref(false)
+onMounted(() => {
+  mounted.value = true
+})
+const endpoint = computed(() => (mounted.value ? config.mcpBaseUrl : MCP_BASE_URL_DEFAULT))
 
-const clients = [
+const clients = computed(() => [
   {
     key: 'claude',
     title: 'Claude (web & desktop)',
@@ -235,7 +242,7 @@ const clients = [
       'Open Settings → Connectors → Add custom connector.',
       'Paste the server URL and save (leave OAuth empty).'
     ],
-    code: endpoint,
+    code: endpoint.value,
     note: 'Custom connectors are in beta; the Free plan allows one.'
   },
   {
@@ -246,7 +253,7 @@ const clients = [
       'Settings → Connectors → Advanced → enable Developer mode.',
       "Create a connector with the URL below and 'No authentication'."
     ],
-    code: endpoint,
+    code: endpoint.value,
     note: 'Web only; requires a paid plan.'
   },
   {
@@ -254,7 +261,7 @@ const clients = [
     title: 'Claude Code (CLI)',
     icon: Terminal,
     steps: ['Run this in your project, then restart the session.'],
-    code: 'claude mcp add --transport http kidney-genetics https://mcp.kidney-genetics.org',
+    code: `claude mcp add --transport http kidney-genetics ${endpoint.value}`,
     note: ''
   },
   {
@@ -266,13 +273,13 @@ const clients = [
   "mcpServers": {
     "kidney-genetics": {
       "type": "http",
-      "url": "https://mcp.kidney-genetics.org"
+      "url": "${endpoint.value}"
     }
   }
 }`,
     note: ''
   }
-]
+])
 
 const copiedKey = ref<string | null>(null)
 

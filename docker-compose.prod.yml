@@ -194,6 +194,8 @@ services:
     environment:
       API_BASE_URL: /api
       WS_URL: /ws
+      # Public MCP endpoint shown on /mcp; override per deployment.
+      MCP_BASE_URL: ${KGDB_MCP_PUBLIC_URL:-https://mcp.kidney-genetics.org}
       ENVIRONMENT: production
     depends_on:
       backend:
