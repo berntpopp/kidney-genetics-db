@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   BookOpen,
+  Braces,
   CircleAlert,
   ExternalLink,
   Github,
@@ -197,13 +198,7 @@ function acknowledgeDisclaimer() {
                   rel="noopener noreferrer"
                   aria-label="API Documentation (OpenAPI)"
                 >
-                  <img
-                    src="/swagger.png"
-                    alt="OpenAPI"
-                    class="size-4 object-contain"
-                    width="16"
-                    height="16"
-                  />
+                  <Braces class="size-3.5" />
                 </a>
               </Button>
             </TooltipTrigger>
