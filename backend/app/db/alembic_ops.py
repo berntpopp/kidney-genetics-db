@@ -6,6 +6,7 @@ Based on Alembic cookbook best practices.
 from typing import Any
 
 from alembic.operations import MigrateOperation, Operations
+
 from app.db.replaceable_objects import ReplaceableObject
 
 
