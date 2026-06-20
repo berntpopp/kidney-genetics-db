@@ -15,7 +15,7 @@ volumes:
 
 services:
   postgres:
-    image: postgres:17-alpine@sha256:6f30057d31f5861b66f3545d4821f987aacf1dd920765f0acadea0c58ff975b1
+    image: postgres:17-alpine@sha256:dc17045ccfd343b49600570ea734b9c4991cf1c3f3302e67df51e3b402dd55c4
     container_name: kidney_genetics_postgres
     networks:
       - kidney_genetics_internal_net

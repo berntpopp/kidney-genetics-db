@@ -124,18 +124,23 @@ jobs:
       - name: Run Trivy on PostgreSQL base image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: 'postgres:17-alpine@sha256:6f30057d31f5861b66f3545d4821f987aacf1dd920765f0acadea0c58ff975b1'
+          image-ref: 'postgres:17-alpine@sha256:dc17045ccfd343b49600570ea734b9c4991cf1c3f3302e67df51e3b402dd55c4'
           format: 'table'
           exit-code: '0'
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
           trivyignores: '.trivyignore'
+          # gosu (Go binary) only drops root->postgres once at container startup;
+          # its Go-stdlib CVEs are not reachable in that usage and the upstream
+          # postgres image ships a prebuilt binary we cannot patch. Skip it by path
+          # (robust against the evolving Go CVE set); OS packages are still scanned.
+          skip-files: 'usr/local/bin/gosu'
 
       - name: Run Trivy on PostgreSQL base image (SARIF)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: 'postgres:17-alpine@sha256:6f30057d31f5861b66f3545d4821f987aacf1dd920765f0acadea0c58ff975b1'
+          image-ref: 'postgres:17-alpine@sha256:dc17045ccfd343b49600570ea734b9c4991cf1c3f3302e67df51e3b402dd55c4'
           format: 'sarif'
           output: 'trivy-results-postgres.sarif'
           exit-code: '0'
@@ -143,6 +148,8 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
           trivyignores: '.trivyignore'
+          # See note above: skip the unpatchable gosu Go binary by path.
+          skip-files: 'usr/local/bin/gosu'
 
       - name: Upload Trivy PostgreSQL scan results
         uses: github/codeql-action/upload-sarif@v4
