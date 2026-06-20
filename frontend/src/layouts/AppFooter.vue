@@ -25,6 +25,7 @@ import {
   Github,
   HelpCircle,
   Info,
+  Plug,
   Scale,
   Server,
   ShieldAlert,
@@ -203,6 +204,18 @@ function acknowledgeDisclaimer() {
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top"><p>API Docs (OpenAPI)</p></TooltipContent>
+          </Tooltip>
+
+          <!-- MCP server (connect an AI agent) -->
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="ghost" size="icon" class="size-6" as-child>
+                <RouterLink to="/mcp" aria-label="MCP Server (connect an AI agent)">
+                  <Plug class="size-3.5" />
+                </RouterLink>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p>MCP — connect an AI agent</p></TooltipContent>
           </Tooltip>
 
           <!-- FAQ -->
