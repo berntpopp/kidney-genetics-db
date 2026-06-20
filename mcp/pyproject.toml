@@ -1,0 +1,77 @@
+[project]
+name = "kidney-genetics-mcp"
+version = "0.1.0"
+description = "Read-only MCP server exposing Kidney-Genetics-DB public data to LLMs"
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp>=2.3.0",
+    "httpx>=0.27",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "redis>=5.0",
+]
+
+[project.scripts]
+kidney-genetics-mcp = "kidney_genetics_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kidney_genetics_mcp"]
+
+[dependency-groups]
+dev = [
+    "ruff==0.15.12",
+    "mypy==2.0.0",
+    "pytest==9.0.3",
+    "pytest-asyncio>=1.2.0",
+    "pytest-cov==7.1.0",
+    "pytest-xdist>=3.6.0",  # Parallel test execution (mcp tests are isolated)
+    "respx>=0.21",
+    "mcp>=1.2",
+    "datamodel-code-generator>=0.40.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "D"]
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["D100", "D101", "D102", "D103", "D104", "E501"]
+# Generated contract artifacts: do not hand-edit; regenerate via `make contract`.
+# datamodel-codegen / the path-const emitter produce long lines and a style that
+# fights the doc/line-length rules — ignore them rather than touch generated files.
+"src/kidney_genetics_mcp/contract/_generated_*.py" = ["E501", "D", "W", "F", "I", "N", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+# Generated contract artifacts are excluded from type-checking; they are
+# regenerated from the OpenAPI snapshot via `make contract` and not hand-edited.
+exclude = "src/kidney_genetics_mcp/contract/_generated_.*\\.py$"
+[[tool.mypy.overrides]]
+module = ["fastmcp.*", "mcp.*", "respx.*"]
+ignore_missing_imports = true
+# Generated pydantic models from datamodel-codegen: relax strict-mode noise that
+# the generated style triggers (do not hand-edit the generated files).
+[[tool.mypy.overrides]]
+module = ["kidney_genetics_mcp.contract._generated_models"]
+disallow_any_explicit = false
+disable_error_code = ["explicit-any"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-m 'not live'"
+markers = [
+    "smoke: end-to-end smoke tests",
+    "live: tests that hit the live API at http://localhost:8000 (skipped in CI)",
+]
+
+[tool.coverage.report]
+fail_under = 80
