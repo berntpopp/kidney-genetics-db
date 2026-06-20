@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { getAllVersions, getFrontendVersion } from '@/utils/version'
+import { config } from '@/config'
 import { useLogStore } from '@/stores/logStore'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -33,6 +34,11 @@ import {
 } from 'lucide-vue-next'
 
 const GITHUB_URL = 'https://github.com/berntpopp/kidney-genetics-db'
+
+// OpenAPI / Swagger UI lives at the backend root `/docs`.
+// Dev (vite): apiBaseUrl='http://localhost:8000' -> cross-origin to the backend.
+// Docker/prod: apiBaseUrl='' -> same-origin '/docs', proxied to the backend by nginx.
+const apiDocsUrl = `${config.apiBaseUrl}/docs`
 
 const logStore = useLogStore()
 
@@ -179,6 +185,29 @@ function acknowledgeDisclaimer() {
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top"><p>GitHub Repository</p></TooltipContent>
+          </Tooltip>
+
+          <!-- API / OpenAPI docs -->
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="ghost" size="icon" class="size-6" as-child>
+                <a
+                  :href="apiDocsUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="API Documentation (OpenAPI)"
+                >
+                  <img
+                    src="/swagger.png"
+                    alt="OpenAPI"
+                    class="size-4 object-contain"
+                    width="16"
+                    height="16"
+                  />
+                </a>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p>API Docs (OpenAPI)</p></TooltipContent>
           </Tooltip>
 
           <!-- FAQ -->
