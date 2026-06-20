@@ -1,0 +1,32 @@
+# Build context exclusions for the Kidney-Genetics-DB MCP server image.
+
+# Version control
+.git
+.gitignore
+
+# Tests
+tests/
+
+# Python caches and build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Local environment / editor
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+
+# Documentation (not needed at runtime)
+README.md

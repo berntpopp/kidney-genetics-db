@@ -1,7 +1,7 @@
 # Kidney Genetics Database - Development Makefile
 # Usage: make [command]
 
-.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend worker lint lint-frontend format-check test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed test-frontend prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check security bandit pip-audit npm-audit ci benchmark-pipeline benchmark-pipeline-fresh
+.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend worker mcp mcp-build mcp-test lint lint-frontend format-check test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed test-frontend prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check security bandit pip-audit npm-audit ci benchmark-pipeline benchmark-pipeline-fresh
 
 # Detect docker compose command (v2 vs v1)
 DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
@@ -27,6 +27,11 @@ help:
 	@echo "  make backend         - Run backend API locally"
 	@echo "  make frontend        - Run frontend locally"
 	@echo "  make worker          - Run ARQ background worker"
+	@echo ""
+	@echo "🔌 MCP SERVER:"
+	@echo "  make mcp             - Run the read-only MCP server locally (port 8789)"
+	@echo "  make mcp-build       - Install MCP server dependencies (uv sync)"
+	@echo "  make mcp-test        - Run MCP server tests (pytest)"
 	@echo ""
 	@echo "🗄️  DATABASE MANAGEMENT:"
 	@echo "  make db-drop         - Drop and recreate database (disconnects users)"
@@ -175,6 +180,28 @@ worker:
 worker-debug:
 	@echo "Starting ARQ background worker (debug mode)..."
 	@cd backend && uv run arq app.core.arq_worker.WorkerSettings --verbose
+
+# ════════════════════════════════════════════════════════════════════
+# MCP SERVER (read-only FastMCP sidecar over the KGDB REST API)
+# ════════════════════════════════════════════════════════════════════
+
+# Run the MCP server locally (binds port 8789)
+mcp:
+	@echo "Starting Kidney-Genetics-DB MCP server..."
+	@echo "⚠️  Requires the backend API (make backend) running on http://localhost:8000"
+	@cd mcp && uv run kidney-genetics-mcp
+
+# Install MCP server dependencies (including dev group)
+mcp-build:
+	@echo "📦 Installing MCP server dependencies..."
+	@cd mcp && uv sync --group dev
+	@echo "✅ MCP dependencies installed!"
+
+# Run MCP server tests
+mcp-test:
+	@echo "🧪 Running MCP server tests with pytest..."
+	@cd mcp && uv run pytest
+	@echo "✅ MCP tests complete!"
 
 # ════════════════════════════════════════════════════════════════════
 # DATABASE MANAGEMENT

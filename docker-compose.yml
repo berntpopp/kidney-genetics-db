@@ -51,5 +51,20 @@ services:
     environment:
       VITE_API_BASE_URL: ""
 
+  # Read-only MCP sidecar (FastMCP HTTP) over the KGDB REST API
+  mcp:
+    build: ./mcp
+    container_name: kidney_genetics_mcp
+    environment:
+      KGDB_MCP_API_BASE_URL: http://backend:8000
+      KGDB_MCP_HOST: 0.0.0.0
+      KGDB_MCP_PORT: 8789
+    ports:
+      - "8789:8789"
+    # Dev backend has no healthcheck; use short-form like the frontend service.
+    depends_on:
+      - backend
+    restart: unless-stopped
+
 volumes:
   postgres_data:
