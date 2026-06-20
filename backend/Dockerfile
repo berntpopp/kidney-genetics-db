@@ -6,8 +6,11 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install build dependencies and apply OS security patches
+# (apt-get upgrade pulls patched openssl/libssl3/libcurl from the Debian
+#  security suite, clearing base-image CVEs flagged by Trivy code scanning)
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -31,6 +34,13 @@ FROM python:3.14-slim@sha256:fb83750094b46fd6b8adaa80f66e2302ecbe45d513f6cece637
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH"
+
+# SECURITY: Apply OS security patches to the shipped image. The base image's
+# openssl/libssl3/libcurl/libxml2 etc. carry CVEs (e.g. CVE-2026-45447 OpenSSL
+# PKCS7_verify UAF) until upgraded against the Debian security suite. This is
+# the layer that clears the Trivy code-scanning alerts on the backend image.
+RUN apt-get update && apt-get upgrade -y && \
+    rm -rf /var/lib/apt/lists/*
 
 # SECURITY: Remove unnecessary binaries from base image that carry CVEs
 # - gosu: Go binary for privilege dropping (17 CVEs from Go stdlib)

@@ -751,13 +751,7 @@ endef
 # Usage: $(call sync_version,NEW_VERSION)
 define sync_version_cmd
 	@echo "📦 Syncing version to $(1) across all files..."
-	@cd backend && uv run python -c "\
-import re; \
-f = open('pyproject.toml', 'r'); content = f.read(); f.close(); \
-old = re.search(r'version = \"([^\"]+)\"', content).group(1); \
-content = content.replace(f'version = \"{old}\"', f'version = \"$(1)\"', 1); \
-f = open('pyproject.toml', 'w'); f.write(content); f.close(); \
-print(f'   pyproject.toml: {old} → $(1)')"
+	@cd backend && sed -i 's/^version = ".*"/version = "$(1)"/' pyproject.toml && echo "   pyproject.toml: → $(1)"
 	@cd frontend && npm version $(1) --no-git-tag-version --allow-same-version > /dev/null && echo "   package.json: → $(1)"
 	@cd backend && sed -i 's/APP_VERSION: str = ".*"/APP_VERSION: str = "$(1)"/' app/core/config.py && echo "   config.py: → $(1)"
 	@sed -i 's/^version: .*/version: $(1)/' CITATION.cff && echo "   CITATION.cff: → $(1)"
