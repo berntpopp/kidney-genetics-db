@@ -5939,6 +5939,53 @@
         ]
       }
     },
+    "/api/genes/resolve": {
+      "get": {
+        "description": "Resolve a free-text gene identifier to its canonical gene identity.\n\nPUBLIC endpoint (no authentication). Declared BEFORE ``/{gene_symbol}`` so\nit is not shadowed by the path parameter.\n\nBranches by identifier shape (HGNC id, Ensembl gene id, NCBI/Entrez id,\nUniProt accession, exact symbol, then alias / previous-symbol / name).\n\nReturns (JSON:API-shaped):\n    - single match -> 200 ``{data: {type, id, attributes:{hgnc_id,\n      approved_symbol, matched_on, match_type}}, meta:{...}}``\n    - ambiguous (multiple distinct candidates) -> 200 ``{data: null,\n      meta: {ambiguous: true, candidates: [{id, hgnc_id,\n      approved_symbol}, ...]}}``\n    - no match -> 404 (GeneNotFoundError)",
+        "operationId": "resolve_gene_api_genes_resolve_get",
+        "parameters": [
+          {
+            "description": "Free-text gene identifier to resolve",
+            "in": "query",
+            "name": "query",
+            "required": true,
+            "schema": {
+              "description": "Free-text gene identifier to resolve",
+              "title": "Query",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Resolve Gene Api Genes Resolve Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Gene",
+        "tags": [
+          "Core Resources - Genes"
+        ]
+      }
+    },
     "/api/genes/{gene_symbol}": {
       "get": {
         "description": "Get single gene by symbol with JSON:API format.",
