@@ -1,5 +1,8 @@
 # Stage 1: Builder
-FROM node:25-alpine@sha256:cf38e1f3c28ac9d81cdc0c51d8220320b3b618780e44ef96a39f76f7dbfef023 AS builder
+FROM node:26-alpine@sha256:e71ac5e964b9201072425d59d2e876359efa25dc96bb1768cb73295728d6e4ea AS builder
+
+# SECURITY: Patch Alpine OS packages (busybox, musl, libssl/libcrypto, etc.)
+RUN apk upgrade --no-cache
 
 WORKDIR /app
 
@@ -14,7 +17,12 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Production
-FROM nginx:1.29-alpine@sha256:e7257f1ef28ba17cf7c248cb8ccf6f0c6e0228ab9c315c152f9c203cd34cf6d1 AS production
+FROM nginx:1.31-alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a AS production
+
+# SECURITY: Patch Alpine OS packages in the shipped image (busybox, musl,
+# libssl3/libcrypto3, ssl_client, libcurl, zlib, etc.) — clears the Trivy
+# code-scanning alerts on the frontend image.
+RUN apk upgrade --no-cache
 
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
