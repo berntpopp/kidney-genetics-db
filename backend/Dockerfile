@@ -78,9 +78,11 @@ RUN mkdir -p /app/.cache /app/data && chown kidney-api:kidney-api /app/.cache /a
 # Switch to non-root user
 USER kidney-api
 
-# Health check using Python instead of curl (no curl in production image)
+# Health check using Python instead of curl (no curl in production image).
+# Uses /health (not /api/health) - this is the actual endpoint defined in
+# backend/app/main.py; the /api prefix only applies to resource routers.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
 
 EXPOSE 8000
 
