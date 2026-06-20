@@ -194,6 +194,8 @@ services:
     environment:
       API_BASE_URL: /api
       WS_URL: /ws
+      # Public MCP endpoint shown on /mcp; override per deployment.
+      MCP_BASE_URL: ${KGDB_MCP_PUBLIC_URL:-https://mcp.kidney-genetics.org}
       ENVIRONMENT: production
     depends_on:
       backend:
@@ -219,6 +221,71 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
+    ulimits:
+      nproc: 256
+      nofile:
+        soft: 2048
+        hard: 4096
+
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "10"
+        compress: "true"
+
+  mcp:
+    build:
+      context: ./mcp
+      dockerfile: Dockerfile.prod
+    image: kidney_genetics_mcp:latest
+    container_name: kidney_genetics_mcp
+    networks:
+      - npm_proxy_network
+      - kidney_genetics_internal_net
+    # NO PORTS EXPOSED - NPM routes mcp.kidney-genetics.org -> kidney_genetics_mcp:8789
+    ports: []
+    environment:
+      KGDB_MCP_API_BASE_URL: http://backend:8000
+      KGDB_MCP_HOST: 0.0.0.0
+      KGDB_MCP_PORT: 8789
+      KGDB_MCP_ALLOWED_ORIGINS: ${KGDB_MCP_ALLOWED_ORIGINS:-https://claude.ai,https://claude.com}
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8789/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+    # SECURITY: Run as non-root
+    user: "10001:10001"
+
+    # SECURITY: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,size=64M,mode=1777
+
+    # SECURITY: Capability dropping
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # NO cap_add - Python needs zero capabilities
+
+    # SECURITY: Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+          pids: 200
+        reservations:
+          cpus: '0.1'
+          memory: 64M
     ulimits:
       nproc: 256
       nofile:

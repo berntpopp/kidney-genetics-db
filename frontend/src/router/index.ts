@@ -202,6 +202,16 @@ export const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/mcp',
+    name: 'mcp',
+    component: () => import('../views/MCP.vue'),
+    meta: {
+      title: 'MCP Server',
+      description:
+        'Connect AI agents to the Kidney Genetics Database via the Model Context Protocol (MCP) — read-only access to curated kidney gene data.'
+    }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('../views/NotFound.vue'),
