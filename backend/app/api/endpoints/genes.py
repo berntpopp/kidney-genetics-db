@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import get_db
 from app.core.cache_service import get_cache_service
@@ -547,6 +548,100 @@ async def get_genes(
     # This prevents the pagination bug where all pages return the same cached result
 
     return response
+
+
+@router.get("/resolve", response_model=dict)
+async def resolve_gene(
+    query: str = Query(..., description="Free-text gene identifier to resolve"),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Resolve a free-text gene identifier to its canonical gene identity.
+
+    PUBLIC endpoint (no authentication). Declared BEFORE ``/{gene_symbol}`` so
+    it is not shadowed by the path parameter.
+
+    Branches by identifier shape (HGNC id, Ensembl gene id, NCBI/Entrez id,
+    UniProt accession, exact symbol, then alias / previous-symbol / name).
+
+    Returns (JSON:API-shaped):
+        - single match -> 200 ``{data: {type, id, attributes:{hgnc_id,
+          approved_symbol, matched_on, match_type}}, meta:{...}}``
+        - ambiguous (multiple distinct candidates) -> 200 ``{data: null,
+          meta: {ambiguous: true, candidates: [{id, hgnc_id,
+          approved_symbol}, ...]}}``
+        - no match -> 404 (GeneNotFoundError)
+    """
+    from app.crud.gene import (
+        _DIGITS_RE,
+        _ENSG_RE,
+        _HGNC_RE,
+        _UNIPROT_RE,
+        MATCH_ALIAS,
+        MATCH_ENSEMBL,
+        MATCH_HGNC,
+        MATCH_NCBI,
+        MATCH_SYMBOL,
+        MATCH_UNIPROT,
+        gene_crud,
+    )
+
+    # Offload the (potentially JSONB-heavy) resolution to a thread pool so the
+    # event loop is never blocked (non-blocking pattern).
+    result = await run_in_threadpool(lambda: gene_crud.resolve_query(db, query))
+
+    if result is None:
+        raise GeneNotFoundError(query)
+
+    # Ambiguous: multiple distinct candidate genes.
+    if isinstance(result, list):
+        return {
+            "data": None,
+            "meta": {
+                "ambiguous": True,
+                "query": query,
+                "candidates": [
+                    {
+                        "id": str(candidate.id),
+                        "hgnc_id": candidate.hgnc_id,
+                        "approved_symbol": candidate.approved_symbol,
+                    }
+                    for candidate in result
+                ],
+            },
+        }
+
+    # Single match: classify the branch that matched for `match_type`.
+    q = query.strip()
+    if _HGNC_RE.match(q):
+        match_type = MATCH_HGNC
+    elif _ENSG_RE.match(q):
+        match_type = MATCH_ENSEMBL
+    elif _DIGITS_RE.match(q):
+        match_type = MATCH_NCBI
+    elif _UNIPROT_RE.match(q) and q.upper() != (result.approved_symbol or "").upper():
+        match_type = MATCH_UNIPROT
+    elif q.upper() == (result.approved_symbol or "").upper():
+        match_type = MATCH_SYMBOL
+    else:
+        match_type = MATCH_ALIAS
+
+    return {
+        "data": {
+            "type": "gene",
+            "id": str(result.id),
+            "attributes": {
+                "hgnc_id": result.hgnc_id,
+                "approved_symbol": result.approved_symbol,
+                "matched_on": query,
+                "match_type": match_type,
+            },
+        },
+        "meta": {
+            "ambiguous": False,
+            "query": query,
+        },
+    }
 
 
 @router.get("/{gene_symbol}", response_model=dict)
