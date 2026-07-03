@@ -528,8 +528,7 @@
                     </div>
                     <pre
                       class="text-xs bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 p-3 rounded overflow-x-auto"
-                      >{{ selectedLog.stack_trace }}</pre
-                    >
+                      >{{ selectedLog.stack_trace }}</pre>
                   </div>
                 </div>
               </TabsContent>

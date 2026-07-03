@@ -89,13 +89,7 @@ export interface LiteratureEvidenceData {
 
 /** Union of all known annotation source name literals */
 export type AnnotationSourceName =
-  | 'ClinGen'
-  | 'GenCC'
-  | 'HPO'
-  | 'PanelApp'
-  | 'PubTator'
-  | 'DiagnosticPanels'
-  | 'Literature'
+  'ClinGen' | 'GenCC' | 'HPO' | 'PanelApp' | 'PubTator' | 'DiagnosticPanels' | 'Literature'
 
 /**
  * Union of all known per-source evidence data shapes.
