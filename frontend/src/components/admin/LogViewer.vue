@@ -377,8 +377,7 @@ watch(
               <AccordionContent>
                 <pre
                   class="text-[11px] leading-tight max-h-[200px] overflow-y-auto bg-muted rounded p-2 whitespace-pre-wrap break-words"
-                  >{{ formatLogData(log.data) }}</pre
-                >
+                  >{{ formatLogData(log.data) }}</pre>
               </AccordionContent>
             </AccordionItem>
           </Accordion>

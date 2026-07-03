@@ -403,8 +403,7 @@ const getMetadataLabel = (source: Record<string, unknown>, type: string) => {
 
 const getMetadataTooltip = (source: Record<string, unknown>, type: string) => {
   const explanations = (apiResponse.value as Record<string, unknown>)?.explanations as
-    | Record<string, string>
-    | undefined
+    Record<string, string> | undefined
   const tooltipMap: Record<string, string | undefined> = {
     'Expert Panels': explanations?.expert_panels,
     Classifications: explanations?.classifications,
