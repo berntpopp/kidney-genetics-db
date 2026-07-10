@@ -1790,7 +1790,7 @@ requires-dist = [
     { name = "email-validator", specifier = ">=2.2.0" },
     { name = "factory-boy", marker = "extra == 'test'", specifier = ">=3.3.0" },
     { name = "faker", marker = "extra == 'test'", specifier = ">=20.0.0" },
-    { name = "fastapi", specifier = ">=0.135.3,<0.139.0" },
+    { name = "fastapi", specifier = ">=0.135.3,<0.140.0" },
     { name = "fastapi-pagination", specifier = ">=0.12.0" },
     { name = "gseapy", specifier = ">=1.1.10" },
     { name = "hishel", specifier = ">=0.0.24,<2.0.0" },
@@ -1827,7 +1827,7 @@ requires-dist = [
     { name = "slowapi", specifier = ">=0.1.9" },
     { name = "sqlalchemy", specifier = ">=2.0,<3.0" },
     { name = "statsmodels", specifier = ">=0.14.5" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0,<0.50.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0,<0.51.0" },
 ]
 provides-extras = ["dev", "test"]
 
