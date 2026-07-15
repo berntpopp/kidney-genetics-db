@@ -68,3 +68,12 @@
 - [x] **Step 2: Protect the behavior.** Add a fresh-process regression test that patches `Base.metadata.create_all` before importing `app.main` and fails if import invokes it.
 - [x] **Step 3: Reconcile onboarding.** Require the component-local backend `.env` with its four required settings, run Alembic before API startup, explain that backend tests need a dedicated database, and remove stale test examples.
 - [x] **Step 4: Verify.** Run the import regression, backend static checks, both Compose config validations, and the full root check against a migrated disposable database.
+
+## Task 7: Correct the full-gate gene normalization invariant
+
+**Files:** Modify `backend/app/core/gene_normalizer.py`, `backend/tests/test_gene_normalization.py`, and `backend/tests/core/test_validators.py`.
+
+- [x] **Step 1: Reproduce the invariant failure.** The full backend property suite found that an input such as `G:ENE` normalized to `GENE`, then to an empty string on a second pass.
+- [x] **Step 2: Make cleaning idempotent.** Preserve literal `GENE` and `PROTEIN` tokens while excluding them as likely symbols, remove repeated tag prefixes safely, and consume only terminal `GENE`, `PROTEIN`, and `_HUMAN` suffix tokens.
+- [x] **Step 3: Bound normalization work.** Use direct terminal-token consumption rather than repeated full-string regular-expression substitutions, protecting long suffix runs and long near-miss inputs from quadratic behavior.
+- [x] **Step 4: Protect and verify.** Add explicit idempotence, repeated-suffix, and long near-miss regression tests; run the focused backend suite and the full migrated-database root check.
