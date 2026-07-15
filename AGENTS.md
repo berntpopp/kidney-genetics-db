@@ -31,8 +31,7 @@ This is the durable, shared instruction source for every coding agent in this re
 
 - Python 3.13 is the local-development and CI baseline; metadata may support a wider range, but do not change this baseline casually.
 - The backend production image intentionally uses Python 3.14; that does not alter the local or CI baseline.
-- Use Node.js >=22.18.0 for the frontend and current `uv`, Docker Engine, and
-  Docker Compose v2. Invoke Compose as `docker compose`.
+- Use Node.js >=22.18.0 for the frontend and current `uv`, Docker Engine, and Docker Compose v2. Invoke Compose as `docker compose`.
 - Copy only required examples: root `.env.example`, `backend/.env.example`, or
   `mcp/.env.example`. Never commit populated `.env` files or expose values.
 - This modernization introduces `make install` as the deterministic root bootstrap: locked Python dependency sync for backend/MCP and `npm ci` for frontend.
@@ -56,15 +55,17 @@ make frontend                 # Vite development server
 make worker                   # ARQ worker (requires Redis)
 make mcp                      # read-only MCP server (requires backend API)
 make hybrid-down              # stop hybrid services
-make dev-up && make dev-down  # start or stop the full Docker stack
+make dev-up                    # start the full Docker stack
+make dev-down                  # stop the full Docker stack
 ```
 
 Run the narrowest command that proves the changed behavior before escalating.
 
 ```bash
-cd backend && uv run ruff check app/             # backend lint, no rewrite
+cd backend && uv run ruff check --no-fix app/    # backend lint, no rewrite
 cd backend && uv run ruff format --check app/    # backend formatting
 cd backend && uv run pytest tests/ -v            # backend test suite
+cd backend && uv run ruff check --fix app/       # explicit backend lint fixes
 cd frontend && npm run lint:check && npm run format:check
 cd frontend && npm run test:run && npm run build
 make -C mcp check                                # ruff, strict mypy, pytest
