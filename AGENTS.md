@@ -35,21 +35,20 @@ This is the durable, shared instruction source for every coding agent in this re
   Docker Compose v2. Invoke Compose as `docker compose`.
 - Copy only required examples: root `.env.example`, `backend/.env.example`, or
   `mcp/.env.example`. Never commit populated `.env` files or expose values.
-- `make install` is the deterministic root bootstrap: locked Python dependency sync for backend/MCP and `npm ci` for frontend. Run it after cloning or lock changes.
-- For component-only setup, run `uv sync --locked --group dev` in `backend/` or
-  `mcp/`, and `npm ci` in `frontend/`.
+- This modernization introduces `make install` as the deterministic root bootstrap: locked Python dependency sync for backend/MCP and `npm ci` for frontend.
+- On a branch or revision predating that target, use `cd backend && uv sync --locked --group dev`, `cd frontend && npm ci`, and `cd mcp && uv sync --locked --group dev` instead.
 - `make hybrid-up` starts PostgreSQL and Redis for local services; use `make dev-up` for the full Docker stack. Use `make help` for target details.
 - Check tooling before debugging setup: `uv --version`, `node --version`,
   `npm --version`, and `docker compose version`.
 
 ## Common Commands
 
-The root Makefile is the stable developer interface. Prefer it to recreating
-long command sequences in shells, CI, or agent prompts.
+On revisions defining them, root Makefile targets are the stable interface;
+prefer them to recreating long command sequences in shells, CI, or agent prompts.
 
 ```bash
-make install                  # deterministic backend, frontend, and MCP setup
-make check                    # non-mutating root quality gate
+make install                  # deterministic setup (when this target exists)
+make check                    # non-mutating root quality gate (when it exists)
 make help                     # list operational targets
 make hybrid-up                # PostgreSQL + Redis for local services
 make backend                  # FastAPI on http://localhost:8000
@@ -74,8 +73,9 @@ docker compose -f docker-compose.yml config      # Compose validation
 git diff --check                                 # whitespace/conflict check
 ```
 
-- `make check` and `*:check` commands are verification-only. Use explicit fix
-  commands, such as `ruff check --fix` or `prettier --write`, only after review.
+- `make check` and `*:check` commands are verification-only. On revisions that
+  predate the root target, run all affected focused checks; use fix commands
+  only after review.
 - Database changes use Alembic: create and review a revision, then apply it via
   `cd backend && uv run alembic upgrade head` in the intended environment.
 - Do not run destructive reset, cleanup, rebuild, release, or production
@@ -152,8 +152,8 @@ git diff --check                                 # whitespace/conflict check
 
 ## Testing and Verification
 
-- Run focused verification first, then the component check. Run `make check`
-  before handoff when work spans components or shared developer tooling.
+- Run focused verification first, then the component check. Where defined, run
+  `make check` before handoff for cross-component or shared-tooling work.
 - Backend integration, pipeline, and operational tests may need PostgreSQL and
   Redis from `make hybrid-up`; report that dependency rather than masking it.
 - Frontend changes normally need applicable lint, format, Vitest, and build
