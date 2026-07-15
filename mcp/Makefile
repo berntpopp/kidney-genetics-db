@@ -2,7 +2,7 @@
 
 # Install runtime + dev dependencies.
 install:
-	uv sync --group dev
+	uv sync --locked --group dev
 
 # Full local gate: lint (ruff), type-check (mypy strict), tests (pytest).
 # Generated contract artifacts are excluded from ruff + mypy via pyproject.

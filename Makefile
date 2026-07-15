@@ -3,8 +3,8 @@
 
 .PHONY: help install install-backend install-frontend install-mcp check check-backend check-frontend check-mcp dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend worker mcp mcp-build mcp-test lint lint-backend lint-frontend lint-mcp lint-fix lint-fix-backend lint-fix-frontend lint-fix-mcp format format-backend format-frontend format-mcp format-check test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed test-frontend prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check security bandit pip-audit npm-audit ci ci-backend ci-frontend ci-mcp benchmark-pipeline benchmark-pipeline-fresh
 
-# Detect docker compose command (v2 vs v1)
-DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
+# Docker Compose v2 is the supported repository baseline.
+DOCKER_COMPOSE := docker compose
 
 # Default target - show help
 help:
@@ -911,23 +911,23 @@ release-tag: ## Tag current version without bumping (then: git push && git push 
 # Production mode (NPM-integrated, no ports exposed)
 prod-build:
 	@echo "🔨 Building production images..."
-	docker-compose -f docker-compose.prod.yml build --no-cache
+	$(DOCKER_COMPOSE) -f docker-compose.prod.yml build --no-cache
 
 prod-up:
 	@echo "🚀 Starting production deployment (NPM mode)..."
 	@echo "⚠️  Requires 'npm_proxy_network' network to exist!"
 	@$(MAKE) npm-network-check
-	docker-compose -f docker-compose.prod.yml up -d
+	$(DOCKER_COMPOSE) -f docker-compose.prod.yml up -d
 
 prod-down:
 	@echo "🛑 Stopping production deployment..."
-	docker-compose -f docker-compose.prod.yml down
+	$(DOCKER_COMPOSE) -f docker-compose.prod.yml down
 
 prod-logs:
-	docker-compose -f docker-compose.prod.yml logs -f --tail=100
+	$(DOCKER_COMPOSE) -f docker-compose.prod.yml logs -f --tail=100
 
 prod-restart:
-	docker-compose -f docker-compose.prod.yml restart
+	$(DOCKER_COMPOSE) -f docker-compose.prod.yml restart
 
 prod-health:
 	@echo "=== Production Health Check ==="
@@ -940,14 +940,14 @@ prod-test-up:
 	@echo "  - Frontend: http://localhost:8080"
 	@echo "  - Backend API: http://localhost:8001/api/health"
 	@echo "  - Database: localhost:5433"
-	docker-compose -f docker-compose.prod.test.yml up -d
+	$(DOCKER_COMPOSE) -f docker-compose.prod.test.yml up -d
 
 prod-test-down:
 	@echo "🛑 Stopping test mode..."
-	docker-compose -f docker-compose.prod.test.yml down
+	$(DOCKER_COMPOSE) -f docker-compose.prod.test.yml down
 
 prod-test-logs:
-	docker-compose -f docker-compose.prod.test.yml logs -f --tail=100
+	$(DOCKER_COMPOSE) -f docker-compose.prod.test.yml logs -f --tail=100
 
 prod-test-health:
 	@echo "=== Test Mode Health Check ==="
