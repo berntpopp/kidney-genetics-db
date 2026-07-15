@@ -77,18 +77,22 @@ embedded in responses, not registered resource templates.
 ## Running locally
 
 ```bash
-cd mcp
-
-# Install dependencies (requires uv >= 0.4)
-make mcp-build           # or: uv sync --group dev
+# From the repository root: install exact locked development dependencies.
+make install-mcp
 
 # Point at a local KGDB API and start the MCP server
-make mcp                 # or: uv run kidney-genetics-mcp
+make mcp
 ```
 
-`make mcp` runs from the repo root. The server listens on
+The component-local install alternative is:
+
+```bash
+cd mcp && uv sync --locked --group dev
+```
+
+`make mcp` runs from the repository root. The server listens on
 `http://localhost:8789` by default and expects the backend API on
-`http://localhost:8000` (start it with `make backend`).
+`http://localhost:8000`; start it with `make backend`.
 
 | Endpoint | Description |
 |---|---|
@@ -113,8 +117,21 @@ production NPM routes `mcp.kidney-genetics.org` → `kidney_genetics_mcp:8789`.
 ### Testing
 
 ```bash
-make mcp-test            # from repo root, or: cd mcp && uv run pytest
+# Complete MCP quality and contract-drift gate, from the repository root
+make check-mcp
+
+# Focused test suite
+make mcp-test
+
+# Component-local alternative
+cd mcp && uv run pytest
 ```
+
+`make check-mcp` verifies the lockfile, Ruff lint and formatting, strict mypy,
+the test suite, and generated-contract drift. Run `make -C mcp contract` only
+when intentionally regenerating the tracked contract modules; do not hand-edit
+`src/kidney_genetics_mcp/contract/_generated_*.py`. To run only the
+generated-contract verification, use `make -C mcp contract-verify`.
 
 ---
 

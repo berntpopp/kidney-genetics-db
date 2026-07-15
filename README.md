@@ -2,110 +2,163 @@
 
 [![DOI](https://zenodo.org/badge/1029597888.svg)](https://doi.org/10.5281/zenodo.19316248) [![CI](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/ci.yml/badge.svg)](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/ci.yml) [![Security](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/security.yml/badge.svg)](https://github.com/berntpopp/kidney-genetics-db/actions/workflows/security.yml) [![Version](https://img.shields.io/github/v/release/berntpopp/kidney-genetics-db?label=version)](https://github.com/berntpopp/kidney-genetics-db/releases/latest)
 
-A modern platform for curating and exploring kidney disease-related genes with evidence-based scoring. Modernizes the original [kidney-genetics](https://github.com/halbritter-lab/kidney-genetics) R-based pipeline into a scalable web application.
+A scientific platform for curating and exploring kidney disease-related genes
+with evidence-based scoring. It modernizes the original
+[kidney-genetics](https://github.com/halbritter-lab/kidney-genetics) R pipeline
+as a reproducible web application.
 
 ## Overview
 
-Curates 5,080+ kidney disease genes from 17 authoritative sources with evidence scoring, two-stage data ingestion (staging → curated), and comprehensive annotations. Features unified caching, retry logic, real-time progress tracking, and an admin panel with pipeline management.
+The database curates 5,080+ kidney disease genes from 17 authoritative sources
+with evidence scoring, staging-to-curated ingestion, and provenance-aware
+annotations. It includes unified caching, retries, progress tracking, and an
+administrative pipeline interface.
 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| **Backend** | Python 3.14, FastAPI, SQLAlchemy, PostgreSQL (relational + JSONB) |
-| **Frontend** | Vue 3, TypeScript, Tailwind CSS v4, shadcn-vue (reka-ui), TanStack Table, Pinia |
-| **Pipeline** | 17 annotation sources, bulk + per-gene fetching, async with ThreadPoolExecutor |
-| **Infrastructure** | Docker Compose, Redis (ARQ worker), Alembic migrations, GitHub Actions CI/CD |
-| **Data Sources** | HGNC, gnomAD, ClinVar, HPO, GTEx, Descartes, MPO/MGI, STRING PPI, Ensembl, UniProt, PanelApp, ClinGen, GenCC, PubTator |
+|---|---|
+| **Backend** | FastAPI, SQLAlchemy, PostgreSQL, Python 3.14 production image |
+| **Frontend** | Vue 3, TypeScript, Vite SSG, Tailwind CSS, Pinia |
+| **MCP** | Read-only FastMCP server over an allowlisted public API |
+| **Infrastructure** | Docker Compose v2, Redis/ARQ, Alembic, GitHub Actions |
+| **Data sources** | HGNC, gnomAD, ClinVar, HPO, GTEx, Descartes, MPO/MGI, STRING, Ensembl, UniProt, PanelApp, ClinGen, GenCC, and PubTator |
+
+## Prerequisites
+
+- Git
+- [uv](https://docs.astral.sh/uv/) and Python 3.13 for local development and
+  CI. The backend production container deliberately uses Python 3.14.
+- Node.js >=22.18.0 and npm for the frontend.
+- Docker Engine and Docker Compose v2 (`docker compose`).
+
+Check the local toolchain before troubleshooting setup:
+
+```bash
+uv --version
+node --version
+npm --version
+docker compose version
+```
 
 ## Quick Start
 
-### Hybrid Development (Recommended)
+Clone the repository and install all locked development dependencies:
 
 ```bash
-# Start database + Redis in Docker
+git clone https://github.com/berntpopp/kidney-genetics-db.git
+cd kidney-genetics-db
+make install
+
+# Optional: create local overrides; never commit this file.
+cp .env.example .env
+
+# Start PostgreSQL and Redis for local services.
 make hybrid-up
-
-# Then in separate terminals:
-make backend    # FastAPI API (localhost:8000/docs)
-make frontend   # Vite dev server (localhost:5173)
-make worker     # ARQ background worker (optional, requires Redis)
-
-# Stop everything
-make hybrid-down
 ```
 
-### Full Docker Development
+Then use separate terminals as needed:
 
 ```bash
-make dev-up     # Start all services in Docker
-make dev-down   # Stop everything
+make backend     # FastAPI API at http://localhost:8000/docs
+make frontend    # Vite development server at http://localhost:5173
+make worker      # Optional ARQ worker; requires Redis
+make mcp         # Optional read-only MCP server at http://localhost:8789/mcp
 ```
 
-### Access Points
+Use `make hybrid-down` to stop the hybrid services. For a fully containerized
+development stack, use `make dev-up` and `make dev-down` instead.
 
-- **Frontend**: http://localhost:5173
-- **API / Swagger**: http://localhost:8000/docs
-- **PostgreSQL**: localhost:5432
-- **Redis**: localhost:6379
+### Access points
 
-## Requirements
+- Frontend: <http://localhost:5173>
+- API / Swagger: <http://localhost:8000/docs>
+- PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
+- MCP: <http://localhost:8789/mcp>
 
-- Python 3.14+ (managed via [UV](https://docs.astral.sh/uv/))
-- Node.js 18+
-- Docker & Docker Compose
+## Development Commands
 
-## Project Structure
-
-```
-backend/            FastAPI application with data pipeline
-  app/
-    api/endpoints/  REST API endpoints (21 modules)
-    pipeline/       Annotation sources (unified/ and annotations/)
-    core/           Shared utilities (logging, cache, retry, config)
-    models/         SQLAlchemy models (22 tables)
-    services/       Business logic (backup, enrichment, releases, Zenodo)
-    db/             View system with dependency-aware topological sorting
-frontend/           Vue 3 + TypeScript SPA
-  src/
-    views/          Page components
-    components/     Domain-organized + shadcn-vue primitives
-    api/            Axios-based API client modules
-    stores/         Pinia state management
-    composables/    Vue composition functions
-```
-
-## Development
+The root Makefile is the stable local interface. Use `make help` to see every
+available target.
 
 ```bash
-make help            # Show all available commands
-make status          # System status + DB stats
-make lint            # Backend: ruff check + fix
-make lint-frontend   # Frontend: ESLint
-make format-check    # Check formatting (backend + frontend)
-make test            # Run all backend tests
-make ci              # Run full CI checks locally
-make security        # All security scans
-make db-reset        # Complete database reset
+# Deterministic, locked installs
+make install
+make install-backend
+make install-frontend
+make install-mcp
+
+# Non-mutating component checks
+make check-frontend
+make check-mcp
+make services-up       # PostgreSQL and Redis, required before backend checks
+make check-backend
+make check             # All three checks; therefore also needs PostgreSQL
+make ci                # Local CI wrappers; therefore also needs PostgreSQL
+
+# Explicit source-changing maintenance commands
+make lint-fix
+make format
+
+# Security scans
+make security
+make bandit
+make pip-audit
+make npm-audit
 ```
 
-See [CLAUDE.md](CLAUDE.md) for comprehensive development guidance and architecture details.
+`make check-backend`, and consequently `make check` and `make ci`, exercise the
+backend test suite against a running PostgreSQL service. On a newly created
+local database, apply migrations before testing:
+
+```bash
+cd backend && uv run alembic upgrade head
+```
+
+`make check-frontend` and `make check-mcp` do not require the application
+database. Use `make lint` and `make format-check` for verification-only
+maintenance checks; use the explicit fix commands only when you intend to
+rewrite source files.
+
+## Repository Structure
+
+```text
+backend/                 FastAPI service, Alembic migrations, pipeline, and tests
+frontend/                Vue 3 + TypeScript application and Playwright/Vitest tests
+mcp/                     Read-only FastMCP sidecar and generated API contract
+scrapers/literature/     Independently locked scraper project
+scrapers/diagnostics/    Legacy diagnostics utility (not root-managed)
+docker-compose*.yml      Development, service-only, and production stacks
+.planning/               Design and execution records
+```
+
+`scrapers/diagnostics` is a legacy utility with no dependency manifest,
+lockfile, or test gate. It is deliberately excluded from root installation and
+checks until a dedicated packaging modernization adds those guarantees.
+
+## Guidance for Contributors and Agents
+
+Read [AGENTS.md](AGENTS.md) for the shared repository guidance: architecture,
+component boundaries, safe generated-data handling, verification, and
+multi-agent handoffs. `CLAUDE.md` is only a small bridge to that source of
+truth.
 
 ## Versioning
 
 This project uses two independent version streams:
 
-- **Code**: SemVer (`0.3.1`) — tagged releases with Zenodo software DOI
-- **Data**: CalVer (`YYYY.MM`) — API-driven data releases with Zenodo dataset DOI
+- **Code**: SemVer (`0.5.1`) — tagged releases with the Zenodo software DOI.
+- **Data**: CalVer (`YYYY.MM`) — API-mediated data releases with dataset DOIs.
 
 ## Citation
 
 If you use the Kidney-Genetics Database, please cite:
 
-> Kidney-Genetics Database (v0.3.1). DOI: [10.5281/zenodo.19316248](https://doi.org/10.5281/zenodo.19316248)
+> Kidney-Genetics Database (v0.5.1). DOI: [10.5281/zenodo.19316248](https://doi.org/10.5281/zenodo.19316248)
 
 See [CITATION.cff](CITATION.cff) for full citation metadata.
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) file.
+MIT License — see [LICENSE](LICENSE).
