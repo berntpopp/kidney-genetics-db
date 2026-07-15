@@ -250,34 +250,20 @@ class TestStringCleaning:
         )
 
     @given(st.text())
-    def test_clean_text_preserves_alphanumeric(self, text: str):
-        """Test that cleaning preserves alphanumeric characters from the preserved portion.
+    def test_clean_text_output_alphanumerics_follow_input_order(self, text: str):
+        """Cleaning may remove text but must not invent or reorder alphanumerics."""
+        input_alphanumerics = "".join(
+            character for character in text.strip().upper() if character.isalnum()
+        )
+        cleaned_alphanumerics = "".join(
+            character for character in clean_gene_text(text) if character.isalnum()
+        )
 
-        Note: clean_gene_text removes everything after separators (;,|/\\) and
-        parenthetical content, so we only check that alphanumeric chars from the
-        portion that would be preserved are actually preserved.
-        """
-        import re
-
-        cleaned = clean_gene_text(text)
-
-        # Simulate the separator removal to get the portion that should be preserved
-        # First, get uppercase version like clean_gene_text does
-        text_upper = text.strip().upper()
-        # Remove prefixes (like clean_gene_text does)
-        text_upper = re.sub(r"^(GENE:|SYMBOL:|PROTEIN:)", "", text_upper)
-        text_upper = re.sub(r"(GENE|PROTEIN|_HUMAN)$", "", text_upper)
-        # Get only the part before separators (like clean_gene_text does)
-        preserved_part = re.sub(r"[;,|/\\].*$", "", text_upper)
-        # Remove parenthetical content
-        preserved_part = re.sub(r"\s*\([^)]*\)", "", preserved_part)
-
-        # Get alphanumeric characters from the preserved portion only
-        preserved_alnum = "".join(c for c in preserved_part if c.isalnum())
-
-        if preserved_alnum:
-            # Check that alphanumeric content from preserved portion is in cleaned
-            assert all(c in cleaned for c in preserved_alnum if c.isalnum())
+        input_index = 0
+        for character in cleaned_alphanumerics:
+            input_index = input_alphanumerics.find(character, input_index)
+            assert input_index >= 0
+            input_index += 1
 
 
 @pytest.mark.unit

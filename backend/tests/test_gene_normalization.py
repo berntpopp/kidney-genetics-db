@@ -50,12 +50,17 @@ class TestGeneTextCleaning:
         result = clean_gene_text("")
         assert result == ""
 
-    def test_clean_gene_text_is_idempotent_for_literal_gene_term(self):
-        """A cleaned literal term must remain stable on subsequent cleaning."""
-        cleaned = clean_gene_text("G:ENE")
+    @pytest.mark.parametrize(
+        "input_text,expected",
+        [("G:ENE", "GENE"), ("GENE", "GENE"), ("PROTEIN", "PROTEIN")],
+    )
+    def test_clean_gene_text_keeps_excluded_literal_terms_stable(self, input_text, expected):
+        """Excluded literal terms remain stable and are rejected as gene symbols."""
+        cleaned = clean_gene_text(input_text)
 
-        assert cleaned == "GENE"
+        assert cleaned == expected
         assert clean_gene_text(cleaned) == cleaned
+        assert is_likely_gene_symbol(cleaned) is False
 
 
 @pytest.mark.unit
