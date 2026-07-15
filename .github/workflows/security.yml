@@ -54,7 +54,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend
-        run: uv sync --group dev
+        run: uv sync --locked --group dev
 
       - name: Run pip-audit
         working-directory: backend
@@ -88,7 +88,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend
-        run: uv sync --group dev
+        run: uv sync --locked --group dev
 
       - name: Run Bandit Security Scan
         working-directory: backend
@@ -128,7 +128,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '22.18.x'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
