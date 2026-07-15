@@ -57,6 +57,9 @@ cp backend/.env.example backend/.env
 
 # Start PostgreSQL and Redis for local services.
 make hybrid-up
+
+# Apply the reviewed schema to a new local database before starting the API.
+(cd backend && uv run alembic upgrade head)
 ```
 
 Then use separate terminals as needed:

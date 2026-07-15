@@ -64,7 +64,7 @@ The historical convenience targets remain useful during focused development:
 
 ```bash
 make test-unit          # Fast unit-focused selection
-make test-integration   # API and pipeline integration selection
+make test-integration   # Marked pipeline integration selection
 make test-coverage      # Coverage report under backend/htmlcov/
 make test-failed        # Re-run the last failures
 ```
@@ -77,14 +77,16 @@ relying on a narrower marker selection as a release signal.
 
 ```text
 tests/
-├── api/                 API endpoint integration tests
 ├── core/                Unit tests for shared utilities and configuration
-├── e2e/                 Critical user-workflow tests
 ├── fixtures/            Shared database, client, and authentication fixtures
 ├── pipeline/            Annotation and ingestion tests
 ├── factories.py         Test-data factories
 └── conftest.py          Transactional PostgreSQL and global fixtures
 ```
+
+The `tests/api/` and `tests/e2e/` packages are reserved for future suites; they
+do not currently contain collected tests. Do not use their historical Make
+targets as verification signals.
 
 ## Fixtures and Data
 

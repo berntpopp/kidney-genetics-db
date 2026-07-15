@@ -158,7 +158,9 @@ the obsolete top-level Compose `version:` keys from `docker-compose.yml` and
 This change deliberately does not:
 
 - upgrade application dependencies, refactor runtime business logic, migrate
-  the database, or change deployment behavior;
+  the database, or change deployment behavior. The sole runtime safety
+  correction discovered during audit is removal of import-time schema creation;
+  reviewed Alembic migrations are the schema authority;
 - add a new framework or package manager;
 - package the diagnostic scraper without first collecting its actual runtime
   dependencies and creating focused tests;
