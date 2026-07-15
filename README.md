@@ -63,7 +63,7 @@ Then use separate terminals as needed:
 make backend     # FastAPI API at http://localhost:8000/docs
 make frontend    # Vite development server at http://localhost:5173
 make worker      # Optional ARQ worker; requires Redis
-make mcp         # Optional read-only MCP server at http://localhost:8789/mcp
+make mcp         # Optional read-only MCP server at http://localhost:8789
 ```
 
 Use `make hybrid-down` to stop the hybrid services. For a fully containerized
@@ -75,7 +75,7 @@ development stack, use `make dev-up` and `make dev-down` instead.
 - API / Swagger: <http://localhost:8000/docs>
 - PostgreSQL: `localhost:5432`
 - Redis: `localhost:6379`
-- MCP: <http://localhost:8789/mcp>
+- MCP: <http://localhost:8789>
 
 ## Development Commands
 

@@ -96,7 +96,7 @@ cd mcp && uv sync --locked --group dev
 
 | Endpoint | Description |
 |---|---|
-| `http://localhost:8789/mcp` | MCP Streamable HTTP endpoint |
+| `http://localhost:8789` | MCP Streamable HTTP endpoint |
 | `http://localhost:8789/health` | Liveness probe (`{"status": "ok"}`) |
 
 ### Docker
@@ -162,11 +162,11 @@ validation.
 The production MCP endpoint is:
 
 ```
-https://mcp.kidney-genetics.org/mcp
+https://mcp.kidney-genetics.org
 ```
 
 To use it in Claude.ai: **Settings → Connectors → Add custom connector** → enter
-`https://mcp.kidney-genetics.org/mcp`.
+`https://mcp.kidney-genetics.org`.
 
 ---
 
