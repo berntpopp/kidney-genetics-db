@@ -50,6 +50,13 @@ class TestGeneTextCleaning:
         result = clean_gene_text("")
         assert result == ""
 
+    def test_clean_gene_text_is_idempotent_for_literal_gene_term(self):
+        """A cleaned literal term must remain stable on subsequent cleaning."""
+        cleaned = clean_gene_text("G:ENE")
+
+        assert cleaned == "GENE"
+        assert clean_gene_text(cleaned) == cleaned
+
 
 @pytest.mark.unit
 class TestGeneSymbolValidation:
