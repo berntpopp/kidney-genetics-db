@@ -34,21 +34,26 @@ def clean_gene_text(gene_text: str) -> str:
     # Remove extra whitespace and convert to uppercase
     cleaned = gene_text.strip().upper()
 
-    previous = None
-    while cleaned != previous:
-        previous = cleaned
+    # Remove a leading label and its optional whitespace before checking literal terms.
+    cleaned = re.sub(r"^(GENE:|SYMBOL:|PROTEIN:)\s*", "", cleaned)
 
-        # Remove common prefixes/suffixes that interfere with HGNC lookup.
-        # Keep standalone excluded terms stable so a second cleaning does not erase them.
-        cleaned = re.sub(r"^(GENE:|SYMBOL:|PROTEIN:)", "", cleaned)
-        if cleaned not in {"GENE", "PROTEIN"}:
-            cleaned = re.sub(r"(GENE|PROTEIN|_HUMAN)$", "", cleaned)
+    # Remove common separators and special characters.
+    cleaned = re.sub(r"[;,|/\\].*$", "", cleaned)  # Take only first part
+    cleaned = re.sub(r"\s*\([^)]*\)", "", cleaned)  # Remove parenthetical content
+    cleaned = re.sub(r"[^\w-]", "", cleaned)  # Keep only alphanumeric and hyphens
+    cleaned = cleaned.strip()
 
-        # Remove common separators and special characters
-        cleaned = re.sub(r"[;,|/\\].*$", "", cleaned)  # Take only first part
-        cleaned = re.sub(r"\s*\([^)]*\)", "", cleaned)  # Remove parenthetical content
-        cleaned = re.sub(r"[^\w-]", "", cleaned)  # Keep only alphanumeric and hyphens
-        cleaned = cleaned.strip()
+    # Remove an entire trailing suffix run in one pass. Preserve a standalone excluded
+    # term so re-cleaning remains stable, while retaining legacy removal of `_HUMAN`.
+    suffix_match = re.search(r"(?:GENE|PROTEIN|_HUMAN)+$", cleaned)
+    if suffix_match:
+        prefix = cleaned[: suffix_match.start()]
+        if prefix:
+            cleaned = prefix
+        elif literal_match := re.match(r"GENE|PROTEIN", suffix_match.group()):
+            cleaned = literal_match.group()
+        else:
+            cleaned = ""
 
     return cleaned
 
