@@ -87,7 +87,6 @@ For focused iteration:
 ```bash
 cd backend && uv run ruff check --no-fix app/
 cd backend && uv run ruff format --check app/
-cd backend && uv run mypy app/
 cd backend && uv run pytest tests/test_gene_resolve.py -v
 ```
 
