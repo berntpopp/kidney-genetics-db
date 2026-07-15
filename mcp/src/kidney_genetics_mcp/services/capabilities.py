@@ -228,8 +228,7 @@ _ERROR_CODES: dict[str, dict[str, str]] = {
     },
     "ambiguous_query": {
         "meaning": (
-            "The query matched multiple records; carries choices to "
-            "disambiguate."
+            "The query matched multiple records; carries choices to disambiguate."
         ),
         "example": (
             "kgdb_resolve_gene(query='CAD') → ambiguous_query with choices; "

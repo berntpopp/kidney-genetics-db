@@ -86,9 +86,7 @@ async def test_300_maps_to_ambiguous_query() -> None:
 
 @respx.mock
 async def test_500_maps_to_temporarily_unavailable() -> None:
-    respx.get(f"{_BASE}/api/statistics/summary").mock(
-        return_value=httpx.Response(503)
-    )
+    respx.get(f"{_BASE}/api/statistics/summary").mock(return_value=httpx.Response(503))
     client = ApiClient(base_url=_BASE)
     try:
         with pytest.raises(McpToolError) as exc:

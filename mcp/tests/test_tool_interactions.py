@@ -149,9 +149,7 @@ async def test_no_interactions_returns_empty_partners() -> None:
     try:
         mcp = FastMCP("test")
         register(mcp, client)
-        r = await mcp.call_tool(
-            "kgdb_get_interaction_partners", {"gene_id": GENE_ID}
-        )
+        r = await mcp.call_tool("kgdb_get_interaction_partners", {"gene_id": GENE_ID})
         sc = r.structured_content
         assert sc["partners"] == []
         assert sc["summary"]["total_interactions"] == 0
@@ -163,17 +161,13 @@ async def test_no_interactions_returns_empty_partners() -> None:
 async def test_missing_string_ppi_record_handled() -> None:
     # Gene exists but has no string_ppi annotation row.
     respx.get(ANN_URL, params={"source": "string_ppi"}).mock(
-        return_value=httpx.Response(
-            200, json={"gene": GENE_BLOCK, "annotations": {}}
-        )
+        return_value=httpx.Response(200, json={"gene": GENE_BLOCK, "annotations": {}})
     )
     client = ApiClient(base_url=BASE)
     try:
         mcp = FastMCP("test")
         register(mcp, client)
-        r = await mcp.call_tool(
-            "kgdb_get_interaction_partners", {"gene_id": GENE_ID}
-        )
+        r = await mcp.call_tool("kgdb_get_interaction_partners", {"gene_id": GENE_ID})
         sc = r.structured_content
         assert sc["partners"] == []
         assert sc["summary"] == {}
@@ -253,9 +247,7 @@ async def test_not_found_propagates_error_envelope() -> None:
     try:
         mcp = FastMCP("test")
         register(mcp, client)
-        r = await mcp.call_tool(
-            "kgdb_get_interaction_partners", {"gene_id": GENE_ID}
-        )
+        r = await mcp.call_tool("kgdb_get_interaction_partners", {"gene_id": GENE_ID})
         sc = r.structured_content
         assert sc.get("is_error") is True
         assert sc["error"]["code"] == "not_found"

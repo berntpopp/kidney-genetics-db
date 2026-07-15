@@ -114,9 +114,7 @@ async def test_evidence_sources_filter() -> None:
 
 @respx.mock
 async def test_evidence_not_found_propagates() -> None:
-    respx.get(f"{_BASE}/api/genes/NOPE/evidence").mock(
-        return_value=httpx.Response(404)
-    )
+    respx.get(f"{_BASE}/api/genes/NOPE/evidence").mock(return_value=httpx.Response(404))
     client = ApiClient(base_url=_BASE)
     try:
         with pytest.raises(McpToolError) as exc:

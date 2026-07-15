@@ -163,9 +163,9 @@ def test_every_allow_rule_matches_a_real_snapshot_get_path() -> None:
 def test_consumed_exposed_get_path_is_allowed(template: str) -> None:
     """Every GET route the MCP consumes must be present + allowed in the snapshot."""
     assert template in _PATHS, f"{template} missing from snapshot"
-    assert any(
-        m.lower() == "get" for m in _PATHS[template]
-    ), f"{template} has no GET in snapshot"
+    assert any(m.lower() == "get" for m in _PATHS[template]), (
+        f"{template} has no GET in snapshot"
+    )
     path = _substitute(template)
     assert is_allowed("GET", path) is True, f"consumed GET {path} is not allowed"
     assert_allowed("GET", path)  # must not raise
