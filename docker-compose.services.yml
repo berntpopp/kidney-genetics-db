@@ -1,6 +1,4 @@
 # Supporting services for hybrid development
-version: '3.8'
-
 services:
   postgres:
     image: postgres:17-alpine
