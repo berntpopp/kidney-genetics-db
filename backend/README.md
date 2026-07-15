@@ -31,6 +31,17 @@ or update a dependency with `uv add`.
 
 ## Run Locally
 
+Create the backend-local configuration before starting the API. The root
+`.env` is not read by `make backend`:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Set `DATABASE_URL`, `POSTGRES_PASSWORD=kidney_pass` for the default Compose
+service, a unique `JWT_SECRET_KEY` of at least 32 characters, and `ADMIN_PASSWORD` in
+`backend/.env`. Never commit it.
+
 Start the supporting services from the repository root:
 
 ```bash
@@ -66,8 +77,9 @@ make check-backend
 ```
 
 It verifies the lockfile, runs non-mutating Ruff lint and format checks, and
-runs `uv run pytest tests/ -v`. It assumes the database is already available
-and does not create, migrate, or reset it. `make check` and `make ci` include
+runs `uv run pytest tests/ -v`. It assumes the database is already available,
+does not run Alembic migrations or reset it, and tests may write to it; use a
+dedicated local or disposable test database. `make check` and `make ci` include
 this backend gate, so they require the same running PostgreSQL service.
 
 For focused iteration:
@@ -76,7 +88,7 @@ For focused iteration:
 cd backend && uv run ruff check --no-fix app/
 cd backend && uv run ruff format --check app/
 cd backend && uv run mypy app/
-cd backend && uv run pytest tests/api/test_genes.py -v
+cd backend && uv run pytest tests/test_gene_resolve.py -v
 ```
 
 Use `ruff check --fix` or `ruff format` only when you intentionally want to

@@ -32,8 +32,11 @@ This is the durable, shared instruction source for every coding agent in this re
 - Python 3.13 is the local-development and CI baseline; metadata may support a wider range, but do not change this baseline casually.
 - The backend production image intentionally uses Python 3.14; that does not alter the local or CI baseline.
 - Use Node.js >=22.18.0 for the frontend and current `uv`, Docker Engine, and Docker Compose v2. Invoke Compose as `docker compose`.
-- Copy only required examples: root `.env.example`, `backend/.env.example`, or
-  `mcp/.env.example`. Never commit populated `.env` files or expose values.
+- The backend is launched from `backend/` and reads `backend/.env`. For a first
+  local run, copy `backend/.env.example` to `backend/.env`, then set
+  `DATABASE_URL`, `POSTGRES_PASSWORD` (matching the local service), a unique
+  `JWT_SECRET_KEY` of at least 32 characters, and `ADMIN_PASSWORD`. MCP configuration is
+  separate in `mcp/.env`. Never commit populated `.env` files or expose values.
 - This modernization introduces `make install` as the deterministic root bootstrap: locked Python dependency sync for backend/MCP and `npm ci` for frontend.
 - On a branch or revision predating that target, use `cd backend && uv sync --locked --group dev`, `cd frontend && npm ci`, and `cd mcp && uv sync --locked --group dev` instead.
 - `make hybrid-up` starts PostgreSQL and Redis for local services; use `make dev-up` for the full Docker stack. Use `make help` for target details.
@@ -47,7 +50,7 @@ prefer them to recreating long command sequences in shells, CI, or agent prompts
 
 ```bash
 make install                  # deterministic setup (when this target exists)
-make check                    # non-mutating root quality gate (when it exists)
+make check                    # root quality gate; backend tests require PostgreSQL
 make help                     # list operational targets
 make hybrid-up                # PostgreSQL + Redis for local services
 make backend                  # FastAPI on http://localhost:8000
@@ -75,7 +78,10 @@ docker compose -f docker-compose.yml config      # Compose validation
 git diff --check                                 # whitespace/conflict check
 ```
 
-- `make check` and `*:check` commands are verification-only. On revisions that
+- `make check` and `*:check` commands do not rewrite source during lint,
+  formatting, or contract verification. Backend tests can write to their
+  configured PostgreSQL database, so use a dedicated local or disposable test
+  database and apply reviewed Alembic migrations first. On revisions that
   predate the root target, run all affected focused checks; use fix commands
   only after review.
 - Database changes use Alembic: create and review a revision, then apply it via

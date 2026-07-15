@@ -15,6 +15,15 @@ make install-backend
 make services-up
 ```
 
+The backend process reads `backend/.env`, not the root `.env`. Create it from
+the component template and set `DATABASE_URL`, `POSTGRES_PASSWORD` (use
+`kidney_pass` for the default Compose service), a unique `JWT_SECRET_KEY` of at
+least 32 characters, and `ADMIN_PASSWORD` before running tests:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
 On a newly created local database, apply the schema before running tests:
 
 ```bash
@@ -35,15 +44,16 @@ make check-backend
 ```
 
 It checks the lockfile, runs non-mutating Ruff lint and formatting checks, and
-runs `uv run pytest tests/ -v`. It requires PostgreSQL to be running and does
-not automatically migrate or reset the database. Because `make check` and
-`make ci` include `make check-backend`, they require the same service setup.
+runs `uv run pytest tests/ -v`. It requires PostgreSQL to be running, does not
+run Alembic migrations or reset the database, and tests may write to it; use a
+dedicated local or disposable test database. Because `make check` and `make ci`
+include `make check-backend`, they require the same service setup.
 
 For a focused test run, always use the project environment:
 
 ```bash
-cd backend && uv run pytest tests/api/test_genes.py -v
-cd backend && uv run pytest tests/api/test_genes.py::TestGeneEndpoints::test_list_genes_basic -v
+cd backend && uv run pytest tests/test_gene_resolve.py -v
+cd backend && uv run pytest tests/test_gene_resolve.py::TestResolveEndpoint::test_resolve_exact_symbol -v
 cd backend && uv run pytest -k "test_auth" -v
 cd backend && uv run pytest -m "integration" -v
 ```
@@ -55,8 +65,6 @@ The historical convenience targets remain useful during focused development:
 ```bash
 make test-unit          # Fast unit-focused selection
 make test-integration   # API and pipeline integration selection
-make test-e2e           # Backend end-to-end selection
-make test-critical      # Critical smoke selection
 make test-coverage      # Coverage report under backend/htmlcov/
 make test-failed        # Re-run the last failures
 ```

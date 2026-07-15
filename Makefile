@@ -72,8 +72,6 @@ help:
 	@echo "  make test            - Run all backend tests"
 	@echo "  make test-unit       - Run unit tests only (fast)"
 	@echo "  make test-integration - Run integration tests"
-	@echo "  make test-e2e        - Run end-to-end tests"
-	@echo "  make test-critical   - Run critical tests only"
 	@echo "  make test-coverage   - Run tests with coverage report"
 	@echo "  make test-failed     - Re-run only failed tests"
 	@echo "  make test-frontend   - Run frontend component tests (Vitest)"

@@ -50,8 +50,10 @@ git clone https://github.com/berntpopp/kidney-genetics-db.git
 cd kidney-genetics-db
 make install
 
-# Optional: create local overrides; never commit this file.
-cp .env.example .env
+# Backend configuration is read from backend/.env; never commit this file.
+cp backend/.env.example backend/.env
+# Before starting the API, set DATABASE_URL, POSTGRES_PASSWORD=kidney_pass,
+# a unique JWT_SECRET_KEY of at least 32 characters, and ADMIN_PASSWORD in backend/.env.
 
 # Start PostgreSQL and Redis for local services.
 make hybrid-up
@@ -89,7 +91,7 @@ make install-backend
 make install-frontend
 make install-mcp
 
-# Non-mutating component checks
+# Quality checks (lint, format, and contract verification do not rewrite source)
 make check-frontend
 make check-mcp
 make services-up       # PostgreSQL and Redis, required before backend checks
@@ -109,8 +111,10 @@ make npm-audit
 ```
 
 `make check-backend`, and consequently `make check` and `make ci`, exercise the
-backend test suite against a running PostgreSQL service. On a newly created
-local database, apply migrations before testing:
+backend test suite against a running PostgreSQL service. Tests can write to the
+configured database, so use a dedicated local or disposable test database. The
+checks do not run Alembic migrations or reset the database; on a newly created
+database, apply migrations before testing:
 
 ```bash
 cd backend && uv run alembic upgrade head
