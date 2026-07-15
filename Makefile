@@ -1,16 +1,34 @@
 # Kidney Genetics Database - Development Makefile
 # Usage: make [command]
 
-.PHONY: help dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend worker mcp mcp-build mcp-test lint lint-frontend format-check test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed test-frontend prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check security bandit pip-audit npm-audit ci benchmark-pipeline benchmark-pipeline-fresh
+.PHONY: help install install-backend install-frontend install-mcp check check-backend check-frontend check-mcp dev-up dev-down dev-logs hybrid-up hybrid-down services-up services-down db-reset db-clean status clean-all backend frontend worker mcp mcp-build mcp-test lint lint-backend lint-frontend lint-mcp lint-fix lint-fix-backend lint-fix-frontend lint-fix-mcp format format-backend format-frontend format-mcp format-check test test-unit test-integration test-e2e test-critical test-coverage test-watch test-failed test-frontend prod-build prod-up prod-down prod-logs prod-restart prod-health prod-test-up prod-test-down prod-test-logs prod-test-health npm-network-create npm-network-check security bandit pip-audit npm-audit ci ci-backend ci-frontend ci-mcp benchmark-pipeline benchmark-pipeline-fresh
 
-# Detect docker compose command (v2 vs v1)
-DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
+# Docker Compose v2 is the supported repository baseline.
+DOCKER_COMPOSE := docker compose
 
 # Default target - show help
 help:
 	@echo "╔════════════════════════════════════════════════════════════════╗"
 	@echo "║         Kidney Genetics Database - Development Commands         ║"
 	@echo "╚════════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "📦 BOOTSTRAP (deterministic, locked dependencies):"
+	@echo "  make install         - Install backend, frontend, and MCP dependencies"
+	@echo "  make install-backend - uv sync --locked --group dev in backend/"
+	@echo "  make install-frontend - npm ci in frontend/"
+	@echo "  make install-mcp     - uv sync --locked --group dev in mcp/"
+	@echo ""
+	@echo "✅ QUALITY & CI (lint and format checks do not rewrite source):"
+	@echo "  make check           - Run backend, frontend, and MCP quality gates"
+	@echo "  make check-backend   - Lock, lint, format, and backend tests (requires PostgreSQL)"
+	@echo "  make check-frontend  - Lint, format, build, and Vitest"
+	@echo "  make check-mcp       - Lock, lint, format, mypy, pytest, and contract drift"
+	@echo "  make lint            - Non-mutating lint checks for all components"
+	@echo "  make lint-fix        - Apply lint fixes (ruff --fix; frontend eslint --fix)"
+	@echo "  make format-check    - Non-mutating formatting checks for all components"
+	@echo "  make format          - Apply formatting for all components"
+	@echo "  make ci              - Run check wrappers used for local CI verification"
+	@echo "  Backend checks need PostgreSQL: start it with make services-up"
 	@echo ""
 	@echo "🚀 HYBRID DEVELOPMENT (Recommended):"
 	@echo "  make hybrid-up       - Start DB in Docker + run API/Frontend locally"
@@ -30,7 +48,7 @@ help:
 	@echo ""
 	@echo "🔌 MCP SERVER:"
 	@echo "  make mcp             - Run the read-only MCP server locally (port 8789)"
-	@echo "  make mcp-build       - Install MCP server dependencies (uv sync)"
+	@echo "  make mcp-build       - Compatibility alias for make install-mcp"
 	@echo "  make mcp-test        - Run MCP server tests (pytest)"
 	@echo ""
 	@echo "🗄️  DATABASE MANAGEMENT:"
@@ -44,11 +62,6 @@ help:
 	@echo "📊 MONITORING:"
 	@echo "  make status          - Show system status and statistics"
 	@echo ""
-	@echo "🔍 CODE QUALITY:"
-	@echo "  make lint            - Lint backend code with ruff"
-	@echo "  make lint-frontend   - Lint frontend code with eslint"
-	@echo "  make format-check    - Check formatting (backend + frontend)"
-	@echo ""
 	@echo "🔒 SECURITY:"
 	@echo "  make security        - Run all security scans"
 	@echo "  make bandit          - Run Python SAST with Bandit"
@@ -58,11 +71,10 @@ help:
 	@echo "🧪 TESTING:"
 	@echo "  make test            - Run all backend tests"
 	@echo "  make test-unit       - Run unit tests only (fast)"
-	@echo "  make test-integration- Run integration tests"
-	@echo "  make test-e2e        - Run end-to-end tests"
-	@echo "  make test-critical   - Run critical tests only"
+	@echo "  make test-integration - Run integration tests"
 	@echo "  make test-coverage   - Run tests with coverage report"
 	@echo "  make test-failed     - Re-run only failed tests"
+	@echo "  make test-frontend   - Run frontend component tests (Vitest)"
 	@echo ""
 	@echo "📊 BENCHMARKING:"
 	@echo "  make benchmark-pipeline       - Benchmark pipeline (uses existing cache)"
@@ -75,12 +87,16 @@ help:
 	@echo "🚢 PRODUCTION DEPLOYMENT:"
 	@echo "  make prod-build      - Build production images"
 	@echo "  make prod-test-up    - Start test mode (ports: 8080/8001/5433)"
-	@echo "  make prod-test-health- Test mode health check"
+	@echo "  make prod-test-health - Test mode health check"
+	@echo "  make prod-test-logs  - Show test-mode Docker logs"
 	@echo "  make prod-test-down  - Stop test mode"
 	@echo "  make prod-up         - Start production (NPM mode, no ports)"
 	@echo "  make prod-health     - Production health check"
+	@echo "  make prod-logs       - Show production Docker logs"
+	@echo "  make prod-restart    - Restart production services"
 	@echo "  make prod-down       - Stop production"
 	@echo "  make npm-network-create - Create shared npm_proxy_network"
+	@echo "  make npm-network-check  - Check shared npm_proxy_network"
 
 # ════════════════════════════════════════════════════════════════════
 # HYBRID DEVELOPMENT MODE (DB in Docker, API/Frontend local)
@@ -191,11 +207,24 @@ mcp:
 	@echo "⚠️  Requires the backend API (make backend) running on http://localhost:8000"
 	@cd mcp && uv run kidney-genetics-mcp
 
-# Install MCP server dependencies (including dev group)
-mcp-build:
-	@echo "📦 Installing MCP server dependencies..."
-	@cd mcp && uv sync --group dev
-	@echo "✅ MCP dependencies installed!"
+# Deterministic dependency installation for all locally developed components.
+install: install-backend install-frontend install-mcp
+	@echo "✅ Backend, frontend, and MCP dependencies installed."
+
+install-backend:
+	@echo "📦 Installing backend dependencies from backend/uv.lock..."
+	@cd backend && uv sync --locked --group dev
+
+install-frontend:
+	@echo "📦 Installing frontend dependencies from frontend/package-lock.json..."
+	@cd frontend && npm ci
+
+install-mcp:
+	@echo "📦 Installing MCP dependencies from mcp/uv.lock..."
+	@cd mcp && uv sync --locked --group dev
+
+# Compatibility alias for the historical MCP bootstrap target.
+mcp-build: install-mcp
 
 # Run MCP server tests
 mcp-test:
@@ -316,24 +345,80 @@ clean-all:
 # CODE QUALITY
 # ════════════════════════════════════════════════════════════════════
 
-# Lint backend code
-lint:
-	@echo "🔍 Linting backend app code with ruff..."
-	@cd backend && uv run ruff check app/ --fix
-	@echo "✅ Linting complete!"
+# Full quality gate. Backend tests require PostgreSQL; run
+# `make services-up` before invoking this target in a local environment.
+check: check-backend check-frontend check-mcp
+	@echo "✅ All component checks complete!"
 
-# Lint frontend code
-lint-frontend:
-	@echo "🔍 Linting frontend code with eslint..."
+check-backend:
+	@echo "🔍 Checking backend lock, lint, formatting, and tests..."
+	@cd backend && uv lock --check
+	@cd backend && uv run ruff check --no-fix app/
+	@cd backend && uv run ruff format --check app/
+	@cd backend && uv run pytest tests/ -v
+
+check-frontend:
+	@echo "🔍 Checking frontend lint, formatting, build, and tests..."
 	@cd frontend && npm run lint:check
-	@echo "✅ Frontend linting complete!"
+	@cd frontend && npm run format:check
+	@cd frontend && npm run build
+	@cd frontend && npm run test:run
 
-# Check formatting (no auto-fix)
+check-mcp:
+	@echo "🔍 Checking MCP lock, lint, formatting, types, tests, and contract drift..."
+	@cd mcp && uv lock --check
+	@cd mcp && uv run ruff check .
+	@cd mcp && uv run ruff format --check .
+	@cd mcp && uv run mypy src/
+	@cd mcp && uv run pytest
+	@$(MAKE) -C mcp contract-verify
+
+# Non-mutating lint checks. Ruff's backend configuration enables fixes by
+# default, so the backend check must explicitly opt out with --no-fix.
+lint: lint-backend lint-frontend lint-mcp
+	@echo "✅ All lint checks complete!"
+
+lint-backend:
+	@cd backend && uv run ruff check --no-fix app/
+
+lint-frontend:
+	@cd frontend && npm run lint:check
+
+lint-mcp:
+	@cd mcp && uv run ruff check .
+
+# Mutating lint fixes are intentionally opt-in.
+lint-fix: lint-fix-backend lint-fix-frontend lint-fix-mcp
+	@echo "✅ Applied available lint fixes. Review the resulting diff."
+
+lint-fix-backend:
+	@cd backend && uv run ruff check --fix app/
+
+lint-fix-frontend:
+	@cd frontend && npm run lint
+
+lint-fix-mcp:
+	@cd mcp && uv run ruff check --fix .
+
+# Mutating formatting is intentionally opt-in.
+format: format-backend format-frontend format-mcp
+	@echo "✅ Applied formatting. Review the resulting diff."
+
+format-backend:
+	@cd backend && uv run ruff format app/
+
+format-frontend:
+	@cd frontend && npm run format
+
+format-mcp:
+	@cd mcp && uv run ruff format .
+
+# Formatting verification for all components; this target does not rewrite code.
 format-check:
-	@echo "🔍 Checking formatting..."
 	@cd backend && uv run ruff format --check app/
 	@cd frontend && npm run format:check
-	@echo "✅ Format check complete!"
+	@cd mcp && uv run ruff format --check .
+	@echo "✅ Formatting checks complete!"
 
 # ════════════════════════════════════════════════════════════════════
 # SECURITY SCANNING
@@ -367,56 +452,19 @@ npm-audit:
 # CI/CD LOCAL VERIFICATION
 # ════════════════════════════════════════════════════════════════════
 
-# Run all CI checks locally (matches GitHub Actions exactly)
-ci: ci-backend ci-frontend
-	@echo ""
-	@echo "╔════════════════════════════════════════════════════════════════╗"
-	@echo "║                    ✅ ALL CI CHECKS PASSED                      ║"
-	@echo "╚════════════════════════════════════════════════════════════════╝"
+# CI wrappers deliberately use the same non-mutating component checks that
+# developers run locally.
+ci: ci-backend ci-frontend ci-mcp
+	@echo "✅ All local CI checks complete!"
 
-# Run backend CI checks (matches GitHub Actions backend-ci job)
-ci-backend:
-	@echo "╔════════════════════════════════════════════════════════════════╗"
-	@echo "║                    BACKEND CI CHECKS                           ║"
-	@echo "╚════════════════════════════════════════════════════════════════╝"
-	@echo ""
-	@echo "🔍 Step 1/3: Linting with ruff..."
-	@cd backend && uv run ruff check app/
-	@echo "✅ Lint passed"
-	@echo ""
-	@echo "🔍 Step 2/3: Format check with ruff..."
-	@cd backend && uv run ruff format --check app/
-	@echo "✅ Format check passed"
-	@echo ""
-	@echo "🧪 Step 3/3: Running tests with pytest..."
-	@cd backend && uv run pytest tests/ -v
-	@echo "✅ Tests passed"
-	@echo ""
-	@echo "✅ Backend CI complete!"
+ci-backend: check-backend
+	@echo "✅ Backend CI check complete!"
 
-# Run frontend CI checks (matches GitHub Actions frontend-ci job)
-ci-frontend:
-	@echo "╔════════════════════════════════════════════════════════════════╗"
-	@echo "║                    FRONTEND CI CHECKS                          ║"
-	@echo "╚════════════════════════════════════════════════════════════════╝"
-	@echo ""
-	@echo "🔍 Step 1/4: Linting with eslint..."
-	@cd frontend && npm run lint:check
-	@echo "✅ ESLint passed"
-	@echo ""
-	@echo "🔍 Step 2/4: Format check with prettier..."
-	@cd frontend && npm run format:check
-	@echo "✅ Prettier check passed"
-	@echo ""
-	@echo "🔨 Step 3/4: Building frontend..."
-	@cd frontend && npm run build
-	@echo "✅ Build passed"
-	@echo ""
-	@echo "🧪 Step 4/4: Running frontend tests (vitest)..."
-	@cd frontend && npm run test:run
-	@echo "✅ Vitest passed"
-	@echo ""
-	@echo "✅ Frontend CI complete!"
+ci-frontend: check-frontend
+	@echo "✅ Frontend CI check complete!"
+
+ci-mcp: check-mcp
+	@echo "✅ MCP CI check complete!"
 
 # Run frontend tests (Vitest)
 test-frontend:
@@ -863,23 +911,23 @@ release-tag: ## Tag current version without bumping (then: git push && git push 
 # Production mode (NPM-integrated, no ports exposed)
 prod-build:
 	@echo "🔨 Building production images..."
-	docker-compose -f docker-compose.prod.yml build --no-cache
+	$(DOCKER_COMPOSE) -f docker-compose.prod.yml build --no-cache
 
 prod-up:
 	@echo "🚀 Starting production deployment (NPM mode)..."
 	@echo "⚠️  Requires 'npm_proxy_network' network to exist!"
 	@$(MAKE) npm-network-check
-	docker-compose -f docker-compose.prod.yml up -d
+	$(DOCKER_COMPOSE) -f docker-compose.prod.yml up -d
 
 prod-down:
 	@echo "🛑 Stopping production deployment..."
-	docker-compose -f docker-compose.prod.yml down
+	$(DOCKER_COMPOSE) -f docker-compose.prod.yml down
 
 prod-logs:
-	docker-compose -f docker-compose.prod.yml logs -f --tail=100
+	$(DOCKER_COMPOSE) -f docker-compose.prod.yml logs -f --tail=100
 
 prod-restart:
-	docker-compose -f docker-compose.prod.yml restart
+	$(DOCKER_COMPOSE) -f docker-compose.prod.yml restart
 
 prod-health:
 	@echo "=== Production Health Check ==="
@@ -892,14 +940,14 @@ prod-test-up:
 	@echo "  - Frontend: http://localhost:8080"
 	@echo "  - Backend API: http://localhost:8001/api/health"
 	@echo "  - Database: localhost:5433"
-	docker-compose -f docker-compose.prod.test.yml up -d
+	$(DOCKER_COMPOSE) -f docker-compose.prod.test.yml up -d
 
 prod-test-down:
 	@echo "🛑 Stopping test mode..."
-	docker-compose -f docker-compose.prod.test.yml down
+	$(DOCKER_COMPOSE) -f docker-compose.prod.test.yml down
 
 prod-test-logs:
-	docker-compose -f docker-compose.prod.test.yml logs -f --tail=100
+	$(DOCKER_COMPOSE) -f docker-compose.prod.test.yml logs -f --tail=100
 
 prod-test-health:
 	@echo "=== Test Mode Health Check ==="

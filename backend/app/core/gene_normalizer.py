@@ -34,16 +34,39 @@ def clean_gene_text(gene_text: str) -> str:
     # Remove extra whitespace and convert to uppercase
     cleaned = gene_text.strip().upper()
 
-    # Remove common prefixes/suffixes that interfere with HGNC lookup
-    cleaned = re.sub(r"^(GENE:|SYMBOL:|PROTEIN:)", "", cleaned)
-    cleaned = re.sub(r"(GENE|PROTEIN|_HUMAN)$", "", cleaned)
+    # Remove a leading label and its optional whitespace before checking literal terms.
+    cleaned = re.sub(r"^(GENE:|SYMBOL:|PROTEIN:)\s*", "", cleaned)
 
-    # Remove common separators and special characters
+    # Remove common separators and special characters.
     cleaned = re.sub(r"[;,|/\\].*$", "", cleaned)  # Take only first part
     cleaned = re.sub(r"\s*\([^)]*\)", "", cleaned)  # Remove parenthetical content
     cleaned = re.sub(r"[^\w-]", "", cleaned)  # Keep only alphanumeric and hyphens
+    cleaned = cleaned.strip()
 
-    return cleaned.strip()
+    # Consume trailing suffix tokens directly from the end. This avoids an unanchored
+    # regex scan when a long suffix-like run is followed by a non-suffix character.
+    suffix_start = len(cleaned)
+    while suffix_start:
+        if cleaned.endswith("GENE", 0, suffix_start):
+            suffix_start -= len("GENE")
+        elif cleaned.endswith("PROTEIN", 0, suffix_start):
+            suffix_start -= len("PROTEIN")
+        elif cleaned.endswith("_HUMAN", 0, suffix_start):
+            suffix_start -= len("_HUMAN")
+        else:
+            break
+
+    if suffix_start < len(cleaned):
+        if suffix_start:
+            cleaned = cleaned[:suffix_start]
+        elif cleaned.startswith("GENE"):
+            cleaned = "GENE"
+        elif cleaned.startswith("PROTEIN"):
+            cleaned = "PROTEIN"
+        else:
+            cleaned = ""
+
+    return cleaned
 
 
 def is_likely_gene_symbol(gene_text: str) -> bool:

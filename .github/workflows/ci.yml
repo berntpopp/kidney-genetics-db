@@ -43,6 +43,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      mcp: ${{ steps.filter.outputs.mcp }}
     steps:
       - uses: actions/checkout@v7
 
@@ -56,6 +57,10 @@ jobs:
             frontend:
               - 'frontend/**'
               - '.github/workflows/ci.yml'
+            mcp:
+              - 'mcp/**'
+              - 'Makefile'
+              - '.github/workflows/ci.yml'
 
   # =============================================================================
   # Backend CI - Python/FastAPI
@@ -64,7 +69,7 @@ jobs:
   backend-ci:
     name: Backend CI
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     services:
@@ -99,12 +104,16 @@ jobs:
 
       - name: Install dependencies
         working-directory: backend
-        run: uv sync --group dev
+        run: uv sync --locked --group dev
 
-      # Quality checks - matches `make lint`
+      - name: Verify lockfile
+        working-directory: backend
+        run: uv lock --check
+
+      # Quality checks - matches `make check-backend`
       - name: Run linting (ruff check)
         working-directory: backend
-        run: uv run ruff check app/
+        run: uv run ruff check --no-fix app/
 
       - name: Run format check (ruff format)
         working-directory: backend
@@ -149,7 +158,7 @@ jobs:
   frontend-ci:
     name: Frontend CI
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -159,7 +168,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '22.18.x'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -186,14 +195,46 @@ jobs:
       # Tests - matches npm run test:run
       - name: Run frontend tests (Vitest)
         working-directory: frontend
-        run: npx vitest run
+        run: npm run test:run
+
+  # =============================================================================
+  # MCP CI - Python/FastMCP
+  # Matches: make check-mcp
+  # =============================================================================
+  mcp-ci:
+    name: MCP CI
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.mcp == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "mcp/uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        working-directory: mcp
+        run: uv sync --locked --group dev
+
+      - name: Run MCP checks
+        run: make check-mcp
 
   # =============================================================================
   # CI Summary - aggregates all results
   # =============================================================================
   ci-summary:
     name: CI Summary
-    needs: [changes, backend-ci, frontend-ci]
+    needs: [changes, backend-ci, frontend-ci, mcp-ci]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -205,6 +246,7 @@ jobs:
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Backend CI | ${{ needs.backend-ci.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Frontend CI | ${{ needs.frontend-ci.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| MCP CI | ${{ needs.mcp-ci.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Fail if any required job failed (skip doesn't count as failure)
@@ -215,6 +257,11 @@ jobs:
 
           if [[ "${{ needs.frontend-ci.result }}" == "failure" ]]; then
             echo "::error::Frontend CI failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.mcp-ci.result }}" == "failure" ]]; then
+            echo "::error::MCP CI failed"
             exit 1
           fi
 

@@ -6,6 +6,8 @@ These tests cover the pure utility functions in gene_normalizer module:
 - is_likely_gene_symbol: Gene symbol validation heuristics
 """
 
+import re
+
 import pytest
 
 from app.core.gene_normalizer import (
@@ -49,6 +51,52 @@ class TestGeneTextCleaning:
         # The function expects a string, so we pass empty string
         result = clean_gene_text("")
         assert result == ""
+
+    @pytest.mark.parametrize(
+        "input_text,expected",
+        [
+            ("G:ENE", "GENE"),
+            ("GENE", "GENE"),
+            ("PROTEIN", "PROTEIN"),
+            ("GENE: GENE", "GENE"),
+            ("GENE: PROTEIN", "PROTEIN"),
+        ],
+    )
+    def test_clean_gene_text_keeps_excluded_literal_terms_stable(self, input_text, expected):
+        """Excluded literal terms remain stable and are rejected as gene symbols."""
+        cleaned = clean_gene_text(input_text)
+
+        assert cleaned == expected
+        assert clean_gene_text(cleaned) == cleaned
+        assert is_likely_gene_symbol(cleaned) is False
+
+    def test_clean_gene_text_removes_long_suffix_runs_with_bounded_regex_calls(self, monkeypatch):
+        """Long removable suffix runs must not repeat the full cleaning pipeline."""
+        original_sub = re.sub
+        sub_calls = 0
+
+        def count_sub(*args, **kwargs):
+            nonlocal sub_calls
+            sub_calls += 1
+            return original_sub(*args, **kwargs)
+
+        monkeypatch.setattr(re, "sub", count_sub)
+
+        assert clean_gene_text("PKD1" + "GENE" * 10_000) == "PKD1"
+        assert sub_calls <= 5
+
+    def test_clean_gene_text_preserves_long_suffix_near_misses_without_regex_search(
+        self, monkeypatch
+    ):
+        """A non-suffix after a long run must not trigger an unanchored regex scan."""
+        input_text = "PKD1" + "GENE" * 10_000 + "X"
+
+        def forbid_search(*args, **kwargs):
+            pytest.fail("suffix cleanup must use direct end-anchored consumption")
+
+        monkeypatch.setattr(re, "search", forbid_search)
+
+        assert clean_gene_text(input_text) == input_text
 
 
 @pytest.mark.unit

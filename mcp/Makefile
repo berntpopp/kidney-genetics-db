@@ -2,7 +2,7 @@
 
 # Install runtime + dev dependencies.
 install:
-	uv sync --group dev
+	uv sync --locked --group dev
 
 # Full local gate: lint (ruff), type-check (mypy strict), tests (pytest).
 # Generated contract artifacts are excluded from ruff + mypy via pyproject.
@@ -14,10 +14,10 @@ check:
 contract:
 	uv run python scripts/gen_contract.py
 
-# CI-only: fail if the committed contract artifacts are stale. Separate from
-# `check` so local runs do not depend on git state.
+# CI-only: fail if committed contract artifacts are stale. Separate from
+# `check` so local runs do not regenerate tracked artifacts.
 contract-verify:
-	$(MAKE) contract && git diff --exit-code contract/ src/kidney_genetics_mcp/contract/
+	uv run python scripts/gen_contract.py --check
 
 # Run the MCP server (streamable-HTTP on KGDB_MCP_PORT, default 8789).
 run:

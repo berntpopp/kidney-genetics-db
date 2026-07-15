@@ -1,61 +1,94 @@
-# Kidney Genetics Database - Backend
+# Kidney-Genetics Database Backend
 
-FastAPI-based backend for the Kidney Genetics Database.
+The backend is a FastAPI service with SQLAlchemy, Alembic migrations,
+PostgreSQL, and the curation/annotation pipeline.
 
-## Quick Start
+## Runtime Baseline
 
-```bash
-# Install dependencies with uv
-uv venv
-source .venv/bin/activate
+Use Python 3.13 for local backend development and CI. The production Docker
+image intentionally uses Python 3.14. The package metadata supports a wider
+range, but the shared 3.13 baseline keeps local and CI behavior reproducible.
 
-# For development (allows package updates):
-uv sync
+Backend integration tests need PostgreSQL. Use Docker Compose rather than
+installing a system PostgreSQL server or development packages.
 
-# For production/CI (uses exact versions from lock file):
-uv sync --frozen
+## Install Dependencies
 
-# Start PostgreSQL
-docker compose -f ../docker-compose.services.yml up -d
-
-# Run migrations
-alembic upgrade head
-
-# Start development server
-uvicorn app.main:app --reload
-```
-
-## Dependency Management
-
-This project uses `uv` for dependency management with a lock file (`uv.lock`) to ensure reproducible builds.
-
-### Installing Dependencies
-
-- **Development**: Use `uv sync` to install dependencies and allow updates
-- **Production/CI**: Use `uv sync --frozen` to install exact versions from the lock file
-- **Adding new packages**: Use `uv add <package>` which updates both `pyproject.toml` and `uv.lock`
-
-### Lock File
-
-The `uv.lock` file contains exact versions of all dependencies and their transitive dependencies. This ensures:
-- Reproducible builds across different environments
-- Consistent dependency versions in CI/CD
-- Protection against unexpected updates
-
-**Important**: Always commit `uv.lock` changes when updating dependencies.
-
-## Development
+From the repository root, use the deterministic component target:
 
 ```bash
-# Format code
-ruff format .
-
-# Check linting
-ruff check .
-
-# Type checking
-mypy app/
-
-# Run tests
-pytest
+make install-backend
 ```
+
+The equivalent local command is:
+
+```bash
+cd backend && uv sync --locked --group dev
+```
+
+`uv.lock` records exact resolved dependencies. Commit its changes when you add
+or update a dependency with `uv add`.
+
+## Run Locally
+
+Create the backend-local configuration before starting the API. The root
+`.env` is not read by `make backend`:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Set `DATABASE_URL`, `POSTGRES_PASSWORD=kidney_pass` for the default Compose
+service, a unique `JWT_SECRET_KEY` of at least 32 characters, and `ADMIN_PASSWORD` in
+`backend/.env`. Never commit it.
+
+Start the supporting services from the repository root:
+
+```bash
+make services-up
+```
+
+For a new local database, apply migrations before using the API or database
+tests:
+
+```bash
+cd backend && uv run alembic upgrade head
+```
+
+Start FastAPI from the repository root:
+
+```bash
+make backend
+```
+
+The API and OpenAPI documentation are available at
+<http://localhost:8000/docs>. The direct equivalent is:
+
+```bash
+cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+## Verify Changes
+
+With PostgreSQL running, use the root gate:
+
+```bash
+make check-backend
+```
+
+It verifies the lockfile, runs non-mutating Ruff lint and format checks, and
+runs `uv run pytest tests/ -v`. It assumes the database is already available,
+does not run Alembic migrations or reset it, and tests may write to it; use a
+dedicated local or disposable test database. `make check` and `make ci` include
+this backend gate, so they require the same running PostgreSQL service.
+
+For focused iteration:
+
+```bash
+cd backend && uv run ruff check --no-fix app/
+cd backend && uv run ruff format --check app/
+cd backend && uv run pytest tests/test_gene_resolve.py -v
+```
+
+Use `ruff check --fix` or `ruff format` only when you intentionally want to
+rewrite files. See [TESTING.md](TESTING.md) for database-aware test workflows.
