@@ -39,7 +39,7 @@ from app.api.endpoints import (
 )
 from app.core.background_tasks import task_manager
 from app.core.config import settings
-from app.core.database import engine, get_db
+from app.core.database import get_db
 from app.core.events import event_bus
 from app.core.exceptions import (
     AuthenticationError,
@@ -56,16 +56,12 @@ from app.core.startup import run_startup_tasks
 from app.middleware.error_handling import register_error_handlers
 from app.middleware.logging_middleware import LoggingMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
-from app.models import Base
 
 # Configure unified logging system
 configure_logging(log_level=settings.LOG_LEVEL, database_enabled=True, console_enabled=True)
 
 # Get unified logger for main application
 logger = get_logger(__name__)
-
-# Create database tables
-Base.metadata.create_all(bind=engine)
 
 
 @asynccontextmanager
