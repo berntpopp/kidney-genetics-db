@@ -69,7 +69,8 @@ cd backend && uv run ruff check --fix app/       # explicit backend lint fixes
 cd frontend && npm run lint:check && npm run format:check
 cd frontend && npm run test:run && npm run build
 make -C mcp check                                # ruff, strict mypy, pytest
-make -C mcp contract-verify                      # regenerate and detect drift
+make -C mcp contract-verify                      # detect contract drift, no writes
+make -C mcp contract                             # intentionally regenerate artifacts
 docker compose -f docker-compose.yml config      # Compose validation
 git diff --check                                 # whitespace/conflict check
 ```
@@ -159,7 +160,8 @@ git diff --check                                 # whitespace/conflict check
   Redis from `make hybrid-up`; report that dependency rather than masking it.
 - Frontend changes normally need applicable lint, format, Vitest, and build
   commands. MCP changes need `make -C mcp check`; contract changes also need
-  `make -C mcp contract-verify` and review of regenerated artifacts.
+  `make -C mcp contract-verify`; use `make -C mcp contract` only when an
+  intentional regeneration is needed, then review the resulting artifacts.
 - Documentation-only work at minimum needs `git diff --check` plus command/link
   review. Configuration needs its narrowest consumer parser or validator.
 - Failures are evidence, not noise: diagnose root cause, preserve regression
