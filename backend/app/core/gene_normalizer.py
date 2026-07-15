@@ -43,15 +43,26 @@ def clean_gene_text(gene_text: str) -> str:
     cleaned = re.sub(r"[^\w-]", "", cleaned)  # Keep only alphanumeric and hyphens
     cleaned = cleaned.strip()
 
-    # Remove an entire trailing suffix run in one pass. Preserve a standalone excluded
-    # term so re-cleaning remains stable, while retaining legacy removal of `_HUMAN`.
-    suffix_match = re.search(r"(?:GENE|PROTEIN|_HUMAN)+$", cleaned)
-    if suffix_match:
-        prefix = cleaned[: suffix_match.start()]
-        if prefix:
-            cleaned = prefix
-        elif literal_match := re.match(r"GENE|PROTEIN", suffix_match.group()):
-            cleaned = literal_match.group()
+    # Consume trailing suffix tokens directly from the end. This avoids an unanchored
+    # regex scan when a long suffix-like run is followed by a non-suffix character.
+    suffix_start = len(cleaned)
+    while suffix_start:
+        if cleaned.endswith("GENE", 0, suffix_start):
+            suffix_start -= len("GENE")
+        elif cleaned.endswith("PROTEIN", 0, suffix_start):
+            suffix_start -= len("PROTEIN")
+        elif cleaned.endswith("_HUMAN", 0, suffix_start):
+            suffix_start -= len("_HUMAN")
+        else:
+            break
+
+    if suffix_start < len(cleaned):
+        if suffix_start:
+            cleaned = cleaned[:suffix_start]
+        elif cleaned.startswith("GENE"):
+            cleaned = "GENE"
+        elif cleaned.startswith("PROTEIN"):
+            cleaned = "PROTEIN"
         else:
             cleaned = ""
 

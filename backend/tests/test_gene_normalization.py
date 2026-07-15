@@ -85,6 +85,19 @@ class TestGeneTextCleaning:
         assert clean_gene_text("PKD1" + "GENE" * 10_000) == "PKD1"
         assert sub_calls <= 5
 
+    def test_clean_gene_text_preserves_long_suffix_near_misses_without_regex_search(
+        self, monkeypatch
+    ):
+        """A non-suffix after a long run must not trigger an unanchored regex scan."""
+        input_text = "PKD1" + "GENE" * 10_000 + "X"
+
+        def forbid_search(*args, **kwargs):
+            pytest.fail("suffix cleanup must use direct end-anchored consumption")
+
+        monkeypatch.setattr(re, "search", forbid_search)
+
+        assert clean_gene_text(input_text) == input_text
+
 
 @pytest.mark.unit
 class TestGeneSymbolValidation:
