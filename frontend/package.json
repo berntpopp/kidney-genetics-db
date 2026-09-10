@@ -49,7 +49,7 @@
     "zod": "^4.4.3"
   },
   "overrides": {
-    "undici": "^7.28.0",
+    "undici": "^7.29.1",
     "beasties": "^0.4.1",
     "js-cookie": "^3.0.8",
     "@vee-validate/zod": {
