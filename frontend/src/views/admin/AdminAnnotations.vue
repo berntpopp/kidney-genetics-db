@@ -500,7 +500,7 @@
               </TableCell>
               <TableCell>
                 <Button
-                  aria-label="Run job now"
+                  :aria-label="`Run ${item.name} now`"
                   variant="ghost"
                   size="icon"
                   class="h-8 w-8"

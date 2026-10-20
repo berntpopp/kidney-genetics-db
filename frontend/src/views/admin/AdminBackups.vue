@@ -171,7 +171,7 @@
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <Button
-                      aria-label="Download Backup"
+                      :aria-label="`Download Backup ${item.filename}`"
                       variant="ghost"
                       size="icon"
                       class="h-8 w-8"
@@ -186,7 +186,7 @@
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <Button
-                      aria-label="Restore Backup"
+                      :aria-label="`Restore Backup ${item.filename}`"
                       variant="ghost"
                       size="icon"
                       class="h-8 w-8"
@@ -202,7 +202,7 @@
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <Button
-                      aria-label="View Details"
+                      :aria-label="`View Details ${item.filename}`"
                       variant="ghost"
                       size="icon"
                       class="h-8 w-8"
@@ -217,7 +217,7 @@
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <Button
-                      aria-label="Delete Backup"
+                      :aria-label="`Delete Backup ${item.filename}`"
                       variant="ghost"
                       size="icon"
                       class="h-8 w-8"

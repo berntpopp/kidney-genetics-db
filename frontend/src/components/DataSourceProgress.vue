@@ -19,6 +19,7 @@
               <TooltipTrigger as-child>
                 <Button
                   aria-label="Auto-refresh"
+                  :aria-pressed="autoRefresh"
                   variant="ghost"
                   size="icon"
                   class="h-8 w-8"

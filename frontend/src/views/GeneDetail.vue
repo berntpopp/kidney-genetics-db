@@ -58,13 +58,19 @@
           <!-- Action Buttons -->
           <div class="flex gap-1 sm:gap-2 shrink-0">
             <!-- Curator/Admin Edit Button -->
-            <Button v-if="authStore.isCurator" variant="secondary" size="sm" @click="editGene">
+            <Button
+              v-if="authStore.isCurator"
+              variant="secondary"
+              size="sm"
+              aria-label="Edit gene"
+              @click="editGene"
+            >
               <Pencil :size="16" />
               <span class="hidden sm:inline">Edit</span>
             </Button>
 
             <!-- Share: copies URL -->
-            <Button variant="outline" size="sm" aria-label="Copy link to gene" @click="shareGene">
+            <Button variant="outline" size="sm" aria-label="Share link to gene" @click="shareGene">
               <Share2 :size="16" />
               <span class="hidden sm:inline">Share</span>
             </Button>

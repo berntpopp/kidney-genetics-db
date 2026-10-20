@@ -23,6 +23,7 @@
         content-class="w-auto p-2 max-w-xs"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{
@@ -58,6 +59,7 @@
         content-class="w-auto p-2 max-w-xs"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ color: '#6b7280', borderColor: '#6b728040' }"
@@ -85,6 +87,7 @@
         content-class="w-auto p-2 max-w-xs"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{
@@ -121,6 +124,7 @@
       <!-- Phenotype Count -->
       <HoverPopover content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ color: '#0ea5e9', borderColor: '#0ea5e940' }"
@@ -139,6 +143,7 @@
       <!-- Disease associations -->
       <HoverPopover v-if="hpoData.disease_count > 0" content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ color: '#3b82f6', borderColor: '#3b82f640' }"

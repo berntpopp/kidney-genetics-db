@@ -146,7 +146,10 @@
                     <Tooltip>
                       <TooltipTrigger as-child>
                         <Button variant="ghost" size="icon" class="h-7 w-7" as-child>
-                          <router-link aria-label="View gene details" :to="`/genes/${item.symbol}`">
+                          <router-link
+                            :aria-label="`View ${item.symbol} details`"
+                            :to="`/genes/${item.symbol}`"
+                          >
                             <Eye class="size-4" />
                           </router-link>
                         </Button>
@@ -161,7 +164,7 @@
                     <Tooltip>
                       <TooltipTrigger as-child>
                         <Button
-                          aria-label="Copy gene symbol"
+                          :aria-label="`Copy ${item.symbol}`"
                           variant="ghost"
                           size="icon"
                           class="h-7 w-7"
@@ -180,7 +183,7 @@
                     <Tooltip>
                       <TooltipTrigger as-child>
                         <Button
-                          aria-label="Highlight gene in network"
+                          :aria-label="`Highlight ${item.symbol} in network`"
                           variant="ghost"
                           size="icon"
                           class="h-7 w-7"
