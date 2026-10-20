@@ -69,18 +69,9 @@ describe('AdminGeneStaging review dialogs', () => {
       notes: null
     })
   })
-  it('header checkbox selects every row and row checkboxes deselect (#299)', async () => {
+  it('offers no row selection or bulk actions the API cannot perform (#318)', async () => {
     await mountView()
-    const boxes = () => [...document.querySelectorAll('table [role="checkbox"]')] as HTMLElement[]
-    expect(boxes()).toHaveLength(3)
-
-    boxes()[0].click()
-    await flushPromises()
-    expect(boxes().map(b => b.getAttribute('aria-checked'))).toEqual(['true', 'true', 'true'])
-    expect(buttonByText('Bulk Approve').textContent).toContain('(2)')
-
-    boxes()[1].click()
-    await flushPromises()
-    expect(buttonByText('Bulk Approve').textContent).toContain('(1)')
+    expect(document.querySelectorAll('table [role="checkbox"]')).toHaveLength(0)
+    expect(document.body.textContent).not.toContain('Bulk')
   })
 })
