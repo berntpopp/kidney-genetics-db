@@ -181,8 +181,12 @@ class HPOBatchEnrichmentRequest(BaseModel):
 
     communities: list[list[int]] = Field(
         ...,
-        description="Gene IDs per community; BH-FDR is pooled over all community x term tests",
+        description=(
+            "Gene IDs per community; BH-FDR is pooled over all community x term tests. "
+            f"At most {_enrichment_config.get('hpo', {}).get('max_communities', 200)} communities."
+        ),
         min_length=1,
+        max_length=_enrichment_config.get("hpo", {}).get("max_communities", 200),
     )
     fdr_threshold: float = Field(
         default=_enrichment_config.get("hpo", {}).get("default_fdr_threshold", 0.05),

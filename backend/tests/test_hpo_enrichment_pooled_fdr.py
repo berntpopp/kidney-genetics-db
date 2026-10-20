@@ -17,7 +17,10 @@ ANNOTATIONS = {
     "HP:D": {"G2", "G5", "G12", "G13", "G14"},
     "HP:E": {"G7", "G8", "G15"},
 }
-COMMUNITIES = {(1, 2, 3): {"G1", "G2", "G3"}, (4, 5, 6): {"G7", "G10", "G12"}}
+COMMUNITIES = {(1, 2, 3): ("G1", "G2", "G3"), (4, 5, 6): ("G7", "G10", "G12")}
+ID_TO_SYMBOL = {
+    i: sym for ids, syms in COMMUNITIES.items() for i, sym in zip(ids, syms, strict=True)
+}
 
 
 def _reference_bh(p: list[float]) -> list[float]:
@@ -46,15 +49,16 @@ def _reference_raw_p(symbols: set[str]) -> dict[str, float]:
 
 
 def _session() -> MagicMock:
-    def query(_model):
+    def query(*_columns):
         def filt(clause):
-            ids = tuple(sorted(clause.right.value))
-            genes = [SimpleNamespace(approved_symbol=s) for s in COMMUNITIES[ids]]
-            return MagicMock(all=MagicMock(return_value=genes))
+            rows = [
+                SimpleNamespace(id=i, approved_symbol=ID_TO_SYMBOL[i]) for i in clause.right.value
+            ]
+            return MagicMock(all=MagicMock(return_value=rows))
 
         return MagicMock(filter=filt)
 
-    return MagicMock(query=query)
+    return MagicMock(query=MagicMock(side_effect=query))
 
 
 @pytest.mark.unit
@@ -70,7 +74,7 @@ async def test_batch_q_values_equal_pooled_bh_over_raw_p_values():
 
     keys, raw = [], []
     for idx, symbols in enumerate(COMMUNITIES.values()):
-        for term, p in _reference_raw_p(symbols).items():
+        for term, p in _reference_raw_p(set(symbols)).items():
             keys.append((idx, term))
             raw.append(p)
     expected_q = dict(zip(keys, _reference_bh(raw), strict=True))
@@ -90,6 +94,37 @@ async def test_batch_q_values_equal_pooled_bh_over_raw_p_values():
     # The single-community endpoint path is the one-community case of the batch path
     direct = await service.enrich_hpo_terms([1, 2, 3], _session(), fdr_threshold=1.0 + 1e-9)
     assert direct == single[0]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_batch_queries_symbols_once_and_names_only_significant_terms():
+    service = EnrichmentService()
+    service._get_hpo_annotations = AsyncMock(return_value=ANNOTATIONS)  # type: ignore[method-assign]
+    service.hpo_client.get_term = AsyncMock(return_value=None)  # type: ignore[method-assign]
+    session = _session()
+
+    per_community, total_tests = await service.enrich_hpo_terms_batch(
+        [list(ids) for ids in COMMUNITIES], session, fdr_threshold=0.5
+    )
+
+    significant = sum(len(r) for r in per_community)
+    assert session.query.call_count == 1
+    assert 0 < significant < total_tests
+    assert service.hpo_client.get_term.await_count == significant
+
+
+@pytest.mark.unit
+def test_batch_request_rejects_empty_and_over_cap_input():
+    from pydantic import ValidationError
+
+    from app.schemas.network import HPOBatchEnrichmentRequest, _enrichment_config
+
+    cap = _enrichment_config["hpo"]["max_communities"]
+    assert HPOBatchEnrichmentRequest(communities=[[1]] * cap)
+    for bad in ([], [[]], [[1]] * (cap + 1)):
+        with pytest.raises(ValidationError):
+            HPOBatchEnrichmentRequest(communities=bad)
 
 
 @pytest.mark.unit

@@ -68,6 +68,7 @@ enrichment:
   hpo:
     default_fdr_threshold: 0.05  # Benjamini-Hochberg FDR
     max_cluster_size: 500  # Maximum genes in test cluster
+    max_communities: 200  # Maximum communities per batch request (engineering limit)
     min_term_genes: 2  # Minimum genes per term to test
     max_p_value: 0.05  # Pre-FDR p-value filter
 
