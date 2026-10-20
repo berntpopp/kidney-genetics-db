@@ -72,7 +72,7 @@
           <!-- Statistics -->
           <div class="flex justify-between items-center mb-3">
             <div class="text-center">
-              <div class="text-lg font-bold text-green-600 dark:text-green-400">
+              <div class="text-lg font-bold text-green-700 dark:text-green-400">
                 {{ source.stats?.gene_count || 0 }}
               </div>
               <div class="text-xs text-muted-foreground">Genes</div>
@@ -150,7 +150,7 @@
             <Tooltip>
               <TooltipTrigger as-child>
                 <div class="text-center">
-                  <div class="text-3xl font-bold text-green-600 dark:text-green-400">
+                  <div class="text-3xl font-bold text-green-700 dark:text-green-400">
                     {{ summaryStats.unique_genes.toLocaleString() }}
                   </div>
                   <div class="text-sm text-muted-foreground">
@@ -304,7 +304,7 @@ const getSourceDescription = (sourceName: string) => {
 const getStatusBadgeClass = (status: string) => {
   switch (status) {
     case 'active':
-      return 'bg-green-600 text-white'
+      return 'bg-green-700 text-white'
     case 'error':
       return 'bg-red-600 text-white'
     case 'pending':
