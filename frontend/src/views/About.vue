@@ -94,7 +94,7 @@
                   class="min-w-[60px] justify-center tabular-nums"
                   :style="tintedChipStyle(range.color)"
                 >
-                  {{ formatScoreRange(i) }}
+                  {{ formatScoreRangeBand(i) }}
                 </Badge>
                 <span class="text-muted-foreground">{{ range.label }}</span>
               </div>
@@ -267,7 +267,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
-import { SCORE_RANGES, tintedChipStyle } from '@/utils/evidenceTiers'
+import { SCORE_RANGES, formatScoreRangeBand, tintedChipStyle } from '@/utils/evidenceTiers'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
 import {
@@ -306,12 +306,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
 const breadcrumbs = PUBLIC_BREADCRUMBS.about
-
-// Bands mirror getScoreRangeConfig: the first range whose threshold the score reaches
-const formatScoreRange = (i: number): string => {
-  const threshold = SCORE_RANGES[i]?.threshold ?? 0
-  return threshold > 0 ? `≥ ${threshold}` : `< ${SCORE_RANGES[i - 1]?.threshold ?? 0}`
-}
 
 useJsonLd(getBreadcrumbSchema(breadcrumbs))
 

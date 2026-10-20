@@ -234,6 +234,15 @@ export const SCORE_RANGES: ScoreRangeConfig[] = [
 ]
 
 /**
+ * Display band for SCORE_RANGES[i], e.g. "≥ 80" or "< 10" for the lowest range.
+ * Mirrors getScoreRangeConfig: a score gets the first range whose threshold it reaches.
+ */
+export function formatScoreRangeBand(i: number): string {
+  const threshold = SCORE_RANGES[i]?.threshold ?? 0
+  return threshold > 0 ? `≥ ${threshold}` : `< ${SCORE_RANGES[i - 1]?.threshold ?? 0}`
+}
+
+/**
  * Get score range configuration for a given score
  * @param score - Evidence score (0-100)
  * @returns Score range configuration or null if score is invalid
