@@ -63,6 +63,10 @@ export const createApp = ViteSSG(
       app.config.globalProperties['$log'] = logService
       window.logService = logService
 
+      // Start auth before the first navigation: guards await initReady and
+      // vite-ssg awaits router.isReady() before mounting, so App cannot do it.
+      void useAuthStore().initialize()
+
       logService.info('Kidney Genetics Database application starting', {
         timestamp: new Date().toISOString(),
         environment: import.meta.env.MODE,
