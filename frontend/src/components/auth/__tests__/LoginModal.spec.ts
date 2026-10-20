@@ -42,7 +42,9 @@ describe('LoginModal', () => {
       const errorId = `login-${field}-error`
       expect(input.getAttribute('aria-invalid')).toBe('true')
       expect(input.getAttribute('aria-describedby')).toBe(errorId)
-      expect(document.getElementById(errorId)?.textContent?.trim()).not.toBe('')
+      const error = document.getElementById(errorId)
+      expect(error).not.toBeNull()
+      expect(error!.textContent!.trim()).not.toBe('')
     }
     expect(authApi.login).not.toHaveBeenCalled()
   })
