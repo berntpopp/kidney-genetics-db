@@ -72,12 +72,13 @@ class NetworkAnalysisService:
         Performance: <1s for 500 nodes, cached for 1 hour
         """
         # Check cache first
-        cache_key = f"network:{len(gene_ids)}:{min_string_score}"
+        # Order-sensitive: vertex indices follow input order, matching the builder input.
+        cache_key = (tuple(gene_ids), min_string_score)
 
         with self._cache_lock:
             if cache_key in self._graph_cache:
                 await logger.debug(
-                    "Using cached network graph", cache_key=cache_key, nodes=len(gene_ids)
+                    "Using cached network graph", min_score=min_string_score, nodes=len(gene_ids)
                 )
                 return self._graph_cache[cache_key]
 
