@@ -804,8 +804,9 @@ onMounted(async () => {
     <ComponentError v-if="loadError" :error="loadError" @retry="loadGenes" />
 
     <Card v-else-if="genes.length > 0 || loading">
+      <!-- Kept in the DOM while loading so the table does not shift; visibility:hidden keeps it out of tab order and the a11y tree -->
       <DataTablePagination
-        v-if="genes.length > 0"
+        :class="{ invisible: genes.length === 0 }"
         :table="table"
         :page-size-options="itemsPerPageOptions"
       />
