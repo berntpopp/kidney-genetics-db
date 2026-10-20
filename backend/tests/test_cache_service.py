@@ -23,6 +23,16 @@ from app.core.cache_service import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _remove_committed_cache_rows(test_engine):
+    """L2 writes commit on the cache's own sessions (#293), outside the test rollback."""
+    with test_engine.connect() as conn:
+        baseline = conn.execute(text("SELECT COALESCE(MAX(id), 0) FROM cache_entries")).scalar()
+    yield
+    with test_engine.begin() as conn:
+        conn.execute(text("DELETE FROM cache_entries WHERE id > :b"), {"b": baseline})
+
+
 @pytest.fixture
 def cache_service(db_session):
     """Create a cache service instance for testing."""
