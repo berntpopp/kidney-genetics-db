@@ -5,11 +5,7 @@
       <HoverPopover content-class="max-w-xs p-3">
         <Badge
           :class="[chipSizeClasses, 'cursor-pointer font-medium tabular-nums']"
-          :style="{
-            backgroundColor: scoreHexColor + '20',
-            color: scoreHexColor,
-            borderColor: scoreHexColor + '40'
-          }"
+          :style="tintedChipStyle(scoreHexColor)"
           variant="outline"
         >
           <component :is="scoreIcon" :size="12" class="mr-1" />
@@ -75,19 +71,15 @@
                 stroke-linecap="round"
               />
             </svg>
-            <span class="absolute text-lg font-bold" :style="{ color: scoreHexColor }">
+            <span
+              class="absolute text-lg font-bold"
+              :style="{ color: tintedChipStyle(scoreHexColor).color }"
+            >
               {{ formattedScore }}
             </span>
           </div>
           <div class="mt-3">
-            <Badge
-              :style="{
-                backgroundColor: scoreHexColor + '20',
-                color: scoreHexColor,
-                borderColor: scoreHexColor + '40'
-              }"
-              variant="outline"
-            >
+            <Badge :style="tintedChipStyle(scoreHexColor)" variant="outline">
               {{ classification }}
             </Badge>
           </div>
@@ -104,11 +96,7 @@
               >
                 <Badge
                   class="cursor-pointer text-[10px]"
-                  :style="{
-                    backgroundColor: getSubScoreHexColor(sourceScore) + '20',
-                    color: getSubScoreHexColor(sourceScore),
-                    borderColor: getSubScoreHexColor(sourceScore) + '40'
-                  }"
+                  :style="tintedChipStyle(getSubScoreHexColor(sourceScore))"
                   variant="outline"
                 >
                   {{ sourceAbbreviation(source) }}: {{ (sourceScore * 100).toFixed(0) }}
@@ -135,11 +123,7 @@
       <div class="flex items-center justify-between gap-2">
         <Badge
           :class="[chipSizeClasses, 'font-medium tabular-nums']"
-          :style="{
-            backgroundColor: scoreHexColor + '20',
-            color: scoreHexColor,
-            borderColor: scoreHexColor + '40'
-          }"
+          :style="tintedChipStyle(scoreHexColor)"
           variant="outline"
         >
           {{ formattedScore }}
@@ -148,11 +132,7 @@
           <HoverPopover v-for="[source, sourceScore] in topSourceEntries" :key="source">
             <Badge
               class="cursor-pointer text-[10px]"
-              :style="{
-                backgroundColor: getSubScoreHexColor(sourceScore) + '20',
-                color: getSubScoreHexColor(sourceScore),
-                borderColor: getSubScoreHexColor(sourceScore) + '40'
-              }"
+              :style="tintedChipStyle(getSubScoreHexColor(sourceScore))"
               variant="outline"
             >
               {{ sourceAbbreviation(source) }}
@@ -178,7 +158,7 @@ import HoverPopover from '@/components/ui/HoverPopover.vue'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { getScoreExplanation } from '@/utils/evidenceTiers'
+import { getScoreExplanation, tintedChipStyle } from '@/utils/evidenceTiers'
 import { CircleHelp, CircleCheck, CircleAlert, CircleX } from 'lucide-vue-next'
 
 const props = defineProps({
