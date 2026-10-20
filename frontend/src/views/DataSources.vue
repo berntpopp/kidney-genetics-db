@@ -342,7 +342,7 @@ const getStatusBadgeClass = (status: string) => {
     case 'error':
       return 'bg-red-600 text-white'
     case 'pending':
-      return 'bg-yellow-600 text-white'
+      return 'bg-yellow-700 text-white'
     default:
       return ''
   }
