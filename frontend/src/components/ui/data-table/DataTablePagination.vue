@@ -21,11 +21,11 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-  <div class="flex items-center justify-between px-4 py-2">
-    <div class="flex-1 text-sm text-muted-foreground">
-      {{ table.getFilteredRowModel().rows.length }} row(s) total
+  <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2">
+    <div class="flex-1 text-sm text-muted-foreground whitespace-nowrap">
+      {{ table.getRowCount().toLocaleString() }} row(s) total
     </div>
-    <div class="flex items-center space-x-6 lg:space-x-8">
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-2 lg:gap-x-8">
       <div class="flex items-center space-x-2">
         <p class="text-sm font-medium">Rows per page</p>
         <Select

@@ -131,6 +131,7 @@
               :evidence="item"
             />
           </Accordion>
+          <ComponentError v-else-if="evidenceError" :error="evidenceError" @retry="fetchEvidence" />
           <div v-else-if="loadingEvidence" class="text-center py-8">
             <div
               class="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
@@ -145,7 +146,14 @@
       </div>
     </div>
 
-    <!-- Error State -->
+    <ComponentError
+      v-else-if="loadError"
+      :error="loadError"
+      class="container mx-auto my-12 max-w-xl"
+      @retry="fetchGeneDetails"
+    />
+
+    <!-- Not Found State (HTTP 404 only) -->
     <div v-else class="text-center py-12">
       <CircleAlert class="mx-auto size-16 text-destructive mb-4" />
       <h2 class="text-2xl mb-2">Gene Not Found</h2>
@@ -186,6 +194,7 @@ import { useJsonLd, getGeneSchema, getBreadcrumbSchema } from '@/composables/use
 import ScoreBreakdown from '../components/ScoreBreakdown.vue'
 import EvidenceCard from '../components/evidence/EvidenceCard.vue'
 import GeneInformationCard from '../components/gene/GeneInformationCard.vue'
+import ComponentError from '@/components/ui/ComponentError.vue'
 
 import { Button } from '@/components/ui/button'
 import { Accordion } from '@/components/ui/accordion'
@@ -217,6 +226,8 @@ const annotations = ref(null)
 const loading = ref(true)
 const loadingEvidence = ref(false)
 const loadingAnnotations = ref(false)
+const loadError = ref(null)
+const evidenceError = ref(null)
 
 // SEO meta tags (reactive — updates when gene data loads)
 useSeoMeta({
@@ -262,6 +273,7 @@ const sortedEvidence = computed(() => {
 
 const fetchGeneDetails = async () => {
   loading.value = true
+  loadError.value = null
   try {
     const response = await geneApi.getGene(route.params.symbol)
     gene.value = response
@@ -269,6 +281,10 @@ const fetchGeneDetails = async () => {
   } catch (error) {
     window.logService.error('Failed to fetch gene details:', error)
     gene.value = null
+    // Only a 404 means "not in the database"; anything else is a failed request
+    if (error?.response?.status !== 404) {
+      loadError.value = new Error("Couldn't load gene data from the server.")
+    }
   } finally {
     loading.value = false
   }
@@ -278,12 +294,14 @@ const fetchEvidence = async () => {
   if (!gene.value) return
 
   loadingEvidence.value = true
+  evidenceError.value = null
   try {
     const response = await geneApi.getGeneEvidence(gene.value.approved_symbol)
     evidence.value = response.evidence || []
   } catch (error) {
     window.logService.error('Failed to fetch evidence:', error)
     evidence.value = []
+    evidenceError.value = new Error("Couldn't load evidence from the server.")
   } finally {
     loadingEvidence.value = false
   }
