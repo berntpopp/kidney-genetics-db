@@ -159,7 +159,7 @@ class ReleaseService:
                 publish_time=publish_time.isoformat(),
             )
 
-            export_path = await loop.run_in_executor(
+            export_path, gene_count = await loop.run_in_executor(
                 self._executor, self._export_release_sync, release.version, publish_time
             )
 
@@ -175,13 +175,13 @@ class ReleaseService:
                     doi_result = await zenodo.mint_doi_for_release(
                         version=release.version,
                         export_file_path=export_path,
-                        gene_count=self._count_genes_current(),
+                        gene_count=gene_count,
                         release_notes=release.release_notes or "",
                     )
                     release.doi = doi_result["doi"]
                     release.citation_text = ZenodoService.generate_citation_text(
                         version=release.version,
-                        gene_count=self._count_genes_current(),
+                        gene_count=gene_count,
                         doi=doi_result["doi"],
                         published_at=publish_time.isoformat(),
                     )
@@ -205,10 +205,7 @@ class ReleaseService:
                     version=release.version,
                 )
 
-            # Step 3: Count exported (current) genes
-            gene_count = self._count_genes_current()
-
-            # Step 4: Update release record
+            # Step 3: Update release record
             release.status = "published"
             release.published_at = publish_time
             release.published_by_id = user_id
@@ -240,7 +237,7 @@ class ReleaseService:
             )
             raise
 
-    def _export_release_sync(self, version: str, timestamp: datetime) -> Path:
+    def _export_release_sync(self, version: str, timestamp: datetime) -> tuple[Path, int]:
         """
         Export genes to JSON file (sync version for thread pool).
 
@@ -251,7 +248,7 @@ class ReleaseService:
             timestamp: Timestamp for export metadata
 
         Returns:
-            Path: Path to exported JSON file
+            tuple: Path to exported JSON file and number of exported genes
         """
         # Ensure export directory exists
         self.export_dir.mkdir(exist_ok=True, parents=True)
@@ -360,7 +357,7 @@ class ReleaseService:
             file_size_bytes=export_file.stat().st_size,
         )
 
-        return export_file
+        return export_file, len(genes)
 
     def _calculate_checksum(self, file_path: Path) -> str:
         """
@@ -383,23 +380,6 @@ class ReleaseService:
         checksum = sha256.hexdigest()
         logger.sync_debug(f"Checksum calculated: {checksum[:16]}...")
         return checksum
-
-    def _count_genes_current(self) -> int:
-        """
-        Count current genes (valid_to = 'infinity').
-
-        Returns:
-            int: Number of current genes
-        """
-        result = self.db.execute(
-            text("""
-                SELECT COUNT(*)
-                FROM genes
-                WHERE valid_to = 'infinity'::timestamptz
-            """)
-        )
-        count = result.scalar()
-        return int(count) if count is not None else 0
 
     async def update_release(
         self, release_id: int, version: str | None = None, release_notes: str | None = None
