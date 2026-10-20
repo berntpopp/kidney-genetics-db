@@ -868,6 +868,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         # Update counts
         merged["publication_count"] = len(merged["pmids"])
+        # Legacy key kept for compatibility: size of the merged retained sample, not a total
         merged["total_mentions"] = len(mentions_by_pmid)
 
         # Recalculate average evidence score
@@ -1066,6 +1067,6 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
     def _get_source_detail(self, evidence_data: dict[str, Any]) -> str:
         """Generate source detail string for evidence."""
+        # total_mentions is a retained-sample size, not a cumulative total (#281)
         pub_count = evidence_data.get("publication_count", 0)
-        mention_count = evidence_data.get("total_mentions", 0)
-        return f"PubTator: {pub_count} publications, {mention_count} mentions"
+        return f"PubTator: {pub_count} publications"
