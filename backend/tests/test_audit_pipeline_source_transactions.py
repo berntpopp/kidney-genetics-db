@@ -269,3 +269,45 @@ async def test_full_refresh_success_replaces_and_prunes_only_this_source(test_en
             text("SELECT count(*) FROM gene_evidence WHERE source_name = :s"), {"s": OTHER}
         ).scalar()
     assert other == 1
+
+
+# --- #292 boundary: an evidence writer collision only rolls back its own savepoint -------
+
+
+@pytest.mark.asyncio
+async def test_evidence_collision_keeps_rest_of_batch(test_engine, db):
+    session, tag = db
+    first, racing = f"AUD{tag}A", f"AUD{tag}B"
+    source = _Source({first: {"score": 1}, racing: {"score": 2}})
+    real_clean = DataSourceClient._clean_data_for_json
+
+    def clean_after_competitor_insert(self, data):
+        # Runs after the existence check: a concurrent writer commits RACING's evidence now.
+        if data == {"score": 2}:
+            with test_engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "INSERT INTO gene_evidence (gene_id, source_name, source_detail, "
+                        "evidence_data) SELECT id, :s, :d, CAST('{\"other\": 1}' AS jsonb) "
+                        "FROM genes WHERE approved_symbol = :sym"
+                    ),
+                    {"s": SOURCE, "d": f"Data from {SOURCE}", "sym": racing},
+                )
+        return real_clean(self, data)
+
+    with test_engine.begin() as conn:  # both genes exist, so only evidence can collide
+        for i, sym in enumerate((first, racing)):
+            conn.execute(
+                text("INSERT INTO genes (approved_symbol, hgnc_id, aliases) VALUES (:s, :h, '{}')"),
+                {"s": sym, "h": f"HGNC:AUD{tag}{i}"},
+            )
+
+    with (
+        _db_normalizer(test_engine, tag),
+        patch.object(_Source, "_clean_data_for_json", clean_after_competitor_insert),
+    ):
+        stats = await source.update_data(session, MagicMock(), mode="smart")
+
+    assert stats["errors"] == 0
+    assert _evidence(test_engine, first) == [{"score": 1}]  # earlier pending work survives
+    assert _evidence(test_engine, racing) == [{"score": 2}]  # collision resolved by update

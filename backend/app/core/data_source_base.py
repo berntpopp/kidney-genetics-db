@@ -489,15 +489,17 @@ class DataSourceClient(ABC):
             else:
                 # Create new evidence with proper constraint handling
                 try:
-                    evidence = GeneEvidence(
-                        gene_id=gene.id,
-                        source_name=self.source_name,
-                        source_detail=source_detail,
-                        evidence_data=clean_evidence,
-                        evidence_date=datetime.now(timezone.utc).date(),
-                    )
-                    db.add(evidence)
-                    db.flush()  # Force constraint check before commit
+                    # Own savepoint: a collision rolls back only this insert, not the batch.
+                    with db.begin_nested():
+                        evidence = GeneEvidence(
+                            gene_id=gene.id,
+                            source_name=self.source_name,
+                            source_detail=source_detail,
+                            evidence_data=clean_evidence,
+                            evidence_date=datetime.now(timezone.utc).date(),
+                        )
+                        db.add(evidence)
+                        db.flush()  # Force constraint check before commit
                     stats["evidence_created"] += 1
                     logger.sync_debug(
                         "Created evidence for gene",
@@ -510,7 +512,6 @@ class DataSourceClient(ABC):
                         "unique constraint" in str(constraint_error).lower()
                         or "duplicate key" in str(constraint_error).lower()
                     ):
-                        db.rollback()  # Rollback failed transaction
                         logger.sync_debug(
                             "Race condition detected for gene, retrying...",
                             gene_symbol=gene.approved_symbol,
