@@ -51,4 +51,15 @@ describe('NetworkGraph legibility (#325)', () => {
       expect(chip.attributes('style') ?? '').not.toContain('color: white')
     }
   })
+
+  it('marks inactive cluster chips with muted text, not opacity (#325)', async () => {
+    const wrapper = mount(NetworkGraph, { props: { networkData, colorMode: 'clinical_group' } })
+    await flushPromises()
+    const chips = wrapper.findAll('.cluster-chip')
+    expect(chips.length).toBe(2)
+    for (const chip of chips) {
+      expect(chip.classes()).toContain('text-muted-foreground')
+      expect(chip.classes()).not.toContain('opacity-50')
+    }
+  })
 })
