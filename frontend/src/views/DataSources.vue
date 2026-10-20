@@ -81,7 +81,7 @@
                 <component :is="getSourceIcon(source.name)" class="size-6 text-white" />
                 <div>
                   <h2 class="text-lg font-bold text-white">{{ source.name }}</h2>
-                  <div class="text-xs text-white/95">{{ source.type || 'API' }}</div>
+                  <div v-if="source.type" class="text-xs text-white/95">{{ source.type }}</div>
                 </div>
               </div>
               <Badge
@@ -103,7 +103,7 @@
             <div class="flex justify-between items-center mb-3">
               <div class="text-center">
                 <div class="text-lg font-bold text-green-700 dark:text-green-400">
-                  {{ source.stats?.gene_count || 0 }}
+                  {{ (source.stats?.gene_count || 0).toLocaleString() }}
                 </div>
                 <div class="text-xs text-muted-foreground">Genes</div>
               </div>
@@ -112,7 +112,7 @@
                   <Tooltip>
                     <TooltipTrigger>
                       <div class="text-lg font-bold text-primary">
-                        {{ getMetadataCount(source, 'primary') }}
+                        {{ getMetadataCount(source, 'primary').toLocaleString() }}
                       </div>
                       <div class="text-xs text-muted-foreground">
                         {{ getMetadataLabel(source, 'primary') }}
@@ -127,7 +127,7 @@
                   <Tooltip>
                     <TooltipTrigger>
                       <div class="text-lg font-bold text-blue-600 dark:text-blue-400">
-                        {{ getMetadataCount(source, 'secondary') }}
+                        {{ getMetadataCount(source, 'secondary').toLocaleString() }}
                       </div>
                       <div class="text-xs text-muted-foreground">
                         {{ getMetadataLabel(source, 'secondary') }}
@@ -474,7 +474,7 @@ const formatDate = (dateStr: string | null | undefined) => {
   if (diffDays === 1) return 'Yesterday'
   if (diffDays < 7) return `${diffDays} days ago`
   if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-  return date.toLocaleDateString()
+  return date.toISOString().slice(0, 10)
 }
 
 const loadDataSources = async () => {

@@ -336,7 +336,7 @@
                       >
                         Timestamp
                       </div>
-                      <div class="text-sm">{{ formatTimestamp(selectedLog.timestamp, true) }}</div>
+                      <div class="text-sm">{{ formatTimestamp(selectedLog.timestamp) }}</div>
                     </div>
                     <div class="border-b pb-2">
                       <div
@@ -941,40 +941,8 @@ const executeCleanup = async () => {
   }
 }
 
-const formatTimestamp = (timestamp, full = false) => {
-  if (!timestamp) return 'N/A'
-
-  const date = new Date(timestamp)
-
-  if (full) {
-    return date.toLocaleString()
-  }
-
-  // Show relative time for recent logs
-  const now = new Date()
-  const diff = now - date
-
-  if (diff < 60000) {
-    // Less than 1 minute
-    return 'Just now'
-  } else if (diff < 3600000) {
-    // Less than 1 hour
-    const minutes = Math.floor(diff / 60000)
-    return `${minutes}m ago`
-  } else if (diff < 86400000) {
-    // Less than 1 day
-    return date.toLocaleTimeString()
-  } else {
-    return (
-      date.toLocaleDateString() +
-      ' ' +
-      date.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    )
-  }
-}
+// Exact time per row; relative labels collapsed every recent log to "Just now"
+const formatTimestamp = timestamp => (timestamp ? new Date(timestamp).toLocaleString() : 'N/A')
 
 const formatDuration = ms => {
   if (ms < 1000) return `${ms}ms`

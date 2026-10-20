@@ -310,7 +310,7 @@ const handleClick = event => {
 
 /* Load animation */
 .kgdb-logo--animated {
-  animation: logo-entrance 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: logo-entrance 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes logo-entrance {

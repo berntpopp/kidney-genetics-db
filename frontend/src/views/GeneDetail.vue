@@ -11,8 +11,8 @@
     <!-- Main Content -->
     <div v-else-if="gene">
       <!-- Breadcrumb Navigation -->
-      <div class="px-6 py-2 bg-muted">
-        <Breadcrumb>
+      <div class="py-2 bg-muted">
+        <Breadcrumb class="container mx-auto px-4">
           <BreadcrumbList>
             <template v-for="(crumb, index) in breadcrumbs" :key="index">
               <BreadcrumbItem>
