@@ -62,3 +62,22 @@ async def test_reset_password_revokes_refresh_token(
     )
     assert resp.status_code == 200, resp.text
     assert await _refresh_status(async_client, refresh) == 401
+
+
+@pytest.mark.integration
+async def test_forced_admin_password_reset_revokes_refresh_token(
+    db_session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.core.config import settings
+    from app.core.database_init import create_default_admin
+
+    admin = get_or_create_user(
+        db_session, settings.ADMIN_USERNAME, settings.ADMIN_EMAIL, PASSWORD, "admin"
+    )
+    admin.refresh_token = "synthetic-stale-refresh-token"
+    db_session.commit()
+    monkeypatch.setattr(settings, "ADMIN_FORCE_PASSWORD_RESET", True)
+
+    assert await create_default_admin(db_session) is False
+    db_session.refresh(admin)
+    assert admin.refresh_token is None
