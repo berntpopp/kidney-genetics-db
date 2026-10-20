@@ -72,12 +72,6 @@
     <div class="mt-4 p-3 bg-muted/30 rounded">
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <div class="text-xs text-muted-foreground">Evidence Score</div>
-          <div class="text-sm font-medium">
-            {{ evidenceData.evidence_score || 'N/A' }}
-          </div>
-        </div>
-        <div>
           <div class="text-xs text-muted-foreground">Last Updated</div>
           <div class="text-sm">
             {{ formatDate(evidenceData.last_updated) }}

@@ -20,15 +20,16 @@
         </div>
         <div class="flex items-center gap-1 sm:gap-2 shrink-0">
           <Badge
-            v-if="evidence.normalized_score"
+            v-if="evidence.normalized_score != null"
             variant="outline"
             class="text-xs whitespace-nowrap"
+            :title="normalizedScoreLabel"
             :style="{
               backgroundColor: getScoreColorHex(evidence.normalized_score) + '20',
               color: getScoreColorHex(evidence.normalized_score)
             }"
           >
-            {{ formatScore(evidence.normalized_score) }}
+            {{ formatScore(evidence.normalized_score) }}%
           </Badge>
           <Badge v-if="primaryCount" variant="secondary" class="text-xs">
             {{ primaryCount }}
@@ -210,6 +211,13 @@ const sourceIconComponent = computed(() => {
 })
 
 // Helper functions
+// Mirrors backend evidence_normalized_scores: classification weight or count percentile
+const normalizedScoreLabel = computed(() =>
+  ['ClinGen', 'GenCC'].includes(props.evidence.source_name)
+    ? 'Normalized score: classification weight (0–100%)'
+    : `Normalized score: percentile rank of this gene's evidence count among genes with ${props.evidence.source_name} evidence (0–100%)`
+)
+
 const formatScore = score => {
   return (score * 100).toFixed(1)
 }
