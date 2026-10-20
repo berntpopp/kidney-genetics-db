@@ -7,11 +7,16 @@
 /* Tailwind v4 — generates @layer base, components, utilities */
 @import 'tailwindcss';
 
+/* dark: follows the .dark class set by useAppTheme, not the OS preference */
+@custom-variant dark (&:is(.dark *));
+
 /* ============================================================
    Theme — CSS custom properties for light/dark mode (OKLCH)
    ============================================================ */
 @layer theme {
   :root {
+    color-scheme: light;
+
     /* Background / Foreground */
     --background: oklch(0.985 0 0);
     --foreground: oklch(0.141 0.005 285.823);
@@ -77,6 +82,8 @@
   }
 
   .dark {
+    color-scheme: dark;
+
     /* Background / Foreground */
     --background: oklch(0.141 0.005 285.823);
     --foreground: oklch(0.985 0 0);
