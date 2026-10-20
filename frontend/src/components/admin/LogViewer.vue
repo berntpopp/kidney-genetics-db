@@ -18,6 +18,7 @@ import { LogLevel } from '@/services/logService'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
 import {
@@ -308,7 +309,7 @@ watch(
               v-if="count > 0"
               variant="outline"
               class="text-[10px]"
-              :style="{ borderColor: getLogColor(level), color: getLogColor(level) }"
+              :style="{ ...tintedChipStyle(getLogColor(level)), borderColor: getLogColor(level) }"
             >
               {{ level }}: {{ count }}
             </Badge>

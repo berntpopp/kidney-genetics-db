@@ -45,10 +45,7 @@
               class="mt-0.5 shrink-0"
             />
             <div>
-              <Badge
-                :style="{ backgroundColor: config.color + '20', color: config.color }"
-                variant="outline"
-              >
+              <Badge :style="tintedChipStyle(config.color)" variant="outline">
                 {{ config.label }}
               </Badge>
               <p class="text-xs text-muted-foreground mt-1">{{ config.description }}</p>
@@ -73,10 +70,7 @@
               class="mt-0.5 shrink-0"
             />
             <div>
-              <Badge
-                :style="{ backgroundColor: config.color + '20', color: config.color }"
-                variant="outline"
-              >
+              <Badge :style="tintedChipStyle(config.color)" variant="outline">
                 {{ config.label }}
               </Badge>
               <p class="text-xs text-muted-foreground mt-1">{{ config.description }}</p>
@@ -117,7 +111,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { CircleHelp, Info } from 'lucide-vue-next'
-import { TIER_CONFIG, GROUP_CONFIG } from '@/utils/evidenceTiers'
+import { TIER_CONFIG, GROUP_CONFIG, tintedChipStyle } from '@/utils/evidenceTiers'
 
 const showDialog = ref(false)
 </script>

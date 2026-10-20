@@ -26,7 +26,7 @@
               :href="`https://pubmed.ncbi.nlm.nih.gov/${mention.pmid}`"
               target="_blank"
               class="cursor-pointer"
-              :style="{ borderColor: '#14b8a6', color: '#14b8a6' }"
+              :style="{ ...tintedChipStyle('#14b8a6'), borderColor: '#14b8a6' }"
             >
               PMID: {{ mention.pmid }}
               <ExternalLink :size="10" class="ml-1" />
@@ -72,7 +72,7 @@
     <div class="mt-4 p-3 bg-muted/30 rounded">
       <div class="grid grid-cols-3 gap-4">
         <div class="text-center">
-          <div class="text-2xl font-bold" :style="{ color: '#14b8a6' }">
+          <div class="text-2xl font-bold" :style="{ color: tintedChipStyle('#14b8a6').color }">
             {{ publicationCount }}
           </div>
           <div class="text-xs text-muted-foreground">Publications</div>
@@ -81,13 +81,13 @@
           class="text-center"
           title="Highest-scoring mention records retained for display; not a total mention count"
         >
-          <div class="text-2xl font-bold" :style="{ color: '#14b8a6' }">
+          <div class="text-2xl font-bold" :style="{ color: tintedChipStyle('#14b8a6').color }">
             {{ sampledMentionCount }}
           </div>
           <div class="text-xs text-muted-foreground">Sampled mentions</div>
         </div>
         <div class="text-center">
-          <div class="text-2xl font-bold" :style="{ color: '#14b8a6' }">
+          <div class="text-2xl font-bold" :style="{ color: tintedChipStyle('#14b8a6').color }">
             {{ evidenceScore }}
           </div>
           <div class="text-xs text-muted-foreground">Score</div>
@@ -107,6 +107,7 @@
 import { ref, computed } from 'vue'
 import { FileText, ChevronUp, ChevronDown, Search, ExternalLink } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 
