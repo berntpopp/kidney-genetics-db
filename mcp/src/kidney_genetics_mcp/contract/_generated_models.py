@@ -665,18 +665,12 @@ class StagingApprovalRequest(BaseModel):
     notes: Annotated[str | None, Field(description="Review notes", title="Notes")] = (
         None
     )
-    reviewer: Annotated[
-        str | None, Field(description="Name of reviewer", title="Reviewer")
-    ] = "system"
 
 
 class StagingRejectionRequest(BaseModel):
     notes: Annotated[
         str | None, Field(description="Rejection reason", title="Notes")
     ] = None
-    reviewer: Annotated[
-        str | None, Field(description="Name of reviewer", title="Reviewer")
-    ] = "system"
 
 
 class StagingStatsResponse(BaseModel):

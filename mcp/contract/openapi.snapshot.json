@@ -1806,12 +1806,6 @@
             ],
             "description": "Review notes",
             "title": "Notes"
-          },
-          "reviewer": {
-            "default": "system",
-            "description": "Name of reviewer",
-            "title": "Reviewer",
-            "type": "string"
           }
         },
         "required": [
@@ -1835,12 +1829,6 @@
             ],
             "description": "Rejection reason",
             "title": "Notes"
-          },
-          "reviewer": {
-            "default": "system",
-            "description": "Name of reviewer",
-            "title": "Reviewer",
-            "type": "string"
           }
         },
         "title": "StagingRejectionRequest",
@@ -5500,6 +5488,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Update All Datasources",
         "tags": [
           "Core Resources - Data Sources"
@@ -5606,6 +5599,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Update Datasource",
         "tags": [
           "Core Resources - Data Sources"
@@ -5897,6 +5895,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Create Gene",
         "tags": [
           "Core Resources - Genes"
@@ -7691,6 +7694,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Approve Staging Record",
         "tags": [
           "Pipeline - Staging"
@@ -7746,6 +7754,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Reject Staging Record",
         "tags": [
           "Pipeline - Staging"
