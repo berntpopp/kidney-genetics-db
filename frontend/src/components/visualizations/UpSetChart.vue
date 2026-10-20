@@ -136,8 +136,8 @@
         </div>
 
         <p v-show="selectedSources.length > 0" class="mb-2 text-xs text-muted-foreground">
-          Distinct intersections: each gene is counted once, under exactly the sources it is found
-          in. Showing the
+          Distinct intersections: each gene is counted once, under exactly the selected sources it
+          is found in. Showing the
           {{ Math.min(UPSET_COMBINATION_LIMIT, data.intersections.length) }} largest of
           {{ data.intersections.length }}.
         </p>
@@ -168,7 +168,7 @@
           </CardHeader>
           <CardContent>
             <strong>{{ selectedIntersection.cardinality.toLocaleString() }}</strong> genes found
-            only in these sources
+            only in these sources, among the selected sources
           </CardContent>
         </Card>
       </div>

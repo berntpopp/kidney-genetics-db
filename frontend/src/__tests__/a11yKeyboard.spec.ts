@@ -168,6 +168,8 @@ describe('App shell skip link', () => {
     const first = document.querySelector('a[href], button')
     expect(first?.getAttribute('href')).toBe('#main-content')
     expect(first?.textContent?.trim()).toBe('Skip to main content')
+    // Must stack above the sticky AppHeader (z-50), which comes later in the DOM (#322)
+    expect(first?.classList.contains('focus:z-[60]')).toBe(true)
     const main = document.getElementById('main-content')
     expect(main?.tagName).toBe('MAIN')
     expect(main?.getAttribute('tabindex')).toBe('-1')

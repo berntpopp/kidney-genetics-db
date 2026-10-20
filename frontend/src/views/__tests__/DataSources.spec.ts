@@ -89,5 +89,8 @@ describe('DataSources loading layout (#324)', () => {
     const busy = w.find('[aria-busy="true"]')
     expect(busy.findAll('.grid > [data-slot="card"]')).toHaveLength(7)
     expect(busy.text()).toContain('Database Summary')
+    // The API sends no source.type, so loaded headers have the name row only
+    const header = busy.find('.grid > [data-slot="card"] > div')
+    expect(header.findAll('div')).toHaveLength(1)
   })
 })

@@ -11,10 +11,15 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import App from '@/App.vue'
 import { useLogStore } from '@/stores/logStore'
 
-vi.mock('@/components/admin/LogViewer.vue', () => ({
-  __esModule: true,
-  default: defineComponent({ render: () => h('div', { id: 'log-viewer' }) })
-}))
+// The factory runs when the module is first imported, so it detects an eager (static) import
+const logViewerModule = vi.hoisted(() => ({ loaded: false }))
+vi.mock('@/components/admin/LogViewer.vue', () => {
+  logViewerModule.loaded = true
+  return {
+    __esModule: true,
+    default: defineComponent({ render: () => h('div', { id: 'log-viewer' }) })
+  }
+})
 vi.stubGlobal('logService', { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })
 vi.stubGlobal(
   'matchMedia',
@@ -37,6 +42,7 @@ describe('LogViewer loading', () => {
       }
     })
     await flushPromises()
+    expect(logViewerModule.loaded).toBe(false)
     expect(wrapper.find('#log-viewer').exists()).toBe(false)
 
     const logStore = useLogStore()
@@ -44,6 +50,7 @@ describe('LogViewer loading', () => {
     await flushPromises()
     await vi.dynamicImportSettled()
     await flushPromises()
+    expect(logViewerModule.loaded).toBe(true)
     expect(wrapper.find('#log-viewer').exists()).toBe(true)
 
     logStore.hideViewer()
