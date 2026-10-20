@@ -20,7 +20,7 @@ vi.mock('@/api/statistics', () => ({
 }))
 
 // Capture the props UpSet.js is rendered with
-const rendered: { onClick?: (item: unknown) => void; sets?: unknown[]; combinations?: unknown[] } =
+const rendered: { onClick?: (_item: unknown) => void; sets?: unknown[]; combinations?: unknown[] } =
   {}
 vi.mock('@upsetjs/bundle', async importOriginal => ({
   ...(await importOriginal<object>()),
