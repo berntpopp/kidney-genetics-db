@@ -15,8 +15,9 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     vue(),
-    compression({ algorithm: 'gzip', exclude: [/\.(br)$/] }),
-    compression({ algorithm: 'brotliCompress', exclude: [/\.(gz)$/] }),
+    // gzip + brotli by default. HTML is excluded: this runs before vite-ssg prerenders and
+    // the entrypoint injects env-config.js, so a .html.gz would be a stale SPA shell (#312).
+    compression({ exclude: [/\.html$/] }),
   ],
   resolve: {
     alias: {
@@ -30,9 +31,8 @@ export default defineConfig({
     script: 'async',
     formatting: 'minify',
     dirStyle: 'nested',
-    beastiesOptions: {
-      preload: 'swap'
-    },
+    // Load the full stylesheet normally; async-swapped critical CSS caused layout shift (#313)
+    beastiesOptions: false,
     includedRoutes(paths) {
       // Only prerender public static pages (not dynamic gene pages or auth/admin routes)
       return paths.filter(
