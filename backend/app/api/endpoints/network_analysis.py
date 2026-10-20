@@ -29,13 +29,12 @@ from app.schemas.network import (
     SubgraphRequest,
 )
 from app.services.enrichment_service import EnrichmentService
-from app.services.network_analysis_service import NetworkAnalysisService
+from app.services.network_analysis_service import network_service
 
 router = APIRouter()
 logger = get_logger(__name__)
 
 # Service instances (stateless - no session stored)
-network_service = NetworkAnalysisService()
 enrichment_service = EnrichmentService()
 
 

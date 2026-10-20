@@ -638,3 +638,7 @@ class NetworkAnalysisService:
                 "ttl_seconds": self._graph_cache.ttl,
                 "utilization": len(self._graph_cache) / self._graph_cache.maxsize,
             }
+
+
+# Process-wide instance: shared by the API and pipeline cache invalidation (#336)
+network_service = NetworkAnalysisService()
