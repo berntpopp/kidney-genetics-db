@@ -18,8 +18,12 @@
           </Tooltip>
         </TooltipProvider>
       </div>
-      <Badge v-if="data" variant="outline">
-        {{ data.total_unique_genes.toLocaleString() }}/{{ totalGenes.toLocaleString() }} genes
+      <!-- Always rendered so the header keeps its height when data arrives (#324) -->
+      <Badge variant="outline" :class="{ invisible: !data }">
+        {{ (data?.total_unique_genes ?? totalGenes).toLocaleString() }}/{{
+          totalGenes.toLocaleString()
+        }}
+        genes
       </Badge>
     </CardHeader>
 
