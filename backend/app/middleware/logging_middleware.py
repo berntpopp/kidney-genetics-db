@@ -57,6 +57,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         sensitive_headers = {
             "authorization",
             "cookie",
+            "set-cookie",
             "x-api-key",
             "x-auth-token",
             "x-access-token",
@@ -69,7 +70,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
     async def _read_request_body(self, request: Request) -> str | None:
         """Safely read request body for logging."""
-        if not self.log_request_body:
+        # Auth bodies carry passwords, reset tokens and refresh tokens (#285)
+        if not self.log_request_body or request.url.path.startswith("/api/auth"):
             return None
 
         try:
@@ -205,7 +207,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         log_kwargs: dict[str, Any] = {
             "status_code": status_code,
             "processing_time_ms": int(processing_time),
-            "response_headers": dict(response.headers),
+            "response_headers": self._sanitize_headers(dict(response.headers)),
         }
         log_kwargs.update(response_data)
 
