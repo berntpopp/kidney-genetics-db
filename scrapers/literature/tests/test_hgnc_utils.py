@@ -137,3 +137,24 @@ def test_v2_cached_alias_pick_is_re_resolved(hgnc):
     normalizer._get_cache_path("OLD1").write_text(json.dumps(stale))
     routes["alias_symbol"] = hits({"hgnc_id": "HGNC:1"}, {"hgnc_id": "HGNC:2"})
     assert normalizer.normalize_symbol("OLD1")["found"] is False
+
+
+def test_null_response_body_is_unavailable_and_not_cached(hgnc):
+    routes, calls = hgnc
+    routes["symbol"] = {"response": None}
+    result = utils.HGNCNormalizer().normalize_symbol("PKD1")
+    assert result["hgnc_unavailable"] is True
+    routes["symbol"] = hits({"hgnc_id": "HGNC:9008", "symbol": "PKD1"})
+    assert utils.HGNCNormalizer().normalize_symbol("PKD1")["found"] is True
+
+
+def test_output_status_for_outage_and_ambiguous(hgnc):
+    routes, _ = hgnc
+    routes["symbol"] = urllib.error.URLError("down")
+    outage = utils.HGNCNormalizer().normalize_symbol("PKD1")
+    assert utils.normalization_status(outage) == "hgnc_unavailable"
+    routes["symbol"] = empty()
+    routes["alias_symbol"] = hits({"hgnc_id": "HGNC:1"}, {"hgnc_id": "HGNC:2"})
+    ambiguous = utils.HGNCNormalizer().normalize_symbol("OLD1")
+    assert utils.normalization_status(ambiguous) == "ambiguous"
+    assert utils.normalization_status({"found": False}) == "not_found"

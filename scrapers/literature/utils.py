@@ -121,7 +121,8 @@ class HGNCNormalizer:
         ):
             quoted = urllib.parse.quote(normalized)
             response = self._make_request(f"search/{endpoint}/{quoted}")
-            if response is None or "response" not in response:
+            body = response.get("response") if isinstance(response, dict) else None
+            if not isinstance(body, dict):
                 # An outage is not "not found": never cache it, so a later run retries HGNC.
                 logger.warning(f"HGNC unavailable for {symbol}; left unresolved")
                 return {
@@ -130,8 +131,8 @@ class HGNCNormalizer:
                     "found": False,
                     "hgnc_unavailable": True,
                 }
-            docs = response["response"].get("docs") or []
-            if len(docs) > 1 or response["response"].get("numFound", len(docs)) > 1:
+            docs = body.get("docs") or []
+            if len(docs) > 1 or body.get("numFound", len(docs)) > 1:
                 # Several genes share this prev/alias symbol: picking one is a guess.
                 logger.warning(f"Ambiguous HGNC {endpoint} match: {symbol} unresolved")
                 result = {
@@ -201,6 +202,17 @@ def get_hgnc_normalizer() -> HGNCNormalizer:
     if _normalizer is None:
         _normalizer = HGNCNormalizer()
     return _normalizer
+
+
+def normalization_status(result: Dict[str, Any]) -> str:
+    """Output status for a normalize_symbol result."""
+    if result.get("found"):
+        return "normalized"
+    if result.get("ambiguous"):
+        return "ambiguous"
+    if result.get("hgnc_unavailable"):
+        return "hgnc_unavailable"
+    return "not_found"
 
 
 def resolve_hgnc_symbol(symbol: str) -> Optional[Dict[str, Any]]:
