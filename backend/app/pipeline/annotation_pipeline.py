@@ -823,7 +823,9 @@ class AnnotationPipeline:
             def clear_cache_sync() -> None:
                 thread_db = SessionLocal()
                 try:
-                    # Drop in-process graphs too, else a stale graph is re-cached (#336)
+                    # Drop in-process graphs too, else a stale graph is re-cached (#336).
+                    # ponytail: a /build already in flight during this clear can still re-cache
+                    # pre-update data until its TTL (≤1 h); add a cache generation if refreshes get frequent.
                     network_service.clear_cache()
                     cache_service = get_cache_service(thread_db)
                     if cache_service:

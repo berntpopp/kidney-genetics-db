@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from sqlalchemy import text
 
+from app.api.endpoints.network_analysis import network_service  # the instance the API serves
 from app.pipeline.annotation_pipeline import AnnotationPipeline
-from app.services.network_analysis_service import network_service
 from tests.test_audit_pipeline_annotation_failures import OLD, SOURCE, _source_class
 
 
