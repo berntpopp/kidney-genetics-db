@@ -58,7 +58,7 @@ const router = useRouter()
 
 // Data
 const genes = ref<GeneRow[]>([])
-const loading = ref(false)
+const loading = ref(true) // true until the first response, so prerender/loading never claim "No genes"
 const loadError = ref<Error | null>(null)
 const totalItems = ref(0)
 const page = ref(1)
@@ -240,8 +240,6 @@ const columns: ColumnDef<GeneRow>[] = [
 ]
 
 // Computed
-const pageCount = computed(() => Math.ceil(totalItems.value / itemsPerPage.value))
-
 const hiddenGeneCount = computed(() => {
   return filterMeta.value?.hidden_zero_scores || 0
 })
@@ -268,8 +266,8 @@ const table = useVueTable({
   getCoreRowModel: getCoreRowModel(),
   manualPagination: true,
   manualSorting: true,
-  get pageCount() {
-    return pageCount.value
+  get rowCount() {
+    return totalItems.value
   },
   state: {
     get pagination(): PaginationState {
@@ -429,7 +427,7 @@ const loadGenes = async (): Promise<void> => {
     hideZeroScores: !showZeroScoreGenes.value
   }
   const requestKey = JSON.stringify(params)
-  if (loading.value) {
+  if (activeRequest) {
     if (requestKey !== activeRequest) reloadQueued = true
     return
   }
@@ -466,6 +464,7 @@ const loadGenes = async (): Promise<void> => {
     loadError.value = new Error("Couldn't load genes from the server.")
   } finally {
     loading.value = false
+    activeRequest = ''
     if (reloadQueued) {
       reloadQueued = false
       await loadGenes()
@@ -614,7 +613,7 @@ onMounted(async () => {
               @input="debouncedSearch"
             />
           </div>
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2">
             <Select :model-value="sortOption" @update:model-value="applySorting">
               <SelectTrigger class="w-[180px] h-9">
                 <SelectValue placeholder="Sort by..." />
@@ -794,7 +793,7 @@ onMounted(async () => {
           </div>
 
           <!-- Total gene count -->
-          <Badge v-if="!loadError" variant="secondary" class="text-xs font-normal ml-auto">
+          <Badge v-if="genes.length > 0" variant="secondary" class="text-xs font-normal ml-auto">
             {{ genes.length }}/{{ totalItems.toLocaleString() }} genes
           </Badge>
         </div>
@@ -805,8 +804,12 @@ onMounted(async () => {
     <ComponentError v-if="loadError" :error="loadError" @retry="loadGenes" />
 
     <Card v-else-if="genes.length > 0 || loading">
-      <DataTablePagination :table="table" :page-size-options="itemsPerPageOptions" />
-      <DataTable :table="table" />
+      <DataTablePagination
+        v-if="genes.length > 0"
+        :table="table"
+        :page-size-options="itemsPerPageOptions"
+      />
+      <DataTable :table="table" :loading="loading" loading-text="Loading genes..." />
     </Card>
 
     <!-- Empty State -->

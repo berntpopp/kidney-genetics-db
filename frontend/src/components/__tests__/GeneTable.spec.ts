@@ -167,3 +167,34 @@ describe('GeneTable load states (#316)', () => {
     expect(wrapper!.text()).not.toContain("Couldn't load")
   })
 })
+
+describe('GeneTable footer and loading state (#323)', () => {
+  afterEach(() => {
+    wrapper?.unmount()
+    document.body.innerHTML = ''
+  })
+
+  it('footer shows the API total, not the page row count', async () => {
+    getGenes.mockReset()
+    getGenes.mockResolvedValue({
+      ...(listResult([{ id: 1, approved_symbol: 'PKD1', hgnc_id: 'x' }]) as object),
+      total: 3245
+    } as never)
+    await mountAt()
+
+    expect(wrapper!.text()).toContain('3,245 row(s) total')
+    expect(wrapper!.text()).toContain('Page 1 of 325')
+  })
+
+  it('never claims "No genes" while the first load is pending', async () => {
+    getGenes.mockReset()
+    getGenes.mockReturnValue(new Promise(() => {}))
+    await mountAt()
+
+    const text = wrapper!.text()
+    expect(text).toContain('Loading genes')
+    expect(text).not.toContain('No genes found')
+    expect(text).not.toContain('No results')
+    expect(text).not.toMatch(/0\/0 genes|Page 1 of 0/)
+  })
+})
