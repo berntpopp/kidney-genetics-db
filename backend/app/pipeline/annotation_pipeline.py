@@ -19,7 +19,7 @@ from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.db.safe_sql import refresh_materialized_view as safe_refresh_matview
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationSource, GeneAnnotation
-from app.models.progress import DataSourceProgress
+from app.models.progress import DataSourceProgress, SourceStatus
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 from app.pipeline.sources.annotations.clinvar import ClinVarAnnotationSource
 from app.pipeline.sources.annotations.descartes import DescartesAnnotationSource
@@ -141,7 +141,7 @@ class AnnotationPipeline:
             if not sources:
                 sources = checkpoint.get("sources_remaining")
             if not gene_ids:
-                gene_ids = checkpoint.get("gene_ids_remaining")
+                gene_ids = checkpoint.get("gene_ids")
 
         if self.progress_tracker.is_paused():
             logger.sync_info(
@@ -183,6 +183,7 @@ class AnnotationPipeline:
                     genes_count=len(genes_to_update),
                 )
                 if self.progress_tracker:
+                    self.progress_tracker.progress_record.progress_metadata = {}
                     self.progress_tracker.complete(operation="No updates needed")
                 return {
                     "sources_updated": [],
@@ -304,6 +305,8 @@ class AnnotationPipeline:
             }
 
             if self.progress_tracker:
+                # The checkpoint has been consumed; a later fresh run must not resume it.
+                self.progress_tracker.progress_record.progress_metadata = {}
                 self.progress_tracker.complete(
                     operation=f"Update completed in {duration:.1f} seconds"
                 )
@@ -528,7 +531,9 @@ class AnnotationPipeline:
                 .first()
             )
 
-            if progress and progress.progress_metadata:
+            # Only paused or interrupted (running/failed) runs have work left to resume.
+            resumable = (SourceStatus.paused, SourceStatus.running, SourceStatus.failed)
+            if progress and progress.progress_metadata and progress.status in resumable:
                 metadata: dict[str, Any] = dict(progress.progress_metadata)
                 logger.sync_info(
                     "Checkpoint found",
