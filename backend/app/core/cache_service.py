@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, TypeVar, cast
 
 import cachetools  # type: ignore[import-untyped]
-from sqlalchemy import text
+from sqlalchemy import CursorResult, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -528,16 +528,13 @@ class CacheService:
                         )
                     """)
 
-                    result = self.db_session.execute(
+                    deleted = self._execute(
                         query, {"namespace": namespace, "chunk_size": chunk_size}
                     )
-
-                    deleted = result.rowcount
                     if deleted == 0:
                         break
 
                     count += deleted
-                    self.db_session.commit()
 
                     # Small delay between chunks
                     time.sleep(0.01)
@@ -548,8 +545,6 @@ class CacheService:
         except Exception as e:
             self.stats.record_error()
             logger.sync_error("Error clearing namespace", namespace=namespace, error=str(e))
-            if self.db_session:
-                self.db_session.rollback()
             return 0
 
     async def cleanup_expired(self) -> int:
@@ -605,6 +600,21 @@ class CacheService:
             return {"error": str(e)}
 
     # Database operations
+    #
+    # Persistent I/O always runs on a short-lived session owned by the cache, never on
+    # the caller's session (#293): the singleton is shared across requests, tasks and
+    # threads, so using a caller session could commit/roll back another operation's
+    # transaction. ``self.db_session`` only marks that the L2 layer is enabled.
+
+    def _execute(self, query: Any, params: dict[str, Any] | None = None) -> Any:
+        """Run one statement in its own committed transaction; rows for SELECT, else rowcount."""
+        from app.core.database import SessionLocal
+
+        with SessionLocal() as session:
+            result = cast(CursorResult[Any], session.execute(query, params or {}))
+            out = result.fetchall() if result.returns_rows else result.rowcount
+            session.commit()
+            return out
 
     async def _get_from_db(self, cache_key: str) -> Any | None:
         """Get entry from database cache."""
@@ -612,23 +622,18 @@ class CacheService:
             return None
 
         try:
-            from sqlalchemy.ext.asyncio import AsyncSession
-
-            query = text(
-                """
+            rows = self._execute(
+                text(
+                    """
                 SELECT data, expires_at
                 FROM cache_entries
                 WHERE cache_key = :cache_key
                 AND (expires_at IS NULL OR expires_at > NOW())
             """
+                ),
+                {"cache_key": cache_key},
             )
-
-            if isinstance(self.db_session, AsyncSession):
-                result = await self.db_session.execute(query, {"cache_key": cache_key})
-            else:
-                result = self.db_session.execute(query, {"cache_key": cache_key})
-
-            row = result.fetchone()
+            row = rows[0] if rows else None
 
             if row:
                 # JSONB columns are automatically deserialized by PostgreSQL
@@ -701,66 +706,20 @@ class CacheService:
             """
             )
 
-            from sqlalchemy.ext.asyncio import AsyncSession
-
-            if isinstance(self.db_session, AsyncSession):
-                await self.db_session.execute(
-                    query,
-                    {
-                        "cache_key": cache_key,
-                        "namespace": entry.namespace,
-                        "data": json.dumps(data_value),  # Pass as JSON string for JSONB casting
-                        "expires_at": entry.expires_at,
-                        "data_size": data_size,
-                        "metadata": json.dumps(entry.metadata),
-                    },
-                )
-                await self.db_session.commit()
-            else:
-                self.db_session.execute(
-                    query,
-                    {
-                        "cache_key": cache_key,
-                        "namespace": entry.namespace,
-                        "data": json.dumps(data_value),  # Pass as JSON string for JSONB casting
-                        "expires_at": entry.expires_at,
-                        "data_size": data_size,
-                        "metadata": json.dumps(entry.metadata),
-                    },
-                )
-                self.db_session.commit()
+            self._execute(
+                query,
+                {
+                    "cache_key": cache_key,
+                    "namespace": entry.namespace,
+                    "data": json.dumps(data_value),  # Pass as JSON string for JSONB casting
+                    "expires_at": entry.expires_at,
+                    "data_size": data_size,
+                    "metadata": json.dumps(entry.metadata),
+                },
+            )
             return True
 
         except Exception as e:
-            from sqlalchemy.exc import DisconnectionError, OperationalError
-            from sqlalchemy.ext.asyncio import AsyncSession
-
-            # Handle critical connection errors that require session invalidation
-            is_connection_error = isinstance(e, DisconnectionError | OperationalError)
-            if is_connection_error and "server closed the connection" in str(e).lower():
-                # Critical: Don't return this session to the pool
-                try:
-                    if isinstance(self.db_session, AsyncSession):
-                        await self.db_session.invalidate()
-                    else:
-                        self.db_session.invalidate()
-                    logger.sync_warning(
-                        "Database connection lost during cache write, session invalidated",
-                        cache_key=cache_key,
-                        namespace=entry.namespace,
-                    )
-                except Exception:
-                    pass  # Session already in bad state
-            else:
-                # Normal error - safe to rollback
-                try:
-                    if isinstance(self.db_session, AsyncSession):
-                        await self.db_session.rollback()
-                    else:
-                        self.db_session.rollback()
-                except Exception:
-                    pass  # Rollback may fail if connection is dead
-
             # Safely calculate data size for logging
             try:
                 calc_data_size = len(json.dumps(entry.value, default=str).encode("utf-8"))
@@ -775,8 +734,6 @@ class CacheService:
                 namespace=entry.namespace,
                 value_type=type(entry.value).__name__,
                 data_size=calc_data_size,
-                session_type=type(self.db_session).__name__,
-                connection_error=is_connection_error,
             )
             return False
 
@@ -786,24 +743,13 @@ class CacheService:
             return False
 
         try:
-            from sqlalchemy.ext.asyncio import AsyncSession
-
-            query = text("DELETE FROM cache_entries WHERE cache_key = :cache_key")
-            if isinstance(self.db_session, AsyncSession):
-                await self.db_session.execute(query, {"cache_key": cache_key})
-                await self.db_session.commit()
-            else:
-                self.db_session.execute(query, {"cache_key": cache_key})
-                self.db_session.commit()
+            self._execute(
+                text("DELETE FROM cache_entries WHERE cache_key = :cache_key"),
+                {"cache_key": cache_key},
+            )
             return True
 
         except Exception as e:
-            from sqlalchemy.ext.asyncio import AsyncSession
-
-            if isinstance(self.db_session, AsyncSession):
-                await self.db_session.rollback()
-            else:
-                self.db_session.rollback()
             logger.sync_error("Database cache delete error", error=str(e))
             return False
 
@@ -813,30 +759,18 @@ class CacheService:
             return
 
         try:
-            from sqlalchemy.ext.asyncio import AsyncSession
-
-            query = text(
-                """
+            self._execute(
+                text(
+                    """
                 UPDATE cache_entries
                 SET last_accessed = NOW(), access_count = access_count + 1
                 WHERE cache_key = :cache_key
             """
+                ),
+                {"cache_key": cache_key},
             )
 
-            if isinstance(self.db_session, AsyncSession):
-                await self.db_session.execute(query, {"cache_key": cache_key})
-                await self.db_session.commit()
-            else:
-                self.db_session.execute(query, {"cache_key": cache_key})
-                self.db_session.commit()
-
         except Exception as e:
-            from sqlalchemy.ext.asyncio import AsyncSession
-
-            if isinstance(self.db_session, AsyncSession):
-                await self.db_session.rollback()
-            else:
-                self.db_session.rollback()
             logger.sync_error("Database access stats update error", error=str(e))
 
     async def _clear_namespace_from_db(self, namespace: str) -> int:
@@ -845,24 +779,15 @@ class CacheService:
             return 0
 
         try:
-            from sqlalchemy.ext.asyncio import AsyncSession
-
-            query = text("DELETE FROM cache_entries WHERE namespace = :namespace")
-            if isinstance(self.db_session, AsyncSession):
-                result = await self.db_session.execute(query, {"namespace": namespace})
-                await self.db_session.commit()
-            else:
-                result = self.db_session.execute(query, {"namespace": namespace})
-                self.db_session.commit()
-            return cast(int, result.rowcount)
+            return cast(
+                int,
+                self._execute(
+                    text("DELETE FROM cache_entries WHERE namespace = :namespace"),
+                    {"namespace": namespace},
+                ),
+            )
 
         except Exception as e:
-            from sqlalchemy.ext.asyncio import AsyncSession
-
-            if isinstance(self.db_session, AsyncSession):
-                await self.db_session.rollback()
-            else:
-                self.db_session.rollback()
             logger.sync_error("Database namespace clear error", error=str(e))
             return 0
 
@@ -872,30 +797,19 @@ class CacheService:
             return 0
 
         try:
-            from sqlalchemy.ext.asyncio import AsyncSession
-
-            query = text(
-                """
+            return cast(
+                int,
+                self._execute(
+                    text(
+                        """
                 DELETE FROM cache_entries
                 WHERE expires_at IS NOT NULL AND expires_at <= NOW()
             """
+                    )
+                ),
             )
 
-            if isinstance(self.db_session, AsyncSession):
-                result = await self.db_session.execute(query)
-                await self.db_session.commit()
-            else:
-                result = self.db_session.execute(query)
-                self.db_session.commit()
-            return cast(int, result.rowcount)
-
         except Exception as e:
-            from sqlalchemy.ext.asyncio import AsyncSession
-
-            if isinstance(self.db_session, AsyncSession):
-                await self.db_session.rollback()
-            else:
-                self.db_session.rollback()
             logger.sync_error("Database cleanup error", error=str(e))
             return 0
 
@@ -905,22 +819,15 @@ class CacheService:
             return 0
 
         try:
-            from sqlalchemy.ext.asyncio import AsyncSession
-
             if namespace:
-                query = text("SELECT COUNT(*) FROM cache_entries WHERE namespace = :namespace")
-                if isinstance(self.db_session, AsyncSession):
-                    result = await self.db_session.execute(query, {"namespace": namespace})
-                else:
-                    result = self.db_session.execute(query, {"namespace": namespace})
+                rows = self._execute(
+                    text("SELECT COUNT(*) FROM cache_entries WHERE namespace = :namespace"),
+                    {"namespace": namespace},
+                )
             else:
-                query = text("SELECT COUNT(*) FROM cache_entries")
-                if isinstance(self.db_session, AsyncSession):
-                    result = await self.db_session.execute(query)
-                else:
-                    result = self.db_session.execute(query)
+                rows = self._execute(text("SELECT COUNT(*) FROM cache_entries"))
 
-            return result.scalar() or 0
+            return cast(int, rows[0][0] or 0)
 
         except Exception as e:
             logger.sync_error("Database entry count error", error=str(e))
@@ -932,19 +839,11 @@ class CacheService:
             return {}
 
         try:
-            from sqlalchemy.ext.asyncio import AsyncSession
-
-            query = text("SELECT * FROM cache_stats WHERE namespace = :namespace")
-            if isinstance(self.db_session, AsyncSession):
-                result = await self.db_session.execute(query, {"namespace": namespace})
-            else:
-                result = self.db_session.execute(query, {"namespace": namespace})
-
-            row = result.fetchone()
-
-            if row:
-                return dict(row._mapping)
-            return {}
+            rows = self._execute(
+                text("SELECT * FROM cache_stats WHERE namespace = :namespace"),
+                {"namespace": namespace},
+            )
+            return dict(rows[0]._mapping) if rows else {}
 
         except Exception as e:
             logger.sync_error("Database namespace stats error", error=str(e))
@@ -957,15 +856,10 @@ class CacheService:
             return []
 
         try:
-            from sqlalchemy.ext.asyncio import AsyncSession
-
-            query = text("SELECT DISTINCT namespace FROM cache_entries ORDER BY namespace")
-            if isinstance(self.db_session, AsyncSession):
-                result = await self.db_session.execute(query)
-            else:
-                result = self.db_session.execute(query)
-
-            namespaces = [row[0] for row in result.fetchall()]
+            rows = self._execute(
+                text("SELECT DISTINCT namespace FROM cache_entries ORDER BY namespace")
+            )
+            namespaces = [row[0] for row in rows]
             logger.sync_debug(
                 "Found distinct namespaces", count=len(namespaces), namespaces=namespaces
             )
