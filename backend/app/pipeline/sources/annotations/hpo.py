@@ -42,6 +42,51 @@ def _clinical_group_rank(group: str) -> tuple[int, str]:
     return len(CLINICAL_GROUP_PRIORITY), group
 
 
+def score_syndromic_features(
+    phenotype_ids: set[str], syndromic_descendants: dict[str, set[str]]
+) -> dict[str, Any]:
+    """Score extra-renal (syndromic) involvement; shared by both HPO pipelines (#254).
+
+    Each category scores matched terms / all phenotype terms (rounded to 3 places).
+    A term under several overlapping categories counts once per category.
+    """
+    if not phenotype_ids:
+        return {
+            "is_syndromic": False,
+            "syndromic_score": 0.0,
+            "category_scores": {},
+            "extra_renal_categories": [],
+            "extra_renal_term_counts": {},
+        }
+
+    category_counts: dict[str, int] = {}
+    for category, descendant_terms in syndromic_descendants.items():
+        if not descendant_terms:
+            logger.sync_warning(f"No descendant terms for category {category}")
+            continue
+        matches = phenotype_ids.intersection(descendant_terms)
+        if matches:
+            category_counts[category] = len(matches)
+
+    category_scores = {
+        category: round(count / len(phenotype_ids), 3)
+        for category, count in category_counts.items()
+    }
+
+    # FORMULA (pending scientific decision, #255): SUM of category scores, as the
+    # annotation pipeline (gene pages, network, /hpo-classifications) has always stored.
+    # Unified ingestion previously used the MEAN: sum(...) / len(category_scores).
+    syndromic_score = sum(category_scores.values())
+
+    return {
+        "is_syndromic": syndromic_score >= 0.3,  # threshold from the predecessor R implementation
+        "syndromic_score": round(syndromic_score, 3),
+        "category_scores": category_scores,
+        "extra_renal_categories": list(category_counts),
+        "extra_renal_term_counts": category_counts,
+    }
+
+
 class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     """
     HPO phenotype annotations for genes.
@@ -612,55 +657,13 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
             sizes={k: len(v) for k, v in syndromic_descendants.items()},
         )
 
-        # Calculate matches and scores for each category
-        category_matches = {}
-        category_scores = {}
-        total_phenotypes = len(phenotype_ids)
-
-        if total_phenotypes == 0:
-            logger.sync_debug("No phenotypes to assess, returning default")
-            return {
-                "is_syndromic": False,
-                "syndromic_score": 0.0,
-                "category_scores": {},
-                "extra_renal_categories": [],
-                "extra_renal_term_counts": {},
-            }
-
-        # Check ALL phenotypes against each syndromic category
-        for category, descendant_terms in syndromic_descendants.items():
-            if not descendant_terms:
-                logger.sync_warning(f"No descendant terms for category {category}")
-                continue
-
-            matches = phenotype_ids.intersection(descendant_terms)
-            if matches:
-                category_matches[category] = matches
-                # Calculate proportional score for this category
-                category_scores[category] = round(len(matches) / total_phenotypes, 3)
-                logger.sync_debug(
-                    f"Category {category}: {len(matches)} matches, score {category_scores[category]}"
-                )
-
-        # Calculate overall syndromic score
-        syndromic_score = sum(category_scores.values())
-
-        # Determine if syndromic (30% threshold)
-        is_syndromic = syndromic_score >= 0.3
-
-        result = {
-            "is_syndromic": is_syndromic,
-            "syndromic_score": round(syndromic_score, 3),
-            "category_scores": category_scores,  # Sub-category scores like R
-            "extra_renal_categories": list(category_matches.keys()),
-            "extra_renal_term_counts": {k: len(v) for k, v in category_matches.items()},
-        }
+        result = score_syndromic_features(phenotype_ids, syndromic_descendants)
 
         logger.sync_debug(
             "Syndromic assessment complete",
-            is_syndromic=is_syndromic,
-            score=syndromic_score,
-            categories_matched=len(category_matches),
+            is_syndromic=result["is_syndromic"],
+            score=result["syndromic_score"],
+            categories_matched=len(result["extra_renal_categories"]),
         )
 
         return result
