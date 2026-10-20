@@ -163,22 +163,9 @@
                     </span>
                   </div>
                   <div class="flex items-center gap-1">
+                    <!-- No Start here: pipeline-wide runs go through the confirmed AdminAnnotations form (#317) -->
                     <Button
                       v-if="
-                        source.source_name === 'annotation_pipeline' &&
-                        (source.status === 'idle' || source.status === 'failed')
-                      "
-                      :aria-label="`Start ${source.source_name}`"
-                      variant="ghost"
-                      size="icon"
-                      class="h-6 w-6"
-                      :disabled="triggering[source.source_name]"
-                      @click="triggerUpdate(source.source_name)"
-                    >
-                      <Play :size="12" />
-                    </Button>
-                    <Button
-                      v-else-if="
                         source.source_name === 'annotation_pipeline' && source.status === 'running'
                       "
                       :aria-label="`Pause ${source.source_name}`"

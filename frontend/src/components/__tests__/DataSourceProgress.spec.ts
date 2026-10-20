@@ -9,8 +9,9 @@ import DataSourceProgress from '@/components/DataSourceProgress.vue'
 
 const cfg = vi.hoisted(() => ({ apiBaseUrl: '' }))
 vi.mock('@/config', () => ({ config: cfg }))
+const statusRows = vi.hoisted(() => ({ value: [] as Record<string, unknown>[] }))
 vi.mock('@/api/client', () => ({
-  default: { get: vi.fn(async () => ({ data: { data: [] } })), post: vi.fn() }
+  default: { get: vi.fn(async () => ({ data: { data: statusRows.value } })), post: vi.fn() }
 }))
 vi.stubGlobal('logService', { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })
 
@@ -32,6 +33,7 @@ vi.stubGlobal('WebSocket', FakeWebSocket)
 
 afterEach(() => {
   urls.length = 0
+  statusRows.value = []
   vi.useRealTimers()
 })
 
@@ -70,5 +72,40 @@ describe('DataSourceProgress WebSocket', () => {
     wrapper.unmount()
     await vi.advanceTimersByTimeAsync(30000)
     expect(urls).toHaveLength(1)
+  })
+})
+
+describe('DataSourceProgress annotation_pipeline controls (#317)', () => {
+  const row = (source_name: string, status: string, category: string) => ({
+    source_name,
+    status,
+    category,
+    progress_percentage: 0,
+    items_processed: 0
+  })
+
+  async function buttonLabels(pipelineStatus: string) {
+    // A running data source auto-expands the panel
+    statusRows.value = [
+      row('PubTator', 'running', 'data_source'),
+      row('annotation_pipeline', pipelineStatus, 'internal_process')
+    ]
+    const wrapper = mount(DataSourceProgress, { attachTo: document.body })
+    await flushPromises()
+    const labels = wrapper.findAll('button').map(b => b.attributes('aria-label'))
+    wrapper.unmount()
+    return labels
+  }
+
+  it.each(['idle', 'failed'])(
+    'offers no unconfirmed Start for a %s pipeline (use AdminAnnotations)',
+    async status => {
+      expect(await buttonLabels(status)).not.toContain('Start annotation_pipeline')
+    }
+  )
+
+  it('keeps pause and resume', async () => {
+    expect(await buttonLabels('running')).toContain('Pause annotation_pipeline')
+    expect(await buttonLabels('paused')).toContain('Resume annotation_pipeline')
   })
 })
