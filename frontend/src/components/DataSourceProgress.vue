@@ -247,6 +247,7 @@ const triggering = ref({})
 const ws = ref(null)
 const reconnectInterval = ref(null)
 const pollInterval = ref(null)
+let unmounted = false
 const autoRefresh = ref(true)
 const lastUpdate = ref(new Date())
 
@@ -353,6 +354,8 @@ const stopPolling = () => {
 }
 
 const connectWebSocket = () => {
+  // One socket at a time: a slow handshake must not spawn a second one that unmount would miss
+  if (unmounted || (ws.value && ws.value.readyState <= WebSocket.OPEN)) return
   // Same host and path as the REST API base (empty base = same origin), http(s) -> ws(s)
   const url = new URL(
     `${config.apiBaseUrl.replace(/\/$/, '')}/api/progress/ws`,
@@ -362,6 +365,7 @@ const connectWebSocket = () => {
   ws.value = new WebSocket(url.href)
 
   ws.value.onopen = () => {
+    if (unmounted) return
     window.logService.info('WebSocket connected for progress updates')
     if (reconnectInterval.value) {
       clearInterval(reconnectInterval.value)
@@ -394,6 +398,7 @@ const connectWebSocket = () => {
   }
 
   ws.value.onclose = () => {
+    if (unmounted) return
     window.logService.info('WebSocket disconnected')
     if (!reconnectInterval.value) {
       reconnectInterval.value = setInterval(() => {
@@ -442,10 +447,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (ws.value) {
-    ws.value.onclose = null // close() fires onclose asynchronously, which would re-arm reconnects
-    ws.value.close()
-  }
+  unmounted = true // close() fires onclose asynchronously, which would re-arm reconnects
+  ws.value?.close()
   if (reconnectInterval.value) {
     clearInterval(reconnectInterval.value)
   }

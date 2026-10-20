@@ -16,23 +16,40 @@ vi.mock('@/api/client', () => ({
 vi.stubGlobal('logService', { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })
 
 const urls: string[] = []
+const sockets: FakeWebSocket[] = []
 class FakeWebSocket {
+  static CONNECTING = 0
+  static OPEN = 1
+  static CLOSING = 2
+  static CLOSED = 3
+  readyState = FakeWebSocket.CONNECTING
   onopen: (() => void) | null = null
   onclose: (() => void) | null = null
   onmessage = null
   onerror = null
   constructor(url: string) {
     urls.push(url)
+    sockets.push(this)
+  }
+  open() {
+    this.readyState = FakeWebSocket.OPEN
+    this.onopen?.()
+  }
+  drop() {
+    this.readyState = FakeWebSocket.CLOSED
+    this.onclose?.()
   }
   close() {
+    this.readyState = FakeWebSocket.CLOSING
     // Browsers dispatch the close event asynchronously
-    setTimeout(() => this.onclose?.(), 0)
+    setTimeout(() => this.drop(), 0)
   }
 }
 vi.stubGlobal('WebSocket', FakeWebSocket)
 
 afterEach(() => {
   urls.length = 0
+  sockets.length = 0
   statusRows.value = []
   vi.useRealTimers()
 })
@@ -72,6 +89,26 @@ describe('DataSourceProgress WebSocket', () => {
     wrapper.unmount()
     await vi.advanceTimersByTimeAsync(30000)
     expect(urls).toHaveLength(1)
+  })
+
+  it('never overlaps reconnect attempts and leaves no socket open after unmount', async () => {
+    vi.useFakeTimers()
+    cfg.apiBaseUrl = ''
+    const wrapper = mount(DataSourceProgress)
+    await flushPromises()
+    sockets[0]!.open()
+    sockets[0]!.drop() // server disconnect arms the reconnect interval
+
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(sockets).toHaveLength(2) // reconnect attempt, handshake still pending
+
+    await vi.advanceTimersByTimeAsync(15000) // slow handshake spans several ticks
+    expect(sockets).toHaveLength(2)
+
+    wrapper.unmount()
+    await vi.advanceTimersByTimeAsync(30000)
+    expect(sockets).toHaveLength(2)
+    expect(sockets.every(s => s.readyState === FakeWebSocket.CLOSED)).toBe(true)
   })
 })
 
