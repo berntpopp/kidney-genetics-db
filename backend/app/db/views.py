@@ -101,16 +101,23 @@ evidence_classification_weights = ReplaceableObject(
             ge.source_name,
             CASE
                 WHEN jsonb_typeof(ge.evidence_data -> 'classifications'::text) = 'array'::text THEN
-                    CASE (ge.evidence_data -> 'classifications'::text) ->> 0
-                        WHEN 'Definitive'::text THEN 1.0
-                        WHEN 'Strong'::text THEN 0.8
-                        WHEN 'Moderate'::text THEN 0.6
-                        WHEN 'Limited'::text THEN 0.4
-                        WHEN 'Disputed'::text THEN 0.2
-                        WHEN 'No Known Disease Relationship'::text THEN 0.0
-                        WHEN 'No Known Disease Relationship*'::text THEN 0.0
-                        ELSE 0.0  -- Unknown = no evidence
-                    END
+                    -- Strongest classification, independent of array order (#279)
+                    COALESCE(
+                        (SELECT MAX(
+                            CASE elem.value #>> '{}'
+                                WHEN 'Definitive'::text THEN 1.0
+                                WHEN 'Strong'::text THEN 0.8
+                                WHEN 'Moderate'::text THEN 0.6
+                                WHEN 'Limited'::text THEN 0.4
+                                WHEN 'Disputed'::text THEN 0.2
+                                WHEN 'No Known Disease Relationship'::text THEN 0.0
+                                WHEN 'No Known Disease Relationship*'::text THEN 0.0
+                                ELSE 0.0  -- Unknown = no evidence
+                            END
+                        ) FROM jsonb_array_elements(
+                            ge.evidence_data -> 'classifications'::text) elem),
+                        0.0
+                    )
                 WHEN (ge.evidence_data ->> 'classification'::text) IS NOT NULL THEN
                     CASE ge.evidence_data ->> 'classification'::text
                         WHEN 'Definitive'::text THEN 1.0
