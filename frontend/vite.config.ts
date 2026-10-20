@@ -54,9 +54,6 @@ export default defineConfig({
           if (id.includes('node_modules/vue/') || id.includes('node_modules/vue-router/') || id.includes('node_modules/pinia/')) {
             return 'vendor-vue'
           }
-          if (id.includes('node_modules/@tanstack/vue-table/')) {
-            return 'vendor-tanstack'
-          }
           if (id.includes('node_modules/d3-')) {
             return 'vendor-d3'
           }

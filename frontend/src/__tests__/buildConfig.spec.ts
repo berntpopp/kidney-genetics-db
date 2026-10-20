@@ -3,6 +3,7 @@
  * Production build config regressions.
  * #312: precompressed HTML is written before vite-ssg prerenders, so nginx gzip_static
  * would serve a stale SPA shell. #313: async-swapped critical CSS shifts the layout.
+ * #328: the vendor-tanstack chunk dragged the Vue runtime into every route.
  */
 import { describe, it, expect } from 'vitest'
 import type { Plugin } from 'vite'
@@ -58,5 +59,14 @@ describe('production build config', () => {
     expect(
       (config as { ssgOptions?: { beastiesOptions?: unknown } }).ssgOptions?.beastiesOptions
     ).toBe(false)
+  })
+
+  it('has no vendor-tanstack chunk (#328)', () => {
+    const output = config.build?.rollupOptions?.output as {
+      manualChunks: (_id: string) => string | undefined
+    }
+    expect(
+      output.manualChunks('/x/node_modules/@tanstack/vue-table/dist/index.mjs')
+    ).toBeUndefined()
   })
 })
