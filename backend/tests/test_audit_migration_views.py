@@ -167,3 +167,41 @@ def test_upgrade_keeps_unassessed_hpo_null(baseline_db):
     _alembic(url, "upgrade", "head")
     with engine.begin() as conn:
         assert syndromic(conn)["AUDITUPG_NOHPO"] is None
+
+
+@pytest.mark.integration
+def test_upgrade_drops_pubtator_mention_suffix(baseline_db):
+    engine, url = baseline_db
+    details = {
+        "AUDITUPG_PT_SUFFIX": ("PubTator", "PubTator: 207 publications, 21 mentions"),
+        "AUDITUPG_PT_PLAIN": ("PubTator", "PubTator: 5 publications"),
+        "AUDITUPG_OTHER": ("Literature", "Lit: 3 publications, 4 mentions"),
+    }
+    with engine.begin() as conn:
+        for symbol, (source, detail) in details.items():
+            conn.execute(
+                text(
+                    "INSERT INTO gene_evidence (gene_id, source_name, source_detail, "
+                    "evidence_data) VALUES (:g, :s, :d, '{\"total_mentions\": 21}')"
+                ),
+                {"g": _add_gene(conn, symbol), "s": source, "d": detail},
+            )
+
+    _alembic(url, "upgrade", "head")
+    with engine.begin() as conn:
+        rows = dict(
+            conn.execute(
+                text(
+                    "SELECT g.approved_symbol, ge.source_detail FROM gene_evidence ge "
+                    "JOIN genes g ON g.id = ge.gene_id"
+                )
+            ).all()
+        )
+        data = conn.execute(text("SELECT DISTINCT evidence_data FROM gene_evidence")).scalars()
+        assert list(data) == [{"total_mentions": 21}]
+    assert rows == {
+        "AUDITUPG_PT_SUFFIX": "PubTator: 207 publications",
+        "AUDITUPG_PT_PLAIN": "PubTator: 5 publications",
+        "AUDITUPG_OTHER": "Lit: 3 publications, 4 mentions",
+    }
+    _alembic(url, "downgrade", "0003")  # no-op downgrade must still succeed
