@@ -296,8 +296,8 @@ async def cluster_network(
         )
 
     # Detect communities
-    gene_to_cluster, modularity = await network_service.detect_communities(
-        graph=graph, session=db, algorithm=body.algorithm
+    gene_to_cluster, modularity, parameters = await network_service.detect_communities(
+        graph=graph, session=db, algorithm=body.algorithm, seed=body.seed
     )
 
     # Apply cluster size filtering if requested
@@ -357,6 +357,7 @@ async def cluster_network(
         num_clusters=num_clusters,
         modularity=round(modularity, 3),
         algorithm=body.algorithm,
+        parameters=parameters,
         cytoscape_json=cytoscape_json,
     )
 

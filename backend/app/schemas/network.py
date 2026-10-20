@@ -74,6 +74,12 @@ class NetworkClusterRequest(BaseModel):
         default=_na_config.get("clustering", {}).get("default_algorithm", "leiden"),
         description="Clustering algorithm: leiden, louvain, or walktrap",
     )
+    seed: int = Field(
+        default=0,
+        ge=0,
+        le=2**31 - 1,
+        description="RNG seed for leiden/louvain; the fixed default makes default runs reproducible",
+    )
     min_degree: int = Field(
         default=_filtering_config.get("default_min_degree", 0),
         ge=0,
@@ -264,6 +270,10 @@ class NetworkClusterResponse(BaseModel):
     num_clusters: int = Field(..., description="Number of clusters detected")
     modularity: float = Field(..., description="Modularity score")
     algorithm: str = Field(..., description="Algorithm used")
+    parameters: dict[str, Any] = Field(
+        ...,
+        description="Clustering parameters used, e.g. objective, resolution, iterations, seed",
+    )
     cytoscape_json: dict[str, Any] = Field(..., description="Cytoscape.js with cluster colors")
 
 
