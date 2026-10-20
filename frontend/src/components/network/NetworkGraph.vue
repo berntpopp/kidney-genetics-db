@@ -61,7 +61,7 @@
 
     <!-- Network Controls -->
     <CardContent class="p-3">
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div class="space-y-1">
           <label class="text-xs font-medium text-muted-foreground">Layout</label>
           <Select v-model="layoutType" @update:model-value="applyLayout">
@@ -70,23 +70,6 @@
             </SelectTrigger>
             <SelectContent>
               <SelectItem v-for="opt in layoutOptions" :key="opt.value" :value="opt.value">
-                {{ opt.title }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div class="space-y-1">
-          <label class="text-xs font-medium text-muted-foreground">Clustering</label>
-          <Select
-            v-model="clusterAlgorithm"
-            @update:model-value="$emit('cluster', clusterAlgorithm)"
-          >
-            <SelectTrigger class="h-9">
-              <SelectValue placeholder="Clustering" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="opt in clusterOptions" :key="opt.value" :value="opt.value">
                 {{ opt.title }}
               </SelectItem>
             </SelectContent>
@@ -110,19 +93,6 @@
               </SelectItem>
             </SelectContent>
           </Select>
-        </div>
-
-        <div class="space-y-1">
-          <label class="text-xs font-medium text-muted-foreground">Min STRING Score</label>
-          <Input
-            :model-value="String(minStringScore)"
-            type="number"
-            min="0"
-            max="1000"
-            step="50"
-            class="h-9"
-            @update:model-value="$emit('update:minStringScore', Number($event))"
-          />
         </div>
       </div>
 
@@ -312,7 +282,9 @@
           <Badge
             v-for="item in hpoLegendItems"
             :key="item.id"
-            :style="{ backgroundColor: item.color, color: 'white' }"
+            variant="outline"
+            class="text-foreground"
+            :style="legendChipStyle(item.color)"
           >
             {{ item.label }}
           </Badge>
@@ -355,17 +327,19 @@
             <Tooltip v-for="item in clusterLegendItems" :key="item.id">
               <TooltipTrigger as-child>
                 <Badge
-                  :variant="item.isActive ? 'default' : 'outline'"
-                  class="cursor-pointer cluster-chip"
+                  variant="outline"
+                  role="button"
+                  tabindex="0"
+                  class="cursor-pointer cluster-chip text-foreground"
                   :class="{ 'opacity-50': !item.isActive }"
-                  :style="
-                    item.isActive
-                      ? { backgroundColor: item.color, borderColor: item.color, color: 'white' }
-                      : {}
-                  "
+                  :style="item.isActive ? legendChipStyle(item.color) : {}"
                   @mouseenter="highlightCluster(item.id)"
                   @mouseleave="clearHighlight()"
+                  @focus="highlightCluster(item.id)"
+                  @blur="clearHighlight()"
                   @click="openClusterDialog(item.id)"
+                  @keydown.enter.prevent="openClusterDialog(item.id)"
+                  @keydown.space.prevent="openClusterDialog(item.id)"
                 >
                   {{ item.label }}
                 </Badge>
@@ -553,10 +527,6 @@ const props = defineProps({
     type: String,
     default: '600px'
   },
-  minStringScore: {
-    type: Number,
-    default: 400
-  },
   clusterIdMapping: {
     type: Map,
     default: () => new Map()
@@ -580,20 +550,12 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits([
-  'refresh',
-  'cluster',
-  'update:minStringScore',
-  'update:colorMode',
-  'nodeClick',
-  'selectCluster'
-])
+const emit = defineEmits(['refresh', 'update:colorMode', 'nodeClick', 'selectCluster'])
 
 // Refs
 const cytoscapeContainer = ref(null)
 const cyInstance = ref(null)
 const layoutType = ref('cose-bilkent')
-const clusterAlgorithm = ref('leiden')
 const clusterColors = ref({})
 const clusterCentroids = ref({}) // { clusterId: { x, y } }
 const clusterSortMethod = ref('size') // 'size' or 'spatial'
@@ -628,7 +590,7 @@ const graphHeight = computed(() => props.height)
 const networkStats = computed(() => {
   if (!props.networkData) return 'No network loaded'
   const { nodes, edges, components } = props.networkData
-  return `${nodes} genes, ${edges} interactions, ${components} component(s)`
+  return `Displayed: ${nodes} genes, ${edges} interactions, ${components} component(s)`
 })
 
 // Legend visibility - show if clusters exist OR HPO data exists
@@ -850,12 +812,11 @@ const layoutOptions = [
   { title: 'Concentric', value: 'concentric' }
 ]
 
-const clusterOptions = [
-  { title: 'Leiden', value: 'leiden' },
-  { title: 'Louvain', value: 'louvain' },
-  { title: 'Walktrap', value: 'walktrap' },
-  { title: 'None', value: 'none' }
-]
+// Tinted legend chip; text stays text-foreground so every cluster color passes contrast
+const legendChipStyle = color => ({
+  backgroundColor: `color-mix(in srgb, ${color} 20%, transparent)`,
+  borderColor: color
+})
 
 // Methods
 const getClusterDisplayName = backendClusterId => {
