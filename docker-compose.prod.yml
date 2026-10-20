@@ -15,7 +15,8 @@ volumes:
 
 services:
   postgres:
-    image: postgres:17-alpine@sha256:dc17045ccfd343b49600570ea734b9c4991cf1c3f3302e67df51e3b402dd55c4
+    build: ./postgres
+    image: kidney_genetics_postgres:17.11-zlib1.3.2-r1
     container_name: kidney_genetics_postgres
     networks:
       - kidney_genetics_internal_net
@@ -300,7 +301,7 @@ services:
         compress: "true"
 
   db-backup:
-    # Must match the postgres server major version (postgres:17-alpine above):
+    # Must match the postgres server major version (PostgreSQL 17 above):
     # pg_dump refuses to dump a server newer than itself ("aborting because of
     # server version mismatch"), so the :16 client silently failed every nightly
     # backup after the server was upgraded to 17. Keep this tag in lockstep with

@@ -1,7 +1,8 @@
 # Supporting services for hybrid development
 services:
   postgres:
-    image: postgres:17-alpine
+    build: ./postgres
+    image: kidney_genetics_postgres:17.11-zlib1.3.2-r1
     container_name: kidney_genetics_postgres
     environment:
       POSTGRES_DB: kidney_genetics
