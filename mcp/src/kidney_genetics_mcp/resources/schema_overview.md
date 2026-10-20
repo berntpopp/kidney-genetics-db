@@ -84,6 +84,8 @@ source; `source_name` takes one of these exact values:
 Each evidence record carries `source_name`, `source_detail`,
 `normalized_score`, `evidence_date`, and a mode-projected `evidence_data` JSONB
 blob.
+For `PubTator`, `evidence_data.total_mentions` is the size of the retained
+mention sample, not a cumulative mention count; use `publication_count` instead.
 
 ## Annotation Sources (10 descriptive sources)
 

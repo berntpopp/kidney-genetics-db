@@ -66,6 +66,7 @@ export interface PanelAppEvidenceData {
 export interface PubTatorEvidenceData {
   pmids: string[]
   publication_count: number
+  /** Size of the retained mention sample, not a cumulative mention total (#281). */
   total_mentions: number
   evidence_score: number
 }

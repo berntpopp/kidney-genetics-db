@@ -421,7 +421,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             new_count=len(gene_ids) - len(existing_map),
         )
 
-        # Current provider from source_detail
+        # Fallback provider for records without their own provider list
         current_provider = source_detail or "unknown"
 
         # First pass: merge data in memory
@@ -430,6 +430,8 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         logger.sync_debug("Starting memory merge pass", total_genes=len(gene_data))
 
         for symbol, data in gene_data.items():
+            # Per-gene providers carry provenance; source_detail may be an upload summary
+            gene_providers = sorted(set(data.get("providers") or [current_provider]))
             gene_id = gene_map.get(symbol)
             if not gene_id:
                 logger.sync_warning("Gene not found in database", symbol=symbol)
@@ -447,7 +449,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 merged_panels = sorted(existing_panels | new_panels)
 
                 existing_providers = set(current_data.get("providers", []))
-                new_providers = {current_provider}
+                new_providers = set(gene_providers)
                 merged_providers = sorted(existing_providers | new_providers)
 
                 existing_hgnc = set(current_data.get("hgnc_ids", []))
@@ -480,10 +482,10 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 # NEW: Prepare new data
                 new_data = {
                     "panels": data["panels"],
-                    "providers": [current_provider],
+                    "providers": gene_providers,
                     "hgnc_ids": data.get("hgnc_ids", []),
                     "panel_count": data["panel_count"],
-                    "provider_count": 1,
+                    "provider_count": len(gene_providers),
                 }
 
                 merged_gene_data[symbol] = {
