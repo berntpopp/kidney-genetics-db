@@ -1,6 +1,6 @@
 /**
- * Admin headers and stat cards take lucide components; Vuetify `mdi-*` names
- * render nothing in the shadcn header and left a 36 px gap (#321).
+ * Admin headers and stat cards take lucide components; Vuetify icon-name
+ * strings render nothing in the shadcn header and left a 36 px gap (#321).
  */
 
 import { describe, it, expect } from 'vitest'
@@ -15,9 +15,9 @@ const adminSources = import.meta.glob(['@/views/admin/*.vue', '@/components/admi
 }) as Record<string, string>
 
 describe('admin icons', () => {
-  it('no admin view or component passes an mdi-* icon name', () => {
+  it('no admin view or component passes a static icon-name string', () => {
     const offenders = Object.entries(adminSources)
-      .filter(([, src]) => src.includes('mdi-'))
+      .filter(([, src]) => /\sicon="/.test(src))
       .map(([path]) => path)
     expect(offenders).toEqual([])
   })
