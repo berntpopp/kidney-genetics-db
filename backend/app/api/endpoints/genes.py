@@ -14,6 +14,7 @@ from starlette.concurrency import run_in_threadpool
 from app.api.deps import get_db
 from app.core.cache_service import get_cache_service
 from app.core.datasource_config import API_DEFAULTS_CONFIG
+from app.core.dependencies import require_curator
 from app.core.exceptions import GeneNotFoundError, ValidationError
 from app.core.jsonapi import (
     build_jsonapi_response,
@@ -26,6 +27,7 @@ from app.core.jsonapi import (
 from app.core.logging import get_logger
 from app.core.rate_limit import LIMIT_GENE_LIST, limiter
 from app.models.gene import Gene, GeneEvidence
+from app.models.user import User
 from app.schemas.gene import GeneCreate
 from app.schemas.network import (
     HPOClassificationData,
@@ -779,6 +781,7 @@ async def get_gene_evidence(
 async def create_gene(
     gene_in: GeneCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_curator),
 ) -> dict[str, Any]:
     """
     Create a new gene in JSON:API format.

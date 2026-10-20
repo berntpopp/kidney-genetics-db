@@ -8,8 +8,10 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.dependencies import require_curator
 from app.core.exceptions import DatabaseError, ValidationError
 from app.crud.gene_staging import log_crud, staging_crud
+from app.models.user import User
 from app.schemas.gene_staging import (
     GeneNormalizationLogResponse,
     GeneNormalizationStagingResponse,
@@ -55,7 +57,11 @@ async def get_pending_reviews(
 
 @router.post("/staging/{staging_id}/approve")
 async def approve_staging_record(
-    *, db: Session = Depends(get_db), staging_id: int, approval_data: StagingApprovalRequest
+    *,
+    db: Session = Depends(get_db),
+    staging_id: int,
+    approval_data: StagingApprovalRequest,
+    current_user: User = Depends(require_curator),
 ) -> dict[str, Any]:
     """
     Approve a staging record with manual corrections
@@ -67,7 +73,7 @@ async def approve_staging_record(
             approved_symbol=approval_data.approved_symbol,
             hgnc_id=approval_data.hgnc_id,
             aliases=approval_data.aliases,
-            reviewer=approval_data.reviewer,
+            reviewer=current_user.username,  # never trust a caller-supplied reviewer
             notes=approval_data.notes,
         )
 
@@ -86,7 +92,11 @@ async def approve_staging_record(
 
 @router.post("/staging/{staging_id}/reject")
 async def reject_staging_record(
-    *, db: Session = Depends(get_db), staging_id: int, rejection_data: StagingRejectionRequest
+    *,
+    db: Session = Depends(get_db),
+    staging_id: int,
+    rejection_data: StagingRejectionRequest,
+    current_user: User = Depends(require_curator),
 ) -> dict[str, Any]:
     """
     Reject a staging record (not a valid gene)
@@ -95,7 +105,7 @@ async def reject_staging_record(
         staging_record = staging_crud.reject_staging_record(
             db=db,
             staging_id=staging_id,
-            reviewer=rejection_data.reviewer,
+            reviewer=current_user.username,
             notes=rejection_data.notes,
         )
 
