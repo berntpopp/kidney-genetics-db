@@ -9,6 +9,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
+import { pathToFileURL } from 'url'
 
 const DIST_DIR = join(import.meta.dirname, '..', 'dist')
 const API_URL = process.env.VITE_API_URL || 'http://localhost:8000'
@@ -23,8 +24,31 @@ interface GeneAttributes {
   evidence_score?: number | null
 }
 
+type GeneResource = { id: string; type: string; attributes: GeneAttributes }
+
 interface ApiResponse {
-  data: Array<{ id: string; type: string; attributes: GeneAttributes }>
+  data: GeneResource[]
+  meta?: { page_count?: number }
+}
+
+// The gene list endpoint rejects page[size] above 100 (backend get_jsonapi_params)
+const PAGE_SIZE = 100
+const FIELDS = 'approved_symbol,approved_name,hgnc_id,ensembl_gene_id,ncbi_gene_id,evidence_score'
+
+/** Fetch every gene, one page at a time, until meta.page_count is exhausted */
+export async function fetchAllGenes(fetchFn: typeof fetch = fetch): Promise<GeneResource[]> {
+  const genes: GeneResource[] = []
+  for (let page = 1; ; page++) {
+    const response = await fetchFn(
+      `${API_URL}/api/genes?fields=${FIELDS}&page[number]=${page}&page[size]=${PAGE_SIZE}`
+    )
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}: ${await response.text()}`)
+    }
+    const body = (await response.json()) as ApiResponse
+    genes.push(...body.data)
+    if (page >= (body.meta?.page_count ?? 0) || body.data.length === 0) return genes
+  }
 }
 
 function escapeHtml(s: string): string {
@@ -43,16 +67,7 @@ async function main() {
   const template = readFileSync(join(DIST_DIR, 'index.html'), 'utf-8')
 
   console.log(`Fetching genes from ${API_URL}/api/genes ...`)
-  const response = await fetch(
-    `${API_URL}/api/genes?fields=approved_symbol,approved_name,hgnc_id,ensembl_gene_id,ncbi_gene_id,evidence_score&page[size]=10000`
-  )
-
-  if (!response.ok) {
-    throw new Error(`API returned ${response.status}: ${await response.text()}`)
-  }
-
-  const data = (await response.json()) as ApiResponse
-  const genes = data.data
+  const genes = await fetchAllGenes()
   console.log(`Got ${genes.length} genes`)
 
   let generated = 0
@@ -117,7 +132,9 @@ async function main() {
   console.log(`Generated ${generated} gene page HTML shells`)
 }
 
-main().catch((err: unknown) => {
-  console.error('Gene page generation failed:', err)
-  process.exit(1)
-})
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err: unknown) => {
+    console.error('Gene page generation failed:', err)
+    process.exit(1)
+  })
+}
