@@ -110,6 +110,11 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { getCacheStats, clearAllCache } from '@/api/admin/cache'
+import { getDashboardData, getAllStatus, triggerUpdate } from '@/api/admin/pipeline'
+import { getStagingStats } from '@/api/admin/staging'
+import { cleanupLogs as cleanupOldLogs, getLogStatistics } from '@/api/admin/logs'
+import { listReleases } from '@/api/admin/releases'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
@@ -321,13 +326,7 @@ const fetchUserStats = async () => {
 
 const fetchCacheStats = async () => {
   try {
-    const response = await fetch('/api/admin/cache/stats', {
-      headers: {
-        Authorization: `Bearer ${authStore.accessToken}`
-      }
-    })
-    if (!response.ok) throw new Error('Failed to fetch cache stats')
-    const data = await response.json()
+    const data = (await getCacheStats()).data
     return data.data || data
   } catch (error) {
     window.logService.error('Failed to fetch cache stats:', error)
@@ -337,13 +336,7 @@ const fetchCacheStats = async () => {
 
 const fetchPipelineStats = async () => {
   try {
-    const response = await fetch('/api/progress/dashboard', {
-      headers: {
-        Authorization: `Bearer ${authStore.accessToken}`
-      }
-    })
-    if (!response.ok) throw new Error('Failed to fetch pipeline stats')
-    const data = await response.json()
+    const data = (await getDashboardData()).data
     return data.data?.summary || null
   } catch (error) {
     window.logService.error('Failed to fetch pipeline stats:', error)
@@ -353,13 +346,7 @@ const fetchPipelineStats = async () => {
 
 const fetchStagingStats = async () => {
   try {
-    const response = await fetch('/api/staging/staging/stats', {
-      headers: {
-        Authorization: `Bearer ${authStore.accessToken}`
-      }
-    })
-    if (!response.ok) throw new Error('Failed to fetch staging stats')
-    const data = await response.json()
+    const data = (await getStagingStats()).data
     return data.data || data
   } catch (error) {
     window.logService.error('Failed to fetch staging stats:', error)
@@ -369,13 +356,7 @@ const fetchStagingStats = async () => {
 
 const fetchReleasesStats = async () => {
   try {
-    const response = await fetch('/api/releases/', {
-      headers: {
-        Authorization: `Bearer ${authStore.accessToken}`
-      }
-    })
-    if (!response.ok) throw new Error('Failed to fetch releases stats')
-    const data = await response.json()
+    const data = (await listReleases()).data
     return {
       total: data.meta?.total || 0,
       published: data.data?.filter(r => r.status === 'published').length || 0
@@ -389,13 +370,7 @@ const fetchReleasesStats = async () => {
 const refreshCache = async () => {
   refreshingCache.value = true
   try {
-    const response = await fetch('/api/admin/cache', {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${authStore.accessToken}`
-      }
-    })
-    if (!response.ok) throw new Error('Failed to clear cache')
+    await clearAllCache()
     window.logService.info('Cache cleared successfully')
   } catch (error) {
     window.logService.error('Failed to refresh cache:', error)
@@ -407,24 +382,11 @@ const refreshCache = async () => {
 const runPipeline = async () => {
   runningPipeline.value = true
   try {
-    const response = await fetch('/api/progress/status', {
-      headers: {
-        Authorization: `Bearer ${authStore.accessToken}`
-      }
-    })
-    if (!response.ok) throw new Error('Failed to fetch sources')
-    const sources = await response.json()
+    const sources = (await getAllStatus()).data
 
     const triggers = sources.data
       .filter(s => s.category === 'data_source')
-      .map(s =>
-        fetch(`/api/progress/trigger/${s.source_name}`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${authStore.accessToken}`
-          }
-        })
-      )
+      .map(s => triggerUpdate(s.source_name))
 
     await Promise.all(triggers)
     window.logService.info('All pipelines triggered successfully')
@@ -438,14 +400,7 @@ const runPipeline = async () => {
 const cleanupLogs = async () => {
   cleaningLogs.value = true
   try {
-    const response = await fetch('/api/admin/logs/cleanup?days=30', {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${authStore.accessToken}`
-      }
-    })
-    if (!response.ok) throw new Error('Failed to cleanup logs')
-    const result = await response.json()
+    const result = (await cleanupOldLogs(30)).data
     window.logService.info(`Deleted ${result.logs_deleted} old log entries`)
   } catch (error) {
     window.logService.error('Failed to cleanup logs:', error)
@@ -457,12 +412,7 @@ const cleanupLogs = async () => {
 const exportStats = async () => {
   exportingStats.value = true
   try {
-    const logStatsPromise = async () => {
-      const r = await fetch('/api/admin/logs/statistics?hours=24', {
-        headers: { Authorization: `Bearer ${authStore.accessToken}` }
-      })
-      return r.json()
-    }
+    const logStatsPromise = async () => (await getLogStatistics(24)).data
     const [users, cache, pipeline, staging, logs] = await Promise.all([
       fetchUserStats(),
       fetchCacheStats(),

@@ -749,7 +749,7 @@ async def get_gene_evidence(
     evidence = db.query(GeneEvidence).filter(GeneEvidence.gene_id == gene.id).all()
 
     # Get normalized scores
-    normalized_scores = {}
+    normalized_scores: dict[int, float | None] = {}
     if gene.id:
         result = db.execute(
             text("""
@@ -760,7 +760,7 @@ async def get_gene_evidence(
             {"gene_id": gene.id},
         )
         for row in result:
-            normalized_scores[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
+            normalized_scores[row[0]] = round(float(row[1]), 4) if row[1] is not None else None
 
     # Format evidence as JSON:API
     from app.crud.evidence_transform import transform_evidence_to_jsonapi

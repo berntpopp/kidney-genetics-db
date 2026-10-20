@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Eye, EyeOff, ArrowLeft } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -51,6 +52,9 @@ const onSubmit = handleSubmit(async values => {
 
 // If already authenticated, redirect home
 onMounted(() => {
+  if (route.query.reason === 'password_changed') {
+    toast.success('Password changed. Please sign in again.', { duration: 5000 })
+  }
   if (authStore.isAuthenticated) {
     router.push('/')
   }

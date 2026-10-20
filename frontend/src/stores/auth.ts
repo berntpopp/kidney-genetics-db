@@ -91,8 +91,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   /**
    * Logout current user
+   * @param redirectTo - Page to load after local state is cleared
    */
-  async function logout(): Promise<void> {
+  async function logout(redirectTo = '/'): Promise<void> {
     try {
       // Call logout endpoint (will invalidate refresh token on server)
       await authApi.logout()
@@ -106,8 +107,7 @@ export const useAuthStore = defineStore('auth', () => {
       refreshToken.value = null
       localStorage.removeItem('user')
 
-      // Redirect to home (let router handle this via navigation guard)
-      window.location.href = '/'
+      window.location.href = redirectTo
     }
   }
 
@@ -237,6 +237,8 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       await authApi.changePassword(currentPassword, newPassword)
+      // The server revokes the refresh token on password change: sign in again now
+      await logout('/login?reason=password_changed')
       return true
     } catch (err: unknown) {
       error.value = extractErrorDetail(err, 'Failed to change password')
@@ -321,7 +323,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Listen for logout event from API client
   if (typeof window !== 'undefined') {
-    window.addEventListener('auth:logout', logout)
+    window.addEventListener('auth:logout', () => logout())
   }
 
   // Return store properties and methods

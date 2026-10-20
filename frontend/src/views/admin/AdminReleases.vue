@@ -390,7 +390,7 @@
  */
 
 import { ref, computed, onMounted } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+import * as releasesApi from '@/api/admin/releases'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
@@ -442,8 +442,6 @@ import {
   ShieldCheck,
   Trash2
 } from 'lucide-vue-next'
-
-const authStore = useAuthStore()
 
 // State
 const releases = ref([])
@@ -505,15 +503,7 @@ const filteredReleases = computed(() => {
 const loadReleases = async () => {
   loading.value = true
   try {
-    const response = await fetch('/api/releases/', {
-      headers: {
-        Authorization: `Bearer ${authStore.accessToken}`
-      }
-    })
-
-    if (!response.ok) throw new Error('Failed to fetch releases')
-
-    const data = await response.json()
+    const data = (await releasesApi.listReleases()).data
     releases.value = data.data || []
     updateStats()
   } catch (error) {
@@ -549,22 +539,12 @@ const createRelease = async () => {
 
   creating.value = true
   try {
-    const response = await fetch(
-      `/api/releases/?version=${encodeURIComponent(releaseFormData.value.version)}&release_notes=${encodeURIComponent(releaseFormData.value.release_notes || '')}`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`
-        }
-      }
-    )
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || 'Failed to create release')
-    }
-
-    const newRelease = await response.json()
+    const newRelease = (
+      await releasesApi.createRelease(
+        releaseFormData.value.version,
+        releaseFormData.value.release_notes || ''
+      )
+    ).data
     releases.value.push(newRelease)
     updateStats()
 
@@ -572,7 +552,9 @@ const createRelease = async () => {
     closeCreateDialog()
   } catch (error) {
     window.logService.error('Failed to create release:', error)
-    toast.error(error.message || 'Failed to create release', { duration: Infinity })
+    toast.error(error.response?.data?.detail || error.message || 'Failed to create release', {
+      duration: Infinity
+    })
   } finally {
     creating.value = false
   }
@@ -601,24 +583,12 @@ const updateRelease = async () => {
 
   creating.value = true
   try {
-    const response = await fetch(`/api/releases/${editingRelease.value.id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${authStore.accessToken}`
-      },
-      body: JSON.stringify({
+    const updated = (
+      await releasesApi.updateRelease(editingRelease.value.id, {
         version: releaseFormData.value.version,
         release_notes: releaseFormData.value.release_notes
       })
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || 'Failed to update release')
-    }
-
-    const updated = await response.json()
+    ).data
 
     // Update local state
     const index = releases.value.findIndex(r => r.id === updated.id)
@@ -631,7 +601,9 @@ const updateRelease = async () => {
     closeCreateDialog()
   } catch (error) {
     window.logService.error('Failed to update release:', error)
-    toast.error(error.message || 'Failed to update release', { duration: Infinity })
+    toast.error(error.response?.data?.detail || error.message || 'Failed to update release', {
+      duration: Infinity
+    })
   } finally {
     creating.value = false
   }
@@ -647,17 +619,7 @@ const deleteRelease = async () => {
 
   deleting.value = true
   try {
-    const response = await fetch(`/api/releases/${deletingRelease.value.id}`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${authStore.accessToken}`
-      }
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || 'Failed to delete release')
-    }
+    await releasesApi.deleteRelease(deletingRelease.value.id)
 
     // Remove from local state
     releases.value = releases.value.filter(r => r.id !== deletingRelease.value.id)
@@ -670,7 +632,9 @@ const deleteRelease = async () => {
     deletingRelease.value = null
   } catch (error) {
     window.logService.error('Failed to delete release:', error)
-    toast.error(error.message || 'Failed to delete release', { duration: Infinity })
+    toast.error(error.response?.data?.detail || error.message || 'Failed to delete release', {
+      duration: Infinity
+    })
   } finally {
     deleting.value = false
   }
@@ -686,19 +650,7 @@ const publishRelease = async () => {
 
   publishing.value = true
   try {
-    const response = await fetch(`/api/releases/${publishingRelease.value.id}/publish`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${authStore.accessToken}`
-      }
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || 'Failed to publish release')
-    }
-
-    const published = await response.json()
+    const published = (await releasesApi.publishRelease(publishingRelease.value.id)).data
 
     // Update local state
     const index = releases.value.findIndex(r => r.id === published.id)
@@ -712,7 +664,9 @@ const publishRelease = async () => {
     publishingRelease.value = null
   } catch (error) {
     window.logService.error('Failed to publish release:', error)
-    toast.error(error.message || 'Failed to publish release', { duration: Infinity })
+    toast.error(error.response?.data?.detail || error.message || 'Failed to publish release', {
+      duration: Infinity
+    })
   } finally {
     publishing.value = false
   }
@@ -725,15 +679,7 @@ const viewReleaseDetails = item => {
 
 const downloadExport = async release => {
   try {
-    const response = await fetch(`/api/releases/${release.version}/export`, {
-      headers: {
-        Authorization: `Bearer ${authStore.accessToken}`
-      }
-    })
-
-    if (!response.ok) throw new Error('Failed to download export')
-
-    const blob = await response.blob()
+    const blob = (await releasesApi.downloadReleaseExport(release.version)).data
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
