@@ -56,7 +56,7 @@ async function mountView() {
 describe('AdminGeneStaging review dialogs', () => {
   it('approves without a reviewer field or payload key', async () => {
     await mountView()
-    ;(document.querySelector('button.text-green-600') as HTMLButtonElement).click()
+    ;(document.querySelector('button.text-green-600') as HTMLElement).click()
     await flushPromises()
 
     expect(document.body.textContent).not.toContain('Your Name/ID')

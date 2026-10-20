@@ -44,7 +44,7 @@ describe('AdminUserManagement user form', () => {
       attachTo: document.body
     })
     await flushPromises()
-    ;(document.querySelector('table button.h-8.w-8') as HTMLButtonElement).click() // edit
+    ;(document.querySelector('table button.h-8.w-8') as HTMLElement).click() // edit
     await flushPromises()
 
     const active = document.getElementById('is_active')!
