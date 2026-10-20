@@ -5,7 +5,8 @@
 
 import { ref } from 'vue'
 import type { Ref } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+import type { AxiosRequestConfig } from 'axios'
+import apiClient from '@/api/client'
 
 /** Load settings filter params */
 interface SettingsListParams {
@@ -31,33 +32,22 @@ export interface SettingsApiReturn {
 }
 
 export function useSettingsApi(): SettingsApiReturn {
-  const authStore = useAuthStore()
   const loading = ref<boolean>(false)
   const error = ref<string | null>(null)
 
   /**
    * Generic API request handler with auth
    */
-  const apiRequest = async (url: string, options: RequestInit = {}): Promise<unknown> => {
+  const apiRequest = async (url: string, options: AxiosRequestConfig = {}): Promise<unknown> => {
     try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          ...(options.headers ?? {}),
-          Authorization: `Bearer ${authStore.accessToken}`
-        }
-      })
-
-      if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as { detail?: string }
-        throw new Error(errorData.detail ?? `Request failed: ${response.statusText}`)
-      }
-
-      return await response.json()
+      // Shared client: configured base URL, current token, refresh-and-retry on 401
+      const response = await apiClient.request({ url, ...options })
+      return response.data
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
+      const detail = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      const msg = detail ?? (err instanceof Error ? err.message : String(err))
       error.value = msg
-      throw err
+      throw new Error(msg, { cause: err })
     }
   }
 
@@ -123,13 +113,10 @@ export function useSettingsApi(): SettingsApiReturn {
     try {
       return await apiRequest(`/api/admin/settings/${settingId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+        data: {
           value,
           change_reason: changeReason
-        })
+        }
       })
     } finally {
       loading.value = false
