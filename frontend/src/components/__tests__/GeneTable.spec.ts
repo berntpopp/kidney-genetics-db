@@ -129,3 +129,41 @@ describe('GeneTable', () => {
     expect(document.body.textContent).not.toMatch(/100\.0%/)
   })
 })
+
+describe('GeneTable load states (#316)', () => {
+  beforeEach(() => {
+    getGenes.mockReset()
+  })
+  afterEach(() => {
+    wrapper?.unmount()
+    document.body.innerHTML = ''
+  })
+
+  it.each([
+    ['500', Object.assign(new Error('Request failed'), { response: { status: 500 } })],
+    ['network error', new Error('Network Error')]
+  ])('shows a retryable error, not "No genes found", on %s', async (_, err) => {
+    getGenes.mockRejectedValue(err)
+    await mountAt()
+
+    expect(wrapper!.text()).toContain("Couldn't load genes from the server.")
+    expect(wrapper!.text()).not.toContain('No genes found')
+    expect(wrapper!.text()).not.toMatch(/0\/0 genes/)
+    getGenes.mockResolvedValue(listResult([{ id: 1, approved_symbol: 'PKD1', hgnc_id: 'x' }]))
+    await wrapper!
+      .findAll('button')
+      .find(b => b.text() === 'Try again')!
+      .trigger('click')
+    await flushPromises()
+    expect(getGenes).toHaveBeenCalledTimes(2)
+    expect(wrapper!.findAll('a[href^="/genes/"]').map(a => a.text())).toEqual(['PKD1'])
+  })
+
+  it('shows "No genes found" only for a successful empty response', async () => {
+    getGenes.mockResolvedValue(listResult())
+    await mountAt()
+
+    expect(wrapper!.text()).toContain('No genes found')
+    expect(wrapper!.text()).not.toContain("Couldn't load")
+  })
+})

@@ -25,182 +25,191 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="flex flex-col items-center justify-center py-12">
+    <div v-if="loading" aria-busy="true" class="flex flex-col items-center justify-center py-12">
       <div
         class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4"
       />
       <div class="text-lg font-semibold">Loading data sources...</div>
     </div>
 
-    <!-- Data Sources Cards -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <Card
-        v-for="source in dataSources"
-        :key="source.name"
-        class="source-card h-full overflow-hidden"
-        @mouseenter="hoveredCard = source.name"
-        @mouseleave="hoveredCard = null"
-      >
-        <!-- Header with gradient -->
-        <div
-          class="p-4"
-          :style="`background: linear-gradient(135deg, ${getSourceGradient(source.name)});`"
+    <ComponentError v-else-if="loadError" :error="loadError" @retry="loadDataSources" />
+
+    <template v-else>
+      <p v-if="dataSources.length === 0" class="py-12 text-center text-muted-foreground">
+        No data sources available.
+      </p>
+
+      <!-- Data Sources Cards -->
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card
+          v-for="source in dataSources"
+          :key="source.name"
+          class="source-card h-full overflow-hidden"
+          @mouseenter="hoveredCard = source.name"
+          @mouseleave="hoveredCard = null"
         >
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <component :is="getSourceIcon(source.name)" class="size-6 text-white" />
-              <div>
-                <h2 class="text-lg font-bold text-white">{{ source.name }}</h2>
-                <div class="text-xs text-white/95">{{ source.type || 'API' }}</div>
+          <!-- Header with gradient -->
+          <div
+            class="p-4"
+            :style="`background: linear-gradient(135deg, ${getSourceGradient(source.name)});`"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <component :is="getSourceIcon(source.name)" class="size-6 text-white" />
+                <div>
+                  <h2 class="text-lg font-bold text-white">{{ source.name }}</h2>
+                  <div class="text-xs text-white/95">{{ source.type || 'API' }}</div>
+                </div>
               </div>
-            </div>
-            <Badge
-              :variant="source.status === 'active' ? 'default' : 'secondary'"
-              :class="getStatusBadgeClass(source.status)"
-            >
-              {{ getStatusLabel(source.status) }}
-            </Badge>
-          </div>
-        </div>
-
-        <!-- Content -->
-        <CardContent class="p-4">
-          <p class="text-sm text-muted-foreground mb-4">
-            {{ source.description || getSourceDescription(source.name) }}
-          </p>
-
-          <!-- Statistics -->
-          <div class="flex justify-between items-center mb-3">
-            <div class="text-center">
-              <div class="text-lg font-bold text-green-700 dark:text-green-400">
-                {{ source.stats?.gene_count || 0 }}
-              </div>
-              <div class="text-xs text-muted-foreground">Genes</div>
-            </div>
-            <div class="text-center">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <div class="text-lg font-bold text-primary">
-                      {{ getMetadataCount(source, 'primary') }}
-                    </div>
-                    <div class="text-xs text-muted-foreground">
-                      {{ getMetadataLabel(source, 'primary') }}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>{{ getMetadataTooltip(source, 'primary') }}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            <div v-if="getMetadataCount(source, 'secondary') > 0" class="text-center">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <div class="text-lg font-bold text-blue-600 dark:text-blue-400">
-                      {{ getMetadataCount(source, 'secondary') }}
-                    </div>
-                    <div class="text-xs text-muted-foreground">
-                      {{ getMetadataLabel(source, 'secondary') }}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>{{ getMetadataTooltip(source, 'secondary') }}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Badge
+                :variant="source.status === 'active' ? 'default' : 'secondary'"
+                :class="getStatusBadgeClass(source.status)"
+              >
+                {{ getStatusLabel(source.status) }}
+              </Badge>
             </div>
           </div>
 
-          <!-- Last Update -->
-          <Separator class="my-3" />
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-muted-foreground">Last Updated</span>
-            <span class="text-xs font-medium">
-              {{ formatDate(source.stats?.last_updated) }}
-            </span>
+          <!-- Content -->
+          <CardContent class="p-4">
+            <p class="text-sm text-muted-foreground mb-4">
+              {{ source.description || getSourceDescription(source.name) }}
+            </p>
+
+            <!-- Statistics -->
+            <div class="flex justify-between items-center mb-3">
+              <div class="text-center">
+                <div class="text-lg font-bold text-green-700 dark:text-green-400">
+                  {{ source.stats?.gene_count || 0 }}
+                </div>
+                <div class="text-xs text-muted-foreground">Genes</div>
+              </div>
+              <div class="text-center">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <div class="text-lg font-bold text-primary">
+                        {{ getMetadataCount(source, 'primary') }}
+                      </div>
+                      <div class="text-xs text-muted-foreground">
+                        {{ getMetadataLabel(source, 'primary') }}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>{{ getMetadataTooltip(source, 'primary') }}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <div v-if="getMetadataCount(source, 'secondary') > 0" class="text-center">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <div class="text-lg font-bold text-blue-600 dark:text-blue-400">
+                        {{ getMetadataCount(source, 'secondary') }}
+                      </div>
+                      <div class="text-xs text-muted-foreground">
+                        {{ getMetadataLabel(source, 'secondary') }}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>{{ getMetadataTooltip(source, 'secondary') }}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
+
+            <!-- Last Update -->
+            <Separator class="my-3" />
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-muted-foreground">Last Updated</span>
+              <span class="text-xs font-medium">
+                {{ formatDate(source.stats?.last_updated) }}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <!-- Summary Statistics -->
+      <Card class="mt-6">
+        <CardHeader class="flex flex-row items-center gap-2">
+          <ChartBarBig class="size-5 text-primary" />
+          <CardTitle>Database Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <div class="text-center">
+                    <div class="text-3xl font-bold text-primary">
+                      {{ summaryStats.total_active }}
+                    </div>
+                    <div class="text-sm text-muted-foreground">
+                      Active Sources
+                      <CircleHelp class="size-3 ml-1 inline-block" />
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>{{
+                  apiResponse?.explanations?.active_sources || 'Number of active data sources'
+                }}</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <div class="text-center">
+                    <div class="text-3xl font-bold text-green-700 dark:text-green-400">
+                      {{ summaryStats.unique_genes.toLocaleString() }}
+                    </div>
+                    <div class="text-sm text-muted-foreground">
+                      Genes with Evidence
+                      <CircleHelp class="size-3 ml-1 inline-block" />
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>{{
+                  apiResponse?.explanations?.unique_genes || 'Total unique genes with evidence'
+                }}</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <div class="text-center">
+                    <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                      {{ calculateCoverage() }}%
+                    </div>
+                    <div class="text-sm text-muted-foreground">
+                      Source Coverage
+                      <CircleHelp class="size-3 ml-1 inline-block" />
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>{{
+                  apiResponse?.explanations?.source_coverage ||
+                  'Percentage of multi-source coverage'
+                }}</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <div class="text-center">
+                    <div class="text-3xl font-bold" style="color: #8b5cf6">
+                      {{ formatDate(summaryStats.last_update) }}
+                    </div>
+                    <div class="text-sm text-muted-foreground">
+                      Last Updated
+                      <CircleHelp class="size-3 ml-1 inline-block" />
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>{{
+                  apiResponse?.explanations?.last_updated || 'Most recent data update'
+                }}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </CardContent>
       </Card>
-    </div>
-
-    <!-- Summary Statistics -->
-    <Card class="mt-6">
-      <CardHeader class="flex flex-row items-center gap-2">
-        <ChartBarBig class="size-5 text-primary" />
-        <CardTitle>Database Summary</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <div class="text-center">
-                  <div class="text-3xl font-bold text-primary">
-                    {{ summaryStats.total_active }}
-                  </div>
-                  <div class="text-sm text-muted-foreground">
-                    Active Sources
-                    <CircleHelp class="size-3 ml-1 inline-block" />
-                  </div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>{{
-                apiResponse?.explanations?.active_sources || 'Number of active data sources'
-              }}</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <div class="text-center">
-                  <div class="text-3xl font-bold text-green-700 dark:text-green-400">
-                    {{ summaryStats.unique_genes.toLocaleString() }}
-                  </div>
-                  <div class="text-sm text-muted-foreground">
-                    Genes with Evidence
-                    <CircleHelp class="size-3 ml-1 inline-block" />
-                  </div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>{{
-                apiResponse?.explanations?.unique_genes || 'Total unique genes with evidence'
-              }}</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <div class="text-center">
-                  <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                    {{ calculateCoverage() }}%
-                  </div>
-                  <div class="text-sm text-muted-foreground">
-                    Source Coverage
-                    <CircleHelp class="size-3 ml-1 inline-block" />
-                  </div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>{{
-                apiResponse?.explanations?.source_coverage || 'Percentage of multi-source coverage'
-              }}</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <div class="text-center">
-                  <div class="text-3xl font-bold" style="color: #8b5cf6">
-                    {{ formatDate(summaryStats.last_update) }}
-                  </div>
-                  <div class="text-sm text-muted-foreground">
-                    Last Updated
-                    <CircleHelp class="size-3 ml-1 inline-block" />
-                  </div>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>{{
-                apiResponse?.explanations?.last_updated || 'Most recent data update'
-              }}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </CardContent>
-    </Card>
+    </template>
   </div>
 </template>
 
@@ -235,6 +244,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import ComponentError from '@/components/ui/ComponentError.vue'
 
 const breadcrumbs = PUBLIC_BREADCRUMBS.dataSources
 
@@ -248,6 +258,7 @@ useSeoMeta({
 })
 
 const loading = ref(true)
+const loadError = ref<Error | null>(null)
 const hoveredCard = ref<string | null>(null)
 const dataSources = ref<Array<Record<string, unknown>>>([])
 const apiResponse = ref<Record<string, unknown> | null>(null)
@@ -443,7 +454,9 @@ const formatDate = (dateStr: string | null | undefined) => {
   return date.toLocaleDateString()
 }
 
-onMounted(async () => {
+const loadDataSources = async () => {
+  loading.value = true
+  loadError.value = null
   try {
     window.logService.info('Loading data sources...')
     const response = await datasourceApi.getDataSources()
@@ -454,15 +467,14 @@ onMounted(async () => {
   } catch (error) {
     window.logService.error('Failed to load data sources:', error)
     dataSources.value = []
-    apiResponse.value = {
-      total_active: 0,
-      last_pipeline_run: null,
-      sources: []
-    }
+    apiResponse.value = null
+    loadError.value = new Error("Couldn't load data sources from the server.")
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadDataSources)
 </script>
 
 <style scoped>

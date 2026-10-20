@@ -29,6 +29,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
+import ComponentError from '@/components/ui/ComponentError.vue'
 
 // Gene row type for table data
 interface GeneRow {
@@ -58,6 +59,7 @@ const router = useRouter()
 // Data
 const genes = ref<GeneRow[]>([])
 const loading = ref(false)
+const loadError = ref<Error | null>(null)
 const totalItems = ref(0)
 const page = ref(1)
 const itemsPerPage = ref(10)
@@ -433,6 +435,7 @@ const loadGenes = async (): Promise<void> => {
   }
 
   loading.value = true
+  loadError.value = null
   activeRequest = requestKey
   try {
     const response = await geneApi.getGenes(params)
@@ -460,6 +463,7 @@ const loadGenes = async (): Promise<void> => {
     window.logService.error('Error loading genes:', error)
     genes.value = []
     totalItems.value = 0
+    loadError.value = new Error("Couldn't load genes from the server.")
   } finally {
     loading.value = false
     if (reloadQueued) {
@@ -790,7 +794,7 @@ onMounted(async () => {
           </div>
 
           <!-- Total gene count -->
-          <Badge variant="secondary" class="text-xs font-normal ml-auto">
+          <Badge v-if="!loadError" variant="secondary" class="text-xs font-normal ml-auto">
             {{ genes.length }}/{{ totalItems.toLocaleString() }} genes
           </Badge>
         </div>
@@ -798,13 +802,15 @@ onMounted(async () => {
     </Card>
 
     <!-- Data Table -->
-    <Card v-if="genes.length > 0 || loading">
+    <ComponentError v-if="loadError" :error="loadError" @retry="loadGenes" />
+
+    <Card v-else-if="genes.length > 0 || loading">
       <DataTablePagination :table="table" :page-size-options="itemsPerPageOptions" />
       <DataTable :table="table" />
     </Card>
 
     <!-- Empty State -->
-    <Card v-if="!loading && genes.length === 0" class="text-center">
+    <Card v-else class="text-center">
       <CardContent class="py-12">
         <Search class="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
         <h3 class="text-lg font-medium mb-2">No genes found</h3>
