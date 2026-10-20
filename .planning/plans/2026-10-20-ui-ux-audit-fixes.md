@@ -32,3 +32,7 @@ Deferred: #330 #333 #254 #255 #282 (scientific definition), #291 remainder, #208
 - W5 (admin) and W7 (backend: #336, #332, #331 seed) started.
 - W4 merged (a7fc999; review must-fix: skeleton 6→7 sources, fixed, rechecked Ship). Integration vitest 197/197. icons.ts mdi map reassigned to W5.
 - Coordinator 2090a41: nginx progress WebSocket routing (#326 prod gap found by W5); nginx -t + echo-upstream probe. W7 merged (119411a; review must-fix event-loop batch + should-fix stale cache/log rows fixed, rechecked Ship; backend suite 752 passed/10 skipped on disposable DB per author; contract snapshot == live openapi).
+- W5 merged (5022feb; review must-fix login 429 copy + self-demotion + retention fixed, rechecked Ship incl. 2090a41). Integration vitest 214/214; `rg 'mdi-' frontend/src` and stub grep empty.
+- Backend gate on 5022feb (disposable PG :55470 / Redis :56470): `uv lock --check` ok, ruff ok, pytest 752 passed / 10 skipped (data-dependent). `make check-mcp`: 210 passed, mypy clean, contract current.
+- Cross-stream review (ce75cee..5022feb): Ship; should-fix pagination-row CLS + pending badge contrast routed to W6. Pre-existing, out of scope: 24× `hsl(var(--token))` on oklch tokens (invalid CSS); location-level add_header drops server CSP/HSTS on HTML.
+- W6 (#322, #329) started from 5022feb.
