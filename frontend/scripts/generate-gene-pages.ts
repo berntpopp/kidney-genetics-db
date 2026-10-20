@@ -46,8 +46,12 @@ export async function fetchAllGenes(fetchFn: typeof fetch = fetch): Promise<Gene
       throw new Error(`API returned ${response.status}: ${await response.text()}`)
     }
     const body = (await response.json()) as ApiResponse
+    const pageCount = body.meta?.page_count
+    if (typeof pageCount !== 'number') {
+      throw new Error('API response is missing meta.page_count; cannot page through genes')
+    }
     genes.push(...body.data)
-    if (page >= (body.meta?.page_count ?? 0) || body.data.length === 0) return genes
+    if (page >= pageCount || body.data.length === 0) return genes
   }
 }
 

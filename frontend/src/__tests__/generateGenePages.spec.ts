@@ -39,4 +39,10 @@ describe('fetchAllGenes', () => {
       'API returned 500: boom'
     )
   })
+  it('refuses to guess when meta.page_count is missing', async () => {
+    const fetchFn = vi.fn(async () => globalThis.Response.json({ data: [], meta: {} }))
+    await expect(fetchAllGenes(fetchFn as unknown as typeof fetch)).rejects.toThrow(
+      'meta.page_count'
+    )
+  })
 })
