@@ -623,7 +623,7 @@
             "items": {
               "type": "integer"
             },
-            "maxItems": 500,
+            "maxItems": 2000,
             "minItems": 1,
             "title": "Cluster Genes",
             "type": "array"
@@ -982,6 +982,17 @@
       "HPOBatchEnrichmentResponse": {
         "description": "Response from batch HPO enrichment with pooled FDR",
         "properties": {
+          "excluded_genes": {
+            "description": "Per community, submitted gene IDs not tested: without kidney HPO annotation or unknown",
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "title": "Excluded Genes",
+            "type": "array"
+          },
           "fdr_threshold": {
             "title": "Fdr Threshold",
             "type": "number"
@@ -1122,13 +1133,14 @@
                 "items": {
                   "type": "integer"
                 },
+                "maxItems": 50000,
                 "type": "array"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Background gene set (default: all genes)",
+            "description": "Background gene IDs; the tested universe is these genes that have kidney HPO annotations (default: all genes with kidney HPO annotations)",
             "title": "Background Genes"
           },
           "cluster_genes": {
@@ -1136,7 +1148,7 @@
             "items": {
               "type": "integer"
             },
-            "maxItems": 500,
+            "maxItems": 2000,
             "minItems": 1,
             "title": "Cluster Genes",
             "type": "array"
@@ -1163,6 +1175,14 @@
             "description": "Cluster gene count",
             "title": "Cluster Size",
             "type": "integer"
+          },
+          "excluded_genes": {
+            "description": "Submitted gene IDs not tested: outside the universe of kidney HPO-annotated genes (intersected with background_genes when given) or unknown",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Excluded Genes",
+            "type": "array"
           },
           "fdr_threshold": {
             "title": "Fdr Threshold",
@@ -2486,7 +2506,7 @@
     },
     "/api/admin/backups/restore/{backup_id}": {
       "post": {
-        "description": "Restore database from backup (admin only).\n\n\u26a0\ufe0f WARNING: This will replace the current database!\n\nOptions:\n- create_safety_backup: Create backup before restore (RECOMMENDED)\n- drop_existing: Drop current database (required for clean restore)\n- run_analyze: Run ANALYZE after restore (RECOMMENDED for performance)",
+        "description": "Restore database from backup (admin only).\n\n⚠️ WARNING: This will replace the current database!\n\nOptions:\n- create_safety_backup: Create backup before restore (RECOMMENDED)\n- drop_existing: Drop current database (required for clean restore)\n- run_analyze: Run ANALYZE after restore (RECOMMENDED for performance)",
         "operationId": "restore_backup_api_admin_backups_restore__backup_id__post",
         "parameters": [
           {
