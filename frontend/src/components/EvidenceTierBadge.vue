@@ -4,11 +4,7 @@
       <TooltipTrigger as-child>
         <Badge
           :class="[sizeClasses, 'cursor-help font-medium']"
-          :style="{
-            backgroundColor: tierConfig.color + '20',
-            color: tierConfig.color,
-            borderColor: tierConfig.color + '40'
-          }"
+          :style="tintedChipStyle(tierConfig.color)"
           variant="outline"
         >
           <component :is="tierConfig.icon" :size="iconSize" class="mr-1" />
@@ -27,7 +23,7 @@
 import { computed } from 'vue'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
-import { getTierConfig } from '@/utils/evidenceTiers'
+import { getTierConfig, tintedChipStyle } from '@/utils/evidenceTiers'
 
 const props = defineProps({
   tier: {

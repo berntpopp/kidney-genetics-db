@@ -49,7 +49,7 @@
         <Card class="mb-4">
           <CardContent class="pt-6">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div v-for="(value, key) in sourceMetadata" :key="key">
+              <div v-for="(value, key) in displayedMetadata" :key="key">
                 <div class="text-lg font-semibold text-primary">{{ value }}</div>
                 <div class="text-xs text-muted-foreground">{{ formatMetadataLabel(key) }}</div>
               </div>
@@ -136,6 +136,13 @@ const sourceMetadata = computed(() => {
   if (!data.value || !selectedSource.value) return {}
   return data.value[selectedSource.value]?.metadata || {}
 })
+
+// Metadata shown to users; visualization_type is an internal chart id
+const displayedMetadata = computed(() =>
+  Object.fromEntries(
+    Object.entries(sourceMetadata.value).filter(([key]) => key !== 'visualization_type')
+  )
+)
 
 const sourceData = computed(() => {
   if (!data.value || !selectedSource.value) return null

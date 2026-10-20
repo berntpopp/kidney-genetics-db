@@ -122,6 +122,7 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import D3DonutChart from './D3DonutChart.vue'
 import D3BarChart from './D3BarChart.vue'
+import { TIER_CONFIG } from '@/utils/evidenceTiers'
 
 // Props
 const props = defineProps({
@@ -145,11 +146,11 @@ const activeView = ref('tiers') // Default to tiers view
 const tierChartData = computed(() => {
   if (!data.value?.evidence_tier_distribution) return []
 
-  // Use tier_label from backend (matches evidenceTiers.js labels)
+  // Labels and colors from TIER_CONFIG, as everywhere else; backend values only for unknown tiers
   return data.value.evidence_tier_distribution.map(tier => ({
-    category: tier.tier_label,
+    category: TIER_CONFIG[tier.tier]?.label ?? tier.tier_label,
     gene_count: tier.gene_count,
-    color: tier.color
+    color: TIER_CONFIG[tier.tier]?.color ?? tier.color
   }))
 })
 

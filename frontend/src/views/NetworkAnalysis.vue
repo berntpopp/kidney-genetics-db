@@ -31,7 +31,7 @@
             {{ filteredGenes.length }} genes
           </Badge>
           <Badge v-if="networkStats" variant="secondary">
-            {{ networkStats.nodes }} nodes &middot; {{ networkStats.edges }} edges
+            Built network: {{ networkStats.nodes }} nodes &middot; {{ networkStats.edges }} edges
           </Badge>
           <Badge v-if="clusterStats" variant="secondary">
             {{ clusterStats.num_clusters }} clusters &middot; Q={{
@@ -376,16 +376,13 @@
             :network-data="displayNetwork"
             :loading="buildingNetwork || clustering"
             :error="networkError"
-            :min-string-score="minStringScore"
             :cluster-id-mapping="clusterIdMapping"
             :cluster-colors-map="clusterColors"
             :hpo-classifications="hpoClassifications"
             :loading-h-p-o-data="loadingHPOClassifications"
             :height="networkAnalysisConfig.ui.defaultGraphHeight"
             @refresh="buildNetwork"
-            @cluster="handleClusterRequest"
             @node-click="handleNodeClick"
-            @update:min-string-score="minStringScore = $event"
             @select-cluster="handleClusterSelection"
           />
         </div>
@@ -920,11 +917,6 @@ const fetchHPOClassifications = async () => {
   } finally {
     loadingHPOClassifications.value = false
   }
-}
-
-const handleClusterRequest = algorithm => {
-  clusterAlgorithm.value = algorithm
-  clusterNetwork()
 }
 
 const handleNodeClick = nodeData => {

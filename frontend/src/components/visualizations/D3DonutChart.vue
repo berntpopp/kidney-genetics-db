@@ -1,5 +1,18 @@
 <template>
-  <div ref="chartContainer" class="d3-donut-chart text-foreground"></div>
+  <div>
+    <div ref="chartContainer" class="d3-donut-chart text-foreground"></div>
+    <!-- Text legend so values are readable without hover, in print and without color -->
+    <ul
+      class="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm"
+      data-testid="donut-legend"
+    >
+      <li v-for="item in legendItems" :key="item.category" class="flex items-center gap-1.5">
+        <span class="size-3 shrink-0 rounded-sm" :style="{ backgroundColor: item.color }" />
+        <span>{{ item.category }}</span>
+        <span class="tabular-nums text-muted-foreground">{{ item.value }}</span>
+      </li>
+    </ul>
+  </div>
 </template>
 
 <script setup>
@@ -79,6 +92,16 @@ const colorScale = computed(() => {
     .domain(props.data.map(d => d.category))
     .range(schemeTableau10)
 })
+
+const legendItems = computed(() =>
+  props.data.map(d => ({
+    category: d.category,
+    color: d.color || colorScale.value(d.category),
+    value: props.isPercentage
+      ? `${props.valueFormatter(d.gene_count)}%`
+      : `${props.valueFormatter(d.gene_count)} (${((d.gene_count / computedTotal.value) * 100).toFixed(1)}%)`
+  }))
+)
 
 const renderChart = () => {
   if (!chartContainer.value || !props.data || props.data.length === 0) {

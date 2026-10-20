@@ -238,6 +238,7 @@ import { datasourceApi } from '../api/datasources'
 import { KGDBLogo } from '@/components/branding'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getDatasetSchema } from '@/composables/useJsonLd'
+import { TIER_CONFIG } from '@/utils/evidenceTiers'
 
 const router = useRouter()
 
@@ -370,8 +371,7 @@ const pipelineSteps = [
     step: 2,
     title: 'Score',
     icon: BarChart3,
-    description:
-      'Evidence aggregated into a weighted confidence score (0-100) with tier classification from Definitive to Minimal'
+    description: `Evidence aggregated into a weighted confidence score (0-100) with tier classification from ${TIER_CONFIG.comprehensive_support.label} to ${TIER_CONFIG.minimal_evidence.label}`
   },
   {
     step: 3,

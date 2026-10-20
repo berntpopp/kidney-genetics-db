@@ -5,11 +5,7 @@
       <HoverPopover content-class="max-w-xs p-3">
         <Badge
           :class="[chipSizeClasses, 'cursor-pointer font-medium tabular-nums']"
-          :style="{
-            backgroundColor: scoreHexColor + '20',
-            color: scoreHexColor,
-            borderColor: scoreHexColor + '40'
-          }"
+          :style="tintedChipStyle(scoreHexColor)"
           variant="outline"
         >
           <component :is="scoreIcon" :size="12" class="mr-1" />
@@ -75,19 +71,15 @@
                 stroke-linecap="round"
               />
             </svg>
-            <span class="absolute text-lg font-bold" :style="{ color: scoreHexColor }">
+            <span
+              class="absolute text-lg font-bold"
+              :style="{ color: tintedChipStyle(scoreHexColor).color }"
+            >
               {{ formattedScore }}
             </span>
           </div>
           <div class="mt-3">
-            <Badge
-              :style="{
-                backgroundColor: scoreHexColor + '20',
-                color: scoreHexColor,
-                borderColor: scoreHexColor + '40'
-              }"
-              variant="outline"
-            >
+            <Badge :style="tintedChipStyle(scoreHexColor)" variant="outline">
               {{ classification }}
             </Badge>
           </div>
@@ -104,11 +96,7 @@
               >
                 <Badge
                   class="cursor-pointer text-[10px]"
-                  :style="{
-                    backgroundColor: getSubScoreHexColor(sourceScore) + '20',
-                    color: getSubScoreHexColor(sourceScore),
-                    borderColor: getSubScoreHexColor(sourceScore) + '40'
-                  }"
+                  :style="tintedChipStyle(getSubScoreHexColor(sourceScore))"
                   variant="outline"
                 >
                   {{ sourceAbbreviation(source) }}: {{ (sourceScore * 100).toFixed(0) }}
@@ -135,11 +123,7 @@
       <div class="flex items-center justify-between gap-2">
         <Badge
           :class="[chipSizeClasses, 'font-medium tabular-nums']"
-          :style="{
-            backgroundColor: scoreHexColor + '20',
-            color: scoreHexColor,
-            borderColor: scoreHexColor + '40'
-          }"
+          :style="tintedChipStyle(scoreHexColor)"
           variant="outline"
         >
           {{ formattedScore }}
@@ -148,11 +132,7 @@
           <HoverPopover v-for="[source, sourceScore] in topSourceEntries" :key="source">
             <Badge
               class="cursor-pointer text-[10px]"
-              :style="{
-                backgroundColor: getSubScoreHexColor(sourceScore) + '20',
-                color: getSubScoreHexColor(sourceScore),
-                borderColor: getSubScoreHexColor(sourceScore) + '40'
-              }"
+              :style="tintedChipStyle(getSubScoreHexColor(sourceScore))"
               variant="outline"
             >
               {{ sourceAbbreviation(source) }}
@@ -178,8 +158,13 @@ import HoverPopover from '@/components/ui/HoverPopover.vue'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { getScoreExplanation } from '@/utils/evidenceTiers'
-import { CircleHelp, CircleCheck, CircleAlert, CircleX } from 'lucide-vue-next'
+import {
+  getScoreExplanation,
+  getScoreRangeConfig,
+  getTierConfig,
+  tintedChipStyle
+} from '@/utils/evidenceTiers'
+import { CircleHelp } from 'lucide-vue-next'
 
 const props = defineProps({
   score: {
@@ -212,7 +197,7 @@ const formattedScore = computed(() => {
   return props.score.toFixed(1)
 })
 
-/** Map Vuetify-style color names to hex */
+/** Per-source sub-score colors (0-1 scale, not the aggregate score) */
 const colorMap = {
   success: '#22c55e',
   info: '#3b82f6',
@@ -222,31 +207,14 @@ const colorMap = {
   grey: '#6b7280'
 }
 
-const scoreHexColor = computed(() => {
-  if (!props.score) return colorMap.grey
-  if (props.score >= 80) return colorMap.success
-  if (props.score >= 70) return colorMap.info
-  if (props.score >= 50) return colorMap.warning
-  if (props.score >= 30) return colorMap.orange
-  return colorMap.error
-})
+// Label, color and thresholds come only from SCORE_RANGES (#314)
+const scoreRange = computed(() => getScoreRangeConfig(props.score))
 
-const scoreIcon = computed(() => {
-  if (!props.score) return CircleHelp
-  if (props.score >= 80) return CircleCheck
-  if (props.score >= 50) return CircleAlert
-  return CircleX
-})
+const scoreHexColor = computed(() => scoreRange.value?.color ?? colorMap.grey)
 
-const classification = computed(() => {
-  if (!props.score) return 'Unknown'
-  if (props.score >= 95) return 'Definitive'
-  if (props.score >= 80) return 'Strong'
-  if (props.score >= 70) return 'Moderate'
-  if (props.score >= 50) return 'Limited'
-  if (props.score >= 30) return 'Minimal'
-  return 'Disputed'
-})
+const scoreIcon = computed(() => getTierConfig(scoreRange.value?.tierAlignment).icon)
+
+const classification = computed(() => scoreRange.value?.label ?? 'Unknown')
 
 const chipSizeClasses = computed(() => {
   switch (props.size) {
@@ -307,9 +275,7 @@ const getSourceDescription = (source, score) => {
     PanelApp: `Panel confidence score: ${percentage}%`,
     HPO: `Phenotype association strength: ${percentage}%`,
     PubTator: `Literature evidence score: ${percentage}%`,
-    Literature: `Publication support: ${percentage}%`,
-    ClinGen: score >= 0.8 ? 'Definitive clinical validity' : 'Moderate clinical validity',
-    GenCC: score >= 0.8 ? 'Strong gene-disease association' : 'Moderate association'
+    Literature: `Publication support: ${percentage}%`
   }
   return descriptions[source] || `Evidence score: ${percentage}%`
 }

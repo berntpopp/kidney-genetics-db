@@ -83,32 +83,20 @@
               independent sources.
             </p>
             <div class="space-y-1 text-sm">
-              <div class="flex items-center gap-2">
+              <div
+                v-for="(range, i) in SCORE_RANGES"
+                :key="range.label"
+                class="flex items-center gap-2"
+                data-testid="score-range-row"
+              >
                 <Badge
-                  class="min-w-[60px] justify-center"
-                  style="background-color: #059669; color: white"
+                  variant="outline"
+                  class="min-w-[60px] justify-center tabular-nums"
+                  :style="tintedChipStyle(range.color)"
                 >
-                  95-100
+                  {{ formatScoreRangeBand(i) }}
                 </Badge>
-                <span class="text-muted-foreground">Definitive</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <Badge
-                  class="min-w-[60px] justify-center"
-                  style="background-color: #10b981; color: white"
-                >
-                  80-94
-                </Badge>
-                <span class="text-muted-foreground">Strong</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <Badge
-                  class="min-w-[60px] justify-center"
-                  style="background-color: #fcd34d; color: black"
-                >
-                  50-79
-                </Badge>
-                <span class="text-muted-foreground">Moderate/Limited</span>
+                <span class="text-muted-foreground">{{ range.label }}</span>
               </div>
             </div>
           </CardContent>
@@ -279,6 +267,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
+import { SCORE_RANGES, formatScoreRangeBand, tintedChipStyle } from '@/utils/evidenceTiers'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
 import {

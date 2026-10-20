@@ -46,6 +46,7 @@ import { RouterLink } from 'vue-router'
 import { ChevronDown } from 'lucide-vue-next'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
+import { SCORE_RANGES, formatScoreRangeBand } from '@/utils/evidenceTiers'
 
 const openIndex = ref<number | null>(null)
 
@@ -74,7 +75,7 @@ const faqs = [
     question: 'How is the evidence score calculated?',
     answer: [
       'The evidence score is a weighted composite score (0-100) that aggregates data from all available sources. Each source contributes a sub-score based on the strength of its evidence. For example, a gene classified as "Definitive" by ClinGen receives a higher sub-score than one classified as "Limited".',
-      'Genes scoring 95-100 are classified as "Definitive", 80-94 as "Strong", 50-79 as "Moderate/Limited". The scoring methodology ensures that genes supported by multiple independent sources rank higher than those from a single source.'
+      `Score ranges: ${SCORE_RANGES.map((r, i) => `${formatScoreRangeBand(i)} "${r.label}"`).join(', ')}. The scoring methodology ensures that genes supported by multiple independent sources rank higher than those from a single source.`
     ]
   },
   {
