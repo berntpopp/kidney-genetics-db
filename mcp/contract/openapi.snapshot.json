@@ -974,10 +974,16 @@
             "type": "string"
           },
           "is_syndromic": {
-            "default": false,
-            "description": "Syndromic assessment",
-            "title": "Is Syndromic",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Syndromic assessment; null when the gene has not been assessed",
+            "title": "Is Syndromic"
           },
           "onset_group": {
             "anyOf": [

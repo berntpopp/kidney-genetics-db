@@ -482,10 +482,9 @@ gene_hpo_classifications = ReplaceableObject(
         g.approved_symbol AS gene_symbol,
         ga.annotations->'classification'->'clinical_group'->>'primary' AS clinical_group,
         ga.annotations->'classification'->'onset_group'->>'primary' AS onset_group,
-        COALESCE(
-            (ga.annotations->'classification'->'syndromic_assessment'->>'is_syndromic')::boolean,
-            FALSE
-        ) AS is_syndromic
+        -- NULL when not assessed (no HPO annotation or no phenotypes), not FALSE (#253)
+        (ga.annotations->'classification'->'syndromic_assessment'->>'is_syndromic')::boolean
+            AS is_syndromic
     FROM genes g
     LEFT JOIN gene_annotations ga ON g.id = ga.gene_id AND ga.source = 'hpo'
     """,

@@ -131,3 +131,39 @@ def test_upgrade_rescores_existing_clingen_arrays(baseline_db):
     _alembic(url, "upgrade", "head")
     with engine.begin() as conn:
         assert _clingen_scores(conn)["AUDITUPG_LD"] == 1.0
+
+
+@pytest.mark.integration
+def test_upgrade_keeps_unassessed_hpo_null(baseline_db):
+    engine, url = baseline_db
+    with engine.begin() as conn:
+        _add_gene(conn, "AUDITUPG_NOHPO")
+        assessed = _add_gene(conn, "AUDITUPG_HPO")
+        conn.execute(
+            text(
+                "INSERT INTO gene_annotations (gene_id, source, version, annotations) "
+                "VALUES (:g, 'hpo', 'audit', "
+                '\'{"classification": {"syndromic_assessment": {"is_syndromic": false}}}\')'
+            ),
+            {"g": assessed},
+        )
+
+    def syndromic(conn):
+        return dict(
+            conn.execute(
+                text("SELECT gene_symbol, is_syndromic FROM gene_hpo_classifications")
+            ).all()
+        )
+
+    with engine.begin() as conn:
+        assert syndromic(conn) == {"AUDITUPG_NOHPO": False, "AUDITUPG_HPO": False}
+    _alembic(url, "upgrade", "head")
+    with engine.begin() as conn:
+        assert syndromic(conn) == {"AUDITUPG_NOHPO": None, "AUDITUPG_HPO": False}
+        _assert_view_matches_canonical(conn, views.gene_hpo_classifications)
+    _alembic(url, "downgrade", "0002")
+    with engine.begin() as conn:
+        assert syndromic(conn)["AUDITUPG_NOHPO"] is False
+    _alembic(url, "upgrade", "head")
+    with engine.begin() as conn:
+        assert syndromic(conn)["AUDITUPG_NOHPO"] is None
