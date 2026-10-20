@@ -948,6 +948,68 @@
         "title": "GeneNormalizationStagingResponse",
         "type": "object"
       },
+      "HPOBatchEnrichmentRequest": {
+        "description": "Request for HPO enrichment of several communities with pooled FDR (#332)",
+        "properties": {
+          "communities": {
+            "description": "Gene IDs per community; BH-FDR is pooled over all community x term tests",
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "minItems": 1,
+            "title": "Communities",
+            "type": "array"
+          },
+          "fdr_threshold": {
+            "default": 0.05,
+            "description": "FDR significance threshold (applied to pooled q-values)",
+            "exclusiveMinimum": 0.0,
+            "maximum": 1.0,
+            "title": "Fdr Threshold",
+            "type": "number"
+          }
+        },
+        "required": [
+          "communities"
+        ],
+        "title": "HPOBatchEnrichmentRequest",
+        "type": "object"
+      },
+      "HPOBatchEnrichmentResponse": {
+        "description": "Response from batch HPO enrichment with pooled FDR",
+        "properties": {
+          "fdr_threshold": {
+            "title": "Fdr Threshold",
+            "type": "number"
+          },
+          "results": {
+            "description": "Significant terms per community, in submitted order",
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/EnrichmentResult"
+              },
+              "type": "array"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "total_tests": {
+            "description": "Community x term tests in the pooled BH correction",
+            "title": "Total Tests",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "results",
+          "total_tests",
+          "fdr_threshold"
+        ],
+        "title": "HPOBatchEnrichmentResponse",
+        "type": "object"
+      },
       "HPOClassificationData": {
         "description": "HPO classification data for a single gene",
         "properties": {
@@ -1364,6 +1426,14 @@
             "description": "Remove isolated nodes (degree=0)",
             "title": "Remove Isolated",
             "type": "boolean"
+          },
+          "seed": {
+            "default": 0,
+            "description": "RNG seed for leiden/louvain; the fixed default makes default runs reproducible",
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Seed",
+            "type": "integer"
           }
         },
         "required": [
@@ -1418,6 +1488,12 @@
             "description": "Number of clusters detected",
             "title": "Num Clusters",
             "type": "integer"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "description": "Clustering parameters used, e.g. objective, resolution, iterations, seed",
+            "title": "Parameters",
+            "type": "object"
           }
         },
         "required": [
@@ -1428,6 +1504,7 @@
           "num_clusters",
           "modularity",
           "algorithm",
+          "parameters",
           "cytoscape_json"
         ],
         "title": "NetworkClusterResponse",
@@ -6635,7 +6712,7 @@
     },
     "/api/network/enrich/hpo": {
       "post": {
-        "description": "Perform HPO term enrichment analysis using Fisher's exact test.\n\nTests for over-representation of HPO phenotypes in gene cluster\ncompared to background. Uses Benjamini-Hochberg FDR correction.",
+        "description": "Perform HPO term enrichment analysis using Fisher's exact test.\n\nTests for over-representation of HPO phenotypes in gene cluster\ncompared to background. Uses Benjamini-Hochberg FDR correction within\nthis request only; to control FDR across communities use /enrich/hpo/batch.",
         "operationId": "enrich_hpo_api_network_enrich_hpo_post",
         "requestBody": {
           "content": {
@@ -6670,6 +6747,48 @@
           }
         },
         "summary": "Enrich Hpo",
+        "tags": [
+          "Analytics - Network Analysis & Enrichment"
+        ]
+      }
+    },
+    "/api/network/enrich/hpo/batch": {
+      "post": {
+        "description": "HPO enrichment for several communities with Benjamini-Hochberg FDR pooled\nover every community x term test, so FDR is controlled across communities.",
+        "operationId": "enrich_hpo_batch_api_network_enrich_hpo_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HPOBatchEnrichmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HPOBatchEnrichmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enrich Hpo Batch",
         "tags": [
           "Analytics - Network Analysis & Enrichment"
         ]
