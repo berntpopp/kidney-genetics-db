@@ -53,6 +53,12 @@ def get_test_engine():
         )
         _TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_test_engine)
 
+        # App code (e.g. cache L2 I/O, #293) opens its own SessionLocal sessions; keep them
+        # on the test database even when DATABASE_URL points elsewhere.
+        from app.core import database
+
+        database.SessionLocal.configure(bind=_test_engine)
+
         # Verify connection works
         try:
             with _test_engine.connect() as conn:
@@ -74,6 +80,32 @@ def test_engine():
     """
     engine, _ = get_test_engine()
     yield engine
+
+
+@pytest.fixture(scope="session")
+def _cache_entries_baseline():
+    """Highest cache_entries id before the run, or None when the DB is unavailable."""
+    try:
+        engine, _ = get_test_engine()
+        with engine.connect() as conn:
+            baseline = conn.execute(text("SELECT COALESCE(MAX(id), 0) FROM cache_entries")).scalar()
+    except (Exception, pytest.skip.Exception):
+        baseline = None
+    return baseline
+
+
+@pytest.fixture(autouse=True)
+def _remove_committed_cache_rows(_cache_entries_baseline):
+    """L2 cache writes commit on the cache's own sessions (#293), outside any test
+    rollback; delete rows created during the run after each test."""
+    yield
+    if _cache_entries_baseline is None:
+        return
+    engine, _ = get_test_engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text("DELETE FROM cache_entries WHERE id > :b"), {"b": _cache_entries_baseline}
+        )
 
 
 @pytest.fixture(scope="function")

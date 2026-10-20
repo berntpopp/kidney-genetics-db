@@ -122,7 +122,7 @@ class UnifiedDataSource(DataSourceClient, ABC):
         # Check cache first (unless forcing refresh)
         if not should_refresh and self.cache_service:
             try:
-                cached_data = await self.cache_service.get(full_key)
+                cached_data = await self.cache_service.get(full_key, namespace=self.namespace)
                 if cached_data is not None:
                     self.stats["cache_hits"] += 1
                     logger.sync_debug("Cache hit", cache_key=full_key)
@@ -146,7 +146,7 @@ class UnifiedDataSource(DataSourceClient, ABC):
             if self.cache_service and data is not None:
                 try:
                     await self.cache_service.set(
-                        full_key, data, namespace="default", ttl=effective_ttl
+                        full_key, data, namespace=self.namespace, ttl=effective_ttl
                     )
                     logger.sync_debug("Cached data", cache_key=full_key, ttl_seconds=effective_ttl)
                 except Exception as e:
@@ -206,7 +206,7 @@ class UnifiedDataSource(DataSourceClient, ABC):
 
             if not self.force_refresh and self.cache_service:
                 try:
-                    cached = await self.cache_service.get(cache_key)
+                    cached = await self.cache_service.get(cache_key, namespace=self.namespace)
                     if cached is not None:
                         results[item] = cached
                         self.stats["cache_hits"] += 1
@@ -238,7 +238,7 @@ class UnifiedDataSource(DataSourceClient, ABC):
                                 cache_key = f"{self.namespace}:{cache_key_func(item)}"
                                 try:
                                     await self.cache_service.set(
-                                        cache_key, data, namespace="default", ttl=effective_ttl
+                                        cache_key, data, namespace=self.namespace, ttl=effective_ttl
                                     )
                                 except Exception as e:
                                     logger.sync_warning(

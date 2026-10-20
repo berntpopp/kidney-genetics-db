@@ -19,7 +19,7 @@ from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.db.safe_sql import refresh_materialized_view as safe_refresh_matview
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationSource, GeneAnnotation
-from app.models.progress import DataSourceProgress
+from app.models.progress import DataSourceProgress, SourceStatus
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 from app.pipeline.sources.annotations.clinvar import ClinVarAnnotationSource
 from app.pipeline.sources.annotations.descartes import DescartesAnnotationSource
@@ -141,7 +141,7 @@ class AnnotationPipeline:
             if not sources:
                 sources = checkpoint.get("sources_remaining")
             if not gene_ids:
-                gene_ids = checkpoint.get("gene_ids_remaining")
+                gene_ids = checkpoint.get("gene_ids")
 
         if self.progress_tracker.is_paused():
             logger.sync_info(
@@ -183,6 +183,7 @@ class AnnotationPipeline:
                     genes_count=len(genes_to_update),
                 )
                 if self.progress_tracker:
+                    self.progress_tracker.progress_record.progress_metadata = {}
                     self.progress_tracker.complete(operation="No updates needed")
                 return {
                     "sources_updated": [],
@@ -304,6 +305,8 @@ class AnnotationPipeline:
             }
 
             if self.progress_tracker:
+                # The checkpoint has been consumed; a later fresh run must not resume it.
+                self.progress_tracker.progress_record.progress_metadata = {}
                 self.progress_tracker.complete(
                     operation=f"Update completed in {duration:.1f} seconds"
                 )
@@ -528,7 +531,9 @@ class AnnotationPipeline:
                 .first()
             )
 
-            if progress and progress.progress_metadata:
+            # Only paused or interrupted (running/failed) runs have work left to resume.
+            resumable = (SourceStatus.paused, SourceStatus.running, SourceStatus.failed)
+            if progress and progress.progress_metadata and progress.status in resumable:
                 metadata: dict[str, Any] = dict(progress.progress_metadata)
                 logger.sync_info(
                     "Checkpoint found",
@@ -779,8 +784,9 @@ class AnnotationPipeline:
             try:
                 source_db.commit()
             except Exception as e:
-                logger.sync_warning(f"Fallback commit failed: {e}")
+                logger.sync_error(f"Fallback commit failed for {source_name}: {e}")
                 source_db.rollback()
+                raise  # same as the bulk path: fail the source, keep freshness (#294)
 
         # Phase 4: Retry failed genes
         if failed_genes:
@@ -904,6 +910,9 @@ class AnnotationPipeline:
             except Exception as e:
                 logger.sync_error(f"Bulk upsert failed for {source_name} chunk: {e}")
                 db.rollback()
+                # Fail the source so freshness is not advanced; committed chunks are
+                # idempotently re-upserted on retry (#294).
+                raise
 
         return upserted
 
