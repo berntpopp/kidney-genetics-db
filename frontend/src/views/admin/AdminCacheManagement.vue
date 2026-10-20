@@ -355,7 +355,7 @@ onUnmounted(() => {
         color="info"
       />
       <AdminStatsCard
-        v-if="cacheStats.total_size_bytes > 0"
+        v-if="statsLoading || cacheStats.total_size_bytes > 0"
         title="Memory Usage"
         :value="cacheStats.total_size_bytes || 0"
         format="bytes"
