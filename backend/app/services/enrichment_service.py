@@ -129,7 +129,9 @@ class EnrichmentService:
     ) -> tuple[list[list[dict[str, Any]]], int]:
         """
         HPO enrichment for several communities with one Benjamini-Hochberg
-        correction pooled over every community x term test (#332).
+        correction pooled over all community x term pairs with at least one
+        overlapping community gene, the same family as the single-community
+        test, not every possible pair (#332).
 
         Returns (results per community in submitted order, pooled test count).
         """

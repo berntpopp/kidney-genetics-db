@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import text
 
 from app.pipeline.annotation_pipeline import AnnotationPipeline
+from app.services.network_analysis_service import network_service
 from tests.test_audit_pipeline_annotation_failures import OLD, SOURCE, _source_class
 
 
@@ -34,9 +35,12 @@ async def test_source_update_clears_network_analysis_namespace(gene_id):
     pipeline = AnnotationPipeline(MagicMock())
     pipeline.sources = {SOURCE: _source_class({gene_id: {"ok": 1}}, record)}  # type: ignore[dict-item]
     cache = MagicMock()
+    network_service._graph_cache["stale"] = object()  # warm in-process graph cache
     with patch("app.core.cache_service.get_cache_service", return_value=cache):
         results = await pipeline._update_sources_parallel([SOURCE], [gene_id], force=True)
 
     assert "error" not in results[SOURCE]
     cleared = [c.args[0] for c in cache.clear_namespace_sync.call_args_list]
     assert "network_analysis" in cleared
+    # The in-process graph cache must not outlive the update, or a stale graph is re-cached
+    assert "stale" not in network_service._graph_cache

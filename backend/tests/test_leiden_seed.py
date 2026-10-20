@@ -46,4 +46,4 @@ async def test_leiden_parameters_are_echoed():
 
 @pytest.mark.unit
 def test_request_seed_has_fixed_default():
-    assert NetworkClusterRequest(gene_ids=[1]).seed == NetworkClusterRequest(gene_ids=[2]).seed
+    assert NetworkClusterRequest(gene_ids=[1]).seed == 0  # None would mean unseeded runs

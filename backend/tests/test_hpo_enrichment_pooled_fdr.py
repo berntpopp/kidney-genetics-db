@@ -127,6 +127,45 @@ def test_batch_request_rejects_empty_and_over_cap_input():
             HPOBatchEnrichmentRequest(communities=bad)
 
 
+def _batch_limits() -> tuple[int, int]:
+    from app.schemas.network import _enrichment_config, _network_config
+
+    return _enrichment_config["hpo"]["max_cluster_size"], _network_config["max_nodes"]
+
+
+@pytest.mark.unit
+def test_batch_request_enforces_size_total_and_id_limits():
+    from pydantic import ValidationError
+
+    from app.schemas.network import HPOBatchEnrichmentRequest
+
+    max_cluster, max_total = _batch_limits()
+    community = list(range(1, max_cluster + 1))
+    full, rest = divmod(max_total, max_cluster)
+    at_total = [community] * full + ([community[:rest]] if rest else [])
+    assert sum(map(len, at_total)) == max_total
+    assert HPOBatchEnrichmentRequest(communities=at_total)  # both caps exactly at boundary
+    for bad in (
+        [community + [max_cluster + 1]],  # one community over max_cluster_size
+        at_total + [[1]],  # valid-sized communities, total over max_nodes
+        [[0, 1]],
+        [[-1, 1]],
+    ):
+        with pytest.raises(ValidationError):
+            HPOBatchEnrichmentRequest(communities=bad)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_batch_endpoint_rejects_oversized_community(async_client: AsyncClient):
+    max_cluster, _ = _batch_limits()
+    resp = await async_client.post(
+        "/api/network/enrich/hpo/batch",
+        json={"communities": [list(range(1, max_cluster + 2))]},
+    )
+    assert resp.status_code in (400, 422)
+
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_batch_endpoint_returns_results_per_community(async_client: AsyncClient):

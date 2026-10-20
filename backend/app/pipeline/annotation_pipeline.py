@@ -815,6 +815,7 @@ class AnnotationPipeline:
             from concurrent.futures import ThreadPoolExecutor
 
             from app.core.cache_service import get_cache_service
+            from app.services.network_analysis_service import network_service
 
             if not hasattr(self, "_executor"):
                 self._executor = ThreadPoolExecutor(max_workers=2)
@@ -822,6 +823,8 @@ class AnnotationPipeline:
             def clear_cache_sync() -> None:
                 thread_db = SessionLocal()
                 try:
+                    # Drop in-process graphs too, else a stale graph is re-cached (#336)
+                    network_service.clear_cache()
                     cache_service = get_cache_service(thread_db)
                     if cache_service:
                         cache_service.clear_namespace_sync(source_name.lower())

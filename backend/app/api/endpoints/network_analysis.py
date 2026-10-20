@@ -29,13 +29,12 @@ from app.schemas.network import (
     SubgraphRequest,
 )
 from app.services.enrichment_service import EnrichmentService
-from app.services.network_analysis_service import NetworkAnalysisService
+from app.services.network_analysis_service import network_service
 
 router = APIRouter()
 logger = get_logger(__name__)
 
 # Service instances (stateless - no session stored)
-network_service = NetworkAnalysisService()
 enrichment_service = EnrichmentService()
 
 
@@ -471,7 +470,8 @@ async def enrich_hpo_batch(
 ) -> dict[str, Any]:
     """
     HPO enrichment for several communities with Benjamini-Hochberg FDR pooled
-    over every community x term test, so FDR is controlled across communities.
+    across all community x term pairs with at least one overlapping community
+    gene (the same test family as /enrich/hpo), not across every possible pair.
     """
     results, total_tests = await enrichment_service.enrich_hpo_terms_batch(
         communities=body.communities, session=db, fdr_threshold=body.fdr_threshold

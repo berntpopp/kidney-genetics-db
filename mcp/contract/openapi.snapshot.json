@@ -952,7 +952,7 @@
         "description": "Request for HPO enrichment of several communities with pooled FDR (#332)",
         "properties": {
           "communities": {
-            "description": "Gene IDs per community; BH-FDR is pooled over all community x term tests. At most 200 communities.",
+            "description": "Gene IDs per community; BH-FDR is pooled over all community x term pairs with at least one overlapping community gene (the single-community family). At most 200 communities.",
             "items": {
               "items": {
                 "type": "integer"
@@ -998,7 +998,7 @@
             "type": "array"
           },
           "total_tests": {
-            "description": "Community x term tests in the pooled BH correction",
+            "description": "Community x term pairs with at least one overlapping community gene, i.e. the tests in the pooled BH correction (zero-overlap pairs are not tested)",
             "title": "Total Tests",
             "type": "integer"
           }
@@ -6755,7 +6755,7 @@
     },
     "/api/network/enrich/hpo/batch": {
       "post": {
-        "description": "HPO enrichment for several communities with Benjamini-Hochberg FDR pooled\nover every community x term test, so FDR is controlled across communities.",
+        "description": "HPO enrichment for several communities with Benjamini-Hochberg FDR pooled\nacross all community x term pairs with at least one overlapping community\ngene (the same test family as /enrich/hpo), not across every possible pair.",
         "operationId": "enrich_hpo_batch_api_network_enrich_hpo_batch_post",
         "requestBody": {
           "content": {

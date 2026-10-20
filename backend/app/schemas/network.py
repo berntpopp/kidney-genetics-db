@@ -182,7 +182,8 @@ class HPOBatchEnrichmentRequest(BaseModel):
     communities: list[list[int]] = Field(
         ...,
         description=(
-            "Gene IDs per community; BH-FDR is pooled over all community x term tests. "
+            "Gene IDs per community; BH-FDR is pooled over all community x term pairs "
+            "with at least one overlapping community gene (the single-community family). "
             f"At most {_enrichment_config.get('hpo', {}).get('max_communities', 200)} communities."
         ),
         min_length=1,
@@ -359,5 +360,11 @@ class HPOBatchEnrichmentResponse(BaseModel):
     results: list[list[EnrichmentResult]] = Field(
         ..., description="Significant terms per community, in submitted order"
     )
-    total_tests: int = Field(..., description="Community x term tests in the pooled BH correction")
+    total_tests: int = Field(
+        ...,
+        description=(
+            "Community x term pairs with at least one overlapping community gene, "
+            "i.e. the tests in the pooled BH correction (zero-overlap pairs are not tested)"
+        ),
+    )
     fdr_threshold: float
