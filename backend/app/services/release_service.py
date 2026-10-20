@@ -7,7 +7,10 @@ Handles creating and publishing versioned, immutable JSON data snapshots.
 import asyncio
 import hashlib
 import json
+import os
 import re
+import threading
+from collections.abc import Iterable, Iterator
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -25,21 +28,86 @@ from app.services.zenodo_service import ZenodoService
 logger = get_logger(__name__)
 
 
-@lru_cache(maxsize=4)
-def _load_release_genes(path: str, checksum: str | None) -> tuple[dict[str, Any], ...]:
-    """Gene identifiers from a release export; cached per (path, checksum)."""
-    raw = Path(path).read_bytes()
-    if checksum and hashlib.sha256(raw).hexdigest() != checksum:
-        raise ValueError(f"Export snapshot {path} does not match its published checksum")
-    export = json.loads(raw)
-    return tuple(
-        {
-            "approved_symbol": g["approved_symbol"],
-            "hgnc_id": g["hgnc_id"],
-            "aliases": g["aliases"],
-        }
-        for g in export["genes"]
-    )
+GENE_ID_FIELDS = ("approved_symbol", "hgnc_id", "aliases")
+_sidecar_lock = threading.Lock()
+_failed_snapshots: set[tuple[str, str | None]] = set()
+
+
+class ReleaseSnapshotError(Exception):
+    """A published release's export snapshot is missing or does not match its checksum."""
+
+
+def _sidecar_path(export_path: str | Path) -> Path:
+    """Small identifiers-only file served by the release genes endpoint."""
+    return Path(export_path).with_suffix(".genes.json")
+
+
+def _write_sidecar(export_path: str | Path, genes: Iterable[dict[str, Any]]) -> None:
+    sidecar = _sidecar_path(export_path)
+    tmp = sidecar.with_suffix(".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump([{k: g[k] for k in GENE_ID_FIELDS} for g in genes], f, ensure_ascii=False)
+    os.replace(tmp, sidecar)
+
+
+def _iter_export_genes(export_path: str | Path) -> Iterator[dict[str, Any]]:
+    """Stream gene objects from a full export without loading the whole file."""
+    decoder = json.JSONDecoder()
+    marker = '"genes": ['
+    with open(export_path, encoding="utf-8") as f:
+        buf = ""
+        while marker not in buf:
+            chunk = f.read(1 << 16)
+            if not chunk:
+                raise ValueError("export has no genes array")
+            buf += chunk
+        buf = buf[buf.index(marker) + len(marker) :]
+        while True:
+            buf = buf.lstrip(" \t\r\n,")
+            if buf.startswith("]"):
+                return
+            try:
+                gene, end = decoder.raw_decode(buf)
+            except json.JSONDecodeError:
+                chunk = f.read(1 << 20)
+                if not chunk:
+                    raise
+                buf += chunk
+                continue
+            yield gene
+            buf = buf[end:]
+
+
+@lru_cache(maxsize=8)
+def _read_sidecar(sidecar: Path) -> tuple[dict[str, Any], ...]:
+    with open(sidecar, encoding="utf-8") as f:
+        return tuple(json.load(f))
+
+
+def _load_release_genes(export_path: str, checksum: str | None) -> tuple[dict[str, Any], ...]:
+    """Release gene identifiers, served from the sidecar.
+
+    Releases published before the sidecar existed get it built once from the
+    verified export (chunked checksum, streamed parse); the export is never
+    modified. Failures are remembered so bad snapshots are not re-read per request.
+    """
+    sidecar = _sidecar_path(export_path)
+    if not sidecar.exists():
+        with _sidecar_lock:
+            if (export_path, checksum) in _failed_snapshots:
+                raise ReleaseSnapshotError(export_path)
+            if not sidecar.exists():
+                try:
+                    if checksum and ReleaseService._calculate_checksum(export_path) != checksum:
+                        raise ReleaseSnapshotError(f"checksum mismatch: {export_path}")
+                    _write_sidecar(export_path, _iter_export_genes(export_path))
+                except (OSError, ValueError, KeyError) as e:
+                    _failed_snapshots.add((export_path, checksum))
+                    raise ReleaseSnapshotError(export_path) from e
+                except ReleaseSnapshotError:
+                    _failed_snapshots.add((export_path, checksum))
+                    raise
+    return _read_sidecar(sidecar)
 
 
 # CalVer validation pattern (YYYY.MM format)
@@ -242,6 +310,7 @@ class ReleaseService:
         Export genes to JSON file (sync version for thread pool).
 
         Exports all genes with valid_to = 'infinity' (current genes).
+        Also writes the identifiers-only sidecar served by get_release_genes.
 
         Args:
             version: Release version
@@ -349,6 +418,7 @@ class ReleaseService:
         # Write to file
         with open(export_file, "w", encoding="utf-8") as f:
             json.dump(export_data, f, indent=2, ensure_ascii=False)
+        _write_sidecar(export_file, export_data["genes"])
 
         logger.sync_info(
             "Export completed",
@@ -359,7 +429,8 @@ class ReleaseService:
 
         return export_file, len(genes)
 
-    def _calculate_checksum(self, file_path: Path) -> str:
+    @staticmethod
+    def _calculate_checksum(file_path: str | Path) -> str:
         """
         Calculate SHA256 checksum of file.
 
@@ -473,7 +544,8 @@ class ReleaseService:
             dict: Release metadata and paginated genes
 
         Raises:
-            ValueError: If release not found
+            ValueError: If release not found or not published
+            ReleaseSnapshotError: If the export snapshot is missing or corrupt
         """
         release = self.db.query(DataRelease).filter_by(version=version).first()
         if not release:
@@ -483,19 +555,16 @@ class ReleaseService:
             raise ValueError(f"Release {version} not published yet")
 
         if not release.export_file_path:
-            raise ValueError(f"Release {version} has no export snapshot")
+            raise ReleaseSnapshotError(f"release {version} has no export path")
 
-        # Serve the immutable export written at publish time (#288)
+        # Serve the snapshot written at publish time, not live rows (#288)
         loop = asyncio.get_event_loop()
-        try:
-            genes = await loop.run_in_executor(
-                self._executor,
-                _load_release_genes,
-                release.export_file_path,
-                release.export_checksum,
-            )
-        except OSError as e:
-            raise ValueError(f"Release {version} export snapshot not found") from e
+        genes = await loop.run_in_executor(
+            self._executor,
+            _load_release_genes,
+            release.export_file_path,
+            release.export_checksum,
+        )
 
         return {
             "version": version,

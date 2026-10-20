@@ -7,7 +7,7 @@ Supports creating releases, publishing immutable snapshots, and downloading expo
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -19,7 +19,7 @@ from app.core.logging import get_logger
 from app.models.data_release import DataRelease
 from app.models.user import User
 from app.schemas.releases import ReleaseList, ReleaseResponse, ReleaseUpdate
-from app.services.release_service import ReleaseService
+from app.services.release_service import ReleaseService, ReleaseSnapshotError
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -112,6 +112,10 @@ async def get_release_genes(
                 "offset": offset,
             },
         }
+    except ReleaseSnapshotError as e:
+        # Server paths stay in the log, not the response
+        await logger.error("Release snapshot unavailable", version=version, detail=str(e))
+        raise HTTPException(status_code=500, detail="Release snapshot unavailable") from e
     except ValueError as e:
         if "not found" in str(e):
             raise GeneNotFoundError(version) from e
