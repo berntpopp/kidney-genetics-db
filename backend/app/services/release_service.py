@@ -1,7 +1,7 @@
 """
 Release Service for CalVer data releases
 
-Handles creating and publishing versioned data snapshots with temporal database queries.
+Handles creating and publishing versioned, immutable JSON data snapshots.
 """
 
 import asyncio
@@ -52,7 +52,6 @@ class ReleaseService:
 
     Features:
     - Thread pool for non-blocking file I/O
-    - Timezone-aware temporal queries
     - Automatic checksum calculation
     - Export to JSON with metadata
     """
@@ -152,8 +151,7 @@ class ReleaseService:
         publish_time = datetime.now(timezone.utc)
 
         try:
-            # Step 1: Export current genes BEFORE closing ranges
-            # This ensures we capture all genes with valid_to = 'infinity'
+            # Step 1: Export current genes (valid_to = 'infinity')
             loop = asyncio.get_event_loop()
             logger.sync_info(
                 "Exporting current genes",
@@ -247,7 +245,6 @@ class ReleaseService:
         Export genes to JSON file (sync version for thread pool).
 
         Exports all genes with valid_to = 'infinity' (current genes).
-        This method is called BEFORE closing temporal ranges.
 
         Args:
             version: Release version
@@ -263,7 +260,6 @@ class ReleaseService:
         logger.sync_info("Exporting release to JSON", version=version, file_path=str(export_file))
 
         # Query current genes (valid_to = 'infinity') with comprehensive data
-        # This is called BEFORE we close the temporal ranges
         # Includes scores, evidence, and annotations for research reproducibility
         result = self.db.execute(
             text("""
@@ -392,8 +388,6 @@ class ReleaseService:
         """
         Count current genes (valid_to = 'infinity').
 
-        Called before closing temporal ranges during publish.
-
         Returns:
             int: Number of current genes
         """
@@ -403,27 +397,6 @@ class ReleaseService:
                 FROM genes
                 WHERE valid_to = 'infinity'::timestamptz
             """)
-        )
-        count = result.scalar()
-        return int(count) if count is not None else 0
-
-    def _count_genes(self, timestamp: datetime) -> int:
-        """
-        Count genes at specific timestamp.
-
-        Args:
-            timestamp: Point-in-time for temporal query
-
-        Returns:
-            int: Number of genes valid at timestamp
-        """
-        result = self.db.execute(
-            text("""
-                SELECT COUNT(*)
-                FROM genes
-                WHERE tstzrange(valid_from, valid_to) @> :timestamp
-            """),
-            {"timestamp": timestamp},
         )
         count = result.scalar()
         return int(count) if count is not None else 0

@@ -2,7 +2,7 @@
 Data Release API endpoints
 
 Provides endpoints for managing CalVer versioned data releases.
-Supports creating releases, publishing with temporal snapshots, and downloading exports.
+Supports creating releases, publishing immutable snapshots, and downloading exports.
 """
 
 from typing import Any
