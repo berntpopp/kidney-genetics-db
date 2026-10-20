@@ -108,4 +108,24 @@ describe('GeneTable', () => {
     const symbols = wrapper!.findAll('a[href^="/genes/"]').map(a => a.text())
     expect(symbols).toEqual(['PKD2'])
   })
+  it('shows source presence without inventing per-source percentages (#301)', async () => {
+    getGenes.mockResolvedValue(
+      listResult([
+        {
+          id: 1,
+          approved_symbol: 'PKD1',
+          hgnc_id: 'HGNC:9008',
+          evidence_score: 50,
+          sources: ['ClinGen', 'GenCC']
+        }
+      ])
+    )
+    await mountAt()
+    const scoreBadge = wrapper!.findAll('[data-slot="badge"]').find(b => b.text() === '50.0')!
+    await scoreBadge.trigger('click')
+    await flushPromises()
+
+    expect(document.body.textContent).toContain('Score: 50.0%')
+    expect(document.body.textContent).not.toMatch(/100\.0%/)
+  })
 })

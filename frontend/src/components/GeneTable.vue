@@ -203,7 +203,7 @@ const columns: ColumnDef<GeneRow>[] = [
       }
       return h(ScoreBreakdown, {
         score,
-        breakdown: getSourcesAsBreakdown(row.original.sources),
+        // The list API returns source names only; per-source scores exist on the detail page
         variant: 'inline',
         size: 'small'
       })
@@ -563,15 +563,6 @@ const toggleTier = (tier: string) => {
 }
 
 // Helper methods
-const getSourcesAsBreakdown = (sources: string[]) => {
-  if (!sources || sources.length === 0) return {}
-  const breakdown: Record<string, boolean> = {}
-  sources.forEach(source => {
-    breakdown[source] = true
-  })
-  return breakdown
-}
-
 const getEvidenceStrength = (count: number) => {
   const max = filterMeta.value?.evidence_count?.max || 6
   return max > 0 ? Math.min((count / max) * 100, 100) : 0

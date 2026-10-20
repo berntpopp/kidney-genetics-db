@@ -261,7 +261,10 @@ const chipSizeClasses = computed(() => {
 
 const sortedBreakdownEntries = computed(() => {
   if (!props.breakdown) return []
-  return Object.entries(props.breakdown).sort(([, a], [, b]) => b - a)
+  // Only real numeric contributions may be shown as percentages
+  return Object.entries(props.breakdown)
+    .filter(([, value]) => Number.isFinite(value))
+    .sort(([, a], [, b]) => b - a)
 })
 
 const topSourceEntries = computed(() => {
