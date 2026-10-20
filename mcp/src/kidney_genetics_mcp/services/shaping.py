@@ -156,11 +156,20 @@ def apply_budget(
     list_keys.sort(key=lambda k: _size(shaped[k]), reverse=True)
     dropped = 0
     for key in list_keys:
-        items = list(shaped[key])
-        while len(items) > keep_min and _size(shaped) > max_chars:
-            items.pop()
-            dropped += 1
-            shaped[key] = items
+        items = shaped[key]
+        if len(items) > keep_min and _size(shaped) > max_chars:
+            # Serialized size grows with the prefix length, so binary-search the
+            # longest prefix that fits (never shorter than keep_min).
+            lo, hi = keep_min, len(items) - 1
+            while lo < hi:
+                mid = (lo + hi + 1) // 2
+                shaped[key] = items[:mid]
+                if _size(shaped) <= max_chars:
+                    lo = mid
+                else:
+                    hi = mid - 1
+            shaped[key] = items[:lo]
+            dropped += len(items) - lo
         if _size(shaped) <= max_chars:
             break
     summary: dict[str, Any] | None = (

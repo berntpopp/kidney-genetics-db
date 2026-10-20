@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
+from kidney_genetics_mcp.services import shaping
 from kidney_genetics_mcp.services.errors import McpToolError
 from kidney_genetics_mcp.services.shaping import (
     apply_budget,
@@ -116,3 +119,30 @@ def test_resolve_mode() -> None:
     with pytest.raises(McpToolError) as exc:
         resolve_mode("nope")
     assert exc.value.code == "invalid_input"
+
+
+def test_apply_budget_keeps_longest_fitting_prefix_with_few_serializations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+    real_size = shaping._size
+
+    def counting_size(obj: Any) -> int:
+        nonlocal calls
+        calls += 1
+        return real_size(obj)
+
+    monkeypatch.setattr(shaping, "_size", counting_size)
+    records = [{"id": i, "text": "x" * 500} for i in range(400)]
+    payload = {"records": records, "gene": "PKD1"}
+    shaped, dropped = shaping.apply_budget(payload, max_chars=20_000)
+
+    kept = len(shaped["records"])
+    assert shaped["records"] == records[:kept]
+    assert shaped["gene"] == "PKD1"
+    # Exactly the longest prefix that fits: one more record would overflow.
+    assert real_size(shaped) <= 20_000
+    assert real_size({**payload, "records": records[: kept + 1]}) > 20_000
+    assert dropped == {"dropped_records": 400 - kept, "reason": "max_response_chars"}
+    # One serialization per removed record was ~370 calls; a search needs ~log2(n).
+    assert calls <= 20
