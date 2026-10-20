@@ -114,17 +114,30 @@ jobs:
           skip-dirs: 'node_modules,venv,.venv,dist,build'
 
   trivy-postgres-scan:
-    name: Trivy PostgreSQL Base Image Scan
+    name: Trivy PostgreSQL Image Scan
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Run Trivy on PostgreSQL base image
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build patched PostgreSQL image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./postgres
+          push: false
+          load: true
+          tags: kidney_genetics_postgres:17.11-zlib1.3.2-r1
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy on PostgreSQL image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: 'postgres:17-alpine@sha256:dc17045ccfd343b49600570ea734b9c4991cf1c3f3302e67df51e3b402dd55c4'
+          image-ref: 'kidney_genetics_postgres:17.11-zlib1.3.2-r1'
           format: 'table'
           exit-code: '0'
           ignore-unfixed: true
@@ -137,10 +150,10 @@ jobs:
           # (robust against the evolving Go CVE set); OS packages are still scanned.
           skip-files: 'usr/local/bin/gosu'
 
-      - name: Run Trivy on PostgreSQL base image (SARIF)
+      - name: Run Trivy on PostgreSQL image (SARIF)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: 'postgres:17-alpine@sha256:dc17045ccfd343b49600570ea734b9c4991cf1c3f3302e67df51e3b402dd55c4'
+          image-ref: 'kidney_genetics_postgres:17.11-zlib1.3.2-r1'
           format: 'sarif'
           output: 'trivy-results-postgres.sarif'
           exit-code: '0'

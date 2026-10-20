@@ -32,14 +32,19 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Lint backend Dockerfile
-        uses: hadolint/hadolint-action@v3.3.0
+        uses: hadolint/hadolint-action@v3.4.0
         with:
           dockerfile: backend/Dockerfile
 
       - name: Lint frontend Dockerfile
-        uses: hadolint/hadolint-action@v3.3.0
+        uses: hadolint/hadolint-action@v3.4.0
         with:
           dockerfile: frontend/Dockerfile
+
+      - name: Lint PostgreSQL Dockerfile
+        uses: hadolint/hadolint-action@v3.4.0
+        with:
+          dockerfile: postgres/Dockerfile
 
   build-backend:
     name: Build & Push Backend

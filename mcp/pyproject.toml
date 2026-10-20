@@ -30,8 +30,8 @@ dev = [
     "pytest-cov==7.1.0",
     "pytest-xdist>=3.6.0",  # Parallel test execution (mcp tests are isolated)
     "respx>=0.21",
-    "mcp>=1.2",
-    "datamodel-code-generator>=0.40.0",
+    "mcp>=1.30.0,<2",
+    "datamodel-code-generator>=0.81.0",
 ]
 
 [tool.ruff]
