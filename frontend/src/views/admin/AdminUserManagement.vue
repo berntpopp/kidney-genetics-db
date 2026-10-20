@@ -68,6 +68,10 @@ const editingUser = ref(null)
 const deletingUser = ref(null)
 const deactivatingUser = ref(null)
 const showDeactivateDialog = ref(false)
+// Own account: no self-deactivation or self-demotion from the UI
+const isEditingSelf = computed(
+  () => !!editingUser.value && editingUser.value.id === authStore.user?.id
+)
 const saving = ref(false)
 const deleting = ref(false)
 const formValid = computed(() => {
@@ -503,8 +507,8 @@ onMounted(() => {
 
           <div class="space-y-2">
             <Label for="role">Role</Label>
-            <Select v-model="userFormData.role">
-              <SelectTrigger>
+            <Select v-model="userFormData.role" :disabled="isEditingSelf">
+              <SelectTrigger id="role">
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
@@ -519,7 +523,7 @@ onMounted(() => {
             <div class="flex items-center gap-2">
               <Checkbox
                 id="is_active"
-                :disabled="!!editingUser && editingUser.id === authStore.user?.id"
+                :disabled="isEditingSelf"
                 :model-value="userFormData.is_active"
                 @update:model-value="val => (userFormData.is_active = val)"
               />

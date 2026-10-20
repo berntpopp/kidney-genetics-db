@@ -90,7 +90,7 @@ describe('AdminUserManagement status toggle (#317)', () => {
   const button = (text: string) =>
     [...document.querySelectorAll('button')].find(b => b.textContent?.trim() === text)!
 
-  it('disables the status toggle and Active checkbox on your own row', async () => {
+  it('disables the status toggle, Active checkbox and role select on your own row', async () => {
     await mountView()
     expect(rowButtons('admin')[1].hasAttribute('disabled')).toBe(true)
     expect(rowButtons('curator1')[1].hasAttribute('disabled')).toBe(false)
@@ -98,6 +98,14 @@ describe('AdminUserManagement status toggle (#317)', () => {
     rowButtons('admin')[0].click() // edit own account
     await flushPromises()
     expect(document.getElementById('is_active')!.hasAttribute('disabled')).toBe(true)
+    expect(document.getElementById('role')!.hasAttribute('disabled')).toBe(true)
+  })
+
+  it('keeps the role select enabled when editing another user', async () => {
+    await mountView()
+    rowButtons('curator1')[0].click()
+    await flushPromises()
+    expect(document.getElementById('role')!.hasAttribute('disabled')).toBe(false)
   })
 
   it('asks before deactivating another user; Cancel does nothing', async () => {
