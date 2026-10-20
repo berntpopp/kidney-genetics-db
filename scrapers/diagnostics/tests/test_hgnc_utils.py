@@ -82,3 +82,58 @@ def test_legacy_unversioned_cache_entry_is_re_resolved(hgnc):
     routes["symbol"] = hits({"hgnc_id": "HGNC:9008", "symbol": "PKD1"})
     assert normalizer.normalize_symbol("PKD1")["hgnc_id"] == "HGNC:9008"
     assert calls == ["symbol"]
+
+
+@pytest.mark.parametrize("endpoint", ["prev_symbol", "alias_symbol"])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_ambiguous_match_is_not_normalized_in_any_order(hgnc, endpoint, reverse):
+    routes, _ = hgnc
+    docs = [
+        {"hgnc_id": "HGNC:1", "symbol": "AAA"},
+        {"hgnc_id": "HGNC:2", "symbol": "BBB"},
+    ]
+    routes[endpoint] = hits(*(docs[::-1] if reverse else docs))
+    result = utils.HGNCNormalizer().normalize_symbol("OLD1")
+    assert result["found"] is False
+    assert result["hgnc_id"] is None
+    assert result["approved_symbol"] == "OLD1"
+    assert result["ambiguous"] is True
+    assert result["candidates"] == ["HGNC:1", "HGNC:2"]
+
+
+def test_numfound_above_returned_docs_is_ambiguous(hgnc):
+    routes, _ = hgnc
+    routes["alias_symbol"] = {
+        "response": {"numFound": 2, "docs": [{"hgnc_id": "HGNC:1", "symbol": "AAA"}]}
+    }
+    assert utils.HGNCNormalizer().normalize_symbol("OLD1")["found"] is False
+
+
+def test_unique_alias_match_is_normalized(hgnc):
+    routes, _ = hgnc
+    routes["alias_symbol"] = hits({"hgnc_id": "HGNC:1", "symbol": "AAA"})
+    result = utils.HGNCNormalizer().normalize_symbol("OLD1")
+    assert (result["found"], result["hgnc_id"], result.get("was_alias")) == (
+        True,
+        "HGNC:1",
+        True,
+    )
+
+
+def test_v2_cached_alias_pick_is_re_resolved(hgnc):
+    routes, _ = hgnc
+    normalizer = utils.HGNCNormalizer()
+    stale = {
+        "symbol": "OLD1",
+        "version": 2,
+        "data": {
+            "hgnc_id": "HGNC:1",
+            "approved_symbol": "AAA",
+            "found": True,
+            "was_alias": True,
+        },
+        "cached_at": "2999-01-01T00:00:00",
+    }
+    normalizer._get_cache_path("OLD1").write_text(json.dumps(stale))
+    routes["alias_symbol"] = hits({"hgnc_id": "HGNC:1"}, {"hgnc_id": "HGNC:2"})
+    assert normalizer.normalize_symbol("OLD1")["found"] is False

@@ -18,8 +18,9 @@ class HGNCNormalizer:
     BASE_URL = "https://rest.genenames.org"
     CACHE_DIR = Path("data/hgnc_cache")
     CACHE_TTL = 30 * 24 * 3600  # 30 days in seconds
-    # Entries without this version are re-resolved: v1 could hold outages cached as not-found.
-    CACHE_VERSION = 2
+    # Older entries are re-resolved: v1 could hold outages cached as not-found,
+    # v1/v2 could hold an arbitrary pick (docs[0]) from an ambiguous prev/alias match.
+    CACHE_VERSION = 3
 
     def __init__(self):
         """Initialize the HGNC normalizer."""
@@ -130,6 +131,19 @@ class HGNCNormalizer:
                     "hgnc_unavailable": True,
                 }
             docs = response["response"].get("docs") or []
+            if len(docs) > 1 or response["response"].get("numFound", len(docs)) > 1:
+                # Several genes share this prev/alias symbol: picking one is a guess.
+                logger.warning(f"Ambiguous HGNC {endpoint} match: {symbol} unresolved")
+                result = {
+                    "hgnc_id": None,
+                    "approved_symbol": symbol,
+                    "found": False,
+                    "ambiguous": True,
+                    "candidates": sorted(d.get("hgnc_id") or "" for d in docs),
+                }
+                self._save_to_cache(normalized, result)
+                self.session_cache[normalized] = result
+                return result
             if docs:
                 doc = docs[0]
                 result = {
