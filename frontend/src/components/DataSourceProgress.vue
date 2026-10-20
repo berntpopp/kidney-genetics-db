@@ -215,6 +215,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import apiClient from '@/api/client'
+import { config } from '@/config'
 import {
   RefreshCw,
   RefreshCcw,
@@ -347,8 +348,13 @@ const stopPolling = () => {
 }
 
 const connectWebSocket = () => {
-  const wsUrl = 'ws://localhost:8000/api/progress/ws'
-  ws.value = new WebSocket(wsUrl)
+  // Same host and path as the REST API base (empty base = same origin), http(s) -> ws(s)
+  const url = new URL(
+    `${config.apiBaseUrl.replace(/\/$/, '')}/api/progress/ws`,
+    window.location.href
+  )
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+  ws.value = new WebSocket(url.href)
 
   ws.value.onopen = () => {
     window.logService.info('WebSocket connected for progress updates')
@@ -432,6 +438,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (ws.value) {
+    ws.value.onclose = null // close() fires onclose asynchronously, which would re-arm reconnects
     ws.value.close()
   }
   if (reconnectInterval.value) {

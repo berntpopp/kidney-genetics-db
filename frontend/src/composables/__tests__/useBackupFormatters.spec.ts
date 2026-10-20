@@ -11,7 +11,6 @@ import { useBackupFormatters } from '@/composables/useBackupFormatters'
 describe('useBackupFormatters', () => {
   const {
     getStatusColor,
-    getStatusIcon,
     formatSize,
     formatDuration,
     formatDate,
@@ -31,18 +30,6 @@ describe('useBackupFormatters', () => {
     it('returns "grey" for unknown status', () => {
       expect(getStatusColor('unknown-status')).toBe('grey')
       expect(getStatusColor('')).toBe('grey')
-    })
-  })
-
-  describe('getStatusIcon', () => {
-    it('returns correct icon for known statuses', () => {
-      expect(getStatusIcon('completed')).toBe('mdi-check-circle')
-      expect(getStatusIcon('failed')).toBe('mdi-alert-circle')
-      expect(getStatusIcon('running')).toBe('mdi-progress-clock')
-    })
-
-    it('returns fallback icon for unknown status', () => {
-      expect(getStatusIcon('bogus')).toBe('mdi-help-circle')
     })
   })
 

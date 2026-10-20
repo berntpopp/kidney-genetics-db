@@ -14,28 +14,28 @@
         title="Total Releases"
         :value="stats.total"
         :loading="statsLoading"
-        icon="mdi-package-variant"
+        :icon="Package"
         color="indigo"
       />
       <AdminStatsCard
         title="Published"
         :value="stats.published"
         :loading="statsLoading"
-        icon="mdi-check-circle"
+        :icon="CircleCheck"
         color="success"
       />
       <AdminStatsCard
         title="Draft"
         :value="stats.draft"
         :loading="statsLoading"
-        icon="mdi-pencil"
+        :icon="Pencil"
         color="warning"
       />
       <AdminStatsCard
         title="Latest Version"
         :value="stats.latest || 'None'"
         :loading="statsLoading"
-        icon="mdi-new-box"
+        :icon="SquarePlus"
         color="info"
       />
     </div>
@@ -430,6 +430,7 @@ import {
 import {
   Calendar,
   CalendarCheck,
+  CircleCheck,
   Copy,
   Dna,
   Download,
@@ -440,6 +441,7 @@ import {
   PlusCircle,
   Send,
   ShieldCheck,
+  SquarePlus,
   Trash2
 } from 'lucide-vue-next'
 

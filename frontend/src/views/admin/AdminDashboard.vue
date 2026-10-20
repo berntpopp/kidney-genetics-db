@@ -15,7 +15,7 @@
         title="Active Users"
         :value="stats.activeUsers"
         :loading="statsLoading"
-        icon="mdi-account-check"
+        :icon="UserCheck"
         color="success"
       />
       <AdminStatsCard
@@ -23,28 +23,28 @@
         :value="stats.cacheHitRate"
         :loading="statsLoading"
         format="percent"
-        icon="mdi-speedometer"
+        :icon="Gauge"
         color="info"
       />
       <AdminStatsCard
         title="Pipeline Jobs"
         :value="stats.pipelineJobs"
         :loading="statsLoading"
-        icon="mdi-pipe"
+        :icon="Minus"
         color="warning"
       />
       <AdminStatsCard
         title="Pending Staging"
         :value="stats.pendingStaging"
         :loading="statsLoading"
-        icon="mdi-clock-alert"
+        :icon="ClockAlert"
         color="error"
       />
       <AdminStatsCard
         title="Data Releases"
         :value="stats.totalReleases"
         :loading="statsLoading"
-        icon="mdi-package-variant"
+        :icon="Package"
         color="indigo"
       />
     </div>
@@ -76,33 +76,6 @@
         </CardContent>
       </Card>
     </div>
-
-    <!-- Quick Actions -->
-    <Card class="mt-6">
-      <CardHeader>
-        <CardTitle class="text-base">Quick Actions</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div class="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" :disabled="refreshingCache" @click="refreshCache">
-            <RefreshCw :size="14" class="mr-2" :class="{ 'animate-spin': refreshingCache }" />
-            Refresh Cache
-          </Button>
-          <Button variant="outline" size="sm" :disabled="runningPipeline" @click="runPipeline">
-            <Play :size="14" class="mr-2" />
-            Run All Pipelines
-          </Button>
-          <Button variant="outline" size="sm" :disabled="cleaningLogs" @click="cleanupLogs">
-            <Eraser :size="14" class="mr-2" />
-            Cleanup Old Logs
-          </Button>
-          <Button variant="outline" size="sm" :disabled="exportingStats" @click="exportStats">
-            <ChartLine :size="14" class="mr-2" />
-            Export Statistics
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
   </div>
 </template>
 
@@ -110,32 +83,29 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { getCacheStats, clearAllCache } from '@/api/admin/cache'
-import { getDashboardData, getAllStatus, triggerUpdate } from '@/api/admin/pipeline'
+import { getCacheStats } from '@/api/admin/cache'
+import { getDashboardData } from '@/api/admin/pipeline'
 import { getStagingStats } from '@/api/admin/staging'
-import { cleanupLogs as cleanupOldLogs, getLogStatistics } from '@/api/admin/logs'
 import { listReleases } from '@/api/admin/releases'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import {
-  ChartLine,
   CircleCheck,
+  ClockAlert,
   Cog,
   DatabaseBackup,
   DatabaseZap,
   Dna,
-  Eraser,
   FileText,
+  Gauge,
   LayoutDashboard,
   MemoryStick,
   Minus,
   Package,
-  Play,
-  RefreshCw,
   Tags,
+  UserCheck,
   Users
 } from 'lucide-vue-next'
 
@@ -152,10 +122,6 @@ const stats = ref({
 })
 
 const statsLoading = ref(true)
-const refreshingCache = ref(false)
-const runningPipeline = ref(false)
-const cleaningLogs = ref(false)
-const exportingStats = ref(false)
 
 // Admin sections configuration
 const adminSections = [
@@ -364,87 +330,6 @@ const fetchReleasesStats = async () => {
   } catch (error) {
     window.logService.error('Failed to fetch releases stats:', error)
     return null
-  }
-}
-
-const refreshCache = async () => {
-  refreshingCache.value = true
-  try {
-    await clearAllCache()
-    window.logService.info('Cache cleared successfully')
-  } catch (error) {
-    window.logService.error('Failed to refresh cache:', error)
-  } finally {
-    refreshingCache.value = false
-  }
-}
-
-const runPipeline = async () => {
-  runningPipeline.value = true
-  try {
-    const sources = (await getAllStatus()).data
-
-    const triggers = sources.data
-      .filter(s => s.category === 'data_source')
-      .map(s => triggerUpdate(s.source_name))
-
-    await Promise.all(triggers)
-    window.logService.info('All pipelines triggered successfully')
-  } catch (error) {
-    window.logService.error('Failed to run pipelines:', error)
-  } finally {
-    runningPipeline.value = false
-  }
-}
-
-const cleanupLogs = async () => {
-  cleaningLogs.value = true
-  try {
-    const result = (await cleanupOldLogs(30)).data
-    window.logService.info(`Deleted ${result.logs_deleted} old log entries`)
-  } catch (error) {
-    window.logService.error('Failed to cleanup logs:', error)
-  } finally {
-    cleaningLogs.value = false
-  }
-}
-
-const exportStats = async () => {
-  exportingStats.value = true
-  try {
-    const logStatsPromise = async () => (await getLogStatistics(24)).data
-    const [users, cache, pipeline, staging, logs] = await Promise.all([
-      fetchUserStats(),
-      fetchCacheStats(),
-      fetchPipelineStats(),
-      fetchStagingStats(),
-      logStatsPromise()
-    ])
-
-    const exportData = {
-      timestamp: new Date().toISOString(),
-      users,
-      cache,
-      pipeline,
-      staging,
-      logs: logs.data || logs
-    }
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: 'application/json'
-    })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `admin-stats-${new Date().toISOString().split('T')[0]}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-
-    window.logService.info('Statistics exported successfully')
-  } catch (error) {
-    window.logService.error('Failed to export statistics:', error)
-  } finally {
-    exportingStats.value = false
   }
 }
 

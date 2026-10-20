@@ -15,11 +15,15 @@ import {
   Check,
   CircleAlert,
   CircleCheck,
+  Database,
   Flame,
+  Folder,
+  HeartPulse,
   Info,
   Loader2,
+  MemoryStick,
   RefreshCw,
-  HeartPulse,
+  Target,
   Trash2,
   X
 } from 'lucide-vue-next'
@@ -191,7 +195,7 @@ const loadData = async () => {
   await Promise.all([loadStats(), loadNamespaces()])
 }
 
-const checkHealth = async () => {
+const checkHealth = async (notify = false) => {
   checkingHealth.value = true
   try {
     const response = await cacheApi.getCacheHealth()
@@ -200,6 +204,8 @@ const checkHealth = async () => {
     // Map the API response to our expected format
     healthStatus.value = {
       healthy: data.status === 'healthy',
+      status: data.status,
+      issues: data.issues || [],
       memory_cache: {
         available: data.cache_enabled,
         entry_count: data.memory_cache_size || 0
@@ -210,7 +216,7 @@ const checkHealth = async () => {
       },
       last_check: new Date().toISOString()
     }
-    toast.success('Health check completed', { duration: 5000 })
+    if (notify) toast.success('Health check completed', { duration: 5000 })
   } catch (error) {
     window.logService.error('Failed to check health:', error)
     toast.error('Failed to check cache health', { duration: Infinity })
@@ -325,7 +331,7 @@ onUnmounted(() => {
     <AdminHeader
       title="Cache Management"
       subtitle="Monitor and control cache performance"
-      icon="mdi-memory"
+      :icon="MemoryStick"
       icon-color="purple"
       :breadcrumbs="ADMIN_BREADCRUMBS.cache"
     />
@@ -337,7 +343,7 @@ onUnmounted(() => {
         :value="Math.round((cacheStats.hit_rate || 0) * 100)"
         format="percent"
         :loading="statsLoading"
-        icon="mdi-target"
+        :icon="Target"
         color="success"
         :trend="hitRateTrend"
       />
@@ -345,22 +351,23 @@ onUnmounted(() => {
         title="Total Entries"
         :value="cacheStats.total_entries || 0"
         :loading="statsLoading"
-        icon="mdi-database"
+        :icon="Database"
         color="info"
       />
       <AdminStatsCard
+        v-if="cacheStats.total_size_bytes > 0"
         title="Memory Usage"
         :value="cacheStats.total_size_bytes || 0"
         format="bytes"
         :loading="statsLoading"
-        icon="mdi-memory"
+        :icon="MemoryStick"
         color="warning"
       />
       <AdminStatsCard
         title="Namespaces"
         :value="namespaces.length"
         :loading="namespacesLoading"
-        icon="mdi-folder-multiple"
+        :icon="Folder"
         color="purple"
       />
     </div>
@@ -389,7 +396,7 @@ onUnmounted(() => {
             <RefreshCw v-else class="size-4 mr-2" />
             Refresh Stats
           </Button>
-          <Button variant="outline" size="sm" :disabled="checkingHealth" @click="checkHealth">
+          <Button variant="outline" size="sm" :disabled="checkingHealth" @click="checkHealth(true)">
             <Loader2 v-if="checkingHealth" class="size-4 mr-2 animate-spin" />
             <HeartPulse v-else class="size-4 mr-2" />
             Health Check
@@ -423,10 +430,17 @@ onUnmounted(() => {
               healthStatus.healthy ? 'text-green-600 dark:text-green-400' : 'text-destructive'
             "
           />
-          Cache Health Status
+          Cache Health Status: <span class="capitalize">{{ healthStatus.status }}</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
+        <ul
+          v-if="healthStatus.issues.length"
+          class="mb-4 list-disc space-y-1 pl-5 text-sm text-destructive"
+          data-testid="health-issues"
+        >
+          <li v-for="issue in healthStatus.issues" :key="issue">{{ issue }}</li>
+        </ul>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <div class="flex items-center gap-2 mb-2">

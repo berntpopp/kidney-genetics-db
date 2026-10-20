@@ -13,7 +13,7 @@
  * <AdminHeader
  *   title="User Management"
  *   subtitle="Manage user accounts and permissions"
- *   icon="mdi-account-group"
+ *   :icon="Users"  (a lucide-vue-next component)
  *   icon-color="primary"
  *   :breadcrumbs="[
  *     { title: 'Admin', to: '/admin' },

@@ -14,21 +14,21 @@
         title="DiagnosticPanels Genes"
         :value="diagnosticStats.unique_genes"
         :loading="statsLoading"
-        icon="mdi-medical-bag"
+        :icon="BriefcaseMedical"
         color="cyan"
       />
       <AdminStatsCard
         title="Literature Genes"
         :value="literatureStats.unique_genes"
         :loading="statsLoading"
-        icon="mdi-book-open-page-variant"
+        :icon="BookOpen"
         color="purple"
       />
       <AdminStatsCard
         title="Total Evidence Records"
         :value="totalRecords"
         :loading="statsLoading"
-        icon="mdi-database"
+        :icon="Database"
         color="primary"
       />
     </div>
@@ -143,7 +143,6 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Progress } from '@/components/ui/progress'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -170,10 +169,12 @@ import {
   BriefcaseMedical,
   CloudUpload,
   Cog,
+  Database,
   DatabaseZap,
   FileText,
   Hash,
   History,
+  Loader2,
   Merge,
   Plus,
   RefreshCw,
@@ -191,7 +192,6 @@ const providerName = ref('')
 const selectedFile = ref(null)
 const isDragging = ref(false)
 const uploading = ref(false)
-const uploadProgress = ref(0)
 const uploadResult = ref(null)
 const statsLoading = ref(true)
 
@@ -348,25 +348,14 @@ const uploadFile = async () => {
   if (!selectedFile.value) return
 
   uploading.value = true
-  uploadProgress.value = 0
 
   try {
-    // Simulate progress (FormData upload progress not easily trackable)
-    const progressInterval = setInterval(() => {
-      if (uploadProgress.value < 90) {
-        uploadProgress.value += 10
-      }
-    }, 200)
-
     const response = await ingestionApi.uploadSourceFile(
       selectedSource.value,
       selectedFile.value,
       providerName.value || null,
       uploadMode.value
     )
-
-    clearInterval(progressInterval)
-    uploadProgress.value = 100
 
     uploadResult.value = response.data?.data || response.data
     selectedFile.value = null
@@ -512,7 +501,7 @@ const SourceContent = defineComponent({
               h('div', { class: 'border-b px-4' }, [
                 h(
                   TabsList,
-                  { class: 'bg-transparent' },
+                  { class: 'bg-transparent h-auto flex-wrap' },
                   {
                     default: () => [
                       h(
@@ -556,7 +545,7 @@ const SourceContent = defineComponent({
                           'onUpdate:modelValue': v => {
                             uploadMode.value = v
                           },
-                          class: 'flex gap-4'
+                          class: 'flex flex-wrap gap-x-4 gap-y-2'
                         },
                         {
                           default: () => [
@@ -738,16 +727,20 @@ const SourceContent = defineComponent({
                       }
                     ),
 
-                    // Upload progress
+                    // Upload state: indeterminate, the API reports no byte progress
                     uploading.value
-                      ? h('div', { class: 'mt-4 space-y-1' }, [
-                          h(Progress, { modelValue: uploadProgress.value }),
-                          h(
-                            'p',
-                            { class: 'text-xs text-center text-muted-foreground' },
-                            `${uploadProgress.value}%`
-                          )
-                        ])
+                      ? h(
+                          'p',
+                          {
+                            role: 'status',
+                            class:
+                              'mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground'
+                          },
+                          [
+                            h(Loader2, { class: 'size-4 animate-spin' }),
+                            'Uploading and processing file...'
+                          ]
+                        )
                       : null,
 
                     // Upload results
