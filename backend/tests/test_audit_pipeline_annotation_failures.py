@@ -93,3 +93,28 @@ async def test_failed_final_chunk_is_not_silently_dropped(test_engine, genes):
     assert (record.last_update, record.next_update) == (OLD, OLD)
     # Earlier chunks may persist; a retry re-upserts them idempotently.
     assert _annotated(test_engine) == 1500
+
+
+@pytest.mark.asyncio
+async def test_failed_fallback_commit_is_an_error_and_keeps_freshness(test_engine, genes):
+    from app.models.gene_annotation import GeneAnnotation
+
+    gene_id = genes[0]
+    record = SimpleNamespace(last_update=OLD, next_update=OLD)
+
+    class FallbackSource(_source_class({}, record)):  # batch fetch returns nothing
+        async def update_gene(self, gene):
+            # Batch mode: the write stays pending until the pipeline's fallback commit.
+            self.session.add(
+                GeneAnnotation(gene_id=gene.id, source=SOURCE, annotations={"bad": "\u0000"})
+            )
+            return True
+
+    pipeline = AnnotationPipeline(MagicMock())
+    pipeline.sources = {SOURCE: FallbackSource}  # type: ignore[dict-item]
+    with patch("app.core.cache_service.get_cache_service"):
+        results = await pipeline._update_sources_parallel([SOURCE], [gene_id], force=True)
+
+    assert "error" in results[SOURCE]
+    assert (record.last_update, record.next_update) == (OLD, OLD)
+    assert _annotated(test_engine) == 0

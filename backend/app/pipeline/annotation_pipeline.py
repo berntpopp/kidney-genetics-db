@@ -784,8 +784,9 @@ class AnnotationPipeline:
             try:
                 source_db.commit()
             except Exception as e:
-                logger.sync_warning(f"Fallback commit failed: {e}")
+                logger.sync_error(f"Fallback commit failed for {source_name}: {e}")
                 source_db.rollback()
+                raise  # same as the bulk path: fail the source, keep freshness (#294)
 
         # Phase 4: Retry failed genes
         if failed_genes:
