@@ -17,10 +17,10 @@
           </p>
         </div>
         <div
-          v-if="resolvedIcon"
+          v-if="icon"
           class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10"
         >
-          <component :is="resolvedIcon" :size="20" class="text-primary" />
+          <component :is="icon" :size="20" class="text-primary" />
         </div>
       </div>
       <div v-if="trend !== null" class="mt-2 flex items-center gap-1 text-xs">
@@ -40,7 +40,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { resolveMdiIcon, TrendingUp, TrendingDown } from '@/utils/icons'
+import { TrendingUp, TrendingDown } from 'lucide-vue-next'
 
 const props = defineProps({
   title: {
@@ -51,8 +51,9 @@ const props = defineProps({
     type: [String, Number],
     required: true
   },
+  // lucide-vue-next component
   icon: {
-    type: String,
+    type: [Object, Function],
     required: true
   },
   color: {
@@ -106,8 +107,6 @@ const formattedValue = computed(() => {
 
   return props.value
 })
-
-const resolvedIcon = computed(() => resolveMdiIcon(props.icon))
 
 const handleClick = () => {
   if (props.clickable) {

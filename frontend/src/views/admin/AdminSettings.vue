@@ -4,7 +4,7 @@
     <AdminHeader
       title="System Settings"
       subtitle="Manage application configuration"
-      icon="mdi-cog"
+      :icon="Cog"
       icon-color="deep-purple"
       :breadcrumbs="ADMIN_BREADCRUMBS.settings"
     />
@@ -15,21 +15,21 @@
         title="Total Settings"
         :value="stats.total"
         :loading="statsLoading"
-        icon="mdi-cog-outline"
+        :icon="Settings"
         color="primary"
       />
       <AdminStatsCard
         title="Requires Restart"
         :value="stats.requires_restart"
         :loading="statsLoading"
-        icon="mdi-restart-alert"
+        :icon="RotateCw"
         color="warning"
       />
       <AdminStatsCard
         title="Recent Changes"
         :value="stats.recent_changes_24h"
         :loading="statsLoading"
-        icon="mdi-history"
+        :icon="HistoryIcon"
         color="info"
       />
     </div>
@@ -163,7 +163,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Pencil, History as HistoryIcon } from 'lucide-vue-next'
+import { History as HistoryIcon, Pencil, RotateCw } from 'lucide-vue-next'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import SettingEditDialog from '@/components/admin/settings/SettingEditDialog.vue'

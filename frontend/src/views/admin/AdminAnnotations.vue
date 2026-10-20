@@ -32,28 +32,28 @@
         title="Annotated Genes"
         :value="statistics.total_genes_with_annotations"
         :loading="statsLoading"
-        icon="mdi-dna"
+        :icon="Dna"
         color="primary"
       />
       <AdminStatsCard
         title="Data Sources"
         :value="annotationSources.length"
         :loading="statsLoading"
-        icon="mdi-database"
+        :icon="Database"
         color="info"
       />
       <AdminStatsCard
         title="Scheduled Jobs"
         :value="activeJobs"
         :loading="statsLoading"
-        icon="mdi-clock-time-four"
+        :icon="Clock4"
         color="warning"
       />
       <AdminStatsCard
         title="Full Coverage"
         :value="statistics.genes_with_both_sources"
         :loading="statsLoading"
-        icon="mdi-check-all"
+        :icon="CheckCheck"
         color="success"
       />
     </div>
@@ -655,10 +655,12 @@ import {
   AlertTriangle,
   BadgeCheck,
   Check,
+  CheckCheck,
   CircleAlert,
   CircleCheck,
   CircleX,
   Clock,
+  Clock4,
   Database,
   DatabaseZap,
   Dna,

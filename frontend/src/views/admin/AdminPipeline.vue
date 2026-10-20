@@ -15,6 +15,9 @@ import {
   AlertTriangle,
   BookOpen,
   BriefcaseMedical,
+  CircleAlert,
+  CircleCheck,
+  CirclePlay,
   Cog,
   Database,
   Dna,
@@ -24,6 +27,7 @@ import {
   Info,
   LayoutList,
   Loader2,
+  Minus,
   Pause,
   Play,
   Plus,
@@ -32,7 +36,6 @@ import {
   Wifi,
   WifiOff
 } from 'lucide-vue-next'
-import { resolveMdiIcon } from '@/utils/icons'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -311,7 +314,7 @@ onUnmounted(() => {
     <AdminHeader
       title="Data Pipeline Control"
       subtitle="Monitor and control data ingestion pipelines"
-      icon="mdi-pipe"
+      :icon="Minus"
       icon-color="green"
       :breadcrumbs="ADMIN_BREADCRUMBS.pipeline"
     >
@@ -328,22 +331,17 @@ onUnmounted(() => {
       <AdminStatsCard
         title="Data Sources"
         :value="dataSources.length"
-        icon="mdi-database"
+        :icon="Database"
         color="info"
       />
-      <AdminStatsCard
-        title="Running"
-        :value="runningSources"
-        icon="mdi-play-circle"
-        color="success"
-      />
+      <AdminStatsCard title="Running" :value="runningSources" :icon="CirclePlay" color="success" />
       <AdminStatsCard
         title="Completed"
         :value="completedSources"
-        icon="mdi-check-circle"
+        :icon="CircleCheck"
         color="primary"
       />
-      <AdminStatsCard title="Failed" :value="failedSources" icon="mdi-alert-circle" color="error" />
+      <AdminStatsCard title="Failed" :value="failedSources" :icon="CircleAlert" color="error" />
     </div>
 
     <!-- Quick Actions -->
@@ -550,7 +548,7 @@ onUnmounted(() => {
           <CardHeader class="pb-2">
             <div class="flex items-center justify-between">
               <CardTitle class="text-sm flex items-center gap-2">
-                <component :is="resolveMdiIcon(process.icon || 'mdi-cog') || Cog" class="size-5" />
+                <Cog class="size-5" />
                 {{ process.display_name || process.source_name }}
               </CardTitle>
               <Badge :variant="getStatusVariant(process.status)">

@@ -6,7 +6,6 @@
 /** Return type for useBackupFormatters */
 export interface BackupFormatters {
   getStatusColor: (_status: string) => string
-  getStatusIcon: (_status: string) => string
   formatSize: (_sizeMb: number | null | undefined) => string
   formatDuration: (_seconds: number | null | undefined) => string
   formatDate: (_date: string | Date | null | undefined) => string
@@ -27,20 +26,6 @@ export function useBackupFormatters(): BackupFormatters {
       restored: 'purple'
     }
     return colors[status] ?? 'grey'
-  }
-
-  /**
-   * Get status icon
-   */
-  const getStatusIcon = (status: string): string => {
-    const icons: Record<string, string> = {
-      completed: 'mdi-check-circle',
-      running: 'mdi-progress-clock',
-      failed: 'mdi-alert-circle',
-      pending: 'mdi-clock-outline',
-      restored: 'mdi-database-import'
-    }
-    return icons[status] ?? 'mdi-help-circle'
   }
 
   /**
@@ -104,7 +89,6 @@ export function useBackupFormatters(): BackupFormatters {
 
   return {
     getStatusColor,
-    getStatusIcon,
     formatSize,
     formatDuration,
     formatDate,

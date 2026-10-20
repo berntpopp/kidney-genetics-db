@@ -15,7 +15,7 @@
         title="Active Users"
         :value="stats.activeUsers"
         :loading="statsLoading"
-        icon="mdi-account-check"
+        :icon="UserCheck"
         color="success"
       />
       <AdminStatsCard
@@ -23,28 +23,28 @@
         :value="stats.cacheHitRate"
         :loading="statsLoading"
         format="percent"
-        icon="mdi-speedometer"
+        :icon="Gauge"
         color="info"
       />
       <AdminStatsCard
         title="Pipeline Jobs"
         :value="stats.pipelineJobs"
         :loading="statsLoading"
-        icon="mdi-pipe"
+        :icon="Minus"
         color="warning"
       />
       <AdminStatsCard
         title="Pending Staging"
         :value="stats.pendingStaging"
         :loading="statsLoading"
-        icon="mdi-clock-alert"
+        :icon="ClockAlert"
         color="error"
       />
       <AdminStatsCard
         title="Data Releases"
         :value="stats.totalReleases"
         :loading="statsLoading"
-        icon="mdi-package-variant"
+        :icon="Package"
         color="indigo"
       />
     </div>
@@ -93,16 +93,19 @@ import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   CircleCheck,
+  ClockAlert,
   Cog,
   DatabaseBackup,
   DatabaseZap,
   Dna,
   FileText,
+  Gauge,
   LayoutDashboard,
   MemoryStick,
   Minus,
   Package,
   Tags,
+  UserCheck,
   Users
 } from 'lucide-vue-next'
 

@@ -13,13 +13,14 @@ import { toast } from 'vue-sonner'
 import {
   CircleCheck,
   CircleX,
+  Loader2,
   Pencil,
-  UserX,
-  UserCheck,
-  Trash2,
-  UserPlus,
   Search,
-  Loader2
+  Trash2,
+  UserCheck,
+  UserPlus,
+  UserX,
+  Users
 } from 'lucide-vue-next'
 import { DataTable } from '@/components/ui/data-table'
 import { Card, CardContent } from '@/components/ui/card'
@@ -420,7 +421,7 @@ onMounted(() => {
     <AdminHeader
       title="User Management"
       subtitle="Manage user accounts, roles, and permissions"
-      icon="mdi-account-group"
+      :icon="Users"
       icon-color="primary"
       :breadcrumbs="ADMIN_BREADCRUMBS.users"
     />

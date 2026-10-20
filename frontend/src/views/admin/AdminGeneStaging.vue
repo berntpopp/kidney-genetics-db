@@ -32,28 +32,28 @@
         title="Needs Your Review"
         :value="stagingStats.total_pending"
         :loading="statsLoading"
-        icon="mdi-account-search"
+        :icon="UserSearch"
         color="warning"
       />
       <AdminStatsCard
         title="Successfully Approved"
         :value="stagingStats.total_approved"
         :loading="statsLoading"
-        icon="mdi-check-circle"
+        :icon="CircleCheck"
         color="success"
       />
       <AdminStatsCard
         title="Rejected (Not Genes)"
         :value="stagingStats.total_rejected"
         :loading="statsLoading"
-        icon="mdi-close-circle"
+        :icon="CircleX"
         color="error"
       />
       <AdminStatsCard
         title="Auto-Normalization Rate"
         :value="`${(normalizationStats.success_rate * 100).toFixed(1)}%`"
         :loading="statsLoading"
-        icon="mdi-robot"
+        :icon="Bot"
         color="info"
       />
     </div>
@@ -514,6 +514,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Ban,
+  Bot,
   BriefcaseBusiness,
   Check,
   CircleCheck,
@@ -523,7 +524,8 @@ import {
   List,
   RefreshCw,
   Search,
-  TestTube
+  TestTube,
+  UserSearch
 } from 'lucide-vue-next'
 
 // Reactive data

@@ -14,21 +14,21 @@
         title="DiagnosticPanels Genes"
         :value="diagnosticStats.unique_genes"
         :loading="statsLoading"
-        icon="mdi-medical-bag"
+        :icon="BriefcaseMedical"
         color="cyan"
       />
       <AdminStatsCard
         title="Literature Genes"
         :value="literatureStats.unique_genes"
         :loading="statsLoading"
-        icon="mdi-book-open-page-variant"
+        :icon="BookOpen"
         color="purple"
       />
       <AdminStatsCard
         title="Total Evidence Records"
         :value="totalRecords"
         :loading="statsLoading"
-        icon="mdi-database"
+        :icon="Database"
         color="primary"
       />
     </div>
@@ -169,6 +169,7 @@ import {
   BriefcaseMedical,
   CloudUpload,
   Cog,
+  Database,
   DatabaseZap,
   FileText,
   Hash,

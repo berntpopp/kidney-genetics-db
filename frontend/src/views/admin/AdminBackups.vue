@@ -4,7 +4,7 @@
     <AdminHeader
       title="Database Backups"
       subtitle="Create, manage, and restore database backups"
-      icon="mdi-database-export"
+      :icon="DatabaseBackup"
       icon-color="blue-grey"
       :breadcrumbs="ADMIN_BREADCRUMBS.backups"
     >
@@ -31,14 +31,14 @@
         title="Total Backups"
         :value="stats.totalBackups"
         :loading="statsLoading"
-        icon="mdi-database-outline"
+        :icon="Database"
         color="primary"
       />
       <AdminStatsCard
         title="Latest Backup"
         :value="stats.latestBackupAge"
         :loading="statsLoading"
-        icon="mdi-clock-outline"
+        :icon="Clock"
         color="info"
       />
       <AdminStatsCard
@@ -46,14 +46,14 @@
         :value="stats.totalSize"
         :loading="statsLoading"
         format="bytes"
-        icon="mdi-harddisk"
+        :icon="HardDrive"
         color="purple"
       />
       <AdminStatsCard
         title="Retention Days"
         :value="stats.retentionDays"
         :loading="statsLoading"
-        icon="mdi-calendar-clock"
+        :icon="CalendarClock"
         color="warning"
       />
     </div>
@@ -290,13 +290,17 @@
 
 import { ref, computed, onMounted } from 'vue'
 import {
-  Download,
-  Info,
-  Trash,
-  Trash2,
+  CalendarClock,
   ChevronLeft,
   ChevronRight,
-  DatabaseBackup
+  Clock,
+  Database,
+  DatabaseBackup,
+  Download,
+  HardDrive,
+  Info,
+  Trash,
+  Trash2
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import AdminHeader from '@/components/admin/AdminHeader.vue'

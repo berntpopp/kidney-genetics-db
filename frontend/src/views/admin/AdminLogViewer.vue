@@ -25,28 +25,28 @@
         title="Total Logs"
         :value="stats.totalLogs"
         :loading="statsLoading"
-        icon="mdi-file-document-multiple"
+        :icon="Files"
         color="info"
       />
       <AdminStatsCard
         title="Errors (24h)"
         :value="stats.errorCount"
         :loading="statsLoading"
-        icon="mdi-alert-circle"
+        :icon="CircleAlert"
         color="error"
       />
       <AdminStatsCard
         title="Warnings (24h)"
         :value="stats.warningCount"
         :loading="statsLoading"
-        icon="mdi-alert"
+        :icon="AlertTriangle"
         color="warning"
       />
       <AdminStatsCard
         title="Storage Used"
         :value="stats.storageSize"
         :loading="statsLoading"
-        icon="mdi-database"
+        :icon="Database"
         color="purple"
       />
     </div>
@@ -629,11 +629,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  CircleAlert,
+  Database,
   Download,
   Eye,
   FileText,
+  Files,
   Filter,
   FilterX,
   Trash2

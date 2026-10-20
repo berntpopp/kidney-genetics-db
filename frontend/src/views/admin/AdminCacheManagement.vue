@@ -15,11 +15,15 @@ import {
   Check,
   CircleAlert,
   CircleCheck,
+  Database,
   Flame,
+  Folder,
+  HeartPulse,
   Info,
   Loader2,
+  MemoryStick,
   RefreshCw,
-  HeartPulse,
+  Target,
   Trash2,
   X
 } from 'lucide-vue-next'
@@ -327,7 +331,7 @@ onUnmounted(() => {
     <AdminHeader
       title="Cache Management"
       subtitle="Monitor and control cache performance"
-      icon="mdi-memory"
+      :icon="MemoryStick"
       icon-color="purple"
       :breadcrumbs="ADMIN_BREADCRUMBS.cache"
     />
@@ -339,7 +343,7 @@ onUnmounted(() => {
         :value="Math.round((cacheStats.hit_rate || 0) * 100)"
         format="percent"
         :loading="statsLoading"
-        icon="mdi-target"
+        :icon="Target"
         color="success"
         :trend="hitRateTrend"
       />
@@ -347,7 +351,7 @@ onUnmounted(() => {
         title="Total Entries"
         :value="cacheStats.total_entries || 0"
         :loading="statsLoading"
-        icon="mdi-database"
+        :icon="Database"
         color="info"
       />
       <AdminStatsCard
@@ -356,14 +360,14 @@ onUnmounted(() => {
         :value="cacheStats.total_size_bytes || 0"
         format="bytes"
         :loading="statsLoading"
-        icon="mdi-memory"
+        :icon="MemoryStick"
         color="warning"
       />
       <AdminStatsCard
         title="Namespaces"
         :value="namespaces.length"
         :loading="namespacesLoading"
-        icon="mdi-folder-multiple"
+        :icon="Folder"
         color="purple"
       />
     </div>
