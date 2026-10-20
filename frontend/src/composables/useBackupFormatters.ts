@@ -5,7 +5,6 @@
 
 /** Return type for useBackupFormatters */
 export interface BackupFormatters {
-  getStatusColor: (_status: string) => string
   formatSize: (_sizeMb: number | null | undefined) => string
   formatDuration: (_seconds: number | null | undefined) => string
   formatDate: (_date: string | Date | null | undefined) => string
@@ -14,20 +13,6 @@ export interface BackupFormatters {
 }
 
 export function useBackupFormatters(): BackupFormatters {
-  /**
-   * Get status color for chips
-   */
-  const getStatusColor = (status: string): string => {
-    const colors: Record<string, string> = {
-      completed: 'success',
-      running: 'info',
-      failed: 'error',
-      pending: 'warning',
-      restored: 'purple'
-    }
-    return colors[status] ?? 'grey'
-  }
-
   /**
    * Format file size in MB/GB
    */
@@ -88,7 +73,6 @@ export function useBackupFormatters(): BackupFormatters {
   }
 
   return {
-    getStatusColor,
     formatSize,
     formatDuration,
     formatDate,
