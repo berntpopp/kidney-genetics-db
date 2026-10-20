@@ -4,6 +4,9 @@
 # Superpowers brainstorm sessions
 .superpowers/
 
+# Understand Anything generated data
+/.ua/
+
 # Python
 __pycache__/
 *.py[cod]
