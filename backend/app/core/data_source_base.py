@@ -367,6 +367,11 @@ class DataSourceClient(ABC):
                     error=str(e),
                 )
                 db.rollback()
+                # The whole batch was lost: count it so the run is not reported clean and a
+                # full refresh does not prune old evidence (#291).
+                stats["errors"] += len(batch_symbols)
+                batch_added = batch_updated = 0
+                batch_failed = len(batch_symbols)
 
             # Update tracker with batch results
             tracker.update(

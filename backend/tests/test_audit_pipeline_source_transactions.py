@@ -311,3 +311,24 @@ async def test_evidence_collision_keeps_rest_of_batch(test_engine, db):
     assert stats["errors"] == 0
     assert _evidence(test_engine, first) == [{"score": 1}]  # earlier pending work survives
     assert _evidence(test_engine, racing) == [{"score": 2}]  # collision resolved by update
+
+
+@pytest.mark.asyncio
+async def test_full_refresh_batch_commit_failure_counts_errors_and_skips_prune(test_engine, seeded):
+    session, tag, keep, gone = seeded
+    source = _Source({keep: {"new": 1}})
+    real_commit = session.commit
+    calls = []
+
+    def failing_first_commit():
+        calls.append(1)
+        if len(calls) == 1:  # the per-batch commit in _store_genes_in_database
+            raise RuntimeError("batch commit failed")
+        real_commit()
+
+    with _db_normalizer(test_engine, tag), patch.object(session, "commit", failing_first_commit):
+        stats = await source.update_data(session, MagicMock(), mode="full")
+
+    assert stats["errors"] >= 1
+    assert stats["entries_deleted"] == 0
+    assert _old_intact(test_engine, keep, gone)
