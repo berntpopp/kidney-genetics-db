@@ -73,7 +73,7 @@ async def approve_staging_record(
             approved_symbol=approval_data.approved_symbol,
             hgnc_id=approval_data.hgnc_id,
             aliases=approval_data.aliases,
-            reviewer=current_user.username,  # never trust a caller-supplied reviewer
+            reviewer=current_user.username,
             notes=approval_data.notes,
         )
 
