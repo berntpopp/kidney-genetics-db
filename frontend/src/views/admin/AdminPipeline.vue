@@ -205,7 +205,7 @@ const getStatusVariant = status => {
     case 'running':
       return 'default'
     case 'completed':
-      return 'secondary'
+      return 'outline'
     case 'failed':
       return 'destructive'
     case 'paused':
