@@ -825,7 +825,8 @@ class AnnotationPipeline:
                 try:
                     # Drop in-process graphs too, else a stale graph is re-cached (#336).
                     # ponytail: a /build already in flight during this clear can still re-cache
-                    # pre-update data until its TTL (≤1 h); add a cache generation if refreshes get frequent.
+                    # pre-update data for up to ~2 h (graph TTL, then a fresh response TTL on top);
+                    # add a cache generation if refreshes get frequent.
                     network_service.clear_cache()
                     cache_service = get_cache_service(thread_db)
                     if cache_service:
