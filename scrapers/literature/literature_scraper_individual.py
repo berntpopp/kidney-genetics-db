@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 from base_literature_scraper import BaseLiteratureScraper
 from filter_config import should_filter_gene, clean_gene_symbol, get_filter_reason, get_alias_mapping
 from schemas import LiteratureGene, LiteraturePublication, LiteratureSummary
+from utils import normalization_status
 
 
 class IndividualLiteratureScraper(BaseLiteratureScraper):
@@ -125,7 +126,7 @@ class IndividualLiteratureScraper(BaseLiteratureScraper):
                         symbol=cleaned_symbol,
                         reported_as=gene_symbol,
                         hgnc_id=None,
-                        normalization_status="not_found"
+                        normalization_status=normalization_status(hgnc_data or {}),
                     )
                 
                 literature_genes.append(gene)

@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 import yaml
 
 from schemas import GeneEntry, ProviderData
-from utils import get_hgnc_normalizer, resolve_hgnc_symbol
+from utils import get_hgnc_normalizer, normalization_status, resolve_hgnc_symbol
 from filter_config import should_filter_gene, clean_gene_symbol, get_filter_reason
 
 class BaseDiagnosticScraper(ABC):
@@ -325,7 +325,7 @@ class BaseDiagnosticScraper(ABC):
             else:
                 # Keep original symbol if not found in HGNC
                 gene.hgnc_id = None
-                gene.normalization_status = "not_found"
+                gene.normalization_status = normalization_status(norm_result)
 
         # Log statistics
         stats = normalizer.get_stats()
