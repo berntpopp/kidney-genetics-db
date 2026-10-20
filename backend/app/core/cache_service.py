@@ -330,14 +330,14 @@ class CacheService:
 
             # L2 Cache: Check database (no lock held during I/O)
             if self.db_session:
-                db_entry = await self._get_from_db(cache_key)
+                db_entry, expires_at = await self._get_from_db(cache_key)
                 if db_entry:
                     # Update access statistics in DB
                     await self._update_access_stats(cache_key)
 
-                    # Store in memory cache for future hits
-                    ttl = self._get_ttl_for_namespace(namespace)
-                    memory_entry = CacheEntry(key, db_entry, namespace, ttl)
+                    # Store in memory cache, keeping the DB expiry (not a fresh namespace TTL)
+                    memory_entry = CacheEntry(key, db_entry, namespace)
+                    memory_entry.expires_at = expires_at
                     with self._memory_lock:
                         self.memory_cache[cache_key] = memory_entry
 
@@ -616,10 +616,10 @@ class CacheService:
             session.commit()
             return out
 
-    async def _get_from_db(self, cache_key: str) -> Any | None:
-        """Get entry from database cache."""
+    async def _get_from_db(self, cache_key: str) -> tuple[Any | None, datetime | None]:
+        """Get (value, absolute expires_at) from database cache; (None, None) on miss."""
         if not self.db_session:
-            return None
+            return None, None
 
         try:
             rows = self._execute(
@@ -639,7 +639,7 @@ class CacheService:
                 # JSONB columns are automatically deserialized by PostgreSQL
                 # Check if it's already a dict (JSONB) or a string (TEXT)
                 if isinstance(row.data, dict):
-                    return row.data
+                    return row.data, row.expires_at
                 else:
                     # Deserialize and handle corrupted entries
                     deserialized = self._deserialize_value(row.data)
@@ -647,12 +647,12 @@ class CacheService:
                         # Remove corrupted entry from database
                         logger.sync_warning("Removing corrupted cache entry", cache_key=cache_key)
                         await self._delete_from_db(cache_key)
-                    return deserialized
-            return None
+                    return deserialized, row.expires_at
+            return None, None
 
         except Exception as e:
             logger.sync_error("Database cache get error", error=str(e))
-            return None
+            return None, None
 
     async def _set_in_db(self, cache_key: str, entry: CacheEntry) -> bool:
         """Set entry in database cache."""
