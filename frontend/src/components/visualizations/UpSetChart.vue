@@ -3,7 +3,7 @@
     <CardHeader class="flex flex-row items-center space-y-0 pb-2">
       <div class="flex items-center flex-1">
         <ChartScatter class="size-5 mr-2" />
-        <CardTitle class="text-lg font-semibold">Gene Source Overlaps</CardTitle>
+        <CardTitle tag="h2" class="text-lg font-semibold">Gene Source Overlaps</CardTitle>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger as-child>

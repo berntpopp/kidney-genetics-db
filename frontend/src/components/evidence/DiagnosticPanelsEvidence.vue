@@ -29,11 +29,7 @@
                 v-for="(panel, index) in panelList"
                 :key="index"
                 variant="outline"
-                :style="{
-                  borderColor: '#0ea5e9',
-                  color: '#0ea5e9',
-                  backgroundColor: '#0ea5e920'
-                }"
+                :style="{ ...tintedChipStyle('#0ea5e9'), borderColor: '#0ea5e9' }"
               >
                 {{ panel }}
               </Badge>
@@ -103,6 +99,7 @@
 import { computed } from 'vue'
 import { Building2, Building, Dna, ExternalLink } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import {
   Accordion,
   AccordionItem,

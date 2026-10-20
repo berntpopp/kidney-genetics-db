@@ -3,11 +3,7 @@
     <div class="text-xs text-muted-foreground mb-2">Constraint Scores (gnomAD):</div>
 
     <div v-if="gnomadData.constraint_not_available" class="flex items-center">
-      <Badge
-        variant="outline"
-        class="text-xs"
-        :style="{ backgroundColor: '#6b728020', color: '#6b7280' }"
-      >
+      <Badge variant="outline" class="text-xs" :style="tintedChipStyle('#6b7280')">
         <Info :size="12" class="mr-1" />
         No constraint scores available
       </Badge>
@@ -20,11 +16,7 @@
           as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{
-            backgroundColor: getPLIColor(gnomadData.pli) + '20',
-            color: getPLIColor(gnomadData.pli),
-            borderColor: getPLIColor(gnomadData.pli) + '40'
-          }"
+          :style="tintedChipStyle(getPLIColor(gnomadData.pli))"
         >
           pLI: {{ formatPLI(gnomadData.pli) }}
         </Badge>
@@ -42,11 +34,7 @@
           as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{
-            backgroundColor: getZScoreColor(gnomadData.mis_z) + '20',
-            color: getZScoreColor(gnomadData.mis_z),
-            borderColor: getZScoreColor(gnomadData.mis_z) + '40'
-          }"
+          :style="tintedChipStyle(getZScoreColor(gnomadData.mis_z))"
         >
           Mis Z: {{ formatZScore(gnomadData.mis_z) }}
         </Badge>
@@ -64,7 +52,7 @@
           as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ color: '#6b7280', borderColor: '#6b728040' }"
+          :style="tintedChipStyle('#6b7280')"
         >
           LoF Z: {{ formatZScore(gnomadData.lof_z) }}
         </Badge>
@@ -81,6 +69,7 @@
 
 <script setup>
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import HoverPopover from '@/components/ui/HoverPopover.vue'
 import { Info } from 'lucide-vue-next'
 

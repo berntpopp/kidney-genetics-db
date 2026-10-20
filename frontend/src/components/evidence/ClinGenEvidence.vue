@@ -15,11 +15,7 @@
             <div class="flex items-center gap-2">
               <Badge
                 variant="outline"
-                :style="{
-                  backgroundColor: getClassificationColor(validity.classification) + '20',
-                  color: getClassificationColor(validity.classification),
-                  borderColor: getClassificationColor(validity.classification) + '40'
-                }"
+                :style="tintedChipStyle(getClassificationColor(validity.classification))"
               >
                 <component
                   :is="getClassificationIcon(validity.classification)"
@@ -74,11 +70,7 @@
           v-for="panel in expertPanels"
           :key="panel"
           variant="outline"
-          :style="{
-            backgroundColor: '#22c55e20',
-            color: '#22c55e',
-            borderColor: '#22c55e40'
-          }"
+          :style="tintedChipStyle('#22c55e')"
         >
           <Award class="size-3 mr-1" />
           {{ panel }}
@@ -105,11 +97,7 @@
           v-for="classification in uniqueClassifications"
           :key="classification"
           variant="outline"
-          :style="{
-            backgroundColor: getClassificationColor(classification) + '20',
-            color: getClassificationColor(classification),
-            borderColor: getClassificationColor(classification) + '40'
-          }"
+          :style="tintedChipStyle(getClassificationColor(classification))"
         >
           {{ classification }}
         </Badge>
@@ -155,6 +143,7 @@ import {
   Circle
 } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { Button } from '@/components/ui/button'
 
 const props = defineProps({

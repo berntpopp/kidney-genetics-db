@@ -24,10 +24,7 @@
             variant="outline"
             class="text-xs whitespace-nowrap"
             :title="normalizedScoreLabel"
-            :style="{
-              backgroundColor: getScoreColorHex(evidence.normalized_score) + '20',
-              color: getScoreColorHex(evidence.normalized_score)
-            }"
+            :style="tintedChipStyle(getScoreColorHex(evidence.normalized_score))"
           >
             {{ formatScore(evidence.normalized_score) }}%
           </Badge>
@@ -84,6 +81,7 @@ import {
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { Button } from '@/components/ui/button'
 import GenCCEvidence from './GenCCEvidence.vue'
 import HPOEvidence from './HPOEvidence.vue'

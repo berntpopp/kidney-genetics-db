@@ -3,7 +3,7 @@
     <CardHeader class="flex flex-col sm:flex-row sm:items-center gap-2 pb-2">
       <div class="flex items-center">
         <Circle class="size-5 mr-2 shrink-0" />
-        <CardTitle class="text-base">Evidence Composition</CardTitle>
+        <CardTitle tag="h2" class="text-base">Evidence Composition</CardTitle>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger as-child>

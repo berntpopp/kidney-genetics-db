@@ -2,7 +2,7 @@
   <Card class="source-distributions-container w-full">
     <CardHeader class="flex flex-row items-center space-y-0 pb-2">
       <ChartBar class="size-5 mr-2" />
-      <CardTitle class="text-lg font-semibold">Source Distributions</CardTitle>
+      <CardTitle tag="h2" class="text-lg font-semibold">Source Distributions</CardTitle>
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger as-child>

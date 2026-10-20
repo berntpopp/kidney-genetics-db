@@ -3,11 +3,7 @@
     <div class="text-xs text-muted-foreground mb-2">Kidney Expression (GTEx/scRNA):</div>
 
     <div v-if="hasNoData" class="flex items-center">
-      <Badge
-        variant="outline"
-        class="text-xs"
-        :style="{ backgroundColor: '#6b728020', color: '#6b7280' }"
-      >
+      <Badge variant="outline" class="text-xs" :style="tintedChipStyle('#6b7280')">
         <Info :size="12" class="mr-1" />
         No expression data available
       </Badge>
@@ -24,11 +20,7 @@
             as="span"
             variant="outline"
             class="cursor-pointer"
-            :style="{
-              backgroundColor: getTPMColor(gtexData.tissues.Kidney_Cortex.median_tpm) + '20',
-              color: getTPMColor(gtexData.tissues.Kidney_Cortex.median_tpm),
-              borderColor: getTPMColor(gtexData.tissues.Kidney_Cortex.median_tpm) + '40'
-            }"
+            :style="tintedChipStyle(getTPMColor(gtexData.tissues.Kidney_Cortex.median_tpm))"
           >
             Cortex: {{ formatTPM(gtexData.tissues.Kidney_Cortex.median_tpm) }}
           </Badge>
@@ -50,11 +42,7 @@
             as="span"
             variant="outline"
             class="cursor-pointer"
-            :style="{
-              backgroundColor: getTPMColor(gtexData.tissues.Kidney_Medulla.median_tpm) + '20',
-              color: getTPMColor(gtexData.tissues.Kidney_Medulla.median_tpm),
-              borderColor: getTPMColor(gtexData.tissues.Kidney_Medulla.median_tpm) + '40'
-            }"
+            :style="tintedChipStyle(getTPMColor(gtexData.tissues.Kidney_Medulla.median_tpm))"
           >
             Medulla: {{ formatTPM(gtexData.tissues.Kidney_Medulla.median_tpm) }}
           </Badge>
@@ -88,11 +76,7 @@
             as="span"
             variant="outline"
             class="cursor-pointer"
-            :style="{
-              backgroundColor: getTPMColor(descartesData.kidney_tpm) + '20',
-              color: getTPMColor(descartesData.kidney_tpm),
-              borderColor: getTPMColor(descartesData.kidney_tpm) + '40'
-            }"
+            :style="tintedChipStyle(getTPMColor(descartesData.kidney_tpm))"
           >
             TPM: {{ formatTPM(descartesData.kidney_tpm) }}
           </Badge>
@@ -116,10 +100,7 @@
             as="span"
             variant="outline"
             class="cursor-pointer"
-            :style="{
-              color: getPercentageColor(descartesData.kidney_percentage),
-              borderColor: getPercentageColor(descartesData.kidney_percentage) + '40'
-            }"
+            :style="tintedChipStyle(getPercentageColor(descartesData.kidney_percentage))"
           >
             {{ (descartesData.kidney_percentage * 100)?.toFixed(2) }}% cells
           </Badge>
@@ -147,6 +128,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import HoverPopover from '@/components/ui/HoverPopover.vue'
 import { Info } from 'lucide-vue-next'
 

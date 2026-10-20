@@ -25,3 +25,13 @@ describe('FAQ score bands (#314)', () => {
     expect(text).not.toContain('Moderate/Limited')
   })
 })
+
+describe('FAQ heading order (#322)', () => {
+  it('renders the question headers as h2 directly under the h1', () => {
+    const wrapper = mount(FAQ, { global: { stubs: { RouterLink: true } } })
+    const levels = wrapper.findAll('h1, h2, h3, h4, h5, h6').map(h => h.element.tagName)
+    expect(levels[0]).toBe('H1')
+    expect(levels.slice(1).length).toBeGreaterThan(0)
+    expect(new Set(levels.slice(1))).toEqual(new Set(['H2']))
+  })
+})

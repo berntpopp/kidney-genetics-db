@@ -27,7 +27,10 @@
         :value="String(index)"
         class="rounded-lg border border-border last:border-b"
       >
-        <AccordionTrigger class="p-4 text-base hover:no-underline hover:bg-muted/50">
+        <AccordionTrigger
+          heading-tag="h2"
+          class="p-4 text-base hover:no-underline hover:bg-muted/50"
+        >
           {{ faq.question }}
         </AccordionTrigger>
         <AccordionContent class="px-4 text-sm text-muted-foreground leading-relaxed">
