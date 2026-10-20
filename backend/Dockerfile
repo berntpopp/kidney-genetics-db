@@ -76,7 +76,7 @@ COPY --chown=kidney-api:kidney-api . .
 RUN mkdir -p /app/.cache /app/data && chown kidney-api:kidney-api /app/.cache /app/data
 
 # Switch to non-root user
-USER kidney-api
+USER 1000:1000
 
 # Health check using Python instead of curl (no curl in production image).
 # Uses /health (not /api/health) - this is the actual endpoint defined in
