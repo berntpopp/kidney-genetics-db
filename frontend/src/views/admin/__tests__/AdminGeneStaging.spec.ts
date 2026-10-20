@@ -14,7 +14,10 @@ vi.mock('@/api/admin/staging', () => ({
   getStagingStats: vi.fn(async () => ({ data: {} })),
   getNormalizationStats: vi.fn(async () => ({ data: {} })),
   getPendingStaging: vi.fn(async () => ({
-    data: [{ id: 7, original_text: 'PKD1', source_name: 'PanelApp', created_at: null }]
+    data: [
+      { id: 7, original_text: 'PKD1', source_name: 'PanelApp', created_at: null },
+      { id: 8, original_text: 'PKD2', source_name: 'PanelApp', created_at: null }
+    ]
   })),
   approveStaging: vi.fn(async () => ({ data: {} })),
   rejectStaging: vi.fn(async () => ({ data: {} })),
@@ -65,5 +68,19 @@ describe('AdminGeneStaging review dialogs', () => {
       hgnc_id: null,
       notes: null
     })
+  })
+  it('header checkbox selects every row and row checkboxes deselect (#299)', async () => {
+    await mountView()
+    const boxes = () => [...document.querySelectorAll('table [role="checkbox"]')] as HTMLElement[]
+    expect(boxes()).toHaveLength(3)
+
+    boxes()[0].click()
+    await flushPromises()
+    expect(boxes().map(b => b.getAttribute('aria-checked'))).toEqual(['true', 'true', 'true'])
+    expect(buttonByText('Bulk Approve').textContent).toContain('(2)')
+
+    boxes()[1].click()
+    await flushPromises()
+    expect(buttonByText('Bulk Approve').textContent).toContain('(1)')
   })
 })
