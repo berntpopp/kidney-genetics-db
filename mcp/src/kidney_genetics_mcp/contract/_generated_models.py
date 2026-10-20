@@ -323,7 +323,8 @@ class HPOBatchEnrichmentRequest(BaseModel):
     communities: Annotated[
         list[list[int]],
         Field(
-            description="Gene IDs per community; BH-FDR is pooled over all community x term tests",
+            description="Gene IDs per community; BH-FDR is pooled over all community x term tests. At most 200 communities.",
+            max_length=200,
             min_length=1,
             title="Communities",
         ),
