@@ -97,39 +97,92 @@ class EnrichmentService:
                 ...
             ]
         """
-        # Get gene symbols for cluster
-        cluster_gene_objs = session.query(Gene).filter(Gene.id.in_(cluster_genes)).all()
-        cluster_symbols = {g.approved_symbol for g in cluster_gene_objs}
-
-        if not cluster_symbols:
+        id_to_symbol = self._gene_symbols(cluster_genes, session)
+        if not id_to_symbol:
             await logger.warning("No valid genes found in cluster")
             return []
 
-        # Get HPO annotations from database (JSONB extraction)
-        hpo_term_to_genes = await self._get_hpo_annotations(session)
-
-        if not hpo_term_to_genes:
-            await logger.warning("No HPO annotations found in database")
+        per_community = await self._run_hpo_tests([cluster_genes], id_to_symbol, session)
+        results = per_community[0]
+        if not results:
+            await logger.info("No HPO terms enriched in cluster")
             return []
 
-        # CRITICAL FIX: Background must be only genes WITH HPO annotations
-        # Get all unique genes that have ANY HPO annotation
-        all_annotated_genes = set()
-        for term_genes in hpo_term_to_genes.values():
-            all_annotated_genes.update(term_genes)
+        self._apply_bh(results)
+        results = self._filter_and_sort(results, fdr_threshold)
+        await self._fill_term_names(results)
 
         await logger.info(
+            "HPO enrichment complete",
+            significant_terms=len(results),
+            cluster_size=len(id_to_symbol),
+            fdr_threshold=fdr_threshold,
+        )
+
+        return results
+
+    async def enrich_hpo_terms_batch(
+        self,
+        communities: list[list[int]],
+        session: Session,
+        fdr_threshold: float = 0.05,
+    ) -> tuple[list[list[dict[str, Any]]], int]:
+        """
+        HPO enrichment for several communities with one Benjamini-Hochberg
+        correction pooled over every community x term test (#332).
+
+        Returns (results per community in submitted order, pooled test count).
+        """
+        id_to_symbol = self._gene_symbols([g for c in communities for g in c], session)
+        per_community = await self._run_hpo_tests(communities, id_to_symbol, session)
+        pooled = [r for results in per_community for r in results]
+        if pooled:
+            self._apply_bh(pooled)  # mutates the shared result dicts
+
+        significant = [self._filter_and_sort(r, fdr_threshold) for r in per_community]
+        await self._fill_term_names([r for results in significant for r in results])
+        return significant, len(pooled)
+
+    @staticmethod
+    def _gene_symbols(gene_ids: list[int], session: Session) -> dict[int, str]:
+        rows = session.query(Gene.id, Gene.approved_symbol).filter(Gene.id.in_(gene_ids)).all()
+        return {row.id: row.approved_symbol for row in rows}
+
+    async def _run_hpo_tests(
+        self, communities: list[list[int]], id_to_symbol: dict[int, str], session: Session
+    ) -> list[list[dict[str, Any]]]:
+        """Fisher tests per community (raw p only), run off the event loop."""
+        hpo_term_to_genes = await self._get_hpo_annotations(session)
+        if not hpo_term_to_genes:
+            await logger.warning("No HPO annotations found in database")
+            return [[] for _ in communities]
+
+        # CRITICAL FIX: Background must be only genes WITH HPO annotations
+        background: set[str] = set().union(*hpo_term_to_genes.values())
+        await logger.info(
             "HPO enrichment background",
-            cluster_size=len(cluster_symbols),
-            background_size=len(all_annotated_genes),
+            communities=len(communities),
+            background_size=len(background),
             hpo_terms=len(hpo_term_to_genes),
         )
 
-        # Perform Fisher's exact test for each HPO term
-        results = []
-        p_values = []
+        symbol_sets = [{id_to_symbol[g] for g in c if g in id_to_symbol} for c in communities]
+        loop = asyncio.get_event_loop()
+        per_community = await loop.run_in_executor(
+            self._executor,
+            lambda: [
+                self._hpo_fisher_tests(symbols, hpo_term_to_genes, len(background))
+                for symbols in symbol_sets
+            ],
+        )
+        return per_community
 
-        total_background = len(all_annotated_genes)
+    @staticmethod
+    def _hpo_fisher_tests(
+        cluster_symbols: set[str], hpo_term_to_genes: dict[str, set], total_background: int
+    ) -> list[dict[str, Any]]:
+        """One-sided Fisher's exact test per HPO term with any cluster overlap (raw p only)."""
+        results = []
 
         for term_id, term_genes in hpo_term_to_genes.items():
             # Contingency table for Fisher's exact test
@@ -150,8 +203,6 @@ class EnrichmentService:
             # Fisher's exact test (one-tailed, testing for over-representation)
             odds_ratio, p_value = fisher_exact([[a, b], [c, d]], alternative="greater")
 
-            p_values.append(p_value)
-
             # Cap infinite odds ratios to a large finite value for JSON serialization
             # Infinity occurs with perfect enrichment (all cluster genes have term)
             if np.isinf(odds_ratio):
@@ -170,11 +221,11 @@ class EnrichmentService:
                 }
             )
 
-        if not results:
-            await logger.info("No HPO terms enriched in cluster")
-            return []
+        return results
 
-        # FDR correction (Benjamini-Hochberg)
+    @staticmethod
+    def _apply_bh(results: list[dict[str, Any]]) -> None:
+        """Benjamini-Hochberg over exactly these results."""
         _, fdr_values = fdrcorrection([r["p_value"] for r in results])
 
         for i, result in enumerate(results):
@@ -182,7 +233,8 @@ class EnrichmentService:
             result["fdr"] = fdr_val
             result["enrichment_score"] = -np.log10(fdr_val) if fdr_val > 0 else 100.0
 
-        # Get term names from HPO API
+    async def _fill_term_names(self, results: list[dict[str, Any]]) -> None:
+        """Get term names from HPO API (call after filtering: significant rows only)."""
         for result in results:
             try:
                 hpo_term_id: str = str(result["term_id"])
@@ -193,18 +245,14 @@ class EnrichmentService:
                 await logger.debug(f"Failed to get HPO term name: {e}", term_id=hpo_term_id_str)
                 result["term_name"] = hpo_term_id_str
 
-        # Filter by FDR and sort - fdr is always set as float earlier
-        results = [r for r in results if cast(float, r["fdr"]) < fdr_threshold]
-        results.sort(key=lambda x: cast(float, x["fdr"]))
-
-        await logger.info(
-            "HPO enrichment complete",
-            significant_terms=len(results),
-            cluster_size=len(cluster_symbols),
-            fdr_threshold=fdr_threshold,
-        )
-
-        return results
+    @staticmethod
+    def _filter_and_sort(
+        results: list[dict[str, Any]], fdr_threshold: float
+    ) -> list[dict[str, Any]]:
+        # fdr is always set as float by _apply_bh
+        kept = [r for r in results if cast(float, r["fdr"]) < fdr_threshold]
+        kept.sort(key=lambda x: cast(float, x["fdr"]))
+        return kept
 
     async def enrich_go_terms(
         self,

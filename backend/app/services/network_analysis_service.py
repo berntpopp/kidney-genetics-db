@@ -12,6 +12,7 @@ CRITICAL DESIGN PATTERNS:
 """
 
 import asyncio
+import random
 import threading
 from typing import Any
 
@@ -25,6 +26,10 @@ from app.models.gene import Gene
 from app.models.gene_annotation import GeneAnnotation
 
 logger = get_logger(__name__)
+
+# igraph draws from one process-wide RNG; serialize seeded runs so concurrent
+# requests cannot interleave draws and break reproducibility (#331)
+_RNG_LOCK = threading.Lock()
 
 
 class NetworkAnalysisService:
@@ -181,8 +186,8 @@ class NetworkAnalysisService:
             return g
 
     async def detect_communities(
-        self, graph: ig.Graph, session: Session, algorithm: str = "leiden"
-    ) -> tuple[dict[int, int], float]:
+        self, graph: ig.Graph, session: Session, algorithm: str = "leiden", seed: int = 0
+    ) -> tuple[dict[int, int], float, dict[str, Any]]:
         """
         Detect communities using igraph clustering algorithms.
 
@@ -190,48 +195,67 @@ class NetworkAnalysisService:
             graph: igraph.Graph to cluster
             session: Database session
             algorithm: "leiden" (default), "louvain", or "walktrap"
+            seed: RNG seed for the randomized algorithms (leiden, louvain)
 
         Returns:
-            Tuple of ({gene_id: cluster_id} mapping, modularity_score)
+            Tuple of ({gene_id: cluster_id} mapping, modularity_score, parameters used)
 
         Performance: <2s for 500 nodes with Leiden
         """
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
-            self._executor, self._detect_communities_sync, graph, algorithm
+            self._executor, self._detect_communities_sync, graph, algorithm, seed
         )
         return result
 
     def _detect_communities_sync(
-        self, graph: ig.Graph, algorithm: str
-    ) -> tuple[dict[int, int], float]:
+        self, graph: ig.Graph, algorithm: str, seed: int = 0
+    ) -> tuple[dict[int, int], float, dict[str, Any]]:
         """
         Synchronous community detection (runs in thread pool).
 
         Returns:
-            Tuple of ({gene_id: cluster_id} mapping, modularity_score)
+            Tuple of ({gene_id: cluster_id} mapping, modularity_score, parameters used)
         """
-        if algorithm == "leiden":
-            # Leiden algorithm (superior to Louvain)
-            partition = graph.community_leiden(
-                weights="weight",
-                resolution_parameter=self.config.get("leiden_resolution", 1.0),
-                n_iterations=self.config.get("leiden_iterations", 2),
-            )
-        elif algorithm == "louvain":
-            # Louvain algorithm (multilevel optimization)
-            partition = graph.community_multilevel(
-                weights="weight", resolution=self.config.get("louvain_resolution", 1.0)
-            )
-        elif algorithm == "walktrap":
-            # Walktrap algorithm (random walk-based)
-            partition = graph.community_walktrap(
-                weights="weight", steps=self.config.get("walktrap_steps", 4)
-            ).as_clustering()
-        else:
-            raise ValueError(
-                f"Unknown algorithm: {algorithm}. Use 'leiden', 'louvain', or 'walktrap'"
-            )
+        params: dict[str, Any]
+        with _RNG_LOCK:
+            ig.set_random_number_generator(random.Random(seed))
+            try:
+                if algorithm == "leiden":
+                    # Leiden algorithm (superior to Louvain); CPM is the igraph default
+                    params = {
+                        "objective": "CPM",
+                        "resolution": self.config.get("leiden_resolution", 1.0),
+                        "iterations": self.config.get("leiden_iterations", 2),
+                        "seed": seed,
+                    }
+                    partition = graph.community_leiden(
+                        objective_function=params["objective"],
+                        weights="weight",
+                        resolution=params["resolution"],
+                        n_iterations=params["iterations"],
+                    )
+                elif algorithm == "louvain":
+                    # Louvain algorithm (multilevel optimization)
+                    params = {
+                        "resolution": self.config.get("louvain_resolution", 1.0),
+                        "seed": seed,
+                    }
+                    partition = graph.community_multilevel(
+                        weights="weight", resolution=params["resolution"]
+                    )
+                elif algorithm == "walktrap":
+                    # Walktrap algorithm (random walk-based, deterministic)
+                    params = {"steps": self.config.get("walktrap_steps", 4)}
+                    partition = graph.community_walktrap(
+                        weights="weight", steps=params["steps"]
+                    ).as_clustering()
+                else:
+                    raise ValueError(
+                        f"Unknown algorithm: {algorithm}. Use 'leiden', 'louvain', or 'walktrap'"
+                    )
+            finally:
+                ig.set_random_number_generator(random)
 
         # Convert to {gene_id: cluster_id} mapping
         gene_to_cluster = {}
@@ -251,7 +275,7 @@ class NetworkAnalysisService:
             nodes=graph.vcount(),
         )
 
-        return gene_to_cluster, modularity
+        return gene_to_cluster, modularity, params
 
     async def get_k_hop_subgraph(
         self, graph: ig.Graph, seed_gene_ids: list[int], session: Session, k: int = 2

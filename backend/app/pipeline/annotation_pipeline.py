@@ -826,6 +826,8 @@ class AnnotationPipeline:
                     if cache_service:
                         cache_service.clear_namespace_sync(source_name.lower())
                         cache_service.clear_namespace_sync("annotations")
+                        # Network/enrichment responses are built from annotations (#336)
+                        cache_service.clear_namespace_sync("network_analysis")
                         logger.sync_debug(f"Cleared cache for {source_name}")
                 finally:
                     thread_db.close()

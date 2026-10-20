@@ -319,6 +319,45 @@ class GeneNormalizationStagingResponse(BaseModel):
     updated_at: Annotated[AwareDatetime, Field(title="Updated At")]
 
 
+class HPOBatchEnrichmentRequest(BaseModel):
+    communities: Annotated[
+        list[list[int]],
+        Field(
+            description="Gene IDs per community; BH-FDR is pooled over all community x term tests. At most 200 communities.",
+            max_length=200,
+            min_length=1,
+            title="Communities",
+        ),
+    ]
+    fdr_threshold: Annotated[
+        float | None,
+        Field(
+            description="FDR significance threshold (applied to pooled q-values)",
+            gt=0.0,
+            le=1.0,
+            title="Fdr Threshold",
+        ),
+    ] = 0.05
+
+
+class HPOBatchEnrichmentResponse(BaseModel):
+    fdr_threshold: Annotated[float, Field(title="Fdr Threshold")]
+    results: Annotated[
+        list[list[EnrichmentResult]],
+        Field(
+            description="Significant terms per community, in submitted order",
+            title="Results",
+        ),
+    ]
+    total_tests: Annotated[
+        int,
+        Field(
+            description="Community x term tests in the pooled BH correction",
+            title="Total Tests",
+        ),
+    ]
+
+
 class HPOClassificationData(BaseModel):
     clinical_group: Annotated[
         str | None,
@@ -525,6 +564,15 @@ class NetworkClusterRequest(BaseModel):
         bool | None,
         Field(description="Remove isolated nodes (degree=0)", title="Remove Isolated"),
     ] = False
+    seed: Annotated[
+        int | None,
+        Field(
+            description="RNG seed for leiden/louvain; the fixed default makes default runs reproducible",
+            ge=0,
+            le=2147483647,
+            title="Seed",
+        ),
+    ] = 0
 
 
 class NetworkClusterResponse(BaseModel):
@@ -551,6 +599,13 @@ class NetworkClusterResponse(BaseModel):
     ]
     num_clusters: Annotated[
         int, Field(description="Number of clusters detected", title="Num Clusters")
+    ]
+    parameters: Annotated[
+        dict[str, Any],
+        Field(
+            description="Clustering parameters used, e.g. objective, resolution, iterations, seed",
+            title="Parameters",
+        ),
     ]
 
 

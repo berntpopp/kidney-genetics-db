@@ -18,6 +18,8 @@ from app.models.gene import Gene
 from app.schemas.network import (
     GOEnrichmentRequest,
     GOEnrichmentResponse,
+    HPOBatchEnrichmentRequest,
+    HPOBatchEnrichmentResponse,
     HPOEnrichmentRequest,
     HPOEnrichmentResponse,
     NetworkBuildRequest,
@@ -294,8 +296,8 @@ async def cluster_network(
         )
 
     # Detect communities
-    gene_to_cluster, modularity = await network_service.detect_communities(
-        graph=graph, session=db, algorithm=body.algorithm
+    gene_to_cluster, modularity, parameters = await network_service.detect_communities(
+        graph=graph, session=db, algorithm=body.algorithm, seed=body.seed
     )
 
     # Apply cluster size filtering if requested
@@ -355,6 +357,7 @@ async def cluster_network(
         num_clusters=num_clusters,
         modularity=round(modularity, 3),
         algorithm=body.algorithm,
+        parameters=parameters,
         cytoscape_json=cytoscape_json,
     )
 
@@ -424,7 +427,8 @@ async def enrich_hpo(
     Perform HPO term enrichment analysis using Fisher's exact test.
 
     Tests for over-representation of HPO phenotypes in gene cluster
-    compared to background. Uses Benjamini-Hochberg FDR correction.
+    compared to background. Uses Benjamini-Hochberg FDR correction within
+    this request only; to control FDR across communities use /enrich/hpo/batch.
     """
     start_time = time.time()
 
@@ -453,6 +457,27 @@ async def enrich_hpo(
         total_terms=len(results),
         cluster_size=len(body.cluster_genes),
         fdr_threshold=body.fdr_threshold,
+    )
+
+
+@router.post("/enrich/hpo/batch", response_model=HPOBatchEnrichmentResponse)
+@limiter.limit(LIMIT_NETWORK)
+@cache(namespace="network_analysis", ttl=1800)
+async def enrich_hpo_batch(
+    request: Request,
+    response: Response,
+    body: HPOBatchEnrichmentRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    HPO enrichment for several communities with Benjamini-Hochberg FDR pooled
+    over every community x term test, so FDR is controlled across communities.
+    """
+    results, total_tests = await enrichment_service.enrich_hpo_terms_batch(
+        communities=body.communities, session=db, fdr_threshold=body.fdr_threshold
+    )
+    return HPOBatchEnrichmentResponse(
+        results=results, total_tests=total_tests, fdr_threshold=body.fdr_threshold
     )
 
 

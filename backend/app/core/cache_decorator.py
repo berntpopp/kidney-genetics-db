@@ -54,7 +54,8 @@ def cache(
                 # Create key from function name and arguments
                 key_parts = [func.__name__]
                 for name, value in bound.arguments.items():
-                    if name not in ("self", "cls", "db"):  # Skip common non-cache params
+                    # request/response repr carries a memory address, never a stable key (#336)
+                    if name not in ("self", "cls", "db", "request", "response"):
                         # Handle Pydantic BaseModel (v2)
                         if hasattr(value, "model_dump"):
                             value_str = json.dumps(value.model_dump(), sort_keys=True, default=str)
