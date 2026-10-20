@@ -332,3 +332,43 @@ async def test_full_refresh_batch_commit_failure_counts_errors_and_skips_prune(t
     assert stats["errors"] >= 1
     assert stats["entries_deleted"] == 0
     assert _old_intact(test_engine, keep, gone)
+
+
+# --- idle-in-transaction timeout during HGNC lookups (review item 5) ----------------------
+
+
+@pytest.mark.asyncio
+async def test_slow_hgnc_lookup_does_not_hit_idle_in_transaction_timeout(test_engine, db):
+    """Production engines set idle_in_transaction_session_timeout (30 s). The normalizer
+    reads genes, then awaits HGNC with that read transaction still open."""
+    import asyncio
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import NullPool
+
+    from app.core.hgnc_client import HGNCClientCached
+
+    _, tag = db
+    symbol = f"AUD{tag}SLOW"
+    guarded = create_engine(
+        test_engine.url,
+        poolclass=NullPool,
+        connect_args={"options": "-c idle_in_transaction_session_timeout=1000"},
+    )
+    session = sessionmaker(bind=guarded)()
+
+    async def slow_hgnc(self, symbols):
+        await asyncio.sleep(1.5)  # longer than the 1 s guard
+        return {s: {"approved_symbol": s, "hgnc_id": f"HGNC:AUD{tag}1"} for s in symbols}
+
+    try:
+        with patch.object(HGNCClientCached, "standardize_symbols_parallel", slow_hgnc):
+            stats = await _Source({symbol: {"score": 1}}).update_data(
+                session, MagicMock(), mode="smart"
+            )
+    finally:
+        session.close()
+        guarded.dispose()
+
+    assert stats["errors"] == 0
+    assert _evidence(test_engine, symbol) == [{"score": 1}]

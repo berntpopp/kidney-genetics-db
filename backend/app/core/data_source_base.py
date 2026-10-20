@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -184,8 +185,6 @@ class DataSourceClient(ABC):
             ).total_seconds()
 
             # Get the actual total counts from the database
-            from sqlalchemy import text
-
             result = db.execute(
                 text("""
                     SELECT
@@ -315,6 +314,10 @@ class DataSourceClient(ABC):
             batch_added = 0
             batch_updated = 0
             batch_failed = 0
+
+            # The normalizer reads genes, then awaits HGNC with that transaction still open;
+            # lift the engine's idle-in-transaction guard for this batch transaction only.
+            db.execute(text("SET LOCAL idle_in_transaction_session_timeout = 0"))
 
             # Normalize gene symbols
             normalization_results = await normalize_genes_batch_async(
