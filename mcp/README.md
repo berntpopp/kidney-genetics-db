@@ -152,7 +152,7 @@ validation.
 | `KGDB_MCP_DEFAULT_RESPONSE_MODE` | `compact` | Default payload mode (`minimal` / `compact` / `standard` / `full`). |
 | `KGDB_MCP_MAX_RESPONSE_CHARS_CAP` | `80000` | Hard cap on response size (characters). |
 | `KGDB_MCP_ALLOWED_ORIGINS` | `https://claude.ai,https://claude.com` | Comma-separated `Origin`-header allowlist (browser clients). Non-browser clients without an `Origin` header are always allowed. |
-| `KGDB_MCP_REDIS_URL` | *(none)* | Optional Redis URL for the distributed rate-limit backend. When unset, uses the in-process limiter. |
+| `KGDB_MCP_REDIS_URL` | *(none)* | Optional Redis URL for the distributed rate-limit backend. When unset, uses the in-process limiter. If Redis fails, each process falls back to its own in-process global limit. |
 | `KGDB_MCP_RATE_LIMIT_GLOBAL_RPS` | `10.0` | Global rate limit (requests per second). |
 
 ---

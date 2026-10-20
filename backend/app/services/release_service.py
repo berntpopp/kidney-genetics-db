@@ -1,14 +1,19 @@
 """
 Release Service for CalVer data releases
 
-Handles creating and publishing versioned data snapshots with temporal database queries.
+Handles creating and publishing versioned, immutable JSON data snapshots.
 """
 
 import asyncio
 import hashlib
 import json
+import os
 import re
+import tempfile
+import threading
+from collections.abc import Iterable, Iterator
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
 
@@ -23,6 +28,102 @@ from app.services.zenodo_service import ZenodoService
 
 logger = get_logger(__name__)
 
+
+GENE_ID_FIELDS = ("approved_symbol", "hgnc_id", "aliases")
+_sidecar_lock = threading.Lock()
+_failed_snapshots: set[tuple[str, str | None]] = set()
+
+
+class ReleaseSnapshotError(Exception):
+    """A published release's export snapshot is missing or does not match its checksum."""
+
+
+def _sidecar_path(export_path: str | Path) -> Path:
+    """Small identifiers-only file served by the release genes endpoint."""
+    return Path(export_path).with_suffix(".genes.json")
+
+
+def _write_sidecar(export_path: str | Path, genes: Iterable[dict[str, Any]]) -> None:
+    sidecar = _sidecar_path(export_path)
+    # Unique temp file + fsync so concurrent workers never see a partial sidecar
+    fd, tmp = tempfile.mkstemp(dir=sidecar.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump([{k: g[k] for k in GENE_ID_FIELDS} for g in genes], f, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, sidecar)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
+def _iter_export_genes(export_path: str | Path) -> Iterator[dict[str, Any]]:
+    """Stream gene objects from a full export without loading the whole file."""
+    decoder = json.JSONDecoder()
+    marker = '"genes": ['
+    with open(export_path, encoding="utf-8") as f:
+        buf = ""
+        while marker not in buf:
+            chunk = f.read(1 << 16)
+            if not chunk:
+                raise ValueError("export has no genes array")
+            buf += chunk
+        buf = buf[buf.index(marker) + len(marker) :]
+        while True:
+            buf = buf.lstrip(" \t\r\n,")
+            if buf.startswith("]"):
+                return
+            try:
+                gene, end = decoder.raw_decode(buf)
+            except json.JSONDecodeError:
+                chunk = f.read(1 << 20)
+                if not chunk:
+                    raise
+                buf += chunk
+                continue
+            yield gene
+            buf = buf[end:]
+
+
+@lru_cache(maxsize=8)
+def _read_sidecar(sidecar: Path) -> tuple[dict[str, Any], ...]:
+    with open(sidecar, encoding="utf-8") as f:
+        genes = json.load(f)
+    if not isinstance(genes, list):
+        raise ValueError("sidecar is not a gene list")
+    return tuple(genes)
+
+
+def _load_release_genes(export_path: str, checksum: str | None) -> tuple[dict[str, Any], ...]:
+    """Release gene identifiers, served from the sidecar.
+
+    Releases published before the sidecar existed get it built once from the
+    verified export (chunked checksum, streamed parse); the export is never
+    modified. Failures are remembered so bad snapshots are not re-read per request.
+    """
+    sidecar = _sidecar_path(export_path)
+    if not sidecar.exists():
+        with _sidecar_lock:
+            if (export_path, checksum) in _failed_snapshots:
+                raise ReleaseSnapshotError(export_path)
+            if not sidecar.exists():
+                try:
+                    if checksum and ReleaseService._calculate_checksum(export_path) != checksum:
+                        raise ReleaseSnapshotError(f"checksum mismatch: {export_path}")
+                    _write_sidecar(export_path, _iter_export_genes(export_path))
+                except (OSError, ValueError, KeyError) as e:
+                    _failed_snapshots.add((export_path, checksum))
+                    raise ReleaseSnapshotError(export_path) from e
+                except ReleaseSnapshotError:
+                    _failed_snapshots.add((export_path, checksum))
+                    raise
+    try:
+        return _read_sidecar(sidecar)
+    except (OSError, ValueError) as e:  # includes json.JSONDecodeError
+        raise ReleaseSnapshotError(f"unreadable sidecar: {sidecar}") from e
+
+
 # CalVer validation pattern (YYYY.MM format)
 CALVER_PATTERN = re.compile(r"^\d{4}\.\d{1,2}$")
 
@@ -33,7 +134,6 @@ class ReleaseService:
 
     Features:
     - Thread pool for non-blocking file I/O
-    - Timezone-aware temporal queries
     - Automatic checksum calculation
     - Export to JSON with metadata
     """
@@ -96,16 +196,16 @@ class ReleaseService:
 
     async def publish_release(self, release_id: int, user_id: int) -> DataRelease:
         """
-        Publish a release by closing temporal ranges and exporting data.
+        Publish a release by exporting an immutable snapshot of the current genes.
 
         This performs the following steps:
         1. Validates release is in draft status
-        2. Closes all current gene temporal ranges (sets valid_to)
-        3. Exports genes to JSON file
-        4. Calculates SHA256 checksum
-        5. Updates release record with metadata
+        2. Exports current genes to a JSON file (the release's immutable snapshot)
+        3. Calculates SHA256 checksum
+        4. Updates release record with metadata
 
-        All operations are wrapped in a single transaction for atomicity.
+        Live gene rows are not modified: publishing must not retire current genes
+        (#288). Release contents are served from the export file.
 
         Args:
             release_id: ID of release to publish
@@ -133,8 +233,7 @@ class ReleaseService:
         publish_time = datetime.now(timezone.utc)
 
         try:
-            # Step 1: Export current genes BEFORE closing ranges
-            # This ensures we capture all genes with valid_to = 'infinity'
+            # Step 1: Export current genes (valid_to = 'infinity')
             loop = asyncio.get_event_loop()
             logger.sync_info(
                 "Exporting current genes",
@@ -142,7 +241,7 @@ class ReleaseService:
                 publish_time=publish_time.isoformat(),
             )
 
-            export_path = await loop.run_in_executor(
+            export_path, gene_count = await loop.run_in_executor(
                 self._executor, self._export_release_sync, release.version, publish_time
             )
 
@@ -158,13 +257,13 @@ class ReleaseService:
                     doi_result = await zenodo.mint_doi_for_release(
                         version=release.version,
                         export_file_path=export_path,
-                        gene_count=self._count_genes_current(),
+                        gene_count=gene_count,
                         release_notes=release.release_notes or "",
                     )
                     release.doi = doi_result["doi"]
                     release.citation_text = ZenodoService.generate_citation_text(
                         version=release.version,
-                        gene_count=self._count_genes_current(),
+                        gene_count=gene_count,
                         doi=doi_result["doi"],
                         published_at=publish_time.isoformat(),
                     )
@@ -188,27 +287,7 @@ class ReleaseService:
                     version=release.version,
                 )
 
-            # Step 3: Count genes before closing (still at infinity)
-            gene_count = self._count_genes_current()
-
-            # Step 4: Now close temporal ranges (NO COMMIT YET)
-            logger.sync_info(
-                "Closing temporal ranges",
-                version=release.version,
-                publish_time=publish_time.isoformat(),
-                gene_count=gene_count,
-            )
-
-            self.db.execute(
-                text("""
-                    UPDATE genes
-                    SET valid_to = :publish_time
-                    WHERE valid_to = 'infinity'::timestamptz
-                """),
-                {"publish_time": publish_time},
-            )
-
-            # Step 5: Update release record
+            # Step 3: Update release record
             release.status = "published"
             release.published_at = publish_time
             release.published_by_id = user_id
@@ -240,19 +319,19 @@ class ReleaseService:
             )
             raise
 
-    def _export_release_sync(self, version: str, timestamp: datetime) -> Path:
+    def _export_release_sync(self, version: str, timestamp: datetime) -> tuple[Path, int]:
         """
         Export genes to JSON file (sync version for thread pool).
 
         Exports all genes with valid_to = 'infinity' (current genes).
-        This method is called BEFORE closing temporal ranges.
+        Also writes the identifiers-only sidecar served by get_release_genes.
 
         Args:
             version: Release version
             timestamp: Timestamp for export metadata
 
         Returns:
-            Path: Path to exported JSON file
+            tuple: Path to exported JSON file and number of exported genes
         """
         # Ensure export directory exists
         self.export_dir.mkdir(exist_ok=True, parents=True)
@@ -261,7 +340,6 @@ class ReleaseService:
         logger.sync_info("Exporting release to JSON", version=version, file_path=str(export_file))
 
         # Query current genes (valid_to = 'infinity') with comprehensive data
-        # This is called BEFORE we close the temporal ranges
         # Includes scores, evidence, and annotations for research reproducibility
         result = self.db.execute(
             text("""
@@ -354,6 +432,7 @@ class ReleaseService:
         # Write to file
         with open(export_file, "w", encoding="utf-8") as f:
             json.dump(export_data, f, indent=2, ensure_ascii=False)
+        _write_sidecar(export_file, export_data["genes"])
 
         logger.sync_info(
             "Export completed",
@@ -362,9 +441,10 @@ class ReleaseService:
             file_size_bytes=export_file.stat().st_size,
         )
 
-        return export_file
+        return export_file, len(genes)
 
-    def _calculate_checksum(self, file_path: Path) -> str:
+    @staticmethod
+    def _calculate_checksum(file_path: str | Path) -> str:
         """
         Calculate SHA256 checksum of file.
 
@@ -385,46 +465,6 @@ class ReleaseService:
         checksum = sha256.hexdigest()
         logger.sync_debug(f"Checksum calculated: {checksum[:16]}...")
         return checksum
-
-    def _count_genes_current(self) -> int:
-        """
-        Count current genes (valid_to = 'infinity').
-
-        Called before closing temporal ranges during publish.
-
-        Returns:
-            int: Number of current genes
-        """
-        result = self.db.execute(
-            text("""
-                SELECT COUNT(*)
-                FROM genes
-                WHERE valid_to = 'infinity'::timestamptz
-            """)
-        )
-        count = result.scalar()
-        return int(count) if count is not None else 0
-
-    def _count_genes(self, timestamp: datetime) -> int:
-        """
-        Count genes at specific timestamp.
-
-        Args:
-            timestamp: Point-in-time for temporal query
-
-        Returns:
-            int: Number of genes valid at timestamp
-        """
-        result = self.db.execute(
-            text("""
-                SELECT COUNT(*)
-                FROM genes
-                WHERE tstzrange(valid_from, valid_to) @> :timestamp
-            """),
-            {"timestamp": timestamp},
-        )
-        count = result.scalar()
-        return int(count) if count is not None else 0
 
     async def update_release(
         self, release_id: int, version: str | None = None, release_notes: str | None = None
@@ -518,7 +558,8 @@ class ReleaseService:
             dict: Release metadata and paginated genes
 
         Raises:
-            ValueError: If release not found
+            ValueError: If release not found or not published
+            ReleaseSnapshotError: If the export snapshot is missing or corrupt
         """
         release = self.db.query(DataRelease).filter_by(version=version).first()
         if not release:
@@ -527,21 +568,17 @@ class ReleaseService:
         if release.status != "published":
             raise ValueError(f"Release {version} not published yet")
 
-        # Query genes at release timestamp
-        result = self.db.execute(
-            text("""
-                SELECT
-                    approved_symbol,
-                    hgnc_id,
-                    aliases
-                FROM genes
-                WHERE tstzrange(valid_from, valid_to) @> :timestamp
-                ORDER BY approved_symbol
-                LIMIT :limit OFFSET :offset
-            """),
-            {"timestamp": release.published_at, "limit": limit, "offset": offset},
+        if not release.export_file_path:
+            raise ReleaseSnapshotError(f"release {version} has no export path")
+
+        # Serve the snapshot written at publish time, not live rows (#288)
+        loop = asyncio.get_event_loop()
+        genes = await loop.run_in_executor(
+            self._executor,
+            _load_release_genes,
+            release.export_file_path,
+            release.export_checksum,
         )
-        genes = result.fetchall()
 
         return {
             "version": version,
@@ -549,12 +586,5 @@ class ReleaseService:
             "total": release.gene_count,
             "limit": limit,
             "offset": offset,
-            "genes": [
-                {
-                    "approved_symbol": row.approved_symbol,
-                    "hgnc_id": row.hgnc_id,
-                    "aliases": row.aliases,
-                }
-                for row in genes
-            ],
+            "genes": [dict(gene) for gene in genes[offset : offset + limit]],
         }

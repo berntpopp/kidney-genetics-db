@@ -505,16 +505,16 @@ onMounted(() => {
             <div class="flex items-center gap-2">
               <Checkbox
                 id="is_active"
-                :checked="userFormData.is_active"
-                @update:checked="val => (userFormData.is_active = val)"
+                :model-value="userFormData.is_active"
+                @update:model-value="val => (userFormData.is_active = val)"
               />
               <Label for="is_active" class="cursor-pointer">Active</Label>
             </div>
             <div class="flex items-center gap-2">
               <Checkbox
                 id="is_verified"
-                :checked="userFormData.is_verified"
-                @update:checked="val => (userFormData.is_verified = val)"
+                :model-value="userFormData.is_verified"
+                @update:model-value="val => (userFormData.is_verified = val)"
               />
               <Label for="is_verified" class="cursor-pointer">Email Verified</Label>
             </div>

@@ -9,6 +9,8 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService
@@ -99,19 +101,6 @@ class DataSourceClient(ABC):
         """
         pass
 
-    async def _clear_existing_entries(self, db: Session) -> int:
-        """Clear existing entries for this source (for full mode).
-
-        Returns:
-            Number of deleted entries
-        """
-        deleted: int = (
-            db.query(GeneEvidence).filter(GeneEvidence.source_name == self.source_name).delete()
-        )
-        db.commit()
-        logger.sync_info(f"Cleared {deleted} existing {self.source_name} entries")
-        return deleted
-
     async def update_data(
         self, db: Session, tracker: ProgressTracker, mode: str = "smart"
     ) -> dict[str, Any]:
@@ -120,10 +109,11 @@ class DataSourceClient(ABC):
 
         This method implements the common workflow:
         1. Initialize statistics
-        2. Clear existing data if full mode
-        3. Fetch raw data from source
-        4. Process data into gene information
-        5. Store processed data in database
+        2. Fetch raw data from source
+        3. Process data into gene information
+        4. Store processed data in database (upsert in place)
+        5. Full mode only: prune evidence for genes the source no longer reports,
+           and only after the replacement completed without errors (#291)
         6. Return comprehensive statistics
 
         Args:
@@ -139,13 +129,6 @@ class DataSourceClient(ABC):
         try:
             tracker.start(f"Starting {self.source_name} update (mode: {mode})")
             logger.sync_info("Starting data update", source_name=self.source_name, mode=mode)
-
-            # Clear existing entries if full mode
-            if mode == "full":
-                tracker.update(operation="Clearing existing entries")
-                deleted = await self._clear_existing_entries(db)
-                stats["entries_deleted"] = deleted
-                logger.sync_info(f"Full mode: deleted {deleted} existing entries")
 
             # Step 1: Fetch raw data
             tracker.update(operation="Fetching data from source")
@@ -184,7 +167,15 @@ class DataSourceClient(ABC):
                 source_name=self.source_name,
                 gene_count=len(processed_data),
             )
-            await self._store_genes_in_database(db, processed_data, stats, tracker)
+            reported_gene_ids: set[int] = set()
+            await self._store_genes_in_database(
+                db, processed_data, stats, tracker, reported_gene_ids
+            )
+
+            if mode == "full":
+                stats["entries_deleted"] = self._prune_unreported_evidence(
+                    db, reported_gene_ids, stats
+                )
 
             # Step 4: Finalize
             stats["completed_at"] = datetime.now(timezone.utc).isoformat()
@@ -194,8 +185,6 @@ class DataSourceClient(ABC):
             ).total_seconds()
 
             # Get the actual total counts from the database
-            from sqlalchemy import text
-
             result = db.execute(
                 text("""
                     SELECT
@@ -250,12 +239,42 @@ class DataSourceClient(ABC):
             "duration": None,
         }
 
+    def _prune_unreported_evidence(
+        self, db: Session, reported_gene_ids: set[int], stats: dict[str, Any]
+    ) -> int:
+        """Delete this source's evidence for genes absent from a completed full refresh.
+
+        Old evidence is kept whenever the replacement had errors or resolved no genes, so a
+        partial or failed refresh never removes rows it did not replace.
+        """
+        if stats["errors"] or not reported_gene_ids:
+            logger.sync_warning(
+                "Full mode: skipping prune of old evidence after incomplete replacement",
+                source_name=self.source_name,
+                errors=stats["errors"],
+                reported_genes=len(reported_gene_ids),
+            )
+            return 0
+
+        deleted = (
+            db.query(GeneEvidence)
+            .filter(
+                GeneEvidence.source_name == self.source_name,
+                GeneEvidence.gene_id.notin_(reported_gene_ids),
+            )
+            .delete(synchronize_session=False)
+        )
+        db.commit()
+        logger.sync_info(f"Full mode: pruned {deleted} obsolete {self.source_name} entries")
+        return int(deleted)
+
     async def _store_genes_in_database(
         self,
         db: Session,
         gene_data: dict[str, Any],
         stats: dict[str, Any],
         tracker: ProgressTracker,
+        reported_gene_ids: set[int] | None = None,
     ) -> None:
         """
         Store processed gene data in the database.
@@ -321,6 +340,8 @@ class DataSourceClient(ABC):
                         gene = await self._get_or_create_gene(db, norm_result, symbol, stats)
 
                         if gene:
+                            if reported_gene_ids is not None:
+                                reported_gene_ids.add(int(gene.id))
                             # Create or update evidence
                             prev_created = stats["evidence_created"]
                             prev_updated = stats["evidence_updated"]
@@ -345,6 +366,11 @@ class DataSourceClient(ABC):
                     error=str(e),
                 )
                 db.rollback()
+                # The whole batch was lost: count it so the run is not reported clean and a
+                # full refresh does not prune old evidence (#291).
+                stats["errors"] += len(batch_symbols)
+                batch_added = batch_updated = 0
+                batch_failed = len(batch_symbols)
 
             # Update tracker with batch results
             tracker.update(
@@ -371,58 +397,57 @@ class DataSourceClient(ABC):
             gene = db.query(Gene).filter(Gene.hgnc_id == hgnc_id).first()
 
         if not gene:
+            gene_create = GeneCreate(
+                approved_symbol=approved_symbol,
+                hgnc_id=hgnc_id,
+                aliases=[original_symbol] if original_symbol != approved_symbol else [],
+            )
             try:
-                gene_create = GeneCreate(
-                    approved_symbol=approved_symbol,
-                    hgnc_id=hgnc_id,
-                    aliases=[original_symbol] if original_symbol != approved_symbol else [],
-                )
-                gene = gene_crud.create(db, gene_create)
+                # Flush-only inside its own savepoint: the caller owns the transaction and
+                # commits the gene together with its evidence (#292).
+                with db.begin_nested():
+                    gene = gene_crud.create(db, gene_create, commit=False)
                 stats["genes_created"] += 1
                 logger.sync_debug(
                     "Created new gene", approved_symbol=approved_symbol, hgnc_id=hgnc_id
                 )
-            except Exception as e:
-                # Handle race condition: another task may have created the gene
-                if "unique constraint" in str(e).lower() or "duplicate key" in str(e).lower():
-                    db.rollback()
+            except IntegrityError:
+                # Race: another task created the gene; only our savepoint was rolled back.
+                logger.sync_debug(
+                    "Gene constraint violation, retrying fetch",
+                    approved_symbol=approved_symbol,
+                    hgnc_id=hgnc_id,
+                )
+                gene = gene_crud.get_by_symbol(db, approved_symbol)
+                if not gene and hgnc_id:
+                    gene = db.query(Gene).filter(Gene.hgnc_id == hgnc_id).first()
+
+                if gene:
+                    stats["genes_updated"] += 1
                     logger.sync_debug(
-                        "Gene constraint violation, retrying fetch",
-                        approved_symbol=approved_symbol,
-                        hgnc_id=hgnc_id,
+                        "Found gene after race condition",
+                        approved_symbol=gene.approved_symbol,
+                        hgnc_id=gene.hgnc_id,
                     )
-
-                    # Try to get the gene that was created by another task
-                    # Check both symbol and HGNC ID constraints
-                    gene = gene_crud.get_by_symbol(db, approved_symbol)
-                    if not gene and hgnc_id:
-                        gene = db.query(Gene).filter(Gene.hgnc_id == hgnc_id).first()
-
-                    if gene:
-                        stats["genes_updated"] += 1
-                        logger.sync_debug(
-                            "Found gene after race condition",
-                            approved_symbol=gene.approved_symbol,
-                            hgnc_id=gene.hgnc_id,
-                        )
-                    else:
-                        logger.sync_error(
-                            "Race condition: gene still not found after creation attempt",
-                            approved_symbol=approved_symbol,
-                            hgnc_id=hgnc_id,
-                        )
-                        return None
                 else:
-                    db.rollback()
                     logger.sync_error(
-                        "Error creating gene",
+                        "Race condition: gene still not found after creation attempt",
                         approved_symbol=approved_symbol,
-                        original_symbol=original_symbol,
                         hgnc_id=hgnc_id,
-                        error=str(e),
-                        error_type=type(e).__name__,
                     )
                     return None
+            except Exception as e:
+                # Only this gene's savepoint was rolled back; earlier work stays pending.
+                stats["errors"] = stats.get("errors", 0) + 1
+                logger.sync_error(
+                    "Error creating gene",
+                    approved_symbol=approved_symbol,
+                    original_symbol=original_symbol,
+                    hgnc_id=hgnc_id,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                return None
         else:
             stats["genes_updated"] += 1
 
@@ -468,15 +493,17 @@ class DataSourceClient(ABC):
             else:
                 # Create new evidence with proper constraint handling
                 try:
-                    evidence = GeneEvidence(
-                        gene_id=gene.id,
-                        source_name=self.source_name,
-                        source_detail=source_detail,
-                        evidence_data=clean_evidence,
-                        evidence_date=datetime.now(timezone.utc).date(),
-                    )
-                    db.add(evidence)
-                    db.flush()  # Force constraint check before commit
+                    # Own savepoint: a collision rolls back only this insert, not the batch.
+                    with db.begin_nested():
+                        evidence = GeneEvidence(
+                            gene_id=gene.id,
+                            source_name=self.source_name,
+                            source_detail=source_detail,
+                            evidence_data=clean_evidence,
+                            evidence_date=datetime.now(timezone.utc).date(),
+                        )
+                        db.add(evidence)
+                        db.flush()  # Force constraint check before commit
                     stats["evidence_created"] += 1
                     logger.sync_debug(
                         "Created evidence for gene",
@@ -489,7 +516,6 @@ class DataSourceClient(ABC):
                         "unique constraint" in str(constraint_error).lower()
                         or "duplicate key" in str(constraint_error).lower()
                     ):
-                        db.rollback()  # Rollback failed transaction
                         logger.sync_debug(
                             "Race condition detected for gene, retrying...",
                             gene_symbol=gene.approved_symbol,

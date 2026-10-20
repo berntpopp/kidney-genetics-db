@@ -12,7 +12,9 @@ class LiteratureGene:
     symbol: str  # HGNC-approved symbol (or reported if not found)
     reported_as: str  # Original symbol as it appeared in the publication
     hgnc_id: Optional[str] = None
-    normalization_status: str = "normalized"  # "normalized", "not_found", "unchanged"
+    # "normalized", "not_found", "unchanged", "ambiguous" (several HGNC candidates),
+    # "hgnc_unavailable" (HGNC request failed; retried on the next run)
+    normalization_status: str = "normalized"
     
     def to_dict(self) -> dict:
         """Convert to dictionary."""

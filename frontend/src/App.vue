@@ -7,13 +7,11 @@ import AppFooter from '@/layouts/AppFooter.vue'
 import LogViewer from '@/components/admin/LogViewer.vue'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { useAuthStore } from '@/stores/auth'
 import { useLogStore } from '@/stores/logStore'
 import { useAppTheme } from '@/composables/useAppTheme'
 import { useJsonLd, getOrganizationWebSiteSchema } from '@/composables/useJsonLd'
 
 const route = useRoute()
-const authStore = useAuthStore()
 const logStore = useLogStore()
 
 // Initialize dark mode bidirectional sync
@@ -38,7 +36,6 @@ const handleKeyPress = (event: KeyboardEvent) => {
 }
 
 onMounted(() => {
-  authStore.initialize()
   window.addEventListener('keydown', handleKeyPress)
 })
 
@@ -54,7 +51,8 @@ onUnmounted(() => {
       <main class="flex-1 pb-20">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
-            <component :is="Component" />
+            <!-- Keyed by path: symbol changes remount gene views; query-only changes do not -->
+            <component :is="Component" :key="route.path" />
           </transition>
         </router-view>
       </main>

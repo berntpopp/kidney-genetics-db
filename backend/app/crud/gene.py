@@ -278,12 +278,15 @@ class CRUDGene:
             result = query.count()
             return result if result is not None else 0
 
-    def create(self, db: Session, obj_in: GeneCreate) -> Gene:
-        """Create new gene"""
+    def create(self, db: Session, obj_in: GeneCreate, commit: bool = True) -> Gene:
+        """Create new gene; ``commit=False`` only flushes, leaving the transaction to its owner."""
         db_obj = Gene(
             hgnc_id=obj_in.hgnc_id, approved_symbol=obj_in.approved_symbol, aliases=obj_in.aliases
         )
         db.add(db_obj)
+        if not commit:
+            db.flush()
+            return db_obj
         db.commit()
         db.refresh(db_obj)
         return db_obj

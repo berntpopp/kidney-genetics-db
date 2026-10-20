@@ -5,7 +5,8 @@
 
 import { ref } from 'vue'
 import type { Ref } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+import type { AxiosRequestConfig } from 'axios'
+import apiClient from '@/api/client'
 
 /** Backup creation options */
 interface BackupCreateOptions {
@@ -52,33 +53,22 @@ export interface BackupApiReturn {
 }
 
 export function useBackupApi(): BackupApiReturn {
-  const authStore = useAuthStore()
   const loading = ref<boolean>(false)
   const error = ref<string | null>(null)
 
   /**
    * Generic API request handler with auth
    */
-  const apiRequest = async (url: string, options: RequestInit = {}): Promise<unknown> => {
+  const apiRequest = async (url: string, options: AxiosRequestConfig = {}): Promise<unknown> => {
     try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          ...(options.headers ?? {}),
-          Authorization: `Bearer ${authStore.accessToken}`
-        }
-      })
-
-      if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as { detail?: string }
-        throw new Error(errorData.detail ?? `Request failed: ${response.statusText}`)
-      }
-
-      return await response.json()
+      // Shared client: configured base URL, current token, refresh-and-retry on 401
+      const response = await apiClient.request({ url, ...options })
+      return response.data
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
+      const detail = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      const msg = detail ?? (err instanceof Error ? err.message : String(err))
       error.value = msg
-      throw err
+      throw new Error(msg, { cause: err })
     }
   }
 
@@ -125,16 +115,13 @@ export function useBackupApi(): BackupApiReturn {
     try {
       return await apiRequest('/api/admin/backups/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+        data: {
           description: backupData.description ?? '',
           include_logs: backupData.includeLogs ?? false,
           include_cache: backupData.includeCache ?? false,
           compression_level: backupData.compressionLevel ?? 6,
           parallel_jobs: backupData.parallelJobs ?? 2
-        })
+        }
       })
     } finally {
       loading.value = false
@@ -153,13 +140,10 @@ export function useBackupApi(): BackupApiReturn {
     try {
       return await apiRequest(`/api/admin/backups/restore/${backupId}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+        data: {
           create_safety_backup: restoreOptions.createSafetyBackup ?? true,
           run_analyze: restoreOptions.runAnalyze ?? true
-        })
+        }
       })
     } finally {
       loading.value = false
@@ -173,18 +157,13 @@ export function useBackupApi(): BackupApiReturn {
     loading.value = true
     error.value = null
     try {
-      const response = await fetch(`/api/admin/backups/${backup.id}/download`, {
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`
-        }
-      })
+      const response = await apiClient
+        .get<Blob>(`/api/admin/backups/${backup.id}/download`, { responseType: 'blob' })
+        .catch(() => {
+          throw new Error('Failed to download backup')
+        })
 
-      if (!response.ok) {
-        throw new Error('Failed to download backup')
-      }
-
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
+      const url = URL.createObjectURL(response.data)
       const a = document.createElement('a')
       a.href = url
       a.download = backup.filename

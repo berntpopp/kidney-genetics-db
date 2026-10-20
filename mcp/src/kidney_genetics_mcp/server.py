@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from typing import Any
 
 import mcp.types as mt
@@ -105,7 +106,7 @@ class RateLimitMiddleware(FastMCPMiddleware):
             exhausted, otherwise the downstream result.
         """
         tool_name: str = context.message.name
-        if not self._limiter.allow(tool_name):
+        if not await self._limiter.allow(tool_name):
             error_payload: dict[str, Any] = {
                 "schema_version": "1.0",
                 "error": {
@@ -264,7 +265,16 @@ def build_app(settings: Settings | None = None) -> FastMCP:
     )
     set_limiter(limiter)
 
-    mcp: FastMCP = FastMCP("Kidney-Genetics-DB", instructions=SERVER_INSTRUCTIONS)
+    @asynccontextmanager
+    async def lifespan(_server: FastMCP) -> AsyncIterator[None]:
+        try:
+            yield
+        finally:
+            await limiter.aclose()
+
+    mcp: FastMCP = FastMCP(
+        "Kidney-Genetics-DB", instructions=SERVER_INSTRUCTIONS, lifespan=lifespan
+    )
     mcp.add_middleware(RateLimitMiddleware(limiter))
     mcp.add_middleware(ErrorEnvelopeMiddleware())
     register_all(mcp, client)

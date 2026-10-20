@@ -13,7 +13,9 @@ class GeneEntry:
     occurrence_count: int = 1
     reported_as: Optional[str] = None  # Original symbol as reported by provider
     hgnc_id: Optional[str] = None
-    normalization_status: str = "normalized"  # "normalized" (found in HGNC), "not_found"
+    # "normalized" (found in HGNC), "not_found", "ambiguous" (several HGNC candidates),
+    # "hgnc_unavailable" (HGNC request failed; retried on the next run)
+    normalization_status: str = "normalized"
     
     def __post_init__(self):
         """Initialize reported_as if not provided."""

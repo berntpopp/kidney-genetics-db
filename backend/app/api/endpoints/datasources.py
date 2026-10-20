@@ -11,11 +11,13 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.core.background_tasks import task_manager
 from app.core.datasource_config import DATA_SOURCE_CONFIG, get_auto_update_sources
+from app.core.dependencies import require_admin
 from app.core.exceptions import DataSourceError
 from app.core.gene_filters import count_filtered_genes_from_evidence_sql
 from app.core.logging import get_logger
 from app.core.responses import ResponseBuilder
 from app.models.gene import PipelineRun
+from app.models.user import User
 from app.schemas.datasource import DataSource, DataSourceStats
 
 router = APIRouter()
@@ -461,6 +463,7 @@ async def update_datasource(
         "smart", description="Update mode: smart (incremental) or full (complete refresh)"
     ),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
 ) -> dict[str, Any]:
     """
     Trigger update for a specific data source with mode selection.
@@ -486,7 +489,9 @@ async def update_datasource(
 
 
 @router.post("/update-all")
-async def update_all_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
+async def update_all_datasources(
+    db: Session = Depends(get_db), current_user: User = Depends(require_admin)
+) -> dict[str, Any]:
     """
     Trigger updates for all available data sources that support auto-update
     """

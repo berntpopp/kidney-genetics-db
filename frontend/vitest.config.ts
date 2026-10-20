@@ -8,6 +8,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // vite-ssg reads import.meta.env, which only exists when Vite transforms it
+    server: { deps: { inline: ['vite-ssg'] } },
     include: ['src/**/*.{test,spec}.ts'],
     coverage: {
       provider: 'v8',

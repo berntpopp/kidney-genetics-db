@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Callable
 from typing import Any
 
 import httpx
@@ -94,6 +95,8 @@ class ApiClient:
         base_url: str,
         timeout: float = 30.0,
         cache_ttl: int = 300,
+        cache_max_entries: int = 1024,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         """Initialize the client with a base URL, request timeout, and cache TTL.
 
@@ -101,6 +104,9 @@ class ApiClient:
             base_url: Base URL for the API (e.g. ``http://localhost:8000``).
             timeout: HTTP request timeout in seconds.
             cache_ttl: Time-to-live for cached responses in seconds.
+            cache_max_entries: Maximum number of cached responses retained;
+                the oldest entry is evicted first once the bound is reached.
+            clock: Monotonic clock callable (injectable for deterministic tests).
         """
         self._client = httpx.AsyncClient(
             base_url=base_url,
@@ -108,6 +114,8 @@ class ApiClient:
             headers={"Accept": "application/json"},
         )
         self._cache_ttl = cache_ttl
+        self._cache_max_entries = max(cache_max_entries, 1)
+        self._clock = clock
         self._cache: dict[str, tuple[float, Any]] = {}
 
     async def get(self, path: str, params: dict[str, Any] | None = None) -> Any:
@@ -129,7 +137,7 @@ class ApiClient:
         """
         assert_allowed("GET", path)
         key = path + "?" + json.dumps(params or {}, sort_keys=True)
-        now = time.monotonic()
+        now = self._clock()
         hit = self._cache.get(key)
         if hit and hit[0] > now:
             return hit[1]
@@ -180,8 +188,23 @@ class ApiClient:
             )
         resp.raise_for_status()
         data = resp.json()
-        self._cache[key] = (now + self._cache_ttl, data)
+        self._store(key, now, data)
         return data
+
+    def _store(self, key: str, now: float, data: Any) -> None:
+        """Cache *data* under *key*, dropping expired entries and keeping the bound.
+
+        Args:
+            key: The request cache key.
+            now: The clock reading taken when the request started.
+            data: The parsed response body to cache.
+        """
+        self._cache.pop(key, None)
+        for stale in [k for k, (expires, _) in self._cache.items() if expires <= now]:
+            del self._cache[stale]
+        while len(self._cache) >= self._cache_max_entries:
+            del self._cache[next(iter(self._cache))]  # oldest insertion first
+        self._cache[key] = (now + self._cache_ttl, data)
 
     async def aclose(self) -> None:
         """Close the underlying HTTP client."""

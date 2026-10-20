@@ -66,8 +66,8 @@
                 >
                   <Checkbox
                     :id="`tier-${opt.value}`"
-                    :checked="selectedTiers.includes(opt.value)"
-                    @update:checked="toggleTier(opt.value, $event)"
+                    :model-value="selectedTiers.includes(opt.value)"
+                    @update:model-value="toggleTier(opt.value, $event)"
                   />
                   <Label :for="`tier-${opt.value}`" class="text-sm cursor-pointer">
                     {{ opt.title }}
@@ -282,16 +282,16 @@
           <div class="flex items-center space-x-2">
             <Checkbox
               id="remove-isolated"
-              :checked="removeIsolated"
-              @update:checked="removeIsolated = $event"
+              :model-value="removeIsolated"
+              @update:model-value="removeIsolated = $event"
             />
             <Label for="remove-isolated" class="text-xs cursor-pointer">Remove Isolated</Label>
           </div>
           <div class="flex items-center space-x-2">
             <Checkbox
               id="largest-component"
-              :checked="largestComponentOnly"
-              @update:checked="largestComponentOnly = $event"
+              :model-value="largestComponentOnly"
+              @update:model-value="largestComponentOnly = $event"
             />
             <Label for="largest-component" class="text-xs cursor-pointer">
               Largest Component Only

@@ -103,3 +103,57 @@ async def test_disallowed_path_raises_permission_error() -> None:
             await client.get("/api/admin/users")
     finally:
         await client.aclose()
+
+
+class _FakeClock:
+    """Manually advanced monotonic clock."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+@respx.mock
+async def test_cache_evicts_expired_entries_on_store() -> None:
+    respx.get(url__regex=rf"{_BASE}/api/genes/G\d+").mock(
+        return_value=httpx.Response(200, json={"ok": True})
+    )
+    clock = _FakeClock()
+    client = ApiClient(base_url=_BASE, cache_ttl=10, clock=clock)
+    try:
+        for i in range(250):
+            await client.get(f"/api/genes/G{i}")
+        clock.now = 11.0  # every entry above has expired
+        await client.get("/api/genes/G999")
+        assert len(client._cache) == 1
+    finally:
+        await client.aclose()
+
+
+@respx.mock
+async def test_cache_is_bounded_and_repeat_hits_skip_upstream() -> None:
+    route = respx.get(url__regex=rf"{_BASE}/api/genes/G\d+").mock(
+        return_value=httpx.Response(200, json={"ok": True})
+    )
+    clock = _FakeClock()
+    client = ApiClient(base_url=_BASE, cache_ttl=300, cache_max_entries=3, clock=clock)
+    try:
+        for i in range(10):
+            await client.get(f"/api/genes/G{i}")
+        assert len(client._cache) == 3
+        assert route.call_count == 10
+        # Most recent keys are retained and served from cache within the TTL.
+        await client.get("/api/genes/G9")
+        assert route.call_count == 10
+        # Oldest keys were evicted and must be fetched again.
+        await client.get("/api/genes/G0")
+        assert route.call_count == 11
+        assert len(client._cache) == 3
+        # Expired entries are refetched rather than served.
+        clock.now = 301.0
+        await client.get("/api/genes/G0")
+        assert route.call_count == 12
+    finally:
+        await client.aclose()

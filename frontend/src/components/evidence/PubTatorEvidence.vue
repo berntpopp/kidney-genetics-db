@@ -77,11 +77,14 @@
           </div>
           <div class="text-xs text-muted-foreground">Publications</div>
         </div>
-        <div class="text-center">
+        <div
+          class="text-center"
+          title="Highest-scoring mention records retained for display; not a total mention count"
+        >
           <div class="text-2xl font-bold" :style="{ color: '#14b8a6' }">
-            {{ mentionCount }}
+            {{ sampledMentionCount }}
           </div>
-          <div class="text-xs text-muted-foreground">Mentions</div>
+          <div class="text-xs text-muted-foreground">Sampled mentions</div>
         </div>
         <div class="text-center">
           <div class="text-2xl font-bold" :style="{ color: '#14b8a6' }">
@@ -155,9 +158,8 @@ const publicationCount = computed(() => {
   return props.evidenceData?.publication_count || 0
 })
 
-const mentionCount = computed(() => {
-  return props.evidenceData?.total_mentions || 0
-})
+// Retained display sample only; total_mentions is not a cumulative total (#281)
+const sampledMentionCount = computed(() => allPublications.value.length)
 
 const evidenceScore = computed(() => {
   const score = props.evidenceData?.evidence_score

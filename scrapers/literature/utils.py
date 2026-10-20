@@ -6,7 +6,6 @@ import re
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -19,6 +18,9 @@ class HGNCNormalizer:
     BASE_URL = "https://rest.genenames.org"
     CACHE_DIR = Path("data/hgnc_cache")
     CACHE_TTL = 30 * 24 * 3600  # 30 days in seconds
+    # Older entries are re-resolved: v1 could hold outages cached as not-found,
+    # v1/v2 could hold an arbitrary pick (docs[0]) from an ambiguous prev/alias match.
+    CACHE_VERSION = 3
 
     def __init__(self):
         """Initialize the HGNC normalizer."""
@@ -43,7 +45,8 @@ class HGNCNormalizer:
 
                 # Check if cache is still valid
                 cached_time = datetime.fromisoformat(cached["cached_at"])
-                if datetime.now() - cached_time < timedelta(seconds=self.CACHE_TTL):
+                fresh = datetime.now() - cached_time < timedelta(seconds=self.CACHE_TTL)
+                if fresh and cached.get("version") == self.CACHE_VERSION:
                     self.stats["cache_hits"] += 1
                     return cached["data"]
             except Exception as e:
@@ -59,6 +62,7 @@ class HGNCNormalizer:
         try:
             cache_data = {
                 "symbol": symbol,
+                "version": self.CACHE_VERSION,
                 "data": data,
                 "cached_at": datetime.now().isoformat(),
             }
@@ -110,48 +114,51 @@ class HGNCNormalizer:
             self.session_cache[normalized] = cached
             return cached
 
-        # Try API lookup - current symbol
-        response = self._make_request(f"search/symbol/{urllib.parse.quote(normalized)}")
-        if response and response.get("response", {}).get("docs"):
-            doc = response["response"]["docs"][0]
-            result = {
-                "hgnc_id": doc.get("hgnc_id"),
-                "approved_symbol": doc.get("symbol", symbol),
-                "found": True,
-            }
-            self._save_to_cache(normalized, result)
-            self.session_cache[normalized] = result
-            return result
+        for endpoint, flag in (
+            ("symbol", None),
+            ("prev_symbol", "was_previous"),
+            ("alias_symbol", "was_alias"),
+        ):
+            quoted = urllib.parse.quote(normalized)
+            response = self._make_request(f"search/{endpoint}/{quoted}")
+            body = response.get("response") if isinstance(response, dict) else None
+            if not isinstance(body, dict):
+                # An outage is not "not found": never cache it, so a later run retries HGNC.
+                logger.warning(f"HGNC unavailable for {symbol}; left unresolved")
+                return {
+                    "hgnc_id": None,
+                    "approved_symbol": symbol,
+                    "found": False,
+                    "hgnc_unavailable": True,
+                }
+            docs = body.get("docs") or []
+            if len(docs) > 1 or body.get("numFound", len(docs)) > 1:
+                # Several genes share this prev/alias symbol: picking one is a guess.
+                logger.warning(f"Ambiguous HGNC {endpoint} match: {symbol} unresolved")
+                result = {
+                    "hgnc_id": None,
+                    "approved_symbol": symbol,
+                    "found": False,
+                    "ambiguous": True,
+                    "candidates": sorted(d.get("hgnc_id") or "" for d in docs),
+                }
+                self._save_to_cache(normalized, result)
+                self.session_cache[normalized] = result
+                return result
+            if docs:
+                doc = docs[0]
+                result = {
+                    "hgnc_id": doc.get("hgnc_id"),
+                    "approved_symbol": doc.get("symbol", symbol),
+                    "found": True,
+                }
+                if flag:
+                    result[flag] = True
+                self._save_to_cache(normalized, result)
+                self.session_cache[normalized] = result
+                return result
 
-        # Try previous symbol
-        response = self._make_request(f"search/prev_symbol/{urllib.parse.quote(normalized)}")
-        if response and response.get("response", {}).get("docs"):
-            doc = response["response"]["docs"][0]
-            result = {
-                "hgnc_id": doc.get("hgnc_id"),
-                "approved_symbol": doc.get("symbol", symbol),
-                "found": True,
-                "was_previous": True,
-            }
-            self._save_to_cache(normalized, result)
-            self.session_cache[normalized] = result
-            return result
-
-        # Try alias symbol
-        response = self._make_request(f"search/alias_symbol/{urllib.parse.quote(normalized)}")
-        if response and response.get("response", {}).get("docs"):
-            doc = response["response"]["docs"][0]
-            result = {
-                "hgnc_id": doc.get("hgnc_id"),
-                "approved_symbol": doc.get("symbol", symbol),
-                "found": True,
-                "was_alias": True,
-            }
-            self._save_to_cache(normalized, result)
-            self.session_cache[normalized] = result
-            return result
-
-        # Not found - cache negative result
+        # Not found (every lookup succeeded with no candidates) - cache negative result
         result = {"hgnc_id": None, "approved_symbol": symbol, "found": False}
         self._save_to_cache(normalized, result)
         self.session_cache[normalized] = result
@@ -197,7 +204,17 @@ def get_hgnc_normalizer() -> HGNCNormalizer:
     return _normalizer
 
 
-@lru_cache(maxsize=10000)
+def normalization_status(result: Dict[str, Any]) -> str:
+    """Output status for a normalize_symbol result."""
+    if result.get("found"):
+        return "normalized"
+    if result.get("ambiguous"):
+        return "ambiguous"
+    if result.get("hgnc_unavailable"):
+        return "hgnc_unavailable"
+    return "not_found"
+
+
 def resolve_hgnc_symbol(symbol: str) -> Optional[Dict[str, Any]]:
     """Resolve a gene symbol to HGNC data.
 

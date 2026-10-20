@@ -164,7 +164,7 @@ app.add_middleware(SlowAPIMiddleware)
 # Add unified logging middleware (replaces basic error handling)
 app.add_middleware(
     LoggingMiddleware,
-    log_request_body=True,  # Enable comprehensive request logging
+    log_request_body=False,  # Bodies can carry passwords and secret settings (#285)
     log_response_body=False,  # Keep response logging disabled for performance
     max_body_size=50000,  # Limit body size to 50KB for storage efficiency
     slow_request_threshold_ms=1000,

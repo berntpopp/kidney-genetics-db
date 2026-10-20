@@ -974,10 +974,16 @@
             "type": "string"
           },
           "is_syndromic": {
-            "default": false,
-            "description": "Syndromic assessment",
-            "title": "Is Syndromic",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Syndromic assessment; null when the gene has not been assessed",
+            "title": "Is Syndromic"
           },
           "onset_group": {
             "anyOf": [
@@ -1800,12 +1806,6 @@
             ],
             "description": "Review notes",
             "title": "Notes"
-          },
-          "reviewer": {
-            "default": "system",
-            "description": "Name of reviewer",
-            "title": "Reviewer",
-            "type": "string"
           }
         },
         "required": [
@@ -1829,12 +1829,6 @@
             ],
             "description": "Rejection reason",
             "title": "Notes"
-          },
-          "reviewer": {
-            "default": "system",
-            "description": "Name of reviewer",
-            "title": "Reviewer",
-            "type": "string"
           }
         },
         "title": "StagingRejectionRequest",
@@ -5494,6 +5488,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Update All Datasources",
         "tags": [
           "Core Resources - Data Sources"
@@ -5600,6 +5599,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Update Datasource",
         "tags": [
           "Core Resources - Data Sources"
@@ -5891,6 +5895,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Create Gene",
         "tags": [
           "Core Resources - Genes"
@@ -7200,7 +7209,7 @@
     },
     "/api/releases/{release_id}/publish": {
       "post": {
-        "description": "Publish a release (admin only).\n\nThis operation:\n1. Closes all current gene temporal ranges\n2. Exports genes to JSON file\n3. Calculates SHA256 checksum\n4. Updates release record with metadata\n\nArgs:\n    release_id: ID of release to publish\n    current_user: Authenticated admin user\n\nReturns:\n    Published release with export metadata\n\nRaises:\n    404: Release not found\n    400: Release already published",
+        "description": "Publish a release (admin only).\n\nThis operation:\n1. Exports current genes to an immutable JSON snapshot\n2. Calculates SHA256 checksum\n3. Updates release record with metadata\nLive gene rows are left unchanged.\n\nArgs:\n    release_id: ID of release to publish\n    current_user: Authenticated admin user\n\nReturns:\n    Published release with export metadata\n\nRaises:\n    404: Release not found\n    400: Release already published",
         "operationId": "publish_release_api_releases__release_id__publish_post",
         "parameters": [
           {
@@ -7332,7 +7341,7 @@
     },
     "/api/releases/{version}/genes": {
       "get": {
-        "description": "Get genes from a specific release.\n\nUses temporal database queries to retrieve genes as they existed\nat the time of the release.\n\nArgs:\n    version: Release version\n    limit: Maximum genes to return\n    offset: Pagination offset\n\nReturns:\n    Paginated list of genes from the release\n\nRaises:\n    404: Release not found\n    400: Release not published",
+        "description": "Get genes from a specific release.\n\nServed from the release's immutable export snapshot, so results do not\nchange as the live gene set evolves.\n\nArgs:\n    version: Release version\n    limit: Maximum genes to return\n    offset: Pagination offset\n\nReturns:\n    Paginated list of genes from the release\n\nRaises:\n    404: Release not found\n    400: Release not published",
         "operationId": "get_release_genes_api_releases__version__genes_get",
         "parameters": [
           {
@@ -7685,6 +7694,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Approve Staging Record",
         "tags": [
           "Pipeline - Staging"
@@ -7740,6 +7754,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Reject Staging Record",
         "tags": [
           "Pipeline - Staging"

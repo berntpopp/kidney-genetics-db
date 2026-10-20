@@ -101,16 +101,23 @@ evidence_classification_weights = ReplaceableObject(
             ge.source_name,
             CASE
                 WHEN jsonb_typeof(ge.evidence_data -> 'classifications'::text) = 'array'::text THEN
-                    CASE (ge.evidence_data -> 'classifications'::text) ->> 0
-                        WHEN 'Definitive'::text THEN 1.0
-                        WHEN 'Strong'::text THEN 0.8
-                        WHEN 'Moderate'::text THEN 0.6
-                        WHEN 'Limited'::text THEN 0.4
-                        WHEN 'Disputed'::text THEN 0.2
-                        WHEN 'No Known Disease Relationship'::text THEN 0.0
-                        WHEN 'No Known Disease Relationship*'::text THEN 0.0
-                        ELSE 0.0  -- Unknown = no evidence
-                    END
+                    -- Strongest classification, independent of array order (#279)
+                    COALESCE(
+                        (SELECT MAX(
+                            CASE elem.value #>> '{}'
+                                WHEN 'Definitive'::text THEN 1.0
+                                WHEN 'Strong'::text THEN 0.8
+                                WHEN 'Moderate'::text THEN 0.6
+                                WHEN 'Limited'::text THEN 0.4
+                                WHEN 'Disputed'::text THEN 0.2
+                                WHEN 'No Known Disease Relationship'::text THEN 0.0
+                                WHEN 'No Known Disease Relationship*'::text THEN 0.0
+                                ELSE 0.0  -- Unknown = no evidence
+                            END
+                        ) FROM jsonb_array_elements(
+                            ge.evidence_data -> 'classifications'::text) elem),
+                        0.0
+                    )
                 WHEN (ge.evidence_data ->> 'classification'::text) IS NOT NULL THEN
                     CASE ge.evidence_data ->> 'classification'::text
                         WHEN 'Definitive'::text THEN 1.0
@@ -475,10 +482,9 @@ gene_hpo_classifications = ReplaceableObject(
         g.approved_symbol AS gene_symbol,
         ga.annotations->'classification'->'clinical_group'->>'primary' AS clinical_group,
         ga.annotations->'classification'->'onset_group'->>'primary' AS onset_group,
-        COALESCE(
-            (ga.annotations->'classification'->'syndromic_assessment'->>'is_syndromic')::boolean,
-            FALSE
-        ) AS is_syndromic
+        -- NULL when not assessed (no HPO annotation or no phenotypes), not FALSE (#253)
+        (ga.annotations->'classification'->'syndromic_assessment'->>'is_syndromic')::boolean
+            AS is_syndromic
     FROM genes g
     LEFT JOIN gene_annotations ga ON g.id = ga.gene_id AND ga.source = 'hpo'
     """,

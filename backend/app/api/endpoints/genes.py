@@ -14,6 +14,7 @@ from starlette.concurrency import run_in_threadpool
 from app.api.deps import get_db
 from app.core.cache_service import get_cache_service
 from app.core.datasource_config import API_DEFAULTS_CONFIG
+from app.core.dependencies import require_curator
 from app.core.exceptions import GeneNotFoundError, ValidationError
 from app.core.jsonapi import (
     build_jsonapi_response,
@@ -26,6 +27,7 @@ from app.core.jsonapi import (
 from app.core.logging import get_logger
 from app.core.rate_limit import LIMIT_GENE_LIST, limiter
 from app.models.gene import Gene, GeneEvidence
+from app.models.user import User
 from app.schemas.gene import GeneCreate
 from app.schemas.network import (
     HPOClassificationData,
@@ -747,7 +749,7 @@ async def get_gene_evidence(
     evidence = db.query(GeneEvidence).filter(GeneEvidence.gene_id == gene.id).all()
 
     # Get normalized scores
-    normalized_scores = {}
+    normalized_scores: dict[int, float | None] = {}
     if gene.id:
         result = db.execute(
             text("""
@@ -758,7 +760,7 @@ async def get_gene_evidence(
             {"gene_id": gene.id},
         )
         for row in result:
-            normalized_scores[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
+            normalized_scores[row[0]] = round(float(row[1]), 4) if row[1] is not None else None
 
     # Format evidence as JSON:API
     from app.crud.evidence_transform import transform_evidence_to_jsonapi
@@ -779,6 +781,7 @@ async def get_gene_evidence(
 async def create_gene(
     gene_in: GeneCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_curator),
 ) -> dict[str, Any]:
     """
     Create a new gene in JSON:API format.
@@ -846,7 +849,8 @@ async def get_hpo_classifications(
         ValidationError: If gene_ids list is invalid (empty or >1000 items)
     """
     start_time = time.time()
-    cache_key = f"hpo_classifications_{hash(tuple(sorted(request.gene_ids)))}"
+    # v2: is_syndromic is null for unassessed genes; skip entries cached as false (#253)
+    cache_key = f"hpo_classifications_v2_{hash(tuple(sorted(request.gene_ids)))}"
 
     await logger.info(
         "Fetching HPO classifications",

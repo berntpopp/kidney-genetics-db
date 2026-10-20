@@ -339,6 +339,7 @@ async def reset_password(
 
     # Update password
     user.hashed_password = get_password_hash(request.new_password)
+    user.refresh_token = None  # revoke existing sessions (#290)
     user.password_reset_token = None
     user.password_reset_expires = None
     user.failed_login_attempts = 0
@@ -400,6 +401,7 @@ async def change_password(
 
     # Update password
     current_user.hashed_password = get_password_hash(request.new_password)
+    current_user.refresh_token = None  # revoke existing sessions (#290)
     db.commit()
 
     await logger.info("Password changed", username=current_user.username)

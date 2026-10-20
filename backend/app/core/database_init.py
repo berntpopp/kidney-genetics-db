@@ -262,6 +262,7 @@ async def create_default_admin(db: Session) -> bool:
                 new_password = settings.ADMIN_PASSWORD.get_secret_value()
                 if not verify_password(new_password, admin.hashed_password):
                     admin.hashed_password = get_password_hash(new_password)
+                    admin.refresh_token = None  # revoke existing sessions (#290)
                     updated = True
                     await logger.warning(
                         "Admin password updated via ADMIN_FORCE_PASSWORD_RESET. "

@@ -58,14 +58,12 @@ class StagingApprovalRequest(BaseModel):
     approved_symbol: str = Field(..., description="Manually corrected gene symbol")
     hgnc_id: str = Field(..., description="HGNC ID for the gene")
     aliases: list[str] | None = Field(default_factory=list, description="Gene aliases")
-    reviewer: str = Field(default="system", description="Name of reviewer")
     notes: str | None = Field(None, description="Review notes")
 
 
 class StagingRejectionRequest(BaseModel):
     """Request schema for rejecting staging records"""
 
-    reviewer: str = Field(default="system", description="Name of reviewer")
     notes: str | None = Field(None, description="Rejection reason")
 
 

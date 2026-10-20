@@ -1,6 +1,6 @@
 [project]
 name = "literature-scraper"
-version = "0.1.0"
+version = "0.1.1"
 description = "Literature scraper for kidney genetics publications"
 requires-python = ">=3.10"
 dependencies = [

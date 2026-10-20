@@ -297,7 +297,9 @@ class HPOClassificationData(BaseModel):
     gene_symbol: str = Field(..., description="Gene symbol")
     clinical_group: str | None = Field(None, description="Clinical classification group")
     onset_group: str | None = Field(None, description="Age of onset group")
-    is_syndromic: bool = Field(False, description="Syndromic assessment")
+    is_syndromic: bool | None = Field(
+        None, description="Syndromic assessment; null when the gene has not been assessed"
+    )
 
 
 class HPOClassificationResponse(BaseModel):
