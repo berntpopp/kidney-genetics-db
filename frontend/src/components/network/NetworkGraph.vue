@@ -424,31 +424,50 @@
                   </div>
                 </div>
 
-                <!-- Syndromic Assessment -->
-                <div v-if="clusterStatistics.get(item.id).syndromic.syndromicCount > 0">
-                  <div class="text-xs font-medium mb-1">Syndromic Assessment</div>
-                  <div class="flex gap-1">
+                <!-- Syndromic Assessment: percentages of assessed genes only -->
+                <div>
+                  <div class="text-xs font-medium mb-1">
+                    Syndromic Assessment ({{
+                      clusterStatistics.get(item.id).syndromic.assessedCount
+                    }}
+                    assessed)
+                  </div>
+                  <div class="flex flex-wrap gap-1">
+                    <template v-if="clusterStatistics.get(item.id).syndromic.assessedCount > 0">
+                      <Badge
+                        class="text-xs"
+                        :style="{
+                          backgroundColor:
+                            networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.true,
+                          color: 'white'
+                        }"
+                      >
+                        Syndromic:
+                        {{ clusterStatistics.get(item.id).syndromic.syndromicPercentage }}%
+                      </Badge>
+                      <Badge
+                        class="text-xs"
+                        :style="{
+                          backgroundColor:
+                            networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.false,
+                          color: 'white'
+                        }"
+                      >
+                        Isolated:
+                        {{ clusterStatistics.get(item.id).syndromic.isolatedPercentage }}%
+                      </Badge>
+                    </template>
                     <Badge
+                      v-if="clusterStatistics.get(item.id).syndromic.unknownCount > 0"
                       class="text-xs"
                       :style="{
                         backgroundColor:
-                          networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.true,
+                          networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.null,
                         color: 'white'
                       }"
                     >
-                      Syndromic:
-                      {{ clusterStatistics.get(item.id).syndromic.syndromicPercentage }}%
-                    </Badge>
-                    <Badge
-                      class="text-xs"
-                      :style="{
-                        backgroundColor:
-                          networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.false,
-                        color: 'white'
-                      }"
-                    >
-                      Isolated:
-                      {{ clusterStatistics.get(item.id).syndromic.isolatedPercentage }}%
+                      {{ networkAnalysisConfig.nodeColoring.labels.syndromic.null }}:
+                      {{ clusterStatistics.get(item.id).syndromic.unknownCount }} genes
                     </Badge>
                   </div>
                 </div>
@@ -511,6 +530,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import ClusterDetailsDialog from './ClusterDetailsDialog.vue'
 import { useNetworkSearch } from '../../composables/useNetworkSearch'
 import { networkAnalysisConfig } from '../../config/networkAnalysis'
+import { computeHpoClusterStats } from './hpoClusterStats'
 
 // Register cose-bilkent layout
 cytoscape.use(coseBilkent)
@@ -741,69 +761,7 @@ const clusterStatistics = computed(() => {
 
   // Compute statistics for each cluster
   clusterGenes.forEach((geneIds, clusterId) => {
-    const clinicalCounts = {}
-    const onsetCounts = {}
-    let syndromicCount = 0
-    let isolatedCount = 0
-    let hpoDataCount = 0
-    const total = geneIds.length
-
-    geneIds.forEach(geneId => {
-      const classification = hpoLookup.get(geneId)
-      if (classification) {
-        hpoDataCount++
-
-        // Clinical group distribution
-        const clinicalGroup = classification.clinical_group || 'null'
-        clinicalCounts[clinicalGroup] = (clinicalCounts[clinicalGroup] || 0) + 1
-
-        // Onset group distribution
-        const onsetGroup = classification.onset_group || 'null'
-        onsetCounts[onsetGroup] = (onsetCounts[onsetGroup] || 0) + 1
-
-        // Syndromic status
-        if (classification.is_syndromic) {
-          syndromicCount++
-        } else {
-          isolatedCount++
-        }
-      }
-    })
-
-    // Convert to percentage arrays, sorted by count descending
-    const clinicalBreakdown = Object.entries(clinicalCounts)
-      .map(([key, count]) => ({
-        key,
-        label: networkAnalysisConfig.nodeColoring.labels.clinical_group[key] || key,
-        color: networkAnalysisConfig.nodeColoring.colorSchemes.clinical_group[key],
-        count,
-        percentage: ((count / hpoDataCount) * 100).toFixed(1)
-      }))
-      .sort((a, b) => b.count - a.count)
-
-    const onsetBreakdown = Object.entries(onsetCounts)
-      .map(([key, count]) => ({
-        key,
-        label: networkAnalysisConfig.nodeColoring.labels.onset_group[key] || key,
-        color: networkAnalysisConfig.nodeColoring.colorSchemes.onset_group[key],
-        count,
-        percentage: ((count / hpoDataCount) * 100).toFixed(1)
-      }))
-      .sort((a, b) => b.count - a.count)
-
-    stats.set(clusterId, {
-      total,
-      hpoDataCount,
-      hpoDataPercentage: ((hpoDataCount / total) * 100).toFixed(1),
-      clinical: clinicalBreakdown,
-      onset: onsetBreakdown,
-      syndromic: {
-        syndromicCount,
-        syndromicPercentage: ((syndromicCount / hpoDataCount) * 100).toFixed(1),
-        isolatedCount,
-        isolatedPercentage: ((isolatedCount / hpoDataCount) * 100).toFixed(1)
-      }
-    })
+    stats.set(clusterId, computeHpoClusterStats(geneIds, hpoLookup))
   })
 
   window.logService?.info(`[ClusterStats] ✓ Computed statistics for ${stats.size} clusters`, {

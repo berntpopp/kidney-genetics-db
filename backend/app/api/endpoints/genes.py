@@ -849,7 +849,8 @@ async def get_hpo_classifications(
         ValidationError: If gene_ids list is invalid (empty or >1000 items)
     """
     start_time = time.time()
-    cache_key = f"hpo_classifications_{hash(tuple(sorted(request.gene_ids)))}"
+    # v2: is_syndromic is null for unassessed genes; skip entries cached as false (#253)
+    cache_key = f"hpo_classifications_v2_{hash(tuple(sorted(request.gene_ids)))}"
 
     await logger.info(
         "Fetching HPO classifications",

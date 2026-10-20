@@ -66,25 +66,40 @@
             </div>
           </div>
 
-          <!-- Syndromic Assessment -->
-          <div v-if="clusterStatistics.syndromic.syndromicCount > 0" class="stats-section">
-            <div class="text-xs font-medium text-muted-foreground mb-2">Syndromic Assessment</div>
+          <!-- Syndromic Assessment: percentages of assessed genes; unassessed shown separately -->
+          <div class="stats-section">
+            <div class="text-xs font-medium text-muted-foreground mb-2">
+              Syndromic Assessment ({{ clusterStatistics.syndromic.assessedCount }} assessed)
+            </div>
             <div class="flex flex-wrap gap-1">
+              <template v-if="clusterStatistics.syndromic.assessedCount > 0">
+                <Badge
+                  :style="{
+                    backgroundColor: networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.true,
+                    color: '#fff'
+                  }"
+                >
+                  Syndromic: {{ clusterStatistics.syndromic.syndromicPercentage }}%
+                </Badge>
+                <Badge
+                  :style="{
+                    backgroundColor:
+                      networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.false,
+                    color: '#fff'
+                  }"
+                >
+                  Isolated: {{ clusterStatistics.syndromic.isolatedPercentage }}%
+                </Badge>
+              </template>
               <Badge
+                v-if="clusterStatistics.syndromic.unknownCount > 0"
                 :style="{
-                  backgroundColor: networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.true,
+                  backgroundColor: networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.null,
                   color: '#fff'
                 }"
               >
-                Syndromic: {{ clusterStatistics.syndromic.syndromicPercentage }}%
-              </Badge>
-              <Badge
-                :style="{
-                  backgroundColor: networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.false,
-                  color: '#fff'
-                }"
-              >
-                Isolated: {{ clusterStatistics.syndromic.isolatedPercentage }}%
+                {{ networkAnalysisConfig.nodeColoring.labels.syndromic.null }}:
+                {{ clusterStatistics.syndromic.unknownCount }} genes
               </Badge>
             </div>
           </div>
@@ -255,6 +270,7 @@ import {
   MapPin
 } from 'lucide-vue-next'
 import { networkAnalysisConfig } from '../../config/networkAnalysis'
+import { computeHpoClusterStats } from './hpoClusterStats'
 
 import {
   Dialog,
@@ -349,72 +365,11 @@ const clusterStatistics = computed(() => {
     hpoLookup.set(item.gene_id, item)
   })
 
-  // Compute statistics for this cluster's genes
-  const clinicalCounts = {}
-  const onsetCounts = {}
-  let syndromicCount = 0
-  let isolatedCount = 0
-  let hpoDataCount = 0
-  const total = props.genes.length
-
-  props.genes.forEach(gene => {
-    const classification = hpoLookup.get(gene.gene_id)
-    if (classification) {
-      hpoDataCount++
-
-      // Clinical group
-      const clinicalGroup = classification.clinical_group || 'null'
-      clinicalCounts[clinicalGroup] = (clinicalCounts[clinicalGroup] || 0) + 1
-
-      // Onset group
-      const onsetGroup = classification.onset_group || 'null'
-      onsetCounts[onsetGroup] = (onsetCounts[onsetGroup] || 0) + 1
-
-      // Syndromic status
-      if (classification.is_syndromic) {
-        syndromicCount++
-      } else {
-        isolatedCount++
-      }
-    }
-  })
-
-  if (hpoDataCount === 0) return null
-
-  // Convert to sorted arrays
-  const clinicalBreakdown = Object.entries(clinicalCounts)
-    .map(([key, count]) => ({
-      key,
-      label: networkAnalysisConfig.nodeColoring.labels.clinical_group[key] || key,
-      color: networkAnalysisConfig.nodeColoring.colorSchemes.clinical_group[key],
-      count,
-      percentage: ((count / hpoDataCount) * 100).toFixed(1)
-    }))
-    .sort((a, b) => b.count - a.count)
-
-  const onsetBreakdown = Object.entries(onsetCounts)
-    .map(([key, count]) => ({
-      key,
-      label: networkAnalysisConfig.nodeColoring.labels.onset_group[key] || key,
-      color: networkAnalysisConfig.nodeColoring.colorSchemes.onset_group[key],
-      count,
-      percentage: ((count / hpoDataCount) * 100).toFixed(1)
-    }))
-    .sort((a, b) => b.count - a.count)
-
-  return {
-    total,
-    hpoDataCount,
-    hpoDataPercentage: ((hpoDataCount / total) * 100).toFixed(1),
-    clinical: clinicalBreakdown,
-    onset: onsetBreakdown,
-    syndromic: {
-      syndromicCount,
-      syndromicPercentage: ((syndromicCount / hpoDataCount) * 100).toFixed(1),
-      isolatedCount,
-      isolatedPercentage: ((isolatedCount / hpoDataCount) * 100).toFixed(1)
-    }
-  }
+  const stats = computeHpoClusterStats(
+    props.genes.map(gene => gene.gene_id),
+    hpoLookup
+  )
+  return stats.hpoDataCount === 0 ? null : stats
 })
 
 // Options

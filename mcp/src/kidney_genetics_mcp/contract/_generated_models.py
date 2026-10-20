@@ -327,8 +327,12 @@ class HPOClassificationData(BaseModel):
     gene_id: Annotated[int, Field(description="Gene ID", title="Gene Id")]
     gene_symbol: Annotated[str, Field(description="Gene symbol", title="Gene Symbol")]
     is_syndromic: Annotated[
-        bool | None, Field(description="Syndromic assessment", title="Is Syndromic")
-    ] = False
+        bool | None,
+        Field(
+            description="Syndromic assessment; null when the gene has not been assessed",
+            title="Is Syndromic",
+        ),
+    ] = None
     onset_group: Annotated[
         str | None, Field(description="Age of onset group", title="Onset Group")
     ] = None
@@ -661,18 +665,12 @@ class StagingApprovalRequest(BaseModel):
     notes: Annotated[str | None, Field(description="Review notes", title="Notes")] = (
         None
     )
-    reviewer: Annotated[
-        str | None, Field(description="Name of reviewer", title="Reviewer")
-    ] = "system"
 
 
 class StagingRejectionRequest(BaseModel):
     notes: Annotated[
         str | None, Field(description="Rejection reason", title="Notes")
     ] = None
-    reviewer: Annotated[
-        str | None, Field(description="Name of reviewer", title="Reviewer")
-    ] = "system"
 
 
 class StagingStatsResponse(BaseModel):
