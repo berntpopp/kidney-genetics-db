@@ -23,6 +23,25 @@ from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin
 logger = get_logger(__name__)
 
 
+# Tie-break order for equal clinical-group scores: the datasources.yaml order that
+# max() implicitly used before (#254), so existing primaries do not change.
+# Groups not listed here rank after these, alphabetically.
+CLINICAL_GROUP_PRIORITY = (
+    "complement",
+    "cakut",
+    "glomerulopathy",
+    "cyst_cilio",
+    "tubulopathy",
+    "nephrolithiasis",
+)
+
+
+def _clinical_group_rank(group: str) -> tuple[int, str]:
+    if group in CLINICAL_GROUP_PRIORITY:
+        return CLINICAL_GROUP_PRIORITY.index(group), ""
+    return len(CLINICAL_GROUP_PRIORITY), group
+
+
 class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     """
     HPO phenotype annotations for genes.
@@ -530,9 +549,9 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
         if total_score > 0:
             scores = {k: round(v / total_score, 3) for k, v in scores.items()}
 
-        # Determine primary group (highest score)
+        # Highest score wins; ties go to CLINICAL_GROUP_PRIORITY, not dict order (#254)
         primary: str | None = (
-            max(scores, key=lambda k: scores.get(k, 0.0))
+            min(scores, key=lambda k: (-scores[k], *_clinical_group_rank(k)))
             if scores and max(scores.values()) > 0
             else None
         )
