@@ -15,9 +15,12 @@ network_analysis:
     default_algorithm: leiden  # Default: leiden (superior to louvain)
 
     # Leiden algorithm (recommended)
+    # Chosen by a seeded resolution sweep on the well-supported network (#331,
+    # .planning/specs/2026-10-21-leiden-resolution-sweep.md)
     leiden:
-      resolution: 1.0  # Higher = more clusters (0.5-2.0 typical)
-      iterations: 2  # CPM iterations (2 is good balance)
+      objective: modularity  # modularity or CPM
+      resolution: 0.8  # Highest modularity and seed stability (mean ARI 0.957) in the sweep
+      iterations: -1  # Iterate until stable (more seed-stable than 2 at negligible cost)
 
     # Louvain algorithm (alternative)
     louvain:
