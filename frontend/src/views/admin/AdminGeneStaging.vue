@@ -354,12 +354,6 @@
             />
             <p class="text-xs text-muted-foreground">Optional notes for the audit trail</p>
           </div>
-
-          <div class="space-y-2">
-            <Label>Your Name/ID *</Label>
-            <Input v-model="approveForm.reviewer" placeholder="Your name or ID" />
-            <p class="text-xs text-muted-foreground">This will be recorded for the audit trail</p>
-          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" @click="approveDialog = false">
@@ -367,9 +361,7 @@
             Cancel
           </Button>
           <Button
-            :disabled="
-              actionLoading || !approveForm.approved_symbol?.trim() || !approveForm.reviewer?.trim()
-            "
+            :disabled="actionLoading || !approveForm.approved_symbol?.trim()"
             @click="confirmApprove"
           >
             <CircleCheck class="size-4 mr-1" />
@@ -418,12 +410,6 @@
             </p>
           </div>
 
-          <div class="space-y-2">
-            <Label>Your Name/ID *</Label>
-            <Input v-model="rejectForm.reviewer" placeholder="Your name or ID" />
-            <p class="text-xs text-muted-foreground">This will be recorded for the audit trail</p>
-          </div>
-
           <div>
             <strong class="text-sm">Common reasons to reject:</strong>
             <ul class="text-xs text-muted-foreground mt-1 list-disc list-inside">
@@ -439,7 +425,7 @@
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            :disabled="actionLoading || !rejectForm.notes?.trim() || !rejectForm.reviewer?.trim()"
+            :disabled="actionLoading || !rejectForm.notes?.trim()"
             @click="confirmReject"
           >
             <CircleX class="size-4 mr-1" />
@@ -624,13 +610,11 @@ const selectedItem = ref(null)
 const approveForm = reactive({
   approved_symbol: '',
   hgnc_id: '',
-  notes: '',
-  reviewer: 'Admin User'
+  notes: ''
 })
 
 const rejectForm = reactive({
-  notes: '',
-  reviewer: 'Admin User'
+  notes: ''
 })
 
 // Computed
@@ -748,15 +732,14 @@ const showItemDetails = item => {
 }
 
 const confirmApprove = async () => {
-  if (!selectedItem.value || !approveForm.approved_symbol || !approveForm.reviewer) return
+  if (!selectedItem.value || !approveForm.approved_symbol) return
 
   actionLoading.value = true
   try {
     await stagingApi.approveStaging(selectedItem.value.id, {
       approved_symbol: approveForm.approved_symbol,
       hgnc_id: approveForm.hgnc_id || null,
-      notes: approveForm.notes || null,
-      reviewer: approveForm.reviewer
+      notes: approveForm.notes || null
     })
 
     toast.success('Gene staging approved successfully', { duration: 5000 })
@@ -771,13 +754,12 @@ const confirmApprove = async () => {
 }
 
 const confirmReject = async () => {
-  if (!selectedItem.value || !rejectForm.notes || !rejectForm.reviewer) return
+  if (!selectedItem.value || !rejectForm.notes) return
 
   actionLoading.value = true
   try {
     await stagingApi.rejectStaging(selectedItem.value.id, {
-      notes: rejectForm.notes,
-      reviewer: rejectForm.reviewer
+      notes: rejectForm.notes
     })
 
     toast.success('Gene staging rejected', { duration: 5000 })
