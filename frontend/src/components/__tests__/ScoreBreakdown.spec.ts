@@ -35,4 +35,20 @@ describe('ScoreBreakdown', () => {
     expect(wrapper.text()).toContain('Exceptional')
     expect(wrapper.text()).not.toContain('Definitive')
   })
+
+  it('describes ClinGen/GenCC sub-scores as scores, not classification words (#314)', () => {
+    // A ClinGen "Disputed" classification scores 0.2; it must not read as "Moderate"
+    const wrapper = mount(ScoreBreakdown, {
+      props: { score: 40, breakdown: { ClinGen: 0.2, GenCC: 0.9 }, variant: 'card' },
+      global: {
+        stubs: { HoverPopover: { template: '<div><slot /><slot name="content" /></div>' } }
+      }
+    })
+    const text = wrapper.text()
+    expect(text).toContain('Evidence score: 20.0%')
+    expect(text).toContain('Evidence score: 90.0%')
+    for (const term of ['Definitive', 'Strong', 'Moderate', 'clinical validity', 'association']) {
+      expect(text).not.toContain(term)
+    }
+  })
 })

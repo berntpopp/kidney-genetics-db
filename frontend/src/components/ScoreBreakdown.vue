@@ -275,9 +275,7 @@ const getSourceDescription = (source, score) => {
     PanelApp: `Panel confidence score: ${percentage}%`,
     HPO: `Phenotype association strength: ${percentage}%`,
     PubTator: `Literature evidence score: ${percentage}%`,
-    Literature: `Publication support: ${percentage}%`,
-    ClinGen: score >= 0.8 ? 'Definitive clinical validity' : 'Moderate clinical validity',
-    GenCC: score >= 0.8 ? 'Strong gene-disease association' : 'Moderate association'
+    Literature: `Publication support: ${percentage}%`
   }
   return descriptions[source] || `Evidence score: ${percentage}%`
 }
