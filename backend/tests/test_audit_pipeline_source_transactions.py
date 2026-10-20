@@ -131,3 +131,141 @@ async def test_evidence_failure_rolls_back_the_new_gene_only(test_engine, db):
     assert _evidence(test_engine, ok) == [{"score": 1}]
     # The failing gene's savepoint (gene + evidence) is rolled back as one unit.
     assert not _gene_exists(test_engine, bad)
+
+
+# --- #291: full refresh keeps old evidence until the replacement succeeded ---------------
+
+OTHER = "AuditTxOtherSource"
+
+
+@pytest.fixture
+def seeded(test_engine, db):
+    """Committed genes KEEP (still reported) and GONE (no longer reported), each with
+    old evidence for SOURCE, plus KEEP evidence for another source."""
+    session, tag = db
+    keep, gone = f"AUD{tag}KEEP", f"AUD{tag}GONE"
+    with test_engine.begin() as conn:
+        for i, sym in enumerate((keep, gone)):
+            gid = conn.execute(
+                text(
+                    "INSERT INTO genes (approved_symbol, hgnc_id, aliases) "
+                    "VALUES (:s, :h, '{}') RETURNING id"
+                ),
+                {"s": sym, "h": f"HGNC:AUD{tag}S{i}"},
+            ).scalar()
+            for src in (SOURCE, OTHER) if sym == keep else (SOURCE,):
+                conn.execute(
+                    text(
+                        "INSERT INTO gene_evidence (gene_id, source_name, evidence_data) "
+                        "VALUES (:g, :s, CAST('{\"old\": true}' AS jsonb))"
+                    ),
+                    {"g": gid, "s": src},
+                )
+    yield session, tag, keep, gone
+    with test_engine.begin() as conn:
+        conn.execute(text("DELETE FROM gene_evidence WHERE source_name = :s"), {"s": OTHER})
+
+
+def _db_normalizer(test_engine, tag: str):
+    """Resolve symbols like the real normalizer does for genes already in the DB."""
+
+    async def fake(db, symbols, source_name):
+        out = {}
+        with test_engine.connect() as conn:
+            for i, s in enumerate(symbols):
+                hgnc = conn.execute(
+                    text("SELECT hgnc_id FROM genes WHERE approved_symbol = :s"), {"s": s}
+                ).scalar()
+                out[s] = {
+                    "status": "normalized",
+                    "approved_symbol": s,
+                    "hgnc_id": hgnc or f"HGNC:AUD{tag}N{i}",
+                }
+        return out
+
+    return patch("app.core.gene_normalizer.normalize_genes_batch_async", fake)
+
+
+def _old_intact(test_engine, keep: str, gone: str) -> bool:
+    return _evidence(test_engine, keep) == [{"old": True}] and _evidence(test_engine, gone) == [
+        {"old": True}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_full_refresh_fetch_failure_keeps_old_evidence(test_engine, seeded):
+    session, tag, keep, gone = seeded
+    source = _Source(TimeoutError("provider timeout"))
+
+    with _db_normalizer(test_engine, tag), pytest.raises(TimeoutError):
+        await source.update_data(session, MagicMock(), mode="full")
+    session.rollback()
+
+    assert _old_intact(test_engine, keep, gone)
+
+
+@pytest.mark.asyncio
+async def test_full_refresh_empty_result_keeps_old_evidence(test_engine, seeded):
+    session, tag, keep, gone = seeded
+    source = _Source({})
+
+    with _db_normalizer(test_engine, tag):
+        stats = await source.update_data(session, MagicMock(), mode="full")
+
+    assert "error" in stats
+    assert _old_intact(test_engine, keep, gone)
+
+
+@pytest.mark.asyncio
+async def test_full_refresh_persistence_failure_keeps_old_evidence(test_engine, seeded):
+    session, tag, keep, gone = seeded
+    source = _Source({keep: {"new": 1}})
+
+    async def boom(*args, **kwargs):
+        raise RuntimeError("database write failed")
+
+    with (
+        _db_normalizer(test_engine, tag),
+        patch.object(_Source, "_create_or_update_evidence", boom),
+    ):
+        await source.update_data(session, MagicMock(), mode="full")
+
+    # KEEP's replacement failed; GONE must not be pruned on a failed replacement either.
+    assert _old_intact(test_engine, keep, gone)
+
+
+@pytest.mark.asyncio
+async def test_full_refresh_store_crash_keeps_old_evidence(test_engine, seeded):
+    session, tag, keep, gone = seeded
+    source = _Source({keep: {"new": 1}})
+
+    async def crash(*args, **kwargs):
+        raise RuntimeError("connection lost")
+
+    with (
+        _db_normalizer(test_engine, tag),
+        patch.object(_Source, "_store_genes_in_database", crash),
+        pytest.raises(RuntimeError),
+    ):
+        await source.update_data(session, MagicMock(), mode="full")
+    session.rollback()
+
+    assert _old_intact(test_engine, keep, gone)
+
+
+@pytest.mark.asyncio
+async def test_full_refresh_success_replaces_and_prunes_only_this_source(test_engine, seeded):
+    session, tag, keep, gone = seeded
+    source = _Source({keep: {"new": 1}})
+
+    with _db_normalizer(test_engine, tag):
+        stats = await source.update_data(session, MagicMock(), mode="full")
+
+    assert stats["entries_deleted"] == 1
+    assert _evidence(test_engine, keep) == [{"new": 1}]
+    assert _evidence(test_engine, gone) == []
+    with test_engine.connect() as conn:
+        other = conn.execute(
+            text("SELECT count(*) FROM gene_evidence WHERE source_name = :s"), {"s": OTHER}
+        ).scalar()
+    assert other == 1

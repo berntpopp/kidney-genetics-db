@@ -100,19 +100,6 @@ class DataSourceClient(ABC):
         """
         pass
 
-    async def _clear_existing_entries(self, db: Session) -> int:
-        """Clear existing entries for this source (for full mode).
-
-        Returns:
-            Number of deleted entries
-        """
-        deleted: int = (
-            db.query(GeneEvidence).filter(GeneEvidence.source_name == self.source_name).delete()
-        )
-        db.commit()
-        logger.sync_info(f"Cleared {deleted} existing {self.source_name} entries")
-        return deleted
-
     async def update_data(
         self, db: Session, tracker: ProgressTracker, mode: str = "smart"
     ) -> dict[str, Any]:
@@ -121,10 +108,11 @@ class DataSourceClient(ABC):
 
         This method implements the common workflow:
         1. Initialize statistics
-        2. Clear existing data if full mode
-        3. Fetch raw data from source
-        4. Process data into gene information
-        5. Store processed data in database
+        2. Fetch raw data from source
+        3. Process data into gene information
+        4. Store processed data in database (upsert in place)
+        5. Full mode only: prune evidence for genes the source no longer reports,
+           and only after the replacement completed without errors (#291)
         6. Return comprehensive statistics
 
         Args:
@@ -140,13 +128,6 @@ class DataSourceClient(ABC):
         try:
             tracker.start(f"Starting {self.source_name} update (mode: {mode})")
             logger.sync_info("Starting data update", source_name=self.source_name, mode=mode)
-
-            # Clear existing entries if full mode
-            if mode == "full":
-                tracker.update(operation="Clearing existing entries")
-                deleted = await self._clear_existing_entries(db)
-                stats["entries_deleted"] = deleted
-                logger.sync_info(f"Full mode: deleted {deleted} existing entries")
 
             # Step 1: Fetch raw data
             tracker.update(operation="Fetching data from source")
@@ -185,7 +166,15 @@ class DataSourceClient(ABC):
                 source_name=self.source_name,
                 gene_count=len(processed_data),
             )
-            await self._store_genes_in_database(db, processed_data, stats, tracker)
+            reported_gene_ids: set[int] = set()
+            await self._store_genes_in_database(
+                db, processed_data, stats, tracker, reported_gene_ids
+            )
+
+            if mode == "full":
+                stats["entries_deleted"] = self._prune_unreported_evidence(
+                    db, reported_gene_ids, stats
+                )
 
             # Step 4: Finalize
             stats["completed_at"] = datetime.now(timezone.utc).isoformat()
@@ -251,12 +240,42 @@ class DataSourceClient(ABC):
             "duration": None,
         }
 
+    def _prune_unreported_evidence(
+        self, db: Session, reported_gene_ids: set[int], stats: dict[str, Any]
+    ) -> int:
+        """Delete this source's evidence for genes absent from a completed full refresh.
+
+        Old evidence is kept whenever the replacement had errors or resolved no genes, so a
+        partial or failed refresh never removes rows it did not replace.
+        """
+        if stats["errors"] or not reported_gene_ids:
+            logger.sync_warning(
+                "Full mode: skipping prune of old evidence after incomplete replacement",
+                source_name=self.source_name,
+                errors=stats["errors"],
+                reported_genes=len(reported_gene_ids),
+            )
+            return 0
+
+        deleted = (
+            db.query(GeneEvidence)
+            .filter(
+                GeneEvidence.source_name == self.source_name,
+                GeneEvidence.gene_id.notin_(reported_gene_ids),
+            )
+            .delete(synchronize_session=False)
+        )
+        db.commit()
+        logger.sync_info(f"Full mode: pruned {deleted} obsolete {self.source_name} entries")
+        return int(deleted)
+
     async def _store_genes_in_database(
         self,
         db: Session,
         gene_data: dict[str, Any],
         stats: dict[str, Any],
         tracker: ProgressTracker,
+        reported_gene_ids: set[int] | None = None,
     ) -> None:
         """
         Store processed gene data in the database.
@@ -322,6 +341,8 @@ class DataSourceClient(ABC):
                         gene = await self._get_or_create_gene(db, norm_result, symbol, stats)
 
                         if gene:
+                            if reported_gene_ids is not None:
+                                reported_gene_ids.add(int(gene.id))
                             # Create or update evidence
                             prev_created = stats["evidence_created"]
                             prev_updated = stats["evidence_updated"]
