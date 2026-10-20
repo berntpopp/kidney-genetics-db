@@ -163,7 +163,7 @@ class HPOEnrichmentRequest(BaseModel):
         ...,
         description="Gene IDs in cluster to test",
         min_length=1,
-        max_length=_enrichment_config.get("hpo", {}).get("max_cluster_size", 500),
+        max_length=_enrichment_config.get("hpo", {}).get("max_cluster_size", 2000),
     )
     background_genes: list[int] | None = Field(
         default=None,
@@ -205,7 +205,7 @@ class HPOBatchEnrichmentRequest(BaseModel):
     @classmethod
     def validate_communities(cls, v: list[list[int]]) -> list[list[int]]:
         """Bound each community like a single HPO request and the total like a network"""
-        max_cluster = _enrichment_config.get("hpo", {}).get("max_cluster_size", 500)
+        max_cluster = _enrichment_config.get("hpo", {}).get("max_cluster_size", 2000)
         max_total = _network_config.get("max_nodes", 2000)
         if any(not 1 <= len(c) <= max_cluster for c in v):
             raise ValueError(f"Each community must have 1-{max_cluster} gene IDs")
@@ -223,7 +223,7 @@ class GOEnrichmentRequest(BaseModel):
         ...,
         description="Gene IDs in cluster",
         min_length=1,
-        max_length=_enrichment_config.get("go", {}).get("max_cluster_size", 500),
+        max_length=_enrichment_config.get("go", {}).get("max_cluster_size", 2000),
     )
     gene_set: str = Field(
         default=_enrichment_config.get("go", {}).get(

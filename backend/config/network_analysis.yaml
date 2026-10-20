@@ -67,7 +67,7 @@ enrichment:
   # HPO enrichment (Fisher's exact test)
   hpo:
     default_fdr_threshold: 0.05  # Benjamini-Hochberg FDR
-    max_cluster_size: 500  # Maximum genes in test cluster
+    max_cluster_size: 2000  # Max genes per cluster (= network.max_nodes; timed in #208)
     max_communities: 200  # Maximum communities per batch request (engineering limit)
     min_term_genes: 2  # Minimum genes per term to test
     max_p_value: 0.05  # Pre-FDR p-value filter
@@ -75,7 +75,7 @@ enrichment:
   # GO/KEGG enrichment (GSEApy with Enrichr)
   go:
     default_fdr_threshold: 0.05
-    max_cluster_size: 500
+    max_cluster_size: 2000  # Enrichr GO at 2000 genes took 6.6s (#208)
     timeout_seconds: 120  # Enrichr API timeout
     max_timeout_seconds: 300  # Maximum allowed timeout
     min_timeout_seconds: 30  # Minimum allowed timeout
