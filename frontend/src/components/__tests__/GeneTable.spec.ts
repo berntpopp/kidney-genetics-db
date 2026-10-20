@@ -39,7 +39,10 @@ let wrapper: VueWrapper | undefined
 async function mountAt(path = '/genes') {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/genes', component: GeneTable }]
+    routes: [
+      { path: '/genes', component: GeneTable },
+      { path: '/genes/:symbol', component: { render: () => null } }
+    ]
   })
   await router.push(path)
   await router.isReady()
@@ -76,5 +79,33 @@ describe('GeneTable', () => {
     expect(box.getAttribute('aria-checked')).toBe('true')
     expect(getGenes).toHaveBeenLastCalledWith(expect.objectContaining({ source: 'ClinGen' }))
     expect(router.currentRoute.value.query.source).toBe('ClinGen')
+  })
+  it('runs the latest search after an in-flight request and drops the stale rows (#300)', async () => {
+    const { router } = await mountAt()
+    const gene = (symbol: string) => ({ id: symbol.length, approved_symbol: symbol, hgnc_id: 'x' })
+    let releasePkd1!: () => void
+    getGenes.mockImplementation(async params => {
+      if (params?.search === 'PKD1') {
+        await new Promise<void>(r => (releasePkd1 = r))
+        return listResult([gene('PKD1')])
+      }
+      return listResult([gene(String(params?.search))])
+    })
+
+    const input = wrapper!.find('input[placeholder^="PKD1"]')
+    await input.setValue('PKD1')
+    await new Promise(r => setTimeout(r, 350)) // debounce -> PKD1 request in flight
+    await input.setValue('PKD2')
+    await new Promise(r => setTimeout(r, 350)) // debounce -> PKD2 requested while PKD1 runs
+    releasePkd1()
+    await flushPromises()
+    await new Promise(r => setTimeout(r, 150))
+    await flushPromises()
+
+    expect(getGenes).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'PKD2' }))
+    expect(router.currentRoute.value.query.search).toBe('PKD2')
+    expect(getGenes.mock.calls.filter(([p]) => p?.search === 'PKD2')).toHaveLength(1)
+    const symbols = wrapper!.findAll('a[href^="/genes/"]').map(a => a.text())
+    expect(symbols).toEqual(['PKD2'])
   })
 })

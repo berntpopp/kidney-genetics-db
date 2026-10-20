@@ -402,30 +402,41 @@ const updateUrl = () => {
 }
 
 // Methods
-const loadGenes = async () => {
-  if (loading.value) return
+// A load requested while another runs is queued so the latest state always wins
+let activeRequest = ''
+let reloadQueued = false
+
+const loadGenes = async (): Promise<void> => {
+  const sortByField = sortBy.value?.[0]?.key || 'evidence_score'
+  const sortDesc = sortBy.value?.[0]?.order === 'desc'
+  const params = {
+    page: page.value,
+    perPage: itemsPerPage.value,
+    search: search.value,
+    minScore: evidenceScoreRange.value[0],
+    maxScore: evidenceScoreRange.value[1],
+    minCount: evidenceCountRange.value[0],
+    maxCount:
+      evidenceCountRange.value[1] < (filterMeta.value?.evidence_count?.max || 7)
+        ? evidenceCountRange.value[1]
+        : null,
+    source: selectedSources.value.length > 0 ? selectedSources.value[0] : null,
+    tiers: selectedTiers.value.length > 0 ? selectedTiers.value : null,
+    sortBy: sortByField,
+    sortDesc,
+    hideZeroScores: !showZeroScoreGenes.value
+  }
+  const requestKey = JSON.stringify(params)
+  if (loading.value) {
+    if (requestKey !== activeRequest) reloadQueued = true
+    return
+  }
 
   loading.value = true
+  activeRequest = requestKey
   try {
-    const sortByField = sortBy.value?.[0]?.key || 'evidence_score'
-    const sortDesc = sortBy.value?.[0]?.order === 'desc'
-    const response = await geneApi.getGenes({
-      page: page.value,
-      perPage: itemsPerPage.value,
-      search: search.value,
-      minScore: evidenceScoreRange.value[0],
-      maxScore: evidenceScoreRange.value[1],
-      minCount: evidenceCountRange.value[0],
-      maxCount:
-        evidenceCountRange.value[1] < (filterMeta.value?.evidence_count?.max || 7)
-          ? evidenceCountRange.value[1]
-          : null,
-      source: selectedSources.value.length > 0 ? selectedSources.value[0] : null,
-      tiers: selectedTiers.value.length > 0 ? selectedTiers.value : null,
-      sortBy: sortByField,
-      sortDesc,
-      hideZeroScores: !showZeroScoreGenes.value
-    })
+    const response = await geneApi.getGenes(params)
+    if (reloadQueued) return // superseded: never show rows for an outdated query
 
     genes.value = response.items
     totalItems.value = response.total
@@ -445,11 +456,16 @@ const loadGenes = async () => {
       }
     }
   } catch (error) {
+    if (reloadQueued) return
     window.logService.error('Error loading genes:', error)
     genes.value = []
     totalItems.value = 0
   } finally {
     loading.value = false
+    if (reloadQueued) {
+      reloadQueued = false
+      await loadGenes()
+    }
   }
 }
 
