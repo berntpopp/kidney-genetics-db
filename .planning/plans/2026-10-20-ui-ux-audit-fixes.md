@@ -31,3 +31,4 @@ Deferred: #330 #333 #254 #255 #282 (scientific definition), #291 remainder, #208
 - Coordinator build on f895ec5: exit 0; no `*.html.gz|br`; inline theme script exactly once in all 8 prerendered pages. FAQ JSON-LD is not in prerendered HTML (also absent at ce75cee; pre-existing, out of scope).
 - W5 (admin) and W7 (backend: #336, #332, #331 seed) started.
 - W4 merged (a7fc999; review must-fix: skeleton 6→7 sources, fixed, rechecked Ship). Integration vitest 197/197. icons.ts mdi map reassigned to W5.
+- Coordinator 2090a41: nginx progress WebSocket routing (#326 prod gap found by W5); nginx -t + echo-upstream probe. W7 merged (119411a; review must-fix event-loop batch + should-fix stale cache/log rows fixed, rechecked Ship; backend suite 752 passed/10 skipped on disposable DB per author; contract snapshot == live openapi).
