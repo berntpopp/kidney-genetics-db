@@ -904,6 +904,9 @@ class AnnotationPipeline:
             except Exception as e:
                 logger.sync_error(f"Bulk upsert failed for {source_name} chunk: {e}")
                 db.rollback()
+                # Fail the source so freshness is not advanced; committed chunks are
+                # idempotently re-upserted on retry (#294).
+                raise
 
         return upserted
 
