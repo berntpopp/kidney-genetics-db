@@ -7,11 +7,16 @@
 /* Tailwind v4 — generates @layer base, components, utilities */
 @import 'tailwindcss';
 
+/* dark: follows the .dark class set by useAppTheme, not the OS preference */
+@custom-variant dark (&:is(.dark *));
+
 /* ============================================================
    Theme — CSS custom properties for light/dark mode (OKLCH)
    ============================================================ */
 @layer theme {
   :root {
+    color-scheme: light;
+
     /* Background / Foreground */
     --background: oklch(0.985 0 0);
     --foreground: oklch(0.141 0.005 285.823);
@@ -24,12 +29,12 @@
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.141 0.005 285.823);
 
-    /* Primary — Sky blue darkened for WCAG AA contrast (≈ sky-600/700) */
-    --primary: oklch(0.55 0.15 237.323);
+    /* Primary — sky hue, lightness lowered for WCAG AA (≥4.5:1) with primary-foreground */
+    --primary: oklch(0.5 0.15 237.323);
     --primary-foreground: oklch(0.984 0.003 247.858);
 
-    /* Secondary — Violet (#8B5CF6) */
-    --secondary: oklch(0.606 0.222 292.717);
+    /* Secondary — violet hue, lightness lowered for WCAG AA with secondary-foreground */
+    --secondary: oklch(0.55 0.222 292.717);
     --secondary-foreground: oklch(0.984 0.003 247.858);
 
     /* Muted */
@@ -77,6 +82,8 @@
   }
 
   .dark {
+    color-scheme: dark;
+
     /* Background / Foreground */
     --background: oklch(0.141 0.005 285.823);
     --foreground: oklch(0.985 0 0);
@@ -140,6 +147,15 @@
 
   html {
     scroll-padding-bottom: 5rem;
+  }
+}
+
+/* shadcn base: Tailwind v4 borders default to currentColor */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
   }
 }
 

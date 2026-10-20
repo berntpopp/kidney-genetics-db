@@ -9,9 +9,13 @@ import {
   XIcon
 } from 'lucide-vue-next'
 import { Toaster as Sonner } from 'vue-sonner'
+// vue-sonner 2.x no longer injects its CSS
+import 'vue-sonner/style.css'
 import { cn } from '@/lib/utils'
+import { useAppTheme } from '@/composables/useAppTheme'
 
 const props = defineProps<ToasterProps>()
+const { isDark } = useAppTheme()
 </script>
 
 <template>
@@ -24,6 +28,7 @@ const props = defineProps<ToasterProps>()
       '--border-radius': 'var(--radius)'
     }"
     v-bind="props"
+    :theme="props.theme ?? (isDark ? 'dark' : 'light')"
   >
     <template #success-icon>
       <CircleCheckIcon class="size-4" />
