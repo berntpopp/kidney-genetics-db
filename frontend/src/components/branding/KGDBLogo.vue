@@ -303,7 +303,7 @@ const handleClick = event => {
 }
 
 .kgdb-logo--interactive:focus-visible {
-  outline: 2px solid hsl(var(--primary));
+  outline: 2px solid var(--primary);
   outline-offset: 4px;
   border-radius: 8px;
 }

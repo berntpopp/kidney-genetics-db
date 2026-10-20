@@ -96,6 +96,7 @@
             <Badge v-for="source in selectedSources" :key="source" class="gap-1 m-1">
               {{ source }}
               <button
+                :aria-label="`Remove ${source}`"
                 class="ml-1 rounded-full hover:bg-destructive/20"
                 @click="removeSource(source)"
               >

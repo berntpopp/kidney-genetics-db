@@ -615,7 +615,7 @@ onMounted(async () => {
           </div>
           <div class="flex flex-wrap gap-2">
             <Select :model-value="sortOption" @update:model-value="applySorting">
-              <SelectTrigger class="w-[180px] h-9">
+              <SelectTrigger aria-label="Sort by" class="w-[180px] h-9">
                 <SelectValue placeholder="Sort by..." />
               </SelectTrigger>
               <SelectContent>

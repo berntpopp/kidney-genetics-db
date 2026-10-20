@@ -32,7 +32,7 @@ withDefaults(defineProps<Props>(), {
           :model-value="`${table.getState().pagination.pageSize}`"
           @update:model-value="val => table.setPageSize(Number(val))"
         >
-          <SelectTrigger class="h-8 w-[70px]">
+          <SelectTrigger class="h-8 w-[70px]" aria-label="Rows per page">
             <SelectValue :placeholder="`${table.getState().pagination.pageSize}`" />
           </SelectTrigger>
           <SelectContent side="top">
@@ -47,6 +47,7 @@ withDefaults(defineProps<Props>(), {
       </div>
       <div class="flex items-center space-x-2">
         <Button
+          aria-label="Go to first page"
           variant="outline"
           class="hidden h-8 w-8 p-0 lg:flex"
           :disabled="!table.getCanPreviousPage()"
@@ -55,6 +56,7 @@ withDefaults(defineProps<Props>(), {
           <ChevronsLeft class="h-4 w-4" />
         </Button>
         <Button
+          aria-label="Go to previous page"
           variant="outline"
           class="h-8 w-8 p-0"
           :disabled="!table.getCanPreviousPage()"
@@ -63,6 +65,7 @@ withDefaults(defineProps<Props>(), {
           <ChevronLeft class="h-4 w-4" />
         </Button>
         <Button
+          aria-label="Go to next page"
           variant="outline"
           class="h-8 w-8 p-0"
           :disabled="!table.getCanNextPage()"
@@ -71,6 +74,7 @@ withDefaults(defineProps<Props>(), {
           <ChevronRight class="h-4 w-4" />
         </Button>
         <Button
+          aria-label="Go to last page"
           variant="outline"
           class="hidden h-8 w-8 p-0 lg:flex"
           :disabled="!table.getCanNextPage()"

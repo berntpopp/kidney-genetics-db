@@ -502,7 +502,13 @@ onUnmounted(() => {
             </Button>
           </div>
 
-          <Button variant="ghost" size="icon" class="h-8 w-8" @click="showSourceDetails(source)">
+          <Button
+            :aria-label="`Details for ${source.source_name}`"
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
+            @click="showSourceDetails(source)"
+          >
             <Info class="size-4" />
           </Button>
         </div>
@@ -593,7 +599,13 @@ onUnmounted(() => {
           </CardContent>
 
           <div class="flex items-center justify-end px-6 pb-4">
-            <Button variant="ghost" size="icon" class="h-8 w-8" @click="showSourceDetails(process)">
+            <Button
+              :aria-label="`Details for ${process.source_name}`"
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8"
+              @click="showSourceDetails(process)"
+            >
               <Info class="size-4" />
             </Button>
           </div>

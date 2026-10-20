@@ -12,6 +12,7 @@
           <Tooltip>
             <TooltipTrigger as-child>
               <Button
+                aria-label="Export graph as PNG"
                 variant="ghost"
                 size="icon"
                 class="size-8"
@@ -27,6 +28,7 @@
           <Tooltip>
             <TooltipTrigger as-child>
               <Button
+                aria-label="Fit graph to view"
                 variant="ghost"
                 size="icon"
                 class="size-8"
@@ -42,6 +44,7 @@
           <Tooltip>
             <TooltipTrigger as-child>
               <Button
+                aria-label="Refresh network"
                 variant="ghost"
                 size="icon"
                 class="size-8"
@@ -65,7 +68,7 @@
         <div class="space-y-1">
           <label class="text-xs font-medium text-muted-foreground">Layout</label>
           <Select v-model="layoutType" @update:model-value="applyLayout">
-            <SelectTrigger class="h-9">
+            <SelectTrigger aria-label="Layout" class="h-9">
               <SelectValue placeholder="Layout" />
             </SelectTrigger>
             <SelectContent>
@@ -79,7 +82,7 @@
         <div class="space-y-1">
           <label class="text-xs font-medium text-muted-foreground">Node Color</label>
           <Select :model-value="colorMode" @update:model-value="$emit('update:colorMode', $event)">
-            <SelectTrigger class="h-9">
+            <SelectTrigger aria-label="Node Color" class="h-9">
               <Palette class="size-4 mr-2 text-muted-foreground" />
               <SelectValue placeholder="Node Color" />
             </SelectTrigger>
@@ -113,6 +116,7 @@
           />
           <button
             v-if="localSearchPattern"
+            aria-label="Clear search"
             class="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
             @click="clearSearchHighlight"
           >

@@ -309,6 +309,7 @@ const exportResults = () => {
             <Tooltip>
               <TooltipTrigger as-child>
                 <Button
+                  aria-label="Export results as CSV"
                   variant="ghost"
                   size="icon-sm"
                   :disabled="!results || results.length === 0"
@@ -323,7 +324,12 @@ const exportResults = () => {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger as-child>
-                <Button variant="ghost" size="icon-sm" @click="$emit('refresh')">
+                <Button
+                  aria-label="Refresh enrichment"
+                  variant="ghost"
+                  size="icon-sm"
+                  @click="$emit('refresh')"
+                >
                   <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
                 </Button>
               </TooltipTrigger>
@@ -345,7 +351,7 @@ const exportResults = () => {
             :model-value="enrichmentType"
             @update:model-value="$emit('update:enrichmentType', $event)"
           >
-            <SelectTrigger>
+            <SelectTrigger aria-label="Enrichment Type">
               <SelectValue placeholder="Select type..." />
             </SelectTrigger>
             <SelectContent>
@@ -359,7 +365,7 @@ const exportResults = () => {
         <div v-if="enrichmentType === 'go'" class="flex-1">
           <Label class="text-xs mb-1 block">Gene Set</Label>
           <Select :model-value="geneSet" @update:model-value="$emit('update:geneSet', $event)">
-            <SelectTrigger>
+            <SelectTrigger aria-label="Gene Set">
               <SelectValue placeholder="Select gene set..." />
             </SelectTrigger>
             <SelectContent>

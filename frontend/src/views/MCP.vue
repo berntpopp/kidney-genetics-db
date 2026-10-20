@@ -49,6 +49,7 @@
           </p>
           <div class="relative mb-3">
             <pre
+              tabindex="0"
               class="text-xs bg-muted rounded-md p-3 pr-12 overflow-x-auto"
             ><code>{{ endpoint }}</code></pre>
             <Button
@@ -94,6 +95,7 @@
             </ol>
             <div class="relative">
               <pre
+                tabindex="0"
                 class="text-xs bg-muted rounded-md p-3 pr-12 overflow-x-auto"
               ><code>{{ client.code }}</code></pre>
               <Button

@@ -189,6 +189,7 @@
                         placeholder="New password"
                       />
                       <Button
+                        :aria-label="showNewPassword ? 'Hide password' : 'Show password'"
                         type="button"
                         variant="ghost"
                         size="icon"

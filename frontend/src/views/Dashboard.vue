@@ -32,6 +32,9 @@
         <Badge
           v-for="tier in tierOptions"
           :key="tier.value"
+          as="button"
+          type="button"
+          :aria-pressed="selectedTiers.includes(tier.value)"
           class="cursor-pointer select-none transition-opacity"
           :class="
             selectedTiers.length === 0 || selectedTiers.includes(tier.value)

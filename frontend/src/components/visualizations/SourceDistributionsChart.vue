@@ -19,7 +19,7 @@
       </TooltipProvider>
       <div class="flex-1" />
       <Select v-if="data && Object.keys(data).length > 0" v-model="selectedSource">
-        <SelectTrigger class="w-[200px] h-8">
+        <SelectTrigger aria-label="Data source" class="w-[200px] h-8">
           <SelectValue placeholder="Select source" />
         </SelectTrigger>
         <SelectContent>

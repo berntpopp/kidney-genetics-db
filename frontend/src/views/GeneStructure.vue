@@ -46,7 +46,7 @@
         <!-- Page Header -->
         <div class="flex items-center mb-4">
           <Button variant="ghost" size="icon" as-child class="mr-3">
-            <router-link :to="`/genes/${symbol}`">
+            <router-link :aria-label="`Back to ${symbol}`" :to="`/genes/${symbol}`">
               <ArrowLeft :size="16" />
             </router-link>
           </Button>

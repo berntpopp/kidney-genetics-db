@@ -146,7 +146,7 @@
                     <Tooltip>
                       <TooltipTrigger as-child>
                         <Button variant="ghost" size="icon" class="h-7 w-7" as-child>
-                          <router-link :to="`/genes/${item.symbol}`">
+                          <router-link aria-label="View gene details" :to="`/genes/${item.symbol}`">
                             <Eye class="size-4" />
                           </router-link>
                         </Button>
@@ -161,6 +161,7 @@
                     <Tooltip>
                       <TooltipTrigger as-child>
                         <Button
+                          aria-label="Copy gene symbol"
                           variant="ghost"
                           size="icon"
                           class="h-7 w-7"
@@ -179,6 +180,7 @@
                     <Tooltip>
                       <TooltipTrigger as-child>
                         <Button
+                          aria-label="Highlight gene in network"
                           variant="ghost"
                           size="icon"
                           class="h-7 w-7"
@@ -208,7 +210,7 @@
           </div>
           <div class="flex items-center gap-2">
             <Select v-model="itemsPerPageStr">
-              <SelectTrigger class="h-8 w-[80px]">
+              <SelectTrigger aria-label="Per page" class="h-8 w-[80px]">
                 <SelectValue placeholder="Per page" />
               </SelectTrigger>
               <SelectContent>
@@ -218,6 +220,7 @@
               </SelectContent>
             </Select>
             <Button
+              aria-label="Previous page"
               variant="ghost"
               size="icon"
               class="h-8 w-8"
@@ -228,6 +231,7 @@
             </Button>
             <span class="text-xs">{{ page }} / {{ totalPages }}</span>
             <Button
+              aria-label="Next page"
               variant="ghost"
               size="icon"
               class="h-8 w-8"

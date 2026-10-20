@@ -58,7 +58,7 @@
           <div class="space-y-2">
             <Label>Log Level</Label>
             <Select v-model="filters.level">
-              <SelectTrigger>
+              <SelectTrigger aria-label="Log Level">
                 <SelectValue placeholder="All levels" />
               </SelectTrigger>
               <SelectContent>
@@ -107,7 +107,7 @@
           <div class="space-y-2">
             <Label>Time Range</Label>
             <Select v-model="filters.timeRange">
-              <SelectTrigger>
+              <SelectTrigger aria-label="Time Range">
                 <SelectValue placeholder="Select range" />
               </SelectTrigger>
               <SelectContent>
@@ -122,7 +122,7 @@
           <div class="md:col-span-3 space-y-2">
             <Label>Sort by</Label>
             <Select v-model="sortOption" @update:model-value="applySorting">
-              <SelectTrigger>
+              <SelectTrigger aria-label="Sort by">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -172,7 +172,7 @@
           <div class="flex items-center gap-2">
             <span class="text-xs text-muted-foreground mr-2">Per page:</span>
             <Select v-model="itemsPerPageStr" @update:model-value="updateItemsPerPage">
-              <SelectTrigger class="w-[80px] h-8">
+              <SelectTrigger aria-label="Per page" class="w-[80px] h-8">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -187,6 +187,7 @@
             </Select>
             <div class="flex items-center gap-1">
               <Button
+                aria-label="Previous page"
                 variant="outline"
                 size="icon"
                 class="h-8 w-8"
@@ -197,6 +198,7 @@
               </Button>
               <span class="text-sm px-2">{{ currentPage }} / {{ pageCount || 1 }}</span>
               <Button
+                aria-label="Next page"
                 variant="outline"
                 size="icon"
                 class="h-8 w-8"

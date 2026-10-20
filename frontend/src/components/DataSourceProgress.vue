@@ -17,7 +17,13 @@
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger as-child>
-                <Button variant="ghost" size="icon" class="h-8 w-8" @click="toggleAutoRefresh">
+                <Button
+                  aria-label="Auto-refresh"
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8"
+                  @click="toggleAutoRefresh"
+                >
                   <component
                     :is="autoRefresh ? RefreshCcw : RefreshCw"
                     :size="14"
@@ -29,7 +35,12 @@
             </Tooltip>
           </TooltipProvider>
           <CollapsibleTrigger as-child>
-            <Button variant="ghost" size="icon" class="h-8 w-8">
+            <Button
+              aria-label="Toggle data source details"
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8"
+            >
               <ChevronDown
                 :size="14"
                 :class="{ 'rotate-180': expanded }"
@@ -80,6 +91,7 @@
                   <div class="flex items-center gap-1">
                     <Button
                       v-if="source.status === 'idle' || source.status === 'failed'"
+                      :aria-label="`Start ${source.source_name}`"
                       variant="ghost"
                       size="icon"
                       class="h-6 w-6"
@@ -90,6 +102,7 @@
                     </Button>
                     <Button
                       v-else-if="source.status === 'running'"
+                      :aria-label="`Pause ${source.source_name}`"
                       variant="ghost"
                       size="icon"
                       class="h-6 w-6"
@@ -99,6 +112,7 @@
                     </Button>
                     <Button
                       v-else-if="source.status === 'paused'"
+                      :aria-label="`Resume ${source.source_name}`"
                       variant="ghost"
                       size="icon"
                       class="h-6 w-6"
@@ -153,6 +167,7 @@
                         source.source_name === 'annotation_pipeline' &&
                         (source.status === 'idle' || source.status === 'failed')
                       "
+                      :aria-label="`Start ${source.source_name}`"
                       variant="ghost"
                       size="icon"
                       class="h-6 w-6"
@@ -165,6 +180,7 @@
                       v-else-if="
                         source.source_name === 'annotation_pipeline' && source.status === 'running'
                       "
+                      :aria-label="`Pause ${source.source_name}`"
                       variant="ghost"
                       size="icon"
                       class="h-6 w-6"
@@ -176,6 +192,7 @@
                       v-else-if="
                         source.source_name === 'annotation_pipeline' && source.status === 'paused'
                       "
+                      :aria-label="`Resume ${source.source_name}`"
                       variant="ghost"
                       size="icon"
                       class="h-6 w-6"

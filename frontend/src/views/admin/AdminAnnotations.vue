@@ -110,7 +110,7 @@
             <div class="space-y-2">
               <Label>Update Strategy</Label>
               <Select v-model="pipelineForm.strategy">
-                <SelectTrigger>
+                <SelectTrigger aria-label="Update Strategy">
                   <SelectValue placeholder="Select strategy" />
                 </SelectTrigger>
                 <SelectContent>
@@ -285,7 +285,7 @@
           <div class="md:col-span-4 space-y-2">
             <Label>Filter by Source (optional)</Label>
             <Select v-model="lookupSource">
-              <SelectTrigger>
+              <SelectTrigger aria-label="Filter by Source">
                 <SelectValue placeholder="All sources" />
               </SelectTrigger>
               <SelectContent>
@@ -416,6 +416,7 @@
               <TableCell>
                 <div class="flex gap-1">
                   <Button
+                    :aria-label="`Update ${item.source_name}`"
                     variant="ghost"
                     size="icon"
                     class="h-8 w-8"
@@ -425,6 +426,7 @@
                     <Play class="size-4" />
                   </Button>
                   <Button
+                    :aria-label="`Details for ${item.source_name}`"
                     variant="ghost"
                     size="icon"
                     class="h-8 w-8"
@@ -498,6 +500,7 @@
               </TableCell>
               <TableCell>
                 <Button
+                  aria-label="Run job now"
                   variant="ghost"
                   size="icon"
                   class="h-8 w-8"

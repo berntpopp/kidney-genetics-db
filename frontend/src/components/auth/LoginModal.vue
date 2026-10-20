@@ -125,6 +125,7 @@ watch(
               :class="{ 'border-destructive': errors.password }"
             />
             <Button
+              :aria-label="showPassword ? 'Hide password' : 'Show password'"
               type="button"
               variant="ghost"
               size="icon"
