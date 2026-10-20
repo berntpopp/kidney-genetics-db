@@ -264,6 +264,42 @@ describe('useAuthStore', () => {
     })
   })
 
+  describe('changePassword', () => {
+    it('signs the user out and sends them to login after a successful change (#290)', async () => {
+      const realLocation = window.location
+      const location = { href: '/profile' }
+      vi.stubGlobal('location', location)
+      const changePassword = authApi.changePassword as ReturnType<typeof vi.fn>
+      changePassword.mockResolvedValue({})
+      localStorage.setItem('user', JSON.stringify(mockAdminUser))
+
+      const store = useAuthStore()
+      store.user = mockAdminUser
+      store.accessToken = 'token'
+      expect(await store.changePassword('old', 'New-pass1!')).toBe(true)
+
+      expect(mockAuthApi.logout).toHaveBeenCalled()
+      expect(store.isAuthenticated).toBe(false)
+      expect(localStorage.getItem('user')).toBeNull()
+      expect(location.href).toBe('/login?reason=password_changed')
+      vi.stubGlobal('location', realLocation)
+    })
+
+    it('keeps the session when the change fails', async () => {
+      const changePassword = authApi.changePassword as ReturnType<typeof vi.fn>
+      changePassword.mockRejectedValue({ response: { data: { detail: 'Wrong password' } } })
+
+      const store = useAuthStore()
+      store.user = mockAdminUser
+      store.accessToken = 'token'
+      expect(await store.changePassword('bad', 'New-pass1!')).toBe(false)
+
+      expect(store.error).toBe('Wrong password')
+      expect(store.isAuthenticated).toBe(true)
+      expect(mockAuthApi.logout).not.toHaveBeenCalled()
+    })
+  })
+
   describe('clearError', () => {
     it('clears error state', async () => {
       mockAuthApi.login.mockRejectedValue({
