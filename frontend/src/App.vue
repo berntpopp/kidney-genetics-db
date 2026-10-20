@@ -51,7 +51,8 @@ onUnmounted(() => {
       <main class="flex-1 pb-20">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
-            <component :is="Component" />
+            <!-- Keyed by path: symbol changes remount gene views; query-only changes do not -->
+            <component :is="Component" :key="route.path" />
           </transition>
         </router-view>
       </main>
