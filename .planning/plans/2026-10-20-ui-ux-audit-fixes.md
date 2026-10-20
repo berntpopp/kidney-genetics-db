@@ -30,3 +30,4 @@ Deferred: #330 #333 #254 #255 #282 (scientific definition), #291 remainder, #208
 - W2 merged (3f3eae3; review Ship after toast-theme fix, rechecked). W3 merged (f895ec5; review must-fixes 1–2 + should-fixes 3–5 applied, rechecked Ship). Integration vitest 184/184, lint/format clean.
 - Coordinator build on f895ec5: exit 0; no `*.html.gz|br`; inline theme script exactly once in all 8 prerendered pages. FAQ JSON-LD is not in prerendered HTML (also absent at ce75cee; pre-existing, out of scope).
 - W5 (admin) and W7 (backend: #336, #332, #331 seed) started.
+- W4 merged (a7fc999; review must-fix: skeleton 6→7 sources, fixed, rechecked Ship). Integration vitest 197/197. icons.ts mdi map reassigned to W5.
