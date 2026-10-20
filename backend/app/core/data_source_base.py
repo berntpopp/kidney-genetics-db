@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService
@@ -371,58 +372,57 @@ class DataSourceClient(ABC):
             gene = db.query(Gene).filter(Gene.hgnc_id == hgnc_id).first()
 
         if not gene:
+            gene_create = GeneCreate(
+                approved_symbol=approved_symbol,
+                hgnc_id=hgnc_id,
+                aliases=[original_symbol] if original_symbol != approved_symbol else [],
+            )
             try:
-                gene_create = GeneCreate(
-                    approved_symbol=approved_symbol,
-                    hgnc_id=hgnc_id,
-                    aliases=[original_symbol] if original_symbol != approved_symbol else [],
-                )
-                gene = gene_crud.create(db, gene_create)
+                # Flush-only inside its own savepoint: the caller owns the transaction and
+                # commits the gene together with its evidence (#292).
+                with db.begin_nested():
+                    gene = gene_crud.create(db, gene_create, commit=False)
                 stats["genes_created"] += 1
                 logger.sync_debug(
                     "Created new gene", approved_symbol=approved_symbol, hgnc_id=hgnc_id
                 )
-            except Exception as e:
-                # Handle race condition: another task may have created the gene
-                if "unique constraint" in str(e).lower() or "duplicate key" in str(e).lower():
-                    db.rollback()
+            except IntegrityError:
+                # Race: another task created the gene; only our savepoint was rolled back.
+                logger.sync_debug(
+                    "Gene constraint violation, retrying fetch",
+                    approved_symbol=approved_symbol,
+                    hgnc_id=hgnc_id,
+                )
+                gene = gene_crud.get_by_symbol(db, approved_symbol)
+                if not gene and hgnc_id:
+                    gene = db.query(Gene).filter(Gene.hgnc_id == hgnc_id).first()
+
+                if gene:
+                    stats["genes_updated"] += 1
                     logger.sync_debug(
-                        "Gene constraint violation, retrying fetch",
-                        approved_symbol=approved_symbol,
-                        hgnc_id=hgnc_id,
+                        "Found gene after race condition",
+                        approved_symbol=gene.approved_symbol,
+                        hgnc_id=gene.hgnc_id,
                     )
-
-                    # Try to get the gene that was created by another task
-                    # Check both symbol and HGNC ID constraints
-                    gene = gene_crud.get_by_symbol(db, approved_symbol)
-                    if not gene and hgnc_id:
-                        gene = db.query(Gene).filter(Gene.hgnc_id == hgnc_id).first()
-
-                    if gene:
-                        stats["genes_updated"] += 1
-                        logger.sync_debug(
-                            "Found gene after race condition",
-                            approved_symbol=gene.approved_symbol,
-                            hgnc_id=gene.hgnc_id,
-                        )
-                    else:
-                        logger.sync_error(
-                            "Race condition: gene still not found after creation attempt",
-                            approved_symbol=approved_symbol,
-                            hgnc_id=hgnc_id,
-                        )
-                        return None
                 else:
-                    db.rollback()
                     logger.sync_error(
-                        "Error creating gene",
+                        "Race condition: gene still not found after creation attempt",
                         approved_symbol=approved_symbol,
-                        original_symbol=original_symbol,
                         hgnc_id=hgnc_id,
-                        error=str(e),
-                        error_type=type(e).__name__,
                     )
                     return None
+            except Exception as e:
+                # Only this gene's savepoint was rolled back; earlier work stays pending.
+                stats["errors"] = stats.get("errors", 0) + 1
+                logger.sync_error(
+                    "Error creating gene",
+                    approved_symbol=approved_symbol,
+                    original_symbol=original_symbol,
+                    hgnc_id=hgnc_id,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                return None
         else:
             stats["genes_updated"] += 1
 
