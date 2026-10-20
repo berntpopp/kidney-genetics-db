@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useHead } from '@unhead/vue'
 import AppHeader from '@/layouts/AppHeader.vue'
 import AppFooter from '@/layouts/AppFooter.vue'
-import LogViewer from '@/components/admin/LogViewer.vue'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useLogStore } from '@/stores/logStore'
@@ -13,6 +12,17 @@ import { useJsonLd, getOrganizationWebSiteSchema } from '@/composables/useJsonLd
 
 const route = useRoute()
 const logStore = useLogStore()
+
+// Admin log viewer loads on first open only; it then stays mounted to keep its filters
+const LogViewer = defineAsyncComponent(() => import('@/components/admin/LogViewer.vue'))
+const logViewerUsed = ref(false)
+watch(
+  () => logStore.isViewerVisible,
+  visible => {
+    if (visible) logViewerUsed.value = true
+  },
+  { immediate: true }
+)
 
 // Initialize dark mode bidirectional sync
 useAppTheme()
@@ -57,7 +67,7 @@ onUnmounted(() => {
         </router-view>
       </main>
       <AppFooter />
-      <LogViewer />
+      <LogViewer v-if="logViewerUsed" />
       <Toaster position="bottom-right" :expand="false" rich-colors />
     </div>
   </TooltipProvider>

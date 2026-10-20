@@ -192,6 +192,13 @@ jobs:
         env:
           VITE_API_BASE_URL: ""
 
+      # Build-time .html.gz/.br predate vite-ssg prerendering; nginx gzip_static would serve them (#312)
+      - name: Guard against precompressed HTML
+        working-directory: frontend
+        run: |
+          stale=$(find dist -name '*.html.gz' -o -name '*.html.br')
+          if [ -n "$stale" ]; then echo "::error::precompressed HTML in dist:"; echo "$stale"; exit 1; fi
+
       # Tests - matches npm run test:run
       - name: Run frontend tests (Vitest)
         working-directory: frontend
