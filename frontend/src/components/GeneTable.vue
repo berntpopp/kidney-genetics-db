@@ -615,7 +615,7 @@ onMounted(async () => {
           </div>
           <div class="flex flex-wrap gap-2">
             <Select :model-value="sortOption" @update:model-value="applySorting">
-              <SelectTrigger class="w-[180px] h-9">
+              <SelectTrigger aria-label="Sort by" class="w-[180px] h-9">
                 <SelectValue placeholder="Sort by..." />
               </SelectTrigger>
               <SelectContent>
@@ -804,8 +804,9 @@ onMounted(async () => {
     <ComponentError v-if="loadError" :error="loadError" @retry="loadGenes" />
 
     <Card v-else-if="genes.length > 0 || loading">
+      <!-- Kept in the DOM while loading so the table does not shift; visibility:hidden keeps it out of tab order and the a11y tree -->
       <DataTablePagination
-        v-if="genes.length > 0"
+        :class="{ invisible: genes.length === 0 }"
         :table="table"
         :page-size-options="itemsPerPageOptions"
       />

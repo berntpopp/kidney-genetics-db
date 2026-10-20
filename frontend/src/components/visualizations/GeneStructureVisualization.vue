@@ -4,18 +4,21 @@
       <!-- Row 1: Classification chips -->
       <div class="flex items-center gap-1.5">
         <button
-          class="text-xs font-medium text-muted-foreground hover:text-foreground w-14 text-left"
+          class="text-xs font-medium text-muted-foreground hover:text-foreground w-24 text-left"
           :class="{ 'text-primary font-semibold': colorBy === 'classification' }"
           title="Click to color by classification"
           @click="colorBy = 'classification'"
         >
-          Class.
+          Classification
           <Palette v-if="colorBy === 'classification'" class="size-2.5 inline ml-0.5" />
         </button>
         <div class="flex flex-wrap gap-0.5">
           <Badge
             v-for="cat in classificationOptions"
             :key="cat.value"
+            as="button"
+            type="button"
+            :aria-pressed="selectedClassifications.includes(cat.value)"
             :variant="selectedClassifications.includes(cat.value) ? 'default' : 'outline'"
             class="cursor-pointer select-none text-xs px-1.5 py-0 h-5"
             :style="
@@ -53,7 +56,7 @@
       <!-- Row 2: Effect chips -->
       <div class="flex items-center gap-1.5">
         <button
-          class="text-xs font-medium text-muted-foreground hover:text-foreground w-14 text-left"
+          class="text-xs font-medium text-muted-foreground hover:text-foreground w-24 text-left"
           :class="{ 'text-primary font-semibold': colorBy === 'effect' }"
           title="Click to color by effect"
           @click="colorBy = 'effect'"
@@ -65,6 +68,9 @@
           <Badge
             v-for="eff in effectOptions"
             :key="eff.value"
+            as="button"
+            type="button"
+            :aria-pressed="selectedEffects.includes(eff.value)"
             :variant="selectedEffects.includes(eff.value) ? 'default' : 'outline'"
             class="cursor-pointer select-none text-xs px-1.5 py-0 h-5"
             :style="
@@ -101,8 +107,8 @@
 
       <!-- Row 3: Summary + tools -->
       <div class="flex items-center gap-2">
-        <span class="text-xs text-muted-foreground w-14">
-          {{ filteredVariants.length }}/{{ allVariants.length }}
+        <span class="text-xs text-muted-foreground">
+          {{ filteredVariants.length }} of {{ allVariants.length }} loaded variants shown
         </span>
         <div class="flex-1" />
         <div class="inline-flex rounded-md border">

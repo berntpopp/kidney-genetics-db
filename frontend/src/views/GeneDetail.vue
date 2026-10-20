@@ -11,8 +11,8 @@
     <!-- Main Content -->
     <div v-else-if="gene">
       <!-- Breadcrumb Navigation -->
-      <div class="px-6 py-2 bg-muted">
-        <Breadcrumb>
+      <div class="py-2 bg-muted">
+        <Breadcrumb class="container mx-auto px-4">
           <BreadcrumbList>
             <template v-for="(crumb, index) in breadcrumbs" :key="index">
               <BreadcrumbItem>
@@ -32,16 +32,11 @@
         <!-- Gene Header -->
         <div class="flex items-start justify-between gap-2 mb-6">
           <div class="flex items-center min-w-0">
-            <RouterLink to="/genes" aria-label="Back to gene browser">
-              <Button
-                variant="ghost"
-                size="icon"
-                class="mr-2 shrink-0"
-                aria-label="Back to gene browser"
-              >
+            <Button variant="ghost" size="icon" class="mr-2 shrink-0" as-child>
+              <RouterLink to="/genes" aria-label="Back to gene browser">
                 <ArrowLeft :size="16" />
-              </Button>
-            </RouterLink>
+              </RouterLink>
+            </Button>
             <div class="min-w-0">
               <div class="flex items-center gap-1">
                 <h1 class="text-2xl sm:text-3xl font-bold truncate">
@@ -63,13 +58,19 @@
           <!-- Action Buttons -->
           <div class="flex gap-1 sm:gap-2 shrink-0">
             <!-- Curator/Admin Edit Button -->
-            <Button v-if="authStore.isCurator" variant="secondary" size="sm" @click="editGene">
+            <Button
+              v-if="authStore.isCurator"
+              variant="secondary"
+              size="sm"
+              aria-label="Edit gene"
+              @click="editGene"
+            >
               <Pencil :size="16" />
               <span class="hidden sm:inline">Edit</span>
             </Button>
 
             <!-- Share: copies URL -->
-            <Button variant="outline" size="sm" aria-label="Copy link to gene" @click="shareGene">
+            <Button variant="outline" size="sm" aria-label="Share link to gene" @click="shareGene">
               <Share2 :size="16" />
               <span class="hidden sm:inline">Share</span>
             </Button>
@@ -156,16 +157,16 @@
     <!-- Not Found State (HTTP 404 only) -->
     <div v-else class="text-center py-12">
       <CircleAlert class="mx-auto size-16 text-destructive mb-4" />
-      <h2 class="text-2xl mb-2">Gene Not Found</h2>
+      <h1 class="text-2xl mb-2">Gene Not Found</h1>
       <p class="text-base text-muted-foreground mb-4">
         The gene "{{ $route.params.symbol }}" could not be found in our database.
       </p>
-      <RouterLink to="/genes">
-        <Button>
+      <Button as-child>
+        <RouterLink to="/genes">
           <ArrowLeft :size="16" />
           Back to Gene Browser
-        </Button>
-      </RouterLink>
+        </RouterLink>
+      </Button>
     </div>
   </div>
 </template>

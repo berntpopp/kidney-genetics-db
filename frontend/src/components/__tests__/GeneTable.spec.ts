@@ -195,6 +195,25 @@ describe('GeneTable footer and loading state (#323)', () => {
     expect(text).toContain('Loading genes')
     expect(text).not.toContain('No genes found')
     expect(text).not.toContain('No results')
-    expect(text).not.toMatch(/0\/0 genes|Page 1 of 0/)
+    expect(text).not.toMatch(/0\/0 genes/)
+  })
+
+  it('reserves the pagination row while loading, hidden from keyboard and screen readers', async () => {
+    getGenes.mockReset()
+    let resolve!: (_v: unknown) => void
+    getGenes.mockReturnValue(new Promise(r => (resolve = r)) as never)
+    await mountAt()
+
+    // visibility:hidden removes the row from tab order and the accessibility tree
+    const row = () =>
+      wrapper!.find('button[aria-label="Go to next page"]').element.closest('div.px-4')!
+    expect(row().classList.contains('invisible')).toBe(true)
+
+    resolve({
+      ...(listResult([{ id: 1, approved_symbol: 'PKD1', hgnc_id: 'x' }]) as object),
+      total: 30
+    })
+    await flushPromises()
+    expect(row().classList.contains('invisible')).toBe(false)
   })
 })

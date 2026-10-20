@@ -14,6 +14,7 @@
       <!-- Clear button inside input -->
       <button
         v-if="localSearchPattern"
+        aria-label="Clear search"
         class="absolute right-2 top-2 h-5 w-5 rounded-full text-muted-foreground hover:text-foreground"
         @click="handleClear"
       >
@@ -66,6 +67,7 @@
       <AlertDescription class="flex items-center justify-between">
         <span>{{ error }}</span>
         <button
+          aria-label="Dismiss error"
           class="ml-2 text-destructive hover:text-destructive/80"
           @click="$emit('clear-error')"
         >

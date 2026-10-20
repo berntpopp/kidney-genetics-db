@@ -74,6 +74,9 @@ describe('GeneDetail load states (#316)', () => {
     await flushPromises()
     expect(geneApi.getGene).toHaveBeenCalledTimes(2)
     expect(w.find('h1').text()).toBe('PKD1')
+    const back = w.get('a[aria-label="Back to gene browser"]')
+    expect(back.attributes('href')).toBe('/genes')
+    expect(back.find('button').exists()).toBe(false)
   })
 
   it('shows not-found copy only for HTTP 404', async () => {
@@ -82,6 +85,11 @@ describe('GeneDetail load states (#316)', () => {
 
     expect(w.text()).toContain('The gene "NOPE1" could not be found in our database.')
     expect(retryButton(w)).toBeUndefined()
+    expect(w.find('h1').text()).toBe('Gene Not Found')
+    // #322: link styled as a button, not a button nested inside a link
+    const back = w.get('a[href="/genes"]')
+    expect(back.text()).toContain('Back to Gene Browser')
+    expect(back.find('button').exists()).toBe(false)
   })
 
   it('tells an evidence failure apart from no evidence', async () => {

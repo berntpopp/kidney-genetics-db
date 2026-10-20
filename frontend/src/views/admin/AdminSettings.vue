@@ -104,6 +104,7 @@
                     <Tooltip>
                       <TooltipTrigger as-child>
                         <Button
+                          aria-label="Edit Setting"
                           variant="ghost"
                           size="icon"
                           class="h-8 w-8"
@@ -119,6 +120,7 @@
                     <Tooltip>
                       <TooltipTrigger as-child>
                         <Button
+                          aria-label="View History"
                           variant="ghost"
                           size="icon"
                           class="h-8 w-8"

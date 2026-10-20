@@ -21,6 +21,7 @@
         <!-- Kidney Cortex -->
         <HoverPopover v-if="gtexData.tissues?.Kidney_Cortex" content-class="w-auto p-2 max-w-xs">
           <Badge
+            as="span"
             variant="outline"
             class="cursor-pointer"
             :style="{
@@ -46,6 +47,7 @@
         <!-- Kidney Medulla -->
         <HoverPopover v-if="gtexData.tissues?.Kidney_Medulla" content-class="w-auto p-2 max-w-xs">
           <Badge
+            as="span"
             variant="outline"
             class="cursor-pointer"
             :style="{
@@ -83,6 +85,7 @@
         <!-- Kidney TPM -->
         <HoverPopover v-if="descartesData.kidney_tpm !== null" content-class="w-auto p-2 max-w-xs">
           <Badge
+            as="span"
             variant="outline"
             class="cursor-pointer"
             :style="{
@@ -110,6 +113,7 @@
           content-class="w-auto p-2 max-w-xs"
         >
           <Badge
+            as="span"
             variant="outline"
             class="cursor-pointer"
             :style="{

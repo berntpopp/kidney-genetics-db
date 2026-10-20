@@ -20,6 +20,7 @@
       <!-- Phenotype count -->
       <HoverPopover content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{
@@ -57,6 +58,7 @@
         content-class="w-auto p-2"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ color: '#ef4444', borderColor: '#ef444440' }"
@@ -76,6 +78,7 @@
         content-class="w-auto p-2"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ color: '#f59e0b', borderColor: '#f59e0b40' }"
@@ -95,6 +98,7 @@
         content-class="w-auto p-2"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ color: '#3b82f6', borderColor: '#3b82f640' }"

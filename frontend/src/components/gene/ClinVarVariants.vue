@@ -20,6 +20,7 @@
       <!-- Total variants -->
       <HoverPopover content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ backgroundColor: '#0ea5e920', color: '#0ea5e9', borderColor: '#0ea5e940' }"
@@ -62,6 +63,7 @@
         content-class="w-auto p-2 max-w-xs"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ backgroundColor: '#ef444420', color: '#ef4444', borderColor: '#ef444440' }"
@@ -90,6 +92,7 @@
       <!-- VUS -->
       <HoverPopover v-if="clinvarData.vus_count > 0" content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ backgroundColor: '#f59e0b20', color: '#f59e0b', borderColor: '#f59e0b40' }"
@@ -110,6 +113,7 @@
         content-class="w-auto p-2 max-w-xs"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ color: '#22c55e', borderColor: '#22c55e40' }"
@@ -131,6 +135,7 @@
         content-class="w-auto p-2 max-w-sm"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ backgroundColor: '#7c3aed20', color: '#7c3aed', borderColor: '#7c3aed40' }"

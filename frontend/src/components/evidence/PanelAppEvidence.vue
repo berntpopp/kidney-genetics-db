@@ -29,6 +29,7 @@
           </div>
 
           <Button
+            :aria-label="`Open ${panel.name} in PanelApp`"
             variant="ghost"
             size="icon"
             class="h-6 w-6 shrink-0"

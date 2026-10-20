@@ -49,10 +49,13 @@
       <div
         class="border-t pt-3 mt-4 flex items-center justify-between text-xs text-muted-foreground"
       >
-        <span>Last updated: {{ formatDate(evidence.evidence_date) }}</span>
+        <span v-if="evidence.evidence_date">
+          Last updated: {{ formatDate(evidence.evidence_date) }}
+        </span>
         <Button
           variant="ghost"
           size="sm"
+          class="ml-auto"
           as="a"
           :href="getSourceUrl(evidence.source_name)"
           target="_blank"
@@ -234,7 +237,6 @@ const getScoreColorHex = score => {
 }
 
 const formatDate = dateString => {
-  if (!dateString) return 'Unknown'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-US', {
     year: 'numeric',

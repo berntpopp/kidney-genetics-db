@@ -81,7 +81,7 @@
           <div class="flex items-center gap-2">
             <span class="mr-2 text-xs text-muted-foreground">Per page:</span>
             <Select v-model="itemsPerPage" @update:model-value="loadBackups">
-              <SelectTrigger class="w-[100px]">
+              <SelectTrigger aria-label="Per page" class="w-[100px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -90,6 +90,7 @@
             </Select>
             <div class="flex items-center gap-1">
               <Button
+                aria-label="Previous page"
                 variant="outline"
                 size="icon"
                 :disabled="currentPage <= 1"
@@ -106,6 +107,7 @@
                 >{{ currentPage }} / {{ pageCount || 1 }}</span
               >
               <Button
+                aria-label="Next page"
                 variant="outline"
                 size="icon"
                 :disabled="currentPage >= pageCount"
@@ -169,6 +171,7 @@
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <Button
+                      :aria-label="`Download Backup ${item.filename}`"
                       variant="ghost"
                       size="icon"
                       class="h-8 w-8"
@@ -183,6 +186,7 @@
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <Button
+                      :aria-label="`Restore Backup ${item.filename}`"
                       variant="ghost"
                       size="icon"
                       class="h-8 w-8"
@@ -198,6 +202,7 @@
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <Button
+                      :aria-label="`View Details ${item.filename}`"
                       variant="ghost"
                       size="icon"
                       class="h-8 w-8"
@@ -212,6 +217,7 @@
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <Button
+                      :aria-label="`Delete Backup ${item.filename}`"
                       variant="ghost"
                       size="icon"
                       class="h-8 w-8"

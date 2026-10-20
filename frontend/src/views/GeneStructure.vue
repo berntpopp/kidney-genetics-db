@@ -25,8 +25,8 @@
     <!-- Main Content -->
     <div v-else-if="gene">
       <!-- Breadcrumb Navigation -->
-      <div class="px-6 py-2 bg-muted">
-        <Breadcrumb>
+      <div class="py-2 bg-muted">
+        <Breadcrumb class="container mx-auto px-4">
           <BreadcrumbList>
             <template v-for="(crumb, index) in breadcrumbs" :key="index">
               <BreadcrumbItem>
@@ -46,7 +46,7 @@
         <!-- Page Header -->
         <div class="flex items-center mb-4">
           <Button variant="ghost" size="icon" as-child class="mr-3">
-            <router-link :to="`/genes/${symbol}`">
+            <router-link :aria-label="`Back to ${symbol}`" :to="`/genes/${symbol}`">
               <ArrowLeft :size="16" />
             </router-link>
           </Button>

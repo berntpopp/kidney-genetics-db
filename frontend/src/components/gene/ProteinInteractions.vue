@@ -20,6 +20,7 @@
       <!-- PPI Score -->
       <HoverPopover content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ backgroundColor: '#0ea5e920', color: '#0ea5e9', borderColor: '#0ea5e940' }"
@@ -55,6 +56,7 @@
       <!-- Percentile Rank -->
       <HoverPopover v-if="stringPpiData.ppi_percentile" content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ color: '#3b82f6', borderColor: '#3b82f640' }"
@@ -77,6 +79,7 @@
       <!-- Network degree -->
       <HoverPopover content-class="w-auto p-2">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ color: '#6b7280', borderColor: '#6b728040' }"

@@ -57,8 +57,14 @@ onUnmounted(() => {
 <template>
   <TooltipProvider :delay-duration="0">
     <div class="min-h-screen flex flex-col bg-background text-foreground">
+      <a
+        href="#main-content"
+        class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-md focus:ring-2 focus:ring-ring"
+      >
+        Skip to main content
+      </a>
       <AppHeader />
-      <main class="flex-1 pb-20">
+      <main id="main-content" tabindex="-1" class="flex-1 pb-20 focus:outline-none">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <!-- Keyed by path: symbol changes remount gene views; query-only changes do not -->

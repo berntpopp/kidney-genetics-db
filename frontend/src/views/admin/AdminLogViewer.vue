@@ -58,7 +58,7 @@
           <div class="space-y-2">
             <Label>Log Level</Label>
             <Select v-model="filters.level">
-              <SelectTrigger>
+              <SelectTrigger aria-label="Log Level">
                 <SelectValue placeholder="All levels" />
               </SelectTrigger>
               <SelectContent>
@@ -107,7 +107,7 @@
           <div class="space-y-2">
             <Label>Time Range</Label>
             <Select v-model="filters.timeRange">
-              <SelectTrigger>
+              <SelectTrigger aria-label="Time Range">
                 <SelectValue placeholder="Select range" />
               </SelectTrigger>
               <SelectContent>
@@ -122,7 +122,7 @@
           <div class="md:col-span-3 space-y-2">
             <Label>Sort by</Label>
             <Select v-model="sortOption" @update:model-value="applySorting">
-              <SelectTrigger>
+              <SelectTrigger aria-label="Sort by">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -172,7 +172,7 @@
           <div class="flex items-center gap-2">
             <span class="text-xs text-muted-foreground mr-2">Per page:</span>
             <Select v-model="itemsPerPageStr" @update:model-value="updateItemsPerPage">
-              <SelectTrigger class="w-[80px] h-8">
+              <SelectTrigger aria-label="Per page" class="w-[80px] h-8">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -187,6 +187,7 @@
             </Select>
             <div class="flex items-center gap-1">
               <Button
+                aria-label="Previous page"
                 variant="outline"
                 size="icon"
                 class="h-8 w-8"
@@ -197,6 +198,7 @@
               </Button>
               <span class="text-sm px-2">{{ currentPage }} / {{ pageCount || 1 }}</span>
               <Button
+                aria-label="Next page"
                 variant="outline"
                 size="icon"
                 class="h-8 w-8"
@@ -334,7 +336,7 @@
                       >
                         Timestamp
                       </div>
-                      <div class="text-sm">{{ formatTimestamp(selectedLog.timestamp, true) }}</div>
+                      <div class="text-sm">{{ formatTimestamp(selectedLog.timestamp) }}</div>
                     </div>
                     <div class="border-b pb-2">
                       <div
@@ -939,40 +941,8 @@ const executeCleanup = async () => {
   }
 }
 
-const formatTimestamp = (timestamp, full = false) => {
-  if (!timestamp) return 'N/A'
-
-  const date = new Date(timestamp)
-
-  if (full) {
-    return date.toLocaleString()
-  }
-
-  // Show relative time for recent logs
-  const now = new Date()
-  const diff = now - date
-
-  if (diff < 60000) {
-    // Less than 1 minute
-    return 'Just now'
-  } else if (diff < 3600000) {
-    // Less than 1 hour
-    const minutes = Math.floor(diff / 60000)
-    return `${minutes}m ago`
-  } else if (diff < 86400000) {
-    // Less than 1 day
-    return date.toLocaleTimeString()
-  } else {
-    return (
-      date.toLocaleDateString() +
-      ' ' +
-      date.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    )
-  }
-}
+// Exact time per row; relative labels collapsed every recent log to "Just now"
+const formatTimestamp = timestamp => (timestamp ? new Date(timestamp).toLocaleString() : 'N/A')
 
 const formatDuration = ms => {
   if (ms < 1000) return `${ms}ms`

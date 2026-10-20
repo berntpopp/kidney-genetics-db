@@ -4,6 +4,7 @@
     <div v-if="variant === 'inline'" class="inline-flex items-center">
       <HoverPopover content-class="max-w-xs p-3">
         <Badge
+          as="span"
           :class="[chipSizeClasses, 'cursor-pointer font-medium tabular-nums']"
           :style="tintedChipStyle(scoreHexColor)"
           variant="outline"
@@ -95,6 +96,7 @@
                 content-class="w-auto p-3"
               >
                 <Badge
+                  as="span"
                   class="cursor-pointer text-[10px]"
                   :style="tintedChipStyle(getSubScoreHexColor(sourceScore))"
                   variant="outline"
@@ -131,6 +133,7 @@
         <div class="flex gap-1">
           <HoverPopover v-for="[source, sourceScore] in topSourceEntries" :key="source">
             <Badge
+              as="span"
               class="cursor-pointer text-[10px]"
               :style="tintedChipStyle(getSubScoreHexColor(sourceScore))"
               variant="outline"

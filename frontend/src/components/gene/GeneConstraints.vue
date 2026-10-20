@@ -17,6 +17,7 @@
       <!-- pLI Score -->
       <HoverPopover content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{
@@ -38,6 +39,7 @@
       <!-- Missense Z-score -->
       <HoverPopover content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{
@@ -59,6 +61,7 @@
       <!-- LoF Z-score -->
       <HoverPopover v-if="gnomadData.lof_z" content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
           :style="{ color: '#6b7280', borderColor: '#6b728040' }"

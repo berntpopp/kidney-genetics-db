@@ -117,7 +117,7 @@
           <div class="space-y-2">
             <Label>Data Source</Label>
             <Select v-model="filters.sourceFilter">
-              <SelectTrigger>
+              <SelectTrigger aria-label="Data Source">
                 <SelectValue placeholder="All sources" />
               </SelectTrigger>
               <SelectContent>
@@ -135,7 +135,7 @@
           <div class="space-y-2">
             <Label>Results per page</Label>
             <Select v-model="filtersLimitStr" @update:model-value="updateFilterLimit">
-              <SelectTrigger>
+              <SelectTrigger aria-label="Results per page">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -220,6 +220,7 @@
                   <Tooltip>
                     <TooltipTrigger as-child>
                       <Button
+                        aria-label="Approve: This IS a valid gene"
                         variant="ghost"
                         size="icon"
                         class="h-8 w-8 text-green-600"
@@ -233,6 +234,7 @@
                   <Tooltip>
                     <TooltipTrigger as-child>
                       <Button
+                        aria-label="Reject: This is NOT a valid gene"
                         variant="ghost"
                         size="icon"
                         class="h-8 w-8 text-destructive"
@@ -246,6 +248,7 @@
                   <Tooltip>
                     <TooltipTrigger as-child>
                       <Button
+                        aria-label="View details"
                         variant="ghost"
                         size="icon"
                         class="h-8 w-8"
