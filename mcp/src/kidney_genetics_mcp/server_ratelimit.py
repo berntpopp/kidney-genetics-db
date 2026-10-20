@@ -7,10 +7,11 @@ Provides a layered rate limiter with:
 The in-process implementation requires no external dependencies and is fully
 deterministic when a custom clock is injected (useful for unit tests).
 
-If ``settings.redis_url`` is set, a thin Redis backend is used instead for the
-global bucket, keyed on a per-second window with INCR+EXPIRE semantics. The
-Redis path is optional — the in-process path is always available and is the
-default; if Redis is unreachable the limiter silently falls back.
+If ``settings.redis_url`` is set, a thin async Redis backend is used instead
+for the global bucket, keyed on a per-second window with INCR+EXPIRE semantics.
+The Redis path is optional — the in-process path is always available and is the
+default. If a Redis operation fails, the limiter falls back to the in-process
+global bucket; that fallback ceiling is per process, not shared across workers.
 """
 
 from __future__ import annotations
@@ -131,37 +132,46 @@ class RateLimiter:
 
     @staticmethod
     def _try_connect_redis(url: str) -> Any:
-        """Attempt to create a Redis client; return ``None`` on failure.
+        """Attempt to create an async Redis client; return ``None`` on failure.
+
+        The client connects lazily on first use, inside the running event loop.
 
         Args:
             url: The Redis connection URL.
 
         Returns:
-            A redis client, or ``None`` if the import/connection setup fails.
+            A ``redis.asyncio`` client, or ``None`` if the client setup fails.
         """
         try:
-            import redis as _redis
+            import redis.asyncio as _redis
 
-            return _redis.from_url(url, decode_responses=True)
+            # Short timeouts so a stalled Redis falls back instead of hanging calls.
+            return _redis.from_url(
+                url,
+                decode_responses=True,
+                socket_timeout=0.5,
+                socket_connect_timeout=0.5,
+            )
         except Exception:  # noqa: BLE001
             return None
 
-    def _redis_allow_global(self) -> bool:
-        """Check the global rate limit via Redis INCR+EXPIRE (1-second window).
+    async def _allow_global(self) -> bool:
+        """Check the global limit via Redis INCR+EXPIRE (1-second window).
 
         Returns:
-            ``True`` when within the per-second window or Redis is unavailable.
+            Whether the request fits the global ceiling. Without Redis, or when a
+            Redis operation fails, the in-process global bucket decides.
         """
         if self._redis is None:
-            return True
+            return self._global_bucket.consume()
         try:
             window_key = f"kgdb_mcp:ratelimit:global:{int(time.time())}"
-            current = self._redis.incr(window_key)
+            current = await self._redis.incr(window_key)
             if current == 1:
-                self._redis.expire(window_key, 2)
+                await self._redis.expire(window_key, 2)
             return int(current) <= int(self._global_rps)
         except Exception:  # noqa: BLE001
-            return True
+            return self._global_bucket.consume()
 
     def _get_tool_bucket(self, tool_name: str) -> _TokenBucket:
         """Return (or lazily create) the per-tool bucket for *tool_name*.
@@ -185,7 +195,7 @@ class RateLimiter:
             )
         return self._tool_buckets[tool_name]
 
-    def allow(self, tool_name: str) -> bool:
+    async def allow(self, tool_name: str) -> bool:
         """Return whether this request is within the global and per-tool limits.
 
         Args:
@@ -195,14 +205,14 @@ class RateLimiter:
             ``True`` when allowed, ``False`` when it should be rejected with a
             ``temporarily_unavailable`` error.
         """
-        if self._redis is not None:
-            if not self._redis_allow_global():
-                return False
-        elif not self._global_bucket.consume():
+        if not await self._allow_global():
             return False
+        return self._get_tool_bucket(tool_name).consume()
 
-        tool_bucket = self._get_tool_bucket(tool_name)
-        return tool_bucket.consume()
+    async def aclose(self) -> None:
+        """Close the optional Redis client and release its connections."""
+        if self._redis is not None:
+            await self._redis.aclose()
 
     def stats(self) -> dict[str, Any]:
         """Return a snapshot of current bucket states for observability.
