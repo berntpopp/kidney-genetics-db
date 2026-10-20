@@ -85,4 +85,16 @@ describe('Login', () => {
 
     expect(wrapper.find('[role="alert"]').text()).toContain('Could not reach the sign-in service')
   })
+
+  it('does not blame the network for a 429 without detail (#327)', async () => {
+    vi.mocked(authApi.login).mockRejectedValueOnce({
+      response: { status: 429, data: { error: 'Rate limit exceeded' } }
+    })
+    const wrapper = await mountAt('/login')
+    await submit(wrapper, 'admin', 'secret')
+
+    const alert = wrapper.find('[role="alert"]')
+    expect(alert.exists()).toBe(true)
+    expect(alert.text()).not.toContain('Could not reach')
+  })
 })

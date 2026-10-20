@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { z } from 'zod/v3'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
@@ -37,15 +37,6 @@ const [password, passwordAttrs] = defineField('password', {
   validateOnBlur: true,
   validateOnInput: true
 })
-
-// ponytail: 'Login failed' is the store's fallback when the API sent no detail (no
-// response, or an error without a body); bad credentials always carry a detail.
-// Upgrade when the store exposes the error kind.
-const formError = computed(() =>
-  authStore.error === 'Login failed'
-    ? 'Could not reach the sign-in service. Check your connection and try again.'
-    : authStore.error
-)
 
 const showPassword = ref(false)
 const rememberMe = ref(false)
@@ -160,11 +151,11 @@ onMounted(() => {
             </div>
 
             <div
-              v-if="formError"
+              v-if="authStore.error"
               role="alert"
               class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
             >
-              {{ formError }}
+              {{ authStore.error }}
             </div>
 
             <Button type="submit" class="w-full" size="lg" :disabled="authStore.isLoading">
