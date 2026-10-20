@@ -60,6 +60,12 @@ describe('UpSetChart selection (#315)', () => {
     )
     rendered.onClick?.(aOnly)
     await flushPromises()
-    expect(wrapper.text()).toContain('3 genes found only in these sources')
+    // Unselected sources are dropped before intersecting, so exclusivity is relative (#315)
+    expect(wrapper.text()).toContain(
+      '3 genes found only in these sources, among the selected sources'
+    )
+    expect(wrapper.text()).toContain(
+      'each gene is counted once, under exactly the selected sources it is found in'
+    )
   })
 })
