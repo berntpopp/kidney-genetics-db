@@ -9,6 +9,15 @@
       :breadcrumbs="ADMIN_BREADCRUMBS.backups"
     >
       <template #actions>
+        <Button
+          variant="outline"
+          class="mr-2"
+          :disabled="cleanupLoading || statsLoading"
+          @click="dialogs.cleanup = true"
+        >
+          <Trash class="mr-2 size-4" />
+          Cleanup Old
+        </Button>
         <Button :disabled="apiLoading" @click="dialogs.create = true">
           <DatabaseBackup class="mr-2 size-4" />
           Create Backup
@@ -54,10 +63,8 @@
       v-model:filters="filters"
       v-model:search-query="searchQuery"
       :loading="apiLoading"
-      :cleanup-loading="cleanupLoading"
       @apply="loadBackups"
       @clear="clearFilters"
-      @cleanup="handleCleanupOldBackups"
     />
 
     <!-- Backups Table -->
@@ -244,6 +251,29 @@
       :loading="apiLoading"
       @delete="handleDeleteBackup"
     />
+
+    <AlertDialog v-model:open="dialogs.cleanup">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete expired backups?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This permanently deletes every completed backup whose expiry date is more than
+            {{ stats.retentionDays }} days in the past (the retention period), including its file.
+            This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :disabled="cleanupLoading"
+            @click="handleCleanupOldBackups"
+          >
+            Delete Expired Backups
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
 
@@ -259,7 +289,16 @@
  */
 
 import { ref, computed, onMounted } from 'vue'
-import { Download, Info, Trash2, ChevronLeft, ChevronRight, DatabaseBackup } from 'lucide-vue-next'
+import {
+  Download,
+  Info,
+  Trash,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  DatabaseBackup
+} from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import BackupCreateDialog from '@/components/admin/backups/BackupCreateDialog.vue'
@@ -291,6 +330,16 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 
 // Composables
 const {
@@ -324,7 +373,8 @@ const dialogs = ref({
   create: false,
   restore: false,
   details: false,
-  delete: false
+  delete: false,
+  cleanup: false
 })
 
 // Filters & Pagination
@@ -454,10 +504,11 @@ const handleCleanupOldBackups = async () => {
   cleanupLoading.value = true
   try {
     const result = await apiCleanupOldBackups()
-    window.logService.info(`Deleted ${result.deleted_count || 0} old backup(s)`)
+    toast.success(`Deleted ${result.deleted_count || 0} expired backup(s)`, { duration: 5000 })
     await Promise.all([loadBackups(), loadStats()])
   } catch (error) {
     window.logService.error('Failed to cleanup old backups:', error)
+    toast.error('Failed to delete expired backups', { duration: Infinity })
   } finally {
     cleanupLoading.value = false
   }

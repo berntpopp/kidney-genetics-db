@@ -86,26 +86,13 @@
           <FilterX class="mr-1 size-4" />
           Clear
         </Button>
-        <Button
-          size="sm"
-          variant="destructive"
-          :disabled="cleanupLoading"
-          @click="$emit('cleanup')"
-        >
-          <span
-            v-if="cleanupLoading"
-            class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-          />
-          <Trash class="mr-1 size-4" />
-          Cleanup Old
-        </Button>
       </div>
     </CardContent>
   </Card>
 </template>
 
 <script setup>
-import { Filter, FilterX, Trash } from 'lucide-vue-next'
+import { Filter, FilterX } from 'lucide-vue-next'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -130,14 +117,10 @@ const props = defineProps({
   loading: {
     type: Boolean,
     default: false
-  },
-  cleanupLoading: {
-    type: Boolean,
-    default: false
   }
 })
 
-const emit = defineEmits(['update:filters', 'update:searchQuery', 'apply', 'clear', 'cleanup'])
+const emit = defineEmits(['update:filters', 'update:searchQuery', 'apply', 'clear'])
 
 // Options
 const statusOptions = [

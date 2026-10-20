@@ -39,6 +39,16 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -56,6 +66,7 @@ const triggering = ref({})
 const pausing = ref({})
 const resuming = ref({})
 const triggeringAll = ref(false)
+const showRunAllDialog = ref(false)
 const showDetailsDialog = ref(false)
 const selectedSource = ref(null)
 
@@ -143,14 +154,16 @@ const resumeSource = async sourceName => {
   }
 }
 
+const triggerableSources = computed(() =>
+  dataSources.value.filter(
+    s => s.status === 'idle' || s.status === 'failed' || s.status === 'completed'
+  )
+)
+
 const triggerAll = async () => {
   triggeringAll.value = true
   try {
-    const triggerable = dataSources.value.filter(
-      s => s.status === 'idle' || s.status === 'failed' || s.status === 'completed'
-    )
-
-    await Promise.all(triggerable.map(source => triggerSource(source.source_name)))
+    await Promise.all(triggerableSources.value.map(source => triggerSource(source.source_name)))
 
     toast.success('All data sources triggered', { duration: 5000 })
   } catch (error) {
@@ -337,7 +350,11 @@ onUnmounted(() => {
     <Card class="mb-4">
       <CardContent class="p-4">
         <div class="flex flex-wrap gap-2">
-          <Button size="sm" :disabled="triggeringAll || runningSources > 0" @click="triggerAll">
+          <Button
+            size="sm"
+            :disabled="triggeringAll || runningSources > 0 || triggerableSources.length === 0"
+            @click="showRunAllDialog = true"
+          >
             <Loader2 v-if="triggeringAll" class="size-4 mr-2 animate-spin" />
             <Play v-else class="size-4 mr-2" />
             Run All Data Sources
@@ -585,6 +602,27 @@ onUnmounted(() => {
         </Card>
       </div>
     </div>
+
+    <AlertDialog v-model:open="showRunAllDialog">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            Run {{ triggerableSources.length }} data source{{
+              triggerableSources.length === 1 ? '' : 's'
+            }}?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            This starts an update run for each of these sources:
+            {{ triggerableSources.map(s => s.source_name).join(', ') }}. Runs continue in the
+            background until they finish or are paused.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction @click="triggerAll">Run All</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <!-- Source Details Dialog -->
     <Dialog v-model:open="showDetailsDialog">

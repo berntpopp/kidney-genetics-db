@@ -65,6 +65,8 @@ const showCreateDialog = ref(false)
 const showDeleteDialog = ref(false)
 const editingUser = ref(null)
 const deletingUser = ref(null)
+const deactivatingUser = ref(null)
+const showDeactivateDialog = ref(false)
 const saving = ref(false)
 const deleting = ref(false)
 const formValid = computed(() => {
@@ -204,7 +206,8 @@ const columns = [
                   variant: 'ghost',
                   size: 'icon',
                   class: 'h-8 w-8',
-                  onClick: () => toggleUserStatus(user)
+                  disabled: user.id === authStore.user?.id,
+                  onClick: () => requestToggleUserStatus(user)
                 },
                 () =>
                   h(user.is_active ? UserX : UserCheck, {
@@ -284,6 +287,16 @@ const editUser = user => {
     is_verified: user.is_verified
   }
   showCreateDialog.value = true
+}
+
+// Deactivation locks the user out, so it is confirmed; activation is not
+const requestToggleUserStatus = user => {
+  if (user.is_active) {
+    deactivatingUser.value = user
+    showDeactivateDialog.value = true
+  } else {
+    toggleUserStatus(user)
+  }
 }
 
 const toggleUserStatus = async user => {
@@ -505,6 +518,7 @@ onMounted(() => {
             <div class="flex items-center gap-2">
               <Checkbox
                 id="is_active"
+                :disabled="!!editingUser && editingUser.id === authStore.user?.id"
                 :model-value="userFormData.is_active"
                 @update:model-value="val => (userFormData.is_active = val)"
               />
@@ -530,6 +544,28 @@ onMounted(() => {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <!-- Deactivate Confirmation Dialog -->
+    <AlertDialog v-model:open="showDeactivateDialog">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Deactivate user?</AlertDialogTitle>
+          <AlertDialogDescription>
+            "{{ deactivatingUser?.username }}" will no longer be able to sign in until the account
+            is activated again.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            @click="toggleUserStatus(deactivatingUser)"
+          >
+            Deactivate
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <!-- Delete Confirmation Dialog -->
     <AlertDialog v-model:open="showDeleteDialog">
