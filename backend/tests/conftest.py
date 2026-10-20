@@ -76,6 +76,32 @@ def test_engine():
     yield engine
 
 
+@pytest.fixture(scope="session")
+def _cache_entries_baseline():
+    """Highest cache_entries id before the run, or None when the DB is unavailable."""
+    try:
+        engine, _ = get_test_engine()
+        with engine.connect() as conn:
+            baseline = conn.execute(text("SELECT COALESCE(MAX(id), 0) FROM cache_entries")).scalar()
+    except (Exception, pytest.skip.Exception):
+        baseline = None
+    return baseline
+
+
+@pytest.fixture(autouse=True)
+def _remove_committed_cache_rows(_cache_entries_baseline):
+    """L2 cache writes commit on the cache's own sessions (#293), outside any test
+    rollback; delete rows created during the run after each test."""
+    yield
+    if _cache_entries_baseline is None:
+        return
+    engine, _ = get_test_engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text("DELETE FROM cache_entries WHERE id > :b"), {"b": _cache_entries_baseline}
+        )
+
+
 @pytest.fixture(scope="function")
 def db_session(test_engine):
     """
