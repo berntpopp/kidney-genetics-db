@@ -28,8 +28,8 @@
     <div v-if="loading" aria-busy="true">
       <span class="sr-only">Loading data sources...</span>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <!-- ponytail: 6 = the documented sources; the API may return a different count -->
-        <Card v-for="n in 6" :key="n" class="h-full overflow-hidden animate-pulse">
+        <!-- 7 = sources in backend/config/datasources.yaml; the API returns all, inactive included -->
+        <Card v-for="n in 7" :key="n" class="h-full overflow-hidden animate-pulse">
           <div class="p-4 bg-muted">
             <div class="h-7 w-32 rounded bg-muted-foreground/20" />
             <div class="h-4 w-12 rounded bg-muted-foreground/20" />

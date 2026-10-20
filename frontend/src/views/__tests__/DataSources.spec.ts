@@ -87,7 +87,7 @@ describe('DataSources loading layout (#324)', () => {
     await flushPromises()
 
     const busy = w.find('[aria-busy="true"]')
-    expect(busy.findAll('.grid > [data-slot="card"]')).toHaveLength(6)
+    expect(busy.findAll('.grid > [data-slot="card"]')).toHaveLength(7)
     expect(busy.text()).toContain('Database Summary')
   })
 })
