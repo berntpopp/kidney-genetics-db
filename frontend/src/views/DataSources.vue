@@ -24,12 +24,35 @@
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" aria-busy="true" class="flex flex-col items-center justify-center py-12">
-      <div
-        class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4"
-      />
-      <div class="text-lg font-semibold">Loading data sources...</div>
+    <!-- Loading State: skeletons in the loaded layout so nothing shifts when data arrives -->
+    <div v-if="loading" aria-busy="true">
+      <span class="sr-only">Loading data sources...</span>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- ponytail: 6 = the documented sources; the API may return a different count -->
+        <Card v-for="n in 6" :key="n" class="h-full overflow-hidden animate-pulse">
+          <div class="p-4 bg-muted">
+            <div class="h-7 w-32 rounded bg-muted-foreground/20" />
+            <div class="h-4 w-12 rounded bg-muted-foreground/20" />
+          </div>
+          <CardContent class="p-4">
+            <div class="h-10 rounded bg-muted mb-4" />
+            <div class="h-11 rounded bg-muted mb-3" />
+            <Separator class="my-3" />
+            <div class="h-4 rounded bg-muted" />
+          </CardContent>
+        </Card>
+      </div>
+      <Card class="mt-6">
+        <CardHeader class="flex flex-row items-center gap-2">
+          <ChartBarBig class="size-5 text-primary" />
+          <CardTitle>Database Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 animate-pulse">
+            <div v-for="n in 4" :key="n" class="h-14 rounded bg-muted" />
+          </div>
+        </CardContent>
+      </Card>
     </div>
 
     <ComponentError v-else-if="loadError" :error="loadError" @retry="loadDataSources" />

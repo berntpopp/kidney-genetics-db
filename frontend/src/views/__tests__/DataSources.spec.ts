@@ -76,3 +76,18 @@ describe('DataSources load states (#316)', () => {
     expect(w.text()).not.toContain("Couldn't load")
   })
 })
+
+describe('DataSources loading layout (#324)', () => {
+  afterEach(() => wrapper?.unmount())
+
+  it('reserves the final layout while loading: source-card grid and summary card', async () => {
+    getDataSources.mockReset()
+    getDataSources.mockReturnValue(new Promise(() => {}))
+    const w = mountView()
+    await flushPromises()
+
+    const busy = w.find('[aria-busy="true"]')
+    expect(busy.findAll('.grid > [data-slot="card"]')).toHaveLength(6)
+    expect(busy.text()).toContain('Database Summary')
+  })
+})
