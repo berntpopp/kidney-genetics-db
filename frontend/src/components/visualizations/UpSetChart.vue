@@ -449,6 +449,8 @@ const renderUpSetPlot = () => {
         theme: isDark.value ? 'dark' : 'light',
         selection: selectedIntersection.value,
         onClick: set => {
+          // A set row's size counts every gene in that source, not an exclusive intersection
+          if (set?.type === 'set') return
           // Toggle selection
           if (selectedIntersection.value === set) {
             selectedIntersection.value = null
