@@ -501,7 +501,7 @@ const SourceContent = defineComponent({
               h('div', { class: 'border-b px-4' }, [
                 h(
                   TabsList,
-                  { class: 'bg-transparent' },
+                  { class: 'bg-transparent h-auto flex-wrap' },
                   {
                     default: () => [
                       h(
@@ -545,7 +545,7 @@ const SourceContent = defineComponent({
                           'onUpdate:modelValue': v => {
                             uploadMode.value = v
                           },
-                          class: 'flex gap-4'
+                          class: 'flex flex-wrap gap-x-4 gap-y-2'
                         },
                         {
                           default: () => [

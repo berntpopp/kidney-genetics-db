@@ -158,7 +158,7 @@
     <Card>
       <!-- Top Pagination Controls -->
       <div class="p-2 border-b">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-wrap justify-between items-center gap-x-4 gap-y-2">
           <div class="flex items-center gap-4">
             <div class="text-sm">
               <span class="font-bold">{{ totalLogs }}</span>
