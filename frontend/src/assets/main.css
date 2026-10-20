@@ -150,6 +150,15 @@
   }
 }
 
+/* shadcn base: Tailwind v4 borders default to currentColor */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+}
+
 /* ============================================================
    Tailwind v4 @theme — map CSS vars to Tailwind color tokens
    ============================================================ */

@@ -9,6 +9,8 @@ import {
   XIcon
 } from 'lucide-vue-next'
 import { Toaster as Sonner } from 'vue-sonner'
+// vue-sonner 2.x no longer injects its CSS
+import 'vue-sonner/style.css'
 import { cn } from '@/lib/utils'
 
 const props = defineProps<ToasterProps>()
