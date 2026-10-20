@@ -337,38 +337,73 @@ async def test_full_refresh_batch_commit_failure_counts_errors_and_skips_prune(t
 # --- idle-in-transaction timeout during HGNC lookups (review item 5) ----------------------
 
 
-@pytest.mark.asyncio
-async def test_slow_hgnc_lookup_does_not_hit_idle_in_transaction_timeout(test_engine, db):
-    """Production engines set idle_in_transaction_session_timeout (30 s). The normalizer
-    reads genes, then awaits HGNC with that read transaction still open."""
-    import asyncio
-
+def _guarded_session(test_engine):
+    """Session on an engine with a 1 s idle-in-transaction guard (production uses 30 s)."""
     from sqlalchemy import create_engine
     from sqlalchemy.pool import NullPool
 
-    from app.core.hgnc_client import HGNCClientCached
-
-    _, tag = db
-    symbol = f"AUD{tag}SLOW"
-    guarded = create_engine(
+    engine = create_engine(
         test_engine.url,
         poolclass=NullPool,
         connect_args={"options": "-c idle_in_transaction_session_timeout=1000"},
     )
-    session = sessionmaker(bind=guarded)()
+    return engine, sessionmaker(bind=engine)()
 
-    async def slow_hgnc(self, symbols):
+
+def _slow_hgnc(tag: str):
+    import asyncio
+
+    from app.core.hgnc_client import HGNCClientCached
+
+    async def slow(self, symbols):
         await asyncio.sleep(1.5)  # longer than the 1 s guard
         return {s: {"approved_symbol": s, "hgnc_id": f"HGNC:AUD{tag}1"} for s in symbols}
 
+    return patch.object(HGNCClientCached, "standardize_symbols_parallel", slow)
+
+
+@pytest.mark.asyncio
+async def test_slow_hgnc_lookup_does_not_hit_idle_in_transaction_timeout(test_engine, db):
+    """The normalizer reads genes, then awaits HGNC with that transaction still open."""
+    _, tag = db
+    symbol = f"AUD{tag}SLOW"
+    engine, session = _guarded_session(test_engine)
     try:
-        with patch.object(HGNCClientCached, "standardize_symbols_parallel", slow_hgnc):
+        with _slow_hgnc(tag):
             stats = await _Source({symbol: {"score": 1}}).update_data(
                 session, MagicMock(), mode="smart"
             )
     finally:
         session.close()
-        guarded.dispose()
+        engine.dispose()
 
     assert stats["errors"] == 0
     assert _evidence(test_engine, symbol) == [{"score": 1}]
+
+
+@pytest.mark.asyncio
+async def test_direct_normalizer_call_keeps_callers_open_transaction(test_engine, db):
+    """Direct callers (seeder, ingestion, PubTator) keep their pending work across HGNC."""
+    from app.core.gene_normalizer import normalize_genes_batch_async
+
+    _, tag = db
+    pending = f"AUD{tag}PEND"
+    engine, session = _guarded_session(test_engine)
+    try:
+        session.execute(
+            text("INSERT INTO genes (approved_symbol, hgnc_id, aliases) VALUES (:s, :h, '{}')"),
+            {"s": pending, "h": f"HGNC:AUD{tag}P"},
+        )
+        with _slow_hgnc(tag):
+            result = await normalize_genes_batch_async(session, [f"AUD{tag}NEW"], SOURCE)
+
+        assert result[f"AUD{tag}NEW"]["status"] == "normalized"
+        # Connection survived and the caller's write is still pending, not committed.
+        assert session.execute(
+            text("SELECT 1 FROM genes WHERE approved_symbol = :s"), {"s": pending}
+        ).first()
+        assert not _gene_exists(test_engine, pending)
+    finally:
+        session.rollback()
+        session.close()
+        engine.dispose()

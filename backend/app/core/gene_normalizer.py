@@ -7,6 +7,7 @@ replacing the duplicated sync/async implementations with a clean async-first des
 
 from typing import Any
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.hgnc_client import get_hgnc_client_cached
@@ -165,6 +166,10 @@ class GeneNormalizer:
         hgnc_results = {}
 
         if genes_to_lookup:
+            if db.in_transaction():
+                # The read above left the caller's transaction open across the HGNC await;
+                # lift the engine's idle-in-transaction guard for this transaction only.
+                db.execute(text("SET LOCAL idle_in_transaction_session_timeout = 0"))
             hgnc_results = await self.hgnc_client.standardize_symbols_parallel(genes_to_lookup)
 
         # Compile results
