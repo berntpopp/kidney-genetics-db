@@ -36,3 +36,12 @@ Deferred: #330 #333 #254 #255 #282 (scientific definition), #291 remainder, #208
 - Backend gate on 5022feb (disposable PG :55470 / Redis :56470): `uv lock --check` ok, ruff ok, pytest 752 passed / 10 skipped (data-dependent). `make check-mcp`: 210 passed, mypy clean, contract current.
 - Cross-stream review (ce75cee..5022feb): Ship; should-fix pagination-row CLS + pending badge contrast routed to W6. Pre-existing, out of scope: 24× `hsl(var(--token))` on oklch tokens (invalid CSS); location-level add_header drops server CSP/HSTS on HTML.
 - W6 (#322, #329) started from 5022feb.
+- Cross-stream review on W6: Ship after label-in-name, local dates, FAQ prerender, per-row labels. W6 merged (bc5226b).
+- `make check` on bc5226b: all green except one `main.spec.ts` 5 s timeout right after the build; passes 3/3 alone and in a full rerun; cold import not slower than main (98 vs 203 ms).
+- Draft PR #339 opened. CI green on bc5226b.
+- After-fix audit on bc5226b was invalid in its second half: the dev postgres/redis (and unrelated containers) were stopped externally mid-run; run discarded. User approved restarting the two dev containers.
+- Codex CLI (gpt-6-astra, high) ponytail-review in 5 parallel focused reviews: confirmed findings fixed (DataSourceProgress Start bypassing confirmation, overlapping WebSockets, LoginModal a11y, skip-link z-index, skeleton subtitle, UpSet "among the selected sources", lazy-import test, graph cache invalidation, validation/seed tests). Dispositions: batch FDR family = terms with ≥1 overlap (same as single endpoint, documented; method decision for maintainers); cluster genes outside HPO background = #289 (deferred); sync DB reads in batch = same as single endpoint, capped; in-flight /build race = ponytail-documented (≤~2 h stale, rare refresh). Rechecks: Ship.
+- Clean audit on cece598 found 23 contrast nodes on gene pages (raw `hex + '20'` badges) and 2 heading-order items → fixed (bc447d2), Codex review Ship.
+- #319 AC2 verified: toggle dark + OS light vs OS dark → 0 computed-style differences on /genes/PKD1 (362 elements) and /admin/pipeline (359).
+- `make check` on bc447d2: exit 0 (backend 754 passed/10 skipped, frontend 235/235 + build, MCP 210, contract current).
+- Final audit `runs/after-bc447d2.json` (full DB, 2 runs): vs pre-ce75cee 176 better / 1 worse (/dashboard desktop LCP +286 ms, perf 99). All 4 checks pass; themeFlash 0 and overflow 0 everywhere; contrast/axe 0 on all public routes except /genes/PKD1/structure (9: inactive legend chips at 0.7 opacity, design decision); 0 console errors.
