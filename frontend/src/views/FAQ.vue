@@ -19,7 +19,8 @@
       Common questions about the Kidney Genetics Database and how to use it.
     </p>
 
-    <Accordion type="single" collapsible class="space-y-4">
+    <!-- Answers stay in the prerendered HTML -->
+    <Accordion type="single" collapsible :unmount-on-hide="false" class="space-y-4">
       <AccordionItem
         v-for="(faq, index) in faqs"
         :key="index"

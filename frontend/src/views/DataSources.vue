@@ -474,7 +474,8 @@ const formatDate = (dateStr: string | null | undefined) => {
   if (diffDays === 1) return 'Yesterday'
   if (diffDays < 7) return `${diffDays} days ago`
   if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-  return date.toISOString().slice(0, 10)
+  // en-CA formats as YYYY-MM-DD in local time, matching the relative labels
+  return date.toLocaleDateString('en-CA')
 }
 
 const loadDataSources = async () => {

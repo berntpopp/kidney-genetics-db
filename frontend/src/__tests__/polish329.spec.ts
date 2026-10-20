@@ -21,7 +21,7 @@ vi.mock('@/api/datasources', () => ({
         {
           name: 'PubTator',
           status: 'active',
-          stats: { gene_count: 4321, last_updated: '2025-03-04T10:00:00Z' }
+          stats: { gene_count: 4321, last_updated: '2025-03-04T12:00:00' }
         }
       ]
     })
@@ -78,11 +78,30 @@ describe('FAQ', () => {
     wrapper = mount(RouterView, { global: { plugins: [router] }, attachTo: document.body })
 
     expect(wrapper.find('nav[aria-label="breadcrumb"] a[href="/"]').exists()).toBe(true)
+    // Closed answers stay in the DOM (prerendered HTML) but hidden
+    const closed = wrapper.get('[data-slot="accordion-content"]')
+    expect(closed.text()).toContain('KGDB contains over 5,000 genes')
+    expect(closed.attributes('hidden')).toBeDefined()
     const trigger = wrapper.get('[data-slot="accordion-trigger"]')
     expect(trigger.attributes('aria-expanded')).toBe('false')
     await trigger.trigger('click')
     expect(trigger.attributes('aria-expanded')).toBe('true')
     expect(wrapper.text()).toContain('KGDB contains over 5,000 genes')
+  })
+})
+
+describe('FAQ prerender', () => {
+  it('server-renders closed answers as hidden="until-found"', async () => {
+    const { createSSRApp } = await import('vue')
+    const { renderToString } = await import('vue/server-renderer')
+    const router = routerWith('/faq', FAQ)
+    await router.push('/faq')
+    await router.isReady()
+    const app = createSSRApp(RouterView)
+    app.use(router)
+    const html = await renderToString(app)
+    expect(html).toContain('hidden="until-found"')
+    expect(html).toContain('KGDB contains over 5,000 genes')
   })
 })
 
