@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import re
+import tempfile
 import threading
 from collections.abc import Iterable, Iterator
 from datetime import datetime, timezone
@@ -44,10 +45,17 @@ def _sidecar_path(export_path: str | Path) -> Path:
 
 def _write_sidecar(export_path: str | Path, genes: Iterable[dict[str, Any]]) -> None:
     sidecar = _sidecar_path(export_path)
-    tmp = sidecar.with_suffix(".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump([{k: g[k] for k in GENE_ID_FIELDS} for g in genes], f, ensure_ascii=False)
-    os.replace(tmp, sidecar)
+    # Unique temp file + fsync so concurrent workers never see a partial sidecar
+    fd, tmp = tempfile.mkstemp(dir=sidecar.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump([{k: g[k] for k in GENE_ID_FIELDS} for g in genes], f, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, sidecar)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
 
 
 def _iter_export_genes(export_path: str | Path) -> Iterator[dict[str, Any]]:
@@ -81,7 +89,10 @@ def _iter_export_genes(export_path: str | Path) -> Iterator[dict[str, Any]]:
 @lru_cache(maxsize=8)
 def _read_sidecar(sidecar: Path) -> tuple[dict[str, Any], ...]:
     with open(sidecar, encoding="utf-8") as f:
-        return tuple(json.load(f))
+        genes = json.load(f)
+    if not isinstance(genes, list):
+        raise ValueError("sidecar is not a gene list")
+    return tuple(genes)
 
 
 def _load_release_genes(export_path: str, checksum: str | None) -> tuple[dict[str, Any], ...]:
@@ -107,7 +118,10 @@ def _load_release_genes(export_path: str, checksum: str | None) -> tuple[dict[st
                 except ReleaseSnapshotError:
                     _failed_snapshots.add((export_path, checksum))
                     raise
-    return _read_sidecar(sidecar)
+    try:
+        return _read_sidecar(sidecar)
+    except (OSError, ValueError) as e:  # includes json.JSONDecodeError
+        raise ReleaseSnapshotError(f"unreadable sidecar: {sidecar}") from e
 
 
 # CalVer validation pattern (YYYY.MM format)

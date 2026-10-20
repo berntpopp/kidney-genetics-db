@@ -180,3 +180,21 @@ async def test_corrupt_snapshot_is_generic_500_and_not_rehashed(
         assert str(service.export_dir) not in response.text
         assert "Release snapshot unavailable" in response.text
     assert len(hashes) == 1
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize("content", ["", "{not json", "{}"])
+async def test_unreadable_sidecar_is_generic_500(
+    async_client, db_session, service, user_id, content
+):
+    _add_gene(db_session, f"{PREFIX}A")
+    release = await _publish(service, user_id, "2999.6")
+    rs._sidecar_path(release.export_file_path).write_text(content)
+    rs._read_sidecar.cache_clear()
+
+    response = await async_client.get("/api/releases/2999.6/genes")
+    assert response.status_code == 500
+    assert str(service.export_dir) not in response.text
+    assert "Release snapshot unavailable" in response.text
+    assert not list(service.export_dir.glob("*.tmp"))
