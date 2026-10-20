@@ -7206,7 +7206,7 @@
     },
     "/api/releases/{release_id}/publish": {
       "post": {
-        "description": "Publish a release (admin only).\n\nThis operation:\n1. Closes all current gene temporal ranges\n2. Exports genes to JSON file\n3. Calculates SHA256 checksum\n4. Updates release record with metadata\n\nArgs:\n    release_id: ID of release to publish\n    current_user: Authenticated admin user\n\nReturns:\n    Published release with export metadata\n\nRaises:\n    404: Release not found\n    400: Release already published",
+        "description": "Publish a release (admin only).\n\nThis operation:\n1. Exports current genes to an immutable JSON snapshot\n2. Calculates SHA256 checksum\n3. Updates release record with metadata\nLive gene rows are left unchanged.\n\nArgs:\n    release_id: ID of release to publish\n    current_user: Authenticated admin user\n\nReturns:\n    Published release with export metadata\n\nRaises:\n    404: Release not found\n    400: Release already published",
         "operationId": "publish_release_api_releases__release_id__publish_post",
         "parameters": [
           {
@@ -7338,7 +7338,7 @@
     },
     "/api/releases/{version}/genes": {
       "get": {
-        "description": "Get genes from a specific release.\n\nUses temporal database queries to retrieve genes as they existed\nat the time of the release.\n\nArgs:\n    version: Release version\n    limit: Maximum genes to return\n    offset: Pagination offset\n\nReturns:\n    Paginated list of genes from the release\n\nRaises:\n    404: Release not found\n    400: Release not published",
+        "description": "Get genes from a specific release.\n\nServed from the release's immutable export snapshot, so results do not\nchange as the live gene set evolves.\n\nArgs:\n    version: Release version\n    limit: Maximum genes to return\n    offset: Pagination offset\n\nReturns:\n    Paginated list of genes from the release\n\nRaises:\n    404: Release not found\n    400: Release not published",
         "operationId": "get_release_genes_api_releases__version__genes_get",
         "parameters": [
           {

@@ -9,6 +9,7 @@ import hashlib
 import json
 import re
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
 
@@ -22,6 +23,24 @@ from app.models.data_release import DataRelease
 from app.services.zenodo_service import ZenodoService
 
 logger = get_logger(__name__)
+
+
+@lru_cache(maxsize=4)
+def _load_release_genes(path: str, checksum: str | None) -> tuple[dict[str, Any], ...]:
+    """Gene identifiers from a release export; cached per (path, checksum)."""
+    raw = Path(path).read_bytes()
+    if checksum and hashlib.sha256(raw).hexdigest() != checksum:
+        raise ValueError(f"Export snapshot {path} does not match its published checksum")
+    export = json.loads(raw)
+    return tuple(
+        {
+            "approved_symbol": g["approved_symbol"],
+            "hgnc_id": g["hgnc_id"],
+            "aliases": g["aliases"],
+        }
+        for g in export["genes"]
+    )
+
 
 # CalVer validation pattern (YYYY.MM format)
 CALVER_PATTERN = re.compile(r"^\d{4}\.\d{1,2}$")
@@ -96,16 +115,16 @@ class ReleaseService:
 
     async def publish_release(self, release_id: int, user_id: int) -> DataRelease:
         """
-        Publish a release by closing temporal ranges and exporting data.
+        Publish a release by exporting an immutable snapshot of the current genes.
 
         This performs the following steps:
         1. Validates release is in draft status
-        2. Closes all current gene temporal ranges (sets valid_to)
-        3. Exports genes to JSON file
-        4. Calculates SHA256 checksum
-        5. Updates release record with metadata
+        2. Exports current genes to a JSON file (the release's immutable snapshot)
+        3. Calculates SHA256 checksum
+        4. Updates release record with metadata
 
-        All operations are wrapped in a single transaction for atomicity.
+        Live gene rows are not modified: publishing must not retire current genes
+        (#288). Release contents are served from the export file.
 
         Args:
             release_id: ID of release to publish
@@ -188,27 +207,10 @@ class ReleaseService:
                     version=release.version,
                 )
 
-            # Step 3: Count genes before closing (still at infinity)
+            # Step 3: Count exported (current) genes
             gene_count = self._count_genes_current()
 
-            # Step 4: Now close temporal ranges (NO COMMIT YET)
-            logger.sync_info(
-                "Closing temporal ranges",
-                version=release.version,
-                publish_time=publish_time.isoformat(),
-                gene_count=gene_count,
-            )
-
-            self.db.execute(
-                text("""
-                    UPDATE genes
-                    SET valid_to = :publish_time
-                    WHERE valid_to = 'infinity'::timestamptz
-                """),
-                {"publish_time": publish_time},
-            )
-
-            # Step 5: Update release record
+            # Step 4: Update release record
             release.status = "published"
             release.published_at = publish_time
             release.published_by_id = user_id
@@ -527,21 +529,20 @@ class ReleaseService:
         if release.status != "published":
             raise ValueError(f"Release {version} not published yet")
 
-        # Query genes at release timestamp
-        result = self.db.execute(
-            text("""
-                SELECT
-                    approved_symbol,
-                    hgnc_id,
-                    aliases
-                FROM genes
-                WHERE tstzrange(valid_from, valid_to) @> :timestamp
-                ORDER BY approved_symbol
-                LIMIT :limit OFFSET :offset
-            """),
-            {"timestamp": release.published_at, "limit": limit, "offset": offset},
-        )
-        genes = result.fetchall()
+        if not release.export_file_path:
+            raise ValueError(f"Release {version} has no export snapshot")
+
+        # Serve the immutable export written at publish time (#288)
+        loop = asyncio.get_event_loop()
+        try:
+            genes = await loop.run_in_executor(
+                self._executor,
+                _load_release_genes,
+                release.export_file_path,
+                release.export_checksum,
+            )
+        except OSError as e:
+            raise ValueError(f"Release {version} export snapshot not found") from e
 
         return {
             "version": version,
@@ -549,12 +550,5 @@ class ReleaseService:
             "total": release.gene_count,
             "limit": limit,
             "offset": offset,
-            "genes": [
-                {
-                    "approved_symbol": row.approved_symbol,
-                    "hgnc_id": row.hgnc_id,
-                    "aliases": row.aliases,
-                }
-                for row in genes
-            ],
+            "genes": [dict(gene) for gene in genes[offset : offset + limit]],
         }

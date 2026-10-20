@@ -84,8 +84,8 @@ async def get_release_genes(
     """
     Get genes from a specific release.
 
-    Uses temporal database queries to retrieve genes as they existed
-    at the time of the release.
+    Served from the release's immutable export snapshot, so results do not
+    change as the live gene set evolves.
 
     Args:
         version: Release version
@@ -192,10 +192,10 @@ async def publish_release(
     Publish a release (admin only).
 
     This operation:
-    1. Closes all current gene temporal ranges
-    2. Exports genes to JSON file
-    3. Calculates SHA256 checksum
-    4. Updates release record with metadata
+    1. Exports current genes to an immutable JSON snapshot
+    2. Calculates SHA256 checksum
+    3. Updates release record with metadata
+    Live gene rows are left unchanged.
 
     Args:
         release_id: ID of release to publish
