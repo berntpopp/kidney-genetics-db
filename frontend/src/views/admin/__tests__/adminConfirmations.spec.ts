@@ -142,3 +142,11 @@ describe.each(cases)('$name confirmation', ({ view, open, confirm, scope, api })
     expect(api()).toHaveBeenCalledTimes(view === AdminPipeline ? 2 : 1)
   })
 })
+
+describe('Backups cleanup without retention data', () => {
+  it('stays disabled when the stats (retention period) fail to load', async () => {
+    backupApi.loadStats.mockRejectedValueOnce(new Error('500'))
+    await mountView(AdminBackups)
+    expect(button('Cleanup Old').hasAttribute('disabled')).toBe(true)
+  })
+})

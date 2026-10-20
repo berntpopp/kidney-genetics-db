@@ -12,7 +12,7 @@
         <Button
           variant="outline"
           class="mr-2"
-          :disabled="cleanupLoading || statsLoading"
+          :disabled="cleanupLoading || stats.retentionDays == null"
           @click="dialogs.cleanup = true"
         >
           <Trash class="mr-2 size-4" />
@@ -51,7 +51,7 @@
       />
       <AdminStatsCard
         title="Retention Days"
-        :value="stats.retentionDays"
+        :value="stats.retentionDays ?? '—'"
         :loading="statsLoading"
         :icon="CalendarClock"
         color="warning"
@@ -364,7 +364,7 @@ const stats = ref({
   totalBackups: 0,
   latestBackupAge: '—',
   totalSize: 0,
-  retentionDays: 7
+  retentionDays: null // unknown until the stats load; cleanup stays disabled
 })
 
 const backups = ref([])
@@ -421,7 +421,7 @@ const loadStats = async () => {
       totalBackups: data.total_backups || 0,
       latestBackupAge: formatRelativeTime(data.latest_backup_date),
       totalSize: (data.total_size_gb || 0) * 1024 * 1024 * 1024,
-      retentionDays: data.retention_days || 7
+      retentionDays: data.retention_days ?? null
     }
   } catch (error) {
     window.logService.error('Failed to load backup stats:', error)
