@@ -30,6 +30,8 @@ export interface EnrichmentResult {
     [key: string]: unknown
   }>
   stats?: Record<string, unknown>
+  /** HPO only: cluster gene IDs not tested (no HPO annotation or outside the background) */
+  excluded_genes?: number[]
   [key: string]: unknown
 }
 
