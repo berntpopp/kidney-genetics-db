@@ -578,13 +578,13 @@ class NetworkAnalysisService:
             # Leiden algorithm parameters
             "leiden_resolution": na_config.get("clustering", {})
             .get("leiden", {})
-            .get("resolution", 1.0),
+            .get("resolution", 0.8),
             "leiden_objective": na_config.get("clustering", {})
             .get("leiden", {})
             .get("objective", "modularity"),
             "leiden_iterations": na_config.get("clustering", {})
             .get("leiden", {})
-            .get("iterations", 2),
+            .get("iterations", -1),
             # Louvain algorithm parameters
             "louvain_resolution": na_config.get("clustering", {})
             .get("louvain", {})

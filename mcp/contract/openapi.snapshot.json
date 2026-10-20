@@ -1172,7 +1172,7 @@
         "description": "Response from HPO enrichment",
         "properties": {
           "cluster_size": {
-            "description": "Cluster gene count",
+            "description": "Submitted cluster gene count, including excluded_genes; tested size is per result",
             "title": "Cluster Size",
             "type": "integer"
           },

@@ -447,7 +447,11 @@ class HPOEnrichmentRequest(BaseModel):
 
 class HPOEnrichmentResponse(BaseModel):
     cluster_size: Annotated[
-        int, Field(description="Cluster gene count", title="Cluster Size")
+        int,
+        Field(
+            description="Submitted cluster gene count, including excluded_genes; tested size is per result",
+            title="Cluster Size",
+        ),
     ]
     excluded_genes: Annotated[
         list[int] | None,

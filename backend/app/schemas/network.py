@@ -307,7 +307,10 @@ class HPOEnrichmentResponse(BaseModel):
 
     results: list[EnrichmentResult]
     total_terms: int = Field(..., description="Total significant terms")
-    cluster_size: int = Field(..., description="Cluster gene count")
+    cluster_size: int = Field(
+        ...,
+        description="Submitted cluster gene count, including excluded_genes; tested size is per result",
+    )
     fdr_threshold: float
     excluded_genes: list[int] = Field(
         default_factory=list,
