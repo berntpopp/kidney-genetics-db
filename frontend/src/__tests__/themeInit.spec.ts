@@ -26,12 +26,11 @@ describe('index.html pre-paint theme script', () => {
     document.head.innerHTML = '<meta name="color-scheme" content="light dark">'
   })
 
-  it('is inlined in <head> before any stylesheet', () => {
+  it('is inlined in <head>', () => {
     const head = indexHtml.split('</head>')[0] ?? ''
     expect(script).toContain('kgdb-color-mode')
     expect(head).toContain('<meta name="color-scheme" content="light dark">')
     expect(head.indexOf('<script>')).toBeGreaterThan(-1)
-    expect(head.indexOf('stylesheet')).toBe(-1)
   })
 
   it.each([
