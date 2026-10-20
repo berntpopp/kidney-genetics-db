@@ -470,7 +470,8 @@ async def enrich_hpo_batch(
 ) -> dict[str, Any]:
     """
     HPO enrichment for several communities with Benjamini-Hochberg FDR pooled
-    over every community x term test, so FDR is controlled across communities.
+    across all community x term pairs with at least one overlapping community
+    gene (the same test family as /enrich/hpo), not across every possible pair.
     """
     results, total_tests = await enrichment_service.enrich_hpo_terms_batch(
         communities=body.communities, session=db, fdr_threshold=body.fdr_threshold
