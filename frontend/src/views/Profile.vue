@@ -230,32 +230,6 @@
             </form>
           </CardContent>
         </Card>
-
-        <!-- Preferences -->
-        <Card>
-          <CardHeader>
-            <CardTitle class="flex items-center gap-2">
-              <Cog class="size-5" />
-              Preferences
-            </CardTitle>
-          </CardHeader>
-          <CardContent class="space-y-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <Label>Email Notifications</Label>
-                <p class="text-xs text-muted-foreground">Receive email notifications</p>
-              </div>
-              <Switch v-model="preferences.emailNotifications" />
-            </div>
-            <div class="flex items-center justify-between">
-              <div>
-                <Label class="text-muted-foreground">Two-Factor Authentication</Label>
-                <p class="text-xs text-muted-foreground">Coming soon</p>
-              </div>
-              <Switch :model-value="preferences.twoFactorAuth" disabled />
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   </div>
@@ -268,7 +242,6 @@ import {
   User,
   UserCog,
   KeyRound,
-  Cog,
   Eye,
   EyeOff,
   ShieldCheck,
@@ -292,7 +265,6 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const authStore = useAuthStore()
@@ -325,8 +297,6 @@ const passwordSuccess = ref('')
 const passwordError = ref('')
 const showNewPassword = ref(false)
 const passwordData = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
-
-const preferences = reactive({ emailNotifications: true, twoFactorAuth: false })
 
 const roleColor = computed(() => {
   switch (authStore.userRole) {

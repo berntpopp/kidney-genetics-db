@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch, h } from 'vue'
 import type { ColumnDef, SortingState, PaginationState } from '@tanstack/vue-table'
 import { useVueTable, getCoreRowModel } from '@tanstack/vue-table'
-import { Info, EyeOff, Search, Download, FilterX, RefreshCw } from 'lucide-vue-next'
+import { Info, EyeOff, Search, FilterX, RefreshCw } from 'lucide-vue-next'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
 import { geneApi } from '../api/genes'
@@ -519,10 +519,6 @@ const refreshData = () => {
   loadGenes()
 }
 
-const exportData = () => {
-  window.logService.info('Export functionality to be implemented')
-}
-
 const clearSources = () => {
   selectedSources.value = []
   page.value = 1
@@ -720,16 +716,6 @@ onMounted(async () => {
               </PopoverContent>
             </Popover>
 
-            <Button
-              variant="outline"
-              size="icon-sm"
-              class="h-9 w-9"
-              :disabled="loading"
-              aria-label="Download CSV"
-              @click="exportData"
-            >
-              <Download class="h-4 w-4" />
-            </Button>
             <Button
               variant="outline"
               size="icon-sm"
