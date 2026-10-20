@@ -162,7 +162,8 @@ evidence_count_percentiles = ReplaceableObject(
         evidence_source_counts.approved_symbol,
         evidence_source_counts.source_name,
         evidence_source_counts.source_count,
-        percent_rank() OVER (
+        -- cume_dist, not percent_rank: tied minimum counts score > 0, not 0 (#337)
+        cume_dist() OVER (
             PARTITION BY evidence_source_counts.source_name
             ORDER BY LN(1.0 + evidence_source_counts.source_count)
         ) AS percentile_score
