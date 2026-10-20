@@ -644,8 +644,8 @@ onMounted(async () => {
                   >
                     <Checkbox
                       :id="`source-${source.value}`"
-                      :checked="selectedSources.includes(source.value)"
-                      @update:checked="toggleSource(source.value)"
+                      :model-value="selectedSources.includes(source.value)"
+                      @update:model-value="toggleSource(source.value)"
                     />
                     <Label :for="`source-${source.value}`" class="text-sm cursor-pointer">
                       {{ source.title }}
@@ -689,8 +689,8 @@ onMounted(async () => {
                   >
                     <Checkbox
                       :id="`tier-${tier.value}`"
-                      :checked="selectedTiers.includes(tier.value)"
-                      @update:checked="toggleTier(tier.value)"
+                      :model-value="selectedTiers.includes(tier.value)"
+                      @update:model-value="toggleTier(tier.value)"
                     />
                     <Label :for="`tier-${tier.value}`" class="text-sm cursor-pointer">
                       <span
@@ -780,8 +780,8 @@ onMounted(async () => {
           <div class="flex items-center gap-2">
             <Switch
               id="zero-score"
-              :checked="showZeroScoreGenes"
-              @click="toggleZeroScore(!showZeroScoreGenes)"
+              :model-value="showZeroScoreGenes"
+              @update:model-value="toggleZeroScore"
             />
             <Label for="zero-score" class="text-xs cursor-pointer whitespace-nowrap">
               Include zero-score

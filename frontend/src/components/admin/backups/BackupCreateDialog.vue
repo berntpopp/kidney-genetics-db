@@ -73,8 +73,8 @@
           <Label for="include-logs" class="cursor-pointer">Include system logs</Label>
           <Switch
             id="include-logs"
-            :checked="form.includeLogs"
-            @update:checked="form.includeLogs = $event"
+            :model-value="form.includeLogs"
+            @update:model-value="form.includeLogs = $event"
           />
         </div>
 
@@ -82,8 +82,8 @@
           <Label for="include-cache" class="cursor-pointer">Include cache tables</Label>
           <Switch
             id="include-cache"
-            :checked="form.includeCache"
-            @update:checked="form.includeCache = $event"
+            :model-value="form.includeCache"
+            @update:model-value="form.includeCache = $event"
           />
         </div>
       </div>

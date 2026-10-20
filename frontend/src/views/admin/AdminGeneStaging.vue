@@ -148,8 +148,8 @@
           <div class="flex items-end">
             <div class="flex items-center gap-2">
               <Switch
-                :checked="filters.expertReviewOnly"
-                @update:checked="filters.expertReviewOnly = $event"
+                :model-value="filters.expertReviewOnly"
+                @update:model-value="filters.expertReviewOnly = $event"
               />
               <Label>Expert review only</Label>
             </div>
@@ -172,7 +172,7 @@
           <TableHeader>
             <TableRow>
               <TableHead class="w-[40px]">
-                <Checkbox :checked="allSelected" @update:checked="toggleAllSelection" />
+                <Checkbox :model-value="allSelected" @update:model-value="toggleAllSelection" />
               </TableHead>
               <TableHead class="w-[180px]">Gene Symbol</TableHead>
               <TableHead class="w-[120px]">Data Source</TableHead>
@@ -196,8 +196,8 @@
             <TableRow v-for="item in pendingReviews" :key="item.id">
               <TableCell>
                 <Checkbox
-                  :checked="selectedItems.includes(item.id)"
-                  @update:checked="toggleItemSelection(item.id, $event)"
+                  :model-value="selectedItems.includes(item.id)"
+                  @update:model-value="toggleItemSelection(item.id, $event)"
                 />
               </TableCell>
               <TableCell>

@@ -245,14 +245,14 @@
                 <Label>Email Notifications</Label>
                 <p class="text-xs text-muted-foreground">Receive email notifications</p>
               </div>
-              <Switch v-model:checked="preferences.emailNotifications" />
+              <Switch v-model="preferences.emailNotifications" />
             </div>
             <div class="flex items-center justify-between">
               <div>
                 <Label class="text-muted-foreground">Two-Factor Authentication</Label>
                 <p class="text-xs text-muted-foreground">Coming soon</p>
               </div>
-              <Switch :checked="preferences.twoFactorAuth" disabled />
+              <Switch :model-value="preferences.twoFactorAuth" disabled />
             </div>
           </CardContent>
         </Card>

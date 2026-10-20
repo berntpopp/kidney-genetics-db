@@ -32,8 +32,8 @@ defineProps<Props>()
       <DropdownMenuCheckboxItem
         v-for="column in table.getAllColumns().filter(c => c.getCanHide())"
         :key="column.id"
-        :checked="column.getIsVisible()"
-        @update:checked="val => column.toggleVisibility(!!val)"
+        :model-value="column.getIsVisible()"
+        @update:model-value="val => column.toggleVisibility(!!val)"
       >
         {{ column.id }}
       </DropdownMenuCheckboxItem>

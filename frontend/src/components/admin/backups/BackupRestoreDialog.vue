@@ -35,8 +35,8 @@
           >
           <Switch
             id="safety-backup"
-            :checked="form.createSafetyBackup"
-            @update:checked="form.createSafetyBackup = $event"
+            :model-value="form.createSafetyBackup"
+            @update:model-value="form.createSafetyBackup = $event"
           />
         </div>
 
@@ -46,8 +46,8 @@
           >
           <Switch
             id="run-analyze"
-            :checked="form.runAnalyze"
-            @update:checked="form.runAnalyze = $event"
+            :model-value="form.runAnalyze"
+            @update:model-value="form.runAnalyze = $event"
           />
         </div>
       </div>

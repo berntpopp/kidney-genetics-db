@@ -129,7 +129,10 @@
               </p>
             </div>
             <div class="flex items-center gap-2">
-              <Switch :checked="pipelineForm.force" @update:checked="pipelineForm.force = $event" />
+              <Switch
+                :model-value="pipelineForm.force"
+                @update:model-value="pipelineForm.force = $event"
+              />
               <Label>Force update (ignore cache TTL)</Label>
             </div>
             <p class="text-xs text-muted-foreground">
