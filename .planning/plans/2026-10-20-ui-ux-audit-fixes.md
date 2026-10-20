@@ -27,3 +27,6 @@ Deferred: #330 #333 #254 #255 #282 (scientific definition), #291 remainder, #208
 - Pre-fix audit run `runs/pre-ce75cee.json` (2 runs, full DB, 3245 genes). vs 2026-10-20 baseline: `tierFilterChangesUrl` and `adminDirectLoadNotBlank` already pass at ce75cee (fixed by #335); `/about`, `/mcp` desktop CLS 0.39/0.55 → 0 in probes; mobile LCP/TBT +180–290 ms on unrelated routes = noise. Gzip prerender checks still 0.
 - Filed #336 (network `@cache` key includes Request object address) for W7.
 - W1 merged (ea509de). W3 review: must-fix UpSet set-click count + FAQ/Home vocabulary drift (scope expansion FAQ/Home/NetworkAnalysis approved). W2 review: must-fix dark toasts; follow-up: light `--destructive` 3.65:1 (designer call, not in #320 list).
+- W2 merged (3f3eae3; review Ship after toast-theme fix, rechecked). W3 merged (f895ec5; review must-fixes 1–2 + should-fixes 3–5 applied, rechecked Ship). Integration vitest 184/184, lint/format clean.
+- Coordinator build on f895ec5: exit 0; no `*.html.gz|br`; inline theme script exactly once in all 8 prerendered pages. FAQ JSON-LD is not in prerendered HTML (also absent at ce75cee; pre-existing, out of scope).
+- W5 (admin) and W7 (backend: #336, #332, #331 seed) started.
