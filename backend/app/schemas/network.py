@@ -166,7 +166,12 @@ class HPOEnrichmentRequest(BaseModel):
         max_length=_enrichment_config.get("hpo", {}).get("max_cluster_size", 500),
     )
     background_genes: list[int] | None = Field(
-        default=None, description="Background gene set (default: all genes)"
+        default=None,
+        description=(
+            "Background gene IDs; the tested universe is these genes that have kidney "
+            "HPO annotations (default: all genes with kidney HPO annotations)"
+        ),
+        max_length=_enrichment_config.get("hpo", {}).get("max_background_size", 50000),
     )
     fdr_threshold: float = Field(
         default=_enrichment_config.get("hpo", {}).get("default_fdr_threshold", 0.05),
@@ -304,6 +309,13 @@ class HPOEnrichmentResponse(BaseModel):
     total_terms: int = Field(..., description="Total significant terms")
     cluster_size: int = Field(..., description="Cluster gene count")
     fdr_threshold: float
+    excluded_genes: list[int] = Field(
+        default_factory=list,
+        description=(
+            "Submitted gene IDs not tested: outside the universe of kidney HPO-annotated genes "
+            "(intersected with background_genes when given) or unknown"
+        ),
+    )
 
 
 class GOEnrichmentResponse(BaseModel):
@@ -368,3 +380,9 @@ class HPOBatchEnrichmentResponse(BaseModel):
         ),
     )
     fdr_threshold: float
+    excluded_genes: list[list[int]] = Field(
+        default_factory=list,
+        description=(
+            "Per community, submitted gene IDs not tested: without kidney HPO annotation or unknown"
+        ),
+    )

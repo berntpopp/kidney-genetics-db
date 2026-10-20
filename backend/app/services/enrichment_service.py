@@ -70,17 +70,22 @@ class EnrichmentService:
         session: Session,
         background_genes: list[int] | None = None,
         fdr_threshold: float = 0.05,
-    ) -> list[dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], list[int]]:
         """
         Perform HPO term enrichment using Fisher's exact test.
+
+        The tested universe is every gene with a kidney HPO annotation, intersected with
+        ``background_genes`` when given. Cluster genes outside it (unannotated,
+        not in the background, or unknown) are not tested and are returned as excluded.
 
         Args:
             cluster_genes: Gene IDs in cluster to test for enrichment
             session: Database session (passed per-call)
-            background_genes: Background gene set (default: all genes in DB)
+            background_genes: Background gene IDs (default: all kidney HPO-annotated genes)
             fdr_threshold: FDR cutoff for significance (default: 0.05)
 
         Returns:
+            (results, excluded cluster gene IDs), results being
             [
                 {
                     "term_id": "HP:0000107",
@@ -100,13 +105,15 @@ class EnrichmentService:
         id_to_symbol = self._gene_symbols(cluster_genes, session)
         if not id_to_symbol:
             await logger.warning("No valid genes found in cluster")
-            return []
+            return [], sorted(set(cluster_genes))
 
-        per_community = await self._run_hpo_tests([cluster_genes], id_to_symbol, session)
+        per_community, excluded = await self._run_hpo_tests(
+            [cluster_genes], id_to_symbol, session, background_genes
+        )
         results = per_community[0]
         if not results:
             await logger.info("No HPO terms enriched in cluster")
-            return []
+            return [], excluded[0]
 
         self._apply_bh(results)
         results = self._filter_and_sort(results, fdr_threshold)
@@ -119,31 +126,32 @@ class EnrichmentService:
             fdr_threshold=fdr_threshold,
         )
 
-        return results
+        return results, excluded[0]
 
     async def enrich_hpo_terms_batch(
         self,
         communities: list[list[int]],
         session: Session,
         fdr_threshold: float = 0.05,
-    ) -> tuple[list[list[dict[str, Any]]], int]:
+    ) -> tuple[list[list[dict[str, Any]]], int, list[list[int]]]:
         """
         HPO enrichment for several communities with one Benjamini-Hochberg
         correction pooled over all community x term pairs with at least one
         overlapping community gene, the same family as the single-community
         test, not every possible pair (#332).
 
-        Returns (results per community in submitted order, pooled test count).
+        Returns (results per community in submitted order, pooled test count,
+        excluded gene IDs per community; universe as in enrich_hpo_terms).
         """
         id_to_symbol = self._gene_symbols([g for c in communities for g in c], session)
-        per_community = await self._run_hpo_tests(communities, id_to_symbol, session)
+        per_community, excluded = await self._run_hpo_tests(communities, id_to_symbol, session)
         pooled = [r for results in per_community for r in results]
         if pooled:
             self._apply_bh(pooled)  # mutates the shared result dicts
 
         significant = [self._filter_and_sort(r, fdr_threshold) for r in per_community]
         await self._fill_term_names([r for results in significant for r in results])
-        return significant, len(pooled)
+        return significant, len(pooled), excluded
 
     @staticmethod
     def _gene_symbols(gene_ids: list[int], session: Session) -> dict[int, str]:
@@ -151,33 +159,51 @@ class EnrichmentService:
         return {row.id: row.approved_symbol for row in rows}
 
     async def _run_hpo_tests(
-        self, communities: list[list[int]], id_to_symbol: dict[int, str], session: Session
-    ) -> list[list[dict[str, Any]]]:
-        """Fisher tests per community (raw p only), run off the event loop."""
+        self,
+        communities: list[list[int]],
+        id_to_symbol: dict[int, str],
+        session: Session,
+        background_genes: list[int] | None = None,
+    ) -> tuple[list[list[dict[str, Any]]], list[list[int]]]:
+        """
+        Fisher tests per community (raw p only), run off the event loop.
+
+        All four contingency counts come from one universe (#289): kidney HPO-annotated
+        genes, intersected with background_genes when given. Returns
+        (results per community, excluded cluster gene IDs per community).
+        """
         hpo_term_to_genes = await self._get_hpo_annotations(session)
         if not hpo_term_to_genes:
             await logger.warning("No HPO annotations found in database")
-            return [[] for _ in communities]
+            return [[] for _ in communities], [sorted(set(c)) for c in communities]
 
-        # CRITICAL FIX: Background must be only genes WITH HPO annotations
-        background: set[str] = set().union(*hpo_term_to_genes.values())
+        universe: set[str] = set().union(*hpo_term_to_genes.values())
+        if background_genes is not None:
+            universe &= set(self._gene_symbols(background_genes, session).values())
+        term_to_genes = {t: g & universe for t, g in hpo_term_to_genes.items() if g & universe}
         await logger.info(
             "HPO enrichment background",
             communities=len(communities),
-            background_size=len(background),
-            hpo_terms=len(hpo_term_to_genes),
+            background_size=len(universe),
+            custom_background=background_genes is not None,
+            hpo_terms=len(term_to_genes),
         )
 
-        symbol_sets = [{id_to_symbol[g] for g in c if g in id_to_symbol} for c in communities]
+        symbol_sets = [
+            {id_to_symbol[g] for g in c if id_to_symbol.get(g) in universe} for c in communities
+        ]
+        excluded = [
+            sorted({g for g in c if id_to_symbol.get(g) not in universe}) for c in communities
+        ]
         loop = asyncio.get_event_loop()
         per_community = await loop.run_in_executor(
             self._executor,
             lambda: [
-                self._hpo_fisher_tests(symbols, hpo_term_to_genes, len(background))
+                self._hpo_fisher_tests(symbols, term_to_genes, len(universe))
                 for symbols in symbol_sets
             ],
         )
-        return per_community
+        return per_community, excluded
 
     @staticmethod
     def _hpo_fisher_tests(
@@ -201,6 +227,8 @@ class EnrichmentService:
 
             if a == 0:
                 continue  # No overlap - skip
+            if min(b, c, d) < 0:  # cluster or term not within the universe (#289)
+                raise ValueError(f"Invalid contingency table for {term_id}: {[[a, b], [c, d]]}")
 
             # Fisher's exact test (one-tailed, testing for over-representation)
             odds_ratio, p_value = fisher_exact([[a, b], [c, d]], alternative="greater")

@@ -438,7 +438,7 @@ async def enrich_hpo(
     )
 
     # Perform enrichment
-    results = await enrichment_service.enrich_hpo_terms(
+    results, excluded = await enrichment_service.enrich_hpo_terms(
         cluster_genes=body.cluster_genes,
         session=db,
         background_genes=body.background_genes,
@@ -456,6 +456,7 @@ async def enrich_hpo(
         total_terms=len(results),
         cluster_size=len(body.cluster_genes),
         fdr_threshold=body.fdr_threshold,
+        excluded_genes=excluded,
     )
 
 
@@ -473,11 +474,14 @@ async def enrich_hpo_batch(
     across all community x term pairs with at least one overlapping community
     gene (the same test family as /enrich/hpo), not across every possible pair.
     """
-    results, total_tests = await enrichment_service.enrich_hpo_terms_batch(
+    results, total_tests, excluded = await enrichment_service.enrich_hpo_terms_batch(
         communities=body.communities, session=db, fdr_threshold=body.fdr_threshold
     )
     return HPOBatchEnrichmentResponse(
-        results=results, total_tests=total_tests, fdr_threshold=body.fdr_threshold
+        results=results,
+        total_tests=total_tests,
+        fdr_threshold=body.fdr_threshold,
+        excluded_genes=excluded,
     )
 
 

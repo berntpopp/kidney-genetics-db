@@ -68,7 +68,7 @@ async def test_batch_q_values_equal_pooled_bh_over_raw_p_values():
     service._get_hpo_annotations = AsyncMock(return_value=ANNOTATIONS)  # type: ignore[method-assign]
     service.hpo_client.get_term = AsyncMock(return_value=None)  # type: ignore[method-assign]
 
-    per_community, total_tests = await service.enrich_hpo_terms_batch(
+    per_community, total_tests, _ = await service.enrich_hpo_terms_batch(
         [list(ids) for ids in COMMUNITIES], _session(), fdr_threshold=1.0 + 1e-9
     )
 
@@ -88,11 +88,11 @@ async def test_batch_q_values_equal_pooled_bh_over_raw_p_values():
         assert r["fdr"] == pytest.approx(expected_q[key])
 
     # Pooling must differ from per-community BH for this fixture, or the test proves nothing
-    single, _ = await service.enrich_hpo_terms_batch([[1, 2, 3]], _session(), 1.0 + 1e-9)
+    single, _, _ = await service.enrich_hpo_terms_batch([[1, 2, 3]], _session(), 1.0 + 1e-9)
     assert any(r["fdr"] != pytest.approx(got[(0, r["term_id"])]["fdr"]) for r in single[0])
 
     # The single-community endpoint path is the one-community case of the batch path
-    direct = await service.enrich_hpo_terms([1, 2, 3], _session(), fdr_threshold=1.0 + 1e-9)
+    direct, _ = await service.enrich_hpo_terms([1, 2, 3], _session(), fdr_threshold=1.0 + 1e-9)
     assert direct == single[0]
 
 
@@ -104,7 +104,7 @@ async def test_batch_queries_symbols_once_and_names_only_significant_terms():
     service.hpo_client.get_term = AsyncMock(return_value=None)  # type: ignore[method-assign]
     session = _session()
 
-    per_community, total_tests = await service.enrich_hpo_terms_batch(
+    per_community, total_tests, _ = await service.enrich_hpo_terms_batch(
         [list(ids) for ids in COMMUNITIES], session, fdr_threshold=0.5
     )
 
@@ -184,7 +184,7 @@ async def test_batch_endpoint_returns_results_per_community(async_client: AsyncC
     with patch(
         "app.api.endpoints.network_analysis.enrichment_service.enrich_hpo_terms_batch",
         new_callable=AsyncMock,
-        return_value=([[row], []], 7),
+        return_value=([[row], []], 7, [[], [9]]),
     ):
         resp = await async_client.post(
             "/api/network/enrich/hpo/batch", json={"communities": [[3, 1, 2], [4, 5]]}
@@ -194,6 +194,7 @@ async def test_batch_endpoint_returns_results_per_community(async_client: AsyncC
     assert data["total_tests"] == 7
     assert [len(r) for r in data["results"]] == [1, 0]
     assert data["results"][0][0]["p_value"] == 0.001
+    assert data["excluded_genes"] == [[], [9]]
 
     bad = await async_client.post("/api/network/enrich/hpo/batch", json={"communities": [[]]})
     assert bad.status_code in (400, 422)  # app maps validation errors to 400
