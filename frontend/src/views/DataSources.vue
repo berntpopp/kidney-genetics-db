@@ -32,7 +32,6 @@
         <Card v-for="n in 7" :key="n" class="h-full overflow-hidden animate-pulse">
           <div class="p-4 bg-muted">
             <div class="h-7 w-32 rounded bg-muted-foreground/20" />
-            <div class="h-4 w-12 rounded bg-muted-foreground/20" />
           </div>
           <CardContent class="p-4">
             <div class="h-10 rounded bg-muted mb-4" />
