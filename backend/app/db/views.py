@@ -99,31 +99,42 @@ evidence_classification_weights = ReplaceableObject(
             g.id AS gene_id,
             g.approved_symbol,
             ge.source_name,
-            CASE
-                WHEN jsonb_typeof(ge.evidence_data -> 'classifications'::text) = 'array'::text THEN
-                    CASE (ge.evidence_data -> 'classifications'::text) ->> 0
-                        WHEN 'Definitive'::text THEN 1.0
-                        WHEN 'Strong'::text THEN 0.8
-                        WHEN 'Moderate'::text THEN 0.6
-                        WHEN 'Limited'::text THEN 0.4
-                        WHEN 'Disputed'::text THEN 0.2
-                        WHEN 'No Known Disease Relationship'::text THEN 0.0
-                        WHEN 'No Known Disease Relationship*'::text THEN 0.0
+            -- Score the best classification in the array, not whatever the
+            -- set-to-list conversion happened to store first: a gene curated
+            -- both Limited and Definitive must score Definitive.
+            COALESCE(
+                (SELECT MAX(
+                    CASE elem.value #>> '{}'
+                        WHEN 'Definitive' THEN 1.0
+                        WHEN 'Strong' THEN 0.8
+                        WHEN 'Moderate' THEN 0.6
+                        WHEN 'Limited' THEN 0.4
+                        WHEN 'Disputed' THEN 0.2
+                        WHEN 'No Known Disease Relationship' THEN 0.0
+                        WHEN 'No Known Disease Relationship*' THEN 0.0
                         ELSE 0.0  -- Unknown = no evidence
                     END
-                WHEN (ge.evidence_data ->> 'classification'::text) IS NOT NULL THEN
-                    CASE ge.evidence_data ->> 'classification'::text
-                        WHEN 'Definitive'::text THEN 1.0
-                        WHEN 'Strong'::text THEN 0.8
-                        WHEN 'Moderate'::text THEN 0.6
-                        WHEN 'Limited'::text THEN 0.4
-                        WHEN 'Disputed'::text THEN 0.2
-                        WHEN 'No Known Disease Relationship'::text THEN 0.0
-                        WHEN 'No Known Disease Relationship*'::text THEN 0.0
-                        ELSE 0.0  -- Unknown = no evidence
+                ) FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(ge.evidence_data -> 'classifications'::text) = 'array'::text
+                        THEN ge.evidence_data -> 'classifications'::text
+                        ELSE '[]'::jsonb
                     END
-                ELSE 0.0  -- Unknown = no evidence
-            END AS classification_weight
+                ) elem),
+                CASE
+                    WHEN (ge.evidence_data ->> 'classification'::text) IS NOT NULL THEN
+                        CASE ge.evidence_data ->> 'classification'::text
+                            WHEN 'Definitive'::text THEN 1.0
+                            WHEN 'Strong'::text THEN 0.8
+                            WHEN 'Moderate'::text THEN 0.6
+                            WHEN 'Limited'::text THEN 0.4
+                            WHEN 'Disputed'::text THEN 0.2
+                            WHEN 'No Known Disease Relationship'::text THEN 0.0
+                            WHEN 'No Known Disease Relationship*'::text THEN 0.0
+                            ELSE 0.0  -- Unknown = no evidence
+                        END
+                    ELSE 0.0  -- Unknown = no evidence
+                END
+            ) AS classification_weight
         FROM gene_evidence ge
         JOIN genes g ON ge.gene_id = g.id
         WHERE ge.source_name::text = 'ClinGen'::text

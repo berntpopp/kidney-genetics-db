@@ -26,6 +26,23 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def sort_classifications_best_first(
+    classifications: set[str] | list[str], classification_weights: dict[str, float]
+) -> list[str]:
+    """Order classifications best-first, deterministically.
+
+    The classifications come out of a Python set, so converting it to a list
+    directly stores an arbitrary order. Store the strongest classification
+    first (the order `_get_source_detail` already shows) with the name as the
+    tie-breaker, so every consumer that reads the stored array — e.g.
+    `evidence_classification_weights`, which scores element 0 — is independent
+    of the set's iteration order.
+    """
+    return sorted(
+        classifications, key=lambda c: (-classification_weights.get(c, 0.0), c)
+    )
+
+
 class ClinGenUnifiedSource(UnifiedDataSource):
     """
     Unified ClinGen client with intelligent caching and async processing.
@@ -364,7 +381,14 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         # Convert sets to lists and calculate final scores
         for _symbol, data in gene_data_map.items():
             data["diseases"] = list(data["diseases"])
-            data["classifications"] = list(data["classifications"])
+            # The classifications came from a set, so without an explicit order
+            # the stored array is arbitrary. Store best-first (the order
+            # _get_source_detail already shows), so every consumer that reads
+            # the array deterministically sees the strongest classification
+            # first — e.g. evidence_classification_weights reads element 0.
+            data["classifications"] = sort_classifications_best_first(
+                data["classifications"], self.classification_weights
+            )
             data["expert_panels"] = list(data["expert_panels"])
             data["modes_of_inheritance"] = list(data["modes_of_inheritance"])
 
