@@ -366,10 +366,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 action="resetting" if mode == "full" else "continuing",
             )
             if mode == "full":
-                # Full mode: clear existing entries and start from beginning
-                logger.sync_info("Full mode requested - clearing existing entries and resetting")
-                if self.db_session is not None:
-                    await self._clear_existing_entries(self.db_session)
+                # Full mode: re-stream from page 1, merging into existing evidence (#291).
+                # ponytail: stale rows are never pruned; needs a decided completeness signal.
+                logger.sync_info("Full mode requested - restarting from page 1 (merge, no delete)")
                 start_page = 1
             else:
                 # Smart mode: continue from checkpoint
@@ -954,20 +953,6 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         self.db_session.commit()
         logger.sync_debug(f"Checkpoint saved at page {page}")
-
-    async def _clear_existing_entries(self, db: Session) -> int:
-        """Clear existing PubTator entries for full mode.
-
-        Args:
-            db: Database session (required by base class signature)
-
-        Returns:
-            Number of deleted entries
-        """
-        deleted = db.query(GeneEvidence).filter(GeneEvidence.source_name == "PubTator").delete()
-        db.commit()
-        logger.sync_info(f"Cleared {deleted} existing PubTator entries")
-        return int(deleted)
 
     async def _check_pmids_exist_batch(self, pmids: list[str]) -> set[str]:
         """
