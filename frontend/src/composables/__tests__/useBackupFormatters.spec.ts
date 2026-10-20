@@ -9,42 +9,8 @@ import { describe, it, expect } from 'vitest'
 import { useBackupFormatters } from '@/composables/useBackupFormatters'
 
 describe('useBackupFormatters', () => {
-  const {
-    getStatusColor,
-    getStatusIcon,
-    formatSize,
-    formatDuration,
-    formatDate,
-    formatRelativeTime,
-    formatBytes
-  } = useBackupFormatters()
-
-  describe('getStatusColor', () => {
-    it('returns correct color for known statuses', () => {
-      expect(getStatusColor('completed')).toBe('success')
-      expect(getStatusColor('running')).toBe('info')
-      expect(getStatusColor('failed')).toBe('error')
-      expect(getStatusColor('pending')).toBe('warning')
-      expect(getStatusColor('restored')).toBe('purple')
-    })
-
-    it('returns "grey" for unknown status', () => {
-      expect(getStatusColor('unknown-status')).toBe('grey')
-      expect(getStatusColor('')).toBe('grey')
-    })
-  })
-
-  describe('getStatusIcon', () => {
-    it('returns correct icon for known statuses', () => {
-      expect(getStatusIcon('completed')).toBe('mdi-check-circle')
-      expect(getStatusIcon('failed')).toBe('mdi-alert-circle')
-      expect(getStatusIcon('running')).toBe('mdi-progress-clock')
-    })
-
-    it('returns fallback icon for unknown status', () => {
-      expect(getStatusIcon('bogus')).toBe('mdi-help-circle')
-    })
-  })
+  const { formatSize, formatDuration, formatDate, formatRelativeTime, formatBytes } =
+    useBackupFormatters()
 
   describe('formatSize', () => {
     it('formats MB sizes correctly', () => {

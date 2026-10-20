@@ -14,7 +14,7 @@
               :href="`https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/${gene.hgnc_id}`"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-primary hover:underline"
+              class="text-primary underline underline-offset-2"
               >{{ gene.hgnc_id }}</a
             >
             <span v-else>{{ gene.hgnc_id }}</span>

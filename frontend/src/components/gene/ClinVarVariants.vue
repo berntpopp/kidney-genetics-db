@@ -6,11 +6,7 @@
       v-if="clinvarData.total_variants === 0 || clinvarData.no_data_available"
       class="flex items-center"
     >
-      <Badge
-        variant="outline"
-        class="text-xs"
-        :style="{ backgroundColor: '#6b728020', color: '#6b7280' }"
-      >
+      <Badge variant="outline" class="text-xs" :style="tintedChipStyle('#6b7280')">
         <Info :size="12" class="mr-1" />
         No variants available
       </Badge>
@@ -20,9 +16,10 @@
       <!-- Total variants -->
       <HoverPopover content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ backgroundColor: '#0ea5e920', color: '#0ea5e9', borderColor: '#0ea5e940' }"
+          :style="tintedChipStyle('#0ea5e9')"
         >
           {{ clinvarData.total_variants }} total
         </Badge>
@@ -62,9 +59,10 @@
         content-class="w-auto p-2 max-w-xs"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ backgroundColor: '#ef444420', color: '#ef4444', borderColor: '#ef444440' }"
+          :style="tintedChipStyle('#ef4444')"
         >
           {{ clinvarData.pathogenic_count + clinvarData.likely_pathogenic_count }} P/LP
         </Badge>
@@ -90,9 +88,10 @@
       <!-- VUS -->
       <HoverPopover v-if="clinvarData.vus_count > 0" content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ backgroundColor: '#f59e0b20', color: '#f59e0b', borderColor: '#f59e0b40' }"
+          :style="tintedChipStyle('#f59e0b')"
         >
           {{ clinvarData.vus_count }} VUS
         </Badge>
@@ -110,9 +109,10 @@
         content-class="w-auto p-2 max-w-xs"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ color: '#22c55e', borderColor: '#22c55e40' }"
+          :style="tintedChipStyle('#22c55e')"
         >
           {{ clinvarData.benign_count + clinvarData.likely_benign_count }} B/LB
         </Badge>
@@ -131,9 +131,10 @@
         content-class="w-auto p-2 max-w-sm"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ backgroundColor: '#7c3aed20', color: '#7c3aed', borderColor: '#7c3aed40' }"
+          :style="tintedChipStyle('#7c3aed')"
         >
           <Dna :size="12" class="mr-1" />
           Consequences
@@ -199,6 +200,7 @@
 
 <script setup>
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import HoverPopover from '@/components/ui/HoverPopover.vue'
 import { Info, ShieldCheck, Dna, AlertTriangle } from 'lucide-vue-next'
 

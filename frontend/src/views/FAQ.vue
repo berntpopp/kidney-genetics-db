@@ -1,53 +1,68 @@
 <template>
   <div class="container mx-auto px-4 py-8 max-w-3xl">
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-4">
-      <ol class="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <li><RouterLink to="/" class="hover:text-foreground">Home</RouterLink></li>
-        <li class="text-muted-foreground/60">/</li>
-        <li class="text-foreground font-medium">FAQ</li>
-      </ol>
-    </nav>
+    <Breadcrumb class="mb-4">
+      <BreadcrumbList>
+        <BreadcrumbItem>
+          <BreadcrumbLink as-child>
+            <RouterLink to="/">Home</RouterLink>
+          </BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbSeparator />
+        <BreadcrumbItem>
+          <BreadcrumbPage>FAQ</BreadcrumbPage>
+        </BreadcrumbItem>
+      </BreadcrumbList>
+    </Breadcrumb>
 
     <h1 class="text-2xl font-bold mb-2">Frequently Asked Questions</h1>
     <p class="text-muted-foreground mb-8">
       Common questions about the Kidney Genetics Database and how to use it.
     </p>
 
-    <div class="space-y-4">
-      <div v-for="(faq, index) in faqs" :key="index" class="rounded-lg border border-border">
-        <button
-          class="flex w-full items-center justify-between p-4 text-left font-medium hover:bg-muted/50 transition-colors"
-          :aria-expanded="openIndex === index"
-          @click="openIndex = openIndex === index ? null : index"
+    <!-- Answers stay in the prerendered HTML -->
+    <Accordion type="single" collapsible :unmount-on-hide="false" class="space-y-4">
+      <AccordionItem
+        v-for="(faq, index) in faqs"
+        :key="index"
+        :value="String(index)"
+        class="rounded-lg border border-border last:border-b"
+      >
+        <AccordionTrigger
+          heading-tag="h2"
+          class="p-4 text-base hover:no-underline hover:bg-muted/50"
         >
-          <span>{{ faq.question }}</span>
-          <ChevronDown
-            class="size-4 text-muted-foreground transition-transform duration-200"
-            :class="{ 'rotate-180': openIndex === index }"
-          />
-        </button>
-        <div
-          v-if="openIndex === index"
-          class="px-4 pb-4 text-sm text-muted-foreground leading-relaxed"
-        >
+          {{ faq.question }}
+        </AccordionTrigger>
+        <AccordionContent class="px-4 text-sm text-muted-foreground leading-relaxed">
           <p v-for="(para, i) in faq.answer" :key="i" class="mb-2 last:mb-0">
             {{ para }}
           </p>
-        </div>
-      </div>
-    </div>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ChevronDown } from 'lucide-vue-next'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
+} from '@/components/ui/accordion'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator
+} from '@/components/ui/breadcrumb'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
-
-const openIndex = ref<number | null>(null)
+import { SCORE_RANGES, formatScoreRangeBand } from '@/utils/evidenceTiers'
 
 useSeoMeta({
   title: 'FAQ — Kidney Genetics Database',
@@ -74,7 +89,7 @@ const faqs = [
     question: 'How is the evidence score calculated?',
     answer: [
       'The evidence score is a weighted composite score (0-100) that aggregates data from all available sources. Each source contributes a sub-score based on the strength of its evidence. For example, a gene classified as "Definitive" by ClinGen receives a higher sub-score than one classified as "Limited".',
-      'Genes scoring 95-100 are classified as "Definitive", 80-94 as "Strong", 50-79 as "Moderate/Limited". The scoring methodology ensures that genes supported by multiple independent sources rank higher than those from a single source.'
+      `Score ranges: ${SCORE_RANGES.map((r, i) => `${formatScoreRangeBand(i)} "${r.label}"`).join(', ')}. The scoring methodology ensures that genes supported by multiple independent sources rank higher than those from a single source.`
     ]
   },
   {

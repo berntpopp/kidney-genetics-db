@@ -57,12 +57,13 @@
       <!-- Statistics Cards with Gradients -->
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <template v-if="statsLoaded">
-          <div
+          <component
+            :is="stat.route ? RouterLink : 'div'"
             v-for="stat in stats"
             :key="stat.title"
-            class="stat-card overflow-hidden rounded-lg shadow-sm transition-all"
-            :class="{ 'stat-card-clickable cursor-pointer': stat.route }"
-            @click="stat.route ? router.push(stat.route) : null"
+            v-bind="stat.route ? { to: stat.route } : {}"
+            class="stat-card block overflow-hidden rounded-lg shadow-sm transition-all"
+            :class="{ 'stat-card-clickable': stat.route }"
           >
             <div
               class="p-4 text-center rounded-lg"
@@ -76,7 +77,7 @@
                 {{ stat.title }}
               </div>
             </div>
-          </div>
+          </component>
         </template>
         <template v-else>
           <div v-for="n in 3" :key="n" class="overflow-hidden rounded-lg shadow-sm">
@@ -233,11 +234,12 @@ import {
 } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { useWindowSize } from '@vueuse/core'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { datasourceApi } from '../api/datasources'
 import { KGDBLogo } from '@/components/branding'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getDatasetSchema } from '@/composables/useJsonLd'
+import { TIER_CONFIG } from '@/utils/evidenceTiers'
 
 const router = useRouter()
 
@@ -370,8 +372,7 @@ const pipelineSteps = [
     step: 2,
     title: 'Score',
     icon: BarChart3,
-    description:
-      'Evidence aggregated into a weighted confidence score (0-100) with tier classification from Definitive to Minimal'
+    description: `Evidence aggregated into a weighted confidence score (0-100) with tier classification from ${TIER_CONFIG.comprehensive_support.label} to ${TIER_CONFIG.minimal_evidence.label}`
   },
   {
     step: 3,
@@ -479,7 +480,7 @@ onMounted(async () => {
 }
 
 .stat-card-clickable:focus-visible {
-  outline: 2px solid hsl(var(--primary));
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 

@@ -5,8 +5,6 @@
 
 /** Return type for useBackupFormatters */
 export interface BackupFormatters {
-  getStatusColor: (_status: string) => string
-  getStatusIcon: (_status: string) => string
   formatSize: (_sizeMb: number | null | undefined) => string
   formatDuration: (_seconds: number | null | undefined) => string
   formatDate: (_date: string | Date | null | undefined) => string
@@ -15,34 +13,6 @@ export interface BackupFormatters {
 }
 
 export function useBackupFormatters(): BackupFormatters {
-  /**
-   * Get status color for chips
-   */
-  const getStatusColor = (status: string): string => {
-    const colors: Record<string, string> = {
-      completed: 'success',
-      running: 'info',
-      failed: 'error',
-      pending: 'warning',
-      restored: 'purple'
-    }
-    return colors[status] ?? 'grey'
-  }
-
-  /**
-   * Get status icon
-   */
-  const getStatusIcon = (status: string): string => {
-    const icons: Record<string, string> = {
-      completed: 'mdi-check-circle',
-      running: 'mdi-progress-clock',
-      failed: 'mdi-alert-circle',
-      pending: 'mdi-clock-outline',
-      restored: 'mdi-database-import'
-    }
-    return icons[status] ?? 'mdi-help-circle'
-  }
-
   /**
    * Format file size in MB/GB
    */
@@ -103,8 +73,6 @@ export function useBackupFormatters(): BackupFormatters {
   }
 
   return {
-    getStatusColor,
-    getStatusIcon,
     formatSize,
     formatDuration,
     formatDate,

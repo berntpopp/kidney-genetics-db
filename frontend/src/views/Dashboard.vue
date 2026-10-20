@@ -32,6 +32,9 @@
         <Badge
           v-for="tier in tierOptions"
           :key="tier.value"
+          as="button"
+          type="button"
+          :aria-pressed="selectedTiers.includes(tier.value)"
           class="cursor-pointer select-none transition-opacity"
           :class="
             selectedTiers.length === 0 || selectedTiers.includes(tier.value)
@@ -39,8 +42,7 @@
               : 'opacity-30'
           "
           :style="{
-            backgroundColor: tier.color + '20',
-            color: tier.color,
+            ...tintedChipStyle(tier.color),
             borderColor: selectedTiers.includes(tier.value) ? tier.color : 'transparent'
           }"
           @click="toggleTier(tier.value)"
@@ -147,7 +149,7 @@ const EvidenceCompositionChart = defineAsyncComponent({
   delay: 200,
   timeout: 10000
 })
-import { TIER_CONFIG } from '@/utils/evidenceTiers'
+import { TIER_CONFIG, tintedChipStyle } from '@/utils/evidenceTiers'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'

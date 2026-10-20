@@ -32,28 +32,28 @@
         title="Needs Your Review"
         :value="stagingStats.total_pending"
         :loading="statsLoading"
-        icon="mdi-account-search"
+        :icon="UserSearch"
         color="warning"
       />
       <AdminStatsCard
         title="Successfully Approved"
         :value="stagingStats.total_approved"
         :loading="statsLoading"
-        icon="mdi-check-circle"
+        :icon="CircleCheck"
         color="success"
       />
       <AdminStatsCard
         title="Rejected (Not Genes)"
         :value="stagingStats.total_rejected"
         :loading="statsLoading"
-        icon="mdi-close-circle"
+        :icon="CircleX"
         color="error"
       />
       <AdminStatsCard
         title="Auto-Normalization Rate"
         :value="`${(normalizationStats.success_rate * 100).toFixed(1)}%`"
         :loading="statsLoading"
-        icon="mdi-robot"
+        :icon="Bot"
         color="info"
       />
     </div>
@@ -117,7 +117,7 @@
           <div class="space-y-2">
             <Label>Data Source</Label>
             <Select v-model="filters.sourceFilter">
-              <SelectTrigger>
+              <SelectTrigger aria-label="Data Source">
                 <SelectValue placeholder="All sources" />
               </SelectTrigger>
               <SelectContent>
@@ -135,7 +135,7 @@
           <div class="space-y-2">
             <Label>Results per page</Label>
             <Select v-model="filtersLimitStr" @update:model-value="updateFilterLimit">
-              <SelectTrigger>
+              <SelectTrigger aria-label="Results per page">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -160,20 +160,16 @@
 
     <!-- Pending Reviews Table -->
     <Card>
-      <CardHeader class="flex flex-row items-center justify-between">
+      <CardHeader>
         <CardTitle class="flex items-center">
           <List class="size-5 mr-2" />
           Pending Reviews ({{ pendingReviews.length }})
         </CardTitle>
-        <Badge v-if="selectedItems.length > 0"> {{ selectedItems.length }} selected </Badge>
       </CardHeader>
       <CardContent class="p-0">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead class="w-[40px]">
-                <Checkbox :model-value="allSelected" @update:model-value="toggleAllSelection" />
-              </TableHead>
               <TableHead class="w-[180px]">Gene Symbol</TableHead>
               <TableHead class="w-[120px]">Data Source</TableHead>
               <TableHead class="w-[140px]">Review Priority</TableHead>
@@ -184,22 +180,16 @@
           </TableHeader>
           <TableBody>
             <TableRow v-if="loading">
-              <TableCell colspan="7" class="text-center py-8 text-muted-foreground">
+              <TableCell colspan="6" class="text-center py-8 text-muted-foreground">
                 Loading...
               </TableCell>
             </TableRow>
             <TableRow v-else-if="pendingReviews.length === 0">
-              <TableCell colspan="7" class="text-center py-8 text-muted-foreground">
+              <TableCell colspan="6" class="text-center py-8 text-muted-foreground">
                 No pending reviews
               </TableCell>
             </TableRow>
             <TableRow v-for="item in pendingReviews" :key="item.id">
-              <TableCell>
-                <Checkbox
-                  :model-value="selectedItems.includes(item.id)"
-                  @update:model-value="toggleItemSelection(item.id, $event)"
-                />
-              </TableCell>
               <TableCell>
                 <code class="text-xs">{{ item.original_text }}</code>
               </TableCell>
@@ -230,6 +220,7 @@
                   <Tooltip>
                     <TooltipTrigger as-child>
                       <Button
+                        aria-label="Approve: This IS a valid gene"
                         variant="ghost"
                         size="icon"
                         class="h-8 w-8 text-green-600"
@@ -243,6 +234,7 @@
                   <Tooltip>
                     <TooltipTrigger as-child>
                       <Button
+                        aria-label="Reject: This is NOT a valid gene"
                         variant="ghost"
                         size="icon"
                         class="h-8 w-8 text-destructive"
@@ -256,6 +248,7 @@
                   <Tooltip>
                     <TooltipTrigger as-child>
                       <Button
+                        aria-label="View details"
                         variant="ghost"
                         size="icon"
                         class="h-8 w-8"
@@ -272,30 +265,6 @@
           </TableBody>
         </Table>
       </CardContent>
-
-      <!-- Bulk Actions -->
-      <div v-if="selectedItems.length > 0" class="flex items-center gap-2 p-4 border-t">
-        <Button
-          variant="outline"
-          class="border-green-500 text-green-600"
-          :disabled="bulkActionLoading"
-          @click="bulkApprove"
-        >
-          <CheckCheck class="size-4 mr-2" />
-          Bulk Approve ({{ selectedItems.length }})
-        </Button>
-        <Button
-          variant="outline"
-          class="border-red-500 text-red-600"
-          :disabled="bulkActionLoading"
-          @click="bulkReject"
-        >
-          <Ban class="size-4 mr-2" />
-          Bulk Reject ({{ selectedItems.length }})
-        </Button>
-        <div class="flex-1" />
-        <Button variant="ghost" @click="selectedItems = []">Clear Selection</Button>
-      </div>
     </Card>
 
     <!-- Approve Dialog -->
@@ -511,7 +480,6 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -549,9 +517,9 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Ban,
+  Bot,
   BriefcaseBusiness,
   Check,
-  CheckCheck,
   CircleCheck,
   CircleX,
   Dna,
@@ -559,7 +527,8 @@ import {
   List,
   RefreshCw,
   Search,
-  TestTube
+  TestTube,
+  UserSearch
 } from 'lucide-vue-next'
 
 // Reactive data
@@ -567,7 +536,6 @@ const loading = ref(false)
 const statsLoading = ref(false)
 const testLoading = ref(false)
 const actionLoading = ref(false)
-const bulkActionLoading = ref(false)
 
 // Stats data
 const stagingStats = reactive({
@@ -598,7 +566,6 @@ const filtersLimitStr = ref('50')
 
 // Data
 const pendingReviews = ref([])
-const selectedItems = ref([])
 
 // Dialogs
 const approveDialog = ref(false)
@@ -623,29 +590,7 @@ const sourceOptions = computed(() => {
   return sources.map(source => ({ title: source, value: source }))
 })
 
-const allSelected = computed(() => {
-  return (
-    pendingReviews.value.length > 0 && selectedItems.value.length === pendingReviews.value.length
-  )
-})
-
 // Methods
-const toggleAllSelection = checked => {
-  if (checked) {
-    selectedItems.value = pendingReviews.value.map(item => item.id)
-  } else {
-    selectedItems.value = []
-  }
-}
-
-const toggleItemSelection = (id, checked) => {
-  if (checked) {
-    selectedItems.value = [...selectedItems.value, id]
-  } else {
-    selectedItems.value = selectedItems.value.filter(i => i !== id)
-  }
-}
-
 const updateFilterLimit = val => {
   filters.limit = parseInt(val)
   filtersLimitStr.value = val
@@ -771,20 +716,6 @@ const confirmReject = async () => {
   } finally {
     actionLoading.value = false
   }
-}
-
-const bulkApprove = async () => {
-  if (selectedItems.value.length === 0) return
-  toast.warning('Bulk approve not yet implemented - please approve items individually', {
-    duration: 5000
-  })
-}
-
-const bulkReject = async () => {
-  if (selectedItems.value.length === 0) return
-  toast.warning('Bulk reject not yet implemented - please reject items individually', {
-    duration: 5000
-  })
 }
 
 // Utility methods

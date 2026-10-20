@@ -172,14 +172,15 @@ iconNames.forEach(name => {
 // ---------------------------------------------------------------------------
 // Helper: mount the component and return the VM
 // ---------------------------------------------------------------------------
-function mountComponent() {
+function mountComponent(extraStubs = {}) {
   const wrapper = mount(NetworkAnalysis, {
     shallow: true,
     global: {
       stubs: {
         ...stubs,
         // teleport: false avoids issues with Dialog teleport
-        teleport: true
+        teleport: true,
+        ...extraStubs
       }
     }
   })
@@ -567,6 +568,16 @@ describe('NetworkAnalysis.vue', () => {
       await nextTick()
 
       expect(vm.hasAnyState).toBeFalsy()
+    })
+  })
+
+  describe('header counts (#325)', () => {
+    it('labels the node and edge counts as the built network', async () => {
+      const wrapper = mountComponent({ Badge: { template: '<span><slot /></span>' } })
+      const vm = wrapper.vm as any
+      vm.networkStats = { nodes: 470, edges: 2655, components: 1 }
+      await nextTick()
+      expect(wrapper.text()).toContain('Built network: 470 nodes · 2655 edges')
     })
   })
 })

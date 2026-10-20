@@ -105,8 +105,10 @@ watch(
             placeholder="Enter username or email"
             :disabled="authStore.isLoading"
             :class="{ 'border-destructive': errors.username }"
+            :aria-invalid="!!errors.username"
+            :aria-describedby="errors.username ? 'login-username-error' : undefined"
           />
-          <p v-if="errors.username" class="text-sm text-destructive">
+          <p v-if="errors.username" id="login-username-error" class="text-sm text-destructive">
             {{ errors.username }}
           </p>
         </div>
@@ -123,8 +125,11 @@ watch(
               :disabled="authStore.isLoading"
               class="pr-10"
               :class="{ 'border-destructive': errors.password }"
+              :aria-invalid="!!errors.password"
+              :aria-describedby="errors.password ? 'login-password-error' : undefined"
             />
             <Button
+              :aria-label="showPassword ? 'Hide password' : 'Show password'"
               type="button"
               variant="ghost"
               size="icon"
@@ -136,7 +141,7 @@ watch(
               <Eye v-else class="size-4 text-muted-foreground" />
             </Button>
           </div>
-          <p v-if="errors.password" class="text-sm text-destructive">
+          <p v-if="errors.password" id="login-password-error" class="text-sm text-destructive">
             {{ errors.password }}
           </p>
         </div>
@@ -156,6 +161,7 @@ watch(
 
         <div
           v-if="authStore.error"
+          role="alert"
           class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
         >
           {{ authStore.error }}

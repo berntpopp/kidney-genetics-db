@@ -12,9 +12,11 @@ import {
 
 interface Props {
   table: Table<TData>
+  loading?: boolean
+  loadingText?: string
 }
 
-defineProps<Props>()
+withDefaults(defineProps<Props>(), { loading: false, loadingText: 'Loading...' })
 </script>
 
 <template>
@@ -53,7 +55,7 @@ defineProps<Props>()
               :colspan="table.getAllColumns().length"
               class="h-24 text-center text-muted-foreground"
             >
-              No results.
+              {{ loading ? loadingText : 'No results.' }}
             </TableCell>
           </TableRow>
         </template>

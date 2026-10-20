@@ -13,7 +13,7 @@
           <Avatar class="h-6 w-6" :style="{ backgroundColor: getRegionColor(panel.region) + '20' }">
             <AvatarFallback
               class="text-[10px] font-bold"
-              :style="{ color: getRegionColor(panel.region) }"
+              :style="{ color: tintedChipStyle(getRegionColor(panel.region)).color }"
             >
               {{ getRegionCode(panel.region) }}
             </AvatarFallback>
@@ -29,6 +29,7 @@
           </div>
 
           <Button
+            :aria-label="`Open ${panel.name} in PanelApp`"
             variant="ghost"
             size="icon"
             class="h-6 w-6 shrink-0"
@@ -63,9 +64,8 @@
           :key="region"
           variant="outline"
           :style="{
-            borderColor: getRegionColor(region),
-            color: getRegionColor(region),
-            backgroundColor: getRegionColor(region) + '15'
+            ...tintedChipStyle(getRegionColor(region)),
+            borderColor: getRegionColor(region)
           }"
         >
           <MapPin class="size-3 mr-1" />
@@ -82,10 +82,7 @@
           v-for="(phenotype, index) in displayPhenotypes"
           :key="index"
           variant="outline"
-          :style="{
-            borderColor: '#f97316',
-            color: '#f97316'
-          }"
+          :style="{ ...tintedChipStyle('#f97316'), borderColor: '#f97316' }"
           class="text-xs"
         >
           {{ phenotype }}
@@ -110,9 +107,8 @@
           :key="level"
           variant="outline"
           :style="{
-            borderColor: getEvidenceLevelColor(level),
-            color: getEvidenceLevelColor(level),
-            backgroundColor: getEvidenceLevelColor(level) + '15'
+            ...tintedChipStyle(getEvidenceLevelColor(level)),
+            borderColor: getEvidenceLevelColor(level)
           }"
         >
           Level {{ level }}
@@ -135,19 +131,19 @@
     <div class="mt-4 p-3 bg-muted/30 rounded-md">
       <div class="grid grid-cols-3 gap-4">
         <div class="text-center">
-          <div class="text-xl font-bold" style="color: #f97316">
+          <div class="text-xl font-bold" :style="{ color: tintedChipStyle('#f97316').color }">
             {{ panelCount }}
           </div>
           <div class="text-xs text-muted-foreground">Panels</div>
         </div>
         <div class="text-center">
-          <div class="text-xl font-bold" style="color: #f97316">
+          <div class="text-xl font-bold" :style="{ color: tintedChipStyle('#f97316').color }">
             {{ regions?.length || 0 }}
           </div>
           <div class="text-xs text-muted-foreground">Regions</div>
         </div>
         <div class="text-center">
-          <div class="text-xl font-bold" style="color: #f97316">
+          <div class="text-xl font-bold" :style="{ color: tintedChipStyle('#f97316').color }">
             {{ phenotypes?.length || 0 }}
           </div>
           <div class="text-xs text-muted-foreground">Phenotypes</div>
@@ -161,6 +157,7 @@
 import { ref, computed } from 'vue'
 import { ChevronUp, ChevronDown, MapPin, GitBranch, ExternalLink } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 

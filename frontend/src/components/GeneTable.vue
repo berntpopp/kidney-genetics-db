@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch, h } from 'vue'
 import type { ColumnDef, SortingState, PaginationState } from '@tanstack/vue-table'
 import { useVueTable, getCoreRowModel } from '@tanstack/vue-table'
-import { Info, EyeOff, Search, Download, FilterX, RefreshCw } from 'lucide-vue-next'
+import { Info, EyeOff, Search, FilterX, RefreshCw } from 'lucide-vue-next'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
 import { geneApi } from '../api/genes'
@@ -29,6 +29,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
+import ComponentError from '@/components/ui/ComponentError.vue'
 
 // Gene row type for table data
 interface GeneRow {
@@ -57,7 +58,8 @@ const router = useRouter()
 
 // Data
 const genes = ref<GeneRow[]>([])
-const loading = ref(false)
+const loading = ref(true) // true until the first response, so prerender/loading never claim "No genes"
+const loadError = ref<Error | null>(null)
 const totalItems = ref(0)
 const page = ref(1)
 const itemsPerPage = ref(10)
@@ -238,8 +240,6 @@ const columns: ColumnDef<GeneRow>[] = [
 ]
 
 // Computed
-const pageCount = computed(() => Math.ceil(totalItems.value / itemsPerPage.value))
-
 const hiddenGeneCount = computed(() => {
   return filterMeta.value?.hidden_zero_scores || 0
 })
@@ -266,8 +266,8 @@ const table = useVueTable({
   getCoreRowModel: getCoreRowModel(),
   manualPagination: true,
   manualSorting: true,
-  get pageCount() {
-    return pageCount.value
+  get rowCount() {
+    return totalItems.value
   },
   state: {
     get pagination(): PaginationState {
@@ -427,12 +427,13 @@ const loadGenes = async (): Promise<void> => {
     hideZeroScores: !showZeroScoreGenes.value
   }
   const requestKey = JSON.stringify(params)
-  if (loading.value) {
+  if (activeRequest) {
     if (requestKey !== activeRequest) reloadQueued = true
     return
   }
 
   loading.value = true
+  loadError.value = null
   activeRequest = requestKey
   try {
     const response = await geneApi.getGenes(params)
@@ -460,8 +461,10 @@ const loadGenes = async (): Promise<void> => {
     window.logService.error('Error loading genes:', error)
     genes.value = []
     totalItems.value = 0
+    loadError.value = new Error("Couldn't load genes from the server.")
   } finally {
     loading.value = false
+    activeRequest = ''
     if (reloadQueued) {
       reloadQueued = false
       await loadGenes()
@@ -517,10 +520,6 @@ const clearAllFilters = () => {
 
 const refreshData = () => {
   loadGenes()
-}
-
-const exportData = () => {
-  window.logService.info('Export functionality to be implemented')
 }
 
 const clearSources = () => {
@@ -614,9 +613,9 @@ onMounted(async () => {
               @input="debouncedSearch"
             />
           </div>
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2">
             <Select :model-value="sortOption" @update:model-value="applySorting">
-              <SelectTrigger class="w-[180px] h-9">
+              <SelectTrigger aria-label="Sort by" class="w-[180px] h-9">
                 <SelectValue placeholder="Sort by..." />
               </SelectTrigger>
               <SelectContent>
@@ -724,16 +723,6 @@ onMounted(async () => {
               variant="outline"
               size="icon-sm"
               class="h-9 w-9"
-              :disabled="loading"
-              aria-label="Download CSV"
-              @click="exportData"
-            >
-              <Download class="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              class="h-9 w-9"
               :disabled="!hasActiveFilters"
               aria-label="Clear all filters"
               @click="clearAllFilters"
@@ -804,7 +793,7 @@ onMounted(async () => {
           </div>
 
           <!-- Total gene count -->
-          <Badge variant="secondary" class="text-xs font-normal ml-auto">
+          <Badge v-if="genes.length > 0" variant="secondary" class="text-xs font-normal ml-auto">
             {{ genes.length }}/{{ totalItems.toLocaleString() }} genes
           </Badge>
         </div>
@@ -812,13 +801,20 @@ onMounted(async () => {
     </Card>
 
     <!-- Data Table -->
-    <Card v-if="genes.length > 0 || loading">
-      <DataTablePagination :table="table" :page-size-options="itemsPerPageOptions" />
-      <DataTable :table="table" />
+    <ComponentError v-if="loadError" :error="loadError" @retry="loadGenes" />
+
+    <Card v-else-if="genes.length > 0 || loading">
+      <!-- Kept in the DOM while loading so the table does not shift; visibility:hidden keeps it out of tab order and the a11y tree -->
+      <DataTablePagination
+        :class="{ invisible: genes.length === 0 }"
+        :table="table"
+        :page-size-options="itemsPerPageOptions"
+      />
+      <DataTable :table="table" :loading="loading" loading-text="Loading genes..." />
     </Card>
 
     <!-- Empty State -->
-    <Card v-if="!loading && genes.length === 0" class="text-center">
+    <Card v-else class="text-center">
       <CardContent class="py-12">
         <Search class="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
         <h3 class="text-lg font-medium mb-2">No genes found</h3>

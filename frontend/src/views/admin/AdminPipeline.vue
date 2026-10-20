@@ -15,6 +15,9 @@ import {
   AlertTriangle,
   BookOpen,
   BriefcaseMedical,
+  CircleAlert,
+  CircleCheck,
+  CirclePlay,
   Cog,
   Database,
   Dna,
@@ -24,6 +27,7 @@ import {
   Info,
   LayoutList,
   Loader2,
+  Minus,
   Pause,
   Play,
   Plus,
@@ -32,12 +36,21 @@ import {
   Wifi,
   WifiOff
 } from 'lucide-vue-next'
-import { resolveMdiIcon } from '@/utils/icons'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import {
   Dialog,
   DialogContent,
@@ -56,6 +69,7 @@ const triggering = ref({})
 const pausing = ref({})
 const resuming = ref({})
 const triggeringAll = ref(false)
+const showRunAllDialog = ref(false)
 const showDetailsDialog = ref(false)
 const selectedSource = ref(null)
 
@@ -143,14 +157,16 @@ const resumeSource = async sourceName => {
   }
 }
 
+const triggerableSources = computed(() =>
+  dataSources.value.filter(
+    s => s.status === 'idle' || s.status === 'failed' || s.status === 'completed'
+  )
+)
+
 const triggerAll = async () => {
   triggeringAll.value = true
   try {
-    const triggerable = dataSources.value.filter(
-      s => s.status === 'idle' || s.status === 'failed' || s.status === 'completed'
-    )
-
-    await Promise.all(triggerable.map(source => triggerSource(source.source_name)))
+    await Promise.all(triggerableSources.value.map(source => triggerSource(source.source_name)))
 
     toast.success('All data sources triggered', { duration: 5000 })
   } catch (error) {
@@ -192,7 +208,7 @@ const getStatusVariant = status => {
     case 'running':
       return 'default'
     case 'completed':
-      return 'secondary'
+      return 'outline'
     case 'failed':
       return 'destructive'
     case 'paused':
@@ -298,7 +314,7 @@ onUnmounted(() => {
     <AdminHeader
       title="Data Pipeline Control"
       subtitle="Monitor and control data ingestion pipelines"
-      icon="mdi-pipe"
+      :icon="Minus"
       icon-color="green"
       :breadcrumbs="ADMIN_BREADCRUMBS.pipeline"
     >
@@ -315,29 +331,28 @@ onUnmounted(() => {
       <AdminStatsCard
         title="Data Sources"
         :value="dataSources.length"
-        icon="mdi-database"
+        :icon="Database"
         color="info"
       />
-      <AdminStatsCard
-        title="Running"
-        :value="runningSources"
-        icon="mdi-play-circle"
-        color="success"
-      />
+      <AdminStatsCard title="Running" :value="runningSources" :icon="CirclePlay" color="success" />
       <AdminStatsCard
         title="Completed"
         :value="completedSources"
-        icon="mdi-check-circle"
+        :icon="CircleCheck"
         color="primary"
       />
-      <AdminStatsCard title="Failed" :value="failedSources" icon="mdi-alert-circle" color="error" />
+      <AdminStatsCard title="Failed" :value="failedSources" :icon="CircleAlert" color="error" />
     </div>
 
     <!-- Quick Actions -->
     <Card class="mb-4">
       <CardContent class="p-4">
         <div class="flex flex-wrap gap-2">
-          <Button size="sm" :disabled="triggeringAll || runningSources > 0" @click="triggerAll">
+          <Button
+            size="sm"
+            :disabled="triggeringAll || runningSources > 0 || triggerableSources.length === 0"
+            @click="showRunAllDialog = true"
+          >
             <Loader2 v-if="triggeringAll" class="size-4 mr-2 animate-spin" />
             <Play v-else class="size-4 mr-2" />
             Run All Data Sources
@@ -487,7 +502,13 @@ onUnmounted(() => {
             </Button>
           </div>
 
-          <Button variant="ghost" size="icon" class="h-8 w-8" @click="showSourceDetails(source)">
+          <Button
+            :aria-label="`Details for ${source.source_name}`"
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
+            @click="showSourceDetails(source)"
+          >
             <Info class="size-4" />
           </Button>
         </div>
@@ -533,7 +554,7 @@ onUnmounted(() => {
           <CardHeader class="pb-2">
             <div class="flex items-center justify-between">
               <CardTitle class="text-sm flex items-center gap-2">
-                <component :is="resolveMdiIcon(process.icon || 'mdi-cog') || Cog" class="size-5" />
+                <Cog class="size-5" />
                 {{ process.display_name || process.source_name }}
               </CardTitle>
               <Badge :variant="getStatusVariant(process.status)">
@@ -578,13 +599,40 @@ onUnmounted(() => {
           </CardContent>
 
           <div class="flex items-center justify-end px-6 pb-4">
-            <Button variant="ghost" size="icon" class="h-8 w-8" @click="showSourceDetails(process)">
+            <Button
+              :aria-label="`Details for ${process.source_name}`"
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8"
+              @click="showSourceDetails(process)"
+            >
               <Info class="size-4" />
             </Button>
           </div>
         </Card>
       </div>
     </div>
+
+    <AlertDialog v-model:open="showRunAllDialog">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            Run {{ triggerableSources.length }} data source{{
+              triggerableSources.length === 1 ? '' : 's'
+            }}?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            This starts an update run for each of these sources:
+            {{ triggerableSources.map(s => s.source_name).join(', ') }}. Runs continue in the
+            background until they finish or are paused.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction @click="triggerAll">Run All</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <!-- Source Details Dialog -->
     <Dialog v-model:open="showDetailsDialog">

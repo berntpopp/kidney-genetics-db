@@ -6,11 +6,7 @@
       v-if="stringPpiData.ppi_degree === 0 || stringPpiData.no_data_available"
       class="flex items-center"
     >
-      <Badge
-        variant="outline"
-        class="text-xs"
-        :style="{ backgroundColor: '#6b728020', color: '#6b7280' }"
-      >
+      <Badge variant="outline" class="text-xs" :style="tintedChipStyle('#6b7280')">
         <Info :size="12" class="mr-1" />
         No interactions available
       </Badge>
@@ -20,9 +16,10 @@
       <!-- PPI Score -->
       <HoverPopover content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ backgroundColor: '#0ea5e920', color: '#0ea5e9', borderColor: '#0ea5e940' }"
+          :style="tintedChipStyle('#0ea5e9')"
         >
           Score: {{ stringPpiData.ppi_score?.toFixed(1) || '0' }}
         </Badge>
@@ -55,9 +52,10 @@
       <!-- Percentile Rank -->
       <HoverPopover v-if="stringPpiData.ppi_percentile" content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ color: '#3b82f6', borderColor: '#3b82f640' }"
+          :style="tintedChipStyle('#3b82f6')"
         >
           <ChartSpline :size="12" class="mr-1" />
           {{ (stringPpiData.ppi_percentile * 100).toFixed(0) }}<sup>th</sup> percentile
@@ -77,9 +75,10 @@
       <!-- Network degree -->
       <HoverPopover content-class="w-auto p-2">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ color: '#6b7280', borderColor: '#6b728040' }"
+          :style="tintedChipStyle('#6b7280')"
         >
           {{ stringPpiData.ppi_degree }} partners
         </Badge>
@@ -121,6 +120,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import HoverPopover from '@/components/ui/HoverPopover.vue'
 import { Info, ChartSpline } from 'lucide-vue-next'
 

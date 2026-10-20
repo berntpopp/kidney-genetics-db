@@ -2,7 +2,7 @@
   <Card class="source-distributions-container w-full">
     <CardHeader class="flex flex-row items-center space-y-0 pb-2">
       <ChartBar class="size-5 mr-2" />
-      <CardTitle class="text-lg font-semibold">Source Distributions</CardTitle>
+      <CardTitle tag="h2" class="text-lg font-semibold">Source Distributions</CardTitle>
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger as-child>
@@ -19,7 +19,7 @@
       </TooltipProvider>
       <div class="flex-1" />
       <Select v-if="data && Object.keys(data).length > 0" v-model="selectedSource">
-        <SelectTrigger class="w-[200px] h-8">
+        <SelectTrigger aria-label="Data source" class="w-[200px] h-8">
           <SelectValue placeholder="Select source" />
         </SelectTrigger>
         <SelectContent>
@@ -49,7 +49,7 @@
         <Card class="mb-4">
           <CardContent class="pt-6">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div v-for="(value, key) in sourceMetadata" :key="key">
+              <div v-for="(value, key) in displayedMetadata" :key="key">
                 <div class="text-lg font-semibold text-primary">{{ value }}</div>
                 <div class="text-xs text-muted-foreground">{{ formatMetadataLabel(key) }}</div>
               </div>
@@ -136,6 +136,13 @@ const sourceMetadata = computed(() => {
   if (!data.value || !selectedSource.value) return {}
   return data.value[selectedSource.value]?.metadata || {}
 })
+
+// Metadata shown to users; visualization_type is an internal chart id
+const displayedMetadata = computed(() =>
+  Object.fromEntries(
+    Object.entries(sourceMetadata.value).filter(([key]) => key !== 'visualization_type')
+  )
+)
 
 const sourceData = computed(() => {
   if (!data.value || !selectedSource.value) return null

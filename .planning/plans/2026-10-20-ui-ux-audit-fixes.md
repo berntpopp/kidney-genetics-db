@@ -1,0 +1,47 @@
+# UI/UX audit fixes — execution record (2026-10-20)
+
+Integration branch `fix/ui-ux-audit-2026-10` (worktree `../kgdb-wt/ui`), base `ce75cee` (v0.5.3).
+Source: open issues from the 2026-10-20 UI/UX audit (#312–#329, #334) plus backend #331, #332.
+Audit harness: `.planning/audits/ui-ux/`. Rules for agents: no `git stash`, own worktree, owned paths only,
+disposable DBs, fail-before/pass-after tests, one Conventional Commit per issue.
+
+Measurement note: the local API on :8000 was started from `main` @ ce75cee with `AUTO_UPDATE_ENABLED=false`
+(the default startup resumes a paused annotation pipeline that writes to the dev DB; it was stopped after
+~15 s and the pipeline status returned to `paused`).
+
+## Streams
+
+| WS | Issues | Owned paths | Deps | Status | Commits | Review | Tests | Blocker |
+|---|---|---|---|---|---|---|---|---|
+| W1 build/perf | #312 #313 #328 | vite.config.ts, nginx.prod.conf, App.vue (LogViewer) | — | merged ea509de | 1f28df0 3eaa0f3 0116b67 | Ship (should-fix: beasties dep, CI guard → fixed; rechecked) | vitest 150/150 on int; guard fail-before/pass-after | Lighthouse CLS/FCP pending audit |
+| W2 theme/base | #319 #321(base) #320(tokens) | index.html, assets/main.css, main.ts, useAppTheme.ts, ui/sonner/** | — | in progress | | | | #320 designer sign-off |
+| W3 data/charts | #314 #315 #325 #324(UpSet) #320(chips) | utils/evidenceTiers.ts, ScoreBreakdown.vue, EvidenceTierBadge.vue, gene/GeneInformationCard.vue, views/About.vue, components/visualizations/**, network/NetworkGraph.vue, views/Dashboard.vue | — | in progress | | | | |
+| W4 genes/sources | #316 #323 #324(DataSources) #318(GeneTable/Profile) #320(green) #321(EvidenceCard mdi) | GeneTable.vue, ui/data-table/**, GeneDetail.vue, DataSources.vue, Profile.vue, ui/HoverPopover.vue, EvidenceCard.vue | — | in progress | | | | |
+| W5 admin | #317 #327 #326 #318(admin) #321(mdi) | views/admin/**, components/admin/**, Login.vue, DataSourceProgress.vue, useBackupFormatters.ts | — | queued | | | | |
+| W6 a11y/polish | #322 #329 | cross-cutting | W1–W5 integrated | queued | | | | |
+| W7 backend | network cache key (new issue), #332, #331(seed) | enrichment_service.py, network_analysis.py, network_analysis_service.py, schemas/tests, mcp/contract | — | queued | | | | |
+
+Deferred: #330 #333 #254 #255 #282 (scientific definition), #291 remainder, #208 #250 #289 #249 #1 #26 #28.
+
+## Log
+- Pre-fix audit run `runs/pre-ce75cee.json` (2 runs, full DB, 3245 genes). vs 2026-10-20 baseline: `tierFilterChangesUrl` and `adminDirectLoadNotBlank` already pass at ce75cee (fixed by #335); `/about`, `/mcp` desktop CLS 0.39/0.55 → 0 in probes; mobile LCP/TBT +180–290 ms on unrelated routes = noise. Gzip prerender checks still 0.
+- Filed #336 (network `@cache` key includes Request object address) for W7.
+- W1 merged (ea509de). W3 review: must-fix UpSet set-click count + FAQ/Home vocabulary drift (scope expansion FAQ/Home/NetworkAnalysis approved). W2 review: must-fix dark toasts; follow-up: light `--destructive` 3.65:1 (designer call, not in #320 list).
+- W2 merged (3f3eae3; review Ship after toast-theme fix, rechecked). W3 merged (f895ec5; review must-fixes 1–2 + should-fixes 3–5 applied, rechecked Ship). Integration vitest 184/184, lint/format clean.
+- Coordinator build on f895ec5: exit 0; no `*.html.gz|br`; inline theme script exactly once in all 8 prerendered pages. FAQ JSON-LD is not in prerendered HTML (also absent at ce75cee; pre-existing, out of scope).
+- W5 (admin) and W7 (backend: #336, #332, #331 seed) started.
+- W4 merged (a7fc999; review must-fix: skeleton 6→7 sources, fixed, rechecked Ship). Integration vitest 197/197. icons.ts mdi map reassigned to W5.
+- Coordinator 2090a41: nginx progress WebSocket routing (#326 prod gap found by W5); nginx -t + echo-upstream probe. W7 merged (119411a; review must-fix event-loop batch + should-fix stale cache/log rows fixed, rechecked Ship; backend suite 752 passed/10 skipped on disposable DB per author; contract snapshot == live openapi).
+- W5 merged (5022feb; review must-fix login 429 copy + self-demotion + retention fixed, rechecked Ship incl. 2090a41). Integration vitest 214/214; `rg 'mdi-' frontend/src` and stub grep empty.
+- Backend gate on 5022feb (disposable PG :55470 / Redis :56470): `uv lock --check` ok, ruff ok, pytest 752 passed / 10 skipped (data-dependent). `make check-mcp`: 210 passed, mypy clean, contract current.
+- Cross-stream review (ce75cee..5022feb): Ship; should-fix pagination-row CLS + pending badge contrast routed to W6. Pre-existing, out of scope: 24× `hsl(var(--token))` on oklch tokens (invalid CSS); location-level add_header drops server CSP/HSTS on HTML.
+- W6 (#322, #329) started from 5022feb.
+- Cross-stream review on W6: Ship after label-in-name, local dates, FAQ prerender, per-row labels. W6 merged (bc5226b).
+- `make check` on bc5226b: all green except one `main.spec.ts` 5 s timeout right after the build; passes 3/3 alone and in a full rerun; cold import not slower than main (98 vs 203 ms).
+- Draft PR #339 opened. CI green on bc5226b.
+- After-fix audit on bc5226b was invalid in its second half: the dev postgres/redis (and unrelated containers) were stopped externally mid-run; run discarded. User approved restarting the two dev containers.
+- Codex CLI (gpt-6-astra, high) ponytail-review in 5 parallel focused reviews: confirmed findings fixed (DataSourceProgress Start bypassing confirmation, overlapping WebSockets, LoginModal a11y, skip-link z-index, skeleton subtitle, UpSet "among the selected sources", lazy-import test, graph cache invalidation, validation/seed tests). Dispositions: batch FDR family = terms with ≥1 overlap (same as single endpoint, documented; method decision for maintainers); cluster genes outside HPO background = #289 (deferred); sync DB reads in batch = same as single endpoint, capped; in-flight /build race = ponytail-documented (≤~2 h stale, rare refresh). Rechecks: Ship.
+- Clean audit on cece598 found 23 contrast nodes on gene pages (raw `hex + '20'` badges) and 2 heading-order items → fixed (bc447d2), Codex review Ship.
+- #319 AC2 verified: toggle dark + OS light vs OS dark → 0 computed-style differences on /genes/PKD1 (362 elements) and /admin/pipeline (359).
+- `make check` on bc447d2: exit 0 (backend 754 passed/10 skipped, frontend 235/235 + build, MCP 210, contract current).
+- Final audit `runs/after-bc447d2.json` (full DB, 2 runs): vs pre-ce75cee 176 better / 1 worse (/dashboard desktop LCP +286 ms, perf 99). All 4 checks pass; themeFlash 0 and overflow 0 everywhere; contrast/axe 0 on all public routes except /genes/PKD1/structure (9: inactive legend chips at 0.7 opacity, design decision); 0 console errors.

@@ -88,9 +88,15 @@ onMounted(() => {
                 placeholder="Enter username or email"
                 :disabled="authStore.isLoading"
                 autofocus
+                :aria-invalid="!!errors.username"
+                :aria-describedby="errors.username ? 'page-login-username-error' : undefined"
                 :class="{ 'border-destructive': errors.username }"
               />
-              <p v-if="errors.username" class="text-sm text-destructive">
+              <p
+                v-if="errors.username"
+                id="page-login-username-error"
+                class="text-sm text-destructive"
+              >
                 {{ errors.username }}
               </p>
             </div>
@@ -107,6 +113,8 @@ onMounted(() => {
                   autocomplete="current-password"
                   :disabled="authStore.isLoading"
                   class="pr-10"
+                  :aria-invalid="!!errors.password"
+                  :aria-describedby="errors.password ? 'page-login-password-error' : undefined"
                   :class="{ 'border-destructive': errors.password }"
                   @keyup.enter="onSubmit"
                 />
@@ -123,7 +131,11 @@ onMounted(() => {
                   <Eye v-else class="size-4 text-muted-foreground" />
                 </Button>
               </div>
-              <p v-if="errors.password" class="text-sm text-destructive">
+              <p
+                v-if="errors.password"
+                id="page-login-password-error"
+                class="text-sm text-destructive"
+              >
                 {{ errors.password }}
               </p>
             </div>
@@ -140,6 +152,7 @@ onMounted(() => {
 
             <div
               v-if="authStore.error"
+              role="alert"
               class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
             >
               {{ authStore.error }}

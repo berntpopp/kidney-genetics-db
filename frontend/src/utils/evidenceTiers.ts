@@ -105,6 +105,18 @@ export const GROUP_CONFIG: Record<GroupName, GroupConfig> = {
 }
 
 /**
+ * Inline style for a chip tinted with `color` (hex). The text is mixed toward the
+ * theme foreground so it stays WCAG AA on the tint in light and dark mode (#320).
+ */
+export function tintedChipStyle(color: string): Record<string, string> {
+  return {
+    backgroundColor: color + '20',
+    color: `color-mix(in oklab, ${color} 55%, var(--foreground))`,
+    borderColor: color + '40'
+  }
+}
+
+/**
  * Get tier configuration by tier name
  * @param tier - Tier name
  * @returns Tier configuration object
@@ -220,6 +232,15 @@ export const SCORE_RANGES: ScoreRangeConfig[] = [
     tierAlignment: 'minimal_evidence'
   }
 ]
+
+/**
+ * Display band for SCORE_RANGES[i], e.g. "≥ 80" or "< 10" for the lowest range.
+ * Mirrors getScoreRangeConfig: a score gets the first range whose threshold it reaches.
+ */
+export function formatScoreRangeBand(i: number): string {
+  const threshold = SCORE_RANGES[i]?.threshold ?? 0
+  return threshold > 0 ? `≥ ${threshold}` : `< ${SCORE_RANGES[i - 1]?.threshold ?? 0}`
+}
 
 /**
  * Get score range configuration for a given score

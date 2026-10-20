@@ -6,13 +6,16 @@ import { ChevronDownIcon } from '@radix-icons/vue'
 import { AccordionHeader, AccordionTrigger } from 'reka-ui'
 import { cn } from '@/lib/utils'
 
-const props = defineProps<AccordionTriggerProps & { class?: HTMLAttributes['class'] }>()
+const props = withDefaults(
+  defineProps<AccordionTriggerProps & { class?: HTMLAttributes['class']; headingTag?: string }>(),
+  { headingTag: 'h3' }
+)
 
-const delegatedProps = reactiveOmit(props, 'class')
+const delegatedProps = reactiveOmit(props, 'class', 'headingTag')
 </script>
 
 <template>
-  <AccordionHeader class="flex">
+  <AccordionHeader :as="props.headingTag" class="flex">
     <AccordionTrigger
       data-slot="accordion-trigger"
       v-bind="delegatedProps"

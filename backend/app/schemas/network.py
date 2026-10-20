@@ -74,6 +74,12 @@ class NetworkClusterRequest(BaseModel):
         default=_na_config.get("clustering", {}).get("default_algorithm", "leiden"),
         description="Clustering algorithm: leiden, louvain, or walktrap",
     )
+    seed: int = Field(
+        default=0,
+        ge=0,
+        le=2**31 - 1,
+        description="RNG seed for leiden/louvain; the fixed default makes default runs reproducible",
+    )
     min_degree: int = Field(
         default=_filtering_config.get("default_min_degree", 0),
         ge=0,
@@ -170,6 +176,41 @@ class HPOEnrichmentRequest(BaseModel):
     )
 
 
+class HPOBatchEnrichmentRequest(BaseModel):
+    """Request for HPO enrichment of several communities with pooled FDR (#332)"""
+
+    communities: list[list[int]] = Field(
+        ...,
+        description=(
+            "Gene IDs per community; BH-FDR is pooled over all community x term pairs "
+            "with at least one overlapping community gene (the single-community family). "
+            f"At most {_enrichment_config.get('hpo', {}).get('max_communities', 200)} communities."
+        ),
+        min_length=1,
+        max_length=_enrichment_config.get("hpo", {}).get("max_communities", 200),
+    )
+    fdr_threshold: float = Field(
+        default=_enrichment_config.get("hpo", {}).get("default_fdr_threshold", 0.05),
+        gt=0.0,
+        le=1.0,
+        description="FDR significance threshold (applied to pooled q-values)",
+    )
+
+    @field_validator("communities")
+    @classmethod
+    def validate_communities(cls, v: list[list[int]]) -> list[list[int]]:
+        """Bound each community like a single HPO request and the total like a network"""
+        max_cluster = _enrichment_config.get("hpo", {}).get("max_cluster_size", 500)
+        max_total = _network_config.get("max_nodes", 2000)
+        if any(not 1 <= len(c) <= max_cluster for c in v):
+            raise ValueError(f"Each community must have 1-{max_cluster} gene IDs")
+        if sum(len(c) for c in v) > max_total:
+            raise ValueError(f"At most {max_total} gene IDs across all communities")
+        if not all(gid > 0 for c in v for gid in c):
+            raise ValueError("All gene IDs must be positive integers")
+        return [sorted(c) for c in v]  # Ensures deterministic cache keys
+
+
 class GOEnrichmentRequest(BaseModel):
     """Request for GO/KEGG enrichment via GSEApy"""
 
@@ -234,6 +275,10 @@ class NetworkClusterResponse(BaseModel):
     num_clusters: int = Field(..., description="Number of clusters detected")
     modularity: float = Field(..., description="Modularity score")
     algorithm: str = Field(..., description="Algorithm used")
+    parameters: dict[str, Any] = Field(
+        ...,
+        description="Clustering parameters used, e.g. objective, resolution, iterations, seed",
+    )
     cytoscape_json: dict[str, Any] = Field(..., description="Cytoscape.js with cluster colors")
 
 
@@ -307,3 +352,19 @@ class HPOClassificationResponse(BaseModel):
 
     data: list[HPOClassificationData] = Field(..., description="HPO classification data")
     metadata: dict[str, Any] = Field(..., description="Response metadata")
+
+
+class HPOBatchEnrichmentResponse(BaseModel):
+    """Response from batch HPO enrichment with pooled FDR"""
+
+    results: list[list[EnrichmentResult]] = Field(
+        ..., description="Significant terms per community, in submitted order"
+    )
+    total_tests: int = Field(
+        ...,
+        description=(
+            "Community x term pairs with at least one overlapping community gene, "
+            "i.e. the tests in the pooled BH correction (zero-overlap pairs are not tested)"
+        ),
+    )
+    fdr_threshold: float

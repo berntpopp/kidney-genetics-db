@@ -6,11 +6,7 @@
       v-if="mouseData.phenotype_count === 0 || mouseData.no_data_available"
       class="flex items-center"
     >
-      <Badge
-        variant="outline"
-        class="text-xs"
-        :style="{ backgroundColor: '#6b728020', color: '#6b7280' }"
-      >
+      <Badge variant="outline" class="text-xs" :style="tintedChipStyle('#6b7280')">
         <Info :size="12" class="mr-1" />
         No phenotypes available
       </Badge>
@@ -20,12 +16,10 @@
       <!-- Phenotype count -->
       <HoverPopover content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{
-            color: getPhenotypeCountColor(mouseData.phenotype_count),
-            borderColor: getPhenotypeCountColor(mouseData.phenotype_count) + '40'
-          }"
+          :style="tintedChipStyle(getPhenotypeCountColor(mouseData.phenotype_count))"
         >
           {{ mouseData.phenotype_count }} phenotypes
         </Badge>
@@ -57,9 +51,10 @@
         content-class="w-auto p-2"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ color: '#ef4444', borderColor: '#ef444440' }"
+          :style="tintedChipStyle('#ef4444')"
         >
           {{ mouseData.zygosity_analysis.homozygous.phenotype_count }} hm
         </Badge>
@@ -76,9 +71,10 @@
         content-class="w-auto p-2"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ color: '#f59e0b', borderColor: '#f59e0b40' }"
+          :style="tintedChipStyle('#f59e0b')"
         >
           {{ mouseData.zygosity_analysis.heterozygous.phenotype_count }} ht
         </Badge>
@@ -95,9 +91,10 @@
         content-class="w-auto p-2"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ color: '#3b82f6', borderColor: '#3b82f640' }"
+          :style="tintedChipStyle('#3b82f6')"
         >
           {{ mouseData.zygosity_analysis.conditional.phenotype_count }} cn
         </Badge>
@@ -115,7 +112,7 @@
       v-if="mouseData.system_analysis?.renal_urinary"
       class="flex items-center flex-wrap gap-2 mt-2"
     >
-      <Badge variant="outline" :style="{ color: '#8b5cf6', borderColor: '#8b5cf640' }">
+      <Badge variant="outline" :style="tintedChipStyle('#8b5cf6')">
         Renal: {{ mouseData.system_analysis.renal_urinary.phenotype_count }} phenotypes
       </Badge>
     </div>
@@ -124,6 +121,7 @@
 
 <script setup>
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import HoverPopover from '@/components/ui/HoverPopover.vue'
 import { Info } from 'lucide-vue-next'
 

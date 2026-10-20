@@ -32,28 +32,28 @@
         title="Annotated Genes"
         :value="statistics.total_genes_with_annotations"
         :loading="statsLoading"
-        icon="mdi-dna"
+        :icon="Dna"
         color="primary"
       />
       <AdminStatsCard
         title="Data Sources"
         :value="annotationSources.length"
         :loading="statsLoading"
-        icon="mdi-database"
+        :icon="Database"
         color="info"
       />
       <AdminStatsCard
         title="Scheduled Jobs"
         :value="activeJobs"
         :loading="statsLoading"
-        icon="mdi-clock-time-four"
+        :icon="Clock4"
         color="warning"
       />
       <AdminStatsCard
         title="Full Coverage"
         :value="statistics.genes_with_both_sources"
         :loading="statsLoading"
-        icon="mdi-check-all"
+        :icon="CheckCheck"
         color="success"
       />
     </div>
@@ -110,7 +110,7 @@
             <div class="space-y-2">
               <Label>Update Strategy</Label>
               <Select v-model="pipelineForm.strategy">
-                <SelectTrigger>
+                <SelectTrigger aria-label="Update Strategy">
                   <SelectValue placeholder="Select strategy" />
                 </SelectTrigger>
                 <SelectContent>
@@ -198,7 +198,7 @@
           <Button
             v-if="!pipelineStatus?.status || pipelineStatus?.status !== 'running'"
             :disabled="pipelineLoading"
-            @click="triggerPipelineUpdate"
+            @click="confirmPipelineUpdate"
           >
             <Rocket class="size-4 mr-2" />
             {{ pipelineLoading ? 'Running...' : 'Run Full Update' }}
@@ -285,7 +285,7 @@
           <div class="md:col-span-4 space-y-2">
             <Label>Filter by Source (optional)</Label>
             <Select v-model="lookupSource">
-              <SelectTrigger>
+              <SelectTrigger aria-label="Filter by Source">
                 <SelectValue placeholder="All sources" />
               </SelectTrigger>
               <SelectContent>
@@ -416,6 +416,7 @@
               <TableCell>
                 <div class="flex gap-1">
                   <Button
+                    :aria-label="`Update ${item.source_name}`"
                     variant="ghost"
                     size="icon"
                     class="h-8 w-8"
@@ -425,6 +426,7 @@
                     <Play class="size-4" />
                   </Button>
                   <Button
+                    :aria-label="`Details for ${item.source_name}`"
                     variant="ghost"
                     size="icon"
                     class="h-8 w-8"
@@ -498,6 +500,7 @@
               </TableCell>
               <TableCell>
                 <Button
+                  :aria-label="`Run ${item.name} now`"
                   variant="ghost"
                   size="icon"
                   class="h-8 w-8"
@@ -512,6 +515,32 @@
         </Table>
       </CardContent>
     </Card>
+
+    <AlertDialog v-model:open="showUpdateDialog">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Start annotation pipeline update?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Strategy:
+            <strong>{{
+              strategyOptions.find(o => o.value === pipelineForm.strategy)?.title
+            }}</strong
+            >. Sources:
+            <strong>{{
+              pipelineForm.sources.length
+                ? pipelineForm.sources.join(', ').toUpperCase()
+                : 'all annotation sources'
+            }}</strong
+            >.<span v-if="pipelineForm.force"> Cache TTL is ignored (force).</span>
+            The update runs in the background.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction @click="triggerPipelineUpdate">Start Update</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <!-- Source Details Dialog -->
     <Dialog v-model:open="sourceDetailsDialog">
@@ -598,6 +627,16 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { Separator } from '@/components/ui/separator'
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import {
@@ -619,10 +658,12 @@ import {
   AlertTriangle,
   BadgeCheck,
   Check,
+  CheckCheck,
   CircleAlert,
   CircleCheck,
   CircleX,
   Clock,
+  Clock4,
   Database,
   DatabaseZap,
   Dna,
@@ -687,6 +728,7 @@ const lookupResult = ref(null)
 
 // Dialogs
 const sourceDetailsDialog = ref(false)
+const showUpdateDialog = ref(false)
 const selectedSource = ref(null)
 
 // Computed
@@ -789,13 +831,16 @@ const loadData = async () => {
   }
 }
 
-const triggerPipelineUpdate = async () => {
+const confirmPipelineUpdate = () => {
   // Validate SELECTIVE strategy has sources selected
   if (pipelineForm.strategy === 'selective' && pipelineForm.sources.length === 0) {
     toast.warning('Please select at least one source for selective update', { duration: 5000 })
     return
   }
+  showUpdateDialog.value = true
+}
 
+const triggerPipelineUpdate = async () => {
   pipelineLoading.value = true
   try {
     const response = await annotationsApi.triggerPipelineUpdate(pipelineForm)

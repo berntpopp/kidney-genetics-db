@@ -44,11 +44,7 @@
               <Badge
                 v-if="pub.pmid"
                 variant="outline"
-                :style="{
-                  borderColor: '#0ea5e9',
-                  color: '#0ea5e9',
-                  backgroundColor: '#0ea5e915'
-                }"
+                :style="{ ...tintedChipStyle('#0ea5e9'), borderColor: '#0ea5e9' }"
                 as="a"
                 :href="`https://pubmed.ncbi.nlm.nih.gov/${pub.pmid}`"
                 target="_blank"
@@ -63,11 +59,7 @@
               <Badge
                 v-if="pub.doi"
                 variant="outline"
-                :style="{
-                  borderColor: '#6b7280',
-                  color: '#6b7280',
-                  backgroundColor: '#6b728015'
-                }"
+                :style="{ ...tintedChipStyle('#6b7280'), borderColor: '#6b7280' }"
                 as="a"
                 :href="`https://doi.org/${pub.doi}`"
                 target="_blank"
@@ -82,11 +74,7 @@
               <Badge
                 v-if="pub.url && !pub.pmid && !pub.doi"
                 variant="outline"
-                :style="{
-                  borderColor: '#3b82f6',
-                  color: '#3b82f6',
-                  backgroundColor: '#3b82f615'
-                }"
+                :style="{ ...tintedChipStyle('#3b82f6'), borderColor: '#3b82f6' }"
                 as="a"
                 :href="pub.url"
                 target="_blank"
@@ -124,10 +112,7 @@
           v-for="pub in additionalPublications"
           :key="pub.pmid || pub"
           variant="outline"
-          :style="{
-            borderColor: '#0ea5e9',
-            color: '#0ea5e9'
-          }"
+          :style="{ ...tintedChipStyle('#0ea5e9'), borderColor: '#0ea5e9' }"
           as="a"
           :href="getPublicationUrl(pub)"
           target="_blank"
@@ -159,6 +144,7 @@ import {
   Globe
 } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'

@@ -17,7 +17,14 @@
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger as-child>
-                <Button variant="ghost" size="icon" class="h-8 w-8" @click="toggleAutoRefresh">
+                <Button
+                  aria-label="Auto-refresh"
+                  :aria-pressed="autoRefresh"
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8"
+                  @click="toggleAutoRefresh"
+                >
                   <component
                     :is="autoRefresh ? RefreshCcw : RefreshCw"
                     :size="14"
@@ -29,7 +36,12 @@
             </Tooltip>
           </TooltipProvider>
           <CollapsibleTrigger as-child>
-            <Button variant="ghost" size="icon" class="h-8 w-8">
+            <Button
+              aria-label="Toggle data source details"
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8"
+            >
               <ChevronDown
                 :size="14"
                 :class="{ 'rotate-180': expanded }"
@@ -80,6 +92,7 @@
                   <div class="flex items-center gap-1">
                     <Button
                       v-if="source.status === 'idle' || source.status === 'failed'"
+                      :aria-label="`Start ${source.source_name}`"
                       variant="ghost"
                       size="icon"
                       class="h-6 w-6"
@@ -90,6 +103,7 @@
                     </Button>
                     <Button
                       v-else-if="source.status === 'running'"
+                      :aria-label="`Pause ${source.source_name}`"
                       variant="ghost"
                       size="icon"
                       class="h-6 w-6"
@@ -99,6 +113,7 @@
                     </Button>
                     <Button
                       v-else-if="source.status === 'paused'"
+                      :aria-label="`Resume ${source.source_name}`"
                       variant="ghost"
                       size="icon"
                       class="h-6 w-6"
@@ -148,23 +163,12 @@
                     </span>
                   </div>
                   <div class="flex items-center gap-1">
+                    <!-- No Start here: pipeline-wide runs go through the confirmed AdminAnnotations form (#317) -->
                     <Button
                       v-if="
-                        source.source_name === 'annotation_pipeline' &&
-                        (source.status === 'idle' || source.status === 'failed')
-                      "
-                      variant="ghost"
-                      size="icon"
-                      class="h-6 w-6"
-                      :disabled="triggering[source.source_name]"
-                      @click="triggerUpdate(source.source_name)"
-                    >
-                      <Play :size="12" />
-                    </Button>
-                    <Button
-                      v-else-if="
                         source.source_name === 'annotation_pipeline' && source.status === 'running'
                       "
+                      :aria-label="`Pause ${source.source_name}`"
                       variant="ghost"
                       size="icon"
                       class="h-6 w-6"
@@ -176,6 +180,7 @@
                       v-else-if="
                         source.source_name === 'annotation_pipeline' && source.status === 'paused'
                       "
+                      :aria-label="`Resume ${source.source_name}`"
                       variant="ghost"
                       size="icon"
                       class="h-6 w-6"
@@ -215,6 +220,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import apiClient from '@/api/client'
+import { config } from '@/config'
 import {
   RefreshCw,
   RefreshCcw,
@@ -241,6 +247,7 @@ const triggering = ref({})
 const ws = ref(null)
 const reconnectInterval = ref(null)
 const pollInterval = ref(null)
+let unmounted = false
 const autoRefresh = ref(true)
 const lastUpdate = ref(new Date())
 
@@ -347,10 +354,18 @@ const stopPolling = () => {
 }
 
 const connectWebSocket = () => {
-  const wsUrl = 'ws://localhost:8000/api/progress/ws'
-  ws.value = new WebSocket(wsUrl)
+  // One socket at a time: a slow handshake must not spawn a second one that unmount would miss
+  if (unmounted || (ws.value && ws.value.readyState <= WebSocket.OPEN)) return
+  // Same host and path as the REST API base (empty base = same origin), http(s) -> ws(s)
+  const url = new URL(
+    `${config.apiBaseUrl.replace(/\/$/, '')}/api/progress/ws`,
+    window.location.href
+  )
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+  ws.value = new WebSocket(url.href)
 
   ws.value.onopen = () => {
+    if (unmounted) return
     window.logService.info('WebSocket connected for progress updates')
     if (reconnectInterval.value) {
       clearInterval(reconnectInterval.value)
@@ -383,6 +398,7 @@ const connectWebSocket = () => {
   }
 
   ws.value.onclose = () => {
+    if (unmounted) return
     window.logService.info('WebSocket disconnected')
     if (!reconnectInterval.value) {
       reconnectInterval.value = setInterval(() => {
@@ -431,9 +447,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (ws.value) {
-    ws.value.close()
-  }
+  unmounted = true // close() fires onclose asynchronously, which would re-arm reconnects
+  ws.value?.close()
   if (reconnectInterval.value) {
     clearInterval(reconnectInterval.value)
   }

@@ -38,9 +38,14 @@ const onOpenChange = (v: boolean) => {
 <template>
   <Popover :open="open" @update:open="onOpenChange">
     <PopoverTrigger as-child>
-      <span class="inline-flex" @pointerenter="onPointerEnter" @pointerleave="onPointerLeave">
+      <button
+        type="button"
+        class="inline-flex rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        @pointerenter="onPointerEnter"
+        @pointerleave="onPointerLeave"
+      >
         <slot />
-      </span>
+      </button>
     </PopoverTrigger>
     <PopoverContent
       :side="side"

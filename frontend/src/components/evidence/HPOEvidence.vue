@@ -15,7 +15,7 @@
             :href="`https://hpo.jax.org/browse/term/${term.id}`"
             target="_blank"
             class="cursor-pointer"
-            :style="{ borderColor: '#3b82f6', color: '#3b82f6' }"
+            :style="{ ...tintedChipStyle('#3b82f6'), borderColor: '#3b82f6' }"
           >
             <span class="font-mono mr-1">{{ term.id }}</span>
             <span>{{ term.name }}</span>
@@ -86,6 +86,7 @@
 import { ref, computed } from 'vue'
 import { ChevronUp, ChevronDown, ExternalLink } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'

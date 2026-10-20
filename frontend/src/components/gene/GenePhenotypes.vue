@@ -6,11 +6,7 @@
       v-if="hpoData.phenotype_count === 0 || hpoData.no_data_available"
       class="flex items-center"
     >
-      <Badge
-        variant="outline"
-        class="text-xs"
-        :style="{ backgroundColor: '#6b728020', color: '#6b7280' }"
-      >
+      <Badge variant="outline" class="text-xs" :style="tintedChipStyle('#6b7280')">
         <Info :size="12" class="mr-1" />
         No phenotypes available
       </Badge>
@@ -23,14 +19,12 @@
         content-class="w-auto p-2 max-w-xs"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{
-            backgroundColor:
-              getClinicalGroupColor(hpoData.classification.clinical_group.primary) + '20',
-            color: getClinicalGroupColor(hpoData.classification.clinical_group.primary),
-            borderColor: getClinicalGroupColor(hpoData.classification.clinical_group.primary) + '40'
-          }"
+          :style="
+            tintedChipStyle(getClinicalGroupColor(hpoData.classification.clinical_group.primary))
+          "
         >
           {{ formatClinicalGroup(hpoData.classification.clinical_group.primary) }}
         </Badge>
@@ -58,9 +52,10 @@
         content-class="w-auto p-2 max-w-xs"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ color: '#6b7280', borderColor: '#6b728040' }"
+          :style="tintedChipStyle('#6b7280')"
         >
           {{ formatOnsetGroup(hpoData.classification.onset_group.primary) }} onset
         </Badge>
@@ -85,17 +80,14 @@
         content-class="w-auto p-2 max-w-xs"
       >
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{
-            backgroundColor: hpoData.classification.syndromic_assessment.is_syndromic
-              ? '#f59e0b20'
-              : undefined,
-            color: hpoData.classification.syndromic_assessment.is_syndromic ? '#f59e0b' : '#6b7280',
-            borderColor: hpoData.classification.syndromic_assessment.is_syndromic
-              ? '#f59e0b40'
-              : '#6b728040'
-          }"
+          :style="
+            tintedChipStyle(
+              hpoData.classification.syndromic_assessment.is_syndromic ? '#f59e0b' : '#6b7280'
+            )
+          "
         >
           {{ hpoData.classification.syndromic_assessment.is_syndromic ? 'Syndromic' : 'Isolated' }}
         </Badge>
@@ -121,9 +113,10 @@
       <!-- Phenotype Count -->
       <HoverPopover content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ color: '#0ea5e9', borderColor: '#0ea5e940' }"
+          :style="tintedChipStyle('#0ea5e9')"
         >
           {{ hpoData.kidney_phenotype_count }}/{{ hpoData.phenotype_count }} kidney
         </Badge>
@@ -139,9 +132,10 @@
       <!-- Disease associations -->
       <HoverPopover v-if="hpoData.disease_count > 0" content-class="w-auto p-2 max-w-xs">
         <Badge
+          as="span"
           variant="outline"
           class="cursor-pointer"
-          :style="{ color: '#3b82f6', borderColor: '#3b82f640' }"
+          :style="tintedChipStyle('#3b82f6')"
         >
           {{ hpoData.disease_count }} diseases
         </Badge>
@@ -158,6 +152,7 @@
 
 <script setup>
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import HoverPopover from '@/components/ui/HoverPopover.vue'
 import { Info } from 'lucide-vue-next'
 

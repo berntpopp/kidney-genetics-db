@@ -141,6 +141,7 @@ class TestResponseSchemas:
             num_clusters=2,
             modularity=0.45,
             algorithm="leiden",
+            parameters={"seed": 0},
             cytoscape_json={"elements": []},
         )
 
@@ -318,7 +319,7 @@ class TestClusterNetworkEndpoint:
             patch(
                 "app.api.endpoints.network_analysis.network_service.detect_communities",
                 new_callable=AsyncMock,
-                return_value=(gene_to_cluster, modularity),
+                return_value=(gene_to_cluster, modularity, {"seed": 0}),
             ),
             patch(
                 "app.api.endpoints.network_analysis.network_service.filter_network",
@@ -350,6 +351,7 @@ class TestClusterNetworkEndpoint:
         assert data["num_clusters"] == 2
         assert data["modularity"] == 0.5
         assert data["algorithm"] == "leiden"
+        assert data["parameters"] == {"seed": 0}
         assert "clusters" in data
         assert "cytoscape_json" in data
 

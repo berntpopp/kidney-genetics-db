@@ -4,11 +4,20 @@
     <AdminHeader
       title="Database Backups"
       subtitle="Create, manage, and restore database backups"
-      icon="mdi-database-export"
+      :icon="DatabaseBackup"
       icon-color="blue-grey"
       :breadcrumbs="ADMIN_BREADCRUMBS.backups"
     >
       <template #actions>
+        <Button
+          variant="outline"
+          class="mr-2"
+          :disabled="cleanupLoading || stats.retentionDays == null"
+          @click="dialogs.cleanup = true"
+        >
+          <Trash class="mr-2 size-4" />
+          Cleanup Old
+        </Button>
         <Button :disabled="apiLoading" @click="dialogs.create = true">
           <DatabaseBackup class="mr-2 size-4" />
           Create Backup
@@ -22,14 +31,14 @@
         title="Total Backups"
         :value="stats.totalBackups"
         :loading="statsLoading"
-        icon="mdi-database-outline"
+        :icon="Database"
         color="primary"
       />
       <AdminStatsCard
         title="Latest Backup"
         :value="stats.latestBackupAge"
         :loading="statsLoading"
-        icon="mdi-clock-outline"
+        :icon="Clock"
         color="info"
       />
       <AdminStatsCard
@@ -37,14 +46,14 @@
         :value="stats.totalSize"
         :loading="statsLoading"
         format="bytes"
-        icon="mdi-harddisk"
+        :icon="HardDrive"
         color="purple"
       />
       <AdminStatsCard
         title="Retention Days"
-        :value="stats.retentionDays"
+        :value="stats.retentionDays ?? '—'"
         :loading="statsLoading"
-        icon="mdi-calendar-clock"
+        :icon="CalendarClock"
         color="warning"
       />
     </div>
@@ -54,10 +63,8 @@
       v-model:filters="filters"
       v-model:search-query="searchQuery"
       :loading="apiLoading"
-      :cleanup-loading="cleanupLoading"
       @apply="loadBackups"
       @clear="clearFilters"
-      @cleanup="handleCleanupOldBackups"
     />
 
     <!-- Backups Table -->
@@ -74,7 +81,7 @@
           <div class="flex items-center gap-2">
             <span class="mr-2 text-xs text-muted-foreground">Per page:</span>
             <Select v-model="itemsPerPage" @update:model-value="loadBackups">
-              <SelectTrigger class="w-[100px]">
+              <SelectTrigger aria-label="Per page" class="w-[100px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -83,6 +90,7 @@
             </Select>
             <div class="flex items-center gap-1">
               <Button
+                aria-label="Previous page"
                 variant="outline"
                 size="icon"
                 :disabled="currentPage <= 1"
@@ -99,6 +107,7 @@
                 >{{ currentPage }} / {{ pageCount || 1 }}</span
               >
               <Button
+                aria-label="Next page"
                 variant="outline"
                 size="icon"
                 :disabled="currentPage >= pageCount"
@@ -162,6 +171,7 @@
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <Button
+                      :aria-label="`Download Backup ${item.filename}`"
                       variant="ghost"
                       size="icon"
                       class="h-8 w-8"
@@ -176,6 +186,7 @@
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <Button
+                      :aria-label="`Restore Backup ${item.filename}`"
                       variant="ghost"
                       size="icon"
                       class="h-8 w-8"
@@ -191,6 +202,7 @@
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <Button
+                      :aria-label="`View Details ${item.filename}`"
                       variant="ghost"
                       size="icon"
                       class="h-8 w-8"
@@ -205,6 +217,7 @@
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <Button
+                      :aria-label="`Delete Backup ${item.filename}`"
                       variant="ghost"
                       size="icon"
                       class="h-8 w-8"
@@ -244,6 +257,29 @@
       :loading="apiLoading"
       @delete="handleDeleteBackup"
     />
+
+    <AlertDialog v-model:open="dialogs.cleanup">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete expired backups?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This permanently deletes every completed backup whose expiry date is more than
+            {{ stats.retentionDays }} days in the past (the retention period), including its file.
+            This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :disabled="cleanupLoading"
+            @click="handleCleanupOldBackups"
+          >
+            Delete Expired Backups
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
 
@@ -259,7 +295,20 @@
  */
 
 import { ref, computed, onMounted } from 'vue'
-import { Download, Info, Trash2, ChevronLeft, ChevronRight, DatabaseBackup } from 'lucide-vue-next'
+import {
+  CalendarClock,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Database,
+  DatabaseBackup,
+  Download,
+  HardDrive,
+  Info,
+  Trash,
+  Trash2
+} from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import BackupCreateDialog from '@/components/admin/backups/BackupCreateDialog.vue'
@@ -291,6 +340,16 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 
 // Composables
 const {
@@ -311,7 +370,7 @@ const stats = ref({
   totalBackups: 0,
   latestBackupAge: '—',
   totalSize: 0,
-  retentionDays: 7
+  retentionDays: null // unknown until the stats load; cleanup stays disabled
 })
 
 const backups = ref([])
@@ -324,7 +383,8 @@ const dialogs = ref({
   create: false,
   restore: false,
   details: false,
-  delete: false
+  delete: false,
+  cleanup: false
 })
 
 // Filters & Pagination
@@ -367,7 +427,7 @@ const loadStats = async () => {
       totalBackups: data.total_backups || 0,
       latestBackupAge: formatRelativeTime(data.latest_backup_date),
       totalSize: (data.total_size_gb || 0) * 1024 * 1024 * 1024,
-      retentionDays: data.retention_days || 7
+      retentionDays: data.retention_days ?? null
     }
   } catch (error) {
     window.logService.error('Failed to load backup stats:', error)
@@ -454,10 +514,11 @@ const handleCleanupOldBackups = async () => {
   cleanupLoading.value = true
   try {
     const result = await apiCleanupOldBackups()
-    window.logService.info(`Deleted ${result.deleted_count || 0} old backup(s)`)
+    toast.success(`Deleted ${result.deleted_count || 0} expired backup(s)`, { duration: 5000 })
     await Promise.all([loadBackups(), loadStats()])
   } catch (error) {
     window.logService.error('Failed to cleanup old backups:', error)
+    toast.error('Failed to delete expired backups', { duration: Infinity })
   } finally {
     cleanupLoading.value = false
   }

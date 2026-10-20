@@ -3,6 +3,20 @@
   <head>
     <meta charset="UTF-8" />
 
+    <!-- Apply the stored theme (useAppTheme: kgdb-color-mode = dark | light | auto) before first paint -->
+    <meta name="color-scheme" content="light dark">
+    <script>
+      (function () {
+        var m
+        try {
+          m = localStorage.getItem('kgdb-color-mode')
+        } catch (e) {}
+        var d = m === 'dark' || (m !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.classList.toggle('dark', d)
+        document.querySelector('meta[name="color-scheme"]').content = d ? 'dark' : 'light'
+      })()
+    </script>
+
     <!-- Favicon Links (2025 Best Practice) -->
     <link rel="icon" href="/favicon.ico" sizes="32x32">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">

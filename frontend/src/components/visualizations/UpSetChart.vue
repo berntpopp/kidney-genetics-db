@@ -3,7 +3,7 @@
     <CardHeader class="flex flex-row items-center space-y-0 pb-2">
       <div class="flex items-center flex-1">
         <ChartScatter class="size-5 mr-2" />
-        <CardTitle class="text-lg font-semibold">Gene Source Overlaps</CardTitle>
+        <CardTitle tag="h2" class="text-lg font-semibold">Gene Source Overlaps</CardTitle>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger as-child>
@@ -12,14 +12,18 @@
             <TooltipContent side="bottom">
               <span
                 >UpSet plot showing intersections between gene data sources. Click bars or dots to
-                see genes in each intersection.</span
+                see the gene count of each intersection.</span
               >
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
-      <Badge v-if="data" variant="outline">
-        {{ data.total_unique_genes.toLocaleString() }}/{{ totalGenes.toLocaleString() }} genes
+      <!-- Always rendered so the header keeps its height when data arrives (#324) -->
+      <Badge variant="outline" :class="{ invisible: !data }">
+        {{ (data?.total_unique_genes ?? totalGenes).toLocaleString() }}/{{
+          totalGenes.toLocaleString()
+        }}
+        genes
       </Badge>
     </CardHeader>
 
@@ -92,6 +96,7 @@
             <Badge v-for="source in selectedSources" :key="source" class="gap-1 m-1">
               {{ source }}
               <button
+                :aria-label="`Remove ${source}`"
                 class="ml-1 rounded-full hover:bg-destructive/20"
                 @click="removeSource(source)"
               >
@@ -130,6 +135,13 @@
           </div>
         </div>
 
+        <p v-show="selectedSources.length > 0" class="mb-2 text-xs text-muted-foreground">
+          Distinct intersections: each gene is counted once, under exactly the selected sources it
+          is found in. Showing the
+          {{ Math.min(UPSET_COMBINATION_LIMIT, data.intersections.length) }} largest of
+          {{ data.intersections.length }}.
+        </p>
+
         <!-- UpSet Plot Container -->
         <div
           v-show="selectedSources.length > 0"
@@ -155,29 +167,8 @@
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div class="mb-2">
-              <strong>{{ selectedIntersection.cardinality }}</strong> genes in this intersection
-            </div>
-            <div v-if="selectedIntersection.elems.length <= 20" class="flex flex-wrap gap-1">
-              <Badge v-for="elem in selectedIntersection.elems" :key="elem.name" variant="outline">
-                {{ elem.name }}
-              </Badge>
-            </div>
-            <div v-else>
-              <div class="mb-2">First 20 genes:</div>
-              <div class="flex flex-wrap gap-1">
-                <Badge
-                  v-for="elem in selectedIntersection.elems.slice(0, 20)"
-                  :key="elem.name"
-                  variant="outline"
-                >
-                  {{ elem.name }}
-                </Badge>
-              </div>
-              <div class="text-xs text-muted-foreground mt-2">
-                ... and {{ selectedIntersection.elems.length - 20 }} more genes
-              </div>
-            </div>
+            <strong>{{ selectedIntersection.cardinality.toLocaleString() }}</strong> genes found
+            only in these sources, among the selected sources
           </CardContent>
         </Card>
       </div>
@@ -200,7 +191,8 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { statisticsApi } from '@/api/statistics'
-import { extractCombinations, renderUpSet } from '@upsetjs/bundle'
+import { renderUpSet } from '@upsetjs/bundle'
+import { buildUpSetCombinations, UPSET_COMBINATION_LIMIT } from './upsetData'
 import { useAppTheme } from '@/composables/useAppTheme'
 
 // Props
@@ -232,31 +224,6 @@ let resizeObserver = null
 const availableToAdd = computed(() =>
   availableSources.value.filter(source => !selectedSources.value.includes(source))
 )
-
-// Transform API data to UpSet.js format
-const transformToUpSetFormat = apiData => {
-  if (!apiData || !apiData.intersections) return { elements: [], sets: [] }
-
-  // API returns intersections with {sets, size} but no gene lists.
-  // Generate synthetic elements: for each intersection, create `size`
-  // placeholder elements that belong to exactly those sets.
-  const elements = []
-  let elementIndex = 0
-
-  apiData.intersections.forEach(intersection => {
-    const sourceSets = intersection.sets
-    const count = intersection.size || 0
-
-    for (let i = 0; i < count; i++) {
-      elements.push({
-        name: `gene_${elementIndex++}`,
-        sets: [...sourceSets]
-      })
-    }
-  })
-
-  return { elements }
-}
 
 // Load available sources
 const loadAvailableSources = async () => {
@@ -429,7 +396,7 @@ const renderUpSetPlot = () => {
     const topIntersections = data.value.intersections
       .slice()
       .sort((a, b) => (b.size || 0) - (a.size || 0))
-      .slice(0, 10)
+      .slice(0, UPSET_COMBINATION_LIMIT)
     const rows = topIntersections
       .map(
         i =>
@@ -457,20 +424,13 @@ const renderUpSetPlot = () => {
   const heightPerSet = 30
   const calculatedHeight = Math.max(baseHeight, data.value.sets.length * heightPerSet + 200)
 
-  // Transform data to UpSet.js format
-  const { elements } = transformToUpSetFormat(data.value)
-
-  if (elements.length === 0) {
+  if (data.value.intersections.length === 0) {
     upsetContainer.value.innerHTML =
       '<p style="text-align: center; padding: 40px;">No data to display</p>'
     return
   }
 
-  // Extract combinations from elements with sorting options
-  const { sets, combinations } = extractCombinations(elements, {
-    setOrder: 'cardinality:desc', // Sort sets by size (largest first)
-    combinationOrder: 'cardinality:desc' // Sort combinations by size (largest first)
-  })
+  const { sets, combinations } = buildUpSetCombinations(data.value.intersections)
 
   window.logService.info('Rendering UpSet plot', {
     setsCount: sets.length,
@@ -490,6 +450,8 @@ const renderUpSetPlot = () => {
         theme: isDark.value ? 'dark' : 'light',
         selection: selectedIntersection.value,
         onClick: set => {
+          // A set row's size counts every gene in that source, not an exclusive intersection
+          if (set?.type === 'set') return
           // Toggle selection
           if (selectedIntersection.value === set) {
             selectedIntersection.value = null

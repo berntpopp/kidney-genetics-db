@@ -1,0 +1,713 @@
+{
+  "label": "after-bc447d2",
+  "date": "2026-10-20T21:50:20.677Z",
+  "commit": "bc447d2",
+  "dirty": false,
+  "lighthouseRuns": 2,
+  "checks": {
+    "prerenderedHtmlForGzipClients": 1,
+    "envConfigForGzipClients": 1,
+    "tierFilterChangesUrl": 1,
+    "adminDirectLoadNotBlank": 1
+  },
+  "pages": {
+    "/ desktop light": {
+      "cls": 0.001,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/ desktop dark": {
+      "cls": 0.001,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/ mobile light": {
+      "cls": 0.001,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/ mobile dark": {
+      "cls": 0.001,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/genes desktop light": {
+      "cls": 0.05,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": [
+        {
+          "v": 0.05027257194780682,
+          "t": 206,
+          "el": "DIV.bg-card.text-card-foreground.flex"
+        }
+      ]
+    },
+    "/genes desktop dark": {
+      "cls": 0.05,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": [
+        {
+          "v": 0.05027257194780682,
+          "t": 184,
+          "el": "DIV.bg-card.text-card-foreground.flex"
+        }
+      ]
+    },
+    "/genes mobile light": {
+      "cls": 0.041,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": [
+        {
+          "v": 0.04055695914748384,
+          "t": 152,
+          "el": "DIV.bg-card.text-card-foreground.flex"
+        }
+      ]
+    },
+    "/genes mobile dark": {
+      "cls": 0.041,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": [
+        {
+          "v": 0.04055695914748384,
+          "t": 140,
+          "el": "DIV.bg-card.text-card-foreground.flex"
+        }
+      ]
+    },
+    "/genes/PKD1 desktop light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/genes/PKD1 desktop dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/genes/PKD1 mobile light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/genes/PKD1 mobile dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/genes/HNF1B desktop light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/genes/HNF1B desktop dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/genes/HNF1B mobile light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/genes/HNF1B mobile dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/genes/PKD1/structure desktop light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/genes/PKD1/structure desktop dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/genes/PKD1/structure mobile light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/genes/PKD1/structure mobile dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/dashboard desktop light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/dashboard desktop dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/dashboard mobile light": {
+      "cls": 0.002,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/dashboard mobile dark": {
+      "cls": 0.002,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/network-analysis desktop light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/network-analysis desktop dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/network-analysis mobile light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/network-analysis mobile dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/data-sources desktop light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/data-sources desktop dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/data-sources mobile light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/data-sources mobile dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/about desktop light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/about desktop dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/about mobile light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/about mobile dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/faq desktop light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/faq desktop dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/faq mobile light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/faq mobile dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/mcp desktop light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/mcp desktop dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/mcp mobile light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/mcp mobile dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/login desktop light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/login desktop dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/login mobile light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/login mobile dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/forgot-password desktop light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/forgot-password desktop dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/forgot-password mobile light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/forgot-password mobile dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/this-does-not-exist desktop light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/this-does-not-exist desktop dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/this-does-not-exist mobile light": {
+      "cls": 0,
+      "overflowPx": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    },
+    "/this-does-not-exist mobile dark": {
+      "cls": 0,
+      "overflowPx": 0,
+      "themeFlash": 0,
+      "consoleErrors": 0,
+      "topShifts": []
+    }
+  },
+  "lighthouse": {
+    "/ desktop": {
+      "performance": 99,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 887,
+      "cls": 0.001,
+      "tbtMs": 24,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/ mobile": {
+      "performance": 92,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 2701,
+      "cls": 0,
+      "tbtMs": 18,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/genes desktop": {
+      "performance": 97,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 681,
+      "cls": 0.098,
+      "tbtMs": 0,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/genes mobile": {
+      "performance": 89,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 3001,
+      "cls": 0.04,
+      "tbtMs": 83,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/genes/PKD1 desktop": {
+      "performance": 100,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 681,
+      "cls": 0.001,
+      "tbtMs": 0,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/genes/PKD1 mobile": {
+      "performance": 92,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 2701,
+      "cls": 0,
+      "tbtMs": 100,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/genes/HNF1B desktop": {
+      "performance": 100,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 681,
+      "cls": 0.001,
+      "tbtMs": 0,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/genes/HNF1B mobile": {
+      "performance": 92,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 2701,
+      "cls": 0,
+      "tbtMs": 107,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/genes/PKD1/structure desktop": {
+      "performance": 100,
+      "accessibility": 97,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 681,
+      "cls": 0,
+      "tbtMs": 0,
+      "a11yViolations": 9,
+      "contrastViolations": 9
+    },
+    "/genes/PKD1/structure mobile": {
+      "performance": 92,
+      "accessibility": 97,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 2701,
+      "cls": 0,
+      "tbtMs": 47,
+      "a11yViolations": 9,
+      "contrastViolations": 9
+    },
+    "/dashboard desktop": {
+      "performance": 99,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 1007,
+      "cls": 0.005,
+      "tbtMs": 0,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/dashboard mobile": {
+      "performance": 88,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 3151,
+      "cls": 0.001,
+      "tbtMs": 23,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/network-analysis desktop": {
+      "performance": 100,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 641,
+      "cls": 0,
+      "tbtMs": 0,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/network-analysis mobile": {
+      "performance": 89,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 2851,
+      "cls": 0,
+      "tbtMs": 174,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/data-sources desktop": {
+      "performance": 99,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 869,
+      "cls": 0,
+      "tbtMs": 0,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/data-sources mobile": {
+      "performance": 85,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 3701,
+      "cls": 0,
+      "tbtMs": 39,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/about desktop": {
+      "performance": 100,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 641,
+      "cls": 0,
+      "tbtMs": 0,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/about mobile": {
+      "performance": 91,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 2851,
+      "cls": 0,
+      "tbtMs": 18,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/faq desktop": {
+      "performance": 100,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 682,
+      "cls": 0,
+      "tbtMs": 0,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/faq mobile": {
+      "performance": 92,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 2701,
+      "cls": 0,
+      "tbtMs": 21,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/mcp desktop": {
+      "performance": 100,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 641,
+      "cls": 0,
+      "tbtMs": 0,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/mcp mobile": {
+      "performance": 91,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100,
+      "lcpMs": 2851,
+      "cls": 0,
+      "tbtMs": 19,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/login desktop": {
+      "performance": 100,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 66,
+      "lcpMs": 682,
+      "cls": 0,
+      "tbtMs": 0,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/login mobile": {
+      "performance": 92,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 66,
+      "lcpMs": 2701,
+      "cls": 0,
+      "tbtMs": 25,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/forgot-password desktop": {
+      "performance": 100,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 66,
+      "lcpMs": 601,
+      "cls": 0,
+      "tbtMs": 0,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/forgot-password mobile": {
+      "performance": 92,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 66,
+      "lcpMs": 2701,
+      "cls": 0,
+      "tbtMs": 98,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/this-does-not-exist desktop": {
+      "performance": 99,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 66,
+      "lcpMs": 774,
+      "cls": 0,
+      "tbtMs": 0,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    },
+    "/this-does-not-exist mobile": {
+      "performance": 92,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 66,
+      "lcpMs": 2701,
+      "cls": 0,
+      "tbtMs": 315,
+      "a11yViolations": 0,
+      "contrastViolations": 0
+    }
+  }
+}

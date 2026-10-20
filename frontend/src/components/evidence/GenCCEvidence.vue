@@ -9,11 +9,7 @@
           v-for="classification in uniqueClassifications"
           :key="classification"
           variant="outline"
-          :style="{
-            backgroundColor: getClassificationColor(classification) + '20',
-            color: getClassificationColor(classification),
-            borderColor: getClassificationColor(classification) + '40'
-          }"
+          :style="tintedChipStyle(getClassificationColor(classification))"
         >
           <component :is="getClassificationIcon(classification)" class="size-3 mr-1" />
           {{ classification }}
@@ -37,11 +33,7 @@
                 <Badge
                   variant="outline"
                   class="text-xs"
-                  :style="{
-                    backgroundColor: getClassificationColor(submission.classification) + '20',
-                    color: getClassificationColor(submission.classification),
-                    borderColor: getClassificationColor(submission.classification) + '40'
-                  }"
+                  :style="tintedChipStyle(getClassificationColor(submission.classification))"
                 >
                   {{ submission.classification }}
                 </Badge>
@@ -145,6 +137,7 @@ import {
   Circle
 } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { Button } from '@/components/ui/button'
 import {
   Accordion,

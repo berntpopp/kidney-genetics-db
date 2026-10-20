@@ -1,7 +1,7 @@
 /**
  * Admin Icon Mapping System
  * Provides consistent icon vocabulary for admin sections
- * Using Lucide Vue components instead of mdi-* strings
+ * Using Lucide Vue components (not icon-name strings)
  *
  * Usage:
  * import { ADMIN_ICONS } from '@/utils/adminIcons'

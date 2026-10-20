@@ -81,7 +81,10 @@ export const useAuthStore = defineStore('auth', () => {
 
       return true
     } catch (err: unknown) {
-      error.value = extractErrorDetail(err, 'Login failed')
+      // No response at all means the request never reached the API
+      error.value = (err as ApiError).response
+        ? extractErrorDetail(err, 'Login failed')
+        : 'Could not reach the sign-in service. Check your connection and try again.'
       window.logService.error('Login error:', err)
       return false
     } finally {

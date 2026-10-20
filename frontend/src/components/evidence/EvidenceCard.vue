@@ -24,10 +24,7 @@
             variant="outline"
             class="text-xs whitespace-nowrap"
             :title="normalizedScoreLabel"
-            :style="{
-              backgroundColor: getScoreColorHex(evidence.normalized_score) + '20',
-              color: getScoreColorHex(evidence.normalized_score)
-            }"
+            :style="tintedChipStyle(getScoreColorHex(evidence.normalized_score))"
           >
             {{ formatScore(evidence.normalized_score) }}%
           </Badge>
@@ -49,10 +46,13 @@
       <div
         class="border-t pt-3 mt-4 flex items-center justify-between text-xs text-muted-foreground"
       >
-        <span>Last updated: {{ formatDate(evidence.evidence_date) }}</span>
+        <span v-if="evidence.evidence_date">
+          Last updated: {{ formatDate(evidence.evidence_date) }}
+        </span>
         <Button
           variant="ghost"
           size="sm"
+          class="ml-auto"
           as="a"
           :href="getSourceUrl(evidence.source_name)"
           target="_blank"
@@ -67,11 +67,21 @@
 
 <script setup>
 import { computed } from 'vue'
-import { ExternalLink } from 'lucide-vue-next'
-import { resolveMdiIcon } from '@/utils/icons'
+import {
+  Award,
+  BookOpen,
+  Database,
+  Dna,
+  ExternalLink,
+  LayoutDashboard,
+  ScanSearch,
+  TestTube,
+  User
+} from 'lucide-vue-next'
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { Button } from '@/components/ui/button'
 import GenCCEvidence from './GenCCEvidence.vue'
 import HPOEvidence from './HPOEvidence.vue'
@@ -193,22 +203,17 @@ const sourceColorHex = computed(() => {
   return sourceColors[props.evidence.source_name] || '#6b7280'
 })
 
-const sourceIcon = computed(() => {
-  const icons = {
-    GenCC: 'mdi-dna',
-    HPO: 'mdi-human',
-    PubTator: 'mdi-text-search',
-    ClinGen: 'mdi-certificate',
-    PanelApp: 'mdi-view-dashboard',
-    DiagnosticPanels: 'mdi-test-tube',
-    Literature: 'mdi-book-open-variant'
-  }
-  return icons[props.evidence.source_name] || 'mdi-database'
-})
+const sourceIcons = {
+  GenCC: Dna,
+  HPO: User,
+  PubTator: ScanSearch,
+  ClinGen: Award,
+  PanelApp: LayoutDashboard,
+  DiagnosticPanels: TestTube,
+  Literature: BookOpen
+}
 
-const sourceIconComponent = computed(() => {
-  return resolveMdiIcon(sourceIcon.value)
-})
+const sourceIconComponent = computed(() => sourceIcons[props.evidence.source_name] || Database)
 
 // Helper functions
 // Mirrors backend evidence_normalized_scores: classification weight or count percentile
@@ -230,7 +235,6 @@ const getScoreColorHex = score => {
 }
 
 const formatDate = dateString => {
-  if (!dateString) return 'Unknown'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-US', {
     year: 'numeric',

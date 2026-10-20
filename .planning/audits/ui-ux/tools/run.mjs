@@ -62,6 +62,19 @@ if (!flag('skip-build')) {
   })
 }
 
+// Mirror frontend/docker-entrypoint.sh (its defaults): production writes env-config.js and tags every prerendered page at container start.
+fs.writeFileSync(
+  path.join(dist, 'env-config.js'),
+  'window._env_ = { API_BASE_URL: "", WS_URL: "/ws", MCP_BASE_URL: "", ENVIRONMENT: "production", VERSION: "0.2.0" };\n'
+)
+for (const f of fs.readdirSync(dist, { recursive: true }).filter(f => path.basename(f) === 'index.html')) {
+  const file = path.join(dist, f)
+  const html = fs.readFileSync(file, 'utf8')
+  if (!html.includes('env-config.js')) {
+    fs.writeFileSync(file, html.replace('</head>', '  <script src="/env-config.js"></script>\n  </head>'))
+  }
+}
+
 const server = spawn('node', [path.join(here, 'serve.mjs'), dist, String(port)], {
   stdio: 'inherit'
 })

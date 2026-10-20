@@ -21,18 +21,18 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-  <div class="flex items-center justify-between px-4 py-2">
-    <div class="flex-1 text-sm text-muted-foreground">
-      {{ table.getFilteredRowModel().rows.length }} row(s) total
+  <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2">
+    <div class="flex-1 text-sm text-muted-foreground whitespace-nowrap">
+      {{ table.getRowCount().toLocaleString() }} row(s) total
     </div>
-    <div class="flex items-center space-x-6 lg:space-x-8">
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-2 lg:gap-x-8">
       <div class="flex items-center space-x-2">
         <p class="text-sm font-medium">Rows per page</p>
         <Select
           :model-value="`${table.getState().pagination.pageSize}`"
           @update:model-value="val => table.setPageSize(Number(val))"
         >
-          <SelectTrigger class="h-8 w-[70px]">
+          <SelectTrigger class="h-8 w-[70px]" aria-label="Rows per page">
             <SelectValue :placeholder="`${table.getState().pagination.pageSize}`" />
           </SelectTrigger>
           <SelectContent side="top">
@@ -47,6 +47,7 @@ withDefaults(defineProps<Props>(), {
       </div>
       <div class="flex items-center space-x-2">
         <Button
+          aria-label="Go to first page"
           variant="outline"
           class="hidden h-8 w-8 p-0 lg:flex"
           :disabled="!table.getCanPreviousPage()"
@@ -55,6 +56,7 @@ withDefaults(defineProps<Props>(), {
           <ChevronsLeft class="h-4 w-4" />
         </Button>
         <Button
+          aria-label="Go to previous page"
           variant="outline"
           class="h-8 w-8 p-0"
           :disabled="!table.getCanPreviousPage()"
@@ -63,6 +65,7 @@ withDefaults(defineProps<Props>(), {
           <ChevronLeft class="h-4 w-4" />
         </Button>
         <Button
+          aria-label="Go to next page"
           variant="outline"
           class="h-8 w-8 p-0"
           :disabled="!table.getCanNextPage()"
@@ -71,6 +74,7 @@ withDefaults(defineProps<Props>(), {
           <ChevronRight class="h-4 w-4" />
         </Button>
         <Button
+          aria-label="Go to last page"
           variant="outline"
           class="hidden h-8 w-8 p-0 lg:flex"
           :disabled="!table.getCanNextPage()"
