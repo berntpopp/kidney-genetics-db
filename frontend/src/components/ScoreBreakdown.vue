@@ -14,7 +14,7 @@
         </Badge>
         <template #content>
           <p class="text-xs text-foreground">
-            {{ getScoreExplanation(score, Object.keys(breakdown || {}).length) }}
+            {{ getScoreExplanation(score, Object.keys(breakdown || {}).length, tier) }}
           </p>
           <div v-if="sortedBreakdownEntries.length" class="mt-2 space-y-1">
             <div
@@ -161,17 +161,17 @@ import HoverPopover from '@/components/ui/HoverPopover.vue'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import {
-  getScoreExplanation,
-  getScoreRangeConfig,
-  getTierConfig,
-  tintedChipStyle
-} from '@/utils/evidenceTiers'
+import { getScoreExplanation, getTierConfig, tintedChipStyle } from '@/utils/evidenceTiers'
 import { CircleHelp } from 'lucide-vue-next'
 
 const props = defineProps({
   score: {
     type: Number,
+    default: null
+  },
+  // Backend evidence_tier; the only source of the label (#314)
+  tier: {
+    type: String,
     default: null
   },
   breakdown: {
@@ -206,18 +206,17 @@ const colorMap = {
   info: '#3b82f6',
   warning: '#f59e0b',
   orange: '#f97316',
-  error: '#ef4444',
-  grey: '#6b7280'
+  error: '#ef4444'
 }
 
-// Label, color and thresholds come only from SCORE_RANGES (#314)
-const scoreRange = computed(() => getScoreRangeConfig(props.score))
+// Label, color and icon come only from the backend evidence_tier (#314)
+const tierConfig = computed(() => getTierConfig(props.tier))
 
-const scoreHexColor = computed(() => scoreRange.value?.color ?? colorMap.grey)
+const scoreHexColor = computed(() => tierConfig.value.color)
 
-const scoreIcon = computed(() => getTierConfig(scoreRange.value?.tierAlignment).icon)
+const scoreIcon = computed(() => tierConfig.value.icon)
 
-const classification = computed(() => scoreRange.value?.label ?? 'Unknown')
+const classification = computed(() => tierConfig.value.label)
 
 const chipSizeClasses = computed(() => {
   switch (props.size) {

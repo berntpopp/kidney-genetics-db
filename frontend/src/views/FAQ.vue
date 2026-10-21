@@ -62,7 +62,7 @@ import {
 } from '@/components/ui/breadcrumb'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
-import { SCORE_RANGES, formatScoreRangeBand } from '@/utils/evidenceTiers'
+import { TIER_CONFIG } from '@/utils/evidenceTiers'
 
 useSeoMeta({
   title: 'FAQ — Kidney Genetics Database',
@@ -89,7 +89,12 @@ const faqs = [
     question: 'How is the evidence score calculated?',
     answer: [
       'The evidence score is a weighted composite score (0-100) that aggregates data from all available sources. Each source contributes a sub-score based on the strength of its evidence. For example, a gene classified as "Definitive" by ClinGen receives a higher sub-score than one classified as "Limited".',
-      `Score ranges: ${SCORE_RANGES.map((r, i) => `${formatScoreRangeBand(i)} "${r.label}"`).join(', ')}. The scoring methodology ensures that genes supported by multiple independent sources rank higher than those from a single source.`
+      `Each gene is assigned an evidence tier: ${Object.values(TIER_CONFIG)
+        .map(t => `"${t.label}" (${t.description})`)
+        .join(
+          ', '
+        )}. The scoring methodology ensures that genes supported by multiple independent sources rank higher than those from a single source.`,
+      'Genes with a score of 0 have no tier and are shown as "No Classification". This includes genes whose only evidence is a "No Known Disease Relationship" or an unknown GenCC classification.'
     ]
   },
   {

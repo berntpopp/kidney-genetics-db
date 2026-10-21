@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
+import * as evidenceTiers from '@/utils/evidenceTiers'
 import {
-  SCORE_RANGES,
   TIER_CONFIG,
-  getScoreRangeConfig,
+  getTierConfig,
+  getScoreExplanation,
   tintedChipStyle
 } from '@/utils/evidenceTiers'
 
@@ -18,21 +19,31 @@ describe('tintedChipStyle (#320)', () => {
   })
 })
 
-describe('score-range vocabulary (#314)', () => {
-  // ClinGen classifications that describe contrary or absent evidence, not a low score
-  const CLINGEN_NEGATIVE_TERMS = ['Disputed', 'Refuted', 'No Known Disease Relationship']
+describe('evidence-tier vocabulary (#314)', () => {
+  // ClinGen/GenCC classification words; a KGDB tier must never read as one of them
+  const CLINICAL_TERMS = [
+    'Definitive',
+    'Strong',
+    'Moderate',
+    'Limited',
+    'Supportive',
+    'Disputed',
+    'Refuted'
+  ]
+  const labels = [...Object.values(TIER_CONFIG).map(t => t.label), getTierConfig(null).label]
 
-  it('never maps a score in 0..100 to a ClinGen negative classification', () => {
-    for (let score = 0; score <= 100; score += 0.25) {
-      const label = getScoreRangeConfig(score)?.label ?? ''
-      for (const term of CLINGEN_NEGATIVE_TERMS) expect(label).not.toContain(term)
-    }
+  it.each(labels)('tier label "%s" uses no ClinGen/GenCC term', label => {
+    for (const term of CLINICAL_TERMS) expect(label).not.toContain(term)
   })
 
-  it('labels every score 0..100 with one of the SCORE_RANGES labels', () => {
-    const labels = SCORE_RANGES.map(r => r.label)
-    for (let score = 0; score <= 100; score += 0.25) {
-      expect(labels).toContain(getScoreRangeConfig(score)?.label)
-    }
+  it('has one tier vocabulary: no separate score-range labels', () => {
+    expect(evidenceTiers).not.toHaveProperty('SCORE_RANGES')
+    expect(evidenceTiers).not.toHaveProperty('getScoreRangeConfig')
+  })
+
+  it('explains a score with the backend tier label', () => {
+    expect(getScoreExplanation(60, 3, 'multi_source_support')).toBe(
+      '60.0% — Multi-Source Support from 3 sources'
+    )
   })
 })

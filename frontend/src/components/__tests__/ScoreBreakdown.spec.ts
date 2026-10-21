@@ -30,19 +30,27 @@ describe('ScoreBreakdown', () => {
     expect(wrapper.text()).not.toContain('100')
   })
 
-  it('labels low scores from SCORE_RANGES, never as a ClinGen term (#314)', () => {
-    // CPLX1: evidence_score 0.0093, API evidence_tier minimal_evidence
+  it('labels the score with the backend evidence tier (#314)', () => {
+    // A 60% score is "Strong" in the old score ranges but multi_source_support in the API
     const wrapper = mount(ScoreBreakdown, {
-      props: { score: 0.0093, breakdown: { HPO: 0.0007 }, variant: 'card' }
+      props: { score: 60, tier: 'multi_source_support', variant: 'card' }
     })
-    expect(wrapper.text()).toContain('Minimal')
-    expect(wrapper.text()).not.toContain('Disputed')
+    expect(wrapper.text()).toContain('Multi-Source Support')
+    expect(wrapper.text()).not.toContain('Strong')
   })
 
-  it('uses the SCORE_RANGES label for high scores (#314)', () => {
-    const wrapper = mount(ScoreBreakdown, { props: { score: 96, variant: 'card' } })
-    expect(wrapper.text()).toContain('Exceptional')
-    expect(wrapper.text()).not.toContain('Definitive')
+  it('labels low scores as Minimal Evidence, never as a ClinGen term (#314)', () => {
+    // CPLX1: evidence_score 0.0093, API evidence_tier minimal_evidence
+    const wrapper = mount(ScoreBreakdown, {
+      props: {
+        score: 0.0093,
+        tier: 'minimal_evidence',
+        breakdown: { HPO: 0.0007 },
+        variant: 'card'
+      }
+    })
+    expect(wrapper.text()).toContain('Minimal Evidence')
+    expect(wrapper.text()).not.toContain('Disputed')
   })
 
   it('describes ClinGen/GenCC sub-scores as scores, not classification words (#314)', () => {

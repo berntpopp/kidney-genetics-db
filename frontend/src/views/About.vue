@@ -83,19 +83,15 @@
             </p>
             <div class="space-y-1 text-sm">
               <div
-                v-for="(range, i) in SCORE_RANGES"
-                :key="range.label"
+                v-for="tier in TIER_CONFIG"
+                :key="tier.label"
                 class="flex items-center gap-2"
-                data-testid="score-range-row"
+                data-testid="tier-row"
               >
-                <Badge
-                  variant="outline"
-                  class="min-w-[60px] justify-center tabular-nums"
-                  :style="tintedChipStyle(range.color)"
-                >
-                  {{ formatScoreRangeBand(i) }}
+                <Badge variant="outline" class="shrink-0" :style="tintedChipStyle(tier.color)">
+                  <span>{{ tier.label }}</span>
                 </Badge>
-                <span class="text-muted-foreground">{{ range.label }}</span>
+                <span class="text-muted-foreground">{{ tier.description }}</span>
               </div>
             </div>
           </CardContent>
@@ -266,7 +262,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
-import { SCORE_RANGES, formatScoreRangeBand, tintedChipStyle } from '@/utils/evidenceTiers'
+import { TIER_CONFIG, tintedChipStyle } from '@/utils/evidenceTiers'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
 import {
