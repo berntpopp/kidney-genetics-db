@@ -5,6 +5,10 @@ networks:
   kidney_genetics_internal_net:
     driver: bridge
     name: kidney_genetics_internal_net
+    # Fixed subnet so the frontend has a stable IP that uvicorn can trust (#250).
+    ipam:
+      config:
+        - subnet: ${KGDB_INTERNAL_SUBNET:-172.30.250.0/24}
 
 volumes:
   postgres_data:
@@ -131,11 +135,17 @@ services:
       - backend_cache:/app/.cache
       - backend_data:/app/data
     networks:
-      - npm_proxy_network
-      - kidney_genetics_internal_net
+      npm_proxy_network:
+      kidney_genetics_internal_net:
+        # Network-scoped alias: the frontend reaches the backend only via this net.
+        aliases:
+          - kgdb-backend-internal
     # NO PORTS EXPOSED - NPM connects via container name
     env_file:
       - .env.production
+    environment:
+      # Trust forwarded headers only from the frontend's fixed IP, never "*" (#250).
+      FORWARDED_ALLOW_IPS: ${KGDB_FRONTEND_IP:-172.30.250.10}
     depends_on:
       postgres:
         condition: service_healthy
@@ -189,8 +199,9 @@ services:
     image: kidney_genetics_frontend:latest
     container_name: kidney_genetics_frontend
     networks:
-      - npm_proxy_network
-      - kidney_genetics_internal_net
+      npm_proxy_network:
+      kidney_genetics_internal_net:
+        ipv4_address: ${KGDB_FRONTEND_IP:-172.30.250.10}
     # NO PORTS EXPOSED - NPM connects via container name
     environment:
       API_BASE_URL: /api
