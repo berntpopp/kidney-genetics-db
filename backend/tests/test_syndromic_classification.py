@@ -179,6 +179,43 @@ def test_syndromic_threshold_boundary_is_inclusive():
     assert score_syndromic_features(phenotypes, descendants)["is_syndromic"] is False
 
 
+def test_term_in_two_categories_counts_once():
+    """Overlapping categories share terms; each term adds to the score once (#255)."""
+    from app.pipeline.sources.annotations.hpo import score_syndromic_features
+
+    shared = "HP:0000407"  # e.g. hearing impairment: neurologic and head_neck
+    phenotypes = {shared, "HP:K1", "HP:K2", "HP:K3", "HP:K4"}
+    descendants = {"neurologic": {shared}, "head_neck": {shared}}
+
+    result = score_syndromic_features(phenotypes, descendants)
+    assert result["extra_renal_term_counts"] == {"neurologic": 1, "head_neck": 1}
+    assert result["syndromic_score"] == 0.2  # 1/5, not 2/5
+    assert result["is_syndromic"] is False
+
+
+def test_syndromic_score_never_exceeds_one():
+    from app.pipeline.sources.annotations.hpo import score_syndromic_features
+
+    phenotypes = {"HP:A", "HP:B"}
+    descendants = dict.fromkeys(["growth", "skeletal", "neurologic", "head_neck"], phenotypes)
+    assert score_syndromic_features(phenotypes, descendants)["syndromic_score"] == 1.0
+
+
+def test_syndromic_threshold_read_from_config():
+    from unittest.mock import patch
+
+    from app.core.datasource_config import get_source_parameter
+    from app.pipeline.sources.annotations import hpo
+
+    assert get_source_parameter("HPO", "syndromic_threshold") == 0.3
+    phenotypes = {"HP:G1", "HP:K1", "HP:K2", "HP:K3"}  # 0.25
+    descendants = {"growth": {"HP:G1"}}
+    assert hpo.score_syndromic_features(phenotypes, descendants)["is_syndromic"] is False
+    with patch.object(hpo, "get_source_parameter", return_value=0.2) as param:
+        assert hpo.score_syndromic_features(phenotypes, descendants)["is_syndromic"] is True
+    param.assert_called_with("HPO", "syndromic_threshold", 0.3)
+
+
 if __name__ == "__main__":
     import asyncio
 

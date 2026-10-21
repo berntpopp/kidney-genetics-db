@@ -13,7 +13,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.core.datasource_config import ANNOTATION_COMMON_CONFIG
+from app.core.datasource_config import ANNOTATION_COMMON_CONFIG, get_source_parameter
 from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
@@ -48,7 +48,8 @@ def score_syndromic_features(
     """Score extra-renal (syndromic) involvement; shared by both HPO pipelines (#254).
 
     Each category scores matched terms / all phenotype terms (rounded to 3 places).
-    A term under several overlapping categories counts once per category.
+    A term under several overlapping categories counts in each category's score but
+    only once in syndromic_score (distinct extra-renal terms / all terms, so <= 1; #255).
     """
     if not phenotype_ids:
         return {
@@ -60,6 +61,7 @@ def score_syndromic_features(
         }
 
     category_counts: dict[str, int] = {}
+    extra_renal_terms: set[str] = set()
     for category, descendant_terms in syndromic_descendants.items():
         if not descendant_terms:
             logger.sync_warning(f"No descendant terms for category {category}")
@@ -67,20 +69,21 @@ def score_syndromic_features(
         matches = phenotype_ids.intersection(descendant_terms)
         if matches:
             category_counts[category] = len(matches)
+            extra_renal_terms |= matches
 
     category_scores = {
         category: round(count / len(phenotype_ids), 3)
         for category, count in category_counts.items()
     }
 
-    # FORMULA (pending scientific decision, #255): SUM of category scores, as the
-    # annotation pipeline (gene pages, network, /hpo-classifications) has always stored.
-    # Unified ingestion previously used the MEAN: sum(...) / len(category_scores).
-    # From raw counts, not the rounded category scores: their rounding missed exact 0.3 (#254).
-    syndromic_score = sum(category_counts.values()) / len(phenotype_ids)
+    # SUM across categories with each term counted once (#255); computed from raw counts,
+    # not the rounded category scores, whose rounding missed an exact 0.3 (#254).
+    syndromic_score = len(extra_renal_terms) / len(phenotype_ids)
+    # Threshold from the predecessor R implementation.
+    threshold = get_source_parameter("HPO", "syndromic_threshold", 0.3)
 
     return {
-        "is_syndromic": syndromic_score >= 0.3,  # threshold from the predecessor R implementation
+        "is_syndromic": syndromic_score >= threshold,
         "syndromic_score": round(syndromic_score, 3),
         "category_scores": category_scores,
         "extra_renal_categories": list(category_counts),
