@@ -113,5 +113,209 @@ async def test_full_refresh_failing_mid_stream_keeps_existing_evidence(test_engi
     ):
         await source.update_data(session, None, mode="full")
 
-    assert _pmids(test_engine, old) == {"1", "2", "3", "11"}  # survived, merged with page 1
+    # Full run replaces a gene on first touch; the row survives and no prune ran (#291).
+    assert _pmids(test_engine, old) == {"11"}
     assert _pmids(test_engine, new) == {"10"}  # page 1 upserted before the failure
+
+
+def _source(
+    session, pages: dict[int, list[dict]], fetched: list[int], fail: set[int] = frozenset()
+):
+    """PubTator source over fake pages; pages missing from ``pages`` are empty (end of stream)."""
+    source = PubTatorUnifiedSource(db_session=session)
+    source.chunk_size = 1
+    source.filtering_enabled = False
+    source.max_pages = None
+
+    async def fetch_page(page: int, query: str) -> dict | None:
+        fetched.append(page)
+        if page in fail:
+            raise TimeoutError("provider down")
+        return {"results": pages.get(page, []), "total_pages": len(pages)}
+
+    patch.object(source, "_fetch_page", fetch_page).start()
+    patch.object(source, "_check_resources", return_value=True).start()
+    return source
+
+
+def _normalize(tag: str):
+    async def normalize(db_, symbols, source_name):
+        return {
+            s: {"status": "normalized", "approved_symbol": s, "hgnc_id": f"HGNC:{s}"}
+            for s in symbols
+        }
+
+    return patch("app.core.gene_normalizer.normalize_genes_batch_async", normalize)
+
+
+@pytest.mark.asyncio
+async def test_second_full_run_restarts_from_page_one_after_complete_run(test_engine, db):
+    session, tag = db
+    gene = f"AUD{tag}A"
+    pages = {1: [_article("21", gene)], 2: [_article("22", gene)]}
+
+    for _ in range(2):
+        fetched: list[int] = []
+        source = _source(session, pages, fetched)
+        with _normalize(tag):
+            await source.update_data(session, None, mode="full")
+        patch.stopall()
+        assert fetched[0] == 1  # never resumes past the end of a finished run
+
+    assert _pmids(test_engine, gene) == {"21", "22"}
+
+
+def _seed(session, symbol: str, pmids: list[str]) -> None:
+    gene = Gene(approved_symbol=symbol, hgnc_id=f"HGNC:{symbol}")
+    session.add(gene)
+    session.flush()
+    session.add(
+        GeneEvidence(
+            gene_id=gene.id,
+            source_name="PubTator",
+            evidence_data={"pmids": pmids, "publication_count": len(pmids)},
+        )
+    )
+    session.commit()
+
+
+async def _full_run(session, tag, pages, fail=frozenset(), max_pages=None, memory=False):
+    fetched: list[int] = []
+    source = _source(session, pages, fetched, fail)
+    source.max_pages = max_pages
+    if memory:  # resource guard trips before page 2
+        patch.object(source, "_check_resources", side_effect=[True, False]).start()
+    try:
+        with _normalize(tag):
+            await source.update_data(session, None, mode="full")
+    finally:
+        patch.stopall()
+    return fetched
+
+
+@pytest.mark.asyncio
+async def test_complete_full_run_replaces_touched_and_prunes_untouched(test_engine, db):
+    session, tag = db
+    kept, stale = f"AUD{tag}KEPT", f"AUD{tag}STALE"
+    _seed(session, kept, ["1", "2"])
+    _seed(session, stale, ["3"])
+
+    await _full_run(session, tag, {1: [_article("30", kept)], 2: [_article("31", kept)]})
+
+    assert _pmids(test_engine, kept) == {"30", "31"}  # replaced on first touch, then merged
+    assert _pmids(test_engine, stale) is None  # untouched by the complete run: pruned
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        {"fail": {2}},  # a page failed after retries and was skipped
+        {"max_pages": 1},  # early stop on max_pages
+        {"memory": True},  # early stop on the resource guard
+    ],
+)
+@pytest.mark.asyncio
+async def test_incomplete_full_run_does_not_prune(test_engine, db, case):
+    session, tag = db
+    kept, stale = f"AUD{tag}KEPT", f"AUD{tag}STALE"
+    _seed(session, kept, ["1"])
+    _seed(session, stale, ["3"])
+    pages = {1: [_article("40", kept)], 2: [_article("41", kept)], 3: [_article("42", kept)]}
+
+    await _full_run(session, tag, pages, **case)
+
+    assert _pmids(test_engine, stale) == {"3"}
+    if not case.get("fail"):  # early stop keeps the checkpoint for resume
+        progress = session.query(DataSourceProgress).filter_by(source_name="PubTator").one()
+        session.refresh(progress)
+        assert progress.progress_metadata["last_page"] == 1
+        assert progress.progress_metadata["run_started_at"]
+
+
+@pytest.mark.asyncio
+async def test_rolled_back_batch_counts_as_error_and_blocks_prune(test_engine, db):
+    session, tag = db
+    kept, stale = f"AUD{tag}KEPT", f"AUD{tag}STALE"
+    _seed(session, kept, ["1"])
+    _seed(session, stale, ["3"])
+
+    real_commit = session.commit
+    state = {"failed": False}
+
+    def flaky_commit():
+        # Fail the first gene-batch commit only (inside _store_genes_without_tracker).
+        import inspect
+
+        if not state["failed"] and any(
+            f.function == "_store_genes_without_tracker" for f in inspect.stack()
+        ):
+            state["failed"] = True
+            raise RuntimeError("commit failed")
+        return real_commit()
+
+    with patch.object(session, "commit", flaky_commit):
+        await _full_run(session, tag, {1: [_article("50", kept)], 2: [_article("51", kept)]})
+
+    assert state["failed"]
+    assert _pmids(test_engine, stale) == {"3"}
+
+
+@pytest.mark.asyncio
+async def test_resumed_full_run_keeps_pmids_from_before_interruption(test_engine, db):
+    session, tag = db
+    kept, stale = f"AUD{tag}KEPT", f"AUD{tag}STALE"
+    _seed(session, kept, ["1"])
+    _seed(session, stale, ["3"])
+    pages = {1: [_article("60", kept)], 2: [_article("61", kept)]}
+
+    await _full_run(session, tag, pages, max_pages=1)  # interrupted after page 1
+    fetched = await _full_run(session, tag, pages)  # resume completes the same run
+
+    assert fetched[0] == 2
+    assert _pmids(test_engine, kept) == {"60", "61"}  # page-1 PMIDs not replaced again
+    assert _pmids(test_engine, stale) is None
+
+
+@pytest.mark.asyncio
+async def test_crash_with_unflushed_pages_resumes_before_them(test_engine, db):
+    """Pages buffered but not stored when a run crashes are re-fetched, never skipped."""
+    session, tag = db
+    early = f"AUD{tag}EARLY"
+    _seed(session, early, ["1"])
+    pages = {1: [_article("41", early)], 2: [_article("42", f"AUD{tag}B")]}
+
+    fetched: list[int] = []
+    source = _source(session, {**pages, 3: [None]}, fetched)  # page 3 malformed: raises
+    source.chunk_size = 10  # pages 1-2 stay buffered
+    try:
+        with _normalize(tag), pytest.raises(AttributeError):
+            await source.update_data(session, None, mode="full")
+    finally:
+        patch.stopall()
+
+    fetched = await _full_run(session, tag, pages)
+    assert fetched[0] == 1
+    assert _pmids(test_engine, early) == {"41"}  # replaced, not pruned
+
+
+@pytest.mark.asyncio
+async def test_early_stop_does_not_filter_partially_replaced_genes(test_engine, db):
+    """The min-publications filter waits for a complete run (#291)."""
+    session, tag = db
+    gene = f"AUD{tag}FEW"
+    _seed(session, gene, ["1", "2", "3", "4"])
+    pages = {1: [_article("51", gene)], 2: [_article("52", gene)]}
+
+    fetched: list[int] = []
+    source = _source(session, pages, fetched)
+    source.max_pages = 1
+    source.filtering_enabled = True
+    source.filter_after_complete = True
+    source.min_publications = 3
+    try:
+        with _normalize(tag):
+            await source.update_data(session, None, mode="full")
+    finally:
+        patch.stopall()
+
+    assert _pmids(test_engine, gene) == {"51"}  # replaced on first touch, not filtered out
