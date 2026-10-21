@@ -19,8 +19,7 @@
       <div>
         <h1 class="text-2xl font-bold">About This Database</h1>
         <p class="text-sm text-muted-foreground">
-          Learn how to use the database, understand core concepts, and explore our technical
-          architecture
+          Learn how to use the database, understand core concepts, and see how evidence is scored
         </p>
       </div>
     </div>
@@ -84,19 +83,15 @@
             </p>
             <div class="space-y-1 text-sm">
               <div
-                v-for="(range, i) in SCORE_RANGES"
-                :key="range.label"
+                v-for="tier in TIER_CONFIG"
+                :key="tier.label"
                 class="flex items-center gap-2"
-                data-testid="score-range-row"
+                data-testid="tier-row"
               >
-                <Badge
-                  variant="outline"
-                  class="min-w-[60px] justify-center tabular-nums"
-                  :style="tintedChipStyle(range.color)"
-                >
-                  {{ formatScoreRangeBand(i) }}
+                <Badge variant="outline" class="shrink-0" :style="tintedChipStyle(tier.color)">
+                  <span>{{ tier.label }}</span>
                 </Badge>
-                <span class="text-muted-foreground">{{ range.label }}</span>
+                <span class="text-muted-foreground">{{ tier.description }}</span>
               </div>
             </div>
           </CardContent>
@@ -267,7 +262,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
-import { SCORE_RANGES, formatScoreRangeBand, tintedChipStyle } from '@/utils/evidenceTiers'
+import { TIER_CONFIG, tintedChipStyle } from '@/utils/evidenceTiers'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
 import {
@@ -289,9 +284,7 @@ import {
   Info,
   Lightbulb,
   RefreshCw,
-  Search,
-  ShieldCheck,
-  Zap
+  Search
 } from 'lucide-vue-next'
 import {
   Breadcrumb,
@@ -352,36 +345,6 @@ const coreConcepts = [
     bullets: ['Configurable source weights', 'Transparent calculation methodology'],
     bulletIcon: ArrowRight,
     bulletClass: ''
-  },
-  {
-    title: 'High-Performance Architecture',
-    icon: Zap,
-    gradient: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-    description:
-      'Non-blocking architecture with L1/L2 caching (memory + database) delivers fast response times for cached requests. ThreadPoolExecutor ensures event loop never blocks during heavy operations.',
-    bullets: ['High cache hit rates', 'WebSocket progress tracking (no polling)'],
-    bulletIcon: Check,
-    bulletClass: 'text-green-600 dark:text-green-400'
-  },
-  {
-    title: 'Quality Assurance',
-    icon: ShieldCheck,
-    gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
-    description:
-      'Comprehensive quality checks at every stage: retry logic prevents transient failures, cache validation ensures data integrity, and audit trails track all normalization attempts in the gene staging table.',
-    bullets: ['Automatic retry with exponential backoff', 'Cache validation (no empty responses)'],
-    bulletIcon: ArrowRight,
-    bulletClass: ''
-  },
-  {
-    title: 'Real-Time Progress Tracking',
-    icon: RefreshCw,
-    gradient: 'linear-gradient(135deg, #ef4444, #dc2626)',
-    description:
-      'WebSocket connections provide real-time updates during pipeline operations without page refresh or polling. Watch genes flow from staging to curation with live progress bars and status updates.',
-    bullets: ['Stable WebSocket connections during processing', 'No blocking, no polling required'],
-    bulletIcon: Check,
-    bulletClass: 'text-green-600 dark:text-green-400'
   }
 ]
 </script>

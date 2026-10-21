@@ -307,6 +307,8 @@ class ProgressTracker:
         """Commit to database and publish update to event bus - NO MORE DIRECT CALLBACKS!"""
         from sqlalchemy.exc import DisconnectionError, OperationalError
 
+        self.progress_record.last_update_at = datetime.now(timezone.utc)
+
         # Recalculate progress percentage before committing (skip if completed/failed)
         if self.progress_record.status == SourceStatus.running:
             if self.progress_record.total_pages and self.progress_record.total_pages > 0:

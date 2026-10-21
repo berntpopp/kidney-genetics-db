@@ -24,14 +24,12 @@
             :style="
               selectedClassifications.includes(cat.value)
                 ? {
-                    backgroundColor: getClassificationColor(cat.value),
-                    borderColor: getClassificationColor(cat.value),
-                    color: 'white'
+                    ...tintedChipStyle(getClassificationColor(cat.value)),
+                    borderColor: getClassificationColor(cat.value)
                   }
                 : {
-                    borderColor: getClassificationColor(cat.value),
-                    color: getClassificationColor(cat.value),
-                    opacity: 0.7
+                    color: tintedChipStyle(getClassificationColor(cat.value)).color,
+                    borderColor: getClassificationColor(cat.value) + '40'
                   }
             "
             @click="toggleClassification(cat.value)"
@@ -76,14 +74,12 @@
             :style="
               selectedEffects.includes(eff.value)
                 ? {
-                    backgroundColor: getEffectColor(eff.value),
-                    borderColor: getEffectColor(eff.value),
-                    color: 'white'
+                    ...tintedChipStyle(getEffectColor(eff.value)),
+                    borderColor: getEffectColor(eff.value)
                   }
                 : {
-                    borderColor: getEffectColor(eff.value),
-                    color: getEffectColor(eff.value),
-                    opacity: 0.7
+                    color: tintedChipStyle(getEffectColor(eff.value)).color,
+                    borderColor: getEffectColor(eff.value) + '40'
                   }
             "
             @click="toggleEffect(eff.value)"
@@ -165,6 +161,7 @@ import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { Download, Palette, ZoomIn, ZoomOut, SearchX } from 'lucide-vue-next'
 import { useAppTheme } from '@/composables/useAppTheme'
 import { Badge } from '@/components/ui/badge'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { Button } from '@/components/ui/button'
 import { select, selectAll } from 'd3-selection'
 import { scaleLinear } from 'd3-scale'

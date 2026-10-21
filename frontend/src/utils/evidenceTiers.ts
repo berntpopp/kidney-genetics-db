@@ -41,46 +41,39 @@ export interface GroupConfig {
   description: string
 }
 
-/** Configuration object for a score range */
-export interface ScoreRangeConfig {
-  threshold: number
-  label: string
-  description: string
-  color: string
-  tierAlignment: TierName
-}
-
 /**
- * Configuration for evidence tiers
+ * Configuration for evidence tiers. Colours keep OKLab distance > 0.15 under
+ * deuteranopia and tinted chips >= 4.5:1 (tierPalette.spec.ts, #325); the icon is
+ * the non-colour cue.
  */
 export const TIER_CONFIG: Record<TierName, TierConfig> = {
   comprehensive_support: {
     label: 'Comprehensive Support',
-    color: '#22c55e',
+    color: '#16a34a',
     icon: CircleCheck,
     description: '4+ sources with robust evidence (score ≥50%)'
   },
   multi_source_support: {
     label: 'Multi-Source Support',
-    color: '#3b82f6',
+    color: '#2563eb',
     icon: CircleCheckBig,
     description: '3+ sources with emerging evidence (score ≥35%)'
   },
   established_support: {
     label: 'Established Support',
-    color: '#0ea5e9',
+    color: '#38bdf8',
     icon: Check,
     description: '2+ sources with moderate evidence (score ≥20%)'
   },
   preliminary_evidence: {
     label: 'Preliminary Evidence',
-    color: '#f59e0b',
+    color: '#fbbf24',
     icon: CircleAlert,
     description: 'Initial evidence requiring validation (score ≥10%)'
   },
   minimal_evidence: {
     label: 'Minimal Evidence',
-    color: '#6b7280',
+    color: '#4b5563',
     icon: Info,
     description: 'Limited early-stage evidence (score <10%)'
   }
@@ -177,111 +170,20 @@ export const VALID_TIERS: TierName[] = Object.keys(TIER_CONFIG) as TierName[]
 export const VALID_GROUPS: GroupName[] = Object.keys(GROUP_CONFIG) as GroupName[]
 
 /**
- * Configuration for evidence score ranges and their interpretations
- * Aligned with tier thresholds: 50% (comprehensive), 35% (multi-source), 20% (established), 10% (preliminary)
- * Ordered from highest to lowest threshold
- */
-export const SCORE_RANGES: ScoreRangeConfig[] = [
-  {
-    threshold: 95,
-    label: 'Exceptional',
-    description: 'comprehensive support with definitive multi-source evidence',
-    color: '#22c55e',
-    tierAlignment: 'comprehensive_support'
-  },
-  {
-    threshold: 80,
-    label: 'Very Strong',
-    description: 'comprehensive support, well-established disease gene',
-    color: '#22c55e',
-    tierAlignment: 'comprehensive_support'
-  },
-  {
-    threshold: 50,
-    label: 'Strong',
-    description: 'comprehensive support with robust evidence',
-    color: '#22c55e',
-    tierAlignment: 'comprehensive_support'
-  },
-  {
-    threshold: 35,
-    label: 'Good',
-    description: 'multi-source support with emerging evidence',
-    color: '#3b82f6',
-    tierAlignment: 'multi_source_support'
-  },
-  {
-    threshold: 20,
-    label: 'Moderate',
-    description: 'established support from independent sources',
-    color: '#0ea5e9',
-    tierAlignment: 'established_support'
-  },
-  {
-    threshold: 10,
-    label: 'Preliminary',
-    description: 'initial evidence requiring validation',
-    color: '#f59e0b',
-    tierAlignment: 'preliminary_evidence'
-  },
-  {
-    threshold: 0,
-    label: 'Minimal',
-    description: 'limited early-stage evidence',
-    color: '#6b7280',
-    tierAlignment: 'minimal_evidence'
-  }
-]
-
-/**
- * Display band for SCORE_RANGES[i], e.g. "≥ 80" or "< 10" for the lowest range.
- * Mirrors getScoreRangeConfig: a score gets the first range whose threshold it reaches.
- */
-export function formatScoreRangeBand(i: number): string {
-  const threshold = SCORE_RANGES[i]?.threshold ?? 0
-  return threshold > 0 ? `≥ ${threshold}` : `< ${SCORE_RANGES[i - 1]?.threshold ?? 0}`
-}
-
-/**
- * Get score range configuration for a given score
- * @param score - Evidence score (0-100)
- * @returns Score range configuration or null if score is invalid
- */
-export function getScoreRangeConfig(score: number | null | undefined): ScoreRangeConfig | null {
-  if (!score && score !== 0) return null
-
-  for (const range of SCORE_RANGES) {
-    if (score >= range.threshold) {
-      return range
-    }
-  }
-
-  return SCORE_RANGES[SCORE_RANGES.length - 1] ?? null
-}
-
-/**
- * Generate a contextual explanation for an evidence score
+ * Explain an evidence score with the backend evidence tier
  * @param score - Evidence score (0-100)
  * @param sourceCount - Number of sources
+ * @param tier - Backend evidence_tier
  * @returns Formatted explanation
  */
 export function getScoreExplanation(
   score: number | null | undefined,
-  sourceCount: number | null | undefined
+  sourceCount: number | null | undefined,
+  tier: string | null | undefined
 ): string {
   if (!score && score !== 0) return 'No evidence score available'
-  if (!sourceCount || sourceCount === 0) return `Score: ${score.toFixed(1)}%`
-
-  const sources = sourceCount === 1 ? 'source' : 'sources'
-  const config = getScoreRangeConfig(score)
-
-  if (!config) return `Score: ${score.toFixed(1)}%`
-
-  // Special case for exceptional scores (no source count needed in message)
-  if (config.threshold >= 95) {
-    return `${score.toFixed(1)}% — ${config.label} (${config.description})`
-  }
-
-  // All other scores include source count
-  return `${score.toFixed(1)}% — ${config.label} from ${sourceCount} ${sources} (${config.description})`
+  if (!tier) return `Score: ${score.toFixed(1)}%`
+  const label = getTierConfig(tier).label
+  if (!sourceCount) return `${score.toFixed(1)}% — ${label}`
+  return `${score.toFixed(1)}% — ${label} from ${sourceCount} ${sourceCount === 1 ? 'source' : 'sources'}`
 }

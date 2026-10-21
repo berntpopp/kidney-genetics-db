@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 import httpx
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService
@@ -93,6 +94,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         )
 
         self.sort_order = "score desc"
+        # Full-run state (#291), set per run in _stream_process_pubtator
+        self._run_started_at: datetime | None = None
+        self._run_dirty = False
         # Load optimized chunk configuration
         self.chunk_size = get_source_parameter("PubTator", "chunk_size", 300)  # Reduced from 1000
         self.transaction_size = get_source_parameter(
@@ -183,8 +187,6 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             ).total_seconds()
 
             # Get the actual total counts from the database
-            from sqlalchemy import text
-
             try:
                 result = db.execute(
                     text("""
@@ -366,9 +368,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 action="resetting" if mode == "full" else "continuing",
             )
             if mode == "full":
-                # Full mode: re-stream from page 1, merging into existing evidence (#291).
-                # ponytail: stale rows are never pruned; needs a decided completeness signal.
-                logger.sync_info("Full mode requested - restarting from page 1 (merge, no delete)")
+                logger.sync_info("Full mode requested - restarting from page 1")
                 start_page = 1
             else:
                 # Smart mode: continue from checkpoint
@@ -378,6 +378,19 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         elif not checkpoint:
             logger.sync_info("No checkpoint found - starting from page 1")
             start_page = 1
+
+        # Full run (#291): each gene's evidence is replaced on its first touch in the run and
+        # untouched rows are pruned only after a verified complete run. run_started_at and the
+        # dirty flag live in the checkpoint so a resume continues the same run.
+        self._run_started_at = None
+        self._run_dirty = False
+        if mode == "full" and self.db_session is not None:
+            if start_page > 1 and checkpoint.get("run_started_at"):
+                self._run_started_at = datetime.fromisoformat(checkpoint["run_started_at"])
+                self._run_dirty = bool(checkpoint.get("dirty"))
+            else:
+                start_page = 1  # fresh run (also replaces legacy checkpoints without a start)
+                self._run_started_at = self.db_session.execute(text("SELECT now()")).scalar()
 
         # Initialize streaming state
         article_buffer: list[dict[str, Any]] = []
@@ -401,6 +414,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         # Streaming loop
         page = start_page
         consecutive_duplicates = 0
+        reached_end = False
+        # Last page whose articles are stored; checkpoints never point past it (#291)
+        flushed_page = start_page - 1
 
         while True:
             try:
@@ -417,8 +433,10 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 except Exception as e:
                     # All retries exhausted, log and continue with next page
                     logger.sync_error(f"Failed to fetch page {page} after retries: {str(e)}")
-                    # Save checkpoint and try next page
-                    await self._save_checkpoint(page - 1, mode, query_hash)
+                    self._run_dirty = True  # a skipped page means this run can never prune
+                    stats["errors"] += 1
+                    # Persist the dirty flag without skipping buffered, unstored pages
+                    await self._save_checkpoint(flushed_page, mode, query_hash)
                     page += 1
                     continue
 
@@ -429,6 +447,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 results = response.get("results", [])
                 if not results:
                     logger.sync_info(f"No more results at page {page}")
+                    reached_end = True
                     break
 
                 # Update total pages on first response
@@ -499,6 +518,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
                     # Save checkpoint
                     await self._save_checkpoint(page, mode, query_hash)
+                    flushed_page = page
 
                     # Commit transaction periodically
                     if stats["processed_articles"] % self.transaction_size == 0:
@@ -526,8 +546,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
             except Exception as e:
                 logger.sync_error(f"Error on page {page}: {str(e)}")
-                # Save checkpoint on error
-                await self._save_checkpoint(page - 1, mode, query_hash)
+                # Resume from the last stored page: buffered articles were never written
+                await self._save_checkpoint(flushed_page, mode, query_hash)
                 raise
 
         # Flush remaining buffers
@@ -540,8 +560,42 @@ class PubTatorUnifiedSource(UnifiedDataSource):
         if self.db_session is not None:
             self.db_session.commit()
 
+        if not reached_end:
+            # Early stop (resources, max_pages, bad response, smart duplicates): resume later.
+            logger.sync_warning(
+                "PubTator stream stopped before the last page: checkpoint kept, no prune",
+                last_page=stats["current_page"],
+                mode=mode,
+            )
+        else:
+            if self._run_started_at is not None and not self._run_dirty and self.db_session:
+                touched = {
+                    int(gene_id)
+                    for (gene_id,) in self.db_session.query(GeneEvidence.gene_id).filter(
+                        GeneEvidence.source_name == self.source_name,
+                        GeneEvidence.updated_at >= self._run_started_at,
+                    )
+                }
+                stats["entries_deleted"] = self._prune_unreported_evidence(
+                    self.db_session, touched, stats
+                )
+            elif self._run_started_at is not None:
+                logger.sync_warning(
+                    "Full run reached the end with failed pages or errors: no prune",
+                    source_name=self.source_name,
+                )
+            # Resuming past the last page recovers nothing, so the next run starts at page 1.
+            await self._clear_checkpoint()
+
+        # A full run's rows hold partial data until it completes cleanly; filtering them
+        # earlier would delete genes whose remaining publications are still to come (#291).
+        run_complete = reached_end and not self._run_dirty
         # Apply final filtering if enabled
-        if self.filtering_enabled and self.filter_after_complete:
+        if (
+            self.filtering_enabled
+            and self.filter_after_complete
+            and (self._run_started_at is None or run_complete)
+        ):
             logger.sync_info(
                 "Applying final filter to complete PubTator dataset",
                 min_publications=self.min_publications,
@@ -700,6 +754,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 stats,
             )
 
+        if stats["errors"]:
+            self._run_dirty = True
+
         # Update stats
         stats["processed_articles"] += len(article_buffer)
         stats["processed_genes"] = stats.get("processed_genes", 0) + len(gene_buffer)
@@ -765,6 +822,8 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                     error=str(e),
                 )
                 db.rollback()
+                # The whole batch was lost: count it so a full run does not prune (#291).
+                stats["errors"] += len(batch_symbols)
 
     async def _create_or_update_evidence(
         self, db: Session, gene: Gene, evidence_data: dict[str, Any], stats: dict[str, Any]
@@ -786,8 +845,15 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             )
 
             if existing:
-                # MERGE with existing data - this is the critical part!
-                if existing.evidence_data:
+                started = self._run_started_at
+                # updated_at is still an unflushed func.now() if this run touched the row already
+                first_touch = (
+                    started is not None
+                    and isinstance(existing.updated_at, datetime)
+                    and existing.updated_at < started
+                )
+                # MERGE with existing data, except on a full run's first touch, which replaces
+                if existing.evidence_data and not first_touch:
                     merged_data = self._merge_evidence_data(existing.evidence_data, evidence_data)
                 else:
                     merged_data = evidence_data
@@ -796,6 +862,7 @@ class PubTatorUnifiedSource(UnifiedDataSource):
                 existing.source_detail = self._get_source_detail(merged_data)
                 existing.evidence_data = merged_data
                 existing.evidence_date = datetime.now(timezone.utc).date()
+                existing.updated_at = func.now()  # marks the touch even if data is unchanged
                 db.add(existing)
                 stats["evidence_updated"] += 1
 
@@ -943,16 +1010,30 @@ class PubTatorUnifiedSource(UnifiedDataSource):
             self.db_session.add(progress)
 
         # Keep it simple - just essentials
+        run_started_at = self._run_started_at
         progress.progress_metadata = {
             "last_page": page,
             "mode": mode,
             "query_hash": query_hash,
             "updated_at": datetime.now(timezone.utc).isoformat(),
+            "run_started_at": run_started_at.isoformat() if run_started_at else None,
+            "dirty": self._run_dirty,
         }
         progress.current_page = page
 
         self.db_session.commit()
         logger.sync_debug(f"Checkpoint saved at page {page}")
+
+    async def _clear_checkpoint(self) -> None:
+        """Drop the resume checkpoint once the stream has reached its last page."""
+        if self.db_session is None:
+            return
+        progress = (
+            self.db_session.query(DataSourceProgress).filter_by(source_name="PubTator").first()
+        )
+        if progress:
+            progress.progress_metadata = {}
+            self.db_session.commit()
 
     async def _check_pmids_exist_batch(self, pmids: list[str]) -> set[str]:
         """
@@ -973,8 +1054,6 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         if self.db_session is None:
             return set()
-
-        from sqlalchemy import text
 
         try:
             result = self.db_session.execute(

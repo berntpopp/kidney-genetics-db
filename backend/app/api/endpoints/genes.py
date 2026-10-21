@@ -276,6 +276,10 @@ async def get_genes(
     NEW: filter[ids] - Filter by comma-separated gene IDs for URL state restoration.
               Used when users share network analysis URLs with specific gene sets.
               Example: /api/genes?filter[ids]=1,2,3,4,5&page[size]=100
+
+    meta.genes_without_evidence counts all genes that have no evidence rows. It is not the
+    full set of zero-score genes: a gene whose only evidence is a ClinGen/GenCC "No Known
+    Disease Relationship" or an unknown GenCC classification also scores 0.
     """
     # IMPORTANT: Do NOT cache filter[ids] queries because:
     # 1. They are paginated requests (page 1, 2, 3, etc.)
@@ -543,6 +547,14 @@ async def get_genes(
     else:
         response["meta"]["total_genes"] = total
         response["meta"]["hidden_zero_scores"] = 0
+
+    # Genes with no evidence rows at all (independent of filters); see docstring (#337)
+    response["meta"]["genes_without_evidence"] = db.execute(
+        text(
+            "SELECT COUNT(*) FROM genes g WHERE NOT EXISTS "
+            "(SELECT 1 FROM gene_evidence ge WHERE ge.gene_id = g.id)"
+        )
+    ).scalar_one()
 
     # NOTE: We do NOT cache filter[ids] queries (see comment above for explanation)
     # This prevents the pagination bug where all pages return the same cached result

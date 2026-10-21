@@ -141,6 +141,8 @@ datasources:
       skeletal: HP:0000924  # Skeletal system abnormality
       neurologic: HP:0000707  # Abnormality of the nervous system
       head_neck: HP:0000152  # Head and neck abnormality
+    # Syndromic if distinct extra-renal terms / all HPO terms >= this (#255)
+    syndromic_threshold: 0.3
     # Classification configuration
     clinical_groups:
       complement:

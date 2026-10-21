@@ -103,6 +103,7 @@
           <div class="col-span-12 md:col-span-4 flex order-first md:order-last">
             <ScoreBreakdown
               :score="gene.evidence_score"
+              :tier="gene.evidence_tier"
               :breakdown="gene.score_breakdown"
               variant="card"
               class="flex-1"

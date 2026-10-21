@@ -182,10 +182,12 @@
               </PopoverTrigger>
               <PopoverContent class="w-[300px] p-2" align="start" side="bottom">
                 <div class="max-h-[300px] overflow-y-auto space-y-0.5">
-                  <div
+                  <button
                     v-for="cluster in clusterList"
                     :key="cluster.value"
-                    class="flex items-center space-x-2 py-1.5 px-1 rounded cursor-pointer"
+                    type="button"
+                    :aria-pressed="selectedClusters.includes(cluster.value)"
+                    class="flex w-full items-center space-x-2 py-1.5 px-1 rounded text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     :class="
                       selectedClusters.includes(cluster.value) ? 'bg-muted' : 'hover:bg-muted/50'
                     "
@@ -193,15 +195,12 @@
                   >
                     <div
                       class="size-4 rounded-sm border flex items-center justify-center flex-shrink-0"
-                      :style="
-                        selectedClusters.includes(cluster.value)
-                          ? { backgroundColor: cluster.color, borderColor: cluster.color }
-                          : { borderColor: cluster.color }
-                      "
+                      :style="{ borderColor: cluster.color }"
                     >
+                      <!-- Foreground check: white on grey/olive swatches fell below 3:1 -->
                       <Check
                         v-if="selectedClusters.includes(cluster.value)"
-                        class="size-3 text-white"
+                        class="size-3 text-foreground"
                       />
                     </div>
                     <Circle
@@ -210,7 +209,7 @@
                     />
                     <span class="text-sm flex-1">{{ cluster.title }}</span>
                     <Badge variant="outline" class="text-xs">{{ cluster.size }}</Badge>
-                  </div>
+                  </button>
                 </div>
               </PopoverContent>
             </Popover>
@@ -446,13 +445,14 @@
           <div v-if="selectedGene.cluster_id !== undefined">
             <strong>Cluster:</strong>
             <Badge
+              variant="outline"
               class="ml-1"
-              :style="{
-                backgroundColor: getClusterColor(selectedGene.cluster_id),
-                color: 'white'
-              }"
+              :style="
+                tintedChipStyle(clusterColors.get(selectedGene.cluster_id) ?? OTHER_CLUSTER_COLOR)
+              "
             >
-              Cluster {{ selectedGene.cluster_id + 1 }}
+              Cluster
+              {{ (clusterIdMapping.get(selectedGene.cluster_id) ?? selectedGene.cluster_id) + 1 }}
             </Badge>
           </div>
           <Button class="w-full" as-child>
@@ -531,7 +531,12 @@ const NetworkGraph = defineAsyncComponent({
   timeout: 10000
 })
 import EnrichmentTable from '../components/network/EnrichmentTable.vue'
-import { networkAnalysisConfig } from '../config/networkAnalysis'
+import {
+  networkAnalysisConfig,
+  clusterColorByRank,
+  OTHER_CLUSTER_COLOR
+} from '../config/networkAnalysis'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
 import useNetworkUrlState from '../composables/useNetworkUrlState'
 import { useSeoMeta } from '@/composables/useSeoMeta'
@@ -648,16 +653,13 @@ const clusterIdMapping = computed(() => {
   return mapping
 })
 
-const clusterColors = computed(() => {
-  if (!displayNetwork.value?.cytoscape_json?.elements) return new Map()
-  const colors = new Map()
-  displayNetwork.value.cytoscape_json.elements.forEach(element => {
-    if (element.data?.cluster_id !== undefined && element.data?.color) {
-      colors.set(element.data.cluster_id, element.data.color)
-    }
-  })
-  return colors
-})
+// Backend cluster id -> colour by size rank; colours the graph, legend and list alike
+const clusterColors = computed(
+  () =>
+    new Map(
+      [...clusterIdMapping.value].map(([backendId, rank]) => [backendId, clusterColorByRank(rank)])
+    )
+)
 
 const clusterList = computed(() => {
   if (!clusterStats.value) return []
@@ -677,7 +679,7 @@ const clusterList = computed(() => {
       backendId: parseInt(backendId),
       size: geneIds.length,
       genes: geneIds,
-      color: clusterColors.value.get(parseInt(backendId)) || getClusterColor(displayId)
+      color: clusterColorByRank(displayId)
     }
   })
   return clusters.sort((a, b) => b.size - a.size)
@@ -933,22 +935,6 @@ const handleClusterSelection = clusterId => {
 
 const handleGeneClick = geneSymbol => {
   window.location.href = `/genes/${geneSymbol}`
-}
-
-const getClusterColor = clusterId => {
-  const colors = [
-    '#1f77b4',
-    '#ff7f0e',
-    '#2ca02c',
-    '#d62728',
-    '#9467bd',
-    '#8c564b',
-    '#e377c2',
-    '#7f7f7f',
-    '#bcbd22',
-    '#17becf'
-  ]
-  return colors[clusterId % colors.length]
 }
 
 // URL State Management

@@ -205,6 +205,7 @@ const columns: ColumnDef<GeneRow>[] = [
       }
       return h(ScoreBreakdown, {
         score,
+        tier: row.original.evidence_tier ?? '',
         // The list API returns source names only; per-source scores exist on the detail page
         variant: 'inline',
         size: 'small'

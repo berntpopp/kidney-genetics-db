@@ -78,6 +78,28 @@ export interface NetworkAnalysisConfig {
   }
 }
 
+/**
+ * Cluster colours by size rank (0 = largest). Only the 10 largest clusters get a
+ * colour of their own; the rest share grey, since more hues stop being tellable apart (#325).
+ * d3 category10 with its grey swapped for indigo so grey only means "other".
+ */
+export const CLUSTER_PALETTE = [
+  '#1f77b4',
+  '#ff7f0e',
+  '#2ca02c',
+  '#d62728',
+  '#9467bd',
+  '#8c564b',
+  '#e377c2',
+  '#393b79',
+  '#bcbd22',
+  '#17becf'
+]
+export const OTHER_CLUSTER_COLOR = '#d1d5db'
+
+export const clusterColorByRank = (rank: number): string =>
+  CLUSTER_PALETTE[rank] ?? OTHER_CLUSTER_COLOR
+
 export const networkAnalysisConfig: NetworkAnalysisConfig = {
   // Gene Selection Parameters
   geneSelection: {
