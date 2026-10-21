@@ -33,3 +33,11 @@ describe('FAQ heading order (#322)', () => {
     expect(new Set(levels.slice(1))).toEqual(new Set(['H2']))
   })
 })
+
+describe('FAQ syndromic rule (#255)', () => {
+  it('states the 30% extra-renal HPO threshold', () => {
+    const text = mount(FAQ, { global: { stubs: { RouterLink: true } } }).text()
+    expect(text).toContain('When is a gene called syndromic?')
+    expect(text).toContain('If at least 30% of its terms are extra-renal')
+  })
+})

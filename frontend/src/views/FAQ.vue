@@ -98,6 +98,12 @@ const faqs = [
     ]
   },
   {
+    question: 'When is a gene called syndromic?',
+    answer: [
+      "A gene is called syndromic when its HPO phenotypes clearly reach beyond the kidney. We count the distinct HPO terms that fall under growth, skeletal, nervous-system, or head-and-neck abnormalities (a term in two of these groups counts once) and divide by the gene's total number of HPO terms. If at least 30% of its terms are extra-renal, the gene is labelled syndromic; otherwise it is isolated."
+    ]
+  },
+  {
     question: 'How often is the database updated?',
     answer: [
       'The database is updated continuously through an automated pipeline that synchronizes with upstream data sources. Each source is checked for new data regularly, and gene evidence scores are recalculated whenever new evidence becomes available.',
