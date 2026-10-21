@@ -218,6 +218,18 @@ const getStatusVariant = status => {
   }
 }
 
+const STALLED_AFTER_MS = 10 * 60 * 1000
+// Ticks so a hung source turns stalled without a WebSocket event or reload
+const now = ref(Date.now())
+const clock = setInterval(() => (now.value = Date.now()), 30_000)
+
+// A running source whose progress row has not been written for 10 minutes is stalled.
+// Without last_update_at (older backend) we cannot tell, so keep the plain status.
+const isStalled = source =>
+  source.status === 'running' &&
+  !!source.last_update_at &&
+  now.value - Date.parse(source.last_update_at) > STALLED_AFTER_MS
+
 const formatTime = dateString => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
@@ -301,6 +313,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  clearInterval(clock)
   // Unsubscribe from all WebSocket events
   unsubscribers.forEach(unsub => unsub())
 
@@ -373,14 +386,26 @@ onUnmounted(() => {
     <!-- Data Sources Grid -->
     <h3 class="text-lg font-semibold mb-4">Data Sources</h3>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <Card v-for="source in dataSources" :key="source.source_name" class="flex flex-col">
+      <Card
+        v-for="source in dataSources"
+        :key="source.source_name"
+        data-testid="source-card"
+        class="flex flex-col"
+      >
         <CardHeader class="pb-2">
           <div class="flex items-center justify-between">
             <CardTitle class="text-sm flex items-center gap-2">
               <component :is="getSourceIcon(source)" class="size-5" />
               {{ source.source_name }}
             </CardTitle>
-            <Badge :variant="getStatusVariant(source.status)">
+            <Badge
+              v-if="isStalled(source)"
+              variant="destructive"
+              :title="`Stalled: last progress update ${formatTime(source.last_update_at)}`"
+            >
+              stalled
+            </Badge>
+            <Badge v-else :variant="getStatusVariant(source.status)">
               {{ source.status }}
             </Badge>
           </div>
@@ -398,6 +423,9 @@ onUnmounted(() => {
               </span>
             </div>
             <Progress :model-value="source.progress_percentage || 0" class="h-2" />
+            <p v-if="isStalled(source)" class="text-xs text-destructive mt-1">
+              Stalled: last progress update {{ formatTime(source.last_update_at) }}
+            </p>
           </div>
 
           <!-- Statistics -->

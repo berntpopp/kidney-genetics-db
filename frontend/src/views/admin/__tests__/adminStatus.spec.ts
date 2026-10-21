@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { h, ref } from 'vue'
+import { h, nextTick, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -27,7 +27,27 @@ vi.mock('@/api/admin/cache', () => ({
 }))
 vi.mock('@/api/admin/pipeline', () => ({
   getAllStatus: vi.fn(async () => ({
-    data: { data: [{ source_name: 'HPO', category: 'data_source', status: 'completed' }] }
+    data: {
+      data: [
+        { source_name: 'HPO', category: 'data_source', status: 'completed' },
+        // 11 minutes without a progress write: stalled
+        {
+          source_name: 'GenCC',
+          category: 'data_source',
+          status: 'running',
+          last_update_at: new Date(Date.now() - 11 * 60_000).toISOString()
+        },
+        // 2 minutes: still running
+        {
+          source_name: 'PanelApp',
+          category: 'data_source',
+          status: 'running',
+          last_update_at: new Date(Date.now() - 2 * 60_000).toISOString()
+        },
+        // No heartbeat from an older backend: keep the plain status
+        { source_name: 'ClinGen', category: 'data_source', status: 'running', last_update_at: null }
+      ]
+    }
   }))
 }))
 vi.mock('@/services/websocket', () => ({
@@ -86,5 +106,40 @@ describe('AdminPipeline status badge', () => {
     const w = await mountView(AdminPipeline)
     const badge = w.findAllComponents(Badge).find(b => b.text() === 'completed')!
     expect(badge.props('variant')).toBe('outline')
+  })
+})
+
+describe('AdminPipeline stalled sources', () => {
+  const badgeOf = (w: VueWrapper, name: string) =>
+    w
+      .findAll('[data-testid="source-card"]')
+      .find(c => c.text().includes(name))!
+      .findComponent(Badge)
+
+  it('flags a running source with no progress update for over 10 minutes', async () => {
+    const w = await mountView(AdminPipeline)
+    const badge = badgeOf(w, 'GenCC')
+    expect(badge.text()).toBe('stalled')
+    expect(badge.props('variant')).toBe('destructive')
+    expect(badge.attributes('title')).toContain('last progress update 11 min ago')
+  })
+
+  it('keeps running for recent updates and when last_update_at is missing', async () => {
+    const w = await mountView(AdminPipeline)
+    expect(badgeOf(w, 'PanelApp').text()).toBe('running')
+    expect(badgeOf(w, 'ClinGen').text()).toBe('running')
+  })
+
+  it('turns a source stalled while the page stays open', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+    try {
+      const w = await mountView(AdminPipeline)
+      expect(badgeOf(w, 'PanelApp').text()).toBe('running')
+      vi.advanceTimersByTime(9 * 60_000)
+      await nextTick()
+      expect(badgeOf(w, 'PanelApp').text()).toBe('stalled')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
