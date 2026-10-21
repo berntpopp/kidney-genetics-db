@@ -101,10 +101,10 @@
                   :style="tintedChipStyle(getSubScoreHexColor(sourceScore))"
                   variant="outline"
                 >
-                  {{ sourceAbbreviation(source) }}: {{ (sourceScore * 100).toFixed(0) }}
+                  {{ sourceName(source) }}: {{ (sourceScore * 100).toFixed(0) }}
                 </Badge>
                 <template #content>
-                  <p class="font-medium text-xs text-foreground">{{ source }}</p>
+                  <p class="font-medium text-xs text-foreground">{{ sourceName(source) }}</p>
                   <p class="text-xs text-foreground/70">
                     {{ getSourceDescription(source, sourceScore) }}
                   </p>
@@ -271,6 +271,10 @@ const sourceAbbreviation = source => {
   }
   return abbreviations[source] || source.substring(0, 2).toUpperCase()
 }
+
+// Breakdown keys are backend source names; only these differ from display_name in backend/config/datasources.yaml
+const sourceName = source =>
+  ({ DiagnosticPanels: 'Diagnostic Panels', PubTator: 'PubTator3' })[source] || source
 
 const getSourceDescription = (source, score) => {
   const percentage = (score * 100).toFixed(1)

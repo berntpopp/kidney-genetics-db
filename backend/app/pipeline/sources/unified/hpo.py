@@ -373,16 +373,10 @@ class HPOUnifiedSource(UnifiedDataSource):
             Dictionary with syndromic assessment results
         """
         from app.core.datasource_config import get_source_parameter
+        from app.pipeline.sources.annotations.hpo import score_syndromic_features
 
-        # If no phenotypes, return default assessment
         if not phenotype_ids:
-            return {
-                "is_syndromic": False,
-                "category_scores": {},
-                "syndromic_score": 0,
-                "extra_renal_categories": [],
-                "extra_renal_term_counts": {},
-            }
+            return score_syndromic_features(phenotype_ids, {})
 
         # Get syndromic indicators configuration
         syndromic_indicators = get_source_parameter("HPO", "syndromic_indicators", {})
@@ -410,29 +404,4 @@ class HPOUnifiedSource(UnifiedDataSource):
             )
             syndromic_descendants[category] = descendants or set()
 
-        # Calculate matches for each category
-        category_matches = {}
-        category_scores = {}
-
-        for category, descendant_terms in syndromic_descendants.items():
-            matches = phenotype_ids.intersection(descendant_terms)
-            if matches:
-                category_matches[category] = len(matches)
-                # Calculate proportional score for this category
-                category_scores[category] = len(matches) / len(phenotype_ids)
-
-        # Calculate overall syndromic score (average of category scores)
-        syndromic_score = (
-            sum(category_scores.values()) / len(category_scores) if category_scores else 0
-        )
-
-        # Determine if syndromic (using 30% threshold as in R implementation)
-        is_syndromic = syndromic_score >= 0.3
-
-        return {
-            "is_syndromic": is_syndromic,
-            "category_scores": category_scores,
-            "syndromic_score": syndromic_score,
-            "extra_renal_categories": list(category_matches.keys()),
-            "extra_renal_term_counts": category_matches,
-        }
+        return score_syndromic_features(phenotype_ids, syndromic_descendants)

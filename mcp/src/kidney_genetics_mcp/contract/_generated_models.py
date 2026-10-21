@@ -239,7 +239,7 @@ class GOEnrichmentRequest(BaseModel):
         list[int],
         Field(
             description="Gene IDs in cluster",
-            max_length=500,
+            max_length=2000,
             min_length=1,
             title="Cluster Genes",
         ),
@@ -341,6 +341,13 @@ class HPOBatchEnrichmentRequest(BaseModel):
 
 
 class HPOBatchEnrichmentResponse(BaseModel):
+    excluded_genes: Annotated[
+        list[list[int]] | None,
+        Field(
+            description="Per community, submitted gene IDs not tested: without kidney HPO annotation or unknown",
+            title="Excluded Genes",
+        ),
+    ] = None
     fdr_threshold: Annotated[float, Field(title="Fdr Threshold")]
     results: Annotated[
         list[list[EnrichmentResult]],
@@ -399,11 +406,22 @@ class HPOClassificationResponse(BaseModel):
     ]
 
 
+class BackgroundGenes(RootModel[list[int]]):
+    root: Annotated[
+        list[int],
+        Field(
+            description="Background gene IDs; the tested universe is these genes that have kidney HPO annotations (default: all genes with kidney HPO annotations)",
+            max_length=50000,
+            title="Background Genes",
+        ),
+    ]
+
+
 class HPOEnrichmentRequest(BaseModel):
     background_genes: Annotated[
-        list[int] | None,
+        BackgroundGenes | None,
         Field(
-            description="Background gene set (default: all genes)",
+            description="Background gene IDs; the tested universe is these genes that have kidney HPO annotations (default: all genes with kidney HPO annotations)",
             title="Background Genes",
         ),
     ] = None
@@ -411,7 +429,7 @@ class HPOEnrichmentRequest(BaseModel):
         list[int],
         Field(
             description="Gene IDs in cluster to test",
-            max_length=500,
+            max_length=2000,
             min_length=1,
             title="Cluster Genes",
         ),
@@ -429,8 +447,19 @@ class HPOEnrichmentRequest(BaseModel):
 
 class HPOEnrichmentResponse(BaseModel):
     cluster_size: Annotated[
-        int, Field(description="Cluster gene count", title="Cluster Size")
+        int,
+        Field(
+            description="Submitted cluster gene count, including excluded_genes; tested size is per result",
+            title="Cluster Size",
+        ),
     ]
+    excluded_genes: Annotated[
+        list[int] | None,
+        Field(
+            description="Submitted gene IDs not tested: outside the universe of kidney HPO-annotated genes (intersected with background_genes when given) or unknown",
+            title="Excluded Genes",
+        ),
+    ] = None
     fdr_threshold: Annotated[float, Field(title="Fdr Threshold")]
     results: Annotated[list[EnrichmentResult], Field(title="Results")]
     total_terms: Annotated[

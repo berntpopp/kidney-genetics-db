@@ -163,10 +163,15 @@ class HPOEnrichmentRequest(BaseModel):
         ...,
         description="Gene IDs in cluster to test",
         min_length=1,
-        max_length=_enrichment_config.get("hpo", {}).get("max_cluster_size", 500),
+        max_length=_enrichment_config.get("hpo", {}).get("max_cluster_size", 2000),
     )
     background_genes: list[int] | None = Field(
-        default=None, description="Background gene set (default: all genes)"
+        default=None,
+        description=(
+            "Background gene IDs; the tested universe is these genes that have kidney "
+            "HPO annotations (default: all genes with kidney HPO annotations)"
+        ),
+        max_length=_enrichment_config.get("hpo", {}).get("max_background_size", 50000),
     )
     fdr_threshold: float = Field(
         default=_enrichment_config.get("hpo", {}).get("default_fdr_threshold", 0.05),
@@ -200,7 +205,7 @@ class HPOBatchEnrichmentRequest(BaseModel):
     @classmethod
     def validate_communities(cls, v: list[list[int]]) -> list[list[int]]:
         """Bound each community like a single HPO request and the total like a network"""
-        max_cluster = _enrichment_config.get("hpo", {}).get("max_cluster_size", 500)
+        max_cluster = _enrichment_config.get("hpo", {}).get("max_cluster_size", 2000)
         max_total = _network_config.get("max_nodes", 2000)
         if any(not 1 <= len(c) <= max_cluster for c in v):
             raise ValueError(f"Each community must have 1-{max_cluster} gene IDs")
@@ -218,7 +223,7 @@ class GOEnrichmentRequest(BaseModel):
         ...,
         description="Gene IDs in cluster",
         min_length=1,
-        max_length=_enrichment_config.get("go", {}).get("max_cluster_size", 500),
+        max_length=_enrichment_config.get("go", {}).get("max_cluster_size", 2000),
     )
     gene_set: str = Field(
         default=_enrichment_config.get("go", {}).get(
@@ -302,8 +307,18 @@ class HPOEnrichmentResponse(BaseModel):
 
     results: list[EnrichmentResult]
     total_terms: int = Field(..., description="Total significant terms")
-    cluster_size: int = Field(..., description="Cluster gene count")
+    cluster_size: int = Field(
+        ...,
+        description="Submitted cluster gene count, including excluded_genes; tested size is per result",
+    )
     fdr_threshold: float
+    excluded_genes: list[int] = Field(
+        default_factory=list,
+        description=(
+            "Submitted gene IDs not tested: outside the universe of kidney HPO-annotated genes "
+            "(intersected with background_genes when given) or unknown"
+        ),
+    )
 
 
 class GOEnrichmentResponse(BaseModel):
@@ -368,3 +383,9 @@ class HPOBatchEnrichmentResponse(BaseModel):
         ),
     )
     fdr_threshold: float
+    excluded_genes: list[list[int]] = Field(
+        default_factory=list,
+        description=(
+            "Per community, submitted gene IDs not tested: without kidney HPO annotation or unknown"
+        ),
+    )

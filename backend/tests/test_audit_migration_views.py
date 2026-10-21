@@ -205,3 +205,45 @@ def test_upgrade_drops_pubtator_mention_suffix(baseline_db):
         "AUDITUPG_OTHER": "Lit: 3 publications, 4 mentions",
     }
     _alembic(url, "downgrade", "0003")  # no-op downgrade must still succeed
+
+
+@pytest.mark.integration
+def test_upgrade_scores_tied_minimum_counts_above_zero(baseline_db):
+    engine, url = baseline_db
+    counts = {"AUDITUPG_MIN1": 1, "AUDITUPG_MIN2": 1, "AUDITUPG_MAX": 9}
+    with engine.begin() as conn:
+        for symbol, n in counts.items():
+            _add_evidence(conn, _add_gene(conn, symbol), "PubTator", {"publication_count": n})
+        conn.execute(text("REFRESH MATERIALIZED VIEW gene_scores"))
+
+    def pubtator(conn):
+        return dict(
+            conn.execute(
+                text("SELECT approved_symbol, source_scores->>'PubTator' FROM gene_scores")
+            ).all()
+        )
+
+    def tiers(conn):
+        return dict(
+            conn.execute(text("SELECT approved_symbol, evidence_tier FROM gene_scores")).all()
+        )
+
+    with engine.begin() as conn:
+        assert float(pubtator(conn)["AUDITUPG_MIN1"]) == 0.0
+        assert tiers(conn)["AUDITUPG_MIN1"] == "no_evidence"
+    _alembic(url, "upgrade", "head")
+    with engine.begin() as conn:
+        # cume_dist: share of genes with count <= this one -> 2/3 for the tied minimum
+        assert {k: float(v) for k, v in pubtator(conn).items()} == {
+            "AUDITUPG_MIN1": 0.6667,
+            "AUDITUPG_MIN2": 0.6667,
+            "AUDITUPG_MAX": 1.0,
+        }
+        assert tiers(conn)["AUDITUPG_MIN1"] != "no_evidence"
+        _assert_view_matches_canonical(conn, views.evidence_count_percentiles)
+    _alembic(url, "downgrade", "0004")
+    with engine.begin() as conn:
+        assert float(pubtator(conn)["AUDITUPG_MIN1"]) == 0.0
+    _alembic(url, "upgrade", "head")
+    with engine.begin() as conn:
+        assert float(pubtator(conn)["AUDITUPG_MIN1"]) == 0.6667

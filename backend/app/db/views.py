@@ -162,7 +162,8 @@ evidence_count_percentiles = ReplaceableObject(
         evidence_source_counts.approved_symbol,
         evidence_source_counts.source_name,
         evidence_source_counts.source_count,
-        percent_rank() OVER (
+        -- cume_dist, not percent_rank: tied minimum counts score > 0, not 0 (#337)
+        cume_dist() OVER (
             PARTITION BY evidence_source_counts.source_name
             ORDER BY LN(1.0 + evidence_source_counts.source_count)
         ) AS percentile_score
@@ -261,7 +262,9 @@ gene_scores = ReplaceableObject(
            COUNT(DISTINCT source_name) AS source_count,
            COUNT(DISTINCT source_name) AS evidence_count,  -- Alias for backward compatibility
            SUM(source_score) AS raw_score,
-           -- Sum of scores divided by total possible sources, as percentage
+           -- Sum of scores divided by total possible sources, as percentage.
+           -- Global divisor on purpose: rewards breadth across sources (#333,
+           -- .planning/specs/2026-10-21-scoring-percentile-divisor.md)
            SUM(source_score) /
                (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
                * 100 AS percentage_score,

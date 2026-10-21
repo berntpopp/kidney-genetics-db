@@ -222,9 +222,9 @@ class NetworkAnalysisService:
             ig.set_random_number_generator(random.Random(seed))
             try:
                 if algorithm == "leiden":
-                    # Leiden algorithm (superior to Louvain); CPM is the igraph default
+                    # Leiden algorithm (superior to Louvain); objective/resolution per #331 sweep
                     params = {
-                        "objective": "CPM",
+                        "objective": self.config.get("leiden_objective", "modularity"),
                         "resolution": self.config.get("leiden_resolution", 1.0),
                         "iterations": self.config.get("leiden_iterations", 2),
                         "seed": seed,
@@ -578,10 +578,13 @@ class NetworkAnalysisService:
             # Leiden algorithm parameters
             "leiden_resolution": na_config.get("clustering", {})
             .get("leiden", {})
-            .get("resolution", 1.0),
+            .get("resolution", 0.8),
+            "leiden_objective": na_config.get("clustering", {})
+            .get("leiden", {})
+            .get("objective", "modularity"),
             "leiden_iterations": na_config.get("clustering", {})
             .get("leiden", {})
-            .get("iterations", 2),
+            .get("iterations", -1),
             # Louvain algorithm parameters
             "louvain_resolution": na_config.get("clustering", {})
             .get("louvain", {})

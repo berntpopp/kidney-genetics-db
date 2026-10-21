@@ -409,9 +409,8 @@ async def get_genes(
     log_slow_query("count_query", count_time_ms, query_preview=count_query)
 
     # Build sort clause
-    sort_clause = ""
+    sort_fields: list[str] = []
     if sort:
-        sort_fields = []
         field_mapping = {
             "id": "g.id",
             "symbol": "g.approved_symbol",
@@ -439,11 +438,10 @@ async def get_genes(
 
                 if column in field_mapping:
                     sort_fields.append(f"{field_mapping[column]} {direction}")
-
-        if sort_fields:
-            sort_clause = f" ORDER BY {', '.join(sort_fields)}"
     else:
-        sort_clause = " ORDER BY gs.percentage_score DESC NULLS LAST, g.approved_symbol ASC"
+        sort_fields = ["gs.percentage_score DESC NULLS LAST", "g.approved_symbol ASC"]
+    # Unique final key: without it, LIMIT/OFFSET over ties repeats or skips genes.
+    sort_clause = f" ORDER BY {', '.join([*sort_fields, 'g.id ASC'])}"
 
     # Data query - sources and evidence_count fetched via CTE for efficiency
     # Note: Uses a CTE to pre-aggregate evidence data instead of correlated subqueries

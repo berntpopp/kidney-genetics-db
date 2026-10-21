@@ -52,6 +52,10 @@ const props = defineProps({
   fdrThreshold: {
     type: Number,
     default: 0.05
+  },
+  excludedGenes: {
+    type: Array as () => number[],
+    default: () => []
   }
 })
 
@@ -302,6 +306,10 @@ const exportResults = () => {
           <CardTitle class="text-lg">Functional Enrichment Analysis</CardTitle>
           <p class="text-sm text-muted-foreground mt-1">
             {{ enrichmentStats }}
+          </p>
+          <p v-if="excludedGenes.length" class="text-xs text-muted-foreground">
+            {{ excludedGenes.length }} {{ excludedGenes.length === 1 ? 'gene' : 'genes' }} excluded
+            (no HPO annotation / outside background)
           </p>
         </div>
         <div class="flex gap-1">

@@ -424,6 +424,7 @@
           :enrichment-type="enrichmentType"
           :fdr-threshold="fdrThreshold"
           :gene-set="geneSet"
+          :excluded-genes="enrichmentResults?.excluded_genes || []"
           @refresh="runEnrichment"
           @update:enrichment-type="enrichmentType = $event"
           @update:gene-set="geneSet = $event"

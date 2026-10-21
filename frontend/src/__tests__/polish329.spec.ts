@@ -168,3 +168,22 @@ describe('Evidence card footer', () => {
     expect(wrapper.text()).not.toContain('Unknown')
   })
 })
+
+describe('Main navigation', () => {
+  it('links the FAQ from the header, not only the footer', async () => {
+    vi.stubGlobal('matchMedia', () => ({
+      matches: false,
+      addEventListener() {},
+      removeEventListener() {}
+    }))
+    const { createPinia } = await import('pinia')
+    const AppHeader = (await import('@/layouts/AppHeader.vue')).default
+    const router = routerWith('/', { render: () => null })
+    await router.push('/')
+    await router.isReady()
+    wrapper = mount(AppHeader, { global: { plugins: [router, createPinia()] } })
+
+    const link = wrapper.get('nav a[href="/faq"]')
+    expect(link.text()).toBe('FAQ')
+  })
+})

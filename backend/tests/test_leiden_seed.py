@@ -1,5 +1,6 @@
 """Refs #331: Leiden clustering is reproducible under a fixed seed and reports its parameters."""
 
+import random
 from unittest.mock import MagicMock
 
 import igraph as ig
@@ -10,11 +11,13 @@ from app.services.network_analysis_service import NetworkAnalysisService
 
 
 def _graph() -> ig.Graph:
-    # Zachary karate club with weight 2 has many near-tied CPM partitions, so an
+    # A fixed sparse random graph has many near-tied modularity partitions, so an
     # unseeded Leiden run varies between calls
-    g = ig.Graph.Famous("Zachary")
+    rng = random.Random(1)
+    edges = [(i, j) for i in range(80) for j in range(i + 1, 80) if rng.random() < 0.06]
+    g = ig.Graph(n=80, edges=edges)
     g.vs["gene_id"] = list(range(1, g.vcount() + 1))
-    g.es["weight"] = [2.0] * g.ecount()
+    g.es["weight"] = [1.0] * g.ecount()
     return g
 
 
@@ -37,7 +40,7 @@ async def test_leiden_parameters_are_echoed():
     service = NetworkAnalysisService()
     _, _, params = await service.detect_communities(_graph(), MagicMock(), "leiden", seed=11)
     assert params == {
-        "objective": "CPM",
+        "objective": "modularity",
         "resolution": service.config["leiden_resolution"],
         "iterations": service.config["leiden_iterations"],
         "seed": 11,

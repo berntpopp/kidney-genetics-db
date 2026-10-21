@@ -9,7 +9,16 @@ describe('ScoreBreakdown', () => {
     })
     expect(wrapper.text()).toContain('72.5')
     expect(wrapper.text()).toContain('HPO: 90')
-    expect(wrapper.text()).toContain('CG: 80')
+    expect(wrapper.text()).toContain('ClinGen: 80')
+  })
+
+  it('spells out source names on the gene detail card (#329)', () => {
+    const wrapper = mount(ScoreBreakdown, {
+      props: { score: 60, breakdown: { DiagnosticPanels: 0.5, PubTator: 0.4 }, variant: 'card' }
+    })
+    expect(wrapper.text()).toContain('Diagnostic Panels: 50')
+    expect(wrapper.text()).toContain('PubTator3: 40')
+    expect(wrapper.text()).not.toMatch(/\b(DI|PT): /)
   })
 
   it('never renders non-numeric breakdown values as percentages (#301)', () => {
