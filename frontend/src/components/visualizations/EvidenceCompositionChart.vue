@@ -150,7 +150,8 @@ const tierChartData = computed(() => {
   return data.value.evidence_tier_distribution.map(tier => ({
     category: TIER_CONFIG[tier.tier]?.label ?? tier.tier_label,
     gene_count: tier.gene_count,
-    color: TIER_CONFIG[tier.tier]?.color ?? tier.color
+    color: TIER_CONFIG[tier.tier]?.color ?? tier.color,
+    icon: TIER_CONFIG[tier.tier]?.icon
   }))
 })
 

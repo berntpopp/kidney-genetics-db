@@ -8,6 +8,7 @@
     >
       <li v-for="item in legendItems" :key="item.category" class="flex items-center gap-1.5">
         <span class="size-3 shrink-0 rounded-sm" :style="{ backgroundColor: item.color }" />
+        <component :is="item.icon" v-if="item.icon" class="size-3.5 shrink-0" aria-hidden="true" />
         <span>{{ item.category }}</span>
         <span class="tabular-nums text-muted-foreground">{{ item.value }}</span>
       </li>
@@ -97,6 +98,7 @@ const legendItems = computed(() =>
   props.data.map(d => ({
     category: d.category,
     color: d.color || colorScale.value(d.category),
+    icon: d.icon,
     value: props.isPercentage
       ? `${props.valueFormatter(d.gene_count)}%`
       : `${props.valueFormatter(d.gene_count)} (${((d.gene_count / computedTotal.value) * 100).toFixed(1)}%)`

@@ -42,36 +42,38 @@ export interface GroupConfig {
 }
 
 /**
- * Configuration for evidence tiers
+ * Configuration for evidence tiers. Colours keep OKLab distance > 0.15 under
+ * deuteranopia and tinted chips >= 4.5:1 (tierPalette.spec.ts, #325); the icon is
+ * the non-colour cue.
  */
 export const TIER_CONFIG: Record<TierName, TierConfig> = {
   comprehensive_support: {
     label: 'Comprehensive Support',
-    color: '#22c55e',
+    color: '#16a34a',
     icon: CircleCheck,
     description: '4+ sources with robust evidence (score ≥50%)'
   },
   multi_source_support: {
     label: 'Multi-Source Support',
-    color: '#3b82f6',
+    color: '#2563eb',
     icon: CircleCheckBig,
     description: '3+ sources with emerging evidence (score ≥35%)'
   },
   established_support: {
     label: 'Established Support',
-    color: '#0ea5e9',
+    color: '#38bdf8',
     icon: Check,
     description: '2+ sources with moderate evidence (score ≥20%)'
   },
   preliminary_evidence: {
     label: 'Preliminary Evidence',
-    color: '#f59e0b',
+    color: '#fbbf24',
     icon: CircleAlert,
     description: 'Initial evidence requiring validation (score ≥10%)'
   },
   minimal_evidence: {
     label: 'Minimal Evidence',
-    color: '#6b7280',
+    color: '#4b5563',
     icon: Info,
     description: 'Limited early-stage evidence (score <10%)'
   }

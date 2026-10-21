@@ -1154,9 +1154,10 @@ const initializeCytoscape = () => {
   const colors = {}
   if (props.networkData.cytoscape_json?.elements) {
     props.networkData.cytoscape_json.elements.forEach(element => {
-      if (element.data?.cluster_id !== undefined && element.data?.color) {
-        colors[element.data.cluster_id] = element.data.color
-      }
+      const clusterId = element.data?.cluster_id
+      // Parent's size-ranked colours win over the backend's per-id palette (#325)
+      const color = props.clusterColorsMap.get(clusterId) ?? element.data?.color
+      if (clusterId !== undefined && color) colors[clusterId] = color
     })
   }
   clusterColors.value = colors

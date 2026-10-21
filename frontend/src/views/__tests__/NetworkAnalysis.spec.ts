@@ -11,7 +11,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import NetworkAnalysis from '@/views/NetworkAnalysis.vue'
-import { networkAnalysisConfig } from '@/config/networkAnalysis'
+import {
+  networkAnalysisConfig,
+  CLUSTER_PALETTE,
+  OTHER_CLUSTER_COLOR
+} from '@/config/networkAnalysis'
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -511,6 +515,52 @@ describe('NetworkAnalysis.vue', () => {
       list[0].genes.forEach((geneId: any) => {
         expect(typeof geneId).toBe('number')
       })
+    })
+  })
+
+  describe('cluster colours and list (#325)', () => {
+    // 12 clusters; cluster k has 13 - k genes, so size rank == k
+    const twelveClusters = () => {
+      const clusters: Record<string, number> = {}
+      let gene = 1
+      for (let k = 0; k < 12; k++) for (let n = 0; n < 13 - k; n++) clusters[String(gene++)] = k
+      return { clusters, num_clusters: 12, modularity: 0.5 }
+    }
+
+    it('colours only the 10 largest clusters, each distinctly, and greys the rest', async () => {
+      const vm = mountComponent().vm as any
+      vm.clusterStats = twelveClusters()
+      vm.clusterData = { nodes: 1, edges: 0, cytoscape_json: { elements: [] } }
+      await nextTick()
+      const colors = vm.clusterList.map((c: any) => c.color)
+      expect(colors.slice(0, 10)).toEqual(CLUSTER_PALETTE)
+      expect(new Set(colors.slice(0, 10)).size).toBe(10)
+      expect(colors.slice(10)).toEqual([OTHER_CLUSTER_COLOR, OTHER_CLUSTER_COLOR])
+      // The graph gets the same colours
+      expect(vm.clusterColors.get(0)).toBe(CLUSTER_PALETTE[0])
+      expect(vm.clusterColors.get(11)).toBe(OTHER_CLUSTER_COLOR)
+    })
+
+    it('renders cluster rows as toggle buttons with aria-pressed', async () => {
+      const slot = { template: '<div><slot /></div>' }
+      const wrapper = mountComponent({
+        Card: slot,
+        CardContent: slot,
+        Popover: slot,
+        PopoverContent: slot
+      })
+      const vm = wrapper.vm as any
+      vm.clusterStats = twelveClusters()
+      vm.clusterData = { nodes: 1, edges: 0, cytoscape_json: { elements: [] } }
+      vm.selectedClusters = [0]
+      await nextTick()
+      const rows = wrapper.findAll('button[aria-pressed]').filter(b => /Cluster \d+/.test(b.text()))
+      expect(rows.length).toBe(12)
+      expect(rows[0]!.attributes('type')).toBe('button')
+      expect(rows[0]!.attributes('aria-pressed')).toBe('true')
+      expect(rows[1]!.attributes('aria-pressed')).toBe('false')
+      await rows[1]!.trigger('click')
+      expect(vm.selectedClusters).toEqual([0, 1])
     })
   })
 
