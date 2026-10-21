@@ -172,7 +172,7 @@
       <div class="py-12 bg-muted/30 -mx-4 px-4 rounded-lg mb-16">
         <div class="max-w-2xl mx-auto">
           <h2 class="text-2xl font-medium text-center mb-6">How to Cite</h2>
-          <div class="relative rounded-md border-l-4 border-primary bg-background p-4 text-sm mb-3">
+          <div class="relative rounded-md border bg-background p-4 text-sm mb-3">
             <p class="text-muted-foreground pr-8">{{ primaryCitation }}</p>
             <button
               class="absolute top-3 right-3 p-1.5 rounded-md hover:bg-muted"

@@ -19,8 +19,7 @@
       <div>
         <h1 class="text-2xl font-bold">About This Database</h1>
         <p class="text-sm text-muted-foreground">
-          Learn how to use the database, understand core concepts, and explore our technical
-          architecture
+          Learn how to use the database, understand core concepts, and see how evidence is scored
         </p>
       </div>
     </div>
@@ -289,9 +288,7 @@ import {
   Info,
   Lightbulb,
   RefreshCw,
-  Search,
-  ShieldCheck,
-  Zap
+  Search
 } from 'lucide-vue-next'
 import {
   Breadcrumb,
@@ -352,36 +349,6 @@ const coreConcepts = [
     bullets: ['Configurable source weights', 'Transparent calculation methodology'],
     bulletIcon: ArrowRight,
     bulletClass: ''
-  },
-  {
-    title: 'High-Performance Architecture',
-    icon: Zap,
-    gradient: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-    description:
-      'Non-blocking architecture with L1/L2 caching (memory + database) delivers fast response times for cached requests. ThreadPoolExecutor ensures event loop never blocks during heavy operations.',
-    bullets: ['High cache hit rates', 'WebSocket progress tracking (no polling)'],
-    bulletIcon: Check,
-    bulletClass: 'text-green-600 dark:text-green-400'
-  },
-  {
-    title: 'Quality Assurance',
-    icon: ShieldCheck,
-    gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
-    description:
-      'Comprehensive quality checks at every stage: retry logic prevents transient failures, cache validation ensures data integrity, and audit trails track all normalization attempts in the gene staging table.',
-    bullets: ['Automatic retry with exponential backoff', 'Cache validation (no empty responses)'],
-    bulletIcon: ArrowRight,
-    bulletClass: ''
-  },
-  {
-    title: 'Real-Time Progress Tracking',
-    icon: RefreshCw,
-    gradient: 'linear-gradient(135deg, #ef4444, #dc2626)',
-    description:
-      'WebSocket connections provide real-time updates during pipeline operations without page refresh or polling. Watch genes flow from staging to curation with live progress bars and status updates.',
-    bullets: ['Stable WebSocket connections during processing', 'No blocking, no polling required'],
-    bulletIcon: Check,
-    bulletClass: 'text-green-600 dark:text-green-400'
   }
 ]
 </script>

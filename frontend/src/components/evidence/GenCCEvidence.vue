@@ -112,7 +112,7 @@
     <!-- Evidence score -->
     <div class="mt-4 p-3 bg-muted rounded">
       <div class="text-center">
-        <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">
+        <div class="text-2xl font-bold text-foreground">
           {{ evidenceScore }}
         </div>
         <div class="text-xs text-muted-foreground">Weighted Evidence Score</div>

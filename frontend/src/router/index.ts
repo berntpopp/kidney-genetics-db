@@ -84,7 +84,7 @@ export const routes: RouteRecordRaw[] = [
     meta: {
       title: 'About',
       description:
-        'Learn about the Kidney Genetics Database, its core concepts, data pipeline, and technical architecture.'
+        'Learn about the Kidney Genetics Database, its core concepts, data pipeline, and evidence scoring.'
     }
   },
   {

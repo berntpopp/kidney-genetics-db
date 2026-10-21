@@ -18,3 +18,12 @@ describe('About score table (#314)', () => {
     expect(rows.at(-1)?.text()).toContain('< 10')
   })
 })
+
+describe('About core concepts (#329)', () => {
+  it('describes the science, not the server architecture', () => {
+    const text = mount(About, { global: { stubs: { RouterLink: true } } }).text()
+    expect(text).not.toContain('High-Performance Architecture')
+    expect(text).not.toContain('Real-Time Progress Tracking')
+    expect(text).not.toContain('ThreadPoolExecutor')
+  })
+})
