@@ -3,6 +3,17 @@ Unified HPO (Human Phenotype Ontology) data source implementation.
 
 This module replaces the previous HPO implementations with a single,
 async-first implementation using the unified data source architecture.
+
+Persistence: HPO data is stored in two places by two pipelines (#254).
+- GeneEvidence (source_name "HPO"): written by this unified source during ingestion.
+  evidence_data holds hpo_terms, evidence_score, syndromic_assessment and
+  last_updated; it is the gene's HPO evidence record used for evidence scoring.
+- gene_annotations (source "hpo"): written by the annotation pipeline
+  (app.pipeline.sources.annotations.hpo) for every gene. annotations holds all
+  phenotypes, diseases, kidney_phenotypes and classification (clinical_group,
+  onset_group, syndromic_assessment). Gene pages, the network view and
+  /hpo-classifications read is_syndromic from here.
+Both compute syndromic_assessment with the shared score_syndromic_features.
 """
 
 from datetime import datetime, timezone

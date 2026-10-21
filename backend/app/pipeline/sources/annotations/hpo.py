@@ -76,7 +76,8 @@ def score_syndromic_features(
     # FORMULA (pending scientific decision, #255): SUM of category scores, as the
     # annotation pipeline (gene pages, network, /hpo-classifications) has always stored.
     # Unified ingestion previously used the MEAN: sum(...) / len(category_scores).
-    syndromic_score = sum(category_scores.values())
+    # From raw counts, not the rounded category scores: their rounding missed exact 0.3 (#254).
+    syndromic_score = sum(category_counts.values()) / len(phenotype_ids)
 
     return {
         "is_syndromic": syndromic_score >= 0.3,  # threshold from the predecessor R implementation

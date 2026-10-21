@@ -156,6 +156,29 @@ async def test_syndromic_classification_empty():
     assert result["extra_renal_categories"] == []
 
 
+def test_syndromic_threshold_boundary_is_inclusive():
+    """9 of 30 terms extra-renal is exactly 0.3: syndromic (>=), however categories split (#254).
+
+    Per-category rounding (4/30 -> 0.133) used to sum to 0.299 and miss the boundary.
+    """
+    from app.pipeline.sources.annotations.hpo import score_syndromic_features
+
+    phenotypes = {f"HP:{i:07d}" for i in range(30)}
+    terms = sorted(phenotypes)
+    descendants = {
+        "growth": set(terms[:1]),
+        "skeletal": set(terms[1:5]),
+        "head_neck": set(terms[5:9]),
+    }
+
+    at_boundary = score_syndromic_features(phenotypes, descendants)
+    assert at_boundary["syndromic_score"] == 0.3
+    assert at_boundary["is_syndromic"] is True
+
+    descendants["head_neck"] = set(terms[5:8])  # 8/30 = 0.267
+    assert score_syndromic_features(phenotypes, descendants)["is_syndromic"] is False
+
+
 if __name__ == "__main__":
     import asyncio
 
