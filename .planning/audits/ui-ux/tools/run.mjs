@@ -198,6 +198,7 @@ if (!flag('no-lighthouse')) {
         bestPractices: pick(r => Math.round(r.categories['best-practices'].score * 100)),
         seo: pick(r => Math.round(r.categories.seo.score * 100)),
         lcpMs: pick(r => Math.round(r.audits['largest-contentful-paint'].numericValue)),
+        fcpMs: pick(r => Math.round(r.audits['first-contentful-paint'].numericValue)),
         cls: round(pick(r => r.audits['cumulative-layout-shift'].numericValue)),
         tbtMs: pick(r => Math.round(r.audits['total-blocking-time'].numericValue)),
         a11yViolations: pick(r =>
