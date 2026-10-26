@@ -11,7 +11,6 @@ This module extends the existing DataSourceClient with unified patterns for:
 import hashlib
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -305,69 +304,6 @@ class UnifiedDataSource(DataSourceClient, ABC):
 
         return key_string
 
-    async def get_last_update_time(self) -> datetime | None:
-        """
-        Get the last update time for this data source.
-
-        Returns:
-            Last update datetime or None
-        """
-        if not self.cache_service:
-            return None
-
-        cache_key = f"{self.namespace}:last_update"
-
-        try:
-            timestamp = await self.cache_service.get(cache_key)
-            if timestamp:
-                return datetime.fromisoformat(timestamp)
-        except Exception as e:
-            logger.sync_warning("Failed to get last update time", error=e)
-
-        return None
-
-    async def set_last_update_time(self, update_time: datetime | None = None) -> None:
-        """
-        Set the last update time for this data source.
-
-        Args:
-            update_time: Update time (defaults to current time)
-        """
-        if not self.cache_service:
-            return
-
-        cache_key = f"{self.namespace}:last_update"
-        timestamp = (update_time or datetime.now(timezone.utc)).isoformat()
-
-        try:
-            # Store with long TTL (30 days)
-            await self.cache_service.set(
-                cache_key, timestamp, namespace="default", ttl=30 * 24 * 3600
-            )
-        except Exception as e:
-            logger.sync_warning("Failed to set last update time", error=e)
-
-    async def should_update(self, max_age_hours: int = 24) -> bool:
-        """
-        Check if data source should be updated based on age.
-
-        Args:
-            max_age_hours: Maximum age in hours before update is needed
-
-        Returns:
-            True if update is needed
-        """
-        if self.force_refresh:
-            return True
-
-        last_update = await self.get_last_update_time()
-
-        if not last_update:
-            return True
-
-        age = datetime.now(timezone.utc) - last_update
-        return age > timedelta(hours=max_age_hours)
-
     def get_statistics(self) -> dict[str, Any]:
         """
         Get statistics for this data source session.
@@ -395,46 +331,3 @@ class UnifiedDataSource(DataSourceClient, ABC):
             "retries": 0,
             "errors": 0,
         }
-
-    async def warmup_cache(self, items: list[Any] | None = None) -> dict[str, Any]:
-        """
-        Pre-populate cache with commonly accessed data.
-
-        Args:
-            items: Optional list of items to warm up
-
-        Returns:
-            Statistics about warmup process
-        """
-        warmup_stats: dict[str, Any] = {
-            "items_processed": 0,
-            "items_cached": 0,
-            "errors": 0,
-            "duration_seconds": 0.0,
-        }
-
-        start_time = datetime.now(timezone.utc)
-
-        # Default implementation - subclasses should override
-        logger.sync_info("Starting cache warmup", source_name=self.source_name)
-
-        # Fetch and cache raw data
-        try:
-            data = await self.fetch_raw_data()
-            if data:
-                warmup_stats["items_cached"] += 1
-        except Exception as e:
-            logger.sync_error("Cache warmup failed", error=e)
-            warmup_stats["errors"] += 1
-
-        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-        warmup_stats["duration_seconds"] = duration
-
-        logger.sync_info(
-            "Cache warmup completed",
-            source_name=self.source_name,
-            items_cached=warmup_stats["items_cached"],
-            duration_seconds=round(duration, 2),
-        )
-
-        return warmup_stats

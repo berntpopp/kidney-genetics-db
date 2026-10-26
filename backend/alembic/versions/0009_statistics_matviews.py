@@ -23,7 +23,6 @@ branch_labels = None
 depends_on = None
 
 # 0001-0008 definition (downgrade).
-# Must match app/db/materialized_views.py.
 _SOURCE_OVERLAP = """
     WITH source_totals AS (
         SELECT source_name, COUNT(DISTINCT gene_id) AS total
