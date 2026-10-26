@@ -3,6 +3,7 @@ Authentication endpoints for user login, registration, and token management
 """
 
 from datetime import datetime, timedelta, timezone
+from functools import cache
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
@@ -76,23 +77,29 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
 
+    # A token issued before this account existed belonged to an earlier user of the name (#374)
+    if payload.get("iat", 0) < int(user.created_at.timestamp()):
+        raise credentials_exception
+
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
 
-    # Check if account is locked (handle both naive and aware datetimes)
-    if user.locked_until:
-        now = datetime.now(timezone.utc)
-        locked_until = user.locked_until
-        # Make comparison work with naive datetimes from DB
-        if locked_until.tzinfo is None:
-            locked_until = locked_until.replace(tzinfo=timezone.utc)
-        if locked_until > now:
-            raise HTTPException(
-                status_code=status.HTTP_423_LOCKED,
-                detail=f"Account locked until {user.locked_until}",
-            )
-
+    # A login lock stops password guessing; it does not end sessions already open (#374)
     return user
+
+
+def _is_locked(user: User) -> bool:
+    if not user.locked_until:
+        return False
+    locked_until = user.locked_until
+    if locked_until.tzinfo is None:  # the column is naive UTC
+        locked_until = locked_until.replace(tzinfo=timezone.utc)
+    return bool(locked_until > datetime.now(timezone.utc))
+
+
+@cache
+def _dummy_hash() -> str:
+    return get_password_hash("not-a-real-password")
 
 
 # Optional dependency - returns None if no auth
@@ -130,10 +137,23 @@ async def login(
         )
     )
     user = result.scalar_one_or_none()
+    invalid = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Incorrect username/email or password",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
-    # Check if user exists and password is correct
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        # Increment failed login attempts if user exists
+    # One bcrypt check every time, so timing shows neither unknown names nor locks (#374)
+    password_ok = verify_password(
+        form_data.password, user.hashed_password if user else _dummy_hash()
+    )
+    # While locked every answer is a wrong password: guesses neither count nor tell (#374).
+    # ponytail: anyone can still lock a known account for ACCOUNT_LOCKOUT_MINUTES; per-IP
+    # throttling (LIMIT_AUTH_LOGIN) is what bounds guessing. Key the lock per IP if that bites.
+    if user and _is_locked(user):
+        raise invalid
+
+    if not user or not password_ok:
         if user:
             user.failed_login_attempts += 1
             if user.failed_login_attempts >= settings.MAX_LOGIN_ATTEMPTS:
@@ -146,25 +166,7 @@ async def login(
                     attempts=user.failed_login_attempts,
                 )
             db.commit()
-
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username/email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Check if account is locked (handle both naive and aware datetimes)
-    if user.locked_until:
-        now = datetime.now(timezone.utc)
-        locked_until = user.locked_until
-        # Make comparison work with naive datetimes from DB
-        if locked_until.tzinfo is None:
-            locked_until = locked_until.replace(tzinfo=timezone.utc)
-        if locked_until > now:
-            raise HTTPException(
-                status_code=status.HTTP_423_LOCKED,
-                detail=f"Account locked until {user.locked_until}",
-            )
+        raise invalid
 
     # Check if account is active
     if not user.is_active:
@@ -274,13 +276,16 @@ async def refresh_token(
 
 @router.post("/logout")
 async def logout(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """
-    Logout current user (invalidate refresh token).
+    Logout current user (invalidate refresh token and clear its cookie).
     """
     current_user.refresh_token = None
     db.commit()
+    response.delete_cookie("refresh_token", path="/api/auth")
 
     await logger.info("User logged out", username=current_user.username)
 
@@ -291,6 +296,7 @@ async def logout(
 @limiter.limit("3/hour")
 async def forgot_password(
     request: Request,
+    response: Response,
     body: PasswordReset,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
@@ -334,8 +340,12 @@ async def _send_reset_email(user_id: int, email: str, token: str) -> None:
 
 
 @router.post("/reset-password")
+@limiter.limit("10/hour")
 async def reset_password(
-    request: PasswordResetConfirm, db: Session = Depends(get_db)
+    request: Request,
+    response: Response,
+    body: PasswordResetConfirm,
+    db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """
     Reset password using reset token.
@@ -343,7 +353,7 @@ async def reset_password(
     # Find user by reset token
     result = db.execute(
         select(User).where(
-            User.password_reset_token == hash_reset_token(request.token),
+            User.password_reset_token == hash_reset_token(body.token),
             User.password_reset_expires > datetime.now(timezone.utc),
         )
     )
@@ -355,7 +365,7 @@ async def reset_password(
         )
 
     # Validate new password
-    is_valid, errors = validate_password_strength(request.new_password)
+    is_valid, errors = validate_password_strength(body.new_password)
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -363,7 +373,7 @@ async def reset_password(
         )
 
     # Update password
-    user.hashed_password = get_password_hash(request.new_password)
+    user.hashed_password = get_password_hash(body.new_password)
     user.refresh_token = None  # revoke existing sessions (#290)
     user.password_reset_token = None
     user.password_reset_expires = None
@@ -427,6 +437,8 @@ async def change_password(
     # Update password
     current_user.hashed_password = get_password_hash(request.new_password)
     current_user.refresh_token = None  # revoke existing sessions (#290)
+    current_user.password_reset_token = None  # an older reset link must not undo it (#374)
+    current_user.password_reset_expires = None
     db.commit()
 
     await logger.info("Password changed", username=current_user.username)
@@ -571,11 +583,20 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Don't allow admin to remove their own admin role
+    # Don't allow admin to remove their own admin role or deactivate themselves (last admin, #374)
     if user.id == current_user.id and user_update.role and user_update.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot remove your own admin role"
         )
+    if user.id == current_user.id and user_update.is_active is False:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot deactivate your own account"
+        )
+    # A new role or a deactivation also ends the user's sessions; re-login picks it up (#374)
+    if (user_update.role not in (None, user.role)) or (
+        user_update.is_active not in (None, user.is_active)
+    ):
+        user.refresh_token = None
 
     # Update fields if provided
     if user_update.email is not None:

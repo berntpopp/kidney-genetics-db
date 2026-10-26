@@ -28,6 +28,7 @@ router = APIRouter()
 async def get_pending_reviews(
     *,
     db: Session = Depends(get_db),
+    _: User = Depends(require_curator),  # raw gene texts and source context (#374)
     limit: int = Query(default=50, le=200, description="Maximum number of records to return"),
     source_filter: str = Query(default=None, description="Filter by data source"),
 ) -> list[GeneNormalizationStagingResponse]:
@@ -155,6 +156,7 @@ async def get_normalization_stats(*, db: Session = Depends(get_db)) -> Normaliza
 async def get_normalization_logs(
     *,
     db: Session = Depends(get_db),
+    _: User = Depends(require_curator),  # raw gene texts and source context (#374)
     limit: int = Query(default=100, le=500, description="Maximum number of logs to return"),
     source_filter: str = Query(default=None, description="Filter by data source"),
     success_filter: bool = Query(default=None, description="Filter by success status"),

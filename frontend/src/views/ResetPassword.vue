@@ -20,18 +20,15 @@ const router = useRouter()
 const token = typeof route.query.token === 'string' ? route.query.token : ''
 
 const resetPasswordSchema = toTypedSchema(
-  z
-    .object({
-      password: z.string().min(8, 'Password must be at least 8 characters'),
-      confirm: z.string().min(1, 'Please repeat the password')
-    })
-    .refine(v => v.password === v.confirm, {
-      message: 'Passwords do not match',
-      path: ['confirm']
-    })
+  z.object({
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirm: z.string().min(1, 'Please repeat the password')
+  })
 )
 
-const { handleSubmit, defineField, errors } = useForm({ validationSchema: resetPasswordSchema })
+const { handleSubmit, defineField, errors, setFieldError } = useForm({
+  validationSchema: resetPasswordSchema
+})
 const [password, passwordAttrs] = defineField('password', { validateOnBlur: true })
 const [confirm, confirmAttrs] = defineField('confirm', { validateOnBlur: true })
 
@@ -39,6 +36,11 @@ const done = ref(false)
 
 const onSubmit = handleSubmit(
   async values => {
+    if (values.password !== values.confirm) {
+      setFieldError('confirm', 'Passwords do not match')
+      document.getElementById('reset-confirm')?.focus()
+      return
+    }
     if (await authStore.resetPassword(token, values.password)) {
       done.value = true
       setTimeout(() => router.push('/login'), 3000)

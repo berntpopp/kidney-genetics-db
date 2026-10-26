@@ -67,6 +67,7 @@ def create_access_token(
 
     to_encode = {
         "exp": expire,
+        "iat": datetime.now(timezone.utc),
         "sub": str(subject),
         "type": "access",
         "role": role or "viewer",
