@@ -95,7 +95,8 @@ const internalProcesses = computed(() =>
     .sort((a, b) => a.source_name.localeCompare(b.source_name))
 )
 
-const runningSources = computed(() => dataSources.value.filter(s => s.status === 'running').length)
+// Includes internal processes such as the annotation pipeline (#370)
+const runningSources = computed(() => sources.value.filter(s => s.status === 'running').length)
 
 const completedSources = computed(
   () => dataSources.value.filter(s => s.status === 'completed').length
