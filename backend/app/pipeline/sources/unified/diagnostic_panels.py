@@ -333,6 +333,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         original_filename: str | None = None,
         uploaded_by: int | None = None,
         mode: str = "merge",
+        gene_ids: dict[str, int] | None = None,
     ) -> dict[str, Any]:
         """Store evidence with MERGE semantics and filtering for diagnostic panels."""
 
@@ -395,6 +396,8 @@ class DiagnosticPanelsSource(UnifiedDataSource):
         stmt = select(Gene).where(Gene.approved_symbol.in_(gene_symbols))
         genes = db.execute(stmt).scalars().all()
         gene_map = {g.approved_symbol: g.id for g in genes}
+        # IDs from normalization win: a raw symbol like C5orf42 is no approved symbol (#366)
+        gene_map.update(gene_ids or {})
 
         logger.sync_debug(
             "Gene IDs fetched",
@@ -438,10 +441,12 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                 stats["failed"] += 1
                 continue
 
-            if gene_id in existing_map:
+            # Two source symbols can resolve to one gene: merge onto the earlier one (#366)
+            prev = merged_gene_data.get(gene_id)
+            if prev or gene_id in existing_map:
                 # MERGE: Prepare merged data
-                record = existing_map[gene_id]
-                current_data = record.evidence_data or {}
+                record = prev["record"] if prev else existing_map[gene_id]
+                current_data = prev["data"] if prev else (record.evidence_data or {})
 
                 # Merge panels and providers
                 existing_panels = set(current_data.get("panels", []))
@@ -464,11 +469,11 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                     "provider_count": len(merged_providers),
                 }
 
-                merged_gene_data[symbol] = {
+                merged_gene_data[gene_id] = {
                     "gene_id": gene_id,
                     "data": merged_data,
                     "record": record,
-                    "is_new": False,
+                    "is_new": prev["is_new"] if prev else False,
                 }
 
                 logger.sync_debug(
@@ -488,7 +493,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
                     "provider_count": len(gene_providers),
                 }
 
-                merged_gene_data[symbol] = {
+                merged_gene_data[gene_id] = {
                     "gene_id": gene_id,
                     "data": new_data,
                     "record": None,

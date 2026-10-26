@@ -183,6 +183,7 @@ async def upload_evidence_file(
 
         genes_created = 0
         genes_updated = 0
+        gene_ids: dict[str, int] = {}
 
         for batch_num in range(total_batches):
             start_idx = batch_num * batch_size
@@ -214,6 +215,7 @@ async def upload_evidence_file(
                         db, norm_result, symbol, {"genes_created": 0, "genes_updated": 0}
                     )
                     if gene:
+                        gene_ids[symbol] = gene.id
                         genes_created += 1 if norm_result.get("created") else 0
                         genes_updated += 1 if not norm_result.get("created") else 0
 
@@ -262,6 +264,7 @@ async def upload_evidence_file(
             original_filename=file.filename,
             uploaded_by=current_user.id,
             mode=mode,
+            gene_ids=gene_ids,
         )
 
         await logger.info("Evidence storage complete", stats=evidence_stats)
