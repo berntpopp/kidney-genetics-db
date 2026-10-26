@@ -343,21 +343,11 @@ async def update_failed_annotations(
     await logger.info("Failed annotations update requested", sources=sources)
     _refuse_if_pipeline_running(db)
 
-    # Query genes that have incomplete annotations
-    from sqlalchemy import and_, exists
+    from sqlalchemy import exists
 
-    from app.models.gene import GeneCuration
-
-    # Find genes with evidence score but missing/incomplete annotations
-    failed_query = (
-        db.query(Gene)
-        .join(GeneCuration, GeneCuration.gene_id == Gene.id)
-        .filter(
-            and_(
-                GeneCuration.evidence_score > 0, ~exists().where(GeneAnnotation.gene_id == Gene.id)
-            )
-        )
-    )
+    # Genes without any annotation (gene_curations.evidence_score is never set, so it
+    # cannot filter here: #366)
+    failed_query = db.query(Gene).filter(~exists().where(GeneAnnotation.gene_id == Gene.id))
 
     failed_genes = failed_query.limit(50).all()  # Limit to 50 genes at a time
 

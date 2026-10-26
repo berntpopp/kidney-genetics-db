@@ -786,6 +786,7 @@ class AnnotationPipeline:
             )
 
         batch_data: dict[int, dict[str, Any]] = {}
+        fetch_failed = False
         try:
             batch_data = await source.fetch_batch(genes)
             if batch_data is None:
@@ -799,6 +800,7 @@ class AnnotationPipeline:
                 total=total_genes,
             )
         except Exception as e:
+            fetch_failed = True
             logger.sync_warning(
                 f"Batch fetch failed for {source_name}, falling back to per-gene: {e}",
             )
@@ -916,8 +918,16 @@ class AnnotationPipeline:
             logger.sync_debug(f"Cache clear failed: {e}")
 
         if total_genes and successful == 0:
-            # Every gene failed (e.g. an upstream outage): an error, and keep the source due
-            raise RuntimeError(f"{source_name}: 0/{total_genes} genes updated")
+            # An outage (fetch raised, or genes that had data now get none) fails the source and
+            # keeps it due; genes the source simply has no data for must not (#360).
+            had_data = (
+                source_db.query(GeneAnnotation.id)
+                .filter(GeneAnnotation.source == source_name, GeneAnnotation.gene_id.in_(gene_ids))
+                .first()
+            )
+            source_db.commit()
+            if fetch_failed or had_data:
+                raise RuntimeError(f"{source_name}: 0/{total_genes} genes updated")
 
         # Always update source metadata after a run so the scheduler
         # advances next_update even when no genes needed updating (avoids
