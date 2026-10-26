@@ -380,6 +380,19 @@ class BaseAnnotationSource(ABC):
         )
         self.session.add(history)
 
+    def _release_transaction(self) -> None:
+        """Commit before a network await so no transaction idles across it (#249).
+
+        Loaded objects are kept (not expired), so reading them later does not reopen a
+        transaction before the await.
+        """
+        expire_on_commit = self.session.expire_on_commit
+        self.session.expire_on_commit = False
+        try:
+            self.session.commit()
+        finally:
+            self.session.expire_on_commit = expire_on_commit
+
     async def update_gene(self, gene: Gene) -> bool:
         """
         Update annotations for a single gene with proper retry and cache validation.
@@ -393,6 +406,7 @@ class BaseAnnotationSource(ABC):
         try:
             cache_service = get_cache_service(self.session)
             cache_key = f"{gene.approved_symbol}:{gene.hgnc_id}"
+            self._release_transaction()
             # source_name is validated non-None in __init__
             source_namespace = self.source_name.lower() if self.source_name else "unknown"
 
@@ -474,6 +488,7 @@ class BaseAnnotationSource(ABC):
 
             # Try batch fetch first
             try:
+                self._release_transaction()
                 batch_data = await self.fetch_batch(batch)
 
                 for gene in batch:

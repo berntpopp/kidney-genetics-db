@@ -876,6 +876,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
             True if successful, False otherwise
         """
         try:
+            self._release_transaction()
             annotation_data = await self.fetch_annotation(gene)
 
             if annotation_data:

@@ -249,6 +249,9 @@ async def update_gene_annotations(
         elif source_name == "uniprot":
             background_tasks.add_task(_update_uniprot_annotation, gene, db)
 
+    # End the read transaction: the response and background fetches must not hold it (#249).
+    db.commit()
+
     return {
         "status": "update_scheduled",
         "gene_id": gene_id,
