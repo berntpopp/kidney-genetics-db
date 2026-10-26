@@ -5,13 +5,14 @@ Authentication endpoints for user login, registration, and token management
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.email import email_enabled, send_email
 from app.core.logging import get_logger
 from app.core.rate_limit import LIMIT_AUTH_LOGIN, LIMIT_AUTH_REGISTER, limiter
 from app.core.security import (
@@ -20,6 +21,7 @@ from app.core.security import (
     generate_email_verification_token,
     generate_password_reset_token,
     get_password_hash,
+    hash_reset_token,
     validate_password_strength,
     verify_password,
     verify_token,
@@ -285,28 +287,47 @@ async def logout(
 @router.post("/forgot-password")
 @limiter.limit("3/hour")
 async def forgot_password(
-    request: Request, body: PasswordReset, db: Session = Depends(get_db)
+    request: Request,
+    body: PasswordReset,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """
-    Request password reset token.
-    Always returns success to prevent email enumeration.
+    Email a one-hour password-reset link.
+    Always returns the same message, sent after the response, to prevent email enumeration.
     """
-    # Find user by email
+    if not email_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Password reset by email is not available. Ask an administrator to reset it.",
+        )
+
     result = db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
 
     if user and user.is_active:
-        # Generate reset token
         reset_token = generate_password_reset_token()
-        user.password_reset_token = reset_token
+        user.password_reset_token = hash_reset_token(reset_token)
         user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
         db.commit()
-
-        # NOTE: Email service integration is a separate feature.
-        # Reset token is stored in DB; email delivery TBD.
-        await logger.info("Password reset requested", email=body.email)
+        background_tasks.add_task(_send_reset_email, user.id, user.email, reset_token)
 
     return {"message": "If an account with that email exists, a password reset link has been sent."}
+
+
+async def _send_reset_email(user_id: int, email: str, token: str) -> None:
+    link = f"{settings.SITE_URL}/reset-password?token={token}"
+    try:
+        await send_email(
+            email,
+            "Reset your Kidney-Genetics password",
+            "Someone asked to reset the password for your Kidney-Genetics account.\n\n"
+            f"Open this link within one hour to choose a new password:\n{link}\n\n"
+            "If this wasn't you, ignore this email; your password stays the same.\n",
+        )
+        await logger.info("Password reset email sent", user_id=user_id)
+    except Exception as e:  # the response is already sent; the admin sees it in the logs
+        await logger.error("Password reset email failed", user_id=user_id, error=str(e))
 
 
 @router.post("/reset-password")
@@ -319,7 +340,7 @@ async def reset_password(
     # Find user by reset token
     result = db.execute(
         select(User).where(
-            User.password_reset_token == request.token,
+            User.password_reset_token == hash_reset_token(request.token),
             User.password_reset_expires > datetime.now(timezone.utc),
         )
     )

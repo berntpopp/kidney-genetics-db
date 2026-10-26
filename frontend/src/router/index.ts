@@ -130,6 +130,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'Forgot Password', noindex: true }
   },
   {
+    path: '/reset-password',
+    name: 'reset-password',
+    component: () => import('../views/ResetPassword.vue'),
+    meta: { title: 'Reset Password', noindex: true }
+  },
+  {
     path: '/profile',
     name: 'profile',
     component: () => import('../views/Profile.vue'),

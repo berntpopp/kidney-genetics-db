@@ -145,6 +145,11 @@ def generate_password_reset_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+def hash_reset_token(token: str) -> str:
+    """The stored form of a reset token, so a database leak exposes no usable links."""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 def generate_email_verification_token() -> str:
     """
     Generate a secure random token for email verification.

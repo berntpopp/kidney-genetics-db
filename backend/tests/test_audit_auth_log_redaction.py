@@ -10,7 +10,7 @@ from httpx import AsyncClient
 from app.api.endpoints.admin_settings import get_settings_service
 from app.core.logging.context import get_context
 from app.core.logging.unified_logger import UnifiedLogger
-from app.core.security import create_access_token
+from app.core.security import create_access_token, hash_reset_token
 from app.main import app
 from tests.fixtures.auth import get_or_create_user
 
@@ -72,7 +72,7 @@ async def test_auth_secrets_never_reach_logs(
     assert resp.status_code == 200, resp.text
 
     # Password reset with a valid token
-    user.password_reset_token = RESET_TOKEN
+    user.password_reset_token = hash_reset_token(RESET_TOKEN)
     user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
     db_session.commit()
     resp = await async_client.post(
