@@ -5,6 +5,7 @@ This module provides a hybrid source that accepts file uploads for commercial
 diagnostic panel data and properly aggregates evidence across multiple providers.
 """
 
+import asyncio
 import json
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -131,7 +132,7 @@ class DiagnosticPanelsSource(UnifiedDataSource):
             elif file_type in ["csv", "tsv"]:
                 df = self._parse_csv(file_content, file_type)
             elif file_type in ["xlsx", "xls"]:
-                df = self._parse_excel(file_content)
+                df = await asyncio.to_thread(self._parse_excel, file_content)  # (#363)
             else:
                 raise ValueError(f"Unsupported file type: {file_type}")
 
