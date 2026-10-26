@@ -302,6 +302,9 @@ async def trigger_pipeline_update(
         _run_pipeline_update, update_strategy, sources, gene_ids, force, task_id
     )
 
+    # End the read: this session is held until the background run ends (#249)
+    db.commit()
+
     return {
         "task_id": task_id,
         "status": "scheduled",
@@ -356,6 +359,8 @@ async def update_failed_annotations(
         await logger.info("No failed genes found to retry")
         return {"message": "No failed genes to retry", "count": 0, "status": "completed"}
 
+    failed_gene_ids = [g.id for g in failed_genes]
+
     # Generate task ID
     task_id = str(uuid.uuid4())
 
@@ -364,7 +369,7 @@ async def update_failed_annotations(
         _run_pipeline_update,
         UpdateStrategy.INCREMENTAL,
         sources,
-        [g.id for g in failed_genes],
+        failed_gene_ids,
         False,  # force
         task_id,
     )
@@ -373,12 +378,15 @@ async def update_failed_annotations(
         "Failed annotations update scheduled", gene_count=len(failed_genes), task_id=task_id
     )
 
+    # End the read: this session is held until the background run ends (#249)
+    db.commit()
+
     return {
         "task_id": task_id,
         "status": "scheduled",
         "message": f"Scheduled retry for {len(failed_genes)} failed genes",
         "count": len(failed_genes),
-        "gene_ids": [g.id for g in failed_genes][:10],  # First 10 for preview
+        "gene_ids": failed_gene_ids[:10],  # First 10 for preview
     }
 
 
@@ -430,6 +438,8 @@ async def update_new_genes(
         await logger.info("No new genes without annotations found")
         return {"message": "No new genes found", "count": 0, "status": "completed"}
 
+    new_gene_ids = [g.id for g in new_genes]
+
     # Generate task ID
     task_id = str(uuid.uuid4())
 
@@ -438,19 +448,22 @@ async def update_new_genes(
         _run_pipeline_update,
         UpdateStrategy.FULL,
         None,  # sources
-        [g.id for g in new_genes],
+        new_gene_ids,
         False,  # force
         task_id,
     )
 
     await logger.info("New genes update scheduled", gene_count=len(new_genes), task_id=task_id)
 
+    # End the read: this session is held until the background run ends (#249)
+    db.commit()
+
     return {
         "task_id": task_id,
         "status": "scheduled",
         "message": f"Scheduled processing for {len(new_genes)} new genes",
         "count": len(new_genes),
-        "gene_ids": [g.id for g in new_genes][:10],  # First 10 for preview
+        "gene_ids": new_gene_ids[:10],  # First 10 for preview
     }
 
 
@@ -496,6 +509,9 @@ async def update_missing_source(
     background_tasks.add_task(_run_missing_source_update, source_name, task_id)
 
     await logger.info(f"{source_name} missing update scheduled", task_id=task_id)
+
+    # End the read: this session is held until the background run ends (#249)
+    db.commit()
 
     return {
         "task_id": task_id,
@@ -609,6 +625,9 @@ async def reset_gene_annotations(
         task_id=task_id,
         user_id=current_user.id if current_user else None,
     )
+
+    # End the read: this session is held until the background run ends (#249)
+    db.commit()
 
     return {
         "status": "accepted",
