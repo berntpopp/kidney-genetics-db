@@ -44,8 +44,9 @@ CLINICAL_GROUP_PRIORITY = (
     "nephrolithiasis",
     "neoplasia",
 )
-CLINICAL_GROUP_METHOD = "hpo-freq-ic-v2"
-SECONDARY_GROUP_RATIO = 0.5  # secondary: evidence >= this share of the primary's
+CLINICAL_GROUP_METHOD = "hpo-freq-ic-v2.1"  # v2.1: secondary cut-off 0.5 -> 0.4
+# secondary: evidence >= this share of the primary's; chosen on PanelApp (spec, #338)
+SECONDARY_GROUP_RATIO = 0.4
 
 # HPO frequency classes -> class midpoints (hp.json); m/n smoothing and the prior for
 # unknown frequency follow VarLens hpo-scoring.config.ts.

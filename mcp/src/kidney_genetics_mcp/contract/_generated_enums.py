@@ -88,6 +88,7 @@ AnnotationSource = Literal[
     "string_ppi",
     "descartes",
     "hpo",
+    "mondo",
 ]
 ANNOTATION_SOURCE_VALUES: tuple[str, ...] = (
     "hgnc",
@@ -100,4 +101,5 @@ ANNOTATION_SOURCE_VALUES: tuple[str, ...] = (
     "string_ppi",
     "descartes",
     "hpo",
+    "mondo",
 )

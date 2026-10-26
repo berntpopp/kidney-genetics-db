@@ -70,13 +70,67 @@ evidence_source_counts = ReplaceableObject(
 evidence_classification_weights = ReplaceableObject(
     name="evidence_classification_weights",
     sqltext="""
-    WITH gencc_weighted AS (
+    WITH gencc_submissions AS (
+        -- Two-stage GenCC score (#330, .planning/specs/2026-10-26-gencc-two-stage.md)
+        SELECT ge.id AS evidence_id,
+            NULLIF(btrim(s.value ->> 'submitter'::text), ''::text) AS submitter,
+            CASE lower(btrim(s.value ->> 'classification'::text))
+                WHEN 'definitive' THEN 1.0
+                WHEN 'strong' THEN 0.8
+                WHEN 'moderate' THEN 0.6
+                WHEN 'supportive' THEN 0.5
+                WHEN 'limited' THEN 0.4
+                WHEN 'disputed evidence' THEN 0.2
+                ELSE 0.0
+            END AS weight,
+            CASE lower(btrim(s.value ->> 'classification'::text))
+                WHEN 'definitive' THEN 6
+                WHEN 'strong' THEN 5
+                WHEN 'moderate' THEN 4
+                -- supportive: Orphanet/OMIM's ungraded term (DiStefano 2022, PMC7613247), not an ordinal grade
+                WHEN 'limited' THEN 2
+                WHEN 'disputed evidence' THEN 1
+                WHEN 'no known disease relationship' THEN 0
+                WHEN 'refuted evidence' THEN 0
+                ELSE NULL  -- unranked: ignored for agreement and conflict
+            END AS rank
+        FROM gene_evidence ge
+        CROSS JOIN LATERAL jsonb_array_elements(
+            CASE WHEN jsonb_typeof(ge.evidence_data -> 'submissions'::text) = 'array'::text
+                THEN ge.evidence_data -> 'submissions'::text
+                ELSE '[]'::jsonb
+            END) s
+        WHERE ge.source_name::text = 'GenCC'::text
+    ), gencc_submitters AS (
+        -- Counted submitters: ClinGen is a separate source (#282); strongest ranked class each
+        SELECT evidence_id, submitter, MAX(rank) AS rank
+        FROM gencc_submissions
+        WHERE submitter IS NOT NULL AND submitter <> 'ClinGen'::text AND rank IS NOT NULL
+        GROUP BY evidence_id, submitter
+    ), gencc_quality AS (
+        SELECT evidence_id, MAX(weight) AS q, MAX(rank) AS top_rank
+        FROM gencc_submissions
+        GROUP BY evidence_id
+    ), gencc_consensus AS (
+        SELECT gq.evidence_id,
+            gq.q,
+            GREATEST(1, COUNT(gs.submitter) FILTER (WHERE gs.rank = gq.top_rank)) AS n,
+            COALESCE(MAX(gs.rank) - MIN(gs.rank), 0) AS rank_spread
+        FROM gencc_quality gq
+        LEFT JOIN gencc_submitters gs ON gs.evidence_id = gq.evidence_id
+        GROUP BY gq.evidence_id, gq.q, gq.top_rank
+    ), gencc_weighted AS (
         SELECT ge.id AS evidence_id,
             g.id AS gene_id,
             g.approved_symbol,
             ge.source_name,
-            -- Simple MAX approach - take the best classification
-            COALESCE(
+            CASE WHEN gc.evidence_id IS NOT NULL THEN
+                GREATEST(0.0,
+                    LEAST(1.0, gc.q * (1.0 + 0.1 * ln(gc.n::numeric)))
+                    - CASE WHEN gc.rank_spread >= 2 THEN 0.1 ELSE 0.0 END
+                )::numeric
+            -- Fallback for rows without submissions: MAX of classification weights
+            ELSE COALESCE(
                 (SELECT MAX(
                     CASE lower(replace(elem.value::text, '"', ''))
                         WHEN 'definitive' THEN 1.0
@@ -90,9 +144,10 @@ evidence_classification_weights = ReplaceableObject(
                     END
                 ) FROM jsonb_array_elements(ge.evidence_data -> 'classifications') elem),
                 0.0
-            ) AS classification_weight
+            ) END AS classification_weight
         FROM gene_evidence ge
         JOIN genes g ON ge.gene_id = g.id
+        LEFT JOIN gencc_consensus gc ON gc.evidence_id = ge.id
         WHERE ge.source_name::text = 'GenCC'::text
     ), clingen_weights AS (
         SELECT ge.id AS evidence_id,

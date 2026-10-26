@@ -9,6 +9,74 @@ from typing import Annotated, Any, Literal
 from pydantic import AwareDatetime, BaseModel, EmailStr, Field, RootModel, SecretStr
 
 
+class EvidenceSummary(RootModel[str]):
+    root: Annotated[str, Field(max_length=2000, title="Evidence Summary")]
+
+
+class AssociationCreate(BaseModel):
+    citations: Annotated[
+        list[str], Field(max_length=100, min_length=1, title="Citations")
+    ]
+    disease_id: Annotated[str, Field(title="Disease Id")]
+    disease_name: Annotated[
+        str, Field(max_length=255, min_length=1, title="Disease Name")
+    ]
+    evidence_strength: Annotated[
+        Literal["Definitive", "Strong", "Moderate", "Limited", "Disputed", "Refuted"],
+        Field(title="Evidence Strength"),
+    ]
+    evidence_summary: Annotated[
+        EvidenceSummary | None, Field(title="Evidence Summary")
+    ] = None
+    gene_symbol: Annotated[
+        str, Field(max_length=100, min_length=1, title="Gene Symbol")
+    ]
+
+
+class AssociationResponse(BaseModel):
+    citations: Annotated[list[str], Field(title="Citations")]
+    created_at: Annotated[AwareDatetime, Field(title="Created At")]
+    curator_id: Annotated[int, Field(title="Curator Id")]
+    disease_id: Annotated[str, Field(title="Disease Id")]
+    disease_name: Annotated[str, Field(title="Disease Name")]
+    evidence_strength: Annotated[
+        Literal["Definitive", "Strong", "Moderate", "Limited", "Disputed", "Refuted"],
+        Field(title="Evidence Strength"),
+    ]
+    evidence_summary: Annotated[str | None, Field(title="Evidence Summary")] = None
+    gene_id: Annotated[int, Field(title="Gene Id")]
+    gene_symbol: Annotated[str, Field(title="Gene Symbol")]
+    id: Annotated[int, Field(title="Id")]
+    published_at: Annotated[AwareDatetime | None, Field(title="Published At")] = None
+    reviewed_at: Annotated[AwareDatetime | None, Field(title="Reviewed At")] = None
+    reviewer_id: Annotated[int | None, Field(title="Reviewer Id")] = None
+    status: Annotated[Literal["draft", "in_review", "published"], Field(title="Status")]
+    submitted_at: Annotated[AwareDatetime | None, Field(title="Submitted At")] = None
+    updated_at: Annotated[AwareDatetime, Field(title="Updated At")]
+
+
+class Citations(RootModel[list[str]]):
+    root: Annotated[list[str], Field(max_length=100, min_length=1, title="Citations")]
+
+
+class DiseaseName(RootModel[str]):
+    root: Annotated[str, Field(max_length=255, min_length=1, title="Disease Name")]
+
+
+class AssociationUpdate(BaseModel):
+    citations: Annotated[Citations | None, Field(title="Citations")] = None
+    disease_id: Annotated[str | None, Field(title="Disease Id")] = None
+    disease_name: Annotated[DiseaseName | None, Field(title="Disease Name")] = None
+    evidence_strength: Annotated[
+        Literal["Definitive", "Strong", "Moderate", "Limited", "Disputed", "Refuted"]
+        | None,
+        Field(title="Evidence Strength"),
+    ] = None
+    evidence_summary: Annotated[
+        EvidenceSummary | None, Field(title="Evidence Summary")
+    ] = None
+
+
 class BackupStatus(
     RootModel[Literal["pending", "running", "completed", "failed", "restored"]]
 ):
@@ -865,6 +933,11 @@ class ValidationError(BaseModel):
     loc: Annotated[list[str | int], Field(title="Location")]
     msg: Annotated[str, Field(title="Message")]
     type: Annotated[str, Field(title="Error Type")]
+
+
+class AssociationList(BaseModel):
+    data: Annotated[list[AssociationResponse], Field(title="Data")]
+    meta: Annotated[dict[str, int], Field(title="Meta")]
 
 
 class HTTPValidationError(BaseModel):

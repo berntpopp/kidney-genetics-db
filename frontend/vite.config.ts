@@ -41,6 +41,7 @@ export default defineConfig({
           !p.startsWith('/login') &&
           !p.startsWith('/profile') &&
           !p.startsWith('/forgot-password') &&
+          !p.startsWith('/curation') && // data loads client-side only
           !p.includes(':')
       )
     }

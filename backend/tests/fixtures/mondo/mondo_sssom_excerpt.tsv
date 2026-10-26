@@ -1,0 +1,8 @@
+# license: https://w3id.org/sssom/license/unspecified
+# mapping_set_id: http://purl.obolibrary.org/obo/mondo/mappings/mondo.sssom.tsv
+subject_id	subject_label	predicate_id	object_id	object_label	mapping_justification
+MONDO:0000911	obsolete dilated cardiomyopathy 1T	skos:exactMatch	OMIM:613740		semapv:UnspecifiedMatching
+MONDO:0004691	autosomal dominant polycystic kidney disease	skos:exactMatch	Orphanet:730	Autosomal dominant polycystic kidney disease	semapv:UnspecifiedMatching
+MONDO:0004995	cardiovascular disorder	skos:broadMatch	ICD10CM:I00-I99	Diseases of the circulatory system (I00-I99)	semapv:UnspecifiedMatching
+MONDO:0008263	polycystic kidney disease 1	skos:exactMatch	OMIM:173900	polycystic kidney disease 1 with or without polycystic liver disease	semapv:UnspecifiedMatching
+MONDO:0013131	polycystic kidney disease 2	skos:exactMatch	OMIM:613095	polycystic kidney disease 2 with or without polycystic liver disease	semapv:UnspecifiedMatching

@@ -9,6 +9,12 @@ from app.core.config import settings
 def clean_database():
     engine = create_engine(settings.DATABASE_URL.get_secret_value())
     with engine.connect() as conn:
+        # TRUNCATE genes CASCADE would also empty the expert-curated records (#26)
+        if conn.execute(text("SELECT 1 FROM gene_disease_associations LIMIT 1")).first():
+            raise SystemExit(
+                "gene_disease_associations holds expert-curated records; "
+                "back them up and remove them before cleaning the database."
+            )
         tables = [
             "gene_annotations",
             "gene_evidence",

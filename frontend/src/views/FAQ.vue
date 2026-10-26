@@ -106,7 +106,7 @@ const faqs = [
   {
     question: 'How is the clinical group assigned?',
     answer: [
-      "Each clinical group (complement, CAKUT, glomerulopathy, cystic/ciliopathy, tubulopathy, nephrolithiasis, renal neoplasia) is defined by a few HPO root terms; a phenotype counts for a group when it is one of these terms or a more specific term below it. For every disease linked to the gene, each matching phenotype adds its frequency in that disease times its information content (rarer, more specific terms weigh more), counting only the most specific term where a disease lists both a term and a term below it. The group with the most evidence summed over the gene's diseases is the primary group; other groups with at least half of the primary group's evidence are shown as secondary groups. The score shown is the group's share of the gene's kidney-group evidence. Classifications use the pinned HPO release 2026-09-01."
+      "Each clinical group (complement, CAKUT, glomerulopathy, cystic/ciliopathy, tubulopathy, nephrolithiasis, renal neoplasia) is defined by a few HPO root terms; a phenotype counts for a group when it is one of these terms or a more specific term below it. For every disease linked to the gene, each matching phenotype adds its frequency in that disease times its information content (rarer, more specific terms weigh more), counting only the most specific term where a disease lists both a term and a term below it. The group with the most evidence summed over the gene's diseases is the primary group; other groups with at least 40% of the primary group's evidence are shown as secondary groups. The score shown is the group's share of the gene's kidney-group evidence. Classifications use the pinned HPO release 2026-09-01."
     ]
   },
   {

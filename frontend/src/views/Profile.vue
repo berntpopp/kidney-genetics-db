@@ -175,6 +175,10 @@
                     id="current-password"
                     v-model="passwordData.currentPassword"
                     type="password"
+                    :aria-invalid="invalidPasswordField === 'current-password'"
+                    :aria-describedby="
+                      invalidPasswordField === 'current-password' ? 'password-error' : undefined
+                    "
                     placeholder="Current password"
                   />
                 </div>
@@ -187,6 +191,10 @@
                         v-model="passwordData.newPassword"
                         :type="showNewPassword ? 'text' : 'password'"
                         placeholder="New password"
+                        :aria-invalid="invalidPasswordField === 'new-password'"
+                        :aria-describedby="
+                          invalidPasswordField === 'new-password' ? 'password-error' : undefined
+                        "
                       />
                       <Button
                         :aria-label="showNewPassword ? 'Hide password' : 'Show password'"
@@ -207,6 +215,10 @@
                       id="confirm-password"
                       v-model="passwordData.confirmPassword"
                       type="password"
+                      :aria-invalid="invalidPasswordField === 'confirm-password'"
+                      :aria-describedby="
+                        invalidPasswordField === 'confirm-password' ? 'password-error' : undefined
+                      "
                       placeholder="Confirm password"
                     />
                   </div>
@@ -219,7 +231,7 @@
               >
                 <AlertDescription>{{ passwordSuccess }}</AlertDescription>
               </Alert>
-              <Alert v-if="passwordError" variant="destructive" class="mb-4">
+              <Alert v-if="passwordError" id="password-error" variant="destructive" class="mb-4">
                 <AlertDescription>{{ passwordError }}</AlertDescription>
               </Alert>
 
@@ -248,7 +260,7 @@ import {
   ShieldCheck,
   Users
 } from 'lucide-vue-next'
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import {
@@ -297,6 +309,7 @@ const passwordLoading = ref(false)
 const passwordSuccess = ref('')
 const passwordError = ref('')
 const showNewPassword = ref(false)
+const invalidPasswordField = ref('')
 const passwordData = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
 
 const roleColor = computed(() => {
@@ -358,20 +371,27 @@ const saveAccount = async () => {
   }
 }
 
+// Mark the invalid field and move focus to it so screen readers announce the error (#327)
+const failPassword = async (field: string, message: string) => {
+  passwordError.value = message
+  invalidPasswordField.value = field
+  await nextTick()
+  document.getElementById(field)?.focus()
+}
+
 const changePassword = async () => {
   if (!passwordData.currentPassword || !passwordData.newPassword) {
-    passwordError.value = 'All password fields are required'
-    return
+    const field = passwordData.currentPassword ? 'new-password' : 'current-password'
+    return failPassword(field, 'All password fields are required')
   }
   if (passwordData.newPassword !== passwordData.confirmPassword) {
-    passwordError.value = 'Passwords do not match'
-    return
+    return failPassword('confirm-password', 'Passwords do not match')
   }
   if (passwordData.newPassword.length < 8) {
-    passwordError.value = 'Password must be at least 8 characters'
-    return
+    return failPassword('new-password', 'Password must be at least 8 characters')
   }
 
+  invalidPasswordField.value = ''
   passwordLoading.value = true
   passwordError.value = ''
   passwordSuccess.value = ''

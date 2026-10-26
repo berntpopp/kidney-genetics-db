@@ -108,6 +108,16 @@ export const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/curation/associations',
+    name: 'curated-associations',
+    component: () => import('../views/CuratedAssociations.vue'),
+    meta: {
+      title: 'Curated Associations',
+      description:
+        'Expert-reviewed kidney gene-disease associations with MONDO/OMIM identifiers and PubMed citations.'
+    }
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('../views/Login.vue'),

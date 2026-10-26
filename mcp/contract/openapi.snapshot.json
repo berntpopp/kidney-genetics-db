@@ -1,6 +1,309 @@
 {
   "components": {
     "schemas": {
+      "AssociationCreate": {
+        "properties": {
+          "citations": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Citations",
+            "type": "array"
+          },
+          "disease_id": {
+            "title": "Disease Id",
+            "type": "string"
+          },
+          "disease_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Disease Name",
+            "type": "string"
+          },
+          "evidence_strength": {
+            "enum": [
+              "Definitive",
+              "Strong",
+              "Moderate",
+              "Limited",
+              "Disputed",
+              "Refuted"
+            ],
+            "title": "Evidence Strength",
+            "type": "string"
+          },
+          "evidence_summary": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Summary"
+          },
+          "gene_symbol": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Gene Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gene_symbol",
+          "disease_id",
+          "disease_name",
+          "evidence_strength",
+          "citations"
+        ],
+        "title": "AssociationCreate",
+        "type": "object"
+      },
+      "AssociationList": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AssociationResponse"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "AssociationList",
+        "type": "object"
+      },
+      "AssociationResponse": {
+        "properties": {
+          "citations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Citations",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "curator_id": {
+            "title": "Curator Id",
+            "type": "integer"
+          },
+          "disease_id": {
+            "title": "Disease Id",
+            "type": "string"
+          },
+          "disease_name": {
+            "title": "Disease Name",
+            "type": "string"
+          },
+          "evidence_strength": {
+            "enum": [
+              "Definitive",
+              "Strong",
+              "Moderate",
+              "Limited",
+              "Disputed",
+              "Refuted"
+            ],
+            "title": "Evidence Strength",
+            "type": "string"
+          },
+          "evidence_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Summary"
+          },
+          "gene_id": {
+            "title": "Gene Id",
+            "type": "integer"
+          },
+          "gene_symbol": {
+            "title": "Gene Symbol",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "reviewer_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer Id"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "in_review",
+              "published"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "gene_id",
+          "gene_symbol",
+          "disease_id",
+          "disease_name",
+          "evidence_strength",
+          "citations",
+          "status",
+          "curator_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AssociationResponse",
+        "type": "object"
+      },
+      "AssociationUpdate": {
+        "description": "Partial update of a draft; the gene is fixed once created.",
+        "properties": {
+          "citations": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Citations"
+          },
+          "disease_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disease Id"
+          },
+          "disease_name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disease Name"
+          },
+          "evidence_strength": {
+            "anyOf": [
+              {
+                "enum": [
+                  "Definitive",
+                  "Strong",
+                  "Moderate",
+                  "Limited",
+                  "Disputed",
+                  "Refuted"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Strength"
+          },
+          "evidence_summary": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Summary"
+          }
+        },
+        "title": "AssociationUpdate",
+        "type": "object"
+      },
       "BackupStatus": {
         "description": "Backup job status enum",
         "enum": [
@@ -5544,6 +5847,424 @@
         ]
       }
     },
+    "/api/curation/associations/": {
+      "get": {
+        "description": "Published expert-reviewed associations (public).",
+        "operationId": "list_published_api_curation_associations__get",
+        "parameters": [
+          {
+            "description": "Approved gene symbol",
+            "in": "query",
+            "name": "gene_symbol",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Approved gene symbol",
+              "title": "Gene Symbol"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssociationList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Published",
+        "tags": [
+          "Core Resources - Curated Associations"
+        ]
+      },
+      "post": {
+        "operationId": "create_association_api_curation_associations__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssociationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssociationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Association",
+        "tags": [
+          "Core Resources - Curated Associations"
+        ]
+      }
+    },
+    "/api/curation/associations/workflow": {
+      "get": {
+        "description": "All associations in any status (curators and admins).",
+        "operationId": "list_workflow_api_curation_associations_workflow_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "gene_symbol",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Gene Symbol"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "draft",
+                    "in_review",
+                    "published"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssociationList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Workflow",
+        "tags": [
+          "Core Resources - Curated Associations"
+        ]
+      }
+    },
+    "/api/curation/associations/{record_id}": {
+      "patch": {
+        "operationId": "update_association_api_curation_associations__record_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssociationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssociationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update Association",
+        "tags": [
+          "Core Resources - Curated Associations"
+        ]
+      }
+    },
+    "/api/curation/associations/{record_id}/publish": {
+      "post": {
+        "operationId": "publish_association_api_curation_associations__record_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssociationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Publish Association",
+        "tags": [
+          "Core Resources - Curated Associations"
+        ]
+      }
+    },
+    "/api/curation/associations/{record_id}/return-to-draft": {
+      "post": {
+        "operationId": "return_association_to_draft_api_curation_associations__record_id__return_to_draft_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssociationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Return Association To Draft",
+        "tags": [
+          "Core Resources - Curated Associations"
+        ]
+      }
+    },
+    "/api/curation/associations/{record_id}/submit": {
+      "post": {
+        "operationId": "submit_association_api_curation_associations__record_id__submit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssociationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Submit Association",
+        "tags": [
+          "Core Resources - Curated Associations"
+        ]
+      }
+    },
     "/api/datasources/": {
       "get": {
         "description": "Get information about all data sources and their current status",
@@ -5710,7 +6431,7 @@
     },
     "/api/genes/": {
       "get": {
-        "description": "Get genes with JSON:API compliant response using reusable components.\n\nQuery parameters follow JSON:API specification:\n- Pagination: page[number], page[size]\n- Filtering: filter[search], filter[min_score], filter[source], filter[ids], etc.\n- Sorting: sort=-evidence_score,approved_symbol (prefix with - for descending)\n\nNEW: filter[ids] - Filter by comma-separated gene IDs for URL state restoration.\n          Used when users share network analysis URLs with specific gene sets.\n          Example: /api/genes?filter[ids]=1,2,3,4,5&page[size]=100",
+        "description": "Get genes with JSON:API compliant response using reusable components.\n\nQuery parameters follow JSON:API specification:\n- Pagination: page[number], page[size]\n- Filtering: filter[search], filter[min_score], filter[source], filter[ids], etc.\n- Sorting: sort=-evidence_score,approved_symbol (prefix with - for descending)\n\nNEW: filter[ids] - Filter by comma-separated gene IDs for URL state restoration.\n          Used when users share network analysis URLs with specific gene sets.\n          Example: /api/genes?filter[ids]=1,2,3,4,5&page[size]=100\n\nmeta.genes_without_evidence counts all genes that have no evidence rows. It is not the\nfull set of zero-score genes: a gene whose only evidence is a ClinGen/GenCC \"No Known\nDisease Relationship\" or an unknown GenCC classification also scores 0.",
         "operationId": "get_genes_api_genes__get",
         "parameters": [
           {

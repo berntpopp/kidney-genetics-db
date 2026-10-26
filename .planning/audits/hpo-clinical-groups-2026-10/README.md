@@ -40,6 +40,7 @@ Reference sizes: {'tubulopathy': 118, 'nephrolithiasis': 35, 'cakut': 76, 'glome
 | v1 terms, frequency x IC | 49.4% | 0.53 |
 
 Secondary groups (>= 0.5 x primary evidence), 55 genes with >= 2 panel groups: 67/118 panel labels recovered, 10 extra
+(r = 0.5, v0.9.0; the command now prints 70/118, 12 extra)
 
 | Gene | Primary | Secondary | Evidence share of primary |
 |---|---|---|---|
@@ -79,3 +80,43 @@ PALB2: neoplasia evidence is 0.493 of cakut with IC from `genes_to_phenotype.txt
 (at or above 0.5 with `phenotype.hpoa` IC; the 0.5 cut-off is not tuned), so it
 has no neoplasia secondary group. FANCA has no renal-neoplasm annotation in HPO
 2026-09-01.
+
+## Secondary cut-off calibration (2026-10-26, after v0.9.0)
+
+The same command also prints this table (method fixed in advance in the spec,
+section "Secondary cut-off calibration"): multi-label macro-F1 over the 7
+groups, prediction = primary plus groups with E >= r x E(primary), split 50/50
+stratified by first panel group (seed 338). The backend settings must be
+importable; outside a configured `backend/.env`, set dummy `DATABASE_URL`,
+`JWT_SECRET_KEY`, `ADMIN_PASSWORD` and `POSTGRES_PASSWORD` (no database is used).
+
+```
+| r | Half A | Half B | All 360 | Multi-group | Genes with secondary |
+|---|---|---|---|---|---|
+| 0.30 | 0.7459 | 0.7760 | 0.7577 | 0.7834 | 102 |
+| 0.35 | 0.7488 | 0.7726 | 0.7572 | 0.7763 | 90 |
+| 0.40 | 0.7494 | 0.7458 | 0.7477 | 0.7642 | 83 |
+| 0.45 | 0.7466 | 0.7514 | 0.7494 | 0.7642 | 80 |
+| 0.50 | 0.7382 | 0.7505 | 0.7458 | 0.7570 | 62 |
+| 0.55 | 0.7394 | 0.7259 | 0.7375 | 0.7373 | 50 |
+| 0.60 | 0.7368 | 0.7251 | 0.7354 | 0.7336 | 43 |
+| 0.65 | 0.7361 | 0.7248 | 0.7348 | 0.7256 | 38 |
+| 0.70 | 0.7284 | 0.7260 | 0.7321 | 0.7143 | 32 |
+
+Chosen on half A: r = 0.40 (half B 0.7458, all 0.7477)
+All 3209 genes, r = 0.40 vs 0.50: 89 gain and 0 lose at least one secondary group
+```
+
+`SECONDARY_GROUP_RATIO` is now 0.4 (`method: hpo-freq-ic-v2.1`). Held-out half
+B does not confirm a gain over 0.5 (0.7458 vs 0.7505); half B, all 360 and the
+multi-group subset peak at the grid edge 0.30. Add `--seed-sweep 100` to repeat
+the half-A choice for seeds 0-99: 0.30 51, 0.35 29, 0.40 1, 0.45 10, 0.50 6,
+0.55 1, 0.60 0, 0.65 1, 0.70 1. r = 0.40 is the protocol's choice for seed 338,
+not a stable optimum (the optimum may be at or below 0.30); any r in 0.30-0.50
+passes PALB2. A seed-independent choice would be a new maintainer decision.
+The script exits 1 if its choice differs from `SECONDARY_GROUP_RATIO`. With 0.4: PALB2 cakut + neoplasia (0.493), WT1 glomerulopathy +
+neoplasia (0.46), PKD1 cyst_cilio + nephrolithiasis, glomerulopathy (0.46 each);
+55 multi-group genes recover 70/118 panel labels, 12 extra. FANCA stays cakut
+without neoplasia: no FANCA annotation in HPO 2026-09-01 is at or below Renal
+neoplasm (HP:0009726). The tables above this section are the v0.9.0 (r = 0.5)
+results; the stored-v1-vs-v2 primary counts do not depend on r.

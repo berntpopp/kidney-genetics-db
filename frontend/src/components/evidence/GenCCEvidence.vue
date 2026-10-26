@@ -108,16 +108,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Evidence score -->
-    <div class="mt-4 p-3 bg-muted rounded">
-      <div class="text-center">
-        <div class="text-2xl font-bold text-foreground">
-          {{ evidenceScore }}
-        </div>
-        <div class="text-xs text-muted-foreground">Weighted Evidence Score</div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -182,11 +172,6 @@ const submitters = computed(() => {
 
 const diseases = computed(() => {
   return props.evidenceData?.diseases || []
-})
-
-const evidenceScore = computed(() => {
-  const score = props.evidenceData?.evidence_score
-  return score !== undefined ? score.toFixed(2) : 'N/A'
 })
 
 // Display logic
