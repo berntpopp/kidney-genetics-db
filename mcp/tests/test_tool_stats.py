@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import httpx
-import pytest
 import respx
 from fastmcp import FastMCP
-from pydantic import ValidationError
 
 from kidney_genetics_mcp.client.api_client import ApiClient
+from kidney_genetics_mcp.server import ErrorEnvelopeMiddleware
 from kidney_genetics_mcp.services.dataclass import STATISTICS
 from kidney_genetics_mcp.tools.statistics import register
 
@@ -117,13 +116,17 @@ async def test_full_includes_coverage_and_overlaps_sampled() -> None:
 
 
 async def test_invalid_response_mode_rejected() -> None:
-    # response_mode is a Literal, so an out-of-enum value is rejected by
-    # FastMCP's argument validation before the handler runs. The server's
-    # ErrorEnvelopeMiddleware (not installed on this bare test harness) maps
-    # this ValidationError into the invalid_input envelope at runtime.
+    # response_mode is a Literal, so FastMCP rejects an out-of-enum value before the
+    # handler runs; the server's ErrorEnvelopeMiddleware turns that into the
+    # invalid_input envelope (FastMCP >= 3.4.10 wraps the pydantic error).
     mcp, client = _make()
-    with pytest.raises(ValidationError):
-        await mcp.call_tool("kgdb_get_database_stats", {"response_mode": "huge"})
+    mcp.add_middleware(ErrorEnvelopeMiddleware())
+    result = await mcp.call_tool("kgdb_get_database_stats", {"response_mode": "huge"})
+    envelope = result.structured_content
+    assert envelope is not None
+    assert envelope["is_error"] is True
+    assert envelope["error"]["code"] == "invalid_input"
+    assert envelope["error"]["field"] == "response_mode"
     await client.aclose()
 
 

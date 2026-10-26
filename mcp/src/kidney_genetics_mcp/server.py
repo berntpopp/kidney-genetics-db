@@ -8,6 +8,7 @@ from typing import Any
 
 import mcp.types as mt
 from fastmcp import FastMCP
+from fastmcp.exceptions import ValidationError as FastMCPValidationError
 from fastmcp.server.middleware import CallNext, MiddlewareContext
 from fastmcp.server.middleware import Middleware as FastMCPMiddleware
 from fastmcp.tools.tool import ToolResult
@@ -196,8 +197,12 @@ class ErrorEnvelopeMiddleware(FastMCPMiddleware):
         """
         try:
             return await call_next(context)
-        except ValidationError as exc:
-            envelope = _validation_error_envelope(exc, context.message.name)
+        except FastMCPValidationError as exc:
+            # FastMCP wraps argument errors; a pydantic error raised inside a tool
+            # body is a server bug, not the caller's invalid_input.
+            if not isinstance(exc.__cause__, ValidationError):
+                raise
+            envelope = _validation_error_envelope(exc.__cause__, context.message.name)
             return ToolResult(structured_content=envelope)
 
 
