@@ -257,6 +257,17 @@ const formatTime = dateString => {
   }
 }
 
+// Time left until an estimated completion; rounded up so it never promises too much
+const formatRemaining = dateString => {
+  const left = Date.parse(dateString) - now.value
+  if (Number.isNaN(left)) return ''
+  if (left <= 0) return 'Running longer than estimated'
+  if (left < 60_000) return 'Under a minute left'
+  const minutes = Math.ceil(left / 60_000)
+  if (minutes < 60) return `About ${minutes} min left`
+  return `About ${Math.floor(minutes / 60)} h ${minutes % 60} min left`
+}
+
 const showSourceDetails = source => {
   selectedSource.value = source
   showDetailsDialog.value = true
@@ -481,7 +492,7 @@ onUnmounted(() => {
               Completed: {{ formatTime(source.completed_at) }}
             </div>
             <div v-if="source.estimated_completion && source.status === 'running'">
-              ETA: {{ formatTime(source.estimated_completion) }}
+              {{ formatRemaining(source.estimated_completion) }}
             </div>
           </div>
 
@@ -631,6 +642,10 @@ onUnmounted(() => {
               <div v-if="process.status === 'running'">
                 Started: {{ formatTime(process.started_at) }} · last update
                 {{ formatTime(process.last_update_at) }}
+                <!-- From each source's last successful duration; absent without that history -->
+                <div v-if="process.estimated_completion" class="font-medium text-foreground">
+                  {{ formatRemaining(process.estimated_completion) }}
+                </div>
               </div>
               <div v-else-if="process.completed_at">
                 Completed: {{ formatTime(process.completed_at) }}
