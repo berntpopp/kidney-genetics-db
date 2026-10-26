@@ -125,6 +125,7 @@ class AnnotationPipeline:
         gene_ids: list[int] | None = None,
         force: bool = False,
         task_id: str | None = None,
+        resume: bool = False,
     ) -> dict[str, Any]:
         """
         Run annotation update with specified strategy.
@@ -135,6 +136,8 @@ class AnnotationPipeline:
             gene_ids: Specific gene IDs to update (None = all)
             force: Force update regardless of TTL
             task_id: Optional task ID for progress tracking
+            resume: Continue a paused/interrupted run from its checkpoint; a fresh
+                request never adopts an old checkpoint's sources or genes (#362)
 
         Returns:
             Dictionary with update results
@@ -177,8 +180,7 @@ class AnnotationPipeline:
         # Initialize progress tracking
         self.progress_tracker = ProgressTracker(self.db, self.source_name)
 
-        # Check if we're resuming a paused update
-        checkpoint = await self._load_checkpoint()
+        checkpoint = await self._load_checkpoint() if resume else None
         if checkpoint:
             logger.sync_info(
                 "Resuming from checkpoint", strategy=strategy.value, checkpoint=checkpoint
@@ -189,14 +191,8 @@ class AnnotationPipeline:
             if not gene_ids:
                 gene_ids = checkpoint.get("gene_ids")
 
-        if self.progress_tracker.is_paused():
-            logger.sync_info(
-                "Resuming paused annotation update",
-                strategy=strategy.value,
-                last_operation=self.progress_tracker.get_current_operation(),
-            )
-        else:
-            self.progress_tracker.start(operation=f"Starting annotation update ({strategy.value})")
+        # A resumed run is a new run: started_at is now, not the paused run's start
+        self.progress_tracker.start(operation=f"Starting annotation update ({strategy.value})")
 
         try:
             # Determine which sources to update
