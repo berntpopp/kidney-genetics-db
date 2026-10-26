@@ -195,7 +195,9 @@ services:
       - kidney_genetics_internal_net
     # NO PORTS EXPOSED - NPM connects via container name
     environment:
-      API_BASE_URL: /api
+      # Empty: the frontend prefixes every request with /api itself (src/config.ts);
+      # "/api" here doubles it to /api/api/... and every API call 404s.
+      API_BASE_URL: ""
       WS_URL: /ws
       # Public MCP endpoint shown on /mcp; override per deployment.
       MCP_BASE_URL: ${KGDB_MCP_PUBLIC_URL:-https://mcp.kidney-genetics.org}
