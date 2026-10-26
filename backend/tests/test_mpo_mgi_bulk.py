@@ -210,6 +210,29 @@ async def test_bulk_zygosity_handles_api_error(source):
     assert "PKD1" not in result
 
 
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_bulk_zygosity_shared_mouse_ortholog_reaches_every_human_gene(source):
+    """AMY1A/B/C share mouse Amy1: all three get its rows, and a failure drops all three."""
+    rows = [["MGI:3", "Amy1", "C57BL/6J", "hm", "MP:0000519", "hydroureter"]]
+    ok = MagicMock(status_code=200)
+    ok.json.return_value = {"results": rows}
+    gene_mouse_map = {"AMY1A": ["Amy1"], "AMY1B": ["Amy1"], "AMY1C": ["Amy1"]}
+
+    for response, expect_present in ((ok, True), (MagicMock(status_code=500), False)):
+        client = AsyncMock()
+        client.get = AsyncMock(return_value=response)
+        with patch.object(source, "get_http_client", return_value=client):
+            with patch.object(source, "apply_rate_limit", new_callable=AsyncMock):
+                result = await source._bulk_query_zygosity(gene_mouse_map, source._mpo_terms_cache)
+        assert client.get.await_count == 1  # Amy1 is queried once, not three times
+        for human in gene_mouse_map:
+            if expect_present:
+                assert result[human]["homozygous"]["has_kidney_phenotype"] is True
+            else:
+                assert human not in result
+
+
 # ── fetch_batch (integration of bulk queries) ───────────────────────────
 
 

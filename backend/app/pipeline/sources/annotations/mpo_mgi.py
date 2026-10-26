@@ -486,13 +486,12 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         Returns:
             Dict mapping human_gene_symbol → zygosity_analysis dict
         """
-        # Invert map: mouse_symbol → human_symbol(s)
-        mouse_to_human: dict[str, str] = {}
-        all_mouse_symbols: list[str] = []
+        # Invert map: mouse_symbol → every human gene sharing it (AMY1A/B/C → Amy1)
+        mouse_to_human: dict[str, set[str]] = {}
         for human_sym, mouse_syms in gene_mouse_map.items():
             for ms in mouse_syms:
-                mouse_to_human[ms] = human_sym
-                all_mouse_symbols.append(ms)
+                mouse_to_human.setdefault(ms, set()).add(human_sym)
+        all_mouse_symbols = list(mouse_to_human)
 
         # Accumulate zygosity data per human gene
         gene_zyg: dict[str, dict[str, list[dict[str, str]]]] = {}
@@ -539,20 +538,14 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                     mpo_id = row[4]
                     mpo_name = row[5]
 
-                    resolved_human = mouse_to_human.get(mouse_sym)
-                    if not resolved_human or not mpo_id or not mpo_name:
+                    humans = mouse_to_human.get(mouse_sym)
+                    if not humans or not mpo_id or not mpo_name:
                         continue
 
                     entry = {"term": mpo_id, "name": mpo_name}
-                    bucket = gene_zyg[resolved_human]
-                    if zygosity == "hm":
-                        bucket["hm"].append(entry)
-                    elif zygosity == "ht":
-                        bucket["ht"].append(entry)
-                    elif zygosity == "cn":
-                        bucket["cn"].append(entry)
-                    else:
-                        bucket["other"].append(entry)
+                    key = zygosity if zygosity in ("hm", "ht", "cn") else "other"
+                    for human_sym in humans:
+                        gene_zyg[human_sym][key].append(entry)
 
             except Exception as e:
                 logger.sync_error(f"Bulk _Genotype_Phenotype error (chunk {chunk_start}): {e}")
@@ -560,7 +553,8 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                 continue
 
         for ms in failed:
-            gene_zyg.pop(mouse_to_human[ms], None)
+            for human_sym in mouse_to_human[ms]:
+                gene_zyg.pop(human_sym, None)
 
         # Build per-gene zygosity analysis
         out: dict[str, dict[str, Any]] = {}
