@@ -1,4 +1,4 @@
-"""Migration 0009: statistics/summary matviews, gene_scores divisor once (#367)."""
+"""Migration 0009: statistics/summary matviews; gene_scores untouched (#367)."""
 
 import pytest
 from sqlalchemy import text
@@ -46,9 +46,7 @@ def test_0009_keeps_gene_scores_and_adds_refreshable_matviews(baseline_db):  # n
         conn.execute(text("REFRESH MATERIALIZED VIEW gene_scores"))
         conn.execute(text("CREATE TABLE w4_snapshot AS SELECT * FROM gene_scores"))
         # Production-like leftovers: ad hoc summary without index, extra dependent matview.
-        conn.execute(
-            text("CREATE MATERIALIZED VIEW gene_annotations_summary AS SELECT 1 AS gene_id")
-        )
+        conn.execute(text("CREATE VIEW gene_annotations_summary AS SELECT 1 AS gene_id"))
         conn.execute(
             text(
                 "CREATE MATERIALIZED VIEW w4_dependent AS "
