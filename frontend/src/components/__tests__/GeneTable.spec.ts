@@ -217,3 +217,43 @@ describe('GeneTable footer and loading state (#323)', () => {
     expect(row().classList.contains('invisible')).toBe(false)
   })
 })
+
+describe('GeneTable server-side sorting and paging', () => {
+  afterEach(() => {
+    wrapper?.unmount()
+    document.body.innerHTML = ''
+  })
+
+  it('requests the chosen sort and the next page from the API', async () => {
+    getGenes.mockReset()
+    getGenes.mockResolvedValue({
+      ...(listResult([{ id: 1, approved_symbol: 'PKD1', hgnc_id: 'x' }]) as object),
+      total: 30
+    } as never)
+    const { router } = await mountAt()
+    expect(getGenes).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 1, sortBy: 'evidence_score', sortDesc: true })
+    )
+
+    const geneButton = wrapper!.findAll('button').find(b => b.text() === 'Gene')!
+    await geneButton.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    const asc = [...document.querySelectorAll('[role="menuitem"]')].find(
+      e => e.textContent?.trim() === 'Asc'
+    ) as HTMLElement
+    asc.click()
+    await flushPromises()
+    expect(getGenes).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 1, sortBy: 'approved_symbol', sortDesc: false })
+    )
+    await new Promise(r => setTimeout(r, 120)) // URL-navigation guard clears after 100 ms
+
+    await wrapper!.get('button[aria-label="Go to next page"]').trigger('click')
+    await flushPromises()
+    expect(getGenes).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 2, sortBy: 'approved_symbol', sortDesc: false })
+    )
+    expect(router.currentRoute.value.query.page).toBe('2')
+    expect(wrapper!.text()).toContain('Page 2 of 3')
+  })
+})

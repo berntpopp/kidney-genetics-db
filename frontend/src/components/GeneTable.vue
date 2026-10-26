@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, h } from 'vue'
 import type { ColumnDef, SortingState, PaginationState } from '@tanstack/vue-table'
-import { useVueTable, getCoreRowModel } from '@tanstack/vue-table'
+import { useTable } from '@tanstack/vue-table'
 import { Info, EyeOff, Search, FilterX, RefreshCw } from 'lucide-vue-next'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
@@ -9,7 +9,13 @@ import { geneApi } from '../api/genes'
 import ScoreBreakdown from './ScoreBreakdown.vue'
 import EvidenceTierBadge from './EvidenceTierBadge.vue'
 import { TIER_CONFIG } from '@/utils/evidenceTiers'
-import { DataTable, DataTableColumnHeader, DataTablePagination } from '@/components/ui/data-table'
+import {
+  DataTable,
+  DataTableColumnHeader,
+  DataTablePagination,
+  dataTableFeatures
+} from '@/components/ui/data-table'
+import type { DataTableFeatures } from '@/components/ui/data-table'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -119,7 +125,7 @@ const sortOptions = [
 ]
 
 // Column definitions
-const columns: ColumnDef<GeneRow>[] = [
+const columns: ColumnDef<DataTableFeatures, GeneRow>[] = [
   {
     accessorKey: 'approved_symbol',
     header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Gene' }),
@@ -259,12 +265,12 @@ const hasActiveFilters = computed(() => {
 })
 
 // TanStack Table setup (server-side)
-const table = useVueTable({
+const table = useTable({
+  features: dataTableFeatures,
   get data() {
     return genes.value
   },
   columns,
-  getCoreRowModel: getCoreRowModel(),
   manualPagination: true,
   manualSorting: true,
   get rowCount() {

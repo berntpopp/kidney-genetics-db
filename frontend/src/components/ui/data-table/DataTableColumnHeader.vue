@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { Column } from '@tanstack/vue-table'
+import type { Column, RowData } from '@tanstack/vue-table'
+import type { DataTableFeatures } from './features'
 import { ArrowDown, ArrowUp, ArrowUpDown, EyeOff } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,7 +13,10 @@ import {
 import { cn } from '@/lib/utils'
 
 interface Props {
-  column: Column<any, any>
+  column: Pick<
+    Column<DataTableFeatures, RowData>,
+    'getCanSort' | 'getIsSorted' | 'toggleSorting' | 'toggleVisibility'
+  >
   title: string
 }
 

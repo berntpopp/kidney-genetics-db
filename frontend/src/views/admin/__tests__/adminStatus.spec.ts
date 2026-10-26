@@ -10,6 +10,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
 import AdminCacheManagement from '@/views/admin/AdminCacheManagement.vue'
 import AdminPipeline from '@/views/admin/AdminPipeline.vue'
+import { getCacheNamespaces } from '@/api/admin/cache'
 
 vi.mock('@/api/admin/cache', () => ({
   getCacheStats: vi.fn(async () => ({
@@ -98,6 +99,15 @@ describe('AdminCacheManagement health', () => {
   it('hides Memory Usage when the backend reports no size', async () => {
     const w = await mountView(AdminCacheManagement)
     expect(w.text()).not.toContain('Memory Usage')
+  })
+
+  it('lists every namespace unpaginated in API order', async () => {
+    const names = Array.from({ length: 12 }, (_, i) => `ns${12 - i}`)
+    vi.mocked(getCacheNamespaces).mockResolvedValueOnce({
+      data: names.map(namespace => ({ namespace, entry_count: 1, size_mb: 0 }))
+    } as never)
+    const w = await mountView(AdminCacheManagement)
+    expect(w.findAll('tbody tr').map(r => r.find('td').text())).toEqual(names)
   })
 })
 

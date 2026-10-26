@@ -31,7 +31,7 @@ This is the durable, shared instruction source for every coding agent in this re
 
 - Python 3.13 is the local-development and CI baseline; metadata may support a wider range, but do not change this baseline casually.
 - The backend production image intentionally uses Python 3.14; that does not alter the local or CI baseline.
-- Use Node.js >=22.18.0 for the frontend and current `uv`, Docker Engine, and Docker Compose v2. Invoke Compose as `docker compose`.
+- Use Node.js >=22.22.2 for the frontend and current `uv`, Docker Engine, and Docker Compose v2. Invoke Compose as `docker compose`.
 - The backend is launched from `backend/` and reads `backend/.env`. For a first
   local run, copy `backend/.env.example` to `backend/.env`, then set
   `DATABASE_URL`, `POSTGRES_PASSWORD` (matching the local service), a unique

@@ -129,3 +129,27 @@ describe('AdminUserManagement status toggle (#317)', () => {
     expect(store.updateUser).toHaveBeenCalledWith(3, { is_active: false })
   })
 })
+
+describe('AdminUserManagement table', () => {
+  afterEach(() => {
+    wrapper?.unmount()
+    document.body.innerHTML = ''
+  })
+  let wrapper: ReturnType<typeof mount> | undefined
+
+  it('lists every user unpaginated in API order', async () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({
+      ...user,
+      id: 10 + i,
+      username: `u${12 - i}`
+    }))
+    store.getAllUsers.mockResolvedValueOnce(many)
+    wrapper = mount(() => h(TooltipProvider, () => h(AdminUserManagement)), {
+      global: { stubs: { AdminHeader: true } },
+      attachTo: document.body
+    })
+    await flushPromises()
+    const names = [...document.querySelectorAll('tbody tr')].map(r => r.children[0].textContent)
+    expect(names).toEqual(many.map(u => u.username))
+  })
+})

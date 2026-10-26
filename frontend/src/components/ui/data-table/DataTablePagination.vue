@@ -1,5 +1,6 @@
-<script setup lang="ts">
-import type { Table } from '@tanstack/vue-table'
+<script setup lang="ts" generic="TData extends RowData">
+import type { RowData, Table } from '@tanstack/vue-table'
+import type { DataTableFeatures } from './features'
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,7 +12,7 @@ import {
 } from '@/components/ui/select'
 
 interface Props {
-  table: Table<any>
+  table: Table<DataTableFeatures, TData>
   pageSizeOptions?: number[]
 }
 
@@ -29,11 +30,11 @@ withDefaults(defineProps<Props>(), {
       <div class="flex items-center space-x-2">
         <p class="text-sm font-medium">Rows per page</p>
         <Select
-          :model-value="`${table.getState().pagination.pageSize}`"
+          :model-value="`${table.atoms.pagination.get().pageSize}`"
           @update:model-value="val => table.setPageSize(Number(val))"
         >
           <SelectTrigger class="h-8 w-[70px]" aria-label="Rows per page">
-            <SelectValue :placeholder="`${table.getState().pagination.pageSize}`" />
+            <SelectValue :placeholder="`${table.atoms.pagination.get().pageSize}`" />
           </SelectTrigger>
           <SelectContent side="top">
             <SelectItem v-for="size in pageSizeOptions" :key="size" :value="`${size}`">
@@ -43,7 +44,7 @@ withDefaults(defineProps<Props>(), {
         </Select>
       </div>
       <div class="flex w-[100px] items-center justify-center text-sm font-medium">
-        Page {{ table.getState().pagination.pageIndex + 1 }} of {{ table.getPageCount() }}
+        Page {{ table.atoms.pagination.get().pageIndex + 1 }} of {{ table.getPageCount() }}
       </div>
       <div class="flex items-center space-x-2">
         <Button

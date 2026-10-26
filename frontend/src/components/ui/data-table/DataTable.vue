@@ -1,6 +1,7 @@
-<script setup lang="ts" generic="TData">
-import type { Table } from '@tanstack/vue-table'
+<script setup lang="ts" generic="TData extends RowData">
+import type { RowData, Table } from '@tanstack/vue-table'
 import { FlexRender } from '@tanstack/vue-table'
+import type { DataTableFeatures } from './features'
 import {
   Table as UiTable,
   TableBody,
@@ -11,7 +12,7 @@ import {
 } from '@/components/ui/table'
 
 interface Props {
-  table: Table<TData>
+  table: Table<DataTableFeatures, TData>
   loading?: boolean
   loadingText?: string
 }

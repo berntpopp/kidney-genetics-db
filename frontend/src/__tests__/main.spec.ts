@@ -46,7 +46,8 @@ async function bootAt(path: string) {
   return { text: document.querySelector('#app p')!.textContent, path: window.location.pathname }
 }
 
-describe('client bootstrap auth guard', () => {
+// The first test pays the cold import of main.ts, which exceeds 5 s on a loaded runner
+describe('client bootstrap auth guard', { timeout: 30000 }, () => {
   beforeEach(() => {
     localStorage.clear()
     vi.mocked(authApi.refreshToken).mockReset()

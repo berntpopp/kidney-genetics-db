@@ -5,7 +5,7 @@
  */
 
 import { ref, h, onMounted, onUnmounted } from 'vue'
-import { useVueTable, getCoreRowModel, getSortedRowModel } from '@tanstack/vue-table'
+import { useTable } from '@tanstack/vue-table'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as cacheApi from '@/api/admin/cache'
@@ -27,7 +27,7 @@ import {
   Trash2,
   X
 } from 'lucide-vue-next'
-import { DataTable } from '@/components/ui/data-table'
+import { DataTable, dataTableFeatures } from '@/components/ui/data-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -145,13 +145,13 @@ const namespaceColumns = [
 ]
 
 // TanStack Table
-const table = useVueTable({
+const table = useTable({
+  features: dataTableFeatures,
+  manualPagination: true, // unpaged: render every row
   get data() {
     return namespaces.value
   },
-  columns: namespaceColumns,
-  getCoreRowModel: getCoreRowModel(),
-  getSortedRowModel: getSortedRowModel()
+  columns: namespaceColumns
 })
 
 // Methods
