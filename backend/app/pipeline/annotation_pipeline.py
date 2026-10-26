@@ -49,12 +49,14 @@ def _close_pipeline_session(db: Session) -> None:
         db.invalidate()  # never pool a connection that may still carry the override
 
 
-# Minutes without a progress heartbeat before a "running" row counts as a crashed run
-_STALE_LOCK_MINUTES = 15
+# A live run stamps last_update_at every _HEARTBEAT_SECONDS from its own task, in every
+# phase; a row silent for _STALE_LOCK_MINUTES belongs to a crashed run (#359)
+_HEARTBEAT_SECONDS = 60
+_STALE_LOCK_MINUTES = 5
 
 
 def _heartbeat_age_minutes(progress: DataSourceProgress) -> float:
-    """Minutes since the run last committed progress (last_update_at is its heartbeat)."""
+    """Minutes since the run's last heartbeat (last_update_at)."""
     beat = progress.last_update_at or progress.started_at or progress.updated_at
     if beat is None:
         return float("inf")
@@ -64,13 +66,32 @@ def _heartbeat_age_minutes(progress: DataSourceProgress) -> float:
 
 
 def pipeline_run_active(db: Session) -> bool:
-    """True while an annotation run holds the lock: running with a fresh heartbeat (#359)."""
+    """True while an annotation run is alive, including a paused one still finishing sources."""
     progress = db.query(DataSourceProgress).filter_by(source_name="annotation_pipeline").first()
     return bool(
         progress
-        and progress.status == SourceStatus.running
+        and progress.status in (SourceStatus.running, SourceStatus.paused)
+        and progress.completed_at is None
         and _heartbeat_age_minutes(progress) < _STALE_LOCK_MINUTES
     )
+
+
+def _touch_heartbeat(source_name: str) -> None:
+    with SessionLocal() as session:
+        session.query(DataSourceProgress).filter_by(source_name=source_name).update(
+            {"last_update_at": datetime.now(timezone.utc)}, synchronize_session=False
+        )
+        session.commit()
+
+
+async def _beat(source_name: str) -> None:
+    """Keep the run's heartbeat fresh until cancelled, whatever phase the run is in."""
+    while True:
+        await asyncio.sleep(_HEARTBEAT_SECONDS)
+        try:
+            await asyncio.to_thread(_touch_heartbeat, source_name)
+        except Exception as e:
+            logger.sync_warning(f"Pipeline heartbeat failed: {e}")
 
 
 class UpdateStrategy(str, Enum):
@@ -191,15 +212,17 @@ class AnnotationPipeline:
             if not gene_ids:
                 gene_ids = checkpoint.get("gene_ids")
 
-        # Progress writes are throttled, so this session idles between them like the
-        # per-source ones; RESET in the finally below before the caller pools it (#370)
-        self.db.execute(text("SET idle_in_transaction_session_timeout = 0"))
-        self.db.commit()
-
-        # A resumed run is a new run: started_at is now, not the paused run's start
-        self.progress_tracker.start(operation=f"Starting annotation update ({strategy.value})")
-
+        heartbeat: asyncio.Task[None] | None = None
         try:
+            # Progress writes are throttled, so this session idles between them like the
+            # per-source ones; RESET in the finally below before the caller pools it (#370)
+            self.db.execute(text("SET idle_in_transaction_session_timeout = 0"))
+            self.db.commit()
+
+            # A resumed run is a new run: started_at is now, not the paused run's start
+            self.progress_tracker.start(operation=f"Starting annotation update ({strategy.value})")
+            heartbeat = asyncio.create_task(_beat(self.source_name))
+
             # Determine which sources to update
             logger.sync_debug("Getting sources to update...")
             # FULL and FORCED strategies should bypass is_update_due() checks
@@ -383,6 +406,9 @@ class AnnotationPipeline:
                 )
                 summary["status"] = "paused"
                 summary["message"] = f"Paused with {len(paused)} sources left: {paused}"
+                # Stopped for real now: a resume may start (pipeline_run_active)
+                self.progress_tracker.progress_record.completed_at = datetime.now(timezone.utc)
+                self.db.commit()
                 logger.sync_info("Annotation update paused", sources_remaining=paused)
                 return summary
 
@@ -418,6 +444,8 @@ class AnnotationPipeline:
 
             raise
         finally:
+            if heartbeat:
+                heartbeat.cancel()
             try:
                 self.db.execute(text("RESET idle_in_transaction_session_timeout"))
                 self.db.commit()

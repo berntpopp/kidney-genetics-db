@@ -20,7 +20,7 @@ from app.core.datasource_config import (
 )
 from app.core.dependencies import require_admin
 from app.core.events import EventTypes, event_bus
-from app.core.exceptions import DataSourceError
+from app.core.exceptions import DataSourceError, ResourceConflictError
 from app.core.logging import get_logger
 from app.core.responses import ResponseBuilder
 from app.models.progress import DataSourceProgress, SourceStatus
@@ -394,6 +394,15 @@ async def resume_source(
         return ResponseBuilder.build_success_response(
             data={"status": "not_paused", "message": f"{source_name} is not paused"}
         )
+
+    if source_name == "annotation_pipeline":
+        from app.pipeline.annotation_pipeline import pipeline_run_active
+
+        if pipeline_run_active(db):
+            # Sources started before the pause are still finishing (#359)
+            raise ResourceConflictError(
+                "annotation_pipeline", "is still finishing sources started before the pause"
+            )
 
     # Resume the update in background - now properly in async context
     asyncio.create_task(task_manager.run_source(source_name, resume=True))

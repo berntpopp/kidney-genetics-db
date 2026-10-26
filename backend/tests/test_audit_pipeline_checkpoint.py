@@ -1,5 +1,6 @@
 """#295: a completed checkpoint must not leak into the next fresh update."""
 
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -22,6 +23,8 @@ def _progress(db_session, status: SourceStatus, metadata: dict) -> DataSourcePro
         db_session.add(row)
     row.status = status
     row.progress_metadata = dict(metadata)
+    # A stopped run: the pipeline's paused exit and the startup reset both stamp completed_at
+    row.completed_at = datetime.now(timezone.utc)
     db_session.flush()
     return row
 
