@@ -124,6 +124,8 @@ services:
       dockerfile: Dockerfile
     image: kidney_genetics_backend:latest
     container_name: kidney_genetics_backend
+    # Longer than uvicorn's 30 s graceful shutdown, so an active run can stop cleanly
+    stop_grace_period: 40s
     # Persistent storage for HTTP cache and bulk data downloads.
     # Must be owned by uid=1000 (kidney-api). Fix if needed:
     #   docker run --rm -v backend_cache:/d alpine chown -R 1000:1000 /d

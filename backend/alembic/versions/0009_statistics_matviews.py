@@ -22,7 +22,7 @@ down_revision = "0008"
 branch_labels = None
 depends_on = None
 
-# 0001-0008 definition (downgrade).
+# Same SQL as the never-initialized MaterializedViewManager defined (removed in #368).
 _SOURCE_OVERLAP = """
     WITH source_totals AS (
         SELECT source_name, COUNT(DISTINCT gene_id) AS total
