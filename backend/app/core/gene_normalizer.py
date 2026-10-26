@@ -301,6 +301,18 @@ class GeneNormalizer:
                 normalization_log={"failure_reason": reason, "attempts": 1},
             )
 
+            if staging_record.status == "approved" and staging_record.manual_hgnc_id:
+                # A curator already resolved this text: use it instead of staging it again
+                return {
+                    "status": "normalized",
+                    "approved_symbol": staging_record.manual_approved_symbol,
+                    "hgnc_id": staging_record.manual_hgnc_id,
+                    "staging_id": staging_record.id,
+                    "error": None,
+                    "source": "staging_approval",
+                    "original_data": original_data,
+                }
+
             logger.sync_debug(
                 "Created staging record for gene", staging_id=staging_record.id, gene_text=gene_text
             )
