@@ -33,16 +33,20 @@ const [email, emailAttrs] = defineField('email', {
 
 const submitted = ref(false)
 
-const onSubmit = handleSubmit(async values => {
-  const success = await authStore.requestPasswordReset(values.email)
+const onSubmit = handleSubmit(
+  async values => {
+    const success = await authStore.requestPasswordReset(values.email)
 
-  if (success) {
-    submitted.value = true
-    setTimeout(() => {
-      router.push('/login')
-    }, 3000)
-  }
-})
+    if (success) {
+      submitted.value = true
+      setTimeout(() => {
+        router.push('/login')
+      }, 3000)
+    }
+  },
+  // Move focus to the invalid field so screen readers announce its error (#327)
+  () => document.getElementById('page-forgot-email')?.focus()
+)
 </script>
 
 <template>
@@ -74,8 +78,10 @@ const onSubmit = handleSubmit(async values => {
                 :disabled="authStore.isLoading || submitted"
                 autofocus
                 :class="{ 'border-destructive': errors.email }"
+                :aria-invalid="!!errors.email"
+                :aria-describedby="errors.email ? 'page-forgot-email-error' : undefined"
               />
-              <p v-if="errors.email" class="text-sm text-destructive">
+              <p v-if="errors.email" id="page-forgot-email-error" class="text-sm text-destructive">
                 {{ errors.email }}
               </p>
             </div>
@@ -89,6 +95,7 @@ const onSubmit = handleSubmit(async values => {
 
             <div
               v-if="authStore.error"
+              role="alert"
               class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
             >
               {{ authStore.error }}

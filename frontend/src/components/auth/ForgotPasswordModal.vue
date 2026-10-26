@@ -46,19 +46,23 @@ const [email, emailAttrs] = defineField('email', {
 
 const submitted = ref(false)
 
-const onSubmit = handleSubmit(async values => {
-  const success = await authStore.requestPasswordReset(values.email)
+const onSubmit = handleSubmit(
+  async values => {
+    const success = await authStore.requestPasswordReset(values.email)
 
-  if (success) {
-    submitted.value = true
-    toast.success('Password reset instructions have been sent to your email.', {
-      duration: 5000
-    })
-    setTimeout(() => {
-      closeDialog()
-    }, 3000)
-  }
-})
+    if (success) {
+      submitted.value = true
+      toast.success('Password reset instructions have been sent to your email.', {
+        duration: 5000
+      })
+      setTimeout(() => {
+        closeDialog()
+      }, 3000)
+    }
+  },
+  // Move focus to the invalid field so screen readers announce its error (#327)
+  () => document.getElementById('forgot-email')?.focus()
+)
 
 const closeDialog = () => {
   emit('update:open', false)
@@ -101,8 +105,10 @@ watch(
             placeholder="Enter your email"
             :disabled="authStore.isLoading || submitted"
             :class="{ 'border-destructive': errors.email }"
+            :aria-invalid="!!errors.email"
+            :aria-describedby="errors.email ? 'forgot-email-error' : undefined"
           />
-          <p v-if="errors.email" class="text-sm text-destructive">
+          <p v-if="errors.email" id="forgot-email-error" class="text-sm text-destructive">
             {{ errors.email }}
           </p>
         </div>
@@ -116,6 +122,7 @@ watch(
 
         <div
           v-if="authStore.error"
+          role="alert"
           class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
         >
           {{ authStore.error }}
