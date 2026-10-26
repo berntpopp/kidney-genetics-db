@@ -135,26 +135,23 @@ class PanelAppUnifiedSource(UnifiedDataSource):
             """Internal function to fetch panels."""
             all_panels: list[dict[str, Any]] = []
 
-            # Search for panels with each keyword
+            if self.http_client is None:
+                raise RuntimeError("HTTP client not initialized")
+
+            # Search for panels with each keyword. Errors propagate: a partial panel list
+            # must not be cached or let a full refresh prune evidence (#366).
             for keyword in self.kidney_keywords:
-                try:
-                    if self.http_client is None:
-                        continue
-                    url = f"{base_url}/panels/"
-                    params = {"name": keyword, "format": "json"}
+                url = f"{base_url}/panels/"
+                params = {"name": keyword, "format": "json"}
 
-                    response = await self.http_client.get(url, params=params, timeout=30)
+                response = await self.http_client.get(url, params=params, timeout=30)
+                response.raise_for_status()
+                data = response.json()
 
-                    if response.status_code == 200:
-                        data = response.json()
-
-                        if "results" in data:
-                            for panel in data["results"]:
-                                if self._is_kidney_related_panel(panel):
-                                    all_panels.append(panel)
-
-                except Exception as e:
-                    logger.sync_error("Error searching panels", keyword=keyword, error=e)
+                if "results" in data:
+                    for panel in data["results"]:
+                        if self._is_kidney_related_panel(panel):
+                            all_panels.append(panel)
 
             # Deduplicate panels by ID
             seen_ids: set[Any] = set()
@@ -166,11 +163,7 @@ class PanelAppUnifiedSource(UnifiedDataSource):
                     seen_ids.add(panel_id)
 
                     # Fetch detailed panel data with genes
-                    detailed_panel = await self._fetch_panel_details(
-                        base_url, panel_id, panel.get("name", "")
-                    )
-                    if detailed_panel:
-                        unique_panels.append(detailed_panel)
+                    unique_panels.append(await self._fetch_panel_details(base_url, panel_id))
 
             return unique_panels
 
@@ -182,44 +175,17 @@ class PanelAppUnifiedSource(UnifiedDataSource):
 
         return panels or []
 
-    async def _fetch_panel_details(
-        self, base_url: str, panel_id: str, panel_name: str
-    ) -> dict[str, Any] | None:
-        """
-        Fetch detailed panel information including genes.
+    async def _fetch_panel_details(self, base_url: str, panel_id: str) -> dict[str, Any]:
+        """Fetch detailed panel information including genes; HTTP errors propagate."""
+        if self.http_client is None:
+            raise RuntimeError("HTTP client not initialized")
 
-        Args:
-            base_url: API base URL
-            panel_id: Panel identifier
-            panel_name: Panel name for logging
-
-        Returns:
-            Panel data with genes or None
-        """
-        try:
-            url = f"{base_url}/panels/{panel_id}/"
-            params = {"format": "json"}
-
-            if self.http_client is None:
-                logger.sync_error("HTTP client not initialized")
-                return None
-
-            response = await self.http_client.get(url, params=params, timeout=30)
-
-            if response.status_code == 200:
-                result: dict[str, Any] = response.json()
-                return result
-            else:
-                logger.sync_warning(
-                    "Failed to fetch panel", panel_id=panel_id, status_code=response.status_code
-                )
-
-        except Exception as e:
-            logger.sync_error(
-                "Error fetching panel", panel_id=panel_id, panel_name=panel_name, error=e
-            )
-
-        return None
+        response = await self.http_client.get(
+            f"{base_url}/panels/{panel_id}/", params={"format": "json"}, timeout=30
+        )
+        response.raise_for_status()
+        result: dict[str, Any] = response.json()
+        return result
 
     async def process_data(self, raw_data: dict[str, Any]) -> dict[str, Any]:
         """
