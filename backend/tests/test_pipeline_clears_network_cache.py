@@ -31,7 +31,7 @@ def gene_id(test_engine):
 
 @pytest.mark.asyncio
 async def test_source_update_clears_network_analysis_namespace(gene_id):
-    record = SimpleNamespace(last_update=OLD, next_update=OLD)
+    record = SimpleNamespace(last_update=OLD, next_update=OLD, config={})
     pipeline = AnnotationPipeline(MagicMock())
     pipeline.sources = {SOURCE: _source_class({gene_id: {"ok": 1}}, record)}  # type: ignore[dict-item]
     cache = MagicMock()
