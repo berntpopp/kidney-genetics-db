@@ -332,9 +332,6 @@ class CacheService:
             if self.db_session:
                 db_entry, expires_at = await self._get_from_db(cache_key)
                 if db_entry:
-                    # Update access statistics in DB
-                    await self._update_access_stats(cache_key)
-
                     # Store in memory cache, keeping the DB expiry (not a fresh namespace TTL)
                     memory_entry = CacheEntry(key, db_entry, namespace)
                     memory_entry.expires_at = expires_at
@@ -616,19 +613,25 @@ class CacheService:
             session.commit()
             return out
 
+    async def _run(self, query: Any, params: dict[str, Any] | None = None) -> Any:
+        """``_execute`` in a worker thread so the event loop never blocks on the DB."""
+        return await asyncio.to_thread(self._execute, query, params)
+
     async def _get_from_db(self, cache_key: str) -> tuple[Any | None, datetime | None]:
         """Get (value, absolute expires_at) from database cache; (None, None) on miss."""
         if not self.db_session:
             return None, None
 
         try:
-            rows = self._execute(
+            # One statement reads the entry and records the access
+            rows = await self._run(
                 text(
                     """
-                SELECT data, expires_at
-                FROM cache_entries
+                UPDATE cache_entries
+                SET last_accessed = NOW(), access_count = access_count + 1
                 WHERE cache_key = :cache_key
                 AND (expires_at IS NULL OR expires_at > NOW())
+                RETURNING data, expires_at
             """
                 ),
                 {"cache_key": cache_key},
@@ -706,7 +709,7 @@ class CacheService:
             """
             )
 
-            self._execute(
+            await self._run(
                 query,
                 {
                     "cache_key": cache_key,
@@ -743,7 +746,7 @@ class CacheService:
             return False
 
         try:
-            self._execute(
+            await self._run(
                 text("DELETE FROM cache_entries WHERE cache_key = :cache_key"),
                 {"cache_key": cache_key},
             )
@@ -753,26 +756,6 @@ class CacheService:
             logger.sync_error("Database cache delete error", error=str(e))
             return False
 
-    async def _update_access_stats(self, cache_key: str) -> None:
-        """Update access statistics for a cache entry."""
-        if not self.db_session:
-            return
-
-        try:
-            self._execute(
-                text(
-                    """
-                UPDATE cache_entries
-                SET last_accessed = NOW(), access_count = access_count + 1
-                WHERE cache_key = :cache_key
-            """
-                ),
-                {"cache_key": cache_key},
-            )
-
-        except Exception as e:
-            logger.sync_error("Database access stats update error", error=str(e))
-
     async def _clear_namespace_from_db(self, namespace: str) -> int:
         """Clear all entries from a namespace in database."""
         if not self.db_session:
@@ -781,7 +764,7 @@ class CacheService:
         try:
             return cast(
                 int,
-                self._execute(
+                await self._run(
                     text("DELETE FROM cache_entries WHERE namespace = :namespace"),
                     {"namespace": namespace},
                 ),
@@ -799,7 +782,7 @@ class CacheService:
         try:
             return cast(
                 int,
-                self._execute(
+                await self._run(
                     text(
                         """
                 DELETE FROM cache_entries
@@ -820,12 +803,12 @@ class CacheService:
 
         try:
             if namespace:
-                rows = self._execute(
+                rows = await self._run(
                     text("SELECT COUNT(*) FROM cache_entries WHERE namespace = :namespace"),
                     {"namespace": namespace},
                 )
             else:
-                rows = self._execute(text("SELECT COUNT(*) FROM cache_entries"))
+                rows = await self._run(text("SELECT COUNT(*) FROM cache_entries"))
 
             return cast(int, rows[0][0] or 0)
 
@@ -839,7 +822,7 @@ class CacheService:
             return {}
 
         try:
-            rows = self._execute(
+            rows = await self._run(
                 text("SELECT * FROM cache_stats WHERE namespace = :namespace"),
                 {"namespace": namespace},
             )
@@ -856,7 +839,7 @@ class CacheService:
             return []
 
         try:
-            rows = self._execute(
+            rows = await self._run(
                 text("SELECT DISTINCT namespace FROM cache_entries ORDER BY namespace")
             )
             namespaces = [row[0] for row in rows]
