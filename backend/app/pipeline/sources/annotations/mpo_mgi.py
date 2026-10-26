@@ -214,8 +214,10 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         try:
             # First get mouse ortholog symbol(s) using the original approach
             base_result = await self.query_mousemine_phenotypes(human_gene_symbol, mpo_terms)
+            if base_result is None:
+                return None  # query failed: unknown, not "no phenotype"
 
-            if not base_result or not base_result.get("mouse_orthologs"):
+            if not base_result.get("mouse_orthologs"):
                 # No mouse orthologs found
                 return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
 
@@ -245,7 +247,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                     logger.sync_warning(
                         f"Genotype phenotype query failed for {mouse_symbol}: {response.status_code}"
                     )
-                    return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
+                    return None
 
                 data = response.json()
                 results = data.get("results", [])
@@ -392,6 +394,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         gene_mouse_symbols: dict[str, set[str]] = {}
         gene_all_pheno: dict[str, dict[str, str]] = {}
         gene_kidney_pheno: dict[str, dict[str, str]] = {}
+        failed: set[str] = set()  # symbols of failed chunks: unknown, not "no phenotype"
 
         for chunk_start in range(0, len(gene_symbols), self.BULK_CHUNK_SIZE):
             chunk = gene_symbols[chunk_start : chunk_start + self.BULK_CHUNK_SIZE]
@@ -418,6 +421,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                         f"Bulk HGene_MPhenotype failed (chunk {chunk_start}): "
                         f"{response.status_code}"
                     )
+                    failed.update(chunk)
                     continue
 
                 data = response.json()
@@ -447,11 +451,14 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
             except Exception as e:
                 logger.sync_error(f"Bulk HGene_MPhenotype error (chunk {chunk_start}): {e}")
+                failed.update(chunk)
                 continue
 
         # Build per-gene result dicts
         out: dict[str, dict[str, Any]] = {}
         for sym in gene_symbols:
+            if sym in failed:
+                continue  # left out so the per-gene fallback retries it
             kidney = gene_kidney_pheno.get(sym, {})
             kidney_list = [{"term": tid, "name": name} for tid, name in sorted(kidney.items())]
             out[sym] = {
@@ -497,6 +504,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         gene_zyg: dict[str, dict[str, list[dict[str, str]]]] = {}
         for human_sym in gene_mouse_map:
             gene_zyg[human_sym] = {"hm": [], "ht": [], "cn": [], "other": []}
+        failed: set[str] = set()  # mouse symbols of failed chunks
 
         for chunk_start in range(0, len(all_mouse_symbols), self.BULK_CHUNK_SIZE):
             chunk = all_mouse_symbols[chunk_start : chunk_start + self.BULK_CHUNK_SIZE]
@@ -522,6 +530,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                         f"Bulk _Genotype_Phenotype failed (chunk {chunk_start}): "
                         f"{response.status_code}"
                     )
+                    failed.update(chunk)
                     continue
 
                 data = response.json()
@@ -553,7 +562,11 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
             except Exception as e:
                 logger.sync_error(f"Bulk _Genotype_Phenotype error (chunk {chunk_start}): {e}")
+                failed.update(chunk)
                 continue
+
+        for ms in failed:
+            gene_zyg.pop(mouse_to_human[ms], None)
 
         # Build per-gene zygosity analysis
         out: dict[str, dict[str, Any]] = {}
@@ -625,12 +638,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                 logger.sync_warning(
                     f"MouseMine template query failed for {human_gene_symbol}: {response.status_code}"
                 )
-                return {
-                    "has_kidney_phenotype": False,
-                    "mouse_orthologs": [],
-                    "phenotypes": [],
-                    "phenotype_count": 0,
-                }
+                return None
 
             data = response.json()
             results = data.get("results", [])
@@ -710,33 +718,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
             result = await self.query_mousemine_zygosity_phenotypes(gene.approved_symbol, mpo_terms)
 
             if result is None:
-                # Query failed, return minimal data with zygosity structure
-                return {
-                    "gene_symbol": gene.approved_symbol,
-                    "has_kidney_phenotype": False,
-                    "mouse_orthologs": [],
-                    "phenotypes": [],
-                    "phenotype_count": 0,
-                    "mpo_terms_searched": len(mpo_terms),
-                    "zygosity_analysis": {
-                        "homozygous": {
-                            "has_kidney_phenotype": False,
-                            "phenotype_count": 0,
-                            "phenotypes": [],
-                        },
-                        "heterozygous": {
-                            "has_kidney_phenotype": False,
-                            "phenotype_count": 0,
-                            "phenotypes": [],
-                        },
-                        "conditional": {
-                            "has_kidney_phenotype": False,
-                            "phenotype_count": 0,
-                            "phenotypes": [],
-                        },
-                        "summary": "hm (NA); ht (NA)",
-                    },
-                }
+                return None  # query failed: never store it as "no kidney phenotype"
 
             # Add metadata to result
             result.update(
@@ -802,6 +784,8 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
             # Merge zygosity data
             zyg = zyg_map.get(sym)
+            if zyg is None and sym in gene_mouse_map:
+                continue  # zygosity query failed for this gene: leave it to the fallback
             if zyg is None:
                 zyg = {
                     "homozygous": {

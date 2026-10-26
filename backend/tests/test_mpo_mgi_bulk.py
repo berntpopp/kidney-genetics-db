@@ -104,7 +104,7 @@ async def test_bulk_phenotypes_parses_results(source):
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_bulk_phenotypes_handles_api_error(source):
-    """Bulk phenotype query returns empty results on HTTP error."""
+    """A failed chunk is left out (unknown), not stored as "no kidney phenotype" (#365)."""
     mock_response = MagicMock()
     mock_response.status_code = 500
 
@@ -118,9 +118,7 @@ async def test_bulk_phenotypes_handles_api_error(source):
                 source._mpo_terms_cache,
             )
 
-    # All genes should have empty results
-    assert result["PKD1"]["has_kidney_phenotype"] is False
-    assert result["PKD1"]["phenotype_count"] == 0
+    assert "PKD1" not in result
 
 
 @pytest.mark.unit
@@ -198,7 +196,7 @@ async def test_bulk_zygosity_parses_results(source):
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_bulk_zygosity_handles_api_error(source):
-    """Zygosity query returns empty structure on HTTP error."""
+    """A failed zygosity chunk is left out, not stored as all-false (#365)."""
     mock_response = MagicMock()
     mock_response.status_code = 500
 
@@ -209,9 +207,7 @@ async def test_bulk_zygosity_handles_api_error(source):
         with patch.object(source, "apply_rate_limit", new_callable=AsyncMock):
             result = await source._bulk_query_zygosity({"PKD1": ["Pkd1"]}, source._mpo_terms_cache)
 
-    assert result["PKD1"]["homozygous"]["phenotype_count"] == 0
-    assert result["PKD1"]["heterozygous"]["phenotype_count"] == 0
-    assert result["PKD1"]["summary"] == "hm (false); ht (false)"
+    assert "PKD1" not in result
 
 
 # ── fetch_batch (integration of bulk queries) ───────────────────────────
