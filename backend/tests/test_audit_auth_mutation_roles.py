@@ -1,6 +1,7 @@
 """Regression tests for #286: gene, source-update and staging writes require roles."""
 
 from unittest.mock import AsyncMock
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -22,7 +23,11 @@ def _auth(db_session, role: str) -> dict[str, str]:
 
 def _staging(db_session) -> int:
     record = GeneNormalizationStaging(
-        original_text="AUDIT286", source_name="audit", original_data={}, normalization_log={}
+        # One open record per text is allowed (migration 0010)
+        original_text=f"AUDIT286-{uuid4().hex[:8]}",
+        source_name="audit",
+        original_data={},
+        normalization_log={},
     )
     db_session.add(record)
     db_session.commit()

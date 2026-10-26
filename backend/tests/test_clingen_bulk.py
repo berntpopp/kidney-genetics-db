@@ -2,6 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from app.pipeline.sources.unified.clingen import ClinGenUnifiedSource
@@ -57,9 +58,7 @@ def source():
     """Create ClinGenUnifiedSource with mocked dependencies."""
     with patch.object(ClinGenUnifiedSource, "__init__", lambda self, **kw: None):
         src = ClinGenUnifiedSource.__new__(ClinGenUnifiedSource)
-        src.base_url = "https://search.clinicalgenome.org/api"
         src.csv_url = "https://search.clinicalgenome.org/kb/gene-validity/download"
-        src.kidney_affiliate_ids = [40066, 40068, 40067, 40069, 40070]
         src.kidney_panel_names = {
             "Kidney Cystic and Ciliopathy Disorders Gene Curation Expert Panel",
             "Glomerulopathy Gene Curation Expert Panel",
@@ -86,7 +85,7 @@ def source():
         return src
 
 
-# ── _fetch_bulk_csv ─────────────────────────────────────────────────────
+# ── fetch_raw_data ──────────────────────────────────────────────────────
 
 
 @pytest.mark.unit
@@ -100,7 +99,7 @@ async def test_csv_parses_kidney_rows(source):
     mock_resp.text = csv_text
     source.http_client.get = AsyncMock(return_value=mock_resp)
 
-    result = await source._fetch_bulk_csv()
+    result = await source.fetch_raw_data()
 
     assert result is not None
     # PKD1 (kidney panel) + APOL1 (kidney panel) + HNF1B (kidney disease from other panel)
@@ -125,7 +124,7 @@ async def test_csv_includes_cross_panel_kidney_disease(source):
     mock_resp.text = csv_text
     source.http_client.get = AsyncMock(return_value=mock_resp)
 
-    result = await source._fetch_bulk_csv()
+    result = await source.fetch_raw_data()
 
     assert result is not None
     assert len(result["validities"]) == 1
@@ -144,7 +143,7 @@ async def test_csv_field_mapping(source):
     mock_resp.text = csv_text
     source.http_client.get = AsyncMock(return_value=mock_resp)
 
-    result = await source._fetch_bulk_csv()
+    result = await source.fetch_raw_data()
     assert result is not None
 
     v = result["validities"][0]
@@ -169,7 +168,7 @@ async def test_csv_panel_stats(source):
     mock_resp.text = csv_text
     source.http_client.get = AsyncMock(return_value=mock_resp)
 
-    result = await source._fetch_bulk_csv()
+    result = await source.fetch_raw_data()
     assert result is not None
 
     stats = result["panel_stats"]
@@ -179,76 +178,39 @@ async def test_csv_panel_stats(source):
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_csv_returns_none_on_http_error(source):
-    """CSV download returns None on non-200 status."""
+async def test_csv_http_error_raises(source):
+    """A failed download fails the run instead of returning a partial panel subset."""
+
+    async def get(url, **kwargs):
+        # The per-panel API still answers; its five panels alone miss cross-panel genes
+        status = 503 if url == source.csv_url else 200
+        return httpx.Response(status, json={"rows": []}, request=httpx.Request("GET", url))
+
+    source.http_client.get = AsyncMock(side_effect=get)
+
+    with pytest.raises(httpx.HTTPStatusError):
+        await source.fetch_raw_data()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_csv_unexpected_format_raises(source):
+    """An HTML error page or a changed layout raises instead of parsing to nothing."""
     mock_resp = MagicMock()
-    mock_resp.status_code = 500
+    mock_resp.text = "<html>maintenance</html>\n"
     source.http_client.get = AsyncMock(return_value=mock_resp)
 
-    result = await source._fetch_bulk_csv()
-    assert result is None
+    with pytest.raises(ValueError, match="unexpected format"):
+        await source.fetch_raw_data()
 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_csv_returns_none_on_exception(source):
-    """CSV download returns None on network exception."""
-    source.http_client.get = AsyncMock(side_effect=Exception("timeout"))
-
-    result = await source._fetch_bulk_csv()
-    assert result is None
-
-
-@pytest.mark.unit
-@pytest.mark.asyncio
-async def test_csv_returns_none_when_no_http_client(source):
-    """CSV download returns None when http_client is None."""
+async def test_csv_raises_when_no_http_client(source):
     source.http_client = None
 
-    result = await source._fetch_bulk_csv()
-    assert result is None
-
-
-# ── fetch_raw_data (CSV + fallback) ─────────────────────────────────────
-
-
-@pytest.mark.unit
-@pytest.mark.asyncio
-async def test_fetch_raw_data_prefers_csv(source):
-    """fetch_raw_data uses CSV when available."""
-    csv_result = {
-        "validities": [{"symbol": "PKD1"}],
-        "panel_stats": {},
-        "total_records": 1,
-        "fetch_date": "2026-03-01T00:00:00+00:00",
-    }
-
-    with patch.object(source, "_fetch_bulk_csv", new_callable=AsyncMock, return_value=csv_result):
-        with patch.object(source, "_fetch_per_panel_api", new_callable=AsyncMock) as mock_api:
-            result = await source.fetch_raw_data()
-
-    assert result == csv_result
-    mock_api.assert_not_called()
-
-
-@pytest.mark.unit
-@pytest.mark.asyncio
-async def test_fetch_raw_data_falls_back_to_api(source):
-    """fetch_raw_data falls back to per-panel API when CSV fails."""
-    api_result = {
-        "validities": [{"symbol": "PKD2"}],
-        "panel_stats": {},
-        "total_records": 1,
-        "fetch_date": "2026-03-01T00:00:00+00:00",
-    }
-
-    with patch.object(source, "_fetch_bulk_csv", new_callable=AsyncMock, return_value=None):
-        with patch.object(
-            source, "_fetch_per_panel_api", new_callable=AsyncMock, return_value=api_result
-        ):
-            result = await source.fetch_raw_data()
-
-    assert result == api_result
+    with pytest.raises(RuntimeError):
+        await source.fetch_raw_data()
 
 
 # ── kidney_panel_names constant ─────────────────────────────────────────

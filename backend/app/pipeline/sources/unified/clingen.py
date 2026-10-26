@@ -4,7 +4,7 @@ Unified ClinGen data source implementation.
 This module replaces the previous ClinGen implementation with a single,
 async-first implementation using the unified data source architecture.
 
-Supports bulk CSV download (1 request) with per-panel API fallback.
+Downloads the bulk gene-validity CSV (1 request) and filters it locally.
 """
 
 import csv
@@ -57,17 +57,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         super().__init__(cache_service, http_client, db_session, **kwargs)
 
         # ClinGen configuration
-        self.base_url = "https://search.clinicalgenome.org/api"
         self.csv_url = "https://search.clinicalgenome.org/kb/gene-validity/download"
-
-        # Kidney-specific affiliate/expert panel IDs (for API fallback)
-        self.kidney_affiliate_ids = [
-            40066,  # Kidney Cystic and Ciliopathy Disorders
-            40068,  # Glomerulopathy
-            40067,  # Tubulopathy
-            40069,  # Complement-Mediated Kidney Diseases
-            40070,  # Congenital Anomalies of the Kidney and Urinary Tract
-        ]
 
         # Kidney panel GCEP names (for CSV filtering)
         self.kidney_panel_names = {
@@ -111,7 +101,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         ]
 
         logger.sync_info(
-            "ClinGenUnifiedSource initialized", kidney_panels=len(self.kidney_affiliate_ids)
+            "ClinGenUnifiedSource initialized", kidney_panels=len(self.kidney_panel_names)
         )
 
     def _get_default_ttl(self) -> int:
@@ -122,80 +112,51 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         self, tracker: "ProgressTracker | None" = None, mode: str = "smart"
     ) -> dict[str, Any]:
         """
-        Fetch gene validity assessments.
+        Download the full ClinGen gene-disease validity CSV and filter it to
+        kidney expert panels and kidney diseases from other panels.
 
-        Tries bulk CSV download first (1 request), falls back to
-        per-panel API calls (5 requests) on failure.
-
-        Returns:
-            Dictionary with validity assessments from all panels
+        Errors propagate. There is no per-panel fallback: it only saw the five kidney
+        panels, so a full refresh on its result pruned cross-panel genes such as HNF1B.
+        A failed download fails the run and keeps the existing evidence.
         """
         logger.sync_info("Fetching ClinGen gene validity assessments")
+        if self.http_client is None:
+            raise RuntimeError("HTTP client not initialized")
 
-        # Try bulk CSV first
-        csv_result = await self._fetch_bulk_csv()
-        if csv_result is not None:
-            return csv_result
+        response = await self.http_client.get(self.csv_url, timeout=60)
+        response.raise_for_status()
+        reader = csv.reader(io.StringIO(response.text))
 
-        # Fallback to per-panel API
-        logger.sync_info("CSV download failed, falling back to per-panel API")
-        return await self._fetch_per_panel_api()
+        # Skip header rows (4 metadata lines + 1 column header)
+        header_row = None
+        for i, row in enumerate(reader):
+            if i == 4:
+                header_row = row
+                break
+        if not header_row or header_row[0].strip() != "GENE SYMBOL":
+            raise ValueError(f"ClinGen CSV has unexpected format: header {header_row!r}")
 
-    async def _fetch_bulk_csv(self) -> dict[str, Any] | None:
-        """
-        Download the full ClinGen gene-disease validity CSV and filter
-        to kidney expert panels locally.
+        # CSV columns: GENE SYMBOL, GENE ID (HGNC), DISEASE LABEL,
+        #   DISEASE ID (MONDO), MOI, SOP, CLASSIFICATION,
+        #   ONLINE REPORT, CLASSIFICATION DATE, GCEP
+        all_validities: list[dict[str, Any]] = []
+        panel_stats: dict[str, int] = {}
 
-        Returns:
-            Raw data dict matching the per-panel format, or None on failure.
-        """
-        try:
-            if self.http_client is None:
-                logger.sync_error("HTTP client not initialized for CSV download")
-                return None
+        for row in reader:
+            if len(row) < 10:
+                continue
 
-            response = await self.http_client.get(self.csv_url, timeout=60)
-            if response.status_code != 200:
-                logger.sync_warning("ClinGen CSV download failed", status_code=response.status_code)
-                return None
+            gcep = row[9].strip()
+            disease = row[2].strip().lower()
+            is_kidney_panel = gcep in self.kidney_panel_names
+            # Also include entries from non-kidney panels if disease is kidney-related
+            is_kidney_disease = any(kw in disease for kw in self.kidney_keywords)
 
-            text = response.text
-            reader = csv.reader(io.StringIO(text))
+            if not is_kidney_panel and not is_kidney_disease:
+                continue
 
-            # Skip header rows (4 metadata lines + 1 column header)
-            header_row = None
-            for i, row in enumerate(reader):
-                if i < 4:
-                    continue
-                if i == 4:
-                    header_row = row
-                    break
-
-            if not header_row:
-                logger.sync_warning("ClinGen CSV has unexpected format")
-                return None
-
-            # CSV columns: GENE SYMBOL, GENE ID (HGNC), DISEASE LABEL,
-            #   DISEASE ID (MONDO), MOI, SOP, CLASSIFICATION,
-            #   ONLINE REPORT, CLASSIFICATION DATE, GCEP
-            all_validities: list[dict[str, Any]] = []
-            panel_stats: dict[str, int] = {}
-
-            for row in reader:
-                if len(row) < 10:
-                    continue
-
-                gcep = row[9].strip()
-                disease = row[2].strip().lower()
-                is_kidney_panel = gcep in self.kidney_panel_names
-                # Also include entries from non-kidney panels if disease is kidney-related
-                is_kidney_disease = any(kw in disease for kw in self.kidney_keywords)
-
-                if not is_kidney_panel and not is_kidney_disease:
-                    continue
-
-                # Convert to the same dict format as the API response
-                validity: dict[str, Any] = {
+            all_validities.append(
+                {
                     "symbol": row[0].strip(),
                     "hgnc_id": row[1].strip(),
                     "disease_name": row[2].strip(),
@@ -206,43 +167,14 @@ class ClinGenUnifiedSource(UnifiedDataSource):
                     "released": row[8].strip(),
                     "ep": gcep,
                 }
-
-                all_validities.append(validity)
-                panel_stats[gcep] = panel_stats.get(gcep, 0) + 1
-
-            logger.sync_info(
-                "ClinGen CSV parsed",
-                total_kidney_records=len(all_validities),
-                panels=len(panel_stats),
             )
+            panel_stats[gcep] = panel_stats.get(gcep, 0) + 1
 
-            return {
-                "validities": all_validities,
-                "panel_stats": panel_stats,
-                "total_records": len(all_validities),
-                "fetch_date": datetime.now(timezone.utc).isoformat(),
-            }
-
-        except Exception as e:
-            logger.sync_error("ClinGen CSV parsing error", error_detail=str(e))
-            return None
-
-    async def _fetch_per_panel_api(self) -> dict[str, Any]:
-        """Fetch from per-panel API endpoints (original 5-request approach)."""
-        all_validities: list[dict[str, Any]] = []
-        panel_stats: dict[int, int] = {}
-
-        for affiliate_id in self.kidney_affiliate_ids:
-            panel_data = await self._fetch_affiliate_data(affiliate_id)
-
-            if panel_data:
-                all_validities.extend(panel_data)
-                panel_stats[affiliate_id] = len(panel_data)
-                logger.sync_info(
-                    "Fetched records from affiliate",
-                    record_count=len(panel_data),
-                    affiliate_id=affiliate_id,
-                )
+        logger.sync_info(
+            "ClinGen CSV parsed",
+            total_kidney_records=len(all_validities),
+            panels=len(panel_stats),
+        )
 
         return {
             "validities": all_validities,
@@ -250,38 +182,6 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             "total_records": len(all_validities),
             "fetch_date": datetime.now(timezone.utc).isoformat(),
         }
-
-    async def _fetch_affiliate_data(self, affiliate_id: int) -> list[dict[str, Any]]:
-        """
-        Fetch gene validity data from a specific ClinGen affiliate.
-
-        Args:
-            affiliate_id: ClinGen affiliate/expert panel ID
-
-        Returns:
-            List of gene validity records
-        """
-
-        async def _fetch_panel() -> list[dict[str, Any]]:
-            """Internal function to fetch panel data."""
-            url = f"{self.base_url}/affiliates/{affiliate_id}"
-
-            # Errors propagate: a missing affiliate must not be cached as [] or let a full
-            # refresh prune its evidence (#366).
-            if self.http_client is None:
-                raise RuntimeError("HTTP client not initialized")
-
-            response = await self.http_client.get(url, timeout=30)
-            response.raise_for_status()
-            return cast(list[dict[str, Any]], response.json().get("rows", []))
-
-        # Use unified caching
-        cache_key = f"affiliate:{affiliate_id}"
-        validities = await self.fetch_with_cache(
-            cache_key=cache_key, fetch_func=_fetch_panel, ttl=self.cache_ttl
-        )
-
-        return validities or []
 
     async def process_data(self, raw_data: dict[str, Any]) -> dict[str, Any]:
         """

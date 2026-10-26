@@ -103,7 +103,6 @@ class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
         # Update source configuration
         if self.source_record:
-            self.source_record.update_frequency = "monthly"
             self.source_record.description = (
                 "Gene structure data from Ensembl GTF - exons, transcripts, coordinates"
             )

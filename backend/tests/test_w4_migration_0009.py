@@ -58,8 +58,8 @@ def test_0009_keeps_gene_scores_and_adds_refreshable_matviews(baseline_db):  # n
         tiers = conn.execute(text("SELECT count(DISTINCT evidence_tier) FROM gene_scores"))
         assert tiers.scalar_one() >= 3  # data actually exercises the tier branches
 
-    for _ in range(2):  # upgrade, then downgrade -1 and upgrade again
-        _alembic(url, "upgrade", "head")
+    for _ in range(2):  # upgrade, then downgrade to 0008 and upgrade again
+        _alembic(url, "upgrade", "0009")
         with engine.begin() as conn:
             assert conn.execute(text(DIFF)).scalar_one() == 0
             _assert_view_matches_canonical(conn, views.gene_scores)
@@ -78,7 +78,7 @@ def test_0009_keeps_gene_scores_and_adds_refreshable_matviews(baseline_db):  # n
                 )
             )
             assert overlap.scalar_one() == 4
-        _alembic(url, "downgrade", "-1")
+        _alembic(url, "downgrade", "0008")
         with engine.begin() as conn:
             assert conn.execute(text(DIFF)).scalar_one() == 0
             for mv in MATVIEWS[1:]:

@@ -61,7 +61,6 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
         # Update source configuration
         if self.source_record:
-            self.source_record.update_frequency = "weekly"
             self.source_record.description = "Mouse model kidney phenotypes from JAX and MGI"
             self.source_record.base_url = self.jax_base_url
             self.session.commit()
