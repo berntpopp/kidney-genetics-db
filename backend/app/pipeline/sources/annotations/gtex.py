@@ -103,7 +103,8 @@ class GTExAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
                 gencode_id = row[0].strip()
                 gene_symbol = row[1].strip()
-                if not gene_symbol:
+                # All-zero PAR_Y copies follow the real X rows and would overwrite them
+                if not gene_symbol or gencode_id.endswith("_PAR_Y"):
                     continue
 
                 # Build tissue expression map (same structure as API path)
