@@ -26,7 +26,10 @@ from app.core.security import (
     verify_password,
     verify_token,
 )
-from app.models.gene_disease_association import GeneDiseaseAssociation
+from app.models.gene_disease_association import (
+    GeneDiseaseAssociation,
+    GeneDiseaseAssociationEvent,
+)
 from app.models.user import User
 from app.schemas.auth import (
     PasswordChange,
@@ -649,6 +652,11 @@ async def delete_user(
             or_(
                 GeneDiseaseAssociation.curator_id == user.id,
                 GeneDiseaseAssociation.reviewer_id == user.id,
+            )
+        )
+        .union(
+            select(GeneDiseaseAssociationEvent.association_id).where(
+                GeneDiseaseAssociationEvent.user_id == user.id
             )
         )
         .limit(1)

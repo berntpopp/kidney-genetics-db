@@ -16,6 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
 from app.models.base import Base, TimestampMixin
 
@@ -71,3 +72,18 @@ class GeneDiseaseAssociation(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<GeneDiseaseAssociation(gene_id={self.gene_id}, disease_id='{self.disease_id}')>"
+
+
+class GeneDiseaseAssociationEvent(Base):
+    """Append-only trace of every curation action, with the record as it was afterwards."""
+
+    __tablename__ = "gene_disease_association_events"
+
+    id = Column(BigInteger, primary_key=True)
+    association_id = Column(
+        BigInteger, ForeignKey("gene_disease_associations.id"), nullable=False, index=True
+    )
+    action = Column(String(20), nullable=False)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, index=True)
+    at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    snapshot = Column(JSONB, nullable=False)

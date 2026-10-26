@@ -75,8 +75,10 @@ export const curationApi = {
   ): Promise<Association> {
     return (await apiClient.patch<Association>(`${BASE}/${id}`, input)).data
   },
-  async transition(id: number, action: WorkflowAction): Promise<Association> {
-    return (await apiClient.post<Association>(`${BASE}/${id}/${action}`)).data
+  /** Review actions confirm the version the reviewer saw; a changed record answers 409 */
+  async transition(record: Association, action: WorkflowAction): Promise<Association> {
+    const body = action === 'submit' ? undefined : { expected_updated_at: record.updated_at }
+    return (await apiClient.post<Association>(`${BASE}/${record.id}/${action}`, body)).data
   }
 }
 

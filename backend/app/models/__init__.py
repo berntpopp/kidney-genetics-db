@@ -8,7 +8,10 @@ from app.models.cache import CacheEntry
 from app.models.data_release import DataRelease
 from app.models.gene import Gene, GeneCuration, GeneEvidence, PipelineRun
 from app.models.gene_annotation import AnnotationHistory, AnnotationSource, GeneAnnotation
-from app.models.gene_disease_association import GeneDiseaseAssociation
+from app.models.gene_disease_association import (
+    GeneDiseaseAssociation,
+    GeneDiseaseAssociationEvent,
+)
 from app.models.gene_staging import GeneNormalizationLog, GeneNormalizationStaging
 from app.models.progress import DataSourceProgress, SourceStatus
 from app.models.refresh_token import RefreshToken
@@ -32,6 +35,7 @@ __all__ = [
     "GeneAnnotation",
     "GeneCuration",
     "GeneDiseaseAssociation",
+    "GeneDiseaseAssociationEvent",
     "GeneEvidence",
     "GeneNormalizationLog",
     "GeneNormalizationStaging",

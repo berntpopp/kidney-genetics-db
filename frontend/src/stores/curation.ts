@@ -71,8 +71,15 @@ export const useCurationStore = defineStore('curation', () => {
     delete changes.gene_symbol // the gene is fixed once a record exists
     return write(() => curationApi.update(id, changes))
   }
-  const transition = (id: number, action: WorkflowAction) =>
-    write(() => curationApi.transition(id, action))
+  async function transition(record: Association, action: WorkflowAction) {
+    const saved = await write(() => curationApi.transition(record, action))
+    // A refused decision (e.g. 409: changed since loaded) shows the current version, keeping the error
+    if (!saved) {
+      const res = await curationApi.listWorkflow({ limit: LIMIT }).catch(() => null)
+      if (res) [workflow.value, workflowTotal.value] = [res.data, res.meta.total]
+    }
+    return saved
+  }
 
   return {
     published,

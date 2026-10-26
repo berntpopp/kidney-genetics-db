@@ -55,7 +55,7 @@ function actionsFor(r: Association): { action: WorkflowAction | 'edit'; label: s
 
 async function onAction(r: Association, action: WorkflowAction | 'edit') {
   if (action === 'edit') editing.value = r
-  else await store.transition(r.id, action)
+  else await store.transition(r, action)
 }
 
 async function onSave(input: AssociationInput) {
@@ -196,6 +196,7 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
               <TableRow>
                 <TableHead>Gene</TableHead>
                 <TableHead>Disease</TableHead>
+                <TableHead>Evidence</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Updated</TableHead>
                 <TableHead>Actions</TableHead>
@@ -205,6 +206,24 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString() : 'â
               <TableRow v-for="r in store.workflow" :key="r.id" :data-testid="`wf-${r.id}`">
                 <TableCell>{{ r.gene_symbol }}</TableCell>
                 <TableCell>{{ r.disease_id }} â€” {{ r.disease_name }}</TableCell>
+                <!-- What the reviewer approves: strength, citations and summary (#376) -->
+                <TableCell class="max-w-sm space-y-1">
+                  <Badge variant="secondary">{{ r.evidence_strength }}</Badge>
+                  <div>
+                    <a
+                      v-for="c in r.citations"
+                      :key="c"
+                      :href="pubmedUrl(c)"
+                      target="_blank"
+                      rel="noopener"
+                      class="mr-2 underline"
+                      >{{ c }}</a
+                    >
+                  </div>
+                  <p v-if="r.evidence_summary" class="text-xs text-muted-foreground">
+                    {{ r.evidence_summary }}
+                  </p>
+                </TableCell>
                 <TableCell
                   ><Badge variant="outline">{{ r.status }}</Badge></TableCell
                 >
