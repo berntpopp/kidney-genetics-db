@@ -180,8 +180,8 @@ class ProgressTracker:
             current_status=str(self.progress_record.status),
         )
 
-        # Preserve running status if already set
-        if self.progress_record.status != SourceStatus.running:
+        # Revive a finished/idle row, but never undo an admin's pause (#370)
+        if self.progress_record.status not in (SourceStatus.running, SourceStatus.paused):
             logger.sync_warning(
                 "Update called but status is not running, forcing to running",
                 source_name=self.source_name,

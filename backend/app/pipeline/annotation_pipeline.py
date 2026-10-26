@@ -4,14 +4,14 @@ Annotation pipeline orchestrator for managing gene annotation updates.
 
 import asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.core.database import SessionLocal
+from app.core.database import SessionLocal, get_thread_pool_executor
 from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
 from app.core.resource_monitor import log_resource_checkpoint
@@ -47,6 +47,30 @@ def _close_pipeline_session(db: Session) -> None:
         db.close()
     except Exception:
         db.invalidate()  # never pool a connection that may still carry the override
+
+
+# Minutes without a progress heartbeat before a "running" row counts as a crashed run
+_STALE_LOCK_MINUTES = 15
+
+
+def _heartbeat_age_minutes(progress: DataSourceProgress) -> float:
+    """Minutes since the run last committed progress (last_update_at is its heartbeat)."""
+    beat = progress.last_update_at or progress.started_at or progress.updated_at
+    if beat is None:
+        return float("inf")
+    if beat.tzinfo is None:
+        beat = beat.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - beat).total_seconds() / 60
+
+
+def pipeline_run_active(db: Session) -> bool:
+    """True while an annotation run holds the lock: running with a fresh heartbeat (#359)."""
+    progress = db.query(DataSourceProgress).filter_by(source_name="annotation_pipeline").first()
+    return bool(
+        progress
+        and progress.status == SourceStatus.running
+        and _heartbeat_age_minutes(progress) < _STALE_LOCK_MINUTES
+    )
 
 
 class UpdateStrategy(str, Enum):
@@ -101,6 +125,7 @@ class AnnotationPipeline:
         gene_ids: list[int] | None = None,
         force: bool = False,
         task_id: str | None = None,
+        resume: bool = False,
     ) -> dict[str, Any]:
         """
         Run annotation update with specified strategy.
@@ -111,6 +136,8 @@ class AnnotationPipeline:
             gene_ids: Specific gene IDs to update (None = all)
             force: Force update regardless of TTL
             task_id: Optional task ID for progress tracking
+            resume: Continue a paused/interrupted run from its checkpoint; a fresh
+                request never adopts an old checkpoint's sources or genes (#362)
 
         Returns:
             Dictionary with update results
@@ -140,14 +167,20 @@ class AnnotationPipeline:
             task_id=task_id,
         )
 
-        # Recover from stale pipeline lock (previous worker crash)
-        self._recover_stale_lock()
+        # Recover from a crashed run's lock, but never start next to a live run (#359)
+        if self._recover_stale_lock():
+            return {
+                "status": "already_running",
+                "success": False,
+                "sources_updated": 0,
+                "errors": [],
+                "message": "An annotation update is already running",
+            }
 
         # Initialize progress tracking
         self.progress_tracker = ProgressTracker(self.db, self.source_name)
 
-        # Check if we're resuming a paused update
-        checkpoint = await self._load_checkpoint()
+        checkpoint = await self._load_checkpoint() if resume else None
         if checkpoint:
             logger.sync_info(
                 "Resuming from checkpoint", strategy=strategy.value, checkpoint=checkpoint
@@ -158,14 +191,13 @@ class AnnotationPipeline:
             if not gene_ids:
                 gene_ids = checkpoint.get("gene_ids")
 
-        if self.progress_tracker.is_paused():
-            logger.sync_info(
-                "Resuming paused annotation update",
-                strategy=strategy.value,
-                last_operation=self.progress_tracker.get_current_operation(),
-            )
-        else:
-            self.progress_tracker.start(operation=f"Starting annotation update ({strategy.value})")
+        # Progress writes are throttled, so this session idles between them like the
+        # per-source ones; RESET in the finally below before the caller pools it (#370)
+        self.db.execute(text("SET idle_in_transaction_session_timeout = 0"))
+        self.db.commit()
+
+        # A resumed run is a new run: started_at is now, not the paused run's start
+        self.progress_tracker.start(operation=f"Starting annotation update ({strategy.value})")
 
         try:
             # Determine which sources to update
@@ -221,6 +253,7 @@ class AnnotationPipeline:
             results = {}
             errors = []
             sources_completed = []
+            paused: list[str] = []  # sources left unstarted because an admin paused the run
 
             # Extract gene IDs upfront to avoid session conflicts in parallel processing
             gene_ids_to_update = [g.id for g in genes_to_update]
@@ -274,7 +307,9 @@ class AnnotationPipeline:
                 )
 
                 for source_name, result in parallel_results.items():
-                    if "error" in result:
+                    if result.get("paused"):
+                        paused.append(source_name)
+                    elif "error" in result:
                         errors.append({"source": source_name, "error": result["error"]})
                     else:
                         results[source_name] = result
@@ -282,7 +317,10 @@ class AnnotationPipeline:
 
             # Phase 3: sources that read other sources' stored annotations
             for name in run_last:
-                await run_alone(name)
+                if self._pause_requested():
+                    paused.append(name)
+                else:
+                    await run_alone(name)
 
             # Refresh materialized view ONCE after all sources complete
             if results:
@@ -330,8 +368,23 @@ class AnnotationPipeline:
                 "duration_seconds": duration,
                 "results_by_source": results,
                 "errors": errors,
-                "success": len(errors) == 0,
+                "success": len(errors) == 0 and not paused,
             }
+
+            if paused:
+                # Stop here with a checkpoint; POST /progress/resume continues with the rest
+                await self._save_checkpoint(
+                    {
+                        "sources_remaining": paused,
+                        "sources_completed": sources_completed,
+                        "gene_ids": gene_ids_to_update,
+                        "strategy": strategy.value,
+                    }
+                )
+                summary["status"] = "paused"
+                summary["message"] = f"Paused with {len(paused)} sources left: {paused}"
+                logger.sync_info("Annotation update paused", sources_remaining=paused)
+                return summary
 
             if self.progress_tracker:
                 # The checkpoint has been consumed; a later fresh run must not resume it.
@@ -364,6 +417,12 @@ class AnnotationPipeline:
                 self.progress_tracker.error(error_message=f"Pipeline failed: {str(e)}")
 
             raise
+        finally:
+            try:
+                self.db.execute(text("RESET idle_in_transaction_session_timeout"))
+                self.db.commit()
+            except Exception:
+                self.db.invalidate()  # never pool a connection that may still carry the override
 
     async def _get_sources_to_update(
         self, requested_sources: list[str] | None, force: bool
@@ -549,6 +608,16 @@ class AnnotationPipeline:
 
         return genes
 
+    def _pause_requested(self) -> bool:
+        """True once an admin paused this run (POST /progress/pause/annotation_pipeline)."""
+        status = (
+            self.db.query(DataSourceProgress.status)
+            .filter_by(source_name=self.source_name)
+            .scalar()
+        )
+        self.db.commit()  # end the read; this session must not idle in a transaction
+        return bool(status == SourceStatus.paused)
+
     def _stale_gene_ids(self, source_name: str, db: Session | None = None) -> Any:
         """Query of gene IDs with an outdated annotation from this source; None without a hook."""
         source_class = self.sources.get(source_name)
@@ -587,6 +656,7 @@ class AnnotationPipeline:
             logger.sync_debug("Checkpoint saved", state=state)
         except Exception as e:
             logger.sync_error(f"Failed to save checkpoint: {e}")
+            self.db.rollback()
 
     async def _load_checkpoint(self) -> dict[str, Any] | None:
         """Load pipeline checkpoint if exists."""
@@ -611,64 +681,41 @@ class AnnotationPipeline:
             logger.sync_error(f"Failed to load checkpoint: {e}")
         return None
 
-    # Maximum age (minutes) before a "running" status is considered stale
-    _STALE_LOCK_MINUTES: int = 15
+    def _recover_stale_lock(self) -> bool:
+        """Reset a crashed run's 'running' row; True while another run is still active.
 
-    def _recover_stale_lock(self) -> None:
-        """Reset pipeline status if a previous run crashed and left it 'running'.
-
-        Checks the ``data_source_progress`` row for ``annotation_pipeline``.
-        If it has been in ``running`` state for longer than
-        ``_STALE_LOCK_MINUTES``, resets it to ``idle`` so a new run can
-        proceed.  This prevents the pipeline from being permanently locked
-        after an unexpected worker crash.
+        A run is alive while it keeps committing progress (``last_update_at``); a row
+        whose heartbeat is older than ``_STALE_LOCK_MINUTES`` is a crash left-over
+        and is reset to ``idle`` so the pipeline cannot stay locked forever.
         """
         try:
+            if pipeline_run_active(self.db):
+                logger.sync_warning(
+                    "Annotation pipeline is already running; not starting a second run",
+                    source_name=self.source_name,
+                )
+                return True
+
             progress = (
                 self.db.query(DataSourceProgress).filter_by(source_name=self.source_name).first()
             )
-            if not progress:
-                return
-
-            if progress.status != "running":
-                return
-
-            # Check how long it has been running
-            started = progress.started_at
-            if started is None:
-                started = progress.updated_at
-
-            if started is None:
-                # No timestamp at all — assume stale
-                age_minutes = self._STALE_LOCK_MINUTES + 1
-            else:
-                age_minutes = (
-                    datetime.utcnow() - started.replace(tzinfo=None)
-                ).total_seconds() / 60
-
-            if age_minutes >= self._STALE_LOCK_MINUTES:
+            if progress and progress.status == SourceStatus.running:
+                age_minutes = _heartbeat_age_minutes(progress)
                 logger.sync_warning(
                     "Recovering stale pipeline lock from previous crash",
                     source_name=self.source_name,
-                    age_minutes=round(age_minutes, 1),
+                    heartbeat_age_minutes=round(age_minutes, 1),
                     last_operation=progress.current_operation,
                 )
-                progress.status = "idle"
+                progress.status = SourceStatus.idle
                 progress.current_operation = None
-                progress.error_message = (
-                    f"Auto-recovered: previous run stale after {round(age_minutes)}min"
-                )
+                progress.error_message = "Auto-recovered: previous run stopped sending progress"
                 progress.progress_metadata = {}
                 self.db.commit()
-            else:
-                logger.sync_warning(
-                    "Pipeline is already running (started recently)",
-                    source_name=self.source_name,
-                    age_minutes=round(age_minutes, 1),
-                )
         except Exception as e:
             logger.sync_error(f"Failed to check stale lock: {e}")
             self.db.rollback()
+        return False
 
     async def _update_sources_parallel(
         self, sources: list[str], gene_ids: list[int], force: bool = False
@@ -694,6 +741,8 @@ class AnnotationPipeline:
         async def rate_limited_update(source_name: str) -> tuple[str, dict]:
             """Update single source with its own isolated session."""
             async with semaphore:
+                if self._pause_requested():
+                    return (source_name, {"paused": True})
                 source_db = SessionLocal(expire_on_commit=False)
                 try:
                     # Disable idle-in-transaction timeout for long-running pipeline
@@ -782,6 +831,7 @@ class AnnotationPipeline:
             )
 
         batch_data: dict[int, dict[str, Any]] = {}
+        fetch_failed = False
         try:
             batch_data = await source.fetch_batch(genes)
             if batch_data is None:
@@ -795,6 +845,7 @@ class AnnotationPipeline:
                 total=total_genes,
             )
         except Exception as e:
+            fetch_failed = True
             logger.sync_warning(
                 f"Batch fetch failed for {source_name}, falling back to per-gene: {e}",
             )
@@ -807,8 +858,14 @@ class AnnotationPipeline:
                     operation=f"Writing {source_name}: {len(batch_data)} annotations (bulk)",
                 )
 
-            upsert_count = self._bulk_upsert_annotations_with_session(
-                source_name, source.version, batch_data, source_db
+            # JSON-encoding and inserting thousands of rows must not block the event loop (#363);
+            # source_db is only used by this coroutine, which waits for the thread.
+            upsert_count = await asyncio.to_thread(
+                self._bulk_upsert_annotations_with_session,
+                source_name,
+                source.version,
+                batch_data,
+                source_db,
             )
             successful = upsert_count
             log_resource_checkpoint(
@@ -878,13 +935,8 @@ class AnnotationPipeline:
 
         # Clear caches in background using a dedicated session
         try:
-            from concurrent.futures import ThreadPoolExecutor
-
             from app.core.cache_service import get_cache_service
             from app.services.network_analysis_service import network_service
-
-            if not hasattr(self, "_executor"):
-                self._executor = ThreadPoolExecutor(max_workers=2)
 
             def clear_cache_sync() -> None:
                 thread_db = SessionLocal()
@@ -907,13 +959,21 @@ class AnnotationPipeline:
                     thread_db.close()
 
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(self._executor, clear_cache_sync)
+            await loop.run_in_executor(get_thread_pool_executor(), clear_cache_sync)
         except Exception as e:
             logger.sync_debug(f"Cache clear failed: {e}")
 
         if total_genes and successful == 0:
-            # Every gene failed (e.g. an upstream outage): an error, and keep the source due
-            raise RuntimeError(f"{source_name}: 0/{total_genes} genes updated")
+            # An outage (fetch raised, or genes that had data now get none) fails the source and
+            # keeps it due; genes the source simply has no data for must not (#360).
+            had_data = (
+                source_db.query(GeneAnnotation.id)
+                .filter(GeneAnnotation.source == source_name, GeneAnnotation.gene_id.in_(gene_ids))
+                .first()
+            )
+            source_db.commit()
+            if fetch_failed or had_data:
+                raise RuntimeError(f"{source_name}: 0/{total_genes} genes updated")
 
         # Always update source metadata after a run so the scheduler
         # advances next_update even when no genes needed updating (avoids
@@ -1041,13 +1101,8 @@ class AnnotationPipeline:
 
                 return all_success
 
-            if not hasattr(self, "_executor"):
-                from concurrent.futures import ThreadPoolExecutor
-
-                self._executor = ThreadPoolExecutor(max_workers=2)
-
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(self._executor, refresh_sync)
+            result = await loop.run_in_executor(get_thread_pool_executor(), refresh_sync)
             return result
         except Exception as e:
             logger.sync_error(f"Materialized view refresh failed: {e}")

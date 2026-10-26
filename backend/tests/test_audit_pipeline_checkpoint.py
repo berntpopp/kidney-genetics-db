@@ -26,7 +26,7 @@ def _progress(db_session, status: SourceStatus, metadata: dict) -> DataSourcePro
     return row
 
 
-async def _run(db_session, *, genes: list | None = None):
+async def _run(db_session, *, genes: list | None = None, resume: bool = False):
     """Run the pipeline with I/O stubbed; return what it decided to update."""
     pipeline = AnnotationPipeline(db_session)
     sources_spy = AsyncMock(
@@ -41,7 +41,7 @@ async def _run(db_session, *, genes: list | None = None):
         patch.object(pipeline, "_refresh_materialized_view", AsyncMock(return_value=True)),
         patch("app.core.progress_tracker.ProgressTracker._commit_and_broadcast"),
     ):
-        await pipeline.run_update(strategy=UpdateStrategy.FULL)
+        await pipeline.run_update(strategy=UpdateStrategy.FULL, resume=resume)
     return sources_spy.await_args.args[0], genes_spy.await_args.args[1]
 
 
@@ -59,7 +59,7 @@ async def test_completed_checkpoint_is_ignored_by_fresh_update(db_session):
 async def test_paused_checkpoint_still_resumes_remaining_work(db_session):
     _progress(db_session, SourceStatus.paused, CHECKPOINT)
 
-    requested_sources, requested_genes = await _run(db_session)
+    requested_sources, requested_genes = await _run(db_session, resume=True)
 
     assert requested_sources == ["gnomad"]
     assert requested_genes == [11, 12]  # saved key "gene_ids" is the one restored
@@ -69,7 +69,7 @@ async def test_paused_checkpoint_still_resumes_remaining_work(db_session):
 async def test_successful_run_clears_consumed_checkpoint(db_session):
     row = _progress(db_session, SourceStatus.paused, CHECKPOINT)
 
-    await _run(db_session, genes=[MagicMock(id=11), MagicMock(id=12)])
+    await _run(db_session, genes=[MagicMock(id=11), MagicMock(id=12)], resume=True)
 
     assert row.status == SourceStatus.completed
     assert not row.progress_metadata

@@ -4,6 +4,7 @@
  */
 
 import { ref, type Ref } from 'vue'
+import { getClientAccessToken } from '@/api/client'
 import type { WebSocketMessage } from '@/types/pipeline'
 
 /** Handler for typed WebSocket messages */
@@ -63,6 +64,8 @@ export class WebSocketService {
     this.ws = new WebSocket(resolvedUrl)
 
     this.ws.onopen = () => {
+      // Authenticate in the first message: a token in the URL would land in request logs
+      this.send({ type: 'auth', token: getClientAccessToken() })
       window.logService.info('WebSocket connected')
       this.connected.value = true
       this.reconnectAttempts = 0
