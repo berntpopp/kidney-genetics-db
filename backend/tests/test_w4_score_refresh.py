@@ -107,3 +107,22 @@ def test_release_export_uses_fresh_scores(db_session, tmp_path):
     path, _ = service._export_release_sync("w4", datetime.now(timezone.utc))
     genes = {g["approved_symbol"]: g for g in json.loads(path.read_text())["genes"]}
     assert genes["W4REL"]["scores"]["source_scores"] == {"ClinGen": 1.0}
+
+
+@pytest.mark.unit
+async def test_already_running_annotation_pipeline_leaves_progress_alone(refreshed, monkeypatch):
+    tracker = MagicMock()
+    monkeypatch.setattr(task_decorator, "ProgressTracker", MagicMock(return_value=tracker))
+    pipeline = MagicMock(
+        run_update=AsyncMock(return_value={"status": "already_running", "success": False})
+    )
+    monkeypatch.setattr(
+        "app.pipeline.annotation_pipeline.AnnotationPipeline", MagicMock(return_value=pipeline)
+    )
+
+    class Manager(task_decorator.TaskMixin):
+        broadcast_callback = None
+
+    await Manager()._run_annotation_pipeline(resume=True)
+    assert not tracker.error.called and not tracker.complete.called
+    assert pipeline.run_update.await_args.kwargs["sources"] is None

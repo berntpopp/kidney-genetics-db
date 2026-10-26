@@ -150,29 +150,9 @@ async def run_annotation_pipeline_task(
             pipeline = AnnotationPipeline(db)
             strategy = UpdateStrategy.INCREMENTAL if mode == "smart" else UpdateStrategy.FULL
 
-            # Handle resume from checkpoint
-            checkpoint_sources = None
-            if resume:
-                from app.models.progress import DataSourceProgress
-
-                progress = (
-                    db.query(DataSourceProgress)
-                    .filter_by(source_name="annotation_pipeline")
-                    .first()
-                )
-                if progress and progress.progress_metadata:
-                    checkpoint_sources = progress.progress_metadata.get("sources")
-                    logger.sync_info(
-                        "Resuming annotation pipeline from checkpoint",
-                        checkpoint_sources=checkpoint_sources,
-                    )
-
-            # Use checkpoint sources if resuming, otherwise use provided sources
-            run_sources = checkpoint_sources if resume and checkpoint_sources else sources
-
             result: dict[str, Any] = await pipeline.run_update(
                 strategy=strategy,
-                sources=run_sources,
+                sources=sources,  # the pipeline resumes from its own checkpoint
                 force=False,
             )
 
