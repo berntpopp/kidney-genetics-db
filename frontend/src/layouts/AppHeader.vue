@@ -29,7 +29,8 @@ import {
   HelpCircle,
   CircleUser,
   ShieldEllipsis,
-  LogOut
+  LogOut,
+  BookCheck
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -50,6 +51,7 @@ const navLinks = [
   { to: '/dashboard', label: 'Data Overview', icon: LayoutDashboard },
   { to: '/network-analysis', label: 'Network Analysis', icon: Network },
   { to: '/data-sources', label: 'Data Sources', icon: RefreshCw },
+  { to: '/curation/associations', label: 'Curated', icon: BookCheck },
   { to: '/about', label: 'About', icon: Info },
   { to: '/faq', label: 'FAQ', icon: HelpCircle }
 ]

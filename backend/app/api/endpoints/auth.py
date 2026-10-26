@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -24,6 +24,7 @@ from app.core.security import (
     verify_password,
     verify_token,
 )
+from app.models.gene_disease_association import GeneDiseaseAssociation
 from app.models.user import User
 from app.schemas.auth import (
     PasswordChange,
@@ -619,6 +620,23 @@ async def delete_user(
 
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Curation provenance: authors/reviewers of association records are kept (FK restrict)
+    authored = db.execute(
+        select(GeneDiseaseAssociation.id)
+        .where(
+            or_(
+                GeneDiseaseAssociation.curator_id == user.id,
+                GeneDiseaseAssociation.reviewer_id == user.id,
+            )
+        )
+        .limit(1)
+    ).first()
+    if authored:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User authored or reviewed curated associations; deactivate the user instead",
+        )
 
     username = user.username
     db.delete(user)

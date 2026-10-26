@@ -25,6 +25,7 @@ from app.api.endpoints import (
     cache,
     client_logs,
     datasources,
+    gene_disease_associations,
     gene_staging,
     genes,
     ingestion,
@@ -307,6 +308,11 @@ app.include_router(
     datasources.router, prefix="/api/datasources", tags=["Core Resources - Data Sources"]
 )
 app.include_router(releases.router, prefix="/api/releases", tags=["Core Resources - Data Releases"])
+app.include_router(
+    gene_disease_associations.router,
+    prefix="/api/curation/associations",
+    tags=["Core Resources - Curated Associations"],
+)
 
 # 3. Data Pipeline - Ingestion and processing operations
 app.include_router(gene_staging.router, prefix="/api/staging", tags=["Pipeline - Staging"])
