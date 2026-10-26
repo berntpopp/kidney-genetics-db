@@ -279,10 +279,10 @@ class PipelineOrchestrator:
 
             db = SessionLocal()
             try:
-                update_all_curations(db)
-                # Refresh gene_scores so the frontend can display data
+                # Curations copy gene_scores, so refresh it first (#366)
                 if refresh_score_views(db):
                     logger.sync_info("Refreshed gene_scores materialized view")
+                update_all_curations(db)
             finally:
                 db.close()
 

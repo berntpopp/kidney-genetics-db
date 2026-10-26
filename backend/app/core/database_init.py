@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
 from app.core.security import get_password_hash, verify_password
-from app.db.safe_sql import safe_identifier
+from app.db.safe_sql import refresh_score_views, safe_identifier
 from app.models.cache import CacheEntry
 from app.models.user import User
 from app.pipeline.aggregate import update_all_curations
@@ -84,6 +84,8 @@ async def initialize_database(db: Session) -> dict:
             await logger.info("Running evidence aggregation...")
             # Run aggregation in executor to avoid blocking
             loop = asyncio.get_event_loop()
+            # Curations copy gene_scores, so refresh it first (#366)
+            await loop.run_in_executor(None, refresh_score_views, db)
             result = await loop.run_in_executor(None, update_all_curations, db)
             status["aggregation_completed"] = True
             await logger.info(
