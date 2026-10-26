@@ -195,26 +195,3 @@ async def get_normalization_logs(
         )
         for log in logs
     ]
-
-
-@router.post("/normalization/test")
-def test_normalization(
-    *,
-    db: Session = Depends(get_db),
-    gene_text: str = Query(description="Gene text to test normalization"),
-    source_name: str = Query(default="Manual Test", description="Source name for testing"),
-) -> dict[str, Any]:
-    """
-    Test gene normalization for a given gene text (for debugging)
-    """
-    from app.core.gene_normalization import normalize_gene_for_database
-
-    try:
-        result = normalize_gene_for_database(
-            db=db, gene_text=gene_text, source_name=source_name, original_data={"test": True}
-        )
-
-        return {"success": True, "gene_text": gene_text, "result": result}
-
-    except Exception as e:
-        return {"success": False, "gene_text": gene_text, "error": str(e)}
