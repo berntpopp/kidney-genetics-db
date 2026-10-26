@@ -20,8 +20,7 @@ vi.mock('@/api/admin/staging', () => ({
     ]
   })),
   approveStaging: vi.fn(async () => ({ data: {} })),
-  rejectStaging: vi.fn(async () => ({ data: {} })),
-  testNormalization: vi.fn()
+  rejectStaging: vi.fn(async () => ({ data: {} }))
 }))
 import * as stagingApi from '@/api/admin/staging'
 
