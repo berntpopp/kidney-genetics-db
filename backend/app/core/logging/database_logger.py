@@ -8,6 +8,7 @@ storage in PostgreSQL using JSONB for rich context information.
 import asyncio
 import json
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -20,6 +21,9 @@ from sqlalchemy.exc import SQLAlchemyError
 
 # Global database logger instance
 _db_logger: Optional["DatabaseLogger"] = None
+
+
+_LOG_WRITER = ThreadPoolExecutor(max_workers=1, thread_name_prefix="db-log")
 
 
 class DatabaseLogger:
@@ -97,13 +101,9 @@ class DatabaseLogger:
         status_code: int | None,
     ) -> None:
         """Internal method to write log entry to database."""
-        db = None
         try:
             # Import SessionLocal here to avoid circular import
             from app.core.database import SessionLocal
-
-            # Create database session
-            db = SessionLocal()
 
             # Extract request data if available
             endpoint = None
@@ -155,29 +155,33 @@ class DatabaseLogger:
                 )
             """)
 
-            db.execute(
-                insert_query,
-                {
-                    "timestamp": datetime.now(timezone.utc),
-                    "level": level,
-                    "message": message,
-                    "logger": source,
-                    "request_id": request_id,
-                    "path": endpoint,
-                    "method": method,
-                    "status_code": status_code,
-                    "duration_ms": processing_time_ms,
-                    "user_id": user_id,
-                    "ip_address": ip_address,
-                    "user_agent": user_agent,
-                    "context": jsonb_data,
-                    "error_type": error_type,
-                    "error_message": str(error) if error else None,
-                    "stack_trace": error_traceback,
-                },
-            )
+            params = {
+                "timestamp": datetime.now(timezone.utc),
+                "level": level,
+                "message": message,
+                "logger": source,
+                "request_id": request_id,
+                "path": endpoint,
+                "method": method,
+                "status_code": status_code,
+                "duration_ms": processing_time_ms,
+                "user_id": user_id,
+                "ip_address": ip_address,
+                "user_agent": user_agent,
+                "context": jsonb_data,
+                "error_type": error_type,
+                "error_message": str(error) if error else None,
+                "stack_trace": error_traceback,
+            }
 
-            db.commit()
+            def insert() -> None:
+                with SessionLocal() as db:
+                    db.execute(insert_query, params)
+                    db.commit()
+
+            # A sync INSERT per log line on the event loop took 2-4 s each under load (#363);
+            # one dedicated thread keeps it off the loop and holds at most one connection
+            await asyncio.get_running_loop().run_in_executor(_LOG_WRITER, insert)
 
         except SQLAlchemyError as e:
             # Database-specific error handling
@@ -192,10 +196,6 @@ class DatabaseLogger:
 
             fallback_logger = logging.getLogger("database_logger")
             fallback_logger.error(f"Unexpected error writing log: {e}")
-
-        finally:
-            if db is not None:
-                db.close()
 
     # Convenience methods for different log levels
     async def debug(self, message: str, **kwargs: Any) -> None:
