@@ -507,7 +507,7 @@ async def update_missing_source(
     }
 
 
-@router.post("/pipeline/validate")
+@router.post("/pipeline/validate", dependencies=[Depends(require_admin)])
 async def validate_annotations(
     source: str | None = Query(None, description="Specific source to validate"),
     db: Session = Depends(get_db),
@@ -569,7 +569,7 @@ async def trigger_scheduled_job(
 async def reset_gene_annotations(
     background_tasks: BackgroundTasks,
     source: str | None = None,
-    gene_ids: list[int] | None = None,
+    gene_ids: list[int] | None = Query(None),  # without Query() FastAPI reads a body (#361)
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ) -> dict[str, Any]:

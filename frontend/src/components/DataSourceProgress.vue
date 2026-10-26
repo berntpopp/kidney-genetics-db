@@ -219,7 +219,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import apiClient from '@/api/client'
+import apiClient, { getClientAccessToken } from '@/api/client'
 import { config } from '@/config'
 import {
   RefreshCw,
@@ -366,6 +366,8 @@ const connectWebSocket = () => {
 
   ws.value.onopen = () => {
     if (unmounted) return
+    // Authenticate in the first message: a token in the URL would land in request logs
+    ws.value.send(JSON.stringify({ type: 'auth', token: getClientAccessToken() }))
     window.logService.info('WebSocket connected for progress updates')
     if (reconnectInterval.value) {
       clearInterval(reconnectInterval.value)
