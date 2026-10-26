@@ -14,7 +14,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
-from app.core.retry_utils import RetryConfig, SimpleRateLimiter, retry_with_backoff
+from app.core.retry_utils import SimpleRateLimiter
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 
@@ -95,7 +95,6 @@ class UniProtAnnotationSource(BaseAnnotationSource):
 
         return has_required
 
-    @retry_with_backoff(config=RetryConfig(max_retries=5))
     async def fetch_annotation(self, gene: Gene) -> dict[str, Any] | None:
         """
         Fetch UniProt annotation for a single gene.
@@ -541,7 +540,6 @@ class UniProtAnnotationSource(BaseAnnotationSource):
 
         return results
 
-    @retry_with_backoff(config=RetryConfig(max_retries=5))
     async def _fetch_batch_chunk(self, genes: list[Gene]) -> dict[int, dict[str, Any]]:
         """
         Fetch a single batch of genes using OR query.

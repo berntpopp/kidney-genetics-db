@@ -14,7 +14,6 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
-from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 
@@ -119,7 +118,6 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
         self._mpo_cache_timestamp = datetime.now(timezone.utc)
 
-    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _get_mousemine_version(self) -> str:
         """Fetch the current MouseMine version"""
         await self.apply_rate_limit()

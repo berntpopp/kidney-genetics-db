@@ -24,7 +24,6 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
-from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 
@@ -109,7 +108,6 @@ class DescartesAnnotationSource(BaseAnnotationSource):
             "gene_symbol": gene.approved_symbol,
         }
 
-    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _ensure_data_loaded(self) -> None:
         """
         Ensure Descartes data is loaded into memory.

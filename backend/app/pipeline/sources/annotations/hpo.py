@@ -26,7 +26,6 @@ from sqlalchemy.orm import Session
 
 from app.core.datasource_config import get_source_parameter
 from app.core.logging import get_logger
-from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.models.gene_annotation import GeneAnnotation
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
@@ -466,7 +465,6 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
         self._loaded_classifiers[key] = classifier
         return classifier
 
-    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def search_gene_for_ncbi_id(self, gene_symbol: str) -> str | None:
         """
         Search for a gene symbol to get its NCBI Gene ID.
@@ -537,7 +535,6 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
             )
             raise
 
-    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def get_gene_annotations(self, ncbi_gene_id: str) -> dict[str, Any] | None:
         """
         Get HPO annotations for a gene using its NCBI Gene ID.

@@ -24,7 +24,6 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from app.core.logging import get_logger
-from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 from app.pipeline.sources.annotations.clinvar_utils import (
@@ -318,7 +317,6 @@ class ClinVarAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     # API fallback methods (for genes missing from bulk file)
     # ------------------------------------------------------------------
 
-    @retry_with_backoff(config=RetryConfig(max_retries=5))
     async def _search_variants(self, gene_symbol: str) -> list[str]:
         """Search for ClinVar variant IDs via eUtils esearch."""
         await self.apply_rate_limit()
@@ -425,7 +423,6 @@ class ClinVarAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
         return result
 
-    @retry_with_backoff(config=RetryConfig(max_retries=5))
     async def _fetch_variant_batch(self, variant_ids: list[str]) -> list[dict[str, Any]]:
         """Fetch variant details via eUtils esummary."""
         if not variant_ids:
@@ -933,8 +930,5 @@ class ClinVarAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                     f"Failed to fetch ClinVar annotation for {gene.approved_symbol}",
                     error_detail=str(e),
                 )
-                if self.circuit_breaker and self.circuit_breaker.state == "open":
-                    logger.sync_error("Circuit breaker open, stopping API fallback")
-                    break
 
         return results

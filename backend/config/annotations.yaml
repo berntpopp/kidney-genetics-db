@@ -19,11 +19,10 @@ annotations:
     update_frequency: quarterly
     is_active: true
     priority: 9
-    requests_per_second: 3.0
+    requests_per_second: 1.0  # gnomAD rate-limits GraphQL with HTTP 400 (#364)
     max_retries: 5
     cache_ttl_days: 90
     use_http_cache: true
-    circuit_breaker_threshold: 5
     batch_size: 50
 
   clinvar:
@@ -41,7 +40,6 @@ annotations:
     max_retries: 5
     cache_ttl_days: 90
     use_http_cache: true
-    circuit_breaker_threshold: 5
 
     # Gene processing configuration
     gene_batch_size: 20  # How many genes to process per batch (sequentially with concurrency=1)
@@ -74,7 +72,6 @@ annotations:
     max_retries: 3
     cache_ttl_days: 90
     use_http_cache: true
-    circuit_breaker_threshold: 5
 
   mpo_mgi:
     display_name: MPO/MGI
@@ -87,7 +84,6 @@ annotations:
     max_retries: 3
     cache_ttl_days: 90
     use_http_cache: true
-    circuit_breaker_threshold: 3
     # MPO kidney phenotype root term configuration
     kidney_root_term: MP:0005367  # renal/urinary system phenotype
     kidney_root_node: 117579  # JAX tree node ID for root term
@@ -108,7 +104,6 @@ annotations:
     max_retries: 3
     cache_ttl_days: 90
     use_http_cache: true
-    circuit_breaker_threshold: 3
 
   string_ppi:
     display_name: STRING PPI
@@ -121,7 +116,6 @@ annotations:
     max_retries: 3
     cache_ttl_days: 90
     use_http_cache: true
-    circuit_breaker_threshold: 3
 
   gtex:
     display_name: GTEx
@@ -134,7 +128,6 @@ annotations:
     max_retries: 3
     cache_ttl_days: 90
     use_http_cache: true
-    circuit_breaker_threshold: 3
 
   descartes:
     display_name: Descartes
@@ -147,7 +140,6 @@ annotations:
     max_retries: 3
     cache_ttl_days: 90
     use_http_cache: true
-    circuit_breaker_threshold: 3
 
   ensembl:
     display_name: Ensembl
@@ -160,7 +152,6 @@ annotations:
     max_retries: 5
     cache_ttl_days: 30
     use_http_cache: true
-    circuit_breaker_threshold: 5
     batch_size: 500  # Safety margin (API limit: 1000)
 
   uniprot:
@@ -174,7 +165,6 @@ annotations:
     max_retries: 5
     cache_ttl_days: 30
     use_http_cache: true
-    circuit_breaker_threshold: 5
     batch_size: 100  # UniProt OR query hard limit: 100 conditions
 
   mondo:
@@ -186,7 +176,6 @@ annotations:
     priority: 5
     max_retries: 3
     cache_ttl_days: 7
-    circuit_breaker_threshold: 3
     # Pinned MONDO release (#28); the SSSOM is a repo file (not a release asset), pinned by the
     # commit tag v2026-10-06 points to.
     # A cached or downloaded file with another hash is deleted and the run fails.
