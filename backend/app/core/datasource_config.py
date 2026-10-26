@@ -139,7 +139,10 @@ DATA_SOURCE_CONFIG: dict[str, dict[str, Any]] = _config.datasources
 INTERNAL_PROCESS_CONFIG: dict[str, dict[str, Any]] = {
     "annotation_pipeline": {
         "display_name": "Gene Annotation Pipeline",
-        "description": "Post-processing pipeline that adds ClinVar annotations and computed scores",
+        "description": (
+            "Annotates every gene from 11 sources (HGNC, gnomAD, ClinVar, HPO, MONDO and "
+            "others), then refreshes the score views"
+        ),
         "category": "internal_process",
         "icon": "mdi-cog",
     },

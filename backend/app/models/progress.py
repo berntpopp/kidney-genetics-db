@@ -3,6 +3,7 @@ SQLAlchemy models for data source progress tracking
 """
 
 from enum import Enum as PyEnum
+from typing import Any
 
 from sqlalchemy import BigInteger, Column, DateTime, Enum, Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -86,5 +87,13 @@ class DataSourceProgress(Base):
             "estimated_completion": (
                 self.estimated_completion.isoformat() if self.estimated_completion else None
             ),
-            "metadata": self.progress_metadata or {},
+            "metadata": _public_metadata(self.progress_metadata),
         }
+
+
+def _public_metadata(metadata: dict[str, Any] | None) -> dict[str, Any]:
+    """Checkpoint metadata for status/WebSocket payloads: a gene count, not every gene ID."""
+    public = dict(metadata or {})
+    if isinstance(public.get("gene_ids"), list):
+        public["gene_count"] = len(public.pop("gene_ids"))
+    return public

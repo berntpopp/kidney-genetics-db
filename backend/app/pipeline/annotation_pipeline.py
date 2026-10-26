@@ -122,6 +122,10 @@ class AnnotationPipeline:
         self.progress_tracker: ProgressTracker | None = None
         self.source_name = "annotation_pipeline"  # For progress tracking
         self.checkpoint_data: dict[str, Any] | None = None  # For storing checkpoint state
+        # One progress line for all sources running in parallel: source -> current phase
+        self._phases: dict[str, str] = {}
+        self._sources_done = 0
+        self._sources_total = 0
 
         # Register available annotation sources
         # These are class types that will be instantiated when needed
@@ -228,6 +232,7 @@ class AnnotationPipeline:
             # FULL and FORCED strategies should bypass is_update_due() checks
             effective_force = force or strategy in (UpdateStrategy.FULL, UpdateStrategy.FORCED)
             sources_to_update = await self._get_sources_to_update(sources, effective_force)
+            self._sources_total = len(sources_to_update)
             logger.sync_info(
                 "Sources to update determined",
                 sources_to_update=sources_to_update,
@@ -299,6 +304,7 @@ class AnnotationPipeline:
                     return False
                 finally:
                     _close_pipeline_session(source_db)
+                    self._report(name, None)
 
             # Phase 1: HGNC must complete first (provides Ensembl IDs)
             log_resource_checkpoint("pipeline.phase1_start")
@@ -636,6 +642,28 @@ class AnnotationPipeline:
 
         return genes
 
+    def _report(self, source_name: str, phase: str | None) -> None:
+        """Publish "N/M sources done · source: phase" (phase None = that source finished).
+
+        Parallel sources share one progress row, so each reports its phase here instead of
+        overwriting the others' text and the percentage (sources done / sources total).
+        """
+        if phase is None:
+            self._phases.pop(source_name, None)
+            self._sources_done += 1
+        else:
+            self._phases[source_name] = phase
+        if not self.progress_tracker:
+            return
+        running = ", ".join(f"{name}: {p}" for name, p in self._phases.items())
+        done = f"{self._sources_done}/{self._sources_total} sources done"
+        self.progress_tracker.update(
+            current_item=self._sources_done,
+            total_items=self._sources_total,
+            operation=f"{done} · {running}" if running else done,
+            force=phase is None,  # a finished source is a milestone: never throttle it
+        )
+
     def _pause_requested(self) -> bool:
         """True once an admin paused this run (POST /progress/pause/annotation_pipeline)."""
         status = (
@@ -790,6 +818,7 @@ class AnnotationPipeline:
                     return (source_name, {"error": str(e)})
                 finally:
                     _close_pipeline_session(source_db)
+                    self._report(source_name, None)
 
         # Create tasks for all sources
         tasks = [rate_limited_update(src) for src in sources]
@@ -852,11 +881,7 @@ class AnnotationPipeline:
         failed_genes: list[Gene] = []
 
         # Phase 1: Batch fetch
-        if self.progress_tracker:
-            self.progress_tracker.update(
-                current_item=0,
-                operation=f"Fetching {source_name} annotations (batch)",
-            )
+        self._report(source_name, "fetching")
 
         batch_data: dict[int, dict[str, Any]] = {}
         fetch_failed = False
@@ -880,11 +905,7 @@ class AnnotationPipeline:
 
         # Phase 2: Bulk upsert using the source-local session
         if batch_data:
-            if self.progress_tracker:
-                self.progress_tracker.update(
-                    current_item=0,
-                    operation=f"Writing {source_name}: {len(batch_data)} annotations (bulk)",
-                )
+            self._report(source_name, f"writing {len(batch_data)}")
 
             # JSON-encoding and inserting thousands of rows must not block the event loop (#363);
             # source_db is only used by this coroutine, which waits for the thread.
@@ -914,13 +935,8 @@ class AnnotationPipeline:
                 missed=len(missed_genes),
             )
             for i, gene in enumerate(missed_genes):
-                if self.progress_tracker and i % 100 == 0:
-                    self.progress_tracker.update(
-                        current_item=len(batch_data) + i,
-                        operation=(
-                            f"Updating {source_name}: fallback {i}/{len(missed_genes)} genes"
-                        ),
-                    )
+                if i % 100 == 0:
+                    self._report(source_name, f"per-gene {i}/{len(missed_genes)}")
                 try:
                     if await source.update_gene(gene):
                         successful += 1
