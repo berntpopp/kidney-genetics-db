@@ -18,6 +18,7 @@ Usage:
 
 import argparse
 import random
+import statistics
 import sys
 from collections import Counter
 from collections.abc import Callable, Iterable
@@ -78,7 +79,10 @@ PANELS = {
     ],
 }
 RATIO_GRID = [round(0.30 + 0.05 * i, 2) for i in range(9)]  # 0.30 ... 0.70
+BELOW_GRID = [0.20, 0.25]  # diagnostics only, never selectable
 SPLIT_SEED = 338
+BOOTSTRAP_SEED = 338
+BOOTSTRAP_N = 2000
 KEY_GENES = ["HNF1B", "VHL", "FH", "PALB2", "FANCA", "TSC2", "CFH", "COL4A5", "PKD1", "WT1"]
 
 
@@ -98,6 +102,79 @@ def multilabel_macro_f1(
         fn = sum(g not in pred[s] and g in truth[s] for s in truth)
         f1.append(2 * tp / (2 * tp + fp + fn) if tp else 0.0)
     return sum(f1) / len(f1)
+
+
+def increments(pred: set[str], truth: set[str], groups: Iterable[str]) -> list[int]:
+    """One gene's contribution to the TP/FP/FN counts, as indices 3 * group + (0 TP, 1 FP, 2 FN)."""
+    out = []
+    for i, g in enumerate(groups):
+        if g in pred:
+            out.append(3 * i + (0 if g in truth else 1))
+        elif g in truth:
+            out.append(3 * i + 2)
+    return out
+
+
+def sum_counts(inc: list[list[int]], sample: Iterable[int], n_groups: int) -> list[int]:
+    counts = [0] * (3 * n_groups)
+    for j in sample:
+        for k in inc[j]:
+            counts[k] += 1
+    return counts
+
+
+def f1_from_counts(counts: list[int]) -> float:
+    """multilabel_macro_f1 from summed TP/FP/FN counts."""
+    f1 = []
+    for i in range(0, len(counts), 3):
+        tp, fp, fn = counts[i : i + 3]
+        f1.append(2 * tp / (2 * tp + fp + fn) if tp else 0.0)
+    return sum(f1) / len(f1)
+
+
+def leave_one_out(inc: dict[float, list[list[int]]], n_groups: int) -> list[float]:
+    """Per gene i: the r maximising macro-F1 on all other genes (ties go to the larger r)."""
+    totals = {r: sum_counts(v, range(len(v)), n_groups) for r, v in inc.items()}
+    choices = []
+    for i in range(len(next(iter(inc.values())))):
+        others = {r: [t - inc[r][i].count(k) for k, t in enumerate(totals[r])] for r in inc}
+        choices.append(max(inc, key=lambda r: (round(f1_from_counts(others[r]), 6), r)))
+    return choices
+
+
+def paired_bootstrap(
+    inc: dict[float, list[list[int]]], n_groups: int, seed: int, n: int
+) -> dict[float, list[float]]:
+    """Macro-F1 of every r on the same n gene-level resamples (paired across r)."""
+    rng = random.Random(seed)
+    n_genes = len(next(iter(inc.values())))
+    f1: dict[float, list[float]] = {r: [] for r in inc}
+    for _ in range(n):
+        sample = [rng.randrange(n_genes) for _ in range(n_genes)]
+        for r, v in inc.items():
+            f1[r].append(f1_from_counts(sum_counts(v, sample, n_groups)))
+    return f1
+
+
+def ci95(values: Iterable[float]) -> tuple[float, float]:
+    """95% percentile interval."""
+    d = sorted(values)
+    return d[int(0.025 * len(d))], d[int(0.975 * len(d)) - 1]
+
+
+def best_r(f1: dict[float, float]) -> float:  # ties go to the larger r (fewer secondary labels)
+    return max(f1, key=lambda r: (round(f1[r], 6), r))
+
+
+def one_se_choice(point: dict[float, float], boot: dict[float, list[float]]) -> float:
+    """Largest r whose gap to the best r is at most the paired-bootstrap SE of that gap."""
+    best = best_r(point)
+    return max(
+        r
+        for r in point
+        if point[best] - point[r]
+        <= statistics.stdev(b - x for b, x in zip(boot[best], boot[r], strict=True))
+    )
 
 
 def split_half(
@@ -264,27 +341,91 @@ def main() -> int:
     def choose(half: set[str]) -> float:  # ties go to the larger r (fewer secondary labels)
         return max(RATIO_GRID, key=lambda r: (round(f1_on(r, half), 6), r))
 
-    chosen = choose(half_a)
+    split_choice = choose(half_a)
     print(
-        f"\nChosen on half A: r = {chosen:.2f} (half B {f1_on(chosen, half_b):.4f},"
-        f" all {f1_on(chosen, set(truth)):.4f}); code constant {SECONDARY_GROUP_RATIO}"
-    )
-
-    gained = lost = 0
-    for s in (s for s, _ in genes):
-        before = set(labels(s, 0.5)[1])
-        after = set(labels(s, chosen)[1])
-        gained += bool(after - before)
-        lost += bool(before - after)
-    print(
-        f"All {len(genes)} genes, r = {chosen:.2f} vs 0.50: {gained} gain and {lost} lose"
-        " at least one secondary group"
+        f"\nChosen on half A (seed {SPLIT_SEED}, superseded by leave-one-out): r ="
+        f" {split_choice:.2f} (half B {f1_on(split_choice, half_b):.4f},"
+        f" all {f1_on(split_choice, set(truth)):.4f})"
     )
     if args.seed_sweep:
         sweep = Counter(choose(split_half(reference, seed)[0]) for seed in range(args.seed_sweep))
         print(
             f"Seed sweep, half-A choice over seeds 0..{args.seed_sweep - 1}: "
             + ", ".join(f"{r:.2f} {sweep[r]}" for r in RATIO_GRID)
+        )
+
+    # Leave-one-out and bootstrap on per-gene TP/FP/FN increments (index 3 * group + kind)
+    order = sorted(truth)
+    inc = {r: [increments(preds[r][s], truth[s], PANELS) for s in order] for r in RATIO_GRID}
+    totals = {r: sum_counts(inc[r], range(len(order)), len(PANELS)) for r in RATIO_GRID}
+    for r in RATIO_GRID:
+        assert abs(f1_from_counts(totals[r]) - f1_on(r, set(truth))) < 1e-12
+    r_loo = leave_one_out(inc, len(PANELS))
+    loo_f1 = multilabel_macro_f1(
+        {s: preds[r_loo[i]][s] for i, s in enumerate(order)}, truth, PANELS
+    )
+    dist = Counter(r_loo)
+    print(
+        f"\nLeave-one-out over {len(order)} genes: LOO macro-F1 of the procedure {loo_f1:.4f};"
+        " r_i: " + ", ".join(f"{r:.2f} {dist[r]}" for r in RATIO_GRID)
+    )
+
+    point = {r: f1_from_counts(totals[r]) for r in RATIO_GRID}
+    best = best_r(point)
+    boot = paired_bootstrap(inc, len(PANELS), BOOTSTRAP_SEED, BOOTSTRAP_N)
+    wins = Counter(best_r({r: boot[r][b] for r in RATIO_GRID}) for b in range(BOOTSTRAP_N))
+    print(
+        f"\nPaired bootstrap, {BOOTSTRAP_N} gene resamples, seed {BOOTSTRAP_SEED}; best r on"
+        f" all genes {best:.2f}\n\n| r | Macro-F1 | SE | Gap to best | SE of gap | Gap 95% CI"
+        " | Best in resamples |\n|---|---|---|---|---|---|---|"
+    )
+    for r in RATIO_GRID:
+        gap = [b - x for b, x in zip(boot[best], boot[r], strict=True)]
+        lo, hi = ci95(gap)
+        print(
+            f"| {r:.2f} | {point[r]:.4f} | {statistics.stdev(boot[r]):.4f}"
+            f" | {point[best] - point[r]:.4f} | {statistics.stdev(gap):.4f}"
+            f" | [{lo:+.4f}, {hi:+.4f}] | {wins[r]} |"
+        )
+    chosen = one_se_choice(point, boot)
+    print(
+        f"\nChosen by the same-draw one-SE rule: r = {chosen:.2f}; code constant"
+        f" {SECONDARY_GROUP_RATIO}. Same rule, seeds 0-4: "
+        + ", ".join(
+            f"{one_se_choice(point, paired_bootstrap(inc, len(PANELS), seed, BOOTSTRAP_N)):.2f}"
+            for seed in range(5)
+        )
+    )
+
+    # Sensitivity: what the best-F1 r adds over the chosen r
+    new = [(s, g) for s in truth for g in preds[best][s] - preds[chosen][s]]
+    print(
+        f"\nSensitivity, r = {best:.2f} vs {chosen:.2f}: {len(new)} new reference labels,"
+        f" {sum(g not in truth[s] for s, g in new)} not in the gene's PanelApp groups"
+    )
+    for g in PANELS:
+        print(
+            f"  {g}: F1 {multilabel_macro_f1(preds[chosen], truth, [g]):.3f} at {chosen:.2f},"
+            f" {multilabel_macro_f1(preds[best], truth, [g]):.3f} at {best:.2f}"
+        )
+    for r in BELOW_GRID:
+        below = {s: {labels(s, r)[0], *labels(s, r)[1]} - {None} for s in truth}
+        print(
+            f"Below the grid (not selectable): r = {r:.2f} macro-F1 "
+            f"{multilabel_macro_f1(below, truth, PANELS):.4f}"
+        )
+
+    for ref in (0.4, best):
+        gained = lost = primary_changed = 0
+        for s in (s for s, _ in genes):
+            p_before, before = labels(s, ref)
+            p_after, after = labels(s, chosen)
+            gained += bool(set(after) - set(before))
+            lost += bool(set(before) - set(after))
+            primary_changed += p_before != p_after
+        print(
+            f"All {len(genes)} genes, r = {chosen:.2f} vs {ref:.2f}: {gained} gain and {lost} lose"
+            f" at least one secondary group; {primary_changed} primary changes"
         )
     if chosen != SECONDARY_GROUP_RATIO:
         print(f"Calibration ({chosen:.2f}) and SECONDARY_GROUP_RATIO disagree", file=sys.stderr)

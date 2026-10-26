@@ -40,7 +40,7 @@ Reference sizes: {'tubulopathy': 118, 'nephrolithiasis': 35, 'cakut': 76, 'glome
 | v1 terms, frequency x IC | 49.4% | 0.53 |
 
 Secondary groups (>= 0.5 x primary evidence), 55 genes with >= 2 panel groups: 67/118 panel labels recovered, 10 extra
-(r = 0.5, v0.9.0; the command now prints 70/118, 12 extra)
+(r = 0.5, as in v0.9.0 and again now)
 
 | Gene | Primary | Secondary | Evidence share of primary |
 |---|---|---|---|
@@ -81,16 +81,33 @@ PALB2: neoplasia evidence is 0.493 of cakut with IC from `genes_to_phenotype.txt
 has no neoplasia secondary group. FANCA has no renal-neoplasm annotation in HPO
 2026-09-01.
 
-## Secondary cut-off calibration (2026-10-26, after v0.9.0)
+## Secondary cut-off (2026-10-26, after v0.9.0): 0.5 kept
 
-The same command also prints this table (method fixed in advance in the spec,
-section "Secondary cut-off calibration"): multi-label macro-F1 over the 7
-groups, prediction = primary plus groups with E >= r x E(primary), split 50/50
-stratified by first panel group (seed 338). The backend settings must be
-importable; outside a configured `backend/.env`, set dummy `DATABASE_URL`,
-`JWT_SECRET_KEY`, `ADMIN_PASSWORD` and `POSTGRES_PASSWORD` (no database is used).
+Spec section "Secondary cut-off". v0.10.0 set r = 0.4 from a seeded 50/50
+split (v2.1); a seed sweep showed that choice is unstable, and leave-one-out
+plus a paired bootstrap show that no r in the grid beats 0.5 out of sample.
+The selection rule (same-draw one-SE rule, favouring fewer secondary labels)
+was chosen after these curves were known. It selects 0.5, the v0.9.0 value:
+`SECONDARY_GROUP_RATIO = 0.5`, `method: hpo-freq-ic-v2`.
+
+The backend settings must be importable; outside a configured `backend/.env`,
+set dummy values (no database is used). HPO files: `genes_to_phenotype.txt` and
+`hp.json` of 2026-09-01, sha256 checked against `backend/config/datasources.yaml`.
+
+```bash
+cd backend && DATABASE_URL=postgresql://x:y@localhost:1/z \
+    JWT_SECRET_KEY=dummy-secret-key-for-evaluation-only-0123456789 \
+    ADMIN_PASSWORD=dummy POSTGRES_PASSWORD=dummy \
+    uv run python scripts/evaluate_hpo_clinical_groups.py \
+    HPO_DIR ../.planning/audits/hpo-clinical-groups-2026-10/genes_panelapp_ref.tsv \
+    config/datasources.yaml --seed-sweep 100
+```
+
+Output (exit 0), after the tables above:
 
 ```
+Secondary cut-off calibration: multi-label macro-F1, split seed 338, half A 181 genes, half B 179, multi-group 55
+
 | r | Half A | Half B | All 360 | Multi-group | Genes with secondary |
 |---|---|---|---|---|---|
 | 0.30 | 0.7459 | 0.7760 | 0.7577 | 0.7834 | 102 |
@@ -103,20 +120,47 @@ importable; outside a configured `backend/.env`, set dummy `DATABASE_URL`,
 | 0.65 | 0.7361 | 0.7248 | 0.7348 | 0.7256 | 38 |
 | 0.70 | 0.7284 | 0.7260 | 0.7321 | 0.7143 | 32 |
 
-Chosen on half A: r = 0.40 (half B 0.7458, all 0.7477)
-All 3209 genes, r = 0.40 vs 0.50: 89 gain and 0 lose at least one secondary group
+Chosen on half A (seed 338, superseded by leave-one-out): r = 0.40 (half B 0.7458, all 0.7477)
+Seed sweep, half-A choice over seeds 0..99: 0.30 51, 0.35 29, 0.40 1, 0.45 10, 0.50 6, 0.55 1, 0.60 0, 0.65 1, 0.70 1
+
+Leave-one-out over 360 genes: LOO macro-F1 of the procedure 0.7469; r_i: 0.30 353, 0.35 7, 0.40 0, 0.45 0, 0.50 0, 0.55 0, 0.60 0, 0.65 0, 0.70 0
+
+Paired bootstrap, 2000 gene resamples, seed 338; best r on all genes 0.30
+
+| r | Macro-F1 | SE | Gap to best | SE of gap | Gap 95% CI | Best in resamples |
+|---|---|---|---|---|---|---|
+| 0.30 | 0.7577 | 0.0255 | 0.0000 | 0.0000 | [+0.0000, +0.0000] | 935 |
+| 0.35 | 0.7572 | 0.0260 | 0.0005 | 0.0060 | [-0.0105, +0.0133] | 720 |
+| 0.40 | 0.7477 | 0.0270 | 0.0099 | 0.0107 | [-0.0090, +0.0320] | 26 |
+| 0.45 | 0.7494 | 0.0273 | 0.0082 | 0.0109 | [-0.0112, +0.0311] | 164 |
+| 0.50 | 0.7458 | 0.0275 | 0.0119 | 0.0128 | [-0.0118, +0.0386] | 104 |
+| 0.55 | 0.7375 | 0.0282 | 0.0202 | 0.0145 | [-0.0061, +0.0504] | 9 |
+| 0.60 | 0.7354 | 0.0285 | 0.0223 | 0.0152 | [-0.0044, +0.0538] | 6 |
+| 0.65 | 0.7348 | 0.0286 | 0.0229 | 0.0154 | [-0.0051, +0.0554] | 13 |
+| 0.70 | 0.7321 | 0.0286 | 0.0256 | 0.0164 | [-0.0048, +0.0611] | 23 |
+
+Chosen by the same-draw one-SE rule: r = 0.50; code constant 0.5. Same rule, seeds 0-4: 0.50, 0.50, 0.50, 0.50, 0.50
+
+Sensitivity, r = 0.30 vs 0.50: 68 new reference labels, 41 not in the gene's PanelApp groups
+  cakut: F1 0.711 at 0.50, 0.706 at 0.30
+  cyst_cilio: F1 0.769 at 0.50, 0.856 at 0.30
+  tubulopathy: F1 0.746 at 0.50, 0.743 at 0.30
+  glomerulopathy: F1 0.819 at 0.50, 0.707 at 0.30
+  complement: F1 0.857 at 0.50, 0.857 at 0.30
+  nephrolithiasis: F1 0.529 at 0.50, 0.602 at 0.30
+  neoplasia: F1 0.788 at 0.50, 0.833 at 0.30
+Below the grid (not selectable): r = 0.20 macro-F1 0.7455
+Below the grid (not selectable): r = 0.25 macro-F1 0.7466
+All 3209 genes, r = 0.50 vs 0.40: 0 gain and 89 lose at least one secondary group; 0 primary changes
+All 3209 genes, r = 0.50 vs 0.30: 0 gain and 160 lose at least one secondary group; 0 primary changes
 ```
 
-`SECONDARY_GROUP_RATIO` is now 0.4 (`method: hpo-freq-ic-v2.1`). Held-out half
-B does not confirm a gain over 0.5 (0.7458 vs 0.7505); half B, all 360 and the
-multi-group subset peak at the grid edge 0.30. Add `--seed-sweep 100` to repeat
-the half-A choice for seeds 0-99: 0.30 51, 0.35 29, 0.40 1, 0.45 10, 0.50 6,
-0.55 1, 0.60 0, 0.65 1, 0.70 1. r = 0.40 is the protocol's choice for seed 338,
-not a stable optimum (the optimum may be at or below 0.30); any r in 0.30-0.50
-passes PALB2. A seed-independent choice would be a new maintainer decision.
-The script exits 1 if its choice differs from `SECONDARY_GROUP_RATIO`. With 0.4: PALB2 cakut + neoplasia (0.493), WT1 glomerulopathy +
-neoplasia (0.46), PKD1 cyst_cilio + nephrolithiasis, glomerulopathy (0.46 each);
-55 multi-group genes recover 70/118 panel labels, 12 extra. FANCA stays cakut
-without neoplasia: no FANCA annotation in HPO 2026-09-01 is at or below Renal
-neoplasm (HP:0009726). The tables above this section are the v0.9.0 (r = 0.5)
-results; the stored-v1-vs-v2 primary counts do not depend on r.
+The LOO F1 of the selection procedure (0.7469) equals fixed 0.40 or 0.50, and
+every gap CI includes 0. At 0.30 (sensitivity analysis), HNF1B gains
+glomerulopathy and nephrolithiasis (neither a PanelApp group) and still misses
+tubulopathy (0.29), and 17 genes annotated to Williams syndrome (ORPHA:904)
+gain the same two labels from that one disease. At 0.5: PALB2 cakut only
+(neoplasia 0.493 < 0.5, a calibration consequence, not a data defect); WT1 and
+PKD1 without secondary; FANCA cakut without neoplasia (no FANCA annotation in
+HPO 2026-09-01 is at or below Renal neoplasm, HP:0009726). The
+stored-v1-vs-v2 primary counts above do not depend on r.
