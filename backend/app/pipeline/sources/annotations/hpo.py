@@ -309,7 +309,6 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
         # Update source configuration
         if self.source_record:
-            self.source_record.update_frequency = "weekly"
             self.source_record.description = (
                 "Human phenotype terms and disease associations for genes"
             )

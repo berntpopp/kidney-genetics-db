@@ -86,6 +86,9 @@ class BaseAnnotationSource(ABC):
 
         # Get or create source record
         self.source_record = self._get_or_create_source()
+        # The label shows the configured schedule; next_update follows cache_ttl_days (#370)
+        if config.get("update_frequency"):
+            self.source_record.update_frequency = config["update_frequency"]
 
     def _get_or_create_source(self) -> AnnotationSource:
         """Get or create the annotation source record."""

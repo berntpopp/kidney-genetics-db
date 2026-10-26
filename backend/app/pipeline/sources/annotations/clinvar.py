@@ -103,7 +103,6 @@ class ClinVarAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
             logger.sync_info("NCBI API key configured, using 10 req/s rate limit")
 
         if self.source_record:
-            self.source_record.update_frequency = "weekly"
             self.source_record.description = "Clinical variant data from ClinVar database"
             self.source_record.base_url = self.base_url
             self.session.commit()

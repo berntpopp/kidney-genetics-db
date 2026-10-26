@@ -77,7 +77,6 @@ class UniProtAnnotationSource(BaseAnnotationSource):
 
         # Update source configuration
         if self.source_record:
-            self.source_record.update_frequency = "monthly"
             self.source_record.description = (
                 "Protein domain and structural feature data from UniProt"
             )
