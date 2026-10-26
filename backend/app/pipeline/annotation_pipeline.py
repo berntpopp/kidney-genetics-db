@@ -181,7 +181,9 @@ class AnnotationPipeline:
 
             # Get genes to update based on strategy
             logger.sync_debug("Getting genes to update...")
-            genes_to_update = await self._get_genes_to_update(strategy, gene_ids)
+            genes_to_update = await self._get_genes_to_update(
+                strategy, gene_ids, sources=sources_to_update
+            )
             logger.sync_info(
                 "Genes to update determined",
                 gene_count=len(genes_to_update),
@@ -386,13 +388,23 @@ class AnnotationPipeline:
                     logger.sync_warning(f"Unknown source: {source}")
             return valid_sources
 
+        # A source added in a release (e.g. mondo) has no row until it first runs (#28);
+        # constructing it creates the row via _get_or_create_source.
+        registered = {name for (name,) in self.db.query(AnnotationSource.source_name)}
+        for name, source_class in self.sources.items():
+            if name not in registered:
+                source_class(self.db)
+
         # Get all active sources that need updating
         sources_to_update = []
 
         sources = self.db.query(AnnotationSource).filter(AnnotationSource.is_active.is_(True)).all()
 
         for source in sources:
-            if force or source.is_update_due():
+            stale = self._stale_gene_ids(source.source_name)
+            # ponytail: a gene the source can never rewrite (e.g. HPO bulk miss whose API
+            # fallback fails) keeps it due every run; the post-run warning names such genes.
+            if force or source.is_update_due() or (stale is not None and stale.first()):
                 sources_to_update.append(source.source_name)
 
         # Ensure HGNC runs first as it provides Ensembl IDs needed by other sources
@@ -423,7 +435,10 @@ class AnnotationPipeline:
         return ordered_sources
 
     async def _get_genes_to_update(
-        self, strategy: UpdateStrategy, gene_ids: list[int] | None
+        self,
+        strategy: UpdateStrategy,
+        gene_ids: list[int] | None,
+        sources: list[str] | None = None,
     ) -> list[Gene]:
         """
         Get list of genes to update based on strategy.
@@ -434,6 +449,7 @@ class AnnotationPipeline:
         Args:
             strategy: Update strategy
             gene_ids: Specific gene IDs if provided
+            sources: Sources this run updates; only their stale annotations select genes
 
         Returns:
             List of Gene objects to update, ordered by importance
@@ -459,6 +475,17 @@ class AnnotationPipeline:
                 .having(func.count(GeneAnnotation.id) < len(self.sources))
                 .all()
             )
+
+            # Plus genes whose stored payload predates the source's current method (#338)
+            selected = {g.id for g in genes}
+            stale_ids = {
+                gene_id
+                for name in sources or []
+                if (stale := self._stale_gene_ids(name)) is not None
+                for (gene_id,) in stale
+            } - selected
+            if stale_ids:
+                genes += self.db.query(Gene).filter(Gene.id.in_(stale_ids)).all()
 
             # Get scores for prioritization using ORM
             gene_ids_for_scores = [g.id for g in genes]
@@ -521,6 +548,18 @@ class AnnotationPipeline:
         )
 
         return genes
+
+    def _stale_gene_ids(self, source_name: str, db: Session | None = None) -> Any:
+        """Query of gene IDs with an outdated annotation from this source; None without a hook."""
+        source_class = self.sources.get(source_name)
+        condition = source_class.stale_annotation_filter() if source_class else None
+        if condition is None:
+            return None
+        return (
+            (db or self.db)
+            .query(GeneAnnotation.gene_id)
+            .filter(GeneAnnotation.source == source_name, condition)
+        )
 
     async def _save_checkpoint(self, state: dict) -> None:
         """Save pipeline checkpoint for resume capability."""
@@ -861,6 +900,8 @@ class AnnotationPipeline:
                         cache_service.clear_namespace_sync("annotations")
                         # Network/enrichment responses are built from annotations (#336)
                         cache_service.clear_namespace_sync("network_analysis")
+                        # Gene-list clinical groups (genes.py HPO_CACHE_NAMESPACE, 1 h TTL)
+                        cache_service.clear_namespace_sync("hpo_classifications")
                         logger.sync_debug(f"Cleared cache for {source_name}")
                 finally:
                     thread_db.close()
@@ -881,6 +922,18 @@ class AnnotationPipeline:
         source_record.last_update = datetime.utcnow()
         source_record.next_update = datetime.utcnow() + timedelta(days=source.cache_ttl_days)
         source_db.commit()
+
+        stale = self._stale_gene_ids(source_name, source_db)
+        stale_left = stale.count() if stale is not None else 0
+        if stale_left:
+            symbols = stale.join(Gene, Gene.id == GeneAnnotation.gene_id).with_entities(
+                Gene.approved_symbol
+            )
+            logger.sync_warning(
+                f"{source_name}: {stale_left} annotations still stale after the run",
+                genes=[symbol for (symbol,) in symbols.limit(20)],
+            )
+            source_db.commit()
 
         return {
             "successful": successful,
@@ -1017,14 +1070,17 @@ class AnnotationPipeline:
 
         status_list = []
         for source in sources:
+            stale = self._stale_gene_ids(source.source_name)
+            stale_count = stale.count() if stale is not None else 0
             status = {
                 "source": source.source_name,
                 "display_name": source.display_name,
                 "is_active": source.is_active,
                 "last_update": source.last_update.isoformat() if source.last_update else None,
                 "next_update": source.next_update.isoformat() if source.next_update else None,
-                "update_due": source.is_update_due(),
+                "update_due": source.is_update_due() or stale_count > 0,
                 "update_frequency": source.update_frequency,
+                "stale_annotation_count": stale_count,
             }
 
             # Get annotation count
@@ -1038,6 +1094,24 @@ class AnnotationPipeline:
             status["annotation_count"] = count
 
             status_list.append(status)
+
+        # Registered but never run (no row yet): due; the row is created by the next run (#28)
+        registered = {s.source_name for s in sources}
+        for name, source_class in self.sources.items():
+            if name not in registered:
+                status_list.append(
+                    {
+                        "source": name,
+                        "display_name": source_class.display_name or name,
+                        "is_active": True,
+                        "last_update": None,
+                        "next_update": None,
+                        "update_due": True,
+                        "update_frequency": None,
+                        "stale_annotation_count": 0,
+                        "annotation_count": 0,
+                    }
+                )
 
         return status_list
 

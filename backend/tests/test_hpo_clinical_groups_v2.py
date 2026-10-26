@@ -99,15 +99,14 @@ def test_evidence_sums_over_diseases():
 
 def test_secondary_at_calibrated_share_of_primary_evidence():
     classifier = _tiny()
-    at_cut = classifier.classify({"d1": {"HP:A11": 1.0}, "d2": {"HP:B1": 0.4}})
+    at_cut = classifier.classify({"d1": {"HP:A11": 1.0}, "d2": {"HP:B1": 0.5}})
     assert (at_cut["primary"], at_cut["secondary"]) == ("cakut", ["neoplasia"])
-    # between the old 0.5 and the new 0.4 cut-off: secondary now
-    between = classifier.classify({"d1": {"HP:A11": 1.0}, "d2": {"HP:B1": 0.45}})
-    assert between["secondary"] == ["neoplasia"]
-    below = classifier.classify({"d1": {"HP:A11": 1.0}, "d2": {"HP:B1": 0.39}})
+    # between the v2.1 0.4 and the 0.5 cut-off: no secondary any more
+    below = classifier.classify({"d1": {"HP:A11": 1.0}, "d2": {"HP:B1": 0.49}})
     assert (below["primary"], below["secondary"]) == ("cakut", [])
-    # 0.40 chosen on PanelApp by multi-label macro-F1 (spec: secondary cut-off calibration)
-    assert SECONDARY_GROUP_RATIO == 0.4
+    # 0.5 kept by the one-SE rule: no r beat it out of sample (spec: secondary cut-off)
+    assert SECONDARY_GROUP_RATIO == 0.5
+    assert CLINICAL_GROUP_METHOD == "hpo-freq-ic-v2"  # same output as v0.9.0's v2
 
 
 def test_multilabel_macro_f1_hand_computed():
@@ -118,6 +117,39 @@ def test_multilabel_macro_f1_hand_computed():
     pred = {"g1": {"a", "b"}, "g2": {"a"}, "g3": {"b"}}
     # a: TP 2, FP 0, FN 0 -> 1.0; b: TP 1, FP 1, FN 1 -> 0.5; c: no TP -> 0.0
     assert evaluate.multilabel_macro_f1(pred, truth, ["a", "b", "c"]) == pytest.approx(0.5)
+
+
+def test_leave_one_out_counts_and_choice():
+    spec = importlib.util.spec_from_file_location("evaluate_hpo", EVAL_SCRIPT)
+    evaluate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(evaluate)
+    truth = {"g1": {"a"}, "g2": {"a", "b"}, "g3": {"b"}}
+    # r = 0.3 adds b to g2 (correct); r = 0.5 does not
+    preds = {0.3: {"g1": {"a"}, "g2": {"a", "b"}, "g3": {"b"}}, 0.5: {s: {"a"} for s in truth}}
+    preds[0.5]["g3"] = {"b"}
+    inc = {
+        r: [evaluate.increments(p[s], truth[s], "ab") for s in sorted(truth)]
+        for r, p in preds.items()
+    }
+    for r, p in preds.items():
+        counts = evaluate.sum_counts(inc[r], range(3), 2)
+        assert evaluate.f1_from_counts(counts) == evaluate.multilabel_macro_f1(p, truth, "ab")
+    # without g2 both r give the same F1 (tie -> larger r); with g2 in, 0.3 wins
+    assert evaluate.leave_one_out(inc, 2) == [0.3, 0.5, 0.3]
+
+
+def test_paired_bootstrap_and_one_se_rule():
+    spec = importlib.util.spec_from_file_location("evaluate_hpo", EVAL_SCRIPT)
+    evaluate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(evaluate)
+    same = [[0], [0, 4], [3]]
+    boot = evaluate.paired_bootstrap({0.3: same, 0.5: same}, 2, seed=0, n=50)
+    assert evaluate.ci95(a - b for a, b in zip(boot[0.3], boot[0.5], strict=True)) == (0, 0)
+    point = {0.3: 0.80, 0.5: 0.79}
+    noisy = {0.3: [0.80, 0.78, 0.82], 0.5: [0.79, 0.80, 0.78]}  # gap SE > 0.01 -> 0.5
+    assert evaluate.one_se_choice(point, noisy) == 0.5
+    tight = {0.3: [0.80, 0.81, 0.79], 0.5: [0.79, 0.80, 0.78]}  # gap SE 0 -> best r
+    assert evaluate.one_se_choice(point, tight) == 0.3
 
 
 def test_scores_are_share_of_evidence():
@@ -161,12 +193,13 @@ def _golden() -> tuple[ClinicalGroupClassifier, dict]:
         ("HNF1B", "cakut", ["cyst_cilio"]),
         ("VHL", "neoplasia", ["glomerulopathy"]),  # known miss: glomerulopathy at 0.84
         ("FH", "neoplasia", ["glomerulopathy"]),
-        # neoplasia evidence is 0.493 of cakut: secondary at the calibrated 0.40 cut-off
-        ("PALB2", "cakut", ["neoplasia"]),
+        # neoplasia evidence is 0.493 of cakut, below the 0.5 cut-off: a consequence of the
+        # calibration result, not a data defect
+        ("PALB2", "cakut", []),
         ("CFH", "complement", []),
         ("COL4A5", "glomerulopathy", []),
-        # kidney stones and proteinuria at 0.46 of cyst_cilio: secondary at 0.40
-        ("PKD1", "cyst_cilio", ["nephrolithiasis", "glomerulopathy"]),
+        # kidney stones and proteinuria at 0.46 of cyst_cilio: below the 0.5 cut-off
+        ("PKD1", "cyst_cilio", []),
     ],
 )
 def test_golden_genes(symbol, primary, secondary):

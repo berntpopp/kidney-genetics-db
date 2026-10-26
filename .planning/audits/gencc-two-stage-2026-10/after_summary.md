@@ -7,8 +7,8 @@ Tier distribution (all scored genes):
 | tier | full | no_clingen | no_gencc | no_clingen_gencc |
 |---|---|---|---|---|
 | comprehensive_support | 284 | 333 | 307 | 378 |
-| multi_source_support | 156 | 179 | 177 | 194 |
-| established_support | 395 | 486 | 488 | 589 |
+| multi_source_support | 156 | 180 | 177 | 194 |
+| established_support | 395 | 485 | 488 | 589 |
 | preliminary_evidence | 1541 | 1989 | 1995 | 1845 |
 | minimal_evidence | 2807 | 2196 | 2200 | 2157 |
 | no_evidence | 0 | 0 | 16 | 20 |
@@ -18,7 +18,7 @@ Change vs full (same policy):
 | scenario | tier down | tier up | high-ev genes | high-ev tier down | high-ev below established | median rank shift (high-ev) |
 |---|---|---|---|---|---|---|
 | full | 0 | 0 | 285 | 0 | 13 | +0 |
-| no_clingen | 25 | 921 | 285 | 24 | 17 | +0 |
+| no_clingen | 25 | 922 | 285 | 24 | 17 | +0 |
 | no_gencc | 91 | 880 | 285 | 69 | 34 | +31 |
 | no_clingen_gencc | 75 | 1261 | 285 | 56 | 31 | +55 |
 
@@ -35,7 +35,7 @@ High-evidence strata, tier counts per scenario:
 | high_clingen_only (n=28) | no_gencc | 23 | 2 | 3 | 0 | 0 | 0 |
 | high_clingen_only (n=28) | no_clingen_gencc | 22 | 2 | 1 | 2 | 1 | 0 |
 | high_gencc_only (n=139) | full | 71 | 21 | 34 | 13 | 0 | 0 |
-| high_gencc_only (n=139) | no_clingen | 80 | 22 | 26 | 11 | 0 | 0 |
+| high_gencc_only (n=139) | no_clingen | 80 | 23 | 25 | 11 | 0 | 0 |
 | high_gencc_only (n=139) | no_gencc | 61 | 20 | 26 | 18 | 5 | 9 |
 | high_gencc_only (n=139) | no_clingen_gencc | 72 | 17 | 24 | 12 | 4 | 10 |
 
@@ -59,7 +59,7 @@ Change vs full (same policy):
 | full | 0 | 0 | 285 | 0 | 9 | +0 |
 | no_clingen | 15 | 1 | 285 | 11 | 14 | +2 |
 | no_gencc | 101 | 2 | 285 | 60 | 23 | +46 |
-| no_clingen_gencc | 127 | 1 | 285 | 80 | 25 | +110 |
+| no_clingen_gencc | 127 | 1 | 285 | 80 | 25 | +111 |
 
 High-evidence strata, tier counts per scenario:
 

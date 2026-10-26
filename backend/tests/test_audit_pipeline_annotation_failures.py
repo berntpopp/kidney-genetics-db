@@ -46,6 +46,10 @@ def _source_class(batch: dict[int, dict[str, Any]], record: SimpleNamespace):
         def __init__(self, session):
             self.session = session
 
+        @classmethod
+        def stale_annotation_filter(cls):
+            return None
+
         async def fetch_batch(self, genes):
             return batch
 

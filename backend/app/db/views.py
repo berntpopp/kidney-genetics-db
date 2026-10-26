@@ -74,6 +74,8 @@ evidence_classification_weights = ReplaceableObject(
         -- Two-stage GenCC score (#330, .planning/specs/2026-10-26-gencc-two-stage.md)
         SELECT ge.id AS evidence_id,
             NULLIF(btrim(s.value ->> 'submitter'::text), ''::text) AS submitter,
+            NULLIF(btrim(s.value -> 'raw_data'::text ->> 'disease_curie'::text), ''::text) AS disease,
+            NULLIF(btrim(s.value -> 'raw_data'::text ->> 'moi_curie'::text), ''::text) AS moi,
             CASE lower(btrim(s.value ->> 'classification'::text))
                 WHEN 'definitive' THEN 1.0
                 WHEN 'strong' THEN 0.8
@@ -107,6 +109,20 @@ evidence_classification_weights = ReplaceableObject(
         FROM gencc_submissions
         WHERE submitter IS NOT NULL AND submitter <> 'ClinGen'::text AND rank IS NOT NULL
         GROUP BY evidence_id, submitter
+    ), gencc_groups AS (
+        -- DiStefano 2022 (PMC7613247) Level 3: same gene, disease and MOI; strongest class per
+        -- counted submitter in each group. Missing disease or MOI never forms a conflict.
+        SELECT evidence_id, disease, moi, submitter, MAX(rank) AS rank
+        FROM gencc_submissions
+        WHERE submitter IS NOT NULL AND submitter <> 'ClinGen'::text AND rank IS NOT NULL
+            AND disease IS NOT NULL AND moi IS NOT NULL
+        GROUP BY evidence_id, disease, moi, submitter
+    ), gencc_conflicts AS (
+        -- Limited/Disputed/Refuted/NKDR vs Moderate/Strong/Definitive within one group
+        SELECT DISTINCT evidence_id
+        FROM gencc_groups
+        GROUP BY evidence_id, disease, moi
+        HAVING bool_or(rank >= 4) AND bool_or(rank <= 2)
     ), gencc_quality AS (
         SELECT evidence_id, MAX(weight) AS q, MAX(rank) AS top_rank
         FROM gencc_submissions
@@ -114,8 +130,7 @@ evidence_classification_weights = ReplaceableObject(
     ), gencc_consensus AS (
         SELECT gq.evidence_id,
             gq.q,
-            GREATEST(1, COUNT(gs.submitter) FILTER (WHERE gs.rank = gq.top_rank)) AS n,
-            COALESCE(MAX(gs.rank) - MIN(gs.rank), 0) AS rank_spread
+            GREATEST(1, COUNT(gs.submitter) FILTER (WHERE gs.rank = gq.top_rank)) AS n
         FROM gencc_quality gq
         LEFT JOIN gencc_submitters gs ON gs.evidence_id = gq.evidence_id
         GROUP BY gq.evidence_id, gq.q, gq.top_rank
@@ -127,7 +142,7 @@ evidence_classification_weights = ReplaceableObject(
             CASE WHEN gc.evidence_id IS NOT NULL THEN
                 GREATEST(0.0,
                     LEAST(1.0, gc.q * (1.0 + 0.1 * ln(gc.n::numeric)))
-                    - CASE WHEN gc.rank_spread >= 2 THEN 0.1 ELSE 0.0 END
+                    - CASE WHEN gx.evidence_id IS NOT NULL THEN 0.1 ELSE 0.0 END
                 )::numeric
             -- Fallback for rows without submissions: MAX of classification weights
             ELSE COALESCE(
@@ -148,6 +163,7 @@ evidence_classification_weights = ReplaceableObject(
         FROM gene_evidence ge
         JOIN genes g ON ge.gene_id = g.id
         LEFT JOIN gencc_consensus gc ON gc.evidence_id = ge.id
+        LEFT JOIN gencc_conflicts gx ON gx.evidence_id = ge.id
         WHERE ge.source_name::text = 'GenCC'::text
     ), clingen_weights AS (
         SELECT ge.id AS evidence_id,

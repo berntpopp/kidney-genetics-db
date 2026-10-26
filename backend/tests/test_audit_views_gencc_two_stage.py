@@ -1,4 +1,7 @@
-"""GenCC weight: quality, agreeing-submitter count and conflict penalty (#330)."""
+"""GenCC weight: quality, agreeing-submitter count and conflict penalty (#330).
+
+Conflict follows DiStefano et al. 2022 (PMC7613247), Level 3: same disease and MOI.
+"""
 
 import json
 import math
@@ -6,11 +9,22 @@ import math
 import pytest
 from sqlalchemy import text
 
+AD, AR = "HP:0000006", "HP:0000007"
 
-def _subs(*pairs):
+
+def _subs(*subs):
+    """(classification, submitter[, disease_curie, moi_curie]); default one disease, AD."""
+    full = [(*x, "MONDO:0000001", AD) if len(x) == 2 else x for x in subs]
     return {
-        "classifications": sorted({c for c, _ in pairs}),
-        "submissions": [{"classification": c, "submitter": s} for c, s in pairs],
+        "classifications": sorted({c for c, *_ in full}),
+        "submissions": [
+            {
+                "classification": c,
+                "submitter": s,
+                "raw_data": {"disease_curie": d, "moi_curie": m},
+            }
+            for c, s, d, m in full
+        ],
     }
 
 
@@ -36,8 +50,32 @@ CASES = {
     "strong_and_orphanet_supportive": _subs(
         ("Strong", "Ambry Genetics"), ("Supportive", "Orphanet")
     ),
-    # Definitive vs Moderate is 2 ranks apart: a conflict under the >= 2-rank rule.
+    # DiStefano 2022 conflict: Limited/Disputed/Refuted/NKDR vs Moderate/Strong/Definitive.
+    # Definitive vs Moderate is agreement-side only: no conflict.
     "definitive_vs_moderate": _subs(("Definitive", "Ambry Genetics"), ("Moderate", "G2P")),
+    "moderate_vs_limited": _subs(("Moderate", "Orphanet"), ("Limited", "G2P")),
+    # Both on the weak side: no conflict.
+    "limited_vs_nkdr": _subs(("Limited", "Orphanet"), ("No Known Disease Relationship", "G2P")),
+    "clingen_limited_lab_definitive": _subs(("Limited", "ClinGen"), ("Definitive", "G2P")),
+    "strong_vs_disputed": _subs(("Strong", "Orphanet"), ("Disputed Evidence", "G2P")),
+    # Level 3 needs the same disease and MOI. NPHS2-like: Definitive AR x3 vs Limited AD.
+    "different_moi": _subs(
+        ("Definitive", "Lab1", "MONDO:0000001", AR),
+        ("Definitive", "Lab2", "MONDO:0000001", AR),
+        ("Definitive", "Lab3", "MONDO:0000001", AR),
+        ("Limited", "Ambry Genetics", "MONDO:0000001", AD),
+    ),
+    # SLC2A9-like: the Limited submitter's Strong (AR) does not hide its AD Limited.
+    "same_group_hidden_by_other_moi": _subs(
+        ("Strong", "Labcorp", "MONDO:0000001", AR),
+        ("Limited", "Labcorp", "MONDO:0000001", AD),
+        ("Moderate", "Ambry Genetics", "MONDO:0000001", AD),
+    ),
+    "different_disease": _subs(
+        ("Strong", "Orphanet", "MONDO:0000001", AD), ("Limited", "G2P", "MONDO:0000002", AD)
+    ),
+    # Missing disease (or MOI) never forms a conflict.
+    "null_disease": _subs(("Strong", "Orphanet", None, AD), ("Limited", "G2P", None, AD)),
     # Cannot differ from MAX (both 1.0); guards the min(1, ...) cap.
     "cap": _subs(*[("Definitive", f"Lab{i}") for i in range(4)]),
     # A submitter's strongest class is used: Strong+Limited from one submitter is no conflict.
@@ -60,7 +98,15 @@ EXPECTED = {
     "one_rank_apart": 0.8 * (1 + 0.1 * math.log(2)),
     "agree_and_conflict": 0.9,  # capped at 1.0 before the penalty
     "strong_and_orphanet_supportive": 0.8,
-    "definitive_vs_moderate": 0.9,
+    "definitive_vs_moderate": 1.0,
+    "moderate_vs_limited": 0.5,
+    "limited_vs_nkdr": 0.4,
+    "clingen_limited_lab_definitive": 1.0,
+    "strong_vs_disputed": 0.7,
+    "different_moi": 1.0,  # min(1, 1.0 * (1 + 0.1 ln 3)), no penalty
+    "same_group_hidden_by_other_moi": 0.7,
+    "different_disease": 0.8,
+    "null_disease": 0.8,
     "cap": 1.0,
     "within_submitter_spread": 0.8,
     "unknown_ignored": 0.6,

@@ -42,5 +42,6 @@ async def test_source_update_clears_network_analysis_namespace(gene_id):
     assert "error" not in results[SOURCE]
     cleared = [c.args[0] for c in cache.clear_namespace_sync.call_args_list]
     assert "network_analysis" in cleared
+    assert "hpo_classifications" in cleared  # gene-list clinical-group cache (genes.py)
     # The in-process graph cache must not outlive the update, or a stale graph is re-cached
     assert "stale" not in network_service._graph_cache

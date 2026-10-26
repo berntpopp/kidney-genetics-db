@@ -17,6 +17,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import ColumnElement
+
 from app.core.datasource_config import get_annotation_config
 from app.core.logging import get_logger
 from app.models.gene import Gene, GeneEvidence
@@ -227,6 +229,12 @@ class MondoAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
     async def fetch_annotation(self, gene: Gene) -> dict[str, Any] | None:
         return (await self.fetch_batch([gene])).get(gene.id)
+
+    @classmethod
+    def stale_annotation_filter(cls) -> ColumnElement[bool]:
+        """SQL twin of _is_valid_annotation: a payload mapped with another SSSOM pin is stale."""
+        sha = GeneAnnotation.annotations[("provenance", "sssom_sha256")].astext
+        return sha.is_distinct_from(_CONFIG.get("sssom_sha256"))
 
     def _is_valid_annotation(self, annotation_data: dict) -> bool:
         """Reject cached payloads mapped with another SSSOM pin."""

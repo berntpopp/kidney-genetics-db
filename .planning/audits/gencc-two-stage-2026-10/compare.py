@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Compare before/after benchmark CSVs for #330. Usage: python3 -I compare.py DIR [PREFIX]"""
+"""Compare two benchmark runs for #330.
+
+Usage: python3 -I compare.py DIR [AFTER [BEFORE]]  (labels; default: after before)
+Reads DIR/{label}_per_gene.csv; e.g. `. v1_after`, `. v010_after`, `. after v010_after`.
+"""
 
 import csv
 import statistics
@@ -15,18 +19,16 @@ TIERS = [
     "minimal_evidence",
     "no_evidence",
 ]
-d, prefix = Path(sys.argv[1]), (sys.argv[2:] or [""])[0]  # prefix "v1_" = first run
+d = Path(sys.argv[1])
+after_label, before_label = (sys.argv[2:] + ["after", "before"][len(sys.argv[2:]) :])[:2]
 
 
 def load(label):
-    path = d / f"{prefix}{label}_per_gene.csv"
-    if not path.exists():  # v1_before_* was byte-identical to before_* and is not kept
-        path = d / f"{label}_per_gene.csv"
-    with open(path) as f:
+    with open(d / f"{label}_per_gene.csv") as f:
         return {r["hgnc_id"]: r for r in csv.DictReader(f)}
 
 
-b, a = load("before"), load("after")
+b, a = load(before_label), load(after_label)
 assert b.keys() == a.keys(), "gene sets differ"
 gencc = [h for h in b if b[h]["gencc_score"] != "" or a[h]["gencc_score"] != ""]
 assert all(b[h]["gencc_score"] != "" and a[h]["gencc_score"] != "" for h in gencc)
@@ -49,7 +51,8 @@ out += [
     "## percentage_score shift (global divisor, all scored genes)",
     "",
     f"- genes changed: {len(moved)} (up {sum(v > 0 for v in moved)}, down {sum(v < 0 for v in moved)})",
-    f"- max increase: {max(moved, default=0):+.4f} points; max decrease: {min(moved, default=0):+.4f} points",
+    f"- max increase: {max([v for v in moved if v > 0], default=0):+.4f} points; "
+    f"max decrease: {min([v for v in moved if v < 0], default=0):+.4f} points",
     f"- mean shift among changed: {statistics.mean(moved):+.4f} points" if moved else "",
     "",
     "## Tier transitions (rows before, columns after)",
@@ -70,7 +73,7 @@ out += [
     "| gene | GenCC classes | GenCC before | GenCC after | pct before | pct after | tier before | tier after |",
     "|---|---|---:|---:|---:|---:|---|---|",
 ]
-for h in sorted(gencc, key=lambda h: (-round(abs(dg[h]), 9), b[h]["approved_symbol"]))[:20]:
+for h in sorted([h for h in gencc if abs(dg[h]) > 1e-12], key=lambda h: (-round(abs(dg[h]), 9), b[h]["approved_symbol"]))[:20]:
     out.append(
         f"| {b[h]['approved_symbol']} | {b[h]['gencc_classes']} | {float(b[h]['gencc_score']):.4f} | "
         f"{float(a[h]['gencc_score']):.4f} | {b[h]['global.full.pct']} | {a[h]['global.full.pct']} | "

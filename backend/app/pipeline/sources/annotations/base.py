@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
+from sqlalchemy import ColumnElement
 from sqlalchemy.orm import Session
 
 from app.core.cache_service import get_cache_service
@@ -578,6 +579,14 @@ class BaseAnnotationSource(ABC):
                     logger.sync_info(f"Materialized view {view_name} refreshed (non-concurrent)")
                 except Exception as e2:
                     logger.sync_error(f"Failed to refresh materialized view {view_name}: {e2}")
+
+    @classmethod
+    def stale_annotation_filter(cls) -> ColumnElement[bool] | None:
+        """SQL condition on GeneAnnotation that marks a stored payload as outdated.
+
+        Routine runs re-annotate genes matching it; None (default) means never stale.
+        """
+        return None
 
     def _is_valid_annotation(self, annotation_data: dict) -> bool:
         """
