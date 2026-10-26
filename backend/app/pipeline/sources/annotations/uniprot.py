@@ -120,7 +120,7 @@ class UniProtAnnotationSource(BaseAnnotationSource):
                 "query": query,
                 "format": "json",
                 "fields": _UNIPROT_FIELDS,
-                "size": "1",
+                "size": "10",  # gene_exact also hits other genes' synonyms (GLA -> NAT8 first)
             }
 
             response = await client.get(
@@ -142,11 +142,23 @@ class UniProtAnnotationSource(BaseAnnotationSource):
             data = response.json()
             results = data.get("results", [])
 
-            if not results:
+            symbol = gene.approved_symbol.upper()
+            match = next(
+                (
+                    r
+                    for r in results
+                    if any(
+                        g.get("geneName", {}).get("value", "").upper() == symbol
+                        for g in r.get("genes", [])
+                    )
+                ),
+                None,
+            )
+            if not match:
                 logger.sync_debug("Gene not found in UniProt", gene_symbol=gene.approved_symbol)
                 return None
 
-            return self._parse_protein_data(gene.approved_symbol, results[0])
+            return self._parse_protein_data(gene.approved_symbol, match)
 
         except httpx.HTTPStatusError as e:
             logger.sync_error(
@@ -443,22 +455,25 @@ class UniProtAnnotationSource(BaseAnnotationSource):
                     f"ID Mapping job {job_id} did not complete within {_ID_MAPPING_TIMEOUT}s"
                 )
 
-            # Step 3: Fetch results
-            results_url = f"{self.base_url}/idmapping/uniprotkb/results/{job_id}"
-            results_response = await client.get(
-                results_url,
-                params={
-                    "fields": _UNIPROT_FIELDS,
-                    "query": "(reviewed:true)",
-                    "format": "json",
-                    "size": str(max(len(symbols), 500)),
-                },
-                headers={"Accept": "application/json"},
-            )
-            results_response.raise_for_status()
-            results_data = results_response.json()
+            # Step 3: Fetch results, 500 per page (the API rejects larger pages with 400)
+            items: list[dict[str, Any]] = []
+            next_url: str | None = f"{self.base_url}/idmapping/uniprotkb/results/{job_id}"
+            params: dict[str, str] | None = {
+                "fields": _UNIPROT_FIELDS,
+                "query": "(reviewed:true)",
+                "format": "json",
+                "size": "500",
+            }
+            while next_url:
+                results_response = await client.get(
+                    next_url, params=params, headers={"Accept": "application/json"}
+                )
+                results_response.raise_for_status()
+                items.extend(results_response.json().get("results", []))
+                next_url = results_response.links.get("next", {}).get("url")
+                params = None  # the next link already carries the query and cursor
 
-        parsed = self._parse_id_mapping_results(results_data)
+        parsed = self._parse_id_mapping_results({"results": items})
 
         logger.sync_info(
             "ID Mapping results fetched",
