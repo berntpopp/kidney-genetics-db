@@ -116,6 +116,7 @@ _ANNOTATION_SOURCES: list[str] = [
     "string_ppi",
     "descartes",
     "hpo",
+    "mondo",
 ]
 
 
