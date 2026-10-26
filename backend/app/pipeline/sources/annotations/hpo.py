@@ -866,6 +866,9 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
         # Fast bulk lookups (still need classification per gene)
         for gene in genes:
+            # Classification is CPU-bound with no real await; yield so ~3k genes (~25 s)
+            # do not hold the API's event loop in one stretch (#363)
+            await asyncio.sleep(0)
             if self._bulk_data is not None and gene.approved_symbol:
                 bulk_result = self.lookup_gene(gene.approved_symbol)
                 if bulk_result is not None:
