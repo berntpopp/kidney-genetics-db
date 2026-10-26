@@ -111,6 +111,7 @@ const loadSources = async () => {
     const response = await pipelineApi.getAllStatus()
     // API returns { data: [...], meta: {...} } structure
     sources.value = response.data?.data || []
+    now.value = Date.now()
   } catch (error) {
     window.logService.error('Failed to load sources:', error)
     toast.error('Failed to load pipeline status', { duration: Infinity })
@@ -220,9 +221,13 @@ const getStatusVariant = status => {
 }
 
 const STALLED_AFTER_MS = 10 * 60 * 1000
-// Ticks so a hung source turns stalled without a WebSocket event or reload
+// Ticks so relative times and "stalled" stay current without a WebSocket event; while the
+// socket is down, the same tick polls so the page never shows a frozen status
 const now = ref(Date.now())
-const clock = setInterval(() => (now.value = Date.now()), 30_000)
+const clock = setInterval(() => {
+  now.value = Date.now()
+  if (!wsConnected.value) loadSources()
+}, 30_000)
 
 // A running source whose progress row has not been written for 10 minutes is stalled.
 // Without last_update_at (older backend) we cannot tell, so keep the plain status.
@@ -234,8 +239,7 @@ const isStalled = source =>
 const formatTime = dateString => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
-  const now = new Date()
-  const diff = now - date
+  const diff = now.value - date // reactive clock, so "N min ago" keeps counting
 
   if (diff < 60000) {
     // Less than 1 minute
@@ -262,6 +266,7 @@ const showSourceDetails = source => {
 const handleProgressUpdate = data => {
   // Backend wraps single updates in an array for consistency
   const items = Array.isArray(data) ? data : [data]
+  now.value = Date.now() // new data: relative times must not lag the 30 s tick
   for (const item of items) {
     const index = sources.value.findIndex(s => s.source_name === item.source_name)
     if (index > -1) {
@@ -607,13 +612,25 @@ onUnmounted(() => {
                   {{ Math.round(process.progress_percentage || 0) }}%
                 </span>
               </div>
-              <Progress :model-value="process.progress_percentage || 0" class="h-2" />
+              <Progress
+                :model-value="process.progress_percentage || 0"
+                :aria-label="`${process.display_name || process.source_name} progress`"
+                class="h-2"
+              />
+              <!-- Announced at milestones (a source finished), not on every tick -->
+              <span v-if="process.total_items" class="sr-only" role="status">
+                {{ process.current_item }} of {{ process.total_items }} sources done
+              </span>
+              <p v-if="isStalled(process)" class="text-xs text-destructive mt-1">
+                Stalled: last progress update {{ formatTime(process.last_update_at) }}
+              </p>
             </div>
 
             <!-- Timing Info -->
             <div v-if="process.started_at" class="text-xs text-muted-foreground">
               <div v-if="process.status === 'running'">
-                Started: {{ formatTime(process.started_at) }}
+                Started: {{ formatTime(process.started_at) }} · last update
+                {{ formatTime(process.last_update_at) }}
               </div>
               <div v-else-if="process.completed_at">
                 Completed: {{ formatTime(process.completed_at) }}

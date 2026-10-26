@@ -24,7 +24,7 @@ export class WebSocketService {
 
   constructor() {
     this.ws = null
-    this.reconnectInterval = 5000
+    this.reconnectInterval = 1000 // backoff base
     this.shouldReconnect = true
     this.messageHandlers = new Map()
     this.connected = ref(false)
@@ -98,11 +98,14 @@ export class WebSocketService {
       // Attempt reconnection if enabled
       if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
         this.reconnectAttempts++
-        window.logService.info(`Reconnecting in ${this.reconnectInterval}ms...`, {
+        // Exponential backoff capped at 30 s, with jitter so clients do not retry in waves
+        const backoff = Math.min(30_000, this.reconnectInterval * 2 ** (this.reconnectAttempts - 1))
+        const delay = Math.round(backoff * (0.5 + Math.random() / 2))
+        window.logService.info(`Reconnecting in ${delay}ms...`, {
           attempt: this.reconnectAttempts,
           maxAttempts: this.maxReconnectAttempts
         })
-        setTimeout(() => this.connect(resolvedUrl), this.reconnectInterval)
+        setTimeout(() => this.connect(resolvedUrl), delay)
       }
     }
   }
