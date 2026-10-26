@@ -24,7 +24,7 @@ from typing import Any
 from sqlalchemy import ColumnElement, and_, func
 from sqlalchemy.orm import Session
 
-from app.core.datasource_config import ANNOTATION_COMMON_CONFIG, get_source_parameter
+from app.core.datasource_config import get_source_parameter
 from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
@@ -128,6 +128,8 @@ class ClinicalGroupClassifier:
         self.release = release
         self.ic: dict[str, float] = {}
         self._ancestors: dict[str, frozenset[str]] = {}
+        self._descendants: dict[str, frozenset[str]] = {}
+        self._children: dict[str, set[str]] = {}
         self._term_groups: dict[str, list[str]] = {}
 
     def ancestors(self, term: str) -> frozenset[str]:
@@ -138,6 +140,25 @@ class ClinicalGroupClassifier:
                 out |= self.ancestors(parent)
             self._ancestors[term] = frozenset(out)
         return self._ancestors[term]
+
+    def descendants(self, root: str) -> frozenset[str]:
+        """The term and all its is_a descendants (memoised); raise if not in this release."""
+        if root not in self._descendants:
+            if not self._children:
+                for child, parents in self.parents.items():
+                    for parent in parents:
+                        self._children.setdefault(parent, set()).add(child)
+            if root not in self.parents and root not in self._children:
+                raise ValueError(f"{root} is not in HPO release {self.release}")
+            out: set[str] = set()
+            stack = [root]
+            while stack:
+                term = stack.pop()
+                if term not in out:
+                    out.add(term)
+                    stack.extend(self._children.get(term, ()))
+            self._descendants[root] = frozenset(out)
+        return self._descendants[root]
 
     def fit_information_content(self, disease_terms: Iterable[Iterable[str]]) -> None:
         """IC(t) = -ln(n(t)/N): n(t) diseases annotated to t or a descendant."""
@@ -276,15 +297,6 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     bulk_file_url = get_source_parameter("HPO", "genes_to_phenotype_url", "")
     bulk_cache_ttl_hours = 168  # 7 days
     bulk_file_format = "txt"
-
-    # Class-level cache for kidney terms (shared across all instances)
-    _kidney_terms_cache = None
-    _kidney_terms_cache_time = None
-
-    # Class-level caches for classification terms
-    _onset_descendants_cache = None
-    _syndromic_descendants_cache = None
-    _classification_cache_time = None
 
     _clinical_classifier: ClinicalGroupClassifier | None = None
     _clinical_classifier_error: Exception | None = None
@@ -591,62 +603,10 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
             return None
 
     async def get_kidney_term_descendants(self) -> set[str]:
-        """
-        Get cached set of kidney HPO term descendants.
-        Reuses the existing HPO pipeline logic and configuration for DRY principle.
-        """
-        import time
-
-        from app.core.datasource_config import get_source_parameter
-
-        # Check if we have a recent cache (cache for 24 hours)
-        if (
-            self._kidney_terms_cache is not None
-            and self._kidney_terms_cache_time is not None
-            and time.time() - self._kidney_terms_cache_time
-            < ANNOTATION_COMMON_CONFIG["cache_time_day"]
-        ):
-            return self._kidney_terms_cache
-
-        # Use the existing HPO pipeline to get kidney terms
-        # Use longer timeout (90s) for HPO API - descendants endpoint returns large data (3+ MB)
-        from app.core.cache_service import get_cache_service
-        from app.core.cached_http_client import CachedHttpClient
-        from app.core.hpo.pipeline import HPOPipeline
-
-        try:
-            cache_service = get_cache_service(self.session) if self.session else None
-            http_client = (
-                CachedHttpClient(cache_service=cache_service, timeout=90.0)
-                if cache_service
-                else None
-            )
-            pipeline = HPOPipeline(cache_service=cache_service, http_client=http_client)
-        except Exception as e:
-            logger.sync_warning(f"Could not initialize full pipeline, using basic: {e}")
-            pipeline = HPOPipeline()
-
-        # Get ALL configured kidney root terms from configuration
-        kidney_root_terms = get_source_parameter("HPO", "kidney_terms", [])
-
-        # Collect all descendants from ALL configured kidney root terms
-        kidney_term_ids = set()
-        for root_term in kidney_root_terms:
-            try:
-                descendants = await pipeline.terms.get_descendants(
-                    root_term, max_depth=pipeline.max_depth, include_self=True
-                )
-                kidney_term_ids.update(descendants)
-            except Exception as e:
-                logger.sync_warning(f"Failed to get descendants for {root_term}: {e}")
-
-        # Cache for reuse
-        self._kidney_terms_cache = kidney_term_ids
-        self._kidney_terms_cache_time = time.time()
-
-        logger.sync_info(f"Loaded {len(kidney_term_ids)} kidney HPO term descendants")
-
-        return kidney_term_ids
+        """Configured kidney root terms and their descendants in the pinned hp.json (#365)."""
+        classifier = await self._load_clinical_group_classifier()
+        roots = get_source_parameter("HPO", "kidney_terms", [])
+        return set().union(*(classifier.descendants(t) for t in roots))
 
     async def filter_kidney_phenotypes(self, phenotypes: list[dict]) -> list[dict]:
         """
@@ -666,124 +626,24 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
         return [phenotype for phenotype in phenotypes if phenotype.get("id") in kidney_term_ids]
 
     async def get_classification_term_descendants(
-        self, classification_type: str, force_refresh: bool = False
+        self, classification_type: str
     ) -> dict[str, set[str]]:
+        """Descendants per category ("onset_groups" or "syndromic_indicators").
+
+        Taken from the pinned hp.json, so they match the release `clinical_group` cites
+        and raise instead of silently shrinking when a term cannot be resolved (#365).
         """
-        Get all descendant terms for classification categories.
-        Reuses existing HPO pipeline for term traversal (DRY principle).
-
-        Args:
-            classification_type: Type of classification ("onset_groups" or "syndromic_indicators")
-            force_refresh: Force cache refresh if True
-        """
-        import time
-
-        from app.core.datasource_config import get_source_parameter
-
-        logger.sync_info(f"Getting classification descendants for {classification_type}")
-
-        # Check cache (24-hour TTL like kidney terms) - only if not forcing refresh
-        if (
-            not force_refresh
-            and self._classification_cache_time is not None
-            and time.time() - self._classification_cache_time
-            < ANNOTATION_COMMON_CONFIG["cache_time_day"]
-        ):
-            # Return appropriate cache
-            if classification_type == "onset_groups" and self._onset_descendants_cache:
-                logger.sync_info(
-                    f"Using cached onset descendants: {len(self._onset_descendants_cache)} groups"
-                )
-                return self._onset_descendants_cache
-            elif (
-                classification_type == "syndromic_indicators" and self._syndromic_descendants_cache
-            ):
-                logger.sync_info(
-                    f"Using cached syndromic descendants: {len(self._syndromic_descendants_cache)} groups"
-                )
-                return self._syndromic_descendants_cache
-
-        # Need to refresh cache
-        logger.sync_info(f"Refreshing {classification_type} descendants cache")
-
-        # Import with proper initialization
-        from app.core.cache_service import get_cache_service
-        from app.core.cached_http_client import CachedHttpClient
-        from app.core.hpo.pipeline import HPOPipeline
-
-        # Ensure proper pipeline initialization with cache and http client
-        # Use longer timeout (90s) for HPO API - descendants endpoint returns large data (3+ MB)
-        try:
-            cache_service = get_cache_service(self.session) if self.session else None
-            http_client = (
-                CachedHttpClient(cache_service=cache_service, timeout=90.0)
-                if cache_service
-                else None
-            )
-            pipeline = HPOPipeline(cache_service=cache_service, http_client=http_client)
-        except Exception as e:
-            logger.sync_warning(f"Could not initialize full pipeline, using basic: {e}")
-            pipeline = HPOPipeline()
-
-        classification_config = get_source_parameter("HPO", classification_type, {})
-        logger.sync_info(
-            f"Classification config for {classification_type}: {classification_config}"
-        )
-
-        descendants_map = {}
-        for group_key, group_config in classification_config.items():
-            descendants = set()
-
-            # Handle both single root_term and multiple root_terms
-            root_terms = []
+        classifier = await self._load_clinical_group_classifier()
+        descendants_map: dict[str, set[str]] = {}
+        for group_key, group_config in get_source_parameter("HPO", classification_type, {}).items():
+            # Single root_term or root_terms; syndromic_indicators map straight to the term
             if isinstance(group_config, dict):
-                if "root_term" in group_config:
-                    root_terms = [group_config["root_term"]]
-                elif "root_terms" in group_config:
-                    root_terms = group_config["root_terms"]
+                root_terms = group_config.get("root_terms") or [group_config["root_term"]]
             else:
-                # For syndromic_indicators, the value is directly the term
                 root_terms = [group_config]
-
-            logger.sync_info(f"Fetching descendants for {group_key}: root terms {root_terms}")
-
-            # Reuse existing pipeline to get descendants
-            for term in root_terms:
-                try:
-                    term_descendants = await pipeline.terms.get_descendants(
-                        term, max_depth=pipeline.max_depth, include_self=True
-                    )
-                    descendants.update(term_descendants)
-                    logger.sync_info(
-                        f"Got {len(term_descendants)} descendants for {term} in {group_key}"
-                    )
-                except Exception as e:
-                    logger.sync_error(
-                        f"Failed to get descendants for {term} in {group_key}",
-                        error_detail=str(e),
-                        classification_type=classification_type,
-                    )
-                    # Continue with other terms
-
-            descendants_map[group_key] = descendants
-            logger.sync_info(f"{group_key}: Total {len(descendants)} descendant terms")
-
-        # Log summary
-        total_descendants = sum(len(d) for d in descendants_map.values())
-        logger.sync_info(
-            f"Classification {classification_type} complete",
-            groups=len(descendants_map),
-            total_descendants=total_descendants,
-        )
-
-        # Update cache
-        if classification_type == "onset_groups":
-            self._onset_descendants_cache = descendants_map
-        elif classification_type == "syndromic_indicators":
-            self._syndromic_descendants_cache = descendants_map
-
-        self._classification_cache_time = time.time()
-
+            descendants_map[group_key] = set().union(
+                *(classifier.descendants(t) for t in root_terms)
+            )
         return descendants_map
 
     async def classify_gene_phenotypes(

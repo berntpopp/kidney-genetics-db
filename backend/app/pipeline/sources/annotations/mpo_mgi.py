@@ -143,52 +143,48 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         all_terms = set()
         all_terms.add(self.kidney_root_term)  # Include root term
 
-        @retry_with_backoff(config=RetryConfig(max_retries=3))
+        # No retry decorator: re-running a level would skip children already collected
         async def fetch_children(term_id: str, node_id: int, depth: int = 0) -> None:
             """Recursive function to fetch all children of a term"""
             if depth > 20:  # Safety limit for recursion depth
                 logger.sync_warning(f"Max recursion depth reached for term {term_id}")
                 return
 
-            try:
-                # Query JAX API for children
-                url = f"{self.jax_base_url}/vocab/mp_ontology/treeChildren"
-                params = {"id": term_id, "nodeID": str(node_id), "edgeType": "is-a"}
+            # No try/except: a failed subtree must fail the load, never persist a partial set
+            url = f"{self.jax_base_url}/vocab/mp_ontology/treeChildren"
+            params = {"id": term_id, "nodeID": str(node_id), "edgeType": "is-a"}
 
-                await self.apply_rate_limit()
-                client = await self.get_http_client()
+            await self.apply_rate_limit()
+            client = await self.get_http_client()
 
-                response = await client.get(url, params=params, timeout=30.0)
-                response.raise_for_status()
-                data = response.json()
+            response = await client.get(url, params=params, timeout=30.0)
+            response.raise_for_status()
+            data = response.json()
 
-                # JAX API returns a list with the node as first element
-                if isinstance(data, list) and data:
-                    node_data = data[0]
-                    children = node_data.get("children", []) if isinstance(node_data, dict) else []
-                else:
-                    children = []
+            # JAX API returns a list with the node as first element
+            if isinstance(data, list) and data:
+                node_data = data[0]
+                children = node_data.get("children", []) if isinstance(node_data, dict) else []
+            else:
+                children = []
 
-                # Process each child
-                for child in children:
-                    if isinstance(child, dict):
-                        # Extract data from nested structure
-                        child_data = child.get("data", {})
-                        child_term = child_data.get("accID")
-                        child_node = child.get("id")
+            # Process each child
+            for child in children:
+                if isinstance(child, dict):
+                    # Extract data from nested structure
+                    child_data = child.get("data", {})
+                    child_term = child_data.get("accID")
+                    child_node = child.get("id")
 
-                        if child_term and child_term not in all_terms:
-                            all_terms.add(child_term)
+                    if child_term and child_term not in all_terms:
+                        all_terms.add(child_term)
 
-                            # Check if has children and recurse
-                            # The children field can be True, False, or an array
-                            has_children = child.get("children")
-                            if has_children is True or isinstance(has_children, list):
-                                if child_node:
-                                    await fetch_children(child_term, int(child_node), depth + 1)
-
-            except Exception as e:
-                logger.sync_error(f"Error fetching children for {term_id}: {str(e)}")
+                        # Check if has children and recurse
+                        # The children field can be True, False, or an array
+                        has_children = child.get("children")
+                        if has_children is True or isinstance(has_children, list):
+                            if child_node:
+                                await fetch_children(child_term, int(child_node), depth + 1)
 
         # Start recursion from root
         logger.sync_info(f"Fetching kidney MPO terms from root {self.kidney_root_term}")
