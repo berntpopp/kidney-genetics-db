@@ -8,7 +8,8 @@ import type { VueWrapper } from '@vue/test-utils'
 import { defineComponent, h, ref } from 'vue'
 import { createPinia } from 'pinia'
 import { createRouter, createMemoryHistory, RouterView } from 'vue-router'
-import { getCoreRowModel, getPaginationRowModel, useVueTable } from '@tanstack/vue-table'
+import { useTable } from '@tanstack/vue-table'
+import { dataTableFeatures } from '@/components/ui/data-table'
 import DataTablePagination from '@/components/ui/data-table/DataTablePagination.vue'
 import HoverPopover from '@/components/ui/HoverPopover.vue'
 
@@ -58,14 +59,13 @@ describe('DataTablePagination', () => {
     const Host = defineComponent({
       setup() {
         const data = ref(Array.from({ length: 25 }, (_, i) => ({ id: i })))
-        const table = useVueTable({
+        const table = useTable({
+          features: dataTableFeatures,
           get data() {
             return data.value
           },
           columns: [{ accessorKey: 'id' }],
-          getCoreRowModel: getCoreRowModel(),
-          getPaginationRowModel: getPaginationRowModel(),
-          initialState: { pagination: { pageSize: 10 } }
+          initialState: { pagination: { pageIndex: 0, pageSize: 10 } }
         })
         return () => h(DataTablePagination, { table })
       }

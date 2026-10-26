@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, h } from 'vue'
 import type { ColumnDef } from '@tanstack/vue-table'
-import {
-  useVueTable,
-  getCoreRowModel,
-  getPaginationRowModel,
-  getSortedRowModel
-} from '@tanstack/vue-table'
+import { useTable } from '@tanstack/vue-table'
 import { ChartBarBig, ChevronRight, Download, RefreshCw, Loader2 } from 'lucide-vue-next'
-import { DataTable, DataTableColumnHeader, DataTablePagination } from '@/components/ui/data-table'
+import {
+  DataTable,
+  DataTableColumnHeader,
+  DataTablePagination,
+  dataTableFeatures
+} from '@/components/ui/data-table'
+import type { DataTableFeatures } from '@/components/ui/data-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -96,7 +97,7 @@ const geneSetOptions = [
 ]
 
 // Column definitions
-const columns: ColumnDef<any>[] = [
+const columns: ColumnDef<DataTableFeatures, any>[] = [
   {
     accessorKey: 'term_name',
     header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Term' }),
@@ -207,16 +208,14 @@ const columns: ColumnDef<any>[] = [
 ]
 
 // TanStack Table (client-side)
-const table = useVueTable({
+const table = useTable({
+  features: dataTableFeatures,
   get data() {
     return props.results || []
   },
   columns,
-  getCoreRowModel: getCoreRowModel(),
-  getPaginationRowModel: getPaginationRowModel(),
-  getSortedRowModel: getSortedRowModel(),
   initialState: {
-    pagination: { pageSize: 10 }
+    pagination: { pageIndex: 0, pageSize: 10 }
   }
 })
 

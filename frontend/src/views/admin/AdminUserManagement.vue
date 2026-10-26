@@ -5,7 +5,7 @@
  */
 
 import { ref, computed, onMounted, h } from 'vue'
-import { useVueTable, getCoreRowModel, getSortedRowModel } from '@tanstack/vue-table'
+import { useTable } from '@tanstack/vue-table'
 import { useAuthStore } from '@/stores/auth'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
@@ -22,7 +22,7 @@ import {
   UserX,
   Users
 } from 'lucide-vue-next'
-import { DataTable } from '@/components/ui/data-table'
+import { DataTable, dataTableFeatures } from '@/components/ui/data-table'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -249,13 +249,13 @@ const columns = [
 ]
 
 // TanStack Table
-const table = useVueTable({
+const table = useTable({
+  features: dataTableFeatures,
+  manualPagination: true, // unpaged: render every row
   get data() {
     return filteredUsers.value
   },
-  columns,
-  getCoreRowModel: getCoreRowModel(),
-  getSortedRowModel: getSortedRowModel()
+  columns
 })
 
 // Methods
