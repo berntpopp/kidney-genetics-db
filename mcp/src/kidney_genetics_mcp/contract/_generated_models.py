@@ -776,6 +776,10 @@ class RestoreBackupRequest(BaseModel):
     ] = True
 
 
+class ReviewDecision(BaseModel):
+    expected_updated_at: Annotated[AwareDatetime, Field(title="Expected Updated At")]
+
+
 class SettingCategory(
     RootModel[
         Literal[
@@ -811,9 +815,20 @@ class StagingApprovalRequest(BaseModel):
     ] = None
     approved_symbol: Annotated[
         str,
-        Field(description="Manually corrected gene symbol", title="Approved Symbol"),
+        Field(
+            description="Manually corrected gene symbol",
+            max_length=50,
+            min_length=1,
+            pattern="^[A-Za-z0-9][A-Za-z0-9._@#-]*$",
+            title="Approved Symbol",
+        ),
     ]
-    hgnc_id: Annotated[str, Field(description="HGNC ID for the gene", title="Hgnc Id")]
+    hgnc_id: Annotated[
+        str,
+        Field(
+            description="HGNC ID for the gene", pattern="^HGNC:\\d+$", title="Hgnc Id"
+        ),
+    ]
     notes: Annotated[str | None, Field(description="Review notes", title="Notes")] = (
         None
     )
