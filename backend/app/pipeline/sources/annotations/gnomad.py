@@ -274,7 +274,7 @@ class GnomADAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
     async def _execute_query(self, query: str, variables: dict) -> dict | None:
         """Execute a GraphQL query with retry logic and rate limiting."""
-        await self.apply_rate_limit()
+        await self.apply_rate_limit(self.graphql_url)
         client = await self.get_http_client()
 
         try:
