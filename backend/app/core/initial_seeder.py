@@ -156,6 +156,8 @@ async def _seed_source(db: Session, source_name: str, config: dict[str, Any]) ->
     batch_size = 50
     total_batches = (len(gene_symbols) + batch_size - 1) // batch_size
     genes_created = 0
+    # Store under the normalized gene, not the raw symbol (C5orf42 -> CPLANE1) (#366)
+    gene_ids: dict[str, int] = {}
 
     for batch_num in range(total_batches):
         start_idx = batch_num * batch_size
@@ -170,6 +172,8 @@ async def _seed_source(db: Session, source_name: str, config: dict[str, Any]) ->
                 gene = await source._get_or_create_gene(
                     db, norm_result, symbol, {"genes_created": 0, "genes_updated": 0}
                 )
+                if gene:
+                    gene_ids[symbol] = int(gene.id)
                 if gene and norm_result.get("created"):
                     genes_created += 1
 
@@ -188,6 +192,7 @@ async def _seed_source(db: Session, source_name: str, config: dict[str, Any]) ->
         all_processed,
         source_detail=f"Seeded from {files_loaded} files",
         mode="merge",
+        gene_ids=gene_ids,
     )
     db.commit()
 
