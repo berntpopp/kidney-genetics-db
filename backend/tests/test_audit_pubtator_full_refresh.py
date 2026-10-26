@@ -319,3 +319,71 @@ async def test_early_stop_does_not_filter_partially_replaced_genes(test_engine, 
         patch.stopall()
 
     assert _pmids(test_engine, gene) == {"51"}  # replaced on first touch, not filtered out
+
+
+async def _hgnc_run(session, tag, make_request):
+    """Full run whose new gene goes through the real normalizer with HGNC patched."""
+    from app.core.hgnc_client import HGNCClientCached
+
+    kept, stale, new = f"AUD{tag}KEPT", f"AUD{tag}STALE", f"AUD{tag}NEW"
+    _seed(session, kept, ["1"])
+    _seed(session, stale, ["3"])
+    fetched: list[int] = []
+    source = _source(session, {1: [_article("60", kept), _article("61", new)]}, fetched)
+    try:
+        with patch.object(HGNCClientCached, "_make_request", make_request):
+            await source.update_data(session, None, mode="full")
+    finally:
+        patch.stopall()
+        with session.bind.begin() as conn:
+            conn.execute(
+                text("DELETE FROM gene_normalization_staging WHERE original_text LIKE :p"),
+                {"p": f"AUD{tag}%"},
+            )
+    return stale
+
+
+@pytest.mark.asyncio
+async def test_hgnc_outage_counts_as_error_and_blocks_prune(test_engine, db):
+    session, tag = db
+
+    async def outage(self, endpoint, params=None, method="GET"):
+        raise ConnectionError("HGNC down")
+
+    stale = await _hgnc_run(session, tag, outage)
+
+    assert _pmids(test_engine, stale) == {"3"}  # an outage is not "not found" (#291)
+
+
+@pytest.mark.asyncio
+async def test_hgnc_not_found_is_staged_and_does_not_block_prune(test_engine, db):
+    session, tag = db
+
+    async def not_found(self, endpoint, params=None, method="GET"):
+        return {"response": {"docs": []}}
+
+    stale = await _hgnc_run(session, tag, not_found)
+
+    assert _pmids(test_engine, stale) is None  # genuine not-found keeps today's behaviour
+
+
+@pytest.mark.asyncio
+async def test_store_genes_counts_normalization_errors(db):
+    from unittest.mock import MagicMock
+
+    session, tag = db
+    source = PubTatorUnifiedSource(db_session=session)
+    stats = source._initialize_stats()
+
+    async def normalize(db_, symbols, source_name):
+        return {
+            symbols[0]: {"status": "error", "error": "HGNC down"},
+            symbols[1]: {"status": "requires_manual_review"},
+        }
+
+    with patch("app.core.gene_normalizer.normalize_genes_batch_async", normalize):
+        await source._store_genes_in_database(
+            session, {f"AUD{tag}E": {}, f"AUD{tag}S": {}}, stats, MagicMock()
+        )
+
+    assert stats["errors"] == 1  # staged (not-found) symbols stay uncounted

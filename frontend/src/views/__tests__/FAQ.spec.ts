@@ -41,3 +41,13 @@ describe('FAQ syndromic rule (#255)', () => {
     expect(text).toContain('If at least 30% of its terms are extra-renal')
   })
 })
+
+describe('FAQ clinical groups (#338)', () => {
+  it('defines the frequency x information content method and the HPO release', () => {
+    const text = mount(FAQ, { global: { stubs: { RouterLink: true } } }).text()
+    expect(text).toContain('How is the clinical group assigned?')
+    expect(text).toContain('information content')
+    expect(text).toContain('at least half')
+    expect(text).toContain('2026-09-01')
+  })
+})

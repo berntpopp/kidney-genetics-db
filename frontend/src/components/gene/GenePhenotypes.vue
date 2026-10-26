@@ -33,8 +33,13 @@
           <p class="text-xs text-muted-foreground mb-1">
             Primary: {{ formatClinicalGroup(hpoData.classification.clinical_group.primary) }}
           </p>
-          <p class="text-xs">
-            Score:
+          <p class="text-xs" data-testid="clinical-group-score">
+            <!-- v1 annotations (no method) keep their old score until the next HPO run -->
+            {{
+              hpoData.classification.clinical_group.method
+                ? 'Share of kidney-group evidence'
+                : 'Score (pre-v2 classification)'
+            }}:
             {{
               (
                 hpoData.classification.clinical_group.scores[
@@ -43,8 +48,34 @@
               ).toFixed(0)
             }}%
           </p>
+          <p v-if="hpoData.classification.clinical_group.secondary?.length" class="text-xs">
+            Secondary:
+            {{
+              hpoData.classification.clinical_group.secondary.map(formatClinicalGroup).join(', ')
+            }}
+          </p>
         </template>
       </HoverPopover>
+
+      <!-- Secondary clinical groups (evidence >= half of the primary's, #338) -->
+      <span
+        v-if="hpoData.classification?.clinical_group?.secondary?.length"
+        data-testid="clinical-group-secondary"
+        class="flex items-center gap-1"
+      >
+        <span class="sr-only">Secondary clinical groups:</span>
+        <Badge
+          v-for="group in hpoData.classification.clinical_group.secondary"
+          :key="group"
+          as="span"
+          variant="outline"
+          class="text-[10px] px-1.5 py-0"
+          :style="tintedChipStyle(getClinicalGroupColor(group))"
+          :title="`Secondary clinical group: ${formatClinicalGroup(group)}`"
+        >
+          {{ formatClinicalGroup(group) }}
+        </Badge>
+      </span>
 
       <!-- Onset Group -->
       <HoverPopover
@@ -170,7 +201,8 @@ const getClinicalGroupColor = group => {
     glomerulopathy: '#ef4444',
     cyst_cilio: '#14b8a6',
     tubulopathy: '#f97316',
-    nephrolithiasis: '#92400e'
+    nephrolithiasis: '#92400e',
+    neoplasia: '#64748b'
   }
   return colors[group] || '#6b7280'
 }
@@ -182,7 +214,8 @@ const formatClinicalGroup = group => {
     glomerulopathy: 'Glomerulopathy',
     cyst_cilio: 'Cystic/Ciliopathy',
     tubulopathy: 'Tubulopathy',
-    nephrolithiasis: 'Nephrolithiasis'
+    nephrolithiasis: 'Nephrolithiasis',
+    neoplasia: 'Neoplasia'
   }
   return labels[group] || group
 }

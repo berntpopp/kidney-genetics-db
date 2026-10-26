@@ -4,9 +4,19 @@ HPO (Human Phenotype Ontology) Annotation Source
 Fetches HPO terms and disease associations for genes using the JAX HPO API.
 Supports bulk file download from genes_to_phenotype.txt for fast batch
 processing, with API fallback for genes not in the bulk file.
+
+Clinical groups (#338, spec .planning/specs/2026-10-26-hpo-clinical-groups-v2.md)
+are classified from the pinned HPO release only (genes_to_phenotype.txt + hp.json);
+genes from the API fallback get no clinical_group.
 """
 
 import asyncio
+import hashlib
+import json
+import math
+import re
+from collections import Counter
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -23,8 +33,7 @@ from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin
 logger = get_logger(__name__)
 
 
-# Tie-break order for equal clinical-group scores: the datasources.yaml order that
-# max() implicitly used before (#254), so existing primaries do not change.
+# Tie-break order for equal clinical-group evidence (#254); neoplasia last (#338).
 # Groups not listed here rank after these, alphabetically.
 CLINICAL_GROUP_PRIORITY = (
     "complement",
@@ -33,13 +42,162 @@ CLINICAL_GROUP_PRIORITY = (
     "cyst_cilio",
     "tubulopathy",
     "nephrolithiasis",
+    "neoplasia",
 )
+CLINICAL_GROUP_METHOD = "hpo-freq-ic-v2"
+SECONDARY_GROUP_RATIO = 0.5  # secondary: evidence >= this share of the primary's
+
+# HPO frequency classes -> class midpoints (hp.json); m/n smoothing and the prior for
+# unknown frequency follow VarLens hpo-scoring.config.ts.
+HPO_FREQUENCY_CLASSES = {
+    "HP:0040280": 1.0,  # Obligate
+    "HP:0040281": 0.895,  # Very frequent (80-99 %)
+    "HP:0040282": 0.545,  # Frequent (30-79 %)
+    "HP:0040283": 0.17,  # Occasional (5-29 %)
+    "HP:0040284": 0.025,  # Very rare (1-4 %)
+    "HP:0040285": 0.0,  # Excluded
+}
+UNKNOWN_FREQUENCY = 0.35
 
 
 def _clinical_group_rank(group: str) -> tuple[int, str]:
     if group in CLINICAL_GROUP_PRIORITY:
         return CLINICAL_GROUP_PRIORITY.index(group), ""
     return len(CLINICAL_GROUP_PRIORITY), group
+
+
+def hpo_frequency(value: str) -> float:
+    """Weight of a genes_to_phenotype.txt frequency value (class ID, m/n, x% or -)."""
+    if value in HPO_FREQUENCY_CLASSES:
+        return HPO_FREQUENCY_CLASSES[value]
+    if m := re.fullmatch(r"(\d+)/(\d+)", value):
+        return (int(m[1]) + 0.8) / (int(m[2]) + 2.0)
+    if m := re.fullmatch(r"([\d.]+)%", value):
+        return float(m[1]) / 100
+    return UNKNOWN_FREQUENCY
+
+
+def verify_sha256(path: Path, expected: str) -> Path:
+    """Fail closed on a truncated or wrong file: delete it so the next run re-downloads."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            digest.update(chunk)
+    if digest.hexdigest() != expected:
+        path.unlink(missing_ok=True)
+        raise ValueError(f"sha256 mismatch for {path.name}: {digest.hexdigest()} != {expected}")
+    return path
+
+
+def load_hpo_parents(path: Path) -> dict[str, set[str]]:
+    """Read is_a parents from an HPO hp.json (obographs); raise if the file is unusable."""
+    try:
+        with open(path) as f:
+            graph = json.load(f)["graphs"][0]
+    except (json.JSONDecodeError, KeyError, IndexError, TypeError) as e:
+        raise ValueError(f"Unparseable HPO ontology file {path}: {e}") from e
+
+    def curie(uri: str) -> str:
+        return uri.rsplit("/", 1)[-1].replace("_", ":")
+
+    parents: dict[str, set[str]] = {}
+    for edge in graph.get("edges", []):
+        if edge.get("pred") == "is_a":
+            parents.setdefault(curie(edge["sub"]), set()).add(curie(edge["obj"]))
+    if not parents:
+        raise ValueError(f"No is_a relations in HPO ontology file {path}")
+    return parents
+
+
+class ClinicalGroupClassifier:
+    """Kidney clinical groups from disease-level HPO annotations (#338).
+
+    E(gene, group) = sum over the gene's diseases of f(d, t) * IC(t) over the
+    disease's terms t at or below a group root, counting only the most specific
+    (a term with an annotated descendant in the same group is skipped).
+    """
+
+    def __init__(
+        self, parents: dict[str, set[str]], groups: dict[str, list[str]], release: str
+    ) -> None:
+        self.parents = parents
+        self.groups = groups
+        self.release = release
+        self.ic: dict[str, float] = {}
+        self._ancestors: dict[str, frozenset[str]] = {}
+        self._term_groups: dict[str, list[str]] = {}
+
+    def ancestors(self, term: str) -> frozenset[str]:
+        """The term and all its is_a ancestors (memoised)."""
+        if term not in self._ancestors:
+            out = {term}
+            for parent in self.parents.get(term, ()):
+                out |= self.ancestors(parent)
+            self._ancestors[term] = frozenset(out)
+        return self._ancestors[term]
+
+    def fit_information_content(self, disease_terms: Iterable[Iterable[str]]) -> None:
+        """IC(t) = -ln(n(t)/N): n(t) diseases annotated to t or a descendant."""
+        counts: Counter[str] = Counter()
+        n_diseases = 0
+        for terms in disease_terms:
+            n_diseases += 1
+            counts.update(set().union(*(self.ancestors(t) for t in terms)))
+        self.ic = {t: -math.log(c / n_diseases) for t, c in counts.items()}
+
+    def _groups_of(self, term: str) -> list[str]:
+        if term not in self._term_groups:
+            ancestors = self.ancestors(term)
+            self._term_groups[term] = [
+                group for group, roots in self.groups.items() if not ancestors.isdisjoint(roots)
+            ]
+        return self._term_groups[term]
+
+    def classify(self, disease_terms: dict[str, dict[str, float]]) -> dict[str, Any]:
+        """Classify one gene from {disease: {term: frequency weight}}."""
+        evidence = dict.fromkeys(self.groups, 0.0)
+        supporting: dict[str, set[str]] = {group: set() for group in self.groups}
+        for term_weights in disease_terms.values():
+            matched: dict[str, list[str]] = {}
+            for term in term_weights:
+                for group in self._groups_of(term):
+                    matched.setdefault(group, []).append(term)
+            for group, terms in matched.items():
+                for term in terms:
+                    if any(other != term and term in self.ancestors(other) for other in terms):
+                        continue
+                    evidence[group] += term_weights[term] * self.ic.get(term, 0.0)
+                    supporting[group].add(term)
+
+        total = sum(evidence.values())
+        primary: str | None = (
+            min(evidence, key=lambda k: (-evidence[k], *_clinical_group_rank(k)))
+            if total > 0
+            else None
+        )
+        secondary = (
+            sorted(
+                (
+                    k
+                    for k in evidence
+                    if k != primary
+                    and evidence[k] > 0
+                    and evidence[k] >= SECONDARY_GROUP_RATIO * evidence[primary]
+                ),
+                key=lambda k: (-evidence[k], *_clinical_group_rank(k)),
+            )
+            if primary
+            else []
+        )
+        return {
+            "primary": primary,
+            "secondary": secondary,
+            "scores": {k: round(v / total, 3) if total else 0.0 for k, v in evidence.items()},
+            "evidence": {k: round(v, 3) for k, v in evidence.items()},
+            "supporting_terms": sorted(supporting[primary]) if primary else [],
+            "method": CLINICAL_GROUP_METHOD,
+            "hpo_release": self.release,
+        }
 
 
 def score_syndromic_features(
@@ -110,9 +268,9 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     # API endpoints
     hpo_api_url = "https://ontology.jax.org/api"
 
-    # Bulk download configuration
+    # Bulk download configuration: pinned release (#338)
     # genes_to_phenotype.txt: gene→phenotype associations (~15 MB)
-    bulk_file_url = "http://purl.obolibrary.org/obo/hp/hpoa/genes_to_phenotype.txt"
+    bulk_file_url = get_source_parameter("HPO", "genes_to_phenotype_url", "")
     bulk_cache_ttl_hours = 168  # 7 days
     bulk_file_format = "txt"
 
@@ -124,6 +282,12 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     _onset_descendants_cache = None
     _syndromic_descendants_cache = None
     _classification_cache_time = None
+
+    _clinical_classifier: ClinicalGroupClassifier | None = None
+    _clinical_classifier_error: Exception | None = None
+    # Successful classifiers (ontology + IC) shared across instances, keyed by (release, both
+    # sha256); the parsed genes_to_phenotype rows stay per instance so they are freed after a run
+    _loaded_classifiers: dict[tuple[str, ...], ClinicalGroupClassifier] = {}
 
     def __init__(self, session: "Session") -> None:
         """Initialize the HPO annotation source."""
@@ -146,6 +310,8 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
         Groups rows by gene_symbol, collecting unique phenotypes and diseases.
         Field names match the output of ``get_gene_annotations()`` for parity.
+        ``disease_terms`` (disease -> term -> frequency weight, excluded terms dropped,
+        duplicates take the max) feeds the clinical-group classifier (#338).
         """
         data: dict[str, dict[str, Any]] = {}
         # Track seen phenotype IDs per gene to deduplicate
@@ -168,7 +334,8 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                 hpo_name = parts[3].strip()
                 disease_id = parts[5].strip() if len(parts) > 5 else ""
 
-                if not gene_symbol or not hpo_id:
+                # Skips the column-header row as well
+                if not gene_symbol or not hpo_id.startswith("HP:"):
                     continue
 
                 # Initialize gene entry
@@ -177,6 +344,7 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                         "ncbi_gene_id": ncbi_gene_id,
                         "phenotypes": [],
                         "diseases": [],
+                        "disease_terms": {},
                     }
                     seen_phenotypes[gene_symbol] = set()
                     seen_diseases[gene_symbol] = set()
@@ -212,7 +380,76 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                         }
                     )
 
+                weight = hpo_frequency(parts[4].strip() if len(parts) > 4 else "")
+                if weight > 0:
+                    terms = data[gene_symbol]["disease_terms"].setdefault(disease_id, {})
+                    terms[hpo_id] = max(weight, terms.get(hpo_id, 0.0))
+
         return data
+
+    async def download_bulk_file(self, force: bool = False) -> Path:
+        """Download genes_to_phenotype.txt and check its pinned sha256 before parsing."""
+        path = await super().download_bulk_file(force=force)
+        return verify_sha256(path, str(get_source_parameter("HPO", "genes_to_phenotype_sha256")))
+
+    async def _download_hp_json(self) -> Path:
+        """Download (or reuse the cached) pinned hp.json via the bulk-file cache."""
+
+        class _PinnedFile(BulkDataSourceMixin):
+            bulk_file_url = get_source_parameter("HPO", "hp_json_url", "")
+            bulk_file_format = "json"
+            bulk_cache_dir = self.bulk_cache_dir
+
+        path = await _PinnedFile().download_bulk_file_streaming()
+        return verify_sha256(path, str(get_source_parameter("HPO", "hp_json_sha256")))
+
+    async def _load_clinical_group_classifier(self) -> ClinicalGroupClassifier:
+        """Load the pinned files and IC once per run; fail closed (#338).
+
+        Raises (and keeps raising for this run) if genes_to_phenotype.txt or hp.json
+        cannot be downloaded or parsed, so no annotation is written without them.
+        """
+        if self._clinical_classifier is not None:
+            return self._clinical_classifier
+        if self._clinical_classifier_error is not None:
+            raise self._clinical_classifier_error
+        key = tuple(
+            str(get_source_parameter("HPO", k))
+            for k in ("hpo_release", "genes_to_phenotype_sha256", "hp_json_sha256")
+        )
+        try:
+            await self.ensure_bulk_data_loaded()  # sha256-verified in download_bulk_file
+            if not self._bulk_data:
+                raise ValueError("HPO genes_to_phenotype.txt has no annotation rows")
+            if key in self._loaded_classifiers:
+                self._clinical_classifier = self._loaded_classifiers[key]
+                return self._clinical_classifier
+            groups = {
+                group: config["root_terms"]
+                for group, config in get_source_parameter("HPO", "clinical_groups", {}).items()
+            }
+            classifier = ClinicalGroupClassifier(
+                load_hpo_parents(await self._download_hp_json()),
+                groups,
+                str(get_source_parameter("HPO", "hpo_release")),
+            )
+            corpus: dict[str, set[str]] = {}
+            for gene_data in self._bulk_data.values():
+                for disease, terms in gene_data["disease_terms"].items():
+                    corpus.setdefault(disease, set()).update(terms)
+            classifier.fit_information_content(corpus.values())
+        except Exception as e:
+            self._clinical_classifier_error = e
+            raise
+        logger.sync_info(
+            "HPO clinical-group classifier loaded",
+            hpo_release=classifier.release,
+            diseases=len(corpus),
+            ontology_terms=len(classifier.parents),
+        )
+        self._clinical_classifier = classifier
+        self._loaded_classifiers[key] = classifier
+        return classifier
 
     @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def search_gene_for_ncbi_id(self, gene_symbol: str) -> str | None:
@@ -238,11 +475,13 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
             response = await client.get(search_url, params=params, timeout=30.0)
 
+            # An outage must not look like "no match": raise so nothing is stored
             if response.status_code != 200:
                 logger.sync_error(
                     f"Gene search failed for {gene_symbol}", status_code=response.status_code
                 )
-                return None
+                response.raise_for_status()
+                raise RuntimeError(f"HPO gene search returned HTTP {response.status_code}")
 
             # Parse JSON response
             data = response.json()
@@ -281,7 +520,7 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
             logger.sync_error(
                 "Error searching for NCBI Gene ID", gene_symbol=gene_symbol, error_detail=str(e)
             )
-            return None
+            raise
 
     @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def get_gene_annotations(self, ncbi_gene_id: str) -> dict[str, Any] | None:
@@ -544,12 +783,16 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
         return descendants_map
 
-    async def classify_gene_phenotypes(self, phenotypes: list[dict]) -> dict[str, Any]:
+    async def classify_gene_phenotypes(
+        self, phenotypes: list[dict], disease_terms: dict[str, dict[str, float]] | None = None
+    ) -> dict[str, Any]:
         """
         Classify phenotypes into clinical, onset, and syndromic groups.
 
         Args:
             phenotypes: List of HPO phenotype dictionaries
+            disease_terms: Pinned-release disease -> term -> frequency weight; without
+                it (API fallback) no clinical_group is produced (#338)
 
         Returns:
             Classification results with scores and confidence
@@ -557,59 +800,16 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
         # Build set of phenotype IDs, filtering out None values and ensuring str type
         phenotype_ids: set[str] = {str(p.get("id")) for p in phenotypes if p.get("id") is not None}
 
-        classification = {
-            "clinical_group": await self._classify_clinical_group(phenotype_ids),
-            "onset_group": await self._classify_onset_group(phenotype_ids),
-            "syndromic_assessment": await self._assess_syndromic_features(phenotype_ids),
-        }
-
-        return classification
-
-    async def _classify_clinical_group(self, phenotype_ids: set[str]) -> dict[str, Any]:
-        """
-        Classify into clinical kidney disease groups based on signature terms.
-        """
-        from app.core.datasource_config import get_source_parameter
-
-        config = get_source_parameter("HPO", "clinical_groups", {})
-
-        scores: dict[str, float] = {}
-        all_matches: dict[str, list[str]] = {}
-
-        for group_key, group_config in config.items():
-            signature_terms = set(group_config.get("signature_terms", []))
-
-            # Direct matches with signature terms
-            matches = phenotype_ids.intersection(signature_terms)
-
-            # Calculate score based on matches and weight
-            weight = group_config.get("weight", 1.0)
-            if signature_terms:
-                score = (len(matches) / len(signature_terms)) * weight
-            else:
-                score = 0.0
-
-            scores[group_key] = round(score, 3)
-            if matches:
-                all_matches[group_key] = list(matches)
-
-        # Normalize scores to sum to 1.0
-        total_score = sum(scores.values())
-        if total_score > 0:
-            scores = {k: round(v / total_score, 3) for k, v in scores.items()}
-
-        # Highest score wins; ties go to CLINICAL_GROUP_PRIORITY, not dict order (#254)
-        primary: str | None = (
-            min(scores, key=lambda k: (-scores[k], *_clinical_group_rank(k)))
-            if scores and max(scores.values()) > 0
-            else None
+        classification: dict[str, Any] = {}
+        if disease_terms is not None:
+            classifier = await self._load_clinical_group_classifier()
+            classification["clinical_group"] = classifier.classify(disease_terms)
+        classification["onset_group"] = await self._classify_onset_group(phenotype_ids)
+        classification["syndromic_assessment"] = await self._assess_syndromic_features(
+            phenotype_ids
         )
 
-        return {
-            "primary": primary,
-            "scores": scores,
-            "supporting_terms": all_matches.get(primary, []) if primary else [],
-        }
+        return classification
 
     async def _classify_onset_group(self, phenotype_ids: set[str]) -> dict[str, Any]:
         """
@@ -681,6 +881,10 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
             ncbi_gene_id = None
             phenotypes: list[dict[str, Any]] = []
             diseases: list[dict[str, Any]] = []
+            disease_terms: dict[str, dict[str, float]] = {}
+
+            # Pinned files are required; raises here (nothing written) if unavailable
+            await self._load_clinical_group_classifier()
 
             # Try bulk lookup first
             if self._bulk_data is not None and gene.approved_symbol:
@@ -689,6 +893,7 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                     ncbi_gene_id = bulk_result.get("ncbi_gene_id")
                     phenotypes = bulk_result.get("phenotypes", [])
                     diseases = bulk_result.get("diseases", [])
+                    disease_terms = bulk_result.get("disease_terms", {})
 
             # Fall back to API if no bulk data
             if not phenotypes:
@@ -702,7 +907,7 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
             classification = {}
             if phenotypes:
-                classification = await self.classify_gene_phenotypes(phenotypes)
+                classification = await self.classify_gene_phenotypes(phenotypes, disease_terms)
 
             return {
                 "gene_symbol": gene.approved_symbol,
@@ -782,13 +987,8 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
         Loads bulk data once, then does fast local lookups. Falls back to
         API for genes not found in the bulk file.
         """
-        # Load bulk data if not already loaded
-        try:
-            await self.ensure_bulk_data_loaded()
-        except Exception as e:
-            logger.sync_warning(
-                f"Failed to load HPO bulk data, falling back to API: {e}",
-            )
+        # Pinned genes_to_phenotype.txt + hp.json are required: fail before writing (#338)
+        await self._load_clinical_group_classifier()
 
         results: dict[int, dict[str, Any]] = {}
         api_fallback_genes: list[Gene] = []
@@ -804,7 +1004,9 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                         kidney_phenotypes = await self.filter_kidney_phenotypes(phenotypes)
                         classification = {}
                         if phenotypes:
-                            classification = await self.classify_gene_phenotypes(phenotypes)
+                            classification = await self.classify_gene_phenotypes(
+                                phenotypes, bulk_result.get("disease_terms", {})
+                            )
 
                         results[gene.id] = {
                             "gene_symbol": gene.approved_symbol,
@@ -822,10 +1024,12 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                         }
                         continue
                     except Exception as e:
+                        # Not the API: it lacks the pinned data for clinical groups (#338);
+                        # the caller retries this gene through fetch_annotation.
                         logger.sync_warning(
-                            f"HPO bulk classification failed for {gene.approved_symbol}, "
-                            f"falling back to API: {e}"
+                            f"HPO bulk classification failed for {gene.approved_symbol}: {e}"
                         )
+                        continue
             api_fallback_genes.append(gene)
 
         if api_fallback_genes:
@@ -852,6 +1056,14 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                 await asyncio.sleep(0.2)
 
         return results
+
+    def _is_valid_annotation(self, annotation_data: dict) -> bool:
+        """Reject cached annotations whose clinical_group predates v2 (#338)."""
+        if isinstance(annotation_data, dict):
+            group = (annotation_data.get("classification") or {}).get("clinical_group")
+            if group is not None and group.get("method") != CLINICAL_GROUP_METHOD:
+                return False
+        return super()._is_valid_annotation(annotation_data)
 
     def validate_annotation(self, annotation_data: dict[str, Any]) -> bool:
         """Validate that annotation data has required fields"""

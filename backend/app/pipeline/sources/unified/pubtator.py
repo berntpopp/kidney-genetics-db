@@ -799,6 +799,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
                     norm_result = normalization_results.get(symbol, {})
                     if norm_result.get("status") != "normalized":
+                        # An HGNC outage must block the prune; staged not-founds do not.
+                        if norm_result.get("status") == "error":
+                            stats["errors"] += 1
                         continue
 
                     gene = await self._get_or_create_gene(db, norm_result, symbol, stats)

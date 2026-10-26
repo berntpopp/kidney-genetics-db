@@ -49,6 +49,11 @@ describe('LoginModal', () => {
     expect(authApi.login).not.toHaveBeenCalled()
   })
 
+  it('moves focus to the first invalid field (#327)', async () => {
+    await submit('admin')
+    expect(document.activeElement?.id).toBe('login-password')
+  })
+
   it('announces a failed sign-in', async () => {
     vi.mocked(authApi.login).mockRejectedValueOnce({
       response: { status: 401, data: { detail: 'Incorrect username/email or password' } }

@@ -539,3 +539,34 @@ class TestHGNCClientCached:
 
             assert result == 2
             mock_batch.assert_called_once_with(common_symbols)
+
+    @pytest.mark.asyncio
+    async def test_batch_cache_hit_without_hgnc_id_is_looked_up_again(
+        self, client, mock_cache_service
+    ):
+        """A cached symbol without a cached HGNC ID must not read as "not found" (#291)."""
+        mock_cache_service.get.side_effect = lambda key, ns: (
+            "PKD1" if key == "standardize_symbol:PKD1" else None
+        )
+        with patch.object(client, "_make_request", new_callable=AsyncMock) as mock_request:
+            mock_request.return_value = {
+                "response": {"docs": [{"symbol": "PKD1", "hgnc_id": "HGNC:9008"}]}
+            }
+            result = await client.standardize_symbols_batch(["PKD1"])
+
+        assert result["PKD1"] == {"approved_symbol": "PKD1", "hgnc_id": "HGNC:9008"}
+
+    @pytest.mark.asyncio
+    async def test_individual_lookup_caches_hgnc_id(self, client, mock_cache_service):
+        """An individual lookup caches the HGNC ID so later batch cache hits carry it."""
+        with (
+            patch.object(client, "standardize_symbol", new_callable=AsyncMock) as mock_std,
+            patch.object(client, "get_gene_info", new_callable=AsyncMock) as mock_info,
+        ):
+            mock_std.return_value = "PKD1"
+            mock_info.return_value = {"hgnc_id": "HGNC:9008"}
+            await client._lookup_individual("PKD1")
+
+        mock_cache_service.set.assert_any_call(
+            "symbol_to_hgnc_id:PKD1", "HGNC:9008", "hgnc", client.ttl
+        )

@@ -41,14 +41,21 @@ const [password, passwordAttrs] = defineField('password', {
 const showPassword = ref(false)
 const rememberMe = ref(false)
 
-const onSubmit = handleSubmit(async values => {
-  const success = await authStore.login(values.username, values.password)
+const onSubmit = handleSubmit(
+  async values => {
+    const success = await authStore.login(values.username, values.password)
 
-  if (success) {
-    const redirectTo = (route.query.redirect as string) || '/'
-    router.push(redirectTo)
+    if (success) {
+      const redirectTo = (route.query.redirect as string) || '/'
+      router.push(redirectTo)
+    }
+  },
+  ({ errors: invalid }) => {
+    // Move focus to the first invalid field so screen readers announce its error (#327)
+    const first = (['username', 'password'] as const).find(field => invalid[field])
+    if (first) document.getElementById(`page-login-${first}`)?.focus()
   }
-})
+)
 
 // If already authenticated, redirect home
 onMounted(() => {

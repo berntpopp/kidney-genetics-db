@@ -233,6 +233,17 @@ class GeneNormalizer:
                         "source": "hgnc",
                         "original_data": original_data,
                     }
+                elif hgnc_result.get("error"):
+                    # HGNC was unreachable: not a "not found", so do not stage it (#291).
+                    results[original_text] = {
+                        "status": "error",
+                        "approved_symbol": None,
+                        "hgnc_id": None,
+                        "staging_id": None,
+                        "error": f"HGNC lookup failed: {hgnc_result['error']}",
+                        "source": "error",
+                        "original_data": original_data,
+                    }
                 else:
                     # Failed normalization - create staging record
                     results[original_text] = self._create_staging_record(

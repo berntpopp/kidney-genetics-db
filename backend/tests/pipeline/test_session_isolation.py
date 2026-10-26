@@ -124,7 +124,7 @@ class TestParallelSessionIsolation:
             results = await pipeline._update_sources_parallel(["gnomad"], gene_ids=[1], force=False)
 
         assert len(mock_sessions) == 1
-        mock_sessions[0].rollback.assert_called_once()
+        mock_sessions[0].rollback.assert_called()  # except branch and _close_pipeline_session
         mock_sessions[0].close.assert_called_once()
         assert "error" in results.get("gnomad", {})
 

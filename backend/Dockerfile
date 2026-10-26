@@ -21,19 +21,23 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv==0.11.2
 
 # Copy dependency files and README (needed by pyproject.toml)
-COPY pyproject.toml README.md ./
+COPY pyproject.toml uv.lock README.md ./
 
-# Create virtual environment and install dependencies
+# Install the locked runtime dependencies. `uv pip install .` ignored uv.lock and
+# pulled SQLAlchemy 2.1, whose default postgresql:// driver (psycopg 3) the
+# image does not ship, so migrations crashed at container start.
 RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-RUN uv pip install -e .
+ENV PATH="/opt/venv/bin:$PATH" \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
+RUN uv sync --locked --no-dev --no-install-project
 
 # Stage 2: Production
 FROM python:3.14-slim@sha256:fb83750094b46fd6b8adaa80f66e2302ecbe45d513f6cece637a841e1025b4ca AS production
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/opt/venv/bin:$PATH"
+    PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH=/app
 
 # SECURITY: Apply OS security patches to the shipped image. The base image's
 # openssl/libssl3/libcurl/libxml2 etc. carry CVEs (e.g. CVE-2026-45447 OpenSSL

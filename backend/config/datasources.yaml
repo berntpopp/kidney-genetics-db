@@ -143,62 +143,70 @@ datasources:
       head_neck: HP:0000152  # Head and neck abnormality
     # Syndromic if distinct extra-renal terms / all HPO terms >= this (#255)
     syndromic_threshold: 0.3
-    # Classification configuration
+    # Pinned HPO release for clinical-group classification (#338); stored with each result
+    hpo_release: "2026-09-01"
+    genes_to_phenotype_url: https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-09-01/genes_to_phenotype.txt
+    hp_json_url: https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2026-09-01/hp.json
+    # Content pins: a cached or downloaded file with another hash is deleted and the run fails
+    genes_to_phenotype_sha256: 507a17bff9c49e6329fbd88b1f91734fa7e9fdea5c06304044c0892eb6ab248c
+    hp_json_sha256: a7b3a012e7b4007a35a7cf8da35f2373b54cc16907f80d13d62470d31f833501
+    # Clinical groups: a gene term counts for a group when it is a root term or a
+    # descendant; evidence = sum over diseases of frequency x information content
+    # (spec .planning/specs/2026-10-26-hpo-clinical-groups-v2.md). Comments are hp.json labels.
     clinical_groups:
       complement:
-        signature_terms:
-          - HP:0000093  # Proteinuria
-          - HP:0000100  # Nephrotic syndrome
-          - HP:0001970  # Tubulointerstitial nephritis
-          - HP:0000796  # Urethral obstruction
-          - HP:0003259  # Elevated serum creatinine
+        root_terms:
+          - HP:0005575  # Hemolytic-uremic syndrome
+          - HP:0000793  # Membranoproliferative glomerulonephritis
+          - HP:0004431  # Reduced circulating complement concentration
+          - HP:0030888  # C3 nephritic factor positivity
         name: Complement-mediated kidney diseases
-        weight: 1.0
       cakut:
-        signature_terms:
-          - HP:0000107  # Renal cyst
-          - HP:0000085  # Horseshoe kidney
-          - HP:0000089  # Renal hypoplasia
-          - HP:0000072  # Hydroureter
+        root_terms:
+          - HP:0008678  # Renal hypoplasia/aplasia
+          - HP:0000110  # Renal dysplasia
+          - HP:0025633  # Abnormal ureter morphology
+          - HP:0000076  # Vesicoureteral reflux
           - HP:0000126  # Hydronephrosis
+          - HP:0000085  # Horseshoe kidney
+          - HP:0000086  # Ectopic kidney
+          - HP:0010481  # Urethral valve
+          - HP:0000081  # Duplicated collecting system
         name: Congenital anomalies of kidney and urinary tract
-        weight: 1.0
       glomerulopathy:
-        signature_terms:
-          - HP:0000097  # Glomerulonephritis
-          - HP:0003774  # Stage 5 chronic kidney disease
-          - HP:0000123  # Nephritis
-          - HP:0000099  # Glomerulosclerosis
-          - HP:0030888  # C3 glomerulopathy
+        root_terms:
+          - HP:0100820  # Glomerulopathy
+          - HP:0000100  # Nephrotic syndrome
+          - HP:0000093  # Proteinuria
+          - HP:0000790  # Hematuria
         name: Glomerular diseases
-        weight: 1.0
       cyst_cilio:
-        signature_terms:
-          - HP:0005562  # Multiple renal cysts
+        root_terms:
           - HP:0000107  # Renal cyst
-          - HP:0001737  # Pancreatic cysts
-          - HP:0000092  # Renal tubular atrophy
-          - HP:0000003  # Multicystic kidney dysplasia
+          - HP:0000090  # Nephronophthisis
+          - HP:0000113  # Polycystic kidney dysplasia
         name: Cystic and ciliopathy disorders
-        weight: 1.0
       tubulopathy:
-        signature_terms:
+        root_terms:
+          - HP:0000124  # Renal tubular dysfunction
+          - HP:0001947  # Renal tubular acidosis
+          - HP:0009806  # Nephrogenic diabetes insipidus
+          - HP:0000127  # Renal salt wasting
+          - HP:0003355  # Aminoaciduria
+          - HP:0000117  # Renal phosphate wasting
           - HP:0003127  # Hypocalciuria
           - HP:0002900  # Hypokalemia
-          - HP:0002148  # Hypophosphatemia
-          - HP:0000114  # Proximal tubulopathy
-          - HP:0004918  # Hyperchloremic metabolic acidosis
+          - HP:0002917  # Hypomagnesemia
         name: Tubular disorders
-        weight: 1.0
       nephrolithiasis:
-        signature_terms:
-          - HP:0000787  # Nephrolithiasis
+        root_terms:
+          - HP:0000787  # Kidney stone
           - HP:0000121  # Nephrocalcinosis
-          - HP:0000791  # Uric acid nephrolithiasis
-          - HP:0008672  # Calcium oxalate nephrolithiasis
-          - HP:0004724  # Calcium nephrolithiasis
         name: Kidney stones and nephrocalcinosis
-        weight: 1.0
+      neoplasia:
+        root_terms:
+          - HP:0009726  # Renal neoplasm
+        name: Renal neoplasia
     onset_groups:
       adult:
         root_term: HP:0003581

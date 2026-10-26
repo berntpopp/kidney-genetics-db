@@ -15,7 +15,7 @@ vi.stubGlobal(
   vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
 )
 
-async function mountAt(path: string) {
+async function mountAt(path: string, attach = false) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -24,7 +24,10 @@ async function mountAt(path: string) {
     ]
   })
   await router.push(path)
-  const wrapper = mount(Login, { global: { plugins: [router, createPinia()] } })
+  const wrapper = mount(Login, {
+    global: { plugins: [router, createPinia()] },
+    attachTo: attach ? document.body : undefined
+  })
   await flushPromises()
   return wrapper
 }
@@ -64,6 +67,17 @@ describe('Login', () => {
       expect(wrapper.find(`#${errorId}`).text()).not.toBe('')
     }
     expect(authApi.login).not.toHaveBeenCalled()
+  })
+
+  it('moves focus to the first invalid field on submit (#327)', async () => {
+    const wrapper = await mountAt('/login', true)
+    ;(wrapper.find('button[type="submit"]').element as HTMLElement).focus()
+    await submit(wrapper)
+    expect(document.activeElement?.id).toBe('page-login-username')
+
+    await submit(wrapper, 'admin')
+    expect(document.activeElement?.id).toBe('page-login-password')
+    wrapper.unmount()
   })
 
   it('announces bad credentials with the API message (#327)', async () => {

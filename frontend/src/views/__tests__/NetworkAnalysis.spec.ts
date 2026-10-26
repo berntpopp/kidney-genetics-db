@@ -203,6 +203,12 @@ describe('NetworkAnalysis.vue', () => {
   // -------------------------------------------------------------------------
   // 1. resetAll restores every piece of state to defaults
   // -------------------------------------------------------------------------
+  it('lets the header and its badges wrap on narrow screens (#343)', () => {
+    const header = mountComponent().find('h1').element.closest('.justify-between')!
+    expect(header.classList).toContain('flex-wrap')
+    expect(header.lastElementChild!.classList).toContain('flex-wrap')
+  })
+
   describe('resetAll', () => {
     it('resets all state to default values', async () => {
       const wrapper = mountComponent()

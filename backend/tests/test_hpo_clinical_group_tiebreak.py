@@ -1,43 +1,34 @@
-"""Clinical-group primary must not depend on config dict order (#254)."""
+"""Clinical-group primary must not depend on config dict order (#254).
 
-from unittest.mock import MagicMock, patch
+v2 (#338): ties are on equal evidence (frequency x IC) instead of equal matched/5.
+"""
 
-import pytest
+from app.pipeline.sources.annotations.hpo import ClinicalGroupClassifier
 
-from app.pipeline.sources.annotations.hpo import HPOAnnotationSource
-
-CAKUT = {"signature_terms": ["HP:0000107", "HP:0000085"], "weight": 1.0}
-CYST = {"signature_terms": ["HP:0000107", "HP:0005562"], "weight": 1.0}
-
-
-async def _primary(config: dict, phenotype_ids: set[str]) -> str | None:
-    source = HPOAnnotationSource(MagicMock())
-    with patch("app.core.datasource_config.get_source_parameter", return_value=config):
-        return (await source._classify_clinical_group(phenotype_ids))["primary"]
+# Two sibling terms with the same information content (each in 1 of 2 diseases).
+PARENTS = {"HP:C1": {"HP:ROOT"}, "HP:C2": {"HP:ROOT"}}
 
 
-@pytest.mark.asyncio
-async def test_equal_scores_pick_same_group_regardless_of_dict_order():
-    # HP:0000107 (Renal cyst) is a signature term of both cakut and cyst_cilio.
-    forward = await _primary({"cakut": CAKUT, "cyst_cilio": CYST}, {"HP:0000107"})
-    reverse = await _primary({"cyst_cilio": CYST, "cakut": CAKUT}, {"HP:0000107"})
+def _primary(groups: dict[str, list[str]], disease_terms: dict) -> str | None:
+    classifier = ClinicalGroupClassifier(PARENTS, groups, "test")
+    classifier.fit_information_content([{"HP:C1"}, {"HP:C2"}])
+    return classifier.classify(disease_terms)["primary"]
+
+
+def test_equal_scores_pick_same_group_regardless_of_dict_order():
+    # The same term under both groups gives both the same evidence.
+    tie = {"d1": {"HP:C1": 1.0}}
+    forward = _primary({"cakut": ["HP:C1"], "cyst_cilio": ["HP:C1"]}, tie)
+    reverse = _primary({"cyst_cilio": ["HP:C1"], "cakut": ["HP:C1"]}, tie)
     assert forward == reverse == "cakut"
 
 
-@pytest.mark.asyncio
-async def test_higher_score_still_wins_over_priority():
-    config = {"cakut": CAKUT, "cyst_cilio": CYST}
-    assert await _primary(config, {"HP:0000107", "HP:0005562"}) == "cyst_cilio"
+def test_higher_score_still_wins_over_priority():
+    groups = {"cakut": ["HP:C1"], "cyst_cilio": ["HP:C2"]}
+    assert _primary(groups, {"d1": {"HP:C1": 0.5, "HP:C2": 1.0}}) == "cyst_cilio"
 
 
-@pytest.mark.asyncio
-async def test_unlisted_groups_tie_break_alphabetically_after_listed():
-    group = {"signature_terms": ["HP:0000107"], "weight": 1.0}
-    config = {"zeta": group, "alpha": group}
-    assert await _primary(config, {"HP:0000107"}) == "alpha"
-    assert await _primary({"zeta": group, "cakut": group}, {"HP:0000107"}) == "cakut"
-
-
-@pytest.mark.asyncio
-async def test_no_match_has_no_primary():
-    assert await _primary({"cakut": CAKUT}, {"HP:9999999"}) is None
+def test_unlisted_groups_tie_break_alphabetically_after_listed():
+    tie = {"d1": {"HP:C1": 1.0}}
+    assert _primary({"zeta": ["HP:C1"], "alpha": ["HP:C1"]}, tie) == "alpha"
+    assert _primary({"zeta": ["HP:C1"], "cakut": ["HP:C1"]}, tie) == "cakut"

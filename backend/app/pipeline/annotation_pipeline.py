@@ -35,6 +35,19 @@ from app.pipeline.sources.annotations.uniprot import UniProtAnnotationSource
 logger = get_logger(__name__)
 
 
+def _close_pipeline_session(db: Session) -> None:
+    """Close a pipeline session without pooling its session-level timeout override (#249)."""
+    try:
+        db.rollback()  # a failed or cancelled run's leftover writes must not be committed below
+        # SET LOCAL would end with the commit that follows it, so the pipeline uses a plain SET
+        # and must undo it before the connection returns to the pool.
+        db.execute(text("RESET idle_in_transaction_session_timeout"))
+        db.commit()
+        db.close()
+    except Exception:
+        db.invalidate()  # never pool a connection that may still carry the override
+
+
 class UpdateStrategy(str, Enum):
     """Update strategy options."""
 
@@ -227,7 +240,7 @@ class AnnotationPipeline:
                     logger.sync_error(f"HGNC update failed - critical dependency: {e}")
                     errors.append({"source": "hgnc", "error": str(e), "critical": True})
                 finally:
-                    hgnc_db.close()
+                    _close_pipeline_session(hgnc_db)
                 log_resource_checkpoint("pipeline.phase1_hgnc_done")
 
             # Phase 2: Process remaining sources in parallel
@@ -646,7 +659,7 @@ class AnnotationPipeline:
                     logger.sync_error(f"Error in parallel update for {source_name}: {e}")
                     return (source_name, {"error": str(e)})
                 finally:
-                    source_db.close()
+                    _close_pipeline_session(source_db)
 
         # Create tasks for all sources
         tasks = [rate_limited_update(src) for src in sources]
@@ -842,6 +855,10 @@ class AnnotationPipeline:
             await loop.run_in_executor(self._executor, clear_cache_sync)
         except Exception as e:
             logger.sync_debug(f"Cache clear failed: {e}")
+
+        if total_genes and successful == 0:
+            # Every gene failed (e.g. an upstream outage): an error, and keep the source due
+            raise RuntimeError(f"{source_name}: 0/{total_genes} genes updated")
 
         # Always update source metadata after a run so the scheduler
         # advances next_update even when no genes needed updating (avoids
