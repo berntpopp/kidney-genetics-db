@@ -4,7 +4,7 @@ Annotation pipeline orchestrator for managing gene annotation updates.
 
 import asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any
 
@@ -47,6 +47,30 @@ def _close_pipeline_session(db: Session) -> None:
         db.close()
     except Exception:
         db.invalidate()  # never pool a connection that may still carry the override
+
+
+# Minutes without a progress heartbeat before a "running" row counts as a crashed run
+_STALE_LOCK_MINUTES = 15
+
+
+def _heartbeat_age_minutes(progress: DataSourceProgress) -> float:
+    """Minutes since the run last committed progress (last_update_at is its heartbeat)."""
+    beat = progress.last_update_at or progress.started_at or progress.updated_at
+    if beat is None:
+        return float("inf")
+    if beat.tzinfo is None:
+        beat = beat.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - beat).total_seconds() / 60
+
+
+def pipeline_run_active(db: Session) -> bool:
+    """True while an annotation run holds the lock: running with a fresh heartbeat (#359)."""
+    progress = db.query(DataSourceProgress).filter_by(source_name="annotation_pipeline").first()
+    return bool(
+        progress
+        and progress.status == SourceStatus.running
+        and _heartbeat_age_minutes(progress) < _STALE_LOCK_MINUTES
+    )
 
 
 class UpdateStrategy(str, Enum):
@@ -140,8 +164,15 @@ class AnnotationPipeline:
             task_id=task_id,
         )
 
-        # Recover from stale pipeline lock (previous worker crash)
-        self._recover_stale_lock()
+        # Recover from a crashed run's lock, but never start next to a live run (#359)
+        if self._recover_stale_lock():
+            return {
+                "status": "already_running",
+                "success": False,
+                "sources_updated": 0,
+                "errors": [],
+                "message": "An annotation update is already running",
+            }
 
         # Initialize progress tracking
         self.progress_tracker = ProgressTracker(self.db, self.source_name)
@@ -611,64 +642,41 @@ class AnnotationPipeline:
             logger.sync_error(f"Failed to load checkpoint: {e}")
         return None
 
-    # Maximum age (minutes) before a "running" status is considered stale
-    _STALE_LOCK_MINUTES: int = 15
+    def _recover_stale_lock(self) -> bool:
+        """Reset a crashed run's 'running' row; True while another run is still active.
 
-    def _recover_stale_lock(self) -> None:
-        """Reset pipeline status if a previous run crashed and left it 'running'.
-
-        Checks the ``data_source_progress`` row for ``annotation_pipeline``.
-        If it has been in ``running`` state for longer than
-        ``_STALE_LOCK_MINUTES``, resets it to ``idle`` so a new run can
-        proceed.  This prevents the pipeline from being permanently locked
-        after an unexpected worker crash.
+        A run is alive while it keeps committing progress (``last_update_at``); a row
+        whose heartbeat is older than ``_STALE_LOCK_MINUTES`` is a crash left-over
+        and is reset to ``idle`` so the pipeline cannot stay locked forever.
         """
         try:
+            if pipeline_run_active(self.db):
+                logger.sync_warning(
+                    "Annotation pipeline is already running; not starting a second run",
+                    source_name=self.source_name,
+                )
+                return True
+
             progress = (
                 self.db.query(DataSourceProgress).filter_by(source_name=self.source_name).first()
             )
-            if not progress:
-                return
-
-            if progress.status != "running":
-                return
-
-            # Check how long it has been running
-            started = progress.started_at
-            if started is None:
-                started = progress.updated_at
-
-            if started is None:
-                # No timestamp at all — assume stale
-                age_minutes = self._STALE_LOCK_MINUTES + 1
-            else:
-                age_minutes = (
-                    datetime.utcnow() - started.replace(tzinfo=None)
-                ).total_seconds() / 60
-
-            if age_minutes >= self._STALE_LOCK_MINUTES:
+            if progress and progress.status == SourceStatus.running:
+                age_minutes = _heartbeat_age_minutes(progress)
                 logger.sync_warning(
                     "Recovering stale pipeline lock from previous crash",
                     source_name=self.source_name,
-                    age_minutes=round(age_minutes, 1),
+                    heartbeat_age_minutes=round(age_minutes, 1),
                     last_operation=progress.current_operation,
                 )
-                progress.status = "idle"
+                progress.status = SourceStatus.idle
                 progress.current_operation = None
-                progress.error_message = (
-                    f"Auto-recovered: previous run stale after {round(age_minutes)}min"
-                )
+                progress.error_message = "Auto-recovered: previous run stopped sending progress"
                 progress.progress_metadata = {}
                 self.db.commit()
-            else:
-                logger.sync_warning(
-                    "Pipeline is already running (started recently)",
-                    source_name=self.source_name,
-                    age_minutes=round(age_minutes, 1),
-                )
         except Exception as e:
             logger.sync_error(f"Failed to check stale lock: {e}")
             self.db.rollback()
+        return False
 
     async def _update_sources_parallel(
         self, sources: list[str], gene_ids: list[int], force: bool = False

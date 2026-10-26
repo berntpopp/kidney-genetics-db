@@ -187,6 +187,14 @@ async def refresh_materialized_view(
 # Pipeline Management Endpoints
 
 
+def _refuse_if_pipeline_running(db: Session) -> None:
+    """409 while an annotation run is active, so a second run never starts next to it (#359)."""
+    from app.pipeline.annotation_pipeline import pipeline_run_active
+
+    if pipeline_run_active(db):
+        raise HTTPException(status_code=409, detail="An annotation update is already running")
+
+
 @router.post("/pipeline/update", dependencies=[Depends(require_admin)])
 @limiter.limit(LIMIT_PIPELINE)
 async def trigger_pipeline_update(
@@ -274,6 +282,8 @@ async def trigger_pipeline_update(
 
     from app.pipeline.annotation_pipeline import UpdateStrategy
 
+    _refuse_if_pipeline_running(db)
+
     # Validate strategy
     try:
         update_strategy = UpdateStrategy(strategy)
@@ -331,6 +341,7 @@ async def update_failed_annotations(
         sources=sources,
     )
     await logger.info("Failed annotations update requested", sources=sources)
+    _refuse_if_pipeline_running(db)
 
     # Query genes that have incomplete annotations
     from sqlalchemy import and_, exists
@@ -409,6 +420,7 @@ async def update_new_genes(
         days_back=days_back,
     )
     await logger.info("New genes update requested", days_back=days_back)
+    _refuse_if_pipeline_running(db)
 
     # Query genes without annotations, ordered by clinical importance
     from sqlalchemy import func
@@ -480,6 +492,7 @@ async def update_missing_source(
         source=source_name,
     )
     await logger.info("Missing source update requested", source=source_name)
+    _refuse_if_pipeline_running(db)
 
     # Validate source exists
     source = db.query(AnnotationSource).filter_by(source_name=source_name, is_active=True).first()
