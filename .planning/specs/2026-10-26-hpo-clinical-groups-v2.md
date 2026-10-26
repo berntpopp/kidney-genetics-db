@@ -66,9 +66,9 @@ E(g, G) = Σ over diseases *d* of *g* · Σ over matched terms *t* of *d* (most 
   disease is not counted again.
 
 **Labels.** `primary` = argmax E (ties: `CLINICAL_GROUP_PRIORITY`, neoplasia
-last); `None` when every E is 0. `secondary` = other groups with E ≥ 0.5 ×
-E(primary). `scores[G]` = E(G) / Σ E (share of the gene's kidney-group evidence,
-in [0, 1]); `evidence[G]` = E(G) raw. `method: "hpo-freq-ic-v2"`, `hpo_release`.
+last); `None` when every E is 0. `secondary` = other groups with E ≥ 0.4 ×
+E(primary) (0.5 in v0.9.0; see "Secondary cut-off calibration"). `scores[G]` = E(G) / Σ E (share of the gene's kidney-group evidence,
+in [0, 1]); `evidence[G]` = E(G) raw. `method: "hpo-freq-ic-v2.1"` (v2 in v0.9.0), `hpo_release`.
 
 **Failure behaviour.** The method needs both pinned files. If either cannot be
 downloaded or parsed, the HPO annotation run fails before writing; stored
@@ -99,7 +99,7 @@ from `genes_to_phenotype.txt` instead of `phenotype.hpoa` gives the same
 accuracy and 3,192/3,209 identical primaries. Secondary groups (55 genes with
 ≥ 2 panel groups): 67/118 panel labels recovered, 10 extra labels.
 
-Reference genes: HNF1B cakut (+ cyst_cilio), VHL neoplasia, FH neoplasia,
+Reference genes at the v0.9.0 cut-off 0.5 (for 0.4 see "Secondary cut-off calibration"): HNF1B cakut (+ cyst_cilio), VHL neoplasia, FH neoplasia,
 PALB2 cakut (neoplasia 0.493 × primary, just below the 0.5 secondary cut-off with IC from
 `genes_to_phenotype.txt`; 0.5 with IC from `phenotype.hpoa`; the cut-off is not tuned), FANCA cakut, TSC2 neoplasia, CFH complement, COL4A5
 glomerulopathy, PKD1 cyst_cilio, WT1 glomerulopathy (+ neoplasia 0.46, just
@@ -109,6 +109,72 @@ glomerulopathy (0.8).
 Limits for the manuscript: one evaluation, no held-out set (the roots were set
 before the first measurement and not changed after); PanelApp is a silver
 standard; genes without frequency data fall back to 0.35 per term.
+
+## Secondary cut-off calibration (2026-10-26, after v0.9.0)
+
+Method fixed before the grid was computed (maintainer decision on #338). It was
+not blind to every result: the 0.493 (PALB2) and 0.46 (WT1, PKD1) ratios at 0.5
+were published with v0.9.0.
+
+- Prediction per gene = {primary} ∪ {groups with E ≥ r × E(primary)}; truth =
+  the gene's PanelApp panel groups (silver standard above).
+- Metric: multi-label macro-F1 over the 7 groups (per group TP/FP/FN over
+  genes, F1 = 2TP/(2TP+FP+FN), unweighted mean) on all 360 reference genes, so
+  single-group genes penalise false secondaries. Also reported: the same metric
+  on the multi-group subset (genes on panels of ≥ 2 groups) and the number of
+  reference genes with a secondary group.
+- Grid r ∈ {0.30, 0.35, …, 0.70}.
+- Overfitting control: deterministic 50/50 split stratified by the gene's
+  first panel group in `CLINICAL_GROUP_PRIORITY` order (genes sorted by symbol
+  within a stratum, shuffled with `random.Random(338)`, alternately assigned to
+  A and B). r is chosen on half A, reported on half B; the full-set curve is
+  reported too. Ties go to the larger r (fewer secondary labels). If the
+  chosen r equals 0.5, 0.5 stays.
+- r is not chosen to make PALB2 pass; PALB2's ratio (0.493) is reported
+  against the chosen r.
+
+Results (HPO 2026-09-01; half A 181 genes, half B 179, multi-group 55):
+
+| r | Half A | Half B | All 360 | Multi-group | Reference genes with secondary |
+|---|---|---|---|---|---|
+| 0.30 | 0.7459 | 0.7760 | 0.7577 | 0.7834 | 102 |
+| 0.35 | 0.7488 | 0.7726 | 0.7572 | 0.7763 | 90 |
+| **0.40** | **0.7494** | 0.7458 | 0.7477 | 0.7642 | 83 |
+| 0.45 | 0.7466 | 0.7514 | 0.7494 | 0.7642 | 80 |
+| 0.50 | 0.7382 | 0.7505 | 0.7458 | 0.7570 | 62 |
+| 0.55 | 0.7394 | 0.7259 | 0.7375 | 0.7373 | 50 |
+| 0.60 | 0.7368 | 0.7251 | 0.7354 | 0.7336 | 43 |
+| 0.65 | 0.7361 | 0.7248 | 0.7348 | 0.7256 | 38 |
+| 0.70 | 0.7284 | 0.7260 | 0.7321 | 0.7143 | 32 |
+
+**Chosen r = 0.40** (best on half A, no tie). Held-out half B: 0.7458 (0.7505
+at 0.5); full set 0.7477 (0.7458 at 0.5). Half B,
+the full 360 set and the multi-group subset all peak at the grid edge 0.30
+(half B drops from 0.7760 at 0.30 to 0.7458 at 0.40); half A varies by only
+0.011 between 0.30 and 0.50, and rises again from 0.50 to 0.55.
+
+Seed sweep (`--seed-sweep 100`, same protocol, seeds 0–99), half-A choice: 0.30
+in 51 seeds, 0.35 in 29, 0.40 in 1, 0.45 in 10, 0.50 in 6, 0.55 in 1, 0.60 in 0,
+0.65 in 1, 0.70 in 1.
+
+So r = 0.40 is the protocol's choice for seed 338, not a stable optimum; the
+optimum may lie at or below 0.30, outside the grid. Any r in 0.30–0.50 passes
+PALB2 (0.493). A seed-independent choice (e.g. leave-one-out, or a wider grid)
+would be a new pre-registered decision for the maintainer; it is not made
+here. The script exits 1 when its choice differs from the code constant.
+`SECONDARY_GROUP_RATIO = 0.4`;
+`method` becomes `hpo-freq-ic-v2.1` so cached v2 annotations are re-fetched.
+
+Effects: 55 multi-group genes recover 70/118 panel labels with 12 extra (67
+and 10 at 0.5). Of the 3,209 classified dev-snapshot genes, 89 gain at least
+one secondary group and none loses one. PALB2 (neoplasia 0.493 × cakut) now
+has neoplasia as secondary; so do WT1 (neoplasia 0.46) and PKD1
+(nephrolithiasis and glomerulopathy, 0.46 each).
+
+FANCA stays cakut without neoplasia: no FANCA annotation in HPO 2026-09-01 is
+at or below Renal neoplasm (HP:0009726). This is an HPO-data limit; no cut-off
+fixes it and annotations are not added by hand (test gated on
+`HPO_RELEASE_DIR`).
 
 ## Literature and independent checks (2026-10-26)
 

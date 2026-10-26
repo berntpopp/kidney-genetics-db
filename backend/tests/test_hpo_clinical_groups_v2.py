@@ -7,6 +7,7 @@ the disease counts n(t), N used for IC), so these tests run offline.
 """
 
 import hashlib
+import importlib.util
 import json
 import math
 import os
@@ -20,6 +21,7 @@ from app.core.datasource_config import get_source_parameter
 from app.pipeline.sources.annotations.hpo import (
     CLINICAL_GROUP_METHOD,
     CLINICAL_GROUP_PRIORITY,
+    SECONDARY_GROUP_RATIO,
     BulkDataSourceMixin,
     ClinicalGroupClassifier,
     HPOAnnotationSource,
@@ -29,6 +31,7 @@ from app.pipeline.sources.annotations.hpo import (
 
 FIXTURES = Path(__file__).parent / "fixtures" / "hpo"
 CONFIG = Path(__file__).parents[1] / "config" / "datasources.yaml"
+EVAL_SCRIPT = Path(__file__).parents[1] / "scripts" / "evaluate_hpo_clinical_groups.py"
 
 # Tiny ontology: ROOT > A > A1 > A11, ROOT > B > B1, ROOT > X
 PARENTS = {
@@ -94,12 +97,27 @@ def test_evidence_sums_over_diseases():
     assert result["evidence"]["cakut"] == round(2 * LN4, 3)
 
 
-def test_secondary_at_half_of_primary_evidence():
+def test_secondary_at_calibrated_share_of_primary_evidence():
     classifier = _tiny()
-    at_half = classifier.classify({"d1": {"HP:A11": 1.0}, "d2": {"HP:B1": 0.5}})
-    assert (at_half["primary"], at_half["secondary"]) == ("cakut", ["neoplasia"])
-    below = classifier.classify({"d1": {"HP:A11": 1.0}, "d2": {"HP:B1": 0.49}})
+    at_cut = classifier.classify({"d1": {"HP:A11": 1.0}, "d2": {"HP:B1": 0.4}})
+    assert (at_cut["primary"], at_cut["secondary"]) == ("cakut", ["neoplasia"])
+    # between the old 0.5 and the new 0.4 cut-off: secondary now
+    between = classifier.classify({"d1": {"HP:A11": 1.0}, "d2": {"HP:B1": 0.45}})
+    assert between["secondary"] == ["neoplasia"]
+    below = classifier.classify({"d1": {"HP:A11": 1.0}, "d2": {"HP:B1": 0.39}})
     assert (below["primary"], below["secondary"]) == ("cakut", [])
+    # 0.40 chosen on PanelApp by multi-label macro-F1 (spec: secondary cut-off calibration)
+    assert SECONDARY_GROUP_RATIO == 0.4
+
+
+def test_multilabel_macro_f1_hand_computed():
+    spec = importlib.util.spec_from_file_location("evaluate_hpo", EVAL_SCRIPT)
+    evaluate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(evaluate)
+    truth = {"g1": {"a"}, "g2": {"a", "b"}, "g3": {"b"}}
+    pred = {"g1": {"a", "b"}, "g2": {"a"}, "g3": {"b"}}
+    # a: TP 2, FP 0, FN 0 -> 1.0; b: TP 1, FP 1, FN 1 -> 0.5; c: no TP -> 0.0
+    assert evaluate.multilabel_macro_f1(pred, truth, ["a", "b", "c"]) == pytest.approx(0.5)
 
 
 def test_scores_are_share_of_evidence():
@@ -143,11 +161,12 @@ def _golden() -> tuple[ClinicalGroupClassifier, dict]:
         ("HNF1B", "cakut", ["cyst_cilio"]),
         ("VHL", "neoplasia", ["glomerulopathy"]),  # known miss: glomerulopathy at 0.84
         ("FH", "neoplasia", ["glomerulopathy"]),
-        # neoplasia evidence is 0.493 of cakut, just below the 0.5 secondary cut-off
-        ("PALB2", "cakut", []),
+        # neoplasia evidence is 0.493 of cakut: secondary at the calibrated 0.40 cut-off
+        ("PALB2", "cakut", ["neoplasia"]),
         ("CFH", "complement", []),
         ("COL4A5", "glomerulopathy", []),
-        ("PKD1", "cyst_cilio", []),
+        # kidney stones and proteinuria at 0.46 of cyst_cilio: secondary at 0.40
+        ("PKD1", "cyst_cilio", ["nephrolithiasis", "glomerulopathy"]),
     ],
 )
 def test_golden_genes(symbol, primary, secondary):
@@ -156,7 +175,7 @@ def test_golden_genes(symbol, primary, secondary):
     assert (result["primary"], result["secondary"]) == (primary, secondary)
 
 
-def test_palb2_neoplasia_share_is_just_below_secondary_cut_off():
+def test_palb2_neoplasia_share_of_cakut_evidence():
     classifier, bulk = _golden()
     evidence = classifier.classify(bulk["PALB2"]["disease_terms"])["evidence"]
     assert round(evidence["neoplasia"] / evidence["cakut"], 3) == 0.493
@@ -390,3 +409,24 @@ def test_golden_ic_matches_fit_on_full_pinned_corpus():
     assert len(corpus) == counts["N"]
     for term in ("HP:0000107", "HP:0000093", "HP:0000787"):  # roots of three groups
         assert classifier.ic[term] == pytest.approx(-math.log(counts["n"][term] / counts["N"]))
+
+
+# FANCA stays cakut without neoplasia: HPO 2026-09-01 has no FANCA annotation at or
+# below Renal neoplasm (HP:0009726). This is an HPO-data limit, not a cut-off issue;
+# never add annotations by hand.
+@pytest.mark.skipif(not os.environ.get("HPO_RELEASE_DIR"), reason="needs HPO_RELEASE_DIR")
+def test_fanca_has_no_renal_neoplasm_annotation_in_pinned_release():
+    release = Path(os.environ["HPO_RELEASE_DIR"])
+    bulk = HPOAnnotationSource.parse_bulk_file(
+        HPOAnnotationSource.__new__(HPOAnnotationSource), release / "genes_to_phenotype.txt"
+    )
+    groups = {k: v["root_terms"] for k, v in get_source_parameter("HPO", "clinical_groups").items()}
+    classifier = ClinicalGroupClassifier(
+        load_hpo_parents(release / "hp.json"), groups, "2026-09-01"
+    )
+    terms = set().union(*bulk["FANCA"]["disease_terms"].values())
+    assert not any("HP:0009726" in classifier.ancestors(t) for t in terms)
+    classifier.ic = dict.fromkeys(classifier.parents, 1.0)  # IC irrelevant: no neoplasia term
+    result = classifier.classify(bulk["FANCA"]["disease_terms"])
+    assert result["primary"] == "cakut"
+    assert "neoplasia" not in result["secondary"]

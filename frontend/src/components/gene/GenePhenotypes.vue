@@ -57,7 +57,7 @@
         </template>
       </HoverPopover>
 
-      <!-- Secondary clinical groups (evidence >= half of the primary's, #338) -->
+      <!-- Secondary clinical groups (evidence >= 40% of the primary's, #338) -->
       <span
         v-if="hpoData.classification?.clinical_group?.secondary?.length"
         data-testid="clinical-group-secondary"

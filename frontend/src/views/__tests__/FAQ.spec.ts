@@ -47,7 +47,7 @@ describe('FAQ clinical groups (#338)', () => {
     const text = mount(FAQ, { global: { stubs: { RouterLink: true } } }).text()
     expect(text).toContain('How is the clinical group assigned?')
     expect(text).toContain('information content')
-    expect(text).toContain('at least half')
+    expect(text).toContain("at least 40% of the primary group's evidence")
     expect(text).toContain('2026-09-01')
   })
 })

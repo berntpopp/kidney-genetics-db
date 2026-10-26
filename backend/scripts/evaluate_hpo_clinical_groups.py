@@ -17,15 +17,17 @@ Usage:
 """
 
 import argparse
+import random
 import sys
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.pipeline.sources.annotations import hpo as hpo_module  # noqa: E402
 from app.pipeline.sources.annotations.hpo import (  # noqa: E402
     CLINICAL_GROUP_PRIORITY,
     SECONDARY_GROUP_RATIO,
@@ -75,6 +77,8 @@ PANELS = {
         "Inherited renal cancer",
     ],
 }
+RATIO_GRID = [round(0.30 + 0.05 * i, 2) for i in range(9)]  # 0.30 ... 0.70
+SPLIT_SEED = 338
 KEY_GENES = ["HNF1B", "VHL", "FH", "PALB2", "FANCA", "TSC2", "CFH", "COL4A5", "PKD1", "WT1"]
 
 
@@ -83,11 +87,49 @@ def _pick(scores: dict[str, float]) -> str | None:
     return next(k for k in CLINICAL_GROUP_PRIORITY if scores[k] == best) if best > 0 else None
 
 
+def multilabel_macro_f1(
+    pred: dict[str, set[str]], truth: dict[str, set[str]], groups: Iterable[str]
+) -> float:
+    """Unweighted mean over groups of 2TP / (2TP + FP + FN), TP/FP/FN counted over genes."""
+    f1 = []
+    for g in groups:
+        tp = sum(g in pred[s] and g in truth[s] for s in truth)
+        fp = sum(g in pred[s] and g not in truth[s] for s in truth)
+        fn = sum(g not in pred[s] and g in truth[s] for s in truth)
+        f1.append(2 * tp / (2 * tp + fp + fn) if tp else 0.0)
+    return sum(f1) / len(f1)
+
+
+def split_half(
+    reference: list[tuple[str, set[str]]], seed: int = SPLIT_SEED
+) -> tuple[set[str], set[str]]:
+    """50/50 split stratified by the first panel group in priority order."""
+    rng = random.Random(seed)
+    strata: dict[str, list[str]] = {}
+    for s, ref in sorted(reference):
+        strata.setdefault(min(ref, key=CLINICAL_GROUP_PRIORITY.index), []).append(s)
+    a: set[str] = set()
+    b: set[str] = set()
+    for group in CLINICAL_GROUP_PRIORITY:
+        genes = strata.get(group, [])
+        rng.shuffle(genes)
+        for i, s in enumerate(genes):
+            (a if i % 2 == 0 else b).add(s)
+    return a, b
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("hpo_dir", type=Path, help="dir with genes_to_phenotype.txt and hp.json")
     parser.add_argument("reference", type=Path, help="reference TSV (see module docstring)")
     parser.add_argument("datasources", type=Path, help="backend/config/datasources.yaml")
+    parser.add_argument(
+        "--seed-sweep",
+        type=int,
+        default=0,
+        metavar="N",
+        help="also repeat the choice for seeds 0..N-1",
+    )
     args = parser.parse_args()
 
     hpo = yaml.safe_load(args.datasources.read_text())["datasources"]["HPO"]
@@ -162,16 +204,16 @@ def main() -> int:
         print(f"| {name} | {hits / len(reference):.1%} | {sum(f1) / len(f1):.2f} |")
 
     multi = [(s, ref) for s, ref in reference if len(ref) >= 2]
-    recovered = extra = labels = 0
+    recovered = extra = n_labels = 0
     for symbol, ref in multi:
         result = v2.classify(disease_terms(symbol, True))
         predicted = {result["primary"], *result["secondary"]} - {None}
         recovered += len(predicted & ref)
         extra += len(predicted - ref)
-        labels += len(ref)
+        n_labels += len(ref)
     print(
         f"\nSecondary groups (>= {SECONDARY_GROUP_RATIO} x primary evidence), {len(multi)} genes"
-        f" with >= 2 panel groups: {recovered}/{labels} panel labels recovered, {extra} extra"
+        f" with >= 2 panel groups: {recovered}/{n_labels} panel labels recovered, {extra} extra"
     )
     print("\n| Gene | Primary | Secondary | Evidence share of primary |\n|---|---|---|---|")
     for symbol in KEY_GENES:
@@ -182,6 +224,71 @@ def main() -> int:
             f"{k} {v / top:.2f}" for k, v in sorted(ev.items(), key=lambda kv: -kv[1]) if v > 0
         )
         print(f"| {symbol} | {result['primary']} | {', '.join(result['secondary'])} | {shares} |")
+
+    def labels(symbol: str, ratio: float) -> tuple[str | None, list[str]]:
+        hpo_module.SECONDARY_GROUP_RATIO = ratio  # classify reads the module constant
+        try:
+            result = v2.classify(disease_terms(symbol, True))
+        finally:
+            hpo_module.SECONDARY_GROUP_RATIO = SECONDARY_GROUP_RATIO
+        return result["primary"], result["secondary"]
+
+    truth = dict(reference)
+    half_a, half_b = split_half(reference)
+    multi_set = {s for s, _ in multi}
+    preds = {}
+    for r in RATIO_GRID:
+        preds[r] = {}
+        for s in truth:
+            primary, secondary = labels(s, r)
+            preds[r][s] = {primary, *secondary} - {None}
+
+    def f1_on(r: float, genes: set[str]) -> float:
+        return multilabel_macro_f1(
+            {s: preds[r][s] for s in genes}, {s: truth[s] for s in genes}, PANELS
+        )
+
+    print(
+        f"\nSecondary cut-off calibration: multi-label macro-F1, split seed {SPLIT_SEED},"
+        f" half A {len(half_a)} genes, half B {len(half_b)}, multi-group {len(multi_set)}"
+    )
+    print("\n| r | Half A | Half B | All 360 | Multi-group | Genes with secondary |")
+    print("|---|---|---|---|---|---|")
+    for r in RATIO_GRID:
+        with_secondary = sum(len(preds[r][s]) > 1 for s in truth)
+        print(
+            f"| {r:.2f} | {f1_on(r, half_a):.4f} | {f1_on(r, half_b):.4f}"
+            f" | {f1_on(r, set(truth)):.4f} | {f1_on(r, multi_set):.4f} | {with_secondary} |"
+        )
+
+    def choose(half: set[str]) -> float:  # ties go to the larger r (fewer secondary labels)
+        return max(RATIO_GRID, key=lambda r: (round(f1_on(r, half), 6), r))
+
+    chosen = choose(half_a)
+    print(
+        f"\nChosen on half A: r = {chosen:.2f} (half B {f1_on(chosen, half_b):.4f},"
+        f" all {f1_on(chosen, set(truth)):.4f}); code constant {SECONDARY_GROUP_RATIO}"
+    )
+
+    gained = lost = 0
+    for s in (s for s, _ in genes):
+        before = set(labels(s, 0.5)[1])
+        after = set(labels(s, chosen)[1])
+        gained += bool(after - before)
+        lost += bool(before - after)
+    print(
+        f"All {len(genes)} genes, r = {chosen:.2f} vs 0.50: {gained} gain and {lost} lose"
+        " at least one secondary group"
+    )
+    if args.seed_sweep:
+        sweep = Counter(choose(split_half(reference, seed)[0]) for seed in range(args.seed_sweep))
+        print(
+            f"Seed sweep, half-A choice over seeds 0..{args.seed_sweep - 1}: "
+            + ", ".join(f"{r:.2f} {sweep[r]}" for r in RATIO_GRID)
+        )
+    if chosen != SECONDARY_GROUP_RATIO:
+        print(f"Calibration ({chosen:.2f}) and SECONDARY_GROUP_RATIO disagree", file=sys.stderr)
+        return 1
     return 0
 
 
