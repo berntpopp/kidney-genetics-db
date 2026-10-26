@@ -4,6 +4,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
@@ -413,8 +414,6 @@ async def update_new_genes(
     _refuse_if_pipeline_running(db)
 
     # Query genes without annotations, ordered by clinical importance
-    from sqlalchemy import func
-
     from app.models.gene import GeneCuration
 
     new_genes = (
@@ -531,7 +530,10 @@ async def validate_annotations(
 
 
 @router.post("/scheduler/trigger/{job_id}", dependencies=[Depends(require_admin)])
+@limiter.limit(LIMIT_PIPELINE)
 async def trigger_scheduled_job(
+    request: Request,
+    response: Response,
     job_id: str,
     current_user: User = Depends(require_admin),
 ) -> dict[str, Any]:
@@ -693,8 +695,6 @@ async def _run_missing_source_update(source_name: str, task_id: str) -> None:
         )
 
         # Order by evidence_score DESC to prioritize clinically important genes
-        from sqlalchemy import func
-
         from app.models.gene import GeneCuration
 
         missing_genes = (
@@ -773,7 +773,16 @@ async def _run_annotation_reset(
 
         # Perform the deletion
         query.delete(synchronize_session=False)
+        # The next incremental run must refetch what was deleted, not wait for the TTL (#370)
+        due = db.query(AnnotationSource)
+        if source:
+            due = due.filter(AnnotationSource.source_name == source)
+        due.update({AnnotationSource.next_update: func.now()}, synchronize_session=False)
         db.commit()
+
+        from app.pipeline.annotation_pipeline import AnnotationPipeline
+
+        await AnnotationPipeline(db)._refresh_materialized_view()  # drop deleted rows from views
 
         # Clear cache for affected data
         from app.core.cache_service import get_cache_service
