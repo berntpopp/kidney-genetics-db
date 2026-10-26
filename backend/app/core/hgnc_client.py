@@ -157,17 +157,12 @@ class HGNCClientCached:
         cache_key = f"gene_info:{symbol.strip().upper()}"
 
         async def fetch_gene_info() -> dict[str, Any] | None:
-            try:
-                response = await self._make_request("search/symbol", {"symbol": symbol})
-                docs = response.get("response", {}).get("docs", [])
-                if docs:
-                    return cast(dict[str, Any], docs[0])
-                return None
-            except Exception as e:
-                logger.sync_warning(
-                    "Failed to fetch gene info for symbol", symbol=symbol, error=str(e)
-                )
-                return None
+            # An outage raises (and is not cached); None means HGNC has no such symbol.
+            response = await self._make_request("search/symbol", {"symbol": symbol})
+            docs = response.get("response", {}).get("docs", [])
+            if docs:
+                return cast(dict[str, Any], docs[0])
+            return None
 
         return await cached(
             cache_key, fetch_gene_info, self.NAMESPACE, self.ttl, self.cache_service.db_session
@@ -192,6 +187,7 @@ class HGNCClientCached:
         cache_key = f"standardize_symbol:{normalized_symbol}"
 
         async def fetch_standardized_symbol() -> str:
+            failed = False
             # Try direct symbol lookup
             try:
                 response = await self._make_request(f"search/symbol/{normalized_symbol}")
@@ -199,7 +195,7 @@ class HGNCClientCached:
                 if docs:
                     return str(docs[0].get("symbol", symbol))
             except Exception:
-                pass
+                failed = True
 
             # Try previous symbol lookup
             try:
@@ -208,7 +204,7 @@ class HGNCClientCached:
                 if docs:
                     return str(docs[0].get("symbol", symbol))
             except Exception:
-                pass
+                failed = True
 
             # Try alias symbol lookup
             try:
@@ -217,8 +213,11 @@ class HGNCClientCached:
                 if docs:
                     return str(docs[0].get("symbol", symbol))
             except Exception:
-                pass
+                failed = True
 
+            if failed:
+                # Raising keeps an outage out of the cache and apart from "not found" (#291).
+                raise RuntimeError(f"HGNC lookup failed for {symbol}")
             logger.sync_warning("Could not standardize gene symbol", symbol=symbol)
             return symbol
 
@@ -256,11 +255,13 @@ class HGNCClientCached:
             cache_key = f"standardize_symbol:{symbol.strip().upper()}"
             cached_result = await self.cache_service.get(cache_key, self.NAMESPACE)
 
+            cached_hgnc_id = None
             if cached_result is not None:
-                # Get additional info from cache
                 hgnc_id_key = f"symbol_to_hgnc_id:{symbol.strip().upper()}"
                 cached_hgnc_id = await self.cache_service.get(hgnc_id_key, self.NAMESPACE)
 
+            # Without a cached HGNC ID the hit would read as "not found" (#291): look it up.
+            if cached_hgnc_id is not None:
                 result[symbol] = {"approved_symbol": cached_result, "hgnc_id": cached_hgnc_id}
             else:
                 uncached_symbols.append(symbol)
@@ -318,31 +319,26 @@ class HGNCClientCached:
             # Process symbols not found in batch with individual lookups
             for original_symbol in original_symbols:
                 if original_symbol not in found_symbols:
-                    # Use individual standardization (which will cache the result)
-                    standardized = await self.standardize_symbol(original_symbol)
-                    if standardized.upper() != original_symbol.upper():
-                        gene_info = await self.get_gene_info(standardized)
-                        hgnc_id = gene_info.get("hgnc_id") if gene_info else None
-                        result[original_symbol] = {
-                            "approved_symbol": standardized,
-                            "hgnc_id": hgnc_id,
-                        }
+                    result[original_symbol] = await self._lookup_individual(original_symbol)
 
             return result
 
         except Exception as e:
             logger.sync_error("Batch processing failed", error=str(e))
             # Fallback to individual lookups
-            result = {}
-            for symbol in symbols:
-                standardized = await self.standardize_symbol(symbol)
-                gene_info = await self.get_gene_info(standardized)
-                hgnc_id = gene_info.get("hgnc_id") if gene_info else None
-                result[symbol] = {
-                    "approved_symbol": standardized,
-                    "hgnc_id": hgnc_id,
-                }
-            return result
+            return {symbol: await self._lookup_individual(symbol) for symbol in symbols}
+
+    async def _lookup_individual(self, symbol: str) -> dict[str, str | None]:
+        """Standardize one symbol; an HGNC outage is reported as "error", not as not-found."""
+        try:
+            standardized = await self.standardize_symbol(symbol)
+            gene_info = await self.get_gene_info(standardized)
+        except Exception as e:
+            return {"approved_symbol": symbol, "hgnc_id": None, "error": str(e)}
+        hgnc_id = gene_info.get("hgnc_id") if gene_info else None
+        if hgnc_id:
+            await self._cache_symbol_results(symbol, standardized, hgnc_id)
+        return {"approved_symbol": standardized, "hgnc_id": hgnc_id}
 
     async def _cache_symbol_results(
         self, original_symbol: str, approved_symbol: str, hgnc_id: str | None
@@ -406,10 +402,11 @@ class HGNCClientCached:
                             "approved_symbol": symbol,
                             "hgnc_id": gene_info.get("hgnc_id") if gene_info else None,
                         }
-                    except Exception:
+                    except Exception as e:
                         standardized[symbol] = {
                             "approved_symbol": symbol,
                             "hgnc_id": None,
+                            "error": str(e),
                         }
             else:
                 standardized.update(batch_result)

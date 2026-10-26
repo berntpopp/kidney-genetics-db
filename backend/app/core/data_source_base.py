@@ -333,6 +333,10 @@ class DataSourceClient(ABC):
                         # Get normalized gene info
                         norm_result = normalization_results.get(symbol, {})
                         if norm_result.get("status") != "normalized":
+                            # An HGNC outage must block the prune; staged not-founds do not.
+                            if norm_result.get("status") == "error":
+                                stats["errors"] += 1
+                                batch_failed += 1
                             logger.sync_debug("Skipping unnormalized gene", symbol=symbol)
                             continue
 
