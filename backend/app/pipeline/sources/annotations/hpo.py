@@ -315,6 +315,8 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
             )
             self.source_record.base_url = self.hpo_api_url
             self.session.commit()
+        # Descendant sets of the pinned hp.json, built once per run instead of per gene
+        self._descendants: dict[str, Any] = {}
 
     def parse_bulk_file(self, path: Path) -> dict[str, dict[str, Any]]:
         """Parse HPO genes_to_phenotype.txt into gene-keyed dict.
@@ -605,9 +607,11 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
     async def get_kidney_term_descendants(self) -> set[str]:
         """Configured kidney root terms and their descendants in the pinned hp.json (#365)."""
-        classifier = await self._load_clinical_group_classifier()
-        roots = get_source_parameter("HPO", "kidney_terms", [])
-        return set().union(*(classifier.descendants(t) for t in roots))
+        if "kidney" not in self._descendants:
+            classifier = await self._load_clinical_group_classifier()
+            roots = get_source_parameter("HPO", "kidney_terms", [])
+            self._descendants["kidney"] = set().union(*(classifier.descendants(t) for t in roots))
+        return self._descendants["kidney"]
 
     async def filter_kidney_phenotypes(self, phenotypes: list[dict]) -> list[dict]:
         """
@@ -634,6 +638,8 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
         Taken from the pinned hp.json, so they match the release `clinical_group` cites
         and raise instead of silently shrinking when a term cannot be resolved (#365).
         """
+        if classification_type in self._descendants:
+            return self._descendants[classification_type]
         classifier = await self._load_clinical_group_classifier()
         descendants_map: dict[str, set[str]] = {}
         for group_key, group_config in get_source_parameter("HPO", classification_type, {}).items():
@@ -645,6 +651,7 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
             descendants_map[group_key] = set().union(
                 *(classifier.descendants(t) for t in root_terms)
             )
+        self._descendants[classification_type] = descendants_map
         return descendants_map
 
     async def classify_gene_phenotypes(

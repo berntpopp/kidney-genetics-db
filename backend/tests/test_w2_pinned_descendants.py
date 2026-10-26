@@ -24,6 +24,7 @@ def test_classifier_descendants_from_pinned_ontology() -> None:
 @pytest.mark.asyncio
 async def test_source_descendants_use_pinned_classifier_and_raise_on_unknown_root() -> None:
     source = HPOAnnotationSource.__new__(HPOAnnotationSource)
+    source._descendants = {}
     source._load_clinical_group_classifier = AsyncMock(  # type: ignore[method-assign]
         return_value=ClinicalGroupClassifier(PARENTS, {}, "test")
     )
@@ -39,6 +40,10 @@ async def test_source_descendants_use_pinned_classifier_and_raise_on_unknown_roo
             "adult": {"HP:A", "HP:A1", "HP:A11", "HP:B"}
         }
         assert await source.get_kidney_term_descendants() == {"HP:A1", "HP:A11"}
+        # Built once per source instance, not per gene
+        assert await source.get_kidney_term_descendants() == {"HP:A1", "HP:A11"}
+        assert source._load_clinical_group_classifier.await_count == 2
+        source._descendants.clear()
         config["kidney_terms"] = ["HP:9999999"]
         with pytest.raises(ValueError):
             await source.get_kidney_term_descendants()
