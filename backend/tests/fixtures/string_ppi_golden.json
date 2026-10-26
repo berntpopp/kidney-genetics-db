@@ -1,0 +1,93 @@
+{
+ "0": {
+  "interactions": [
+   {
+    "partner_evidence": 80.0,
+    "partner_symbol": "GENE1",
+    "string_score": 999,
+    "weighted_score": 79.92
+   },
+   {
+    "partner_evidence": 60.0,
+    "partner_symbol": "GENE2",
+    "string_score": 900,
+    "weighted_score": 54.0
+   }
+  ],
+  "ppi_degree": 3,
+  "ppi_percentile": 0.9,
+  "ppi_score": 94.64,
+  "summary": {
+   "avg_string_score": 883.0,
+   "raw_sum": 2649,
+   "strong_interactions": 2,
+   "total_interactions": 3,
+   "weighted_sum": 163.92
+  }
+ },
+ "1": {
+  "interactions": [
+   {
+    "partner_evidence": 80.0,
+    "partner_symbol": "GENE1",
+    "string_score": 900,
+    "weighted_score": 72.0
+   },
+   {
+    "partner_evidence": 40.0,
+    "partner_symbol": "GENE3",
+    "string_score": 820,
+    "weighted_score": 32.8
+   }
+  ],
+  "ppi_degree": 2,
+  "ppi_percentile": 0.5,
+  "ppi_score": 74.1,
+  "summary": {
+   "avg_string_score": 860.0,
+   "raw_sum": 1720,
+   "strong_interactions": 2,
+   "total_interactions": 2,
+   "weighted_sum": 104.8
+  }
+ },
+ "2": {
+  "interactions": [
+   {
+    "partner_evidence": 80.0,
+    "partner_symbol": "GENE1",
+    "string_score": 750,
+    "weighted_score": 60.0
+   },
+   {
+    "partner_evidence": 60.0,
+    "partner_symbol": "GENE2",
+    "string_score": 820,
+    "weighted_score": 49.2
+   }
+  ],
+  "ppi_degree": 2,
+  "ppi_percentile": 0.1,
+  "ppi_score": 77.22,
+  "summary": {
+   "avg_string_score": 785.0,
+   "raw_sum": 1570,
+   "strong_interactions": 1,
+   "total_interactions": 2,
+   "weighted_sum": 109.2
+  }
+ },
+ "4": {
+  "interactions": [],
+  "ppi_degree": 0,
+  "ppi_percentile": null,
+  "ppi_score": 0,
+  "summary": {
+   "avg_string_score": 0,
+   "raw_sum": 0,
+   "strong_interactions": 0,
+   "total_interactions": 0,
+   "weighted_sum": 0
+  }
+ }
+}
