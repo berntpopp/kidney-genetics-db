@@ -49,6 +49,7 @@ class BulkDataSourceMixin:
     bulk_file_min_size_bytes: int = 0  # 0 = no minimum size check
 
     _bulk_data: dict[str, dict[str, Any]] | None = None
+    _bulk_load_error: Exception | None = None  # remembered so per-gene fallbacks fail fast
 
     # ------------------------------------------------------------------
     # Public API
@@ -172,6 +173,10 @@ class BulkDataSourceMixin:
                 # Clean up partial file
                 if tmp_path.exists():
                     tmp_path.unlink()
+                if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in range(
+                    400, 429
+                ):
+                    raise  # a missing/forbidden file will not appear on retry
                 if attempt < self.bulk_download_max_retries:
                     wait = 2**attempt  # 2, 4 seconds
                     logger.sync_warning(
@@ -222,7 +227,15 @@ class BulkDataSourceMixin:
         """
         if self._bulk_data is not None and not force:
             return
+        if self._bulk_load_error is not None and not force:
+            raise self._bulk_load_error  # fail once per run, not once per gene
+        try:
+            await self._load_bulk_data(force)
+        except Exception as e:
+            self._bulk_load_error = e
+            raise
 
+    async def _load_bulk_data(self, force: bool) -> None:
         raw_path = await self.download_bulk_file(force=force)
 
         # Decompress .gz files to a sibling path

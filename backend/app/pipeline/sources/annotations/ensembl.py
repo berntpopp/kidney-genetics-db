@@ -69,8 +69,10 @@ class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     version = "2.0"
 
     # GTF bulk file (replaces REST API)
+    # Pinned release: "current_gtf" moves on and the release-numbered filename then 404s
     bulk_file_url = (
-        "https://ftp.ensembl.org/pub/current_gtf/homo_sapiens/Homo_sapiens.GRCh38.115.chr.gtf.gz"
+        "https://ftp.ensembl.org/pub/release-115/gtf/homo_sapiens/"
+        "Homo_sapiens.GRCh38.115.chr.gtf.gz"
     )
     bulk_cache_ttl_hours = 168  # 7 days
     bulk_file_format = "gtf.gz"
@@ -79,7 +81,7 @@ class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     # MANE summary file for Ensembl→RefSeq transcript mapping
     mane_file_url = (
         "https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/"
-        "current/MANE.GRCh38.v1.5.summary.txt.gz"
+        "release_1.5/MANE.GRCh38.v1.5.summary.txt.gz"
     )
 
     # Batch size for fetch_batch (dict lookups, so can be large)
@@ -388,6 +390,15 @@ class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
         """
         if self._bulk_data is not None and self._mane_data is not None and not force:
             return
+        if self._bulk_load_error is not None and not force:
+            raise self._bulk_load_error  # fail once per run, not once per gene
+        try:
+            await self._load_gtf_and_mane(force)
+        except Exception as e:
+            self._bulk_load_error = e
+            raise
+
+    async def _load_gtf_and_mane(self, force: bool) -> None:
 
         # 1. Download and parse GTF (use streaming — file is ~99 MB compressed)
         saved_url = self.bulk_file_url
