@@ -11,6 +11,7 @@ Per-job timeouts are configured using arq.worker.func() wrapper:
 See: https://arq-docs.helpmanual.io/ for ARQ documentation.
 """
 
+import asyncio
 from typing import Any
 
 from arq import Retry
@@ -18,6 +19,7 @@ from arq import Retry
 from app.core.database import get_db_context
 from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
+from app.db.safe_sql import refresh_score_views
 
 logger = get_logger(__name__)
 
@@ -85,6 +87,7 @@ async def run_pipeline_task(
             )
 
             db.commit()
+            await asyncio.to_thread(refresh_score_views, db)
             return result
 
         except Exception as e:

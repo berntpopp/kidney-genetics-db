@@ -326,6 +326,9 @@ gene_scores = ReplaceableObject(
         FROM genes g
         INNER JOIN combined_evidence_scores ces ON g.id = ces.gene_id
         GROUP BY g.id, g.approved_symbol, g.hgnc_id, ces.source_name
+    ), active_sources AS (
+        -- Computed once (#367); every percentage below divides by it
+        SELECT COUNT(DISTINCT source_name) AS n FROM combined_evidence_scores
     )
     SELECT gene_id,
            approved_symbol,
@@ -336,53 +339,37 @@ gene_scores = ReplaceableObject(
            -- Sum of scores divided by total possible sources, as percentage.
            -- Global divisor on purpose: rewards breadth across sources (#333,
            -- .planning/specs/2026-10-21-scoring-percentile-divisor.md)
-           SUM(source_score) /
-               (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
-               * 100 AS percentage_score,
+           SUM(source_score) / a.n * 100 AS percentage_score,
            -- Source breakdown
            jsonb_object_agg(source_name, ROUND(source_score::numeric, 4))
                AS source_scores,
            -- Total active sources for reference
-           (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
-               AS total_active_sources,
+           a.n AS total_active_sources,
            -- Evidence tier classification
            CASE
-               WHEN COUNT(DISTINCT source_name) >= 4 AND SUM(source_score) /
-                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
-                   * 100 >= 50
+               WHEN COUNT(DISTINCT source_name) >= 4 AND SUM(source_score) / a.n * 100 >= 50
                    THEN 'comprehensive_support'
-               WHEN COUNT(DISTINCT source_name) >= 3 AND SUM(source_score) /
-                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
-                   * 100 >= 35
+               WHEN COUNT(DISTINCT source_name) >= 3 AND SUM(source_score) / a.n * 100 >= 35
                    THEN 'multi_source_support'
-               WHEN COUNT(DISTINCT source_name) >= 2 AND SUM(source_score) /
-                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
-                   * 100 >= 20
+               WHEN COUNT(DISTINCT source_name) >= 2 AND SUM(source_score) / a.n * 100 >= 20
                    THEN 'established_support'
-               WHEN SUM(source_score) /
-                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
-                   * 100 >= 10
+               WHEN SUM(source_score) / a.n * 100 >= 10
                    THEN 'preliminary_evidence'
-               WHEN SUM(source_score) /
-                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
-                   * 100 > 0
+               WHEN SUM(source_score) / a.n * 100 > 0
                    THEN 'minimal_evidence'
                ELSE 'no_evidence'
            END AS evidence_tier,
            -- Evidence group classification
            CASE
-               WHEN COUNT(DISTINCT source_name) >= 2 AND SUM(source_score) /
-                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
-                   * 100 >= 20
+               WHEN COUNT(DISTINCT source_name) >= 2 AND SUM(source_score) / a.n * 100 >= 20
                    THEN 'well_supported'
-               WHEN SUM(source_score) /
-                   (SELECT COUNT(DISTINCT source_name) FROM combined_evidence_scores)
-                   * 100 > 0
+               WHEN SUM(source_score) / a.n * 100 > 0
                    THEN 'emerging_evidence'
                ELSE 'insufficient'
            END AS evidence_group
     FROM source_scores_per_gene
-    GROUP BY gene_id, approved_symbol, hgnc_id
+    CROSS JOIN active_sources a
+    GROUP BY gene_id, approved_symbol, hgnc_id, a.n
     """,
     dependencies=["combined_evidence_scores"],
 )

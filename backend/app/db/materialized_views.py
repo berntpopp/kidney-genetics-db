@@ -80,7 +80,7 @@ class MaterializedViewManager:
             GROUP BY e1.source_name, e2.source_name, st1.total, st2.total
             """,
             indexes=[
-                "CREATE INDEX idx_source_overlap_sources ON source_overlap_statistics(source1, source2)",
+                "CREATE UNIQUE INDEX idx_source_overlap_sources ON source_overlap_statistics(source1, source2)",
             ],
             dependencies=set(),
             refresh_strategy=RefreshStrategy.CONCURRENT,

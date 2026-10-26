@@ -146,65 +146,6 @@ async def create_database_views(db: Session) -> None:
         else:
             await logger.info("All required views already exist")
 
-        # Check for and create gene_annotations_summary materialized view separately
-        # This is a materialized view, not a regular view
-        try:
-            result = db.execute(
-                text("""
-                SELECT EXISTS (
-                    SELECT 1 FROM pg_matviews
-                    WHERE matviewname = 'gene_annotations_summary'
-                )
-            """)
-            )
-            has_summary = result.scalar()
-        except Exception as e:
-            # If the query fails, rollback and set has_summary to True to skip creation
-            db.rollback()
-            await logger.warning(
-                "Could not check for gene_annotations_summary materialized view",
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            has_summary = True  # Assume it exists to prevent further errors
-
-        if not has_summary:
-            try:
-                db.execute(
-                    text("""
-                    CREATE MATERIALIZED VIEW IF NOT EXISTS gene_annotations_summary AS
-                    SELECT
-                        g.id as gene_id,
-                        g.approved_symbol,
-                        g.hgnc_id,
-                        ga_hgnc.annotations->>'ncbi_gene_id' as ncbi_gene_id,
-                        ga_hgnc.annotations->>'ensembl_gene_id' as ensembl_gene_id,
-                        ga_hgnc.annotations->>'mane_select' as mane_select_transcript,
-                        (ga_gnomad.annotations->>'pLI')::float as pli,
-                        (ga_gnomad.annotations->>'oe_lof')::float as oe_lof,
-                        (ga_gnomad.annotations->>'oe_lof_upper')::float as oe_lof_upper,
-                        (ga_gnomad.annotations->>'oe_lof_lower')::float as oe_lof_lower,
-                        (ga_gnomad.annotations->>'lof_z')::float as lof_z,
-                        (ga_gnomad.annotations->>'mis_z')::float as mis_z,
-                        (ga_gnomad.annotations->>'syn_z')::float as syn_z,
-                        (ga_gnomad.annotations->>'oe_mis')::float as oe_mis,
-                        (ga_gnomad.annotations->>'oe_syn')::float as oe_syn
-                    FROM genes g
-                    LEFT JOIN gene_annotations ga_hgnc ON g.id = ga_hgnc.gene_id AND ga_hgnc.source = 'hgnc'
-                    LEFT JOIN gene_annotations ga_gnomad ON g.id = ga_gnomad.gene_id AND ga_gnomad.source = 'gnomad'
-                """)
-                )
-                db.commit()
-                await logger.info("Created gene_annotations_summary materialized view")
-            except Exception as e:
-                # Rollback on failure
-                db.rollback()
-                await logger.warning(
-                    "Could not create gene_annotations_summary materialized view",
-                    error=str(e),
-                    error_type=type(e).__name__,
-                )
-
     except Exception as e:
         # Rollback any pending transaction
         db.rollback()
