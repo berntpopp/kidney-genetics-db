@@ -128,12 +128,6 @@ class TestClinGenConfig:
         assert config["priority"] == 3
         assert config["cache_ttl"] == 86400  # 24 hours
 
-    def test_clingen_affiliate_ids(self):
-        """Verify kidney affiliate IDs are preserved."""
-        config = get_source_config("ClinGen")
-        expected_ids = [40066, 40068, 40067, 40069, 40070]
-        assert config["kidney_affiliate_ids"] == expected_ids
-
     def test_clingen_api_urls(self):
         """Verify ClinGen API URLs."""
         config = get_source_config("ClinGen")
@@ -348,7 +342,3 @@ class TestBackwardCompatibility:
 
         # Panel IDs must be exact
         assert get_source_parameter("PanelApp", "uk_panels") == [384, 539]
-
-        # Affiliate IDs must be exact
-        clingen_ids = get_source_parameter("ClinGen", "kidney_affiliate_ids")
-        assert clingen_ids == [40066, 40068, 40067, 40069, 40070]

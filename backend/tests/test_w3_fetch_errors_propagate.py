@@ -66,14 +66,12 @@ async def test_panelapp_panel_detail_error_raises():
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_clingen_affiliate_error_raises():
-    cache = _cache()
+async def test_clingen_csv_error_raises():
     source = ClinGenUnifiedSource(
-        cache_service=cache,
+        cache_service=_cache(),
         http_client=MagicMock(get=AsyncMock(return_value=_response(503, {}))),
         retry_strategy=RetryStrategy(max_retries=0),
     )
 
     with pytest.raises(httpx.HTTPStatusError):
-        await source._fetch_per_panel_api()
-    cache.set.assert_not_called()
+        await source.fetch_raw_data()

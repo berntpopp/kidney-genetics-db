@@ -74,13 +74,6 @@ datasources:
       Refuted: 0.0
       No Evidence: 0.0
       No Known Disease Relationship: 0.0
-    # Kidney-specific affiliate/expert panel IDs
-    kidney_affiliate_ids:
-      - 40066  # Kidney Cystic and Ciliopathy Disorders
-      - 40068  # Glomerulopathy
-      - 40067  # Tubulopathy
-      - 40069  # Complement-Mediated Kidney Diseases
-      - 40070  # Congenital Anomalies of the Kidney and Urinary Tract
     # Cache settings
     cache_ttl: 86400  # 24 hours - stable classification data
 
