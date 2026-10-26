@@ -191,6 +191,14 @@ class DescartesAnnotationSource(BaseAnnotationSource):
             # Parse CSV data (httpx handles decompression automatically)
             self._tpm_data = self._parse_csv(tpm_response.text)
             self._percentage_data = self._parse_csv(percentage_response.text)
+            if not self._tpm_data or not self._percentage_data:
+                # e.g. a CloudFront challenge page: never cache it for 90 days
+                logger.sync_error(
+                    "Descartes download parsed to 0 genes, not caching it",
+                    tpm_genes=len(self._tpm_data),
+                    percentage_genes=len(self._percentage_data),
+                )
+                return
             self._last_fetch = datetime.utcnow()
 
             logger.sync_info(
