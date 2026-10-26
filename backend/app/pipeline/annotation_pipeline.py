@@ -858,8 +858,14 @@ class AnnotationPipeline:
                     operation=f"Writing {source_name}: {len(batch_data)} annotations (bulk)",
                 )
 
-            upsert_count = self._bulk_upsert_annotations_with_session(
-                source_name, source.version, batch_data, source_db
+            # JSON-encoding and inserting thousands of rows must not block the event loop (#363);
+            # source_db is only used by this coroutine, which waits for the thread.
+            upsert_count = await asyncio.to_thread(
+                self._bulk_upsert_annotations_with_session,
+                source_name,
+                source.version,
+                batch_data,
+                source_db,
             )
             successful = upsert_count
             log_resource_checkpoint(
