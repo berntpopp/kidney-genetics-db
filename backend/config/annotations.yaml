@@ -176,3 +176,20 @@ annotations:
     use_http_cache: true
     circuit_breaker_threshold: 5
     batch_size: 100  # UniProt OR query hard limit: 100 conditions
+
+  mondo:
+    display_name: MONDO
+    description: MONDO disease IDs mapped from HPO/GenCC/ClinGen disease IDs (SSSOM skos:exactMatch only)
+    base_url: https://mondo.monarchinitiative.org
+    update_frequency: weekly
+    is_active: true
+    priority: 5
+    max_retries: 3
+    cache_ttl_days: 7
+    circuit_breaker_threshold: 3
+    # Pinned MONDO release (#28); the SSSOM is a repo file (not a release asset), pinned by the
+    # commit tag v2026-10-06 points to.
+    # A cached or downloaded file with another hash is deleted and the run fails.
+    mondo_release: "2026-10-06"
+    sssom_url: https://raw.githubusercontent.com/monarch-initiative/mondo/9bfccbe9217cdfa6a225058bfa6e4bd55512b432/src/ontology/mappings/mondo.sssom.tsv
+    sssom_sha256: ec15afdb32fab3d3cb679d357e25ef4fb38b5e2c468ff4ac5456da10e2f6c80b

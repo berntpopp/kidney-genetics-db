@@ -28,6 +28,7 @@ from app.pipeline.sources.annotations.gnomad import GnomADAnnotationSource
 from app.pipeline.sources.annotations.gtex import GTExAnnotationSource
 from app.pipeline.sources.annotations.hgnc import HGNCAnnotationSource
 from app.pipeline.sources.annotations.hpo import HPOAnnotationSource
+from app.pipeline.sources.annotations.mondo import MondoAnnotationSource
 from app.pipeline.sources.annotations.mpo_mgi import MPOMGIAnnotationSource
 from app.pipeline.sources.annotations.string_ppi import StringPPIAnnotationSource
 from app.pipeline.sources.annotations.uniprot import UniProtAnnotationSource
@@ -90,6 +91,7 @@ class AnnotationPipeline:
             "clinvar": ClinVarAnnotationSource,
             "ensembl": EnsemblAnnotationSource,
             "uniprot": UniProtAnnotationSource,
+            "mondo": MondoAnnotationSource,  # reads stored HPO annotations + GenCC/ClinGen evidence
         }
 
     async def run_update(
@@ -221,36 +223,44 @@ class AnnotationPipeline:
             # Extract gene IDs upfront to avoid session conflicts in parallel processing
             gene_ids_to_update = [g.id for g in genes_to_update]
 
+            async def run_alone(name: str) -> bool:
+                """Run one source on its own session; True when it succeeded."""
+                source_db = SessionLocal(expire_on_commit=False)
+                try:
+                    source_db.execute(text("SET idle_in_transaction_session_timeout = 0"))
+                    source_db.commit()
+                    results[name] = await self._update_source_with_session(
+                        name, gene_ids_to_update, force, source_db
+                    )
+                    sources_completed.append(name)
+                    return True
+                except Exception as e:
+                    source_db.rollback()
+                    logger.sync_error(f"{name} update failed: {e}")
+                    errors.append({"source": name, "error": str(e), "critical": name == "hgnc"})
+                    return False
+                finally:
+                    _close_pipeline_session(source_db)
+
             # Phase 1: HGNC must complete first (provides Ensembl IDs)
             log_resource_checkpoint("pipeline.phase1_start")
             if "hgnc" in sources_to_update:
                 logger.sync_info("Processing HGNC first (dependency for other sources)")
-                hgnc_db = SessionLocal(expire_on_commit=False)
-                try:
-                    hgnc_db.execute(text("SET idle_in_transaction_session_timeout = 0"))
-                    hgnc_db.commit()
-                    hgnc_results = await self._update_source_with_session(
-                        "hgnc", gene_ids_to_update, force, hgnc_db
-                    )
-                    results["hgnc"] = hgnc_results
-                    sources_completed.append("hgnc")
+                if await run_alone("hgnc"):
                     sources_to_update.remove("hgnc")
-                except Exception as e:
-                    hgnc_db.rollback()
-                    logger.sync_error(f"HGNC update failed - critical dependency: {e}")
-                    errors.append({"source": "hgnc", "error": str(e), "critical": True})
-                finally:
-                    _close_pipeline_session(hgnc_db)
                 log_resource_checkpoint("pipeline.phase1_hgnc_done")
 
-            # Phase 2: Process remaining sources in parallel
-            if sources_to_update:
-                logger.sync_info(f"Processing {len(sources_to_update)} sources in parallel")
+            # MONDO maps the disease IDs other sources store (HPO), so it runs last (#28)
+            run_last = [s for s in ("mondo",) if s in sources_to_update]
+            sources_to_update = [s for s in sources_to_update if s not in run_last]
 
+            # Phase 2: Process remaining sources in parallel
+            if sources_to_update or run_last:
+                logger.sync_info(f"Processing {len(sources_to_update)} sources in parallel")
                 # Save checkpoint before parallel processing
                 await self._save_checkpoint(
                     {
-                        "sources_remaining": sources_to_update,
+                        "sources_remaining": sources_to_update + run_last,
                         "sources_completed": sources_completed,
                         "gene_ids": gene_ids_to_update,
                         "strategy": strategy.value,
@@ -267,6 +277,10 @@ class AnnotationPipeline:
                     else:
                         results[source_name] = result
                         sources_completed.append(source_name)
+
+            # Phase 3: sources that read other sources' stored annotations
+            for name in run_last:
+                await run_alone(name)
 
             # Refresh materialized view ONCE after all sources complete
             if results:

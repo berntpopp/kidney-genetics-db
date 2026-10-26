@@ -754,7 +754,8 @@ const sourceFilterOptions = computed(() => {
     'descartes',
     'mpo_mgi',
     'ensembl',
-    'uniprot'
+    'uniprot',
+    'mondo'
   ]
   return sources.map(source => ({ title: source.toUpperCase(), value: source }))
 })
