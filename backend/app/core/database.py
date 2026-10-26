@@ -5,6 +5,7 @@ OPTIMIZED: Includes robust connection management and pool monitoring
 
 import asyncio
 import atexit
+import logging
 import threading
 from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor
@@ -22,6 +23,7 @@ from app.core.config import settings
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+_pool_logger = logging.getLogger(__name__)
 
 # Singleton thread pool for database operations
 # CRITICAL: Prevents resource exhaustion by reusing single pool
@@ -225,8 +227,10 @@ connection_stats = {
 def increment_connect(dbapi_conn: Any, connection_record: Any) -> None:
     """Track new connections created"""
     connection_stats["connections_created"] += 1
-    logger.sync_debug(
-        "New database connection created", total_connections=connection_stats["connections_created"]
+    # Console only: the unified logger writes to the DB, which opens a connection, which
+    # fires this hook again (an endless chain under NullPool).
+    _pool_logger.debug(
+        "New database connection created (total %d)", connection_stats["connections_created"]
     )
 
 
