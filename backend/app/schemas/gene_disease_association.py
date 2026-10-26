@@ -17,7 +17,7 @@ EvidenceStrength = Literal["Definitive", "Strong", "Moderate", "Limited", "Dispu
 AssociationStatus = Literal["draft", "in_review", "published"]
 
 _DISEASE_ID = re.compile(r"^(MONDO:\d{7}|OMIM:\d{6})$")
-_PMID = re.compile(r"^(?:PMID:)?(\d{1,9})$")
+_PMID = re.compile(r"^(?:PMID:)?0*([1-9]\d{0,8})$")  # no PMID 0, no zero-padded duplicates
 
 
 def _disease_id(value: str) -> str:
@@ -74,6 +74,12 @@ class AssociationUpdate(BaseModel):
             if getattr(self, name) is None:
                 raise ValueError(f"{name} must not be null")
         return self
+
+
+class ReviewDecision(BaseModel):
+    """The version the reviewer looked at; a record changed since then answers 409."""
+
+    expected_updated_at: datetime
 
 
 class AssociationResponse(BaseModel):

@@ -2153,6 +2153,21 @@
         "title": "RestoreBackupRequest",
         "type": "object"
       },
+      "ReviewDecision": {
+        "description": "The version the reviewer looked at; a record changed since then answers 409.",
+        "properties": {
+          "expected_updated_at": {
+            "format": "date-time",
+            "title": "Expected Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_updated_at"
+        ],
+        "title": "ReviewDecision",
+        "type": "object"
+      },
       "SettingCategory": {
         "description": "Setting category enum",
         "enum": [
@@ -2188,11 +2203,15 @@
           },
           "approved_symbol": {
             "description": "Manually corrected gene symbol",
+            "maxLength": 50,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._@#-]*$",
             "title": "Approved Symbol",
             "type": "string"
           },
           "hgnc_id": {
             "description": "HGNC ID for the gene",
+            "pattern": "^HGNC:\\d+$",
             "title": "Hgnc Id",
             "type": "string"
           },
@@ -5400,7 +5419,7 @@
     },
     "/api/auth/forgot-password": {
       "post": {
-        "description": "Request password reset token.\nAlways returns success to prevent email enumeration.",
+        "description": "Email a one-hour password-reset link.\nAlways returns the same message, sent after the response, to prevent email enumeration.",
         "operationId": "forgot_password_api_auth_forgot_password_post",
         "requestBody": {
           "content": {
@@ -5490,7 +5509,7 @@
     },
     "/api/auth/logout": {
       "post": {
-        "description": "Logout current user (invalidate refresh token).",
+        "description": "Logout current user (invalidate refresh token and clear its cookie).",
         "operationId": "logout_api_auth_logout_post",
         "responses": {
           "200": {
@@ -6142,6 +6161,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewDecision"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -6189,6 +6218,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewDecision"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -8339,6 +8378,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Get Normalization Logs",
         "tags": [
           "Pipeline - Staging"
@@ -8423,6 +8467,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Get Pending Reviews",
         "tags": [
           "Pipeline - Staging"

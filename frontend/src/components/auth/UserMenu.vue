@@ -13,7 +13,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CircleUser, ShieldEllipsis, LogOut, ChevronDown } from 'lucide-vue-next'
+import { CircleUser, ShieldEllipsis, LogOut, ChevronDown, ListChecks } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -37,6 +37,10 @@ const goToProfile = () => {
 
 const goToAdminPanel = () => {
   router.push('/admin')
+}
+
+const goToStaging = () => {
+  router.push('/admin/staging')
 }
 
 const handleLogout = async () => {
@@ -69,6 +73,10 @@ const handleLogout = async () => {
       <DropdownMenuItem @click="goToProfile">
         <CircleUser class="mr-2 size-4" />
         My Profile
+      </DropdownMenuItem>
+      <DropdownMenuItem v-if="authStore.isCurator && !authStore.isAdmin" @click="goToStaging">
+        <ListChecks class="mr-2 size-4" />
+        Gene Staging
       </DropdownMenuItem>
       <DropdownMenuItem v-if="authStore.isAdmin" @click="goToAdminPanel">
         <ShieldEllipsis class="mr-2 size-4" />

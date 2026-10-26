@@ -101,60 +101,24 @@
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form @submit.prevent="saveAccount">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div class="space-y-2">
-                  <Label for="username">Username</Label>
-                  <Input
-                    id="username"
-                    v-model="accountData.username"
-                    :disabled="!editingAccount"
-                    placeholder="Username"
-                  />
-                </div>
-                <div class="space-y-2">
-                  <Label for="email">Email</Label>
-                  <Input
-                    id="email"
-                    v-model="accountData.email"
-                    type="email"
-                    :disabled="!editingAccount"
-                    placeholder="Email"
-                  />
-                </div>
-                <div class="space-y-2 md:col-span-2">
-                  <Label for="full_name">Full Name</Label>
-                  <Input
-                    id="full_name"
-                    v-model="accountData.full_name"
-                    :disabled="!editingAccount"
-                    placeholder="Full Name"
-                  />
-                </div>
+            <!-- Read-only: there is no self-service profile endpoint; admins edit users (#374) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div class="space-y-2">
+                <Label for="username">Username</Label>
+                <Input id="username" :model-value="accountData.username" disabled />
               </div>
-
-              <Alert
-                v-if="accountSuccess"
-                class="mb-4 border-green-500 bg-green-50 dark:bg-green-950"
-              >
-                <AlertDescription>{{ accountSuccess }}</AlertDescription>
-              </Alert>
-              <Alert v-if="accountError" variant="destructive" class="mb-4">
-                <AlertDescription>{{ accountError }}</AlertDescription>
-              </Alert>
-
-              <div class="flex justify-end gap-2">
-                <Button v-if="!editingAccount" variant="outline" @click="startEditAccount">
-                  Edit
-                </Button>
-                <template v-else>
-                  <Button variant="ghost" @click="cancelEditAccount">Cancel</Button>
-                  <Button type="submit" :disabled="accountLoading">
-                    {{ accountLoading ? 'Saving...' : 'Save Changes' }}
-                  </Button>
-                </template>
+              <div class="space-y-2">
+                <Label for="email">Email</Label>
+                <Input id="email" :model-value="accountData.email" type="email" disabled />
               </div>
-            </form>
+              <div class="space-y-2 md:col-span-2">
+                <Label for="full_name">Full Name</Label>
+                <Input id="full_name" :model-value="accountData.full_name" disabled />
+              </div>
+            </div>
+            <p class="text-sm text-muted-foreground">
+              To change your name or email, ask an administrator.
+            </p>
           </CardContent>
         </Card>
 
@@ -295,14 +259,10 @@ onMounted(() => {
   if (authStore.user) {
     accountData.username = authStore.user.username || ''
     accountData.email = authStore.user.email || ''
-    accountData.full_name = (authStore.user as Record<string, string>).full_name || ''
+    accountData.full_name = (authStore.user as { full_name?: string }).full_name || ''
   }
 })
 
-const editingAccount = ref(false)
-const accountLoading = ref(false)
-const accountSuccess = ref('')
-const accountError = ref('')
 const accountData = reactive({ username: '', email: '', full_name: '' })
 
 const passwordLoading = ref(false)
@@ -327,48 +287,6 @@ const formatDate = (dateString: string | undefined | null) => {
   if (!dateString) return 'Never'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-}
-
-const startEditAccount = () => {
-  accountData.username = authStore.user?.username || ''
-  accountData.email = authStore.user?.email || ''
-  accountData.full_name = (authStore.user as Record<string, string>)?.full_name || ''
-  editingAccount.value = true
-  accountSuccess.value = ''
-  accountError.value = ''
-}
-
-const cancelEditAccount = () => {
-  editingAccount.value = false
-}
-
-const saveAccount = async () => {
-  if (!accountData.username) {
-    accountError.value = 'Username is required'
-    return
-  }
-  if (!accountData.email || !accountData.email.includes('@')) {
-    accountError.value = 'Valid email is required'
-    return
-  }
-
-  accountLoading.value = true
-  accountError.value = ''
-  accountSuccess.value = ''
-
-  try {
-    // TODO: Implement API call to update user profile
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    accountSuccess.value = 'Profile updated successfully!'
-    editingAccount.value = false
-
-    authStore.user = { ...authStore.user, ...accountData } as typeof authStore.user
-  } catch (error) {
-    accountError.value = (error as Error).message || 'Failed to update profile'
-  } finally {
-    accountLoading.value = false
-  }
 }
 
 // Mark the invalid field and move focus to it so screen readers announce the error (#327)

@@ -8,6 +8,8 @@ from typing import Any
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import ResourceConflictError, ValidationError
+from app.models.gene import Gene
 from app.models.gene_staging import GeneNormalizationLog, GeneNormalizationStaging
 
 
@@ -82,6 +84,21 @@ class GeneNormalizationStagingCRUD:
         )
         return result
 
+    @staticmethod
+    def _pending(db: Session, staging_id: int) -> GeneNormalizationStaging:
+        """The record to decide on, locked; only a pending one can be decided (#375)."""
+        record: GeneNormalizationStaging | None = (
+            db.query(GeneNormalizationStaging)
+            .filter(GeneNormalizationStaging.id == staging_id)
+            .with_for_update()
+            .first()
+        )
+        if not record:
+            raise ValueError(f"Staging record {staging_id} not found")
+        if record.status != "pending_review":
+            raise ResourceConflictError("Staging record", f"status is '{record.status}'")
+        return record
+
     def approve_staging_record(
         self,
         db: Session,
@@ -93,15 +110,12 @@ class GeneNormalizationStagingCRUD:
         notes: str | None = None,
     ) -> GeneNormalizationStaging:
         """Approve a staging record with manual corrections"""
-
-        staging_record: GeneNormalizationStaging | None = (
-            db.query(GeneNormalizationStaging)
-            .filter(GeneNormalizationStaging.id == staging_id)
-            .first()
-        )
-
-        if not staging_record:
-            raise ValueError(f"Staging record {staging_id} not found")
+        staging_record = self._pending(db, staging_id)
+        known = db.query(Gene.approved_symbol).filter(Gene.hgnc_id == hgnc_id).scalar()
+        if known is not None and known != approved_symbol:
+            raise ValidationError(
+                field="hgnc_id", reason=f"{hgnc_id} is {known}, not {approved_symbol}"
+            )
 
         staging_record.status = "approved"
         staging_record.reviewed_by = reviewer
@@ -122,15 +136,7 @@ class GeneNormalizationStagingCRUD:
         self, db: Session, staging_id: int, reviewer: str = "system", notes: str | None = None
     ) -> GeneNormalizationStaging:
         """Reject a staging record (not a valid gene)"""
-
-        staging_record: GeneNormalizationStaging | None = (
-            db.query(GeneNormalizationStaging)
-            .filter(GeneNormalizationStaging.id == staging_id)
-            .first()
-        )
-
-        if not staging_record:
-            raise ValueError(f"Staging record {staging_id} not found")
+        staging_record = self._pending(db, staging_id)
 
         staging_record.status = "rejected"
         staging_record.reviewed_by = reviewer

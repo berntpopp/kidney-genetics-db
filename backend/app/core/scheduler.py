@@ -7,6 +7,7 @@ from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
+from app.core.config import settings
 from app.core.database import SessionLocal
 from app.core.logging import get_logger
 from app.pipeline.annotation_pipeline import AnnotationPipeline, UpdateStrategy
@@ -27,7 +28,11 @@ class AnnotationScheduler:
         self.is_running = False
 
     def start(self) -> None:
-        """Start the scheduler."""
+        """Start the scheduler; AUTO_UPDATE_ENABLED=false keeps the cron jobs off too."""
+        if not settings.AUTO_UPDATE_ENABLED:
+            # A test or dev copy must not start annotation runs against live APIs at 02:00
+            logger.sync_info("Annotation scheduler disabled (AUTO_UPDATE_ENABLED=false)")
+            return
         if not self.is_running:
             # Schedule daily incremental updates at 2 AM
             self.scheduler.add_job(

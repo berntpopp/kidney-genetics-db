@@ -246,18 +246,29 @@
           </div>
 
           <div class="space-y-2">
-            <Label>Correct HGNC Gene Symbol *</Label>
-            <Input v-model="approveForm.approved_symbol" placeholder="e.g., PKD1, BRCA1, WT1" />
+            <Label for="approve-symbol">Correct HGNC Gene Symbol *</Label>
+            <Input
+              id="approve-symbol"
+              v-model="approveForm.approved_symbol"
+              placeholder="e.g., PKD1, BRCA1, WT1"
+            />
             <p class="text-xs text-muted-foreground">
               Enter the official HGNC gene symbol (usually all caps)
             </p>
           </div>
 
           <div class="space-y-2">
-            <Label>HGNC ID (if known)</Label>
-            <Input v-model="approveForm.hgnc_id" placeholder="e.g., HGNC:1234" />
+            <Label for="approve-hgnc">HGNC ID *</Label>
+            <Input id="approve-hgnc" v-model="approveForm.hgnc_id" placeholder="e.g., HGNC:9008" />
             <p class="text-xs text-muted-foreground">
-              Optional - system will look this up if not provided
+              Required: the pipeline uses this pair as-is. Look it up on
+              <a
+                href="https://www.genenames.org/tools/search/"
+                target="_blank"
+                rel="noopener"
+                class="underline"
+                >genenames.org</a
+              >.
             </p>
           </div>
 
@@ -278,7 +289,11 @@
             Cancel
           </Button>
           <Button
-            :disabled="actionLoading || !approveForm.approved_symbol?.trim()"
+            :disabled="
+              actionLoading ||
+              !approveForm.approved_symbol?.trim() ||
+              !/^HGNC:\d+$/.test(approveForm.hgnc_id.trim())
+            "
             @click="confirmApprove"
           >
             <CircleCheck class="size-4 mr-1" />
@@ -600,13 +615,13 @@ const showItemDetails = item => {
 }
 
 const confirmApprove = async () => {
-  if (!selectedItem.value || !approveForm.approved_symbol) return
+  if (!selectedItem.value || !approveForm.approved_symbol || !approveForm.hgnc_id) return
 
   actionLoading.value = true
   try {
     await stagingApi.approveStaging(selectedItem.value.id, {
-      approved_symbol: approveForm.approved_symbol,
-      hgnc_id: approveForm.hgnc_id || null,
+      approved_symbol: approveForm.approved_symbol.trim(),
+      hgnc_id: approveForm.hgnc_id.trim(),
       notes: approveForm.notes || null
     })
 
@@ -615,7 +630,12 @@ const confirmApprove = async () => {
     await loadData()
   } catch (error) {
     window.logService.error('Failed to approve staging:', error)
-    toast.error('Failed to approve gene staging', { duration: Infinity })
+    // Say why: a symbol/HGNC mismatch or an already decided record (#375)
+    const apiError = error?.response?.data?.error
+    const detail = apiError?.detail ?? apiError?.message
+    toast.error(detail ? `Not approved: ${detail}` : 'Failed to approve gene staging', {
+      duration: Infinity
+    })
   } finally {
     actionLoading.value = false
   }

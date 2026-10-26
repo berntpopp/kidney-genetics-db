@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from httpx import AsyncClient
 
+from app.core.security import hash_reset_token
 from tests.fixtures.auth import get_or_create_user
 
 PASSWORD = "Synthetic-Old-Pw-3Lk!"
@@ -53,7 +54,7 @@ async def test_reset_password_revokes_refresh_token(
     _, refresh = await _login(async_client, user.username)
     assert await _refresh_status(async_client, refresh) == 200
 
-    user.password_reset_token = "synthetic-reset-token-290"
+    user.password_reset_token = hash_reset_token("synthetic-reset-token-290")
     user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
     db_session.commit()
     resp = await async_client.post(

@@ -97,7 +97,31 @@ describe('CuratedAssociations', () => {
     const w = await mountAs('curator')
     await w.find('[data-testid="wf-3"]').findAll('button')[0]!.trigger('click')
     await flushPromises()
-    expect(api.transition).toHaveBeenCalledWith(3, 'publish')
+    expect(api.transition).toHaveBeenCalledWith(RECORDS[2], 'publish')
+  })
+
+  it('shows the reviewer the evidence they approve (#376)', async () => {
+    const reviewed = { ...RECORDS[2]!, evidence_summary: 'Three families', citations: ['PMID:7'] }
+    api.listWorkflow.mockResolvedValue(page([reviewed]))
+    const row = (await mountAs('curator')).find('[data-testid="wf-3"]')
+    expect(row.text()).toContain('Definitive')
+    expect(row.text()).toContain('Three families')
+    expect(row.find('a').attributes('href')).toBe('https://pubmed.ncbi.nlm.nih.gov/7/')
+  })
+
+  it('reloads the current version and keeps the error when a decision is refused', async () => {
+    api.transition.mockRejectedValue({
+      response: {
+        status: 409,
+        data: { error: { detail: 'the record changed since you loaded it' } }
+      }
+    })
+    const w = await mountAs('curator')
+    api.listWorkflow.mockClear()
+    await w.find('[data-testid="wf-3"]').findAll('button')[0]!.trigger('click')
+    await flushPromises()
+    expect(api.listWorkflow).toHaveBeenCalled()
+    expect(w.find('[role="alert"]').text()).toContain('changed since you loaded it')
   })
 
   it('says when a list is truncated at the server maximum', async () => {

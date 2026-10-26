@@ -90,7 +90,7 @@ const onSubmit = handleSubmit(
               v-if="submitted"
               class="rounded-md border border-green-500/50 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400"
             >
-              Password reset instructions have been sent to your email.
+              If an account uses this address, a reset link is on its way. It is valid for one hour.
             </div>
 
             <div

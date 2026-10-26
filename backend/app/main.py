@@ -101,7 +101,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     manager = get_connection_manager()
     task_manager.set_broadcast_callback(manager.broadcast)
 
-    # Start annotation scheduler (cron-based maintenance updates)
+    # Start annotation scheduler (cron-based maintenance updates; off with AUTO_UPDATE_ENABLED=false)
     logger.sync_info("Starting annotation scheduler...")
     from app.core.scheduler import annotation_scheduler
 

@@ -18,6 +18,7 @@ from app.schemas.gene_disease_association import (
     AssociationResponse,
     AssociationStatus,
     AssociationUpdate,
+    ReviewDecision,
 )
 from app.services import gene_disease_association_service as service
 
@@ -89,13 +90,19 @@ def submit_association(
 
 @router.post("/{record_id}/publish", response_model=AssociationResponse)
 def publish_association(
-    record_id: int, db: Session = Depends(get_db), user: User = Depends(require_curator)
+    record_id: int,
+    decision: ReviewDecision,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_curator),
 ) -> dict[str, Any]:
-    return service.to_response(service.publish(db, record_id, user))
+    return service.to_response(service.publish(db, record_id, decision, user))
 
 
 @router.post("/{record_id}/return-to-draft", response_model=AssociationResponse)
 def return_association_to_draft(
-    record_id: int, db: Session = Depends(get_db), user: User = Depends(require_curator)
+    record_id: int,
+    decision: ReviewDecision,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_curator),
 ) -> dict[str, Any]:
-    return service.to_response(service.return_to_draft(db, record_id, user))
+    return service.to_response(service.return_to_draft(db, record_id, decision, user))

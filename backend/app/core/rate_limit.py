@@ -20,14 +20,12 @@ logger = get_logger(__name__)
 
 
 def _get_real_ip(request: Request) -> str:
-    """Get real client IP, respecting X-Forwarded-For behind reverse proxy."""
-    forwarded: str | None = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        # First IP in the chain is the real client
-        ip: str = forwarded.split(",")[0].strip()
-        return ip
-    result: str = get_remote_address(request)
-    return result
+    """Client IP from our nginx's X-Real-IP, else the direct peer.
+
+    Never the left end of X-Forwarded-For: clients write it, so it let anyone rotate
+    their rate-limit key (#374). nginx.prod.conf resolves the address behind NPM.
+    """
+    return request.headers.get("X-Real-IP") or str(get_remote_address(request))
 
 
 def _get_rate_limit_key(request: Request) -> str:

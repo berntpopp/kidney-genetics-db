@@ -2,6 +2,8 @@
 Configuration settings for the application
 """
 
+from typing import Literal
+
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -18,7 +20,7 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "Kidney Genetics API"
-    APP_VERSION: str = "0.12.1"
+    APP_VERSION: str = "0.13.0"
     DEBUG: bool = False
     SITE_URL: str = "https://kidney-genetics.org"
 
@@ -48,6 +50,14 @@ class Settings(BaseSettings):
     ADMIN_EMAIL: str = "admin@kidney-genetics.local"
     ADMIN_PASSWORD: SecretStr
     ADMIN_FORCE_PASSWORD_RESET: bool = False  # Set True to update admin password on next restart
+
+    # Email (SMTP) for password-reset links; no SMTP_HOST means reset by email is off
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_SECURITY: Literal["starttls", "ssl", "none"] = "starttls"
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: SecretStr | None = None
+    SMTP_FROM: str = "Kidney-Genetics <noreply@kidney-genetics.org>"
 
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = [

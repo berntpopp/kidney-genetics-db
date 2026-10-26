@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.dependencies import require_curator
-from app.core.exceptions import DatabaseError, ValidationError
+from app.core.exceptions import ValidationError
 from app.crud.gene_staging import log_crud, staging_crud
 from app.models.user import User
 from app.schemas.gene_staging import (
@@ -28,6 +28,7 @@ router = APIRouter()
 async def get_pending_reviews(
     *,
     db: Session = Depends(get_db),
+    _: User = Depends(require_curator),  # raw gene texts and source context (#374)
     limit: int = Query(default=50, le=200, description="Maximum number of records to return"),
     source_filter: str = Query(default=None, description="Filter by data source"),
 ) -> list[GeneNormalizationStagingResponse]:
@@ -86,8 +87,6 @@ async def approve_staging_record(
 
     except ValueError as e:
         raise ValidationError(field="staging_id", reason=str(e)) from e
-    except Exception as e:
-        raise DatabaseError("approve_staging_record", f"Error approving staging record: {e}") from e
 
 
 @router.post("/staging/{staging_id}/reject")
@@ -117,8 +116,6 @@ async def reject_staging_record(
 
     except ValueError as e:
         raise ValidationError(field="staging_id", reason=str(e)) from e
-    except Exception as e:
-        raise DatabaseError("reject_staging_record", f"Error rejecting staging record: {e}") from e
 
 
 @router.get("/staging/stats", response_model=StagingStatsResponse)
@@ -155,6 +152,7 @@ async def get_normalization_stats(*, db: Session = Depends(get_db)) -> Normaliza
 async def get_normalization_logs(
     *,
     db: Session = Depends(get_db),
+    _: User = Depends(require_curator),  # raw gene texts and source context (#374)
     limit: int = Query(default=100, le=500, description="Maximum number of logs to return"),
     source_filter: str = Query(default=None, description="Filter by data source"),
     success_filter: bool = Query(default=None, description="Filter by success status"),

@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from app.core.exceptions import ResourceConflictError
 from app.core.security import create_access_token
 from app.models.gene import Gene
+from app.models.gene_disease_association import GeneDiseaseAssociationEvent
 from app.models.user import User
 from app.schemas.gene_disease_association import AssociationCreate, AssociationUpdate
 from app.services import gene_disease_association_service as service
@@ -47,6 +48,11 @@ async def _create(client: AsyncClient, headers: dict, **overrides) -> dict:
     return resp.json()
 
 
+def _seen(record: dict) -> dict:
+    """The review body: the version the reviewer looked at."""
+    return {"expected_updated_at": record["updated_at"]}
+
+
 async def _public(client: AsyncClient) -> list[dict]:
     resp = await client.get(f"{URL}/", params={"gene_symbol": "gda26fake"})
     assert resp.status_code == 200, resp.text
@@ -70,13 +76,14 @@ async def test_full_workflow_and_public_visibility(async_client, db_session, gen
     resp = await async_client.post(f"{URL}/{rec['id']}/submit", headers=author)
     assert resp.status_code == 200 and resp.json()["status"] == "in_review"
     assert resp.json()["submitted_at"]
+    rec = resp.json()
     assert await _public(async_client) == []
 
     # in_review is visible to curators, not the public
     resp = await async_client.get(f"{URL}/workflow", params={"status": "in_review"}, headers=author)
     assert [r["id"] for r in resp.json()["data"] if r["gene_symbol"] == "GDA26FAKE"] == [rec["id"]]
 
-    resp = await async_client.post(f"{URL}/{rec['id']}/publish", headers=reviewer)
+    resp = await async_client.post(f"{URL}/{rec['id']}/publish", json=_seen(rec), headers=reviewer)
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["status"] == "published" and body["reviewer_id"] != body["curator_id"]
@@ -88,7 +95,9 @@ async def test_full_workflow_and_public_visibility(async_client, db_session, gen
         f"{URL}/{rec['id']}", json={"disease_name": "x"}, headers=author
     )
     assert resp.status_code == 409
-    resp = await async_client.post(f"{URL}/{rec['id']}/return-to-draft", headers=reviewer)
+    resp = await async_client.post(
+        f"{URL}/{rec['id']}/return-to-draft", json=_seen(body), headers=reviewer
+    )
     assert resp.status_code == 200 and resp.json()["status"] == "draft"
     assert resp.json()["published_at"] is None
     assert await _public(async_client) == []
@@ -100,7 +109,9 @@ async def test_self_publication_and_self_return_forbidden(async_client, db_sessi
     rec = await _create(async_client, author)
     await async_client.post(f"{URL}/{rec['id']}/submit", headers=author)
     for action in ("publish", "return-to-draft"):
-        resp = await async_client.post(f"{URL}/{rec['id']}/{action}", headers=author)
+        resp = await async_client.post(
+            f"{URL}/{rec['id']}/{action}", json=_seen(rec), headers=author
+        )
         assert resp.status_code == 403, (action, resp.text)
     assert await _public(async_client) == []
 
@@ -115,10 +126,9 @@ async def test_only_author_edits_or_submits_and_order_is_enforced(
     assert (await async_client.patch(f"{URL}/{rid}", json={}, headers=other)).status_code == 403
     assert (await async_client.post(f"{URL}/{rid}/submit", headers=other)).status_code == 403
     # Drafts cannot be published or returned
-    assert (await async_client.post(f"{URL}/{rid}/publish", headers=other)).status_code == 409
-    assert (
-        await async_client.post(f"{URL}/{rid}/return-to-draft", headers=other)
-    ).status_code == 409
+    for action in ("publish", "return-to-draft"):
+        resp = await async_client.post(f"{URL}/{rid}/{action}", json=_seen(rec), headers=other)
+        assert resp.status_code == 409, action
     assert (await async_client.post(f"{URL}/999999999/submit", headers=author)).status_code == 404
 
 
@@ -127,14 +137,15 @@ async def test_anonymous_and_viewer_cannot_write_or_see_workflow(
     async_client, db_session, gene
 ) -> None:
     viewer = _auth(db_session, "viewer", "viewer")
-    rid = (await _create(async_client, _auth(db_session, "author")))["id"]
+    rec = await _create(async_client, _auth(db_session, "author"))
+    rid = rec["id"]
     calls = [
         ("get", f"{URL}/workflow", None),
         ("post", f"{URL}/", RECORD),
         ("patch", f"{URL}/{rid}", {"disease_name": "x"}),
         ("post", f"{URL}/{rid}/submit", None),
-        ("post", f"{URL}/{rid}/publish", None),
-        ("post", f"{URL}/{rid}/return-to-draft", None),
+        ("post", f"{URL}/{rid}/publish", _seen(rec)),
+        ("post", f"{URL}/{rid}/return-to-draft", _seen(rec)),
     ]
     for method, url, body in calls:
         kwargs = {"json": body} if body is not None else {}
@@ -167,6 +178,7 @@ async def test_multiple_diseases_per_gene_but_no_duplicates(async_client, db_ses
         {"citations": []},
         {"citations": ["PMID:abc"]},
         {"citations": ["doi:10.1/x"]},
+        {"citations": ["0"]},  # no PMID 0 (#376)
         {"evidence_strength": "Very strong"},
         {"disease_name": "   "},
     ],
@@ -262,3 +274,89 @@ def test_unique_violation_on_commit_maps_to_409() -> None:
     with pytest.raises(ResourceConflictError):
         service.update(db, 5, AssociationUpdate(disease_id="OMIM:137920"), MagicMock(id=1))
     db.rollback.assert_called_once()
+
+
+@pytest.mark.integration
+async def test_zero_padded_pmids_are_one_citation(async_client, db_session, gene) -> None:
+    rec = await _create(
+        async_client, _auth(db_session, "author"), citations=["000000001", "PMID:1", "1"]
+    )
+    assert rec["citations"] == ["PMID:1"]
+
+
+@pytest.mark.integration
+async def test_reviewer_cannot_decide_on_a_version_they_did_not_see(
+    async_client, db_session, gene
+) -> None:
+    """#376: an edited and resubmitted record answers 409 to a reviewer's stale view."""
+    author, reviewer = _auth(db_session, "author"), _auth(db_session, "reviewer")
+    rid = (await _create(async_client, author))["id"]
+    seen = (await async_client.post(f"{URL}/{rid}/submit", headers=author)).json()
+
+    other = _auth(db_session, "other")
+    resp = await async_client.post(f"{URL}/{rid}/return-to-draft", json=_seen(seen), headers=other)
+    assert resp.status_code == 200
+    resp = await async_client.patch(
+        f"{URL}/{rid}", json={"evidence_strength": "Refuted"}, headers=author
+    )
+    assert resp.status_code == 200
+    current = (await async_client.post(f"{URL}/{rid}/submit", headers=author)).json()
+
+    for action in ("publish", "return-to-draft"):
+        resp = await async_client.post(f"{URL}/{rid}/{action}", json=_seen(seen), headers=reviewer)
+        assert resp.status_code == 409, (action, resp.text)
+        assert "reload" in resp.text
+    resp = await async_client.post(f"{URL}/{rid}/publish", json=_seen(current), headers=reviewer)
+    assert resp.status_code == 200 and resp.json()["evidence_strength"] == "Refuted"
+
+
+@pytest.mark.integration
+async def test_every_action_leaves_a_snapshot(async_client, db_session, gene) -> None:
+    """#376: who published which version, and who retracted it, stays answerable."""
+    author, reviewer = _auth(db_session, "author"), _auth(db_session, "reviewer")
+    rec = await _create(async_client, author)
+    rid = rec["id"]
+    await async_client.patch(f"{URL}/{rid}", json={"evidence_strength": "Strong"}, headers=author)
+    rec = (await async_client.post(f"{URL}/{rid}/submit", headers=author)).json()
+    rec = (
+        await async_client.post(f"{URL}/{rid}/publish", json=_seen(rec), headers=reviewer)
+    ).json()
+    await async_client.post(f"{URL}/{rid}/return-to-draft", json=_seen(rec), headers=reviewer)
+
+    events = (
+        db_session.query(GeneDiseaseAssociationEvent)
+        .filter_by(association_id=rid)
+        .order_by(GeneDiseaseAssociationEvent.id)
+        .all()
+    )
+    author_id, reviewer_id = rec["curator_id"], rec["reviewer_id"]
+    assert [(e.action, e.user_id, e.snapshot["status"]) for e in events] == [
+        ("create", author_id, "draft"),
+        ("update", author_id, "draft"),
+        ("submit", author_id, "in_review"),
+        ("publish", reviewer_id, "published"),
+        ("return", reviewer_id, "draft"),
+    ]
+    published = events[3].snapshot
+    assert published["evidence_strength"] == "Strong" and published["published_at"]
+
+
+@pytest.mark.integration
+async def test_deleting_an_earlier_reviewer_is_refused_with_409(
+    async_client, db_session, gene
+) -> None:
+    """Their events keep them referenced after reviewer_id moved to someone else (#376)."""
+    author, first, second = (_auth(db_session, n) for n in ("author", "first", "second"))
+    rid = (await _create(async_client, author))["id"]
+    rec = (await async_client.post(f"{URL}/{rid}/submit", headers=author)).json()
+    rec = (
+        await async_client.post(f"{URL}/{rid}/return-to-draft", json=_seen(rec), headers=first)
+    ).json()
+    rec = (await async_client.post(f"{URL}/{rid}/submit", headers=author)).json()
+    rec = (await async_client.post(f"{URL}/{rid}/publish", json=_seen(rec), headers=second)).json()
+
+    first_id = db_session.query(User).filter(User.username == "gda26_first").one().id
+    assert rec["reviewer_id"] != first_id
+    admin = _auth(db_session, "deleter", "admin")
+    resp = await async_client.delete(f"/api/auth/users/{first_id}", headers=admin)
+    assert resp.status_code == 409, resp.text
