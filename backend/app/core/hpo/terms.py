@@ -123,26 +123,20 @@ class HPOTerms(HPOAPIBase):
 
             visited.add(term_id)
 
-            try:
-                # Get children for this term
-                response = await self._get(
-                    f"hp/terms/{term_id}/children",
-                    cache_key=f"children:{term_id}",
-                    ttl=self.ttl_stable,
-                )
+            # No try/except: a failed lookup must fail the caller, not shrink the set (#365)
+            response = await self._get(
+                f"hp/terms/{term_id}/children",
+                cache_key=f"children:{term_id}",
+                ttl=self.ttl_stable,
+            )
 
-                if isinstance(response, list):
-                    for child in response:
-                        child_id = child.get("id") if isinstance(child, dict) else child
-                        if child_id and child_id not in descendants:
-                            descendants.add(child_id)
-                            # Recursively get children of children
-                            await collect_children(child_id, depth + 1)
-
-            except Exception as e:
-                logger.sync_warning(
-                    "Failed to get children for HPO term", term_id=term_id, error=str(e)
-                )
+            if isinstance(response, list):
+                for child in response:
+                    child_id = child.get("id") if isinstance(child, dict) else child
+                    if child_id and child_id not in descendants:
+                        descendants.add(child_id)
+                        # Recursively get children of children
+                        await collect_children(child_id, depth + 1)
 
         # Start recursive collection
         await collect_children(hpo_id, 0)

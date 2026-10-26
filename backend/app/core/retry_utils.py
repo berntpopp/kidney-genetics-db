@@ -62,6 +62,24 @@ class RetryConfig:
         return delay
 
 
+def _is_retryable_status(error: httpx.HTTPStatusError, config: RetryConfig) -> bool:
+    """Honour retry_on_status_codes; gnomAD signals rate limiting as 400 "rate limit" (#364)."""
+    response = error.response
+    if response.status_code in config.retry_on_status_codes:
+        return True
+    return response.status_code == 400 and "rate limit" in response.text.lower()
+
+
+def _retry_delay(error: Exception, config: RetryConfig, attempt: int) -> float:
+    """Backoff with jitter, or a 429 Retry-After capped at max_delay."""
+    if isinstance(error, httpx.HTTPStatusError) and error.response.status_code == 429:
+        try:
+            return min(float(error.response.headers.get("retry-after")), config.max_delay)
+        except (TypeError, ValueError):
+            pass
+    return config.calculate_delay(attempt)
+
+
 class CircuitBreaker:
     """
     Circuit breaker to prevent repeated calls to failing services.
@@ -161,34 +179,10 @@ def retry_with_backoff(
 
                 except config.retry_on_exceptions as e:
                     last_exception = e
-
-                    # Check if it's an HTTP status error with retryable status code
-                    if isinstance(e, httpx.HTTPStatusError):
-                        if e.response.status_code not in config.retry_on_status_codes:
-                            logger.sync_debug(
-                                f"Status code {e.response.status_code} is not retryable"
-                            )
-                            raise
-
-                        # Special handling for rate limiting
-                        if e.response.status_code == 429:
-                            # Try to parse Retry-After header
-                            retry_after = e.response.headers.get("retry-after")
-                            if retry_after:
-                                try:
-                                    delay = float(retry_after)
-                                    logger.sync_info(
-                                        "Rate limited. Waiting as requested by server",
-                                        delay_seconds=delay,
-                                    )
-                                except ValueError:
-                                    delay = config.calculate_delay(attempt)
-                            else:
-                                delay = config.calculate_delay(attempt)
-                        else:
-                            delay = config.calculate_delay(attempt)
-                    else:
-                        delay = config.calculate_delay(attempt)
+                    if isinstance(e, httpx.HTTPStatusError) and not _is_retryable_status(e, config):
+                        logger.sync_debug(f"Status code {e.response.status_code} is not retryable")
+                        raise
+                    delay = _retry_delay(e, config, attempt)
 
                     # Don't retry if this was the last attempt
                     if attempt < config.max_retries:
@@ -223,9 +217,9 @@ def retry_with_backoff(
 
                 except config.retry_on_exceptions as e:
                     last_exception = e
-
-                    # Calculate delay
-                    delay = config.calculate_delay(attempt)
+                    if isinstance(e, httpx.HTTPStatusError) and not _is_retryable_status(e, config):
+                        raise
+                    delay = _retry_delay(e, config, attempt)
 
                     # Don't retry if this was the last attempt
                     if attempt < config.max_retries:
@@ -299,9 +293,13 @@ class RetryStrategy:
                 return await func(*args, **kwargs)
             except self.config.retry_on_exceptions as e:
                 last_exception = e
+                if isinstance(e, httpx.HTTPStatusError) and not _is_retryable_status(
+                    e, self.config
+                ):
+                    raise
 
                 if attempt < self.config.max_retries:
-                    delay = self.config.calculate_delay(attempt)
+                    delay = _retry_delay(e, self.config, attempt)
                     await logger.warning(
                         f"Attempt {attempt + 1}/{self.config.max_retries + 1} failed: {e}. "
                         f"Retrying in {delay:.2f}s..."
@@ -335,9 +333,13 @@ class RetryStrategy:
                 return func(*args, **kwargs)
             except self.config.retry_on_exceptions as e:
                 last_exception = e
+                if isinstance(e, httpx.HTTPStatusError) and not _is_retryable_status(
+                    e, self.config
+                ):
+                    raise
 
                 if attempt < self.config.max_retries:
-                    delay = self.config.calculate_delay(attempt)
+                    delay = _retry_delay(e, self.config, attempt)
                     logger.sync_warning(
                         f"Attempt {attempt + 1}/{self.config.max_retries + 1} failed: {e}. "
                         f"Retrying in {delay:.2f}s..."
@@ -365,19 +367,24 @@ class RetryableHTTPClient:
         self.retry_config = retry_config or RetryConfig()
         self.circuit_breaker = circuit_breaker
 
-    @retry_with_backoff()
     async def get(self, url: str, **kwargs: Any) -> httpx.Response:
-        """GET request with retry logic."""
-        response = await self.client.get(url, **kwargs)
-        response.raise_for_status()
-        return response
+        """GET request, retried per ``retry_config``; callers add no retry layer of their own."""
+        return await self._send(self.client.get, url, **kwargs)
 
-    @retry_with_backoff()
     async def post(self, url: str, **kwargs: Any) -> httpx.Response:
-        """POST request with retry logic."""
-        response = await self.client.post(url, **kwargs)
-        response.raise_for_status()
-        return response
+        """POST request, retried per ``retry_config``; callers add no retry layer of their own."""
+        return await self._send(self.client.post, url, **kwargs)
+
+    async def _send(self, send: Callable[..., Any], url: str, **kwargs: Any) -> httpx.Response:
+        async def attempt() -> httpx.Response:
+            response: httpx.Response = await send(url, **kwargs)
+            response.raise_for_status()
+            return response
+
+        result: httpx.Response = await retry_with_backoff(self.retry_config, self.circuit_breaker)(
+            attempt
+        )()
+        return result
 
     async def close(self) -> None:
         """Close the underlying client."""

@@ -24,7 +24,6 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from app.core.logging import get_logger
-from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 from app.pipeline.sources.annotations.clinvar_utils import (
@@ -318,7 +317,6 @@ class ClinVarAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     # API fallback methods (for genes missing from bulk file)
     # ------------------------------------------------------------------
 
-    @retry_with_backoff(config=RetryConfig(max_retries=5))
     async def _search_variants(self, gene_symbol: str) -> list[str]:
         """Search for ClinVar variant IDs via eUtils esearch."""
         await self.apply_rate_limit()
@@ -326,19 +324,25 @@ class ClinVarAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
         try:
             search_url = f"{self.base_url}/esearch.fcgi"
-            params = self._ncbi_params(
-                {
-                    "db": "clinvar",
-                    "term": f"{gene_symbol}[gene]",
-                    "retmax": self.search_batch_size,
-                    "retmode": "json",
-                }
-            )
-
-            response = await client.get(search_url, params=params)
-            data = response.json()
-
-            id_list: list[str] = data.get("esearchresult", {}).get("idlist", [])
+            id_list: list[str] = []
+            while True:
+                params = self._ncbi_params(
+                    {
+                        "db": "clinvar",
+                        "term": f"{gene_symbol}[gene]",
+                        "retmax": self.search_batch_size,
+                        "retstart": len(id_list),
+                        "retmode": "json",
+                    }
+                )
+                response = await client.get(search_url, params=params)
+                result = response.json().get("esearchresult", {})
+                if "ERROR" in result:  # a 200 with an error must not read as 0 variants
+                    raise RuntimeError(f"ClinVar esearch error: {result['ERROR']}")
+                page: list[str] = result.get("idlist", [])
+                id_list.extend(page)
+                if not page or len(id_list) >= int(result.get("count", 0)):
+                    break
 
             logger.sync_debug(f"Found {len(id_list)} ClinVar variants", gene_symbol=gene_symbol)
             return id_list
@@ -419,7 +423,6 @@ class ClinVarAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
         return result
 
-    @retry_with_backoff(config=RetryConfig(max_retries=5))
     async def _fetch_variant_batch(self, variant_ids: list[str]) -> list[dict[str, Any]]:
         """Fetch variant details via eUtils esummary."""
         if not variant_ids:
@@ -493,24 +496,15 @@ class ClinVarAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                 batch_ids: list[str], batch_num: int
             ) -> list[dict[str, Any]]:
                 async with semaphore:
-                    try:
-                        if batch_num % 5 == 0:
-                            logger.sync_debug(
-                                "Fetching ClinVar variants (API fallback)",
-                                gene_symbol=gene.approved_symbol,
-                                batch=f"{batch_num + 1}/{total_batches}",
-                            )
-                        batch_result: list[dict[str, Any]] = await self._fetch_variant_batch(
-                            batch_ids
+                    if batch_num % 5 == 0:
+                        logger.sync_debug(
+                            "Fetching ClinVar variants (API fallback)",
+                            gene_symbol=gene.approved_symbol,
+                            batch=f"{batch_num + 1}/{total_batches}",
                         )
-                        return batch_result
-                    except Exception as e:
-                        logger.sync_error(
-                            f"Failed variant batch {batch_num} for {gene.approved_symbol}: {e}"
-                        )
-                        if self.circuit_breaker and self.circuit_breaker.state == "open":
-                            logger.sync_error("Circuit breaker open, using partial data")
-                        return []
+                    # A failed batch fails the gene: partial counts must not be stored
+                    batch_result: list[dict[str, Any]] = await self._fetch_variant_batch(batch_ids)
+                    return batch_result
 
             tasks = []
             for batch_num, i in enumerate(range(0, len(variant_ids), self.variant_batch_size)):
@@ -936,8 +930,5 @@ class ClinVarAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                     f"Failed to fetch ClinVar annotation for {gene.approved_symbol}",
                     error_detail=str(e),
                 )
-                if self.circuit_breaker and self.circuit_breaker.state == "open":
-                    logger.sync_error("Circuit breaker open, stopping API fallback")
-                    break
 
         return results

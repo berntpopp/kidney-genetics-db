@@ -14,7 +14,6 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
-from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 
@@ -119,7 +118,6 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
         self._mpo_cache_timestamp = datetime.now(timezone.utc)
 
-    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _get_mousemine_version(self) -> str:
         """Fetch the current MouseMine version"""
         await self.apply_rate_limit()
@@ -143,52 +141,48 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         all_terms = set()
         all_terms.add(self.kidney_root_term)  # Include root term
 
-        @retry_with_backoff(config=RetryConfig(max_retries=3))
+        # No retry decorator: re-running a level would skip children already collected
         async def fetch_children(term_id: str, node_id: int, depth: int = 0) -> None:
             """Recursive function to fetch all children of a term"""
             if depth > 20:  # Safety limit for recursion depth
                 logger.sync_warning(f"Max recursion depth reached for term {term_id}")
                 return
 
-            try:
-                # Query JAX API for children
-                url = f"{self.jax_base_url}/vocab/mp_ontology/treeChildren"
-                params = {"id": term_id, "nodeID": str(node_id), "edgeType": "is-a"}
+            # No try/except: a failed subtree must fail the load, never persist a partial set
+            url = f"{self.jax_base_url}/vocab/mp_ontology/treeChildren"
+            params = {"id": term_id, "nodeID": str(node_id), "edgeType": "is-a"}
 
-                await self.apply_rate_limit()
-                client = await self.get_http_client()
+            await self.apply_rate_limit()
+            client = await self.get_http_client()
 
-                response = await client.get(url, params=params, timeout=30.0)
-                response.raise_for_status()
-                data = response.json()
+            response = await client.get(url, params=params, timeout=30.0)
+            response.raise_for_status()
+            data = response.json()
 
-                # JAX API returns a list with the node as first element
-                if isinstance(data, list) and data:
-                    node_data = data[0]
-                    children = node_data.get("children", []) if isinstance(node_data, dict) else []
-                else:
-                    children = []
+            # JAX API returns a list with the node as first element
+            if isinstance(data, list) and data:
+                node_data = data[0]
+                children = node_data.get("children", []) if isinstance(node_data, dict) else []
+            else:
+                children = []
 
-                # Process each child
-                for child in children:
-                    if isinstance(child, dict):
-                        # Extract data from nested structure
-                        child_data = child.get("data", {})
-                        child_term = child_data.get("accID")
-                        child_node = child.get("id")
+            # Process each child
+            for child in children:
+                if isinstance(child, dict):
+                    # Extract data from nested structure
+                    child_data = child.get("data", {})
+                    child_term = child_data.get("accID")
+                    child_node = child.get("id")
 
-                        if child_term and child_term not in all_terms:
-                            all_terms.add(child_term)
+                    if child_term and child_term not in all_terms:
+                        all_terms.add(child_term)
 
-                            # Check if has children and recurse
-                            # The children field can be True, False, or an array
-                            has_children = child.get("children")
-                            if has_children is True or isinstance(has_children, list):
-                                if child_node:
-                                    await fetch_children(child_term, int(child_node), depth + 1)
-
-            except Exception as e:
-                logger.sync_error(f"Error fetching children for {term_id}: {str(e)}")
+                        # Check if has children and recurse
+                        # The children field can be True, False, or an array
+                        has_children = child.get("children")
+                        if has_children is True or isinstance(has_children, list):
+                            if child_node:
+                                await fetch_children(child_term, int(child_node), depth + 1)
 
         # Start recursion from root
         logger.sync_info(f"Fetching kidney MPO terms from root {self.kidney_root_term}")
@@ -214,8 +208,10 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         try:
             # First get mouse ortholog symbol(s) using the original approach
             base_result = await self.query_mousemine_phenotypes(human_gene_symbol, mpo_terms)
+            if base_result is None:
+                return None  # query failed: unknown, not "no phenotype"
 
-            if not base_result or not base_result.get("mouse_orthologs"):
+            if not base_result.get("mouse_orthologs"):
                 # No mouse orthologs found
                 return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
 
@@ -245,7 +241,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                     logger.sync_warning(
                         f"Genotype phenotype query failed for {mouse_symbol}: {response.status_code}"
                     )
-                    return self._create_empty_zygosity_result(human_gene_symbol, mpo_terms)
+                    return None
 
                 data = response.json()
                 results = data.get("results", [])
@@ -392,6 +388,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         gene_mouse_symbols: dict[str, set[str]] = {}
         gene_all_pheno: dict[str, dict[str, str]] = {}
         gene_kidney_pheno: dict[str, dict[str, str]] = {}
+        failed: set[str] = set()  # symbols of failed chunks: unknown, not "no phenotype"
 
         for chunk_start in range(0, len(gene_symbols), self.BULK_CHUNK_SIZE):
             chunk = gene_symbols[chunk_start : chunk_start + self.BULK_CHUNK_SIZE]
@@ -418,6 +415,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                         f"Bulk HGene_MPhenotype failed (chunk {chunk_start}): "
                         f"{response.status_code}"
                     )
+                    failed.update(chunk)
                     continue
 
                 data = response.json()
@@ -447,11 +445,14 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
             except Exception as e:
                 logger.sync_error(f"Bulk HGene_MPhenotype error (chunk {chunk_start}): {e}")
+                failed.update(chunk)
                 continue
 
         # Build per-gene result dicts
         out: dict[str, dict[str, Any]] = {}
         for sym in gene_symbols:
+            if sym in failed:
+                continue  # left out so the per-gene fallback retries it
             kidney = gene_kidney_pheno.get(sym, {})
             kidney_list = [{"term": tid, "name": name} for tid, name in sorted(kidney.items())]
             out[sym] = {
@@ -497,6 +498,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
         gene_zyg: dict[str, dict[str, list[dict[str, str]]]] = {}
         for human_sym in gene_mouse_map:
             gene_zyg[human_sym] = {"hm": [], "ht": [], "cn": [], "other": []}
+        failed: set[str] = set()  # mouse symbols of failed chunks
 
         for chunk_start in range(0, len(all_mouse_symbols), self.BULK_CHUNK_SIZE):
             chunk = all_mouse_symbols[chunk_start : chunk_start + self.BULK_CHUNK_SIZE]
@@ -522,6 +524,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                         f"Bulk _Genotype_Phenotype failed (chunk {chunk_start}): "
                         f"{response.status_code}"
                     )
+                    failed.update(chunk)
                     continue
 
                 data = response.json()
@@ -553,7 +556,11 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
             except Exception as e:
                 logger.sync_error(f"Bulk _Genotype_Phenotype error (chunk {chunk_start}): {e}")
+                failed.update(chunk)
                 continue
+
+        for ms in failed:
+            gene_zyg.pop(mouse_to_human[ms], None)
 
         # Build per-gene zygosity analysis
         out: dict[str, dict[str, Any]] = {}
@@ -625,12 +632,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
                 logger.sync_warning(
                     f"MouseMine template query failed for {human_gene_symbol}: {response.status_code}"
                 )
-                return {
-                    "has_kidney_phenotype": False,
-                    "mouse_orthologs": [],
-                    "phenotypes": [],
-                    "phenotype_count": 0,
-                }
+                return None
 
             data = response.json()
             results = data.get("results", [])
@@ -710,33 +712,7 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
             result = await self.query_mousemine_zygosity_phenotypes(gene.approved_symbol, mpo_terms)
 
             if result is None:
-                # Query failed, return minimal data with zygosity structure
-                return {
-                    "gene_symbol": gene.approved_symbol,
-                    "has_kidney_phenotype": False,
-                    "mouse_orthologs": [],
-                    "phenotypes": [],
-                    "phenotype_count": 0,
-                    "mpo_terms_searched": len(mpo_terms),
-                    "zygosity_analysis": {
-                        "homozygous": {
-                            "has_kidney_phenotype": False,
-                            "phenotype_count": 0,
-                            "phenotypes": [],
-                        },
-                        "heterozygous": {
-                            "has_kidney_phenotype": False,
-                            "phenotype_count": 0,
-                            "phenotypes": [],
-                        },
-                        "conditional": {
-                            "has_kidney_phenotype": False,
-                            "phenotype_count": 0,
-                            "phenotypes": [],
-                        },
-                        "summary": "hm (NA); ht (NA)",
-                    },
-                }
+                return None  # query failed: never store it as "no kidney phenotype"
 
             # Add metadata to result
             result.update(
@@ -802,6 +778,8 @@ class MPOMGIAnnotationSource(BaseAnnotationSource):
 
             # Merge zygosity data
             zyg = zyg_map.get(sym)
+            if zyg is None and sym in gene_mouse_map:
+                continue  # zygosity query failed for this gene: leave it to the fallback
             if zyg is None:
                 zyg = {
                     "homozygous": {

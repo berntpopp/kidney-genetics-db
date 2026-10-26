@@ -10,6 +10,7 @@ Zero REST API dependency — all data comes from two bulk files:
 2. NCBI MANE summary (Ensembl→RefSeq mapping)
 """
 
+import asyncio
 import csv
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.core.logging import get_logger
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
-from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin
+from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin, gunzip_to_sibling
 
 logger = get_logger(__name__)
 
@@ -69,8 +70,10 @@ class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     version = "2.0"
 
     # GTF bulk file (replaces REST API)
+    # Pinned release: "current_gtf" moves on and the release-numbered filename then 404s
     bulk_file_url = (
-        "https://ftp.ensembl.org/pub/current_gtf/homo_sapiens/Homo_sapiens.GRCh38.115.chr.gtf.gz"
+        "https://ftp.ensembl.org/pub/release-115/gtf/homo_sapiens/"
+        "Homo_sapiens.GRCh38.115.chr.gtf.gz"
     )
     bulk_cache_ttl_hours = 168  # 7 days
     bulk_file_format = "gtf.gz"
@@ -79,7 +82,7 @@ class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     # MANE summary file for Ensembl→RefSeq transcript mapping
     mane_file_url = (
         "https://ftp.ncbi.nlm.nih.gov/refseq/MANE/MANE_human/"
-        "current/MANE.GRCh38.v1.5.summary.txt.gz"
+        "release_1.5/MANE.GRCh38.v1.5.summary.txt.gz"
     )
 
     # Batch size for fetch_batch (dict lookups, so can be large)
@@ -388,30 +391,22 @@ class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
         """
         if self._bulk_data is not None and self._mane_data is not None and not force:
             return
+        if self._bulk_load_error is not None and not force:
+            raise self._bulk_load_error  # fail once per run, not once per gene
+        try:
+            await self._load_gtf_and_mane(force)
+        except Exception as e:
+            self._bulk_load_error = e
+            raise
 
+    async def _load_gtf_and_mane(self, force: bool) -> None:
         # 1. Download and parse GTF (use streaming — file is ~99 MB compressed)
         saved_url = self.bulk_file_url
         gtf_path = await self.download_bulk_file_streaming(force=force)
 
-        # Decompress GTF if gzipped
-        gtf_parse_path = gtf_path
-        if gtf_path.suffix == ".gz":
-            decompressed = gtf_path.with_suffix("")
-            if not decompressed.exists() or force:
-                import gzip as _gzip
-                import shutil
-
-                logger.sync_info(
-                    "Decompressing GTF file",
-                    src=str(gtf_path),
-                    dest=str(decompressed),
-                )
-                with _gzip.open(gtf_path, "rb") as f_in:
-                    with open(decompressed, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-            gtf_parse_path = decompressed
-
-        self._bulk_data = self.parse_bulk_file(gtf_parse_path)
+        # Decompress and parse off the event loop (~2 GB peak) so the API stays responsive (#363)
+        gtf_parse_path = await asyncio.to_thread(gunzip_to_sibling, gtf_path, force)
+        self._bulk_data = await asyncio.to_thread(self.parse_bulk_file, gtf_parse_path)
         logger.sync_info(
             "GTF bulk data loaded",
             gene_count=len(self._bulk_data),
@@ -428,25 +423,8 @@ class EnsemblAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
         try:
             mane_path = await self.download_bulk_file(force=force)
 
-            # Decompress MANE if gzipped
-            mane_parse_path = mane_path
-            if mane_path.suffix == ".gz":
-                decompressed_mane = mane_path.with_suffix("")
-                if not decompressed_mane.exists() or force:
-                    import gzip as _gzip
-                    import shutil
-
-                    logger.sync_info(
-                        "Decompressing MANE file",
-                        src=str(mane_path),
-                        dest=str(decompressed_mane),
-                    )
-                    with _gzip.open(mane_path, "rb") as f_in:
-                        with open(decompressed_mane, "wb") as f_out:
-                            shutil.copyfileobj(f_in, f_out)
-                mane_parse_path = decompressed_mane
-
-            self._mane_data = self.parse_mane_file(mane_parse_path)
+            mane_parse_path = await asyncio.to_thread(gunzip_to_sibling, mane_path, force)
+            self._mane_data = await asyncio.to_thread(self.parse_mane_file, mane_parse_path)
         finally:
             # Restore original URL and format
             self.bulk_file_url = saved_url

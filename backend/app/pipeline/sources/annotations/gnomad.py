@@ -12,7 +12,6 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
-from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin
@@ -273,7 +272,6 @@ class GnomADAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
         return None
 
-    @retry_with_backoff(config=RetryConfig(max_retries=5))
     async def _execute_query(self, query: str, variables: dict) -> dict | None:
         """Execute a GraphQL query with retry logic and rate limiting."""
         await self.apply_rate_limit()
@@ -444,11 +442,6 @@ class GnomADAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                     f"Failed to fetch gnomAD annotation for {gene.approved_symbol}",
                     error_detail=str(e),
                 )
-                if self.circuit_breaker and self.circuit_breaker.state == "open":
-                    logger.sync_error(
-                        "Circuit breaker open, stopping API fallback",
-                    )
-                    break
 
         return results
 

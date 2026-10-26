@@ -13,11 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_service import get_cache_service
 from app.core.logging import get_logger
-from app.core.retry_utils import (
-    CircuitBreaker,
-    RetryableHTTPClient,
-    RetryConfig,
-)
+from app.core.retry_utils import RetryableHTTPClient, RetryConfig
 from app.db.safe_sql import refresh_materialized_view as safe_refresh_matview
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationHistory, AnnotationSource, GeneAnnotation
@@ -47,7 +43,6 @@ class BaseAnnotationSource(ABC):
 
     # Retry configuration (initialized in __init__)
     retry_config: RetryConfig | None = None
-    circuit_breaker: CircuitBreaker | None = None
     http_client: RetryableHTTPClient | None = None
 
     # Rate limiting
@@ -77,12 +72,10 @@ class BaseAnnotationSource(ABC):
             self.requests_per_second = config.get("requests_per_second", self.requests_per_second)
             self.cache_ttl_days = config.get("cache_ttl_days", self.cache_ttl_days)
             max_retries = config.get("max_retries", 5)
-            circuit_breaker_threshold = config.get("circuit_breaker_threshold", 5)
         else:
             max_retries = 5
-            circuit_breaker_threshold = 5
 
-        # Initialize retry configuration
+        # The one retry loop for this source's HTTP calls (RetryableHTTPClient, #364)
         self.retry_config = RetryConfig(
             max_retries=max_retries,
             initial_delay=1.0,
@@ -90,13 +83,6 @@ class BaseAnnotationSource(ABC):
             exponential_base=2.0,
             jitter=True,
             retry_on_status_codes=(429, 500, 502, 503, 504),
-        )
-
-        # Initialize circuit breaker
-        self.circuit_breaker = CircuitBreaker(
-            failure_threshold=circuit_breaker_threshold,
-            recovery_timeout=60.0,
-            expected_exception=httpx.HTTPStatusError,
         )
 
         # Get or create source record
@@ -175,9 +161,7 @@ class BaseAnnotationSource(ABC):
             )
 
             self.http_client = RetryableHTTPClient(
-                client=base_client,
-                retry_config=self.retry_config,
-                circuit_breaker=self.circuit_breaker,
+                client=base_client, retry_config=self.retry_config
             )
 
         return self.http_client
