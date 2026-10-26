@@ -856,6 +856,10 @@ class AnnotationPipeline:
         except Exception as e:
             logger.sync_debug(f"Cache clear failed: {e}")
 
+        if total_genes and successful == 0:
+            # Every gene failed (e.g. an upstream outage): an error, and keep the source due
+            raise RuntimeError(f"{source_name}: 0/{total_genes} genes updated")
+
         # Always update source metadata after a run so the scheduler
         # advances next_update even when no genes needed updating (avoids
         # the source being perpetually "due" with nothing to do).

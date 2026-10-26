@@ -118,3 +118,24 @@ async def test_failed_fallback_commit_is_an_error_and_keeps_freshness(test_engin
     assert "error" in results[SOURCE]
     assert (record.last_update, record.next_update) == (OLD, OLD)
     assert _annotated(test_engine) == 0
+
+
+@pytest.mark.asyncio
+async def test_source_that_updates_no_gene_is_an_error_and_keeps_freshness(test_engine, genes):
+    """An outage (e.g. pinned HPO files unavailable) fails every gene: no 90-day skip (#338)."""
+    record = SimpleNamespace(last_update=OLD, next_update=OLD)
+
+    class DownSource(_source_class({}, record)):
+        async def fetch_batch(self, genes):
+            raise RuntimeError("upstream down")
+
+        async def update_gene(self, gene):
+            return False
+
+    pipeline = AnnotationPipeline(MagicMock())
+    pipeline.sources = {SOURCE: DownSource}  # type: ignore[dict-item]
+    with patch("app.core.cache_service.get_cache_service"):
+        results = await pipeline._update_sources_parallel([SOURCE], genes[:2], force=True)
+
+    assert "error" in results[SOURCE]
+    assert (record.last_update, record.next_update) == (OLD, OLD)

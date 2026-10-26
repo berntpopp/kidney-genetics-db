@@ -197,6 +197,7 @@ export const networkAnalysisConfig: NetworkAnalysisConfig = {
         complement: '#9C27B0', // Purple - Complement
         tubulopathy: '#FF9800', // Orange - Tubulopathy
         nephrolithiasis: '#795548', // Brown - Nephrolithiasis
+        neoplasia: '#607D8B', // Blue Grey - Renal neoplasia (>= 3:1 on light and dark canvas)
         null: '#9E9E9E' // Grey - No classification
       },
       onset_group: {
@@ -221,6 +222,7 @@ export const networkAnalysisConfig: NetworkAnalysisConfig = {
         complement: 'Complement',
         tubulopathy: 'Tubulopathy',
         nephrolithiasis: 'Nephrolithiasis',
+        neoplasia: 'Neoplasia',
         null: 'Not Classified'
       },
       onset_group: {

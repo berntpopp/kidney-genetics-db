@@ -155,6 +155,36 @@ class TestHPOBulkParsing:
 
         assert data == {}
 
+    def test_parse_keeps_disease_term_frequencies(self, tmp_path: Path) -> None:
+        """v2 (#338): gene -> disease -> term -> frequency weight, for clinical groups."""
+        from app.pipeline.sources.annotations.hpo import HPOAnnotationSource
+
+        content = (
+            "ncbi_gene_id\tgene_symbol\thpo_id\thpo_name\tfrequency\tdisease_id\n"
+            "5310\tPKD1\tHP:0000107\tRenal cyst\tHP:0040283\tOMIM:173900\n"
+            "5310\tPKD1\tHP:0000107\tRenal cyst\t3/5\tOMIM:173900\n"
+            "5310\tPKD1\tHP:0000112\tNephropathy\t-\tOMIM:173900\n"
+            "5310\tPKD1\tHP:0001407\tHepatic cyst\tHP:0040285\tOMIM:173900\n"
+            "5310\tPKD1\tHP:0001407\tHepatic cyst\t20%\tOMIM:600666\n"
+        )
+        bulk_file = _create_bulk_file(tmp_path, content)
+
+        source = HPOAnnotationSource.__new__(HPOAnnotationSource)
+        data = source.parse_bulk_file(bulk_file)
+
+        # Header row is skipped; phenotypes keep excluded terms (output unchanged)
+        assert set(data) == {"PKD1"}
+        assert {p["id"] for p in data["PKD1"]["phenotypes"]} == {
+            "HP:0000107",
+            "HP:0000112",
+            "HP:0001407",
+        }
+        # Duplicates take the max, unknown is 0.35, excluded is dropped
+        assert data["PKD1"]["disease_terms"] == {
+            "OMIM:173900": {"HP:0000107": pytest.approx(3.8 / 7), "HP:0000112": 0.35},
+            "OMIM:600666": {"HP:0001407": 0.2},
+        }
+
 
 @pytest.mark.unit
 class TestHPOBulkLookup:

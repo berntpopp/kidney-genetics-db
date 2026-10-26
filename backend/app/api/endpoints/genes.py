@@ -860,7 +860,8 @@ async def get_hpo_classifications(
     """
     start_time = time.time()
     # v2: is_syndromic is null for unassessed genes; skip entries cached as false (#253)
-    cache_key = f"hpo_classifications_v2_{hash(tuple(sorted(request.gene_ids)))}"
+    # v3: clinical groups by frequency x IC (#338); skip entries cached under v1 groups
+    cache_key = f"hpo_classifications_v3_{hash(tuple(sorted(request.gene_ids)))}"
 
     await logger.info(
         "Fetching HPO classifications",

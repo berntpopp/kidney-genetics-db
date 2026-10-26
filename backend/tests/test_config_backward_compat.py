@@ -180,7 +180,8 @@ class TestHPOConfig:
         assert "complement" in groups
         assert "cakut" in groups
         assert "glomerulopathy" in groups
-        assert groups["complement"]["weight"] == 1.0
+        # v2 (#338): groups are root terms matched through the ontology, no weight
+        assert groups["neoplasia"]["root_terms"] == ["HP:0009726"]
 
     def test_hpo_onset_groups(self):
         """Verify HPO onset groups configuration."""
@@ -270,7 +271,7 @@ class TestHelperFunctions:
 
         # Nested parameter with dot notation
         assert get_source_parameter("PubTator", "smart_update.max_pages") == 500
-        assert get_source_parameter("HPO", "clinical_groups.complement.weight") == 1.0
+        assert get_source_parameter("HPO", "clinical_groups.neoplasia.name") == "Renal neoplasia"
 
         # Default value for non-existent
         assert get_source_parameter("PanelApp", "non_existent", "default") == "default"
