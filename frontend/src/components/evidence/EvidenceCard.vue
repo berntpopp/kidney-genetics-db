@@ -216,12 +216,14 @@ const sourceIcons = {
 const sourceIconComponent = computed(() => sourceIcons[props.evidence.source_name] || Database)
 
 // Helper functions
-// Mirrors backend evidence_normalized_scores: classification weight or count percentile
-const normalizedScoreLabel = computed(() =>
-  ['ClinGen', 'GenCC'].includes(props.evidence.source_name)
+// Mirrors backend evidence_normalized_scores: GenCC two-stage, ClinGen weight, else count percentile
+const normalizedScoreLabel = computed(() => {
+  if (props.evidence.source_name === 'GenCC')
+    return 'Normalized score: strongest classification, adjusted for agreeing and conflicting submitters (0–100%)'
+  return props.evidence.source_name === 'ClinGen'
     ? 'Normalized score: classification weight (0–100%)'
     : `Normalized score: percentile rank of this gene's evidence count among genes with ${props.evidence.source_name} evidence (0–100%)`
-)
+})
 
 const formatScore = score => {
   return (score * 100).toFixed(1)

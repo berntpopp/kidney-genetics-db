@@ -176,7 +176,15 @@ def main() -> int:
     with open(args.out_dir / f"{args.label}_per_gene.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(
-            ["approved_symbol", "hgnc_id", "stratum", "clingen_classes", "gencc_classes", "sources"]
+            [
+                "approved_symbol",
+                "hgnc_id",
+                "stratum",
+                "clingen_classes",
+                "gencc_classes",
+                "sources",
+                "gencc_score",
+            ]
             + [f"{p}.{s}.{c}" for p, s in keys for c in ("pct", "tier", "rank")]
         )
         for gid, g in sorted(genes.items(), key=lambda kv: kv[1]["symbol"]):
@@ -188,6 +196,7 @@ def main() -> int:
                 ";".join(sorted(c.get("ClinGen", []))),
                 ";".join(sorted(c.get("GenCC", []))),
                 ";".join(sorted(g["src"])),
+                g["src"].get("GenCC", ""),
             ]
             for k in keys:
                 row += [f"{res[k][gid][0]:.4f}", res[k][gid][1], rk[k][gid]]
