@@ -55,8 +55,15 @@ class GeneNormalizationLogResponse(BaseModel):
 class StagingApprovalRequest(BaseModel):
     """Request schema for approving staging records"""
 
-    approved_symbol: str = Field(..., description="Manually corrected gene symbol")
-    hgnc_id: str = Field(..., description="HGNC ID for the gene")
+    # Approved rows feed normalization directly, so they must name a real gene (#375)
+    approved_symbol: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._@#-]*$",
+        description="Manually corrected gene symbol",
+    )
+    hgnc_id: str = Field(..., pattern=r"^HGNC:\d+$", description="HGNC ID for the gene")
     aliases: list[str] | None = Field(default_factory=list, description="Gene aliases")
     notes: str | None = Field(None, description="Review notes")
 

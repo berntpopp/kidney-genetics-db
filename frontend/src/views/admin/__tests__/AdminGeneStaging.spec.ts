@@ -59,12 +59,18 @@ describe('AdminGeneStaging review dialogs', () => {
     await flushPromises()
 
     expect(document.body.textContent).not.toContain('Your Name/ID')
+    // The pipeline uses the pair as-is, so the HGNC ID is required (#375)
+    expect(buttonByText('Approve as Valid Gene').hasAttribute('disabled')).toBe(true)
+    const hgnc = document.querySelector('#approve-hgnc') as HTMLElement & { value: string }
+    hgnc.value = 'HGNC:9008'
+    hgnc.dispatchEvent(new Event('input'))
+    await flushPromises()
     buttonByText('Approve as Valid Gene').click()
     await flushPromises()
 
     expect(stagingApi.approveStaging).toHaveBeenCalledWith(7, {
       approved_symbol: 'PKD1',
-      hgnc_id: null,
+      hgnc_id: 'HGNC:9008',
       notes: null
     })
   })

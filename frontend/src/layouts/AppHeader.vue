@@ -29,6 +29,7 @@ import {
   HelpCircle,
   CircleUser,
   ShieldEllipsis,
+  ListChecks,
   LogOut,
   BookCheck
 } from 'lucide-vue-next'
@@ -174,6 +175,14 @@ const openLoginFromDrawer = () => {
           >
             <CircleUser class="size-4" />
             My Profile
+          </button>
+          <button
+            v-if="authStore.isCurator && !authStore.isAdmin"
+            class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-accent"
+            @click="navigateMobile('/admin/staging')"
+          >
+            <ListChecks class="size-4" />
+            Gene Staging
           </button>
           <button
             v-if="authStore.isAdmin"

@@ -13,6 +13,7 @@ declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
     requiresAdmin?: boolean
+    requiresCurator?: boolean
     title?: string
     description?: string
     noindex?: boolean
@@ -176,7 +177,8 @@ export const routes: RouteRecordRaw[] = [
     path: '/admin/staging',
     name: 'admin-staging',
     component: () => import('../views/admin/AdminGeneStaging.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true, title: 'Gene Staging', noindex: true }
+    // The staging API accepts curators, so the page does too (#375)
+    meta: { requiresAuth: true, requiresCurator: true, title: 'Gene Staging', noindex: true }
   },
   {
     path: '/admin/annotations',

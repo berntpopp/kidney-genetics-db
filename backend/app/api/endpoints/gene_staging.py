@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.dependencies import require_curator
-from app.core.exceptions import DatabaseError, ValidationError
+from app.core.exceptions import ValidationError
 from app.crud.gene_staging import log_crud, staging_crud
 from app.models.user import User
 from app.schemas.gene_staging import (
@@ -87,8 +87,6 @@ async def approve_staging_record(
 
     except ValueError as e:
         raise ValidationError(field="staging_id", reason=str(e)) from e
-    except Exception as e:
-        raise DatabaseError("approve_staging_record", f"Error approving staging record: {e}") from e
 
 
 @router.post("/staging/{staging_id}/reject")
@@ -118,8 +116,6 @@ async def reject_staging_record(
 
     except ValueError as e:
         raise ValidationError(field="staging_id", reason=str(e)) from e
-    except Exception as e:
-        raise DatabaseError("reject_staging_record", f"Error rejecting staging record: {e}") from e
 
 
 @router.get("/staging/stats", response_model=StagingStatsResponse)
