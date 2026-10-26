@@ -900,6 +900,8 @@ class AnnotationPipeline:
                         cache_service.clear_namespace_sync("annotations")
                         # Network/enrichment responses are built from annotations (#336)
                         cache_service.clear_namespace_sync("network_analysis")
+                        # Gene-list clinical groups (genes.py HPO_CACHE_NAMESPACE, 1 h TTL)
+                        cache_service.clear_namespace_sync("hpo_classifications")
                         logger.sync_debug(f"Cleared cache for {source_name}")
                 finally:
                     thread_db.close()
