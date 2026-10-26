@@ -5,9 +5,14 @@ safe_identifier() before being interpolated into SQL strings.
 """
 
 import re
+from collections.abc import Iterable
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 VALID_IDENTIFIER_RE = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 
@@ -41,6 +46,31 @@ def refresh_materialized_view(session: Session, view_name: str, concurrent: bool
     clause = "CONCURRENTLY " if concurrent else ""
     session.execute(text(f"REFRESH MATERIALIZED VIEW {clause}{name}"))
     session.commit()
+
+
+# Materialized views derived from gene_evidence; gene_scores first (later views may read it).
+SCORE_VIEWS = ("gene_scores", "source_overlap_statistics")
+
+
+def refresh_score_views(session: Session, views: Iterable[str] = SCORE_VIEWS) -> bool:
+    """Refresh score views in order, concurrently with a blocking fallback.
+
+    Returns:
+        True if every view was refreshed; failures are logged, not raised.
+    """
+    ok = True
+    for view_name in views:
+        try:
+            refresh_materialized_view(session, view_name, concurrent=True)
+        except Exception:
+            session.rollback()
+            try:
+                refresh_materialized_view(session, view_name, concurrent=False)
+            except Exception as e:
+                session.rollback()
+                logger.sync_error(f"Failed to refresh materialized view {view_name}: {e}")
+                ok = False
+    return ok
 
 
 def drop_materialized_view(session: Session, view_name: str) -> None:

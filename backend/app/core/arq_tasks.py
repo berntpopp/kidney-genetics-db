@@ -11,6 +11,7 @@ Per-job timeouts are configured using arq.worker.func() wrapper:
 See: https://arq-docs.helpmanual.io/ for ARQ documentation.
 """
 
+import asyncio
 from typing import Any
 
 from arq import Retry
@@ -18,6 +19,7 @@ from arq import Retry
 from app.core.database import get_db_context
 from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
+from app.db.safe_sql import refresh_score_views
 
 logger = get_logger(__name__)
 
@@ -85,6 +87,7 @@ async def run_pipeline_task(
             )
 
             db.commit()
+            await asyncio.to_thread(refresh_score_views, db)
             return result
 
         except Exception as e:
@@ -147,30 +150,11 @@ async def run_annotation_pipeline_task(
             pipeline = AnnotationPipeline(db)
             strategy = UpdateStrategy.INCREMENTAL if mode == "smart" else UpdateStrategy.FULL
 
-            # Handle resume from checkpoint
-            checkpoint_sources = None
-            if resume:
-                from app.models.progress import DataSourceProgress
-
-                progress = (
-                    db.query(DataSourceProgress)
-                    .filter_by(source_name="annotation_pipeline")
-                    .first()
-                )
-                if progress and progress.progress_metadata:
-                    checkpoint_sources = progress.progress_metadata.get("sources")
-                    logger.sync_info(
-                        "Resuming annotation pipeline from checkpoint",
-                        checkpoint_sources=checkpoint_sources,
-                    )
-
-            # Use checkpoint sources if resuming, otherwise use provided sources
-            run_sources = checkpoint_sources if resume and checkpoint_sources else sources
-
             result: dict[str, Any] = await pipeline.run_update(
                 strategy=strategy,
-                sources=run_sources,
+                sources=sources,  # a resume takes the rest from the checkpoint
                 force=False,
+                resume=resume,
             )
 
             if result.get("success"):

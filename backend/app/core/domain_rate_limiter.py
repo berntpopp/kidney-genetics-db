@@ -108,7 +108,8 @@ DEFAULT_DOMAIN_CONFIGS: dict[str, dict[str, Any]] = {
     "rest.ensembl.org": {"max_rate": 15.0, "max_concurrent": 5},
     "rest.uniprot.org": {"max_rate": 5.0, "max_concurrent": 3},
     "www.genenames.org": {"max_rate": 5.0, "max_concurrent": 3},
-    "gnomad.broadinstitute.org": {"max_rate": 5.0, "max_concurrent": 3},
+    "rest.genenames.org": {"max_rate": 5.0, "max_concurrent": 3},
+    "gnomad.broadinstitute.org": {"max_rate": 1.0, "max_concurrent": 1},  # 400 on overload (#364)
     "search.thegencc.org": {"max_rate": 10.0, "max_concurrent": 5},
     "panelapp.genomicsengland.co.uk": {"max_rate": 5.0, "max_concurrent": 3},
     "clinicalgenome.org": {"max_rate": 5.0, "max_concurrent": 3},

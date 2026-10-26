@@ -11,7 +11,8 @@ const cfg = vi.hoisted(() => ({ apiBaseUrl: '' }))
 vi.mock('@/config', () => ({ config: cfg }))
 const statusRows = vi.hoisted(() => ({ value: [] as Record<string, unknown>[] }))
 vi.mock('@/api/client', () => ({
-  default: { get: vi.fn(async () => ({ data: { data: statusRows.value } })), post: vi.fn() }
+  default: { get: vi.fn(async () => ({ data: { data: statusRows.value } })), post: vi.fn() },
+  getClientAccessToken: () => 'admin-jwt'
 }))
 vi.stubGlobal('logService', { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })
 
@@ -27,9 +28,13 @@ class FakeWebSocket {
   onclose: (() => void) | null = null
   onmessage = null
   onerror = null
+  sent: string[] = []
   constructor(url: string) {
     urls.push(url)
     sockets.push(this)
+  }
+  send(data: string) {
+    this.sent.push(data)
   }
   open() {
     this.readyState = FakeWebSocket.OPEN
@@ -77,6 +82,17 @@ describe('DataSourceProgress WebSocket', () => {
 
   it('uses the page origin for a relative (same-origin) API base', async () => {
     expect(await connectedUrl('')).toBe(`ws://${window.location.host}/api/progress/ws`)
+  })
+
+  it('authenticates with a first message, never with a URL token (#361)', async () => {
+    cfg.apiBaseUrl = ''
+    const wrapper = mount(DataSourceProgress)
+    await flushPromises()
+    sockets[0]!.open()
+
+    expect(urls[0]).not.toContain('token')
+    expect(sockets[0]!.sent.map(m => JSON.parse(m))).toEqual([{ type: 'auth', token: 'admin-jwt' }])
+    wrapper.unmount()
   })
 
   it('opens no new socket after unmount', async () => {

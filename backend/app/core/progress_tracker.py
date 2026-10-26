@@ -38,6 +38,8 @@ class ProgressTracker:
         self._update_interval = 5.0  # Update database every 5 seconds
         self._last_update_time = datetime.now(timezone.utc)
         self._start_time: datetime | None = None
+        # Linear items/time estimate; callers with a better basis set estimated_completion
+        self.estimate_from_rate = True
 
     def _get_or_create_progress(self) -> DataSourceProgress:
         """Get or create progress record for this source"""
@@ -180,8 +182,8 @@ class ProgressTracker:
             current_status=str(self.progress_record.status),
         )
 
-        # Preserve running status if already set
-        if self.progress_record.status != SourceStatus.running:
+        # Revive a finished/idle row, but never undo an admin's pause (#370)
+        if self.progress_record.status not in (SourceStatus.running, SourceStatus.paused):
             logger.sync_warning(
                 "Update called but status is not running, forcing to running",
                 source_name=self.source_name,
@@ -224,7 +226,11 @@ class ProgressTracker:
             )
 
         # Estimate completion time
-        if self._start_time and self.progress_record.progress_percentage > 0:
+        if (
+            self.estimate_from_rate
+            and self._start_time
+            and self.progress_record.progress_percentage > 0
+        ):
             elapsed = (datetime.now(timezone.utc) - self._start_time).total_seconds()
             if self.progress_record.progress_percentage > 0:
                 total_time = elapsed / (self.progress_record.progress_percentage / 100)
@@ -348,6 +354,12 @@ class ProgressTracker:
             # merge() handles both cases: returns the existing persistent
             # instance if already in session, or merges a detached one.
             self.progress_record = self.db.merge(self.progress_record)
+            # Build the payload before committing: reloading the row after the commit opened a
+            # read that idled until the next update, past the 30 s idle-in-transaction timeout,
+            # and PostgreSQL killed the connection mid-run (the session-level SET below the
+            # pipeline does not survive the session returning its connection to the pool).
+            progress_data = self.progress_record.to_dict()
+            status = self.progress_record.status
 
             # Handle stale database connections with retry
             max_retries = 2
@@ -380,14 +392,13 @@ class ProgressTracker:
 
             # Publish to event bus instead of direct callback
             # This eliminates the need for complex async/sync handling
-            progress_data = self.progress_record.to_dict()
 
             # Determine event type based on status
-            if self.progress_record.status == SourceStatus.running:
+            if status == SourceStatus.running:
                 event_type = EventTypes.PROGRESS_UPDATE
-            elif self.progress_record.status == SourceStatus.completed:
+            elif status == SourceStatus.completed:
                 event_type = EventTypes.TASK_COMPLETED
-            elif self.progress_record.status == SourceStatus.failed:
+            elif status == SourceStatus.failed:
                 event_type = EventTypes.TASK_FAILED
             else:
                 event_type = EventTypes.PROGRESS_UPDATE
@@ -406,9 +417,7 @@ class ProgressTracker:
                 logger.sync_debug(
                     "Progress update (sync context - no event bus)",
                     source_name=self.source_name,
-                    status=self.progress_record.status.value
-                    if hasattr(self.progress_record.status, "value")
-                    else str(self.progress_record.status),
+                    status=status.value if hasattr(status, "value") else str(status),
                 )
         except Exception as e:
             logger.sync_error(

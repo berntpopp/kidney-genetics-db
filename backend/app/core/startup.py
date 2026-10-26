@@ -142,6 +142,7 @@ def reset_stale_running_status() -> None:
                 source.status = SourceStatus.paused
                 source.current_operation = "Paused (server restarted)"
                 source.updated_at = datetime.now(timezone.utc)
+                source.completed_at = source.updated_at  # no task survives a restart (#359)
 
             db.commit()
             logger.sync_info(

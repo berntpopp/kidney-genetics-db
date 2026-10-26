@@ -22,7 +22,20 @@ class GeneNormalizationStagingCRUD:
         normalization_log: dict[str, Any],
         original_data: dict[str, Any] | None = None,
     ) -> GeneNormalizationStaging:
-        """Create a new staging record for manual review"""
+        """Create a staging record, or return the reviewed/pending one for this text (#366)."""
+        existing: GeneNormalizationStaging | None = (
+            db.query(GeneNormalizationStaging)
+            .filter(
+                GeneNormalizationStaging.original_text == original_text,
+                GeneNormalizationStaging.source_name == source_name,
+                # A rejected text stays rejected; it must not reappear as pending every run
+                GeneNormalizationStaging.status.in_(["approved", "pending_review", "rejected"]),
+            )
+            .order_by(GeneNormalizationStaging.status)  # "approved" sorts first
+            .first()
+        )
+        if existing:
+            return existing
 
         # Calculate priority score based on various factors
         priority_score = self._calculate_priority_score(

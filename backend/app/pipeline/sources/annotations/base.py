@@ -13,12 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_service import get_cache_service
 from app.core.logging import get_logger
-from app.core.retry_utils import (
-    CircuitBreaker,
-    RetryableHTTPClient,
-    RetryConfig,
-)
-from app.db.safe_sql import refresh_materialized_view as safe_refresh_matview
+from app.core.retry_utils import RetryableHTTPClient, RetryConfig
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationHistory, AnnotationSource, GeneAnnotation
 
@@ -47,7 +42,6 @@ class BaseAnnotationSource(ABC):
 
     # Retry configuration (initialized in __init__)
     retry_config: RetryConfig | None = None
-    circuit_breaker: CircuitBreaker | None = None
     http_client: RetryableHTTPClient | None = None
 
     # Rate limiting
@@ -77,12 +71,10 @@ class BaseAnnotationSource(ABC):
             self.requests_per_second = config.get("requests_per_second", self.requests_per_second)
             self.cache_ttl_days = config.get("cache_ttl_days", self.cache_ttl_days)
             max_retries = config.get("max_retries", 5)
-            circuit_breaker_threshold = config.get("circuit_breaker_threshold", 5)
         else:
             max_retries = 5
-            circuit_breaker_threshold = 5
 
-        # Initialize retry configuration
+        # The one retry loop for this source's HTTP calls (RetryableHTTPClient, #364)
         self.retry_config = RetryConfig(
             max_retries=max_retries,
             initial_delay=1.0,
@@ -90,13 +82,6 @@ class BaseAnnotationSource(ABC):
             exponential_base=2.0,
             jitter=True,
             retry_on_status_codes=(429, 500, 502, 503, 504),
-        )
-
-        # Initialize circuit breaker
-        self.circuit_breaker = CircuitBreaker(
-            failure_threshold=circuit_breaker_threshold,
-            recovery_timeout=60.0,
-            expected_exception=httpx.HTTPStatusError,
         )
 
         # Get or create source record
@@ -175,9 +160,7 @@ class BaseAnnotationSource(ABC):
             )
 
             self.http_client = RetryableHTTPClient(
-                client=base_client,
-                retry_config=self.retry_config,
-                circuit_breaker=self.circuit_breaker,
+                client=base_client, retry_config=self.retry_config
             )
 
         return self.http_client
@@ -457,128 +440,6 @@ class BaseAnnotationSource(ABC):
                 gene_id=gene.id,
             )
             return False
-
-    async def update_all_genes(self, limit: int | None = None) -> tuple[int, int]:
-        """
-        Update annotations for all genes.
-
-        Args:
-            limit: Optional limit on number of genes to process
-
-        Returns:
-            Tuple of (successful_count, failed_count)
-        """
-        logger.sync_info(f"Starting bulk update for {self.source_name}", limit=limit)
-
-        # Enable batch mode to skip individual cache invalidations
-        self.batch_mode = True
-
-        # Get genes to update
-        query = self.session.query(Gene)
-        if limit:
-            query = query.limit(limit)
-        genes = query.all()
-
-        successful = 0
-        failed = 0
-
-        # Process in batches
-        for i in range(0, len(genes), self.batch_size):
-            batch = genes[i : i + self.batch_size]
-            logger.sync_info(f"Processing batch {i // self.batch_size + 1}", batch_size=len(batch))
-
-            # Try batch fetch first
-            try:
-                self._release_transaction()
-                batch_data = await self.fetch_batch(batch)
-
-                for gene in batch:
-                    if gene.id in batch_data:
-                        self.store_annotation(
-                            gene,
-                            batch_data[gene.id],
-                            metadata={
-                                "retrieved_at": datetime.utcnow().isoformat(),
-                                "batch_fetch": True,
-                            },
-                        )
-                        successful += 1
-                    else:
-                        # Fall back to individual fetch
-                        if await self.update_gene(gene):
-                            successful += 1
-                        else:
-                            failed += 1
-
-            except NotImplementedError:
-                # Batch fetch not implemented, use individual updates
-                for gene in batch:
-                    if await self.update_gene(gene):
-                        successful += 1
-                    else:
-                        failed += 1
-            except Exception as e:
-                logger.sync_error(f"Batch processing error: {str(e)}", batch_start=i)
-                failed += len(batch)
-
-            # Commit every 100 genes to balance performance and safety
-            if (i + self.batch_size) % 100 == 0:
-                self.session.commit()
-                logger.sync_debug(f"Committed at gene {i + self.batch_size}")
-
-        # Update source record
-        self.source_record.last_update = datetime.utcnow()
-        self.source_record.next_update = datetime.utcnow() + timedelta(days=self.cache_ttl_days)
-        self.session.commit()
-
-        # Disable batch mode
-        self.batch_mode = False
-
-        # Clear the entire annotations cache namespace after batch update
-        # This is more efficient than clearing individual entries
-        try:
-            cache_service = get_cache_service(self.session)
-            if cache_service:
-                try:
-                    # We're in an async context (update_all_genes is async)
-                    # Just await the cache clear directly
-                    await cache_service.clear_namespace("annotations")
-                    logger.sync_info(
-                        "Cleared annotations cache after batch update", source=self.source_name
-                    )
-                except Exception as e:
-                    logger.sync_debug(
-                        f"Could not clear cache after batch: {str(e)}", source=self.source_name
-                    )
-        except Exception as e:
-            logger.sync_debug(f"Cache service not available: {str(e)}", source=self.source_name)
-
-        # Refresh materialized view
-        self._refresh_materialized_view()
-
-        logger.sync_info(
-            f"Bulk update completed for {self.source_name}", successful=successful, failed=failed
-        )
-
-        return successful, failed
-
-    def _refresh_materialized_view(self) -> None:
-        """Refresh all materialized views (gene_scores, gene_annotations_summary)."""
-        views_to_refresh = ["gene_scores", "gene_annotations_summary"]
-
-        for view_name in views_to_refresh:
-            try:
-                safe_refresh_matview(self.session, view_name, concurrent=True)
-                logger.sync_info(f"Materialized view {view_name} refreshed")
-            except Exception:
-                # Rollback failed concurrent refresh before retrying
-                self.session.rollback()
-                # Try without CONCURRENTLY if it fails
-                try:
-                    safe_refresh_matview(self.session, view_name, concurrent=False)
-                    logger.sync_info(f"Materialized view {view_name} refreshed (non-concurrent)")
-                except Exception as e2:
-                    logger.sync_error(f"Failed to refresh materialized view {view_name}: {e2}")
 
     @classmethod
     def stale_annotation_filter(cls) -> ColumnElement[bool] | None:

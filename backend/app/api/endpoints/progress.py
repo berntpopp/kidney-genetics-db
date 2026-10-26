@@ -7,10 +7,11 @@ import asyncio
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
+from app.api.endpoints.auth import get_current_user
+from app.core.database import SessionLocal, get_db
 from app.core.datasource_config import (
     DATA_SOURCE_CONFIG,
     INTERNAL_PROCESS_CONFIG,
@@ -19,7 +20,7 @@ from app.core.datasource_config import (
 )
 from app.core.dependencies import require_admin
 from app.core.events import EventTypes, event_bus
-from app.core.exceptions import DataSourceError
+from app.core.exceptions import DataSourceError, ResourceConflictError
 from app.core.logging import get_logger
 from app.core.responses import ResponseBuilder
 from app.models.progress import DataSourceProgress, SourceStatus
@@ -63,7 +64,6 @@ class ConnectionManager:
         await self.broadcast({"type": "task_failed", "data": data})
 
     async def connect(self, websocket: WebSocket) -> None:
-        await websocket.accept()
         self.active_connections.append(websocket)
         await logger.info("WebSocket connected", total_connections=len(self.active_connections))
 
@@ -126,53 +126,29 @@ manager = ConnectionManager()
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)) -> None:
+async def websocket_endpoint(websocket: WebSocket) -> None:
     """
-    WebSocket endpoint for real-time progress updates
+    WebSocket endpoint for real-time progress updates (admin only)
 
-    OPTIMIZED: No more polling! Updates are pushed via event bus.
-    Clients connect to this endpoint to receive live updates about
-    data source processing progress through event-driven architecture.
+    The client authenticates with a first message ``{"type": "auth", "token": ...}``,
+    keeping the token out of the URL (request logs record query params). Updates are
+    then pushed through event bus subscriptions; the socket holds no DB connection.
     """
+    await websocket.accept()
+    try:
+        message = await asyncio.wait_for(websocket.receive_json(), timeout=10.0)
+        token = message.get("token") if isinstance(message, dict) else None
+        with SessionLocal() as db:
+            require_admin(await get_current_user(token if isinstance(token, str) else "", db))
+            initial_status = {"type": "initial_status", "data": _formatted_status(db)}
+    except WebSocketDisconnect:
+        return
+    except (asyncio.TimeoutError, ValueError, KeyError, HTTPException):
+        await websocket.close(code=4401, reason="Admin authentication required")
+        return
+
     await manager.connect(websocket)
     try:
-        # Send initial status of all sources with same format as REST API
-        all_progress = db.query(DataSourceProgress).all()
-
-        # Use same logic as get_all_status to format data consistently
-        automated_sources = get_auto_update_sources()
-        all_configured_sources = list(DATA_SOURCE_CONFIG.keys())
-        internal_processes = list(INTERNAL_PROCESS_CONFIG.keys())
-
-        formatted_data = []
-        for p in all_progress:
-            # Skip obsolete entries
-            if (
-                p.source_name not in all_configured_sources
-                and p.source_name not in internal_processes
-            ):
-                continue
-
-            status_dict = p.to_dict()
-
-            # Add same category and metadata as REST API
-            if p.source_name in automated_sources:
-                status_dict["category"] = "data_source"
-            elif p.source_name in all_configured_sources:
-                status_dict["category"] = "hybrid_source"
-            elif p.source_name in internal_processes:
-                status_dict["category"] = "internal_process"
-                # Add proper display metadata for internal processes
-                process_config = get_internal_process_config(p.source_name)
-                if process_config:
-                    status_dict["display_name"] = process_config["display_name"]
-                    status_dict["description"] = process_config["description"]
-                    status_dict["icon"] = process_config["icon"]
-            else:
-                status_dict["category"] = "other"
-            formatted_data.append(status_dict)
-
-        initial_status = {"type": "initial_status", "data": formatted_data}
         await websocket.send_json(initial_status)
 
         # NO MORE POLLING! Just keep connection alive
@@ -188,45 +164,34 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
             except asyncio.TimeoutError:
                 # Send a ping to keep connection alive
                 await websocket.send_json({"type": "ping"})
-            except WebSocketDisconnect:
-                break
-
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        pass
     except Exception as e:
         await logger.error("WebSocket error", error=e)
+    finally:
         manager.disconnect(websocket)
 
 
-@router.get("/status")
-async def get_all_status(db: Session = Depends(get_db)) -> dict[str, Any]:
-    """
-    Get current status of all data sources
-
-    Returns:
-        List of status dictionaries for all data sources
-    """
+def _formatted_status(db: Session) -> list[dict[str, Any]]:
+    """All configured source statuses with category and display metadata."""
     all_progress = db.query(DataSourceProgress).order_by(DataSourceProgress.source_name).all()
 
-    # Get valid data sources from config - only include automated sources for pipeline
     automated_sources = get_auto_update_sources()
-    # Also include hybrid sources that could be run manually
     all_configured_sources = list(DATA_SOURCE_CONFIG.keys())
     internal_processes = list(INTERNAL_PROCESS_CONFIG.keys())
 
-    result = []
+    formatted_data = []
     for p in all_progress:
-        # Skip obsolete entries that are no longer in any config
+        # Skip obsolete entries
         if p.source_name not in all_configured_sources and p.source_name not in internal_processes:
             continue
 
         status_dict = p.to_dict()
 
-        # Add category and enhanced metadata
+        # Add same category and metadata as REST API
         if p.source_name in automated_sources:
             status_dict["category"] = "data_source"
         elif p.source_name in all_configured_sources:
-            # Hybrid sources like DiagnosticPanels and Literature
             status_dict["category"] = "hybrid_source"
         elif p.source_name in internal_processes:
             status_dict["category"] = "internal_process"
@@ -238,7 +203,19 @@ async def get_all_status(db: Session = Depends(get_db)) -> dict[str, Any]:
                 status_dict["icon"] = process_config["icon"]
         else:
             status_dict["category"] = "other"
-        result.append(status_dict)
+        formatted_data.append(status_dict)
+    return formatted_data
+
+
+@router.get("/status")
+async def get_all_status(db: Session = Depends(get_db)) -> dict[str, Any]:
+    """
+    Get current status of all data sources
+
+    Returns:
+        List of status dictionaries for all data sources
+    """
+    result = _formatted_status(db)
 
     # Count only actual data sources (not internal processes)
     data_source_count = len(
@@ -417,6 +394,15 @@ async def resume_source(
         return ResponseBuilder.build_success_response(
             data={"status": "not_paused", "message": f"{source_name} is not paused"}
         )
+
+    if source_name == "annotation_pipeline":
+        from app.pipeline.annotation_pipeline import pipeline_run_active
+
+        if pipeline_run_active(db):
+            # Sources started before the pause are still finishing (#359)
+            raise ResourceConflictError(
+                "annotation_pipeline", "is still finishing sources started before the pause"
+            )
 
     # Resume the update in background - now properly in async context
     asyncio.create_task(task_manager.run_source(source_name, resume=True))

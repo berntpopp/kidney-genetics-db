@@ -295,6 +295,9 @@ class DataSourceClient(ABC):
         # Get list of gene symbols for batch normalization
         gene_symbols = list(gene_data.keys())
 
+        # Evidence written per gene in this run, so a second symbol for it merges (#366)
+        written: dict[int, dict[str, Any]] = {}
+
         # Normalize gene symbols in batches
         batch_size = 50
         total_batches = (len(gene_symbols) + batch_size - 1) // batch_size
@@ -346,6 +349,9 @@ class DataSourceClient(ABC):
                         if gene:
                             if reported_gene_ids is not None:
                                 reported_gene_ids.add(int(gene.id))
+                            if gene.id in written:
+                                data = self._merge_evidence_data(written[gene.id], data)
+                            written[gene.id] = data
                             # Create or update evidence
                             prev_created = stats["evidence_created"]
                             prev_updated = stats["evidence_updated"]
@@ -382,6 +388,28 @@ class DataSourceClient(ABC):
                 items_updated=batch_updated,
                 items_failed=batch_failed,
             )
+
+    def _merge_evidence_data(
+        self, existing_data: dict[str, Any], new_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Merge two records for one gene: union lists, keep the larger number, recount.
+
+        ponytail: numbers (scores) take the max instead of being recomputed from the merged
+        lists; a source whose score needs more than that overrides this method.
+        """
+        merged = {**existing_data, **new_data}
+        for key, old in existing_data.items():
+            new = new_data.get(key)
+            if isinstance(old, list) and isinstance(new, list):
+                merged[key] = old + [v for v in new if v not in old]
+            elif type(old) in (int, float) and type(new) in (int, float):
+                merged[key] = max(old, new)
+        for key, value in merged.items():  # panels -> panel_count, validities -> validity_count
+            if isinstance(value, list):
+                count_key = (key[:-3] + "y" if key.endswith("ies") else key[:-1]) + "_count"
+                if count_key in merged:
+                    merged[count_key] = len(value)
+        return merged
 
     async def _get_or_create_gene(
         self, db: Session, norm_result: dict[str, Any], original_symbol: str, stats: dict[str, Any]
@@ -591,43 +619,3 @@ class DataSourceClient(ABC):
         Subclasses can override this to provide source-specific details.
         """
         return f"Data from {self.source_name}"
-
-
-def get_data_source_client(source_name: str, **kwargs: Any) -> DataSourceClient:
-    """
-    Factory function to get appropriate data source client.
-
-    Args:
-        source_name: Name of the data source
-        **kwargs: Additional arguments for client initialization
-
-    Returns:
-        Appropriate DataSourceClient instance
-
-    Raises:
-        ValueError: If source_name is not recognized
-    """
-    source_map = {
-        # REFACTORED: Updated to use unified sources
-        "GenCC": "app.pipeline.sources.unified.gencc.GenCCUnifiedSource",
-        "PubTator": "app.pipeline.sources.unified.pubtator.PubTatorUnifiedSource",
-        "PanelApp": "app.pipeline.sources.unified.panelapp.PanelAppUnifiedSource",
-        "ClinGen": "app.pipeline.sources.unified.clingen.ClinGenUnifiedSource",
-        "HPO": "app.pipeline.sources.unified.hpo.HPOUnifiedSource",
-    }
-
-    if source_name not in source_map:
-        raise ValueError(f"Unknown data source: {source_name}")
-
-    # Dynamic import and instantiation
-    module_path, class_name = source_map[source_name].rsplit(".", 1)
-
-    try:
-        import importlib
-        from typing import cast
-
-        module = importlib.import_module(module_path)
-        client_class = getattr(module, class_name)
-        return cast(DataSourceClient, client_class(**kwargs))
-    except (ImportError, AttributeError) as e:
-        raise ValueError(f"Could not import {source_name} client: {e}") from e

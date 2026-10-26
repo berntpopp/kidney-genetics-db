@@ -80,37 +80,10 @@ async def test_mpo_mgi_update_gene_does_not_hold_transaction_across_fetch(db):
 
 
 @pytest.mark.asyncio
-async def test_update_all_genes_does_not_hold_transaction_across_fetch_batch(db):
-    session, gene_id = db
-    source = HGNCAnnotationSource(session)
-
-    async def slow_batch(genes):
-        await _slow_fetch()
-        return {g.id: {"symbol": g.approved_symbol} for g in genes if g.id == gene_id}
-
-    async def no_fetch(gene):
-        return None  # other genes in the test DB: no network
-
-    with (
-        patch.object(source, "fetch_batch", slow_batch),
-        patch.object(source, "fetch_annotation", no_fetch),
-        patch.object(source, "_refresh_materialized_view"),
-    ):
-        source.batch_size = 10**6  # one batch holding every gene
-        await source.update_all_genes()
-
-    assert session.query(GeneAnnotation).filter_by(gene_id=gene_id, source="hgnc").count() == 1
-
-
-@pytest.mark.parametrize(
-    "module", ["app.api.endpoints.gene_annotations", "app.api.endpoints.annotation_updates"]
-)
-@pytest.mark.asyncio
-async def test_update_endpoint_releases_request_transaction(db, module):
-    import importlib
+async def test_update_endpoint_releases_request_transaction(db):
+    from app.api.endpoints.annotation_updates import update_gene_annotations as endpoint
 
     session, gene_id = db
-    endpoint = importlib.import_module(module).update_gene_annotations
 
     admin = SimpleNamespace(id=0, username="audit")
     await endpoint(gene_id, BackgroundTasks(), ["hgnc"], session, admin)

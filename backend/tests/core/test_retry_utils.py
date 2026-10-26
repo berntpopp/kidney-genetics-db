@@ -298,10 +298,9 @@ class TestRetryableHTTPClient:
     async def test_retry_on_5xx_errors(self):
         """Test that 5xx errors trigger retry.
 
-        Note: RetryableHTTPClient uses @retry_with_backoff() decorator with
-        default config. The client calls raise_for_status() which raises
-        httpx.HTTPStatusError on 4xx/5xx. The decorator retries on HTTPStatusError
-        when the status code is in retry_on_status_codes (default: 429, 500, 502, 503, 504).
+        Note: RetryableHTTPClient retries with its own retry_config. The client
+        calls raise_for_status() which raises httpx.HTTPStatusError on 4xx/5xx,
+        retried when the status code is in retry_on_status_codes.
         """
         import httpx
 
@@ -362,8 +361,7 @@ class TestRetryableHTTPClient:
         """Test that circuit breaker prevents requests when open.
 
         Note: This test uses retry_with_backoff decorator directly with a
-        circuit breaker, since RetryableHTTPClient's decorator is applied
-        at class definition time without circuit breaker support.
+        circuit breaker.
         """
         call_count = 0
         circuit_breaker = CircuitBreaker(failure_threshold=2, recovery_timeout=10.0)

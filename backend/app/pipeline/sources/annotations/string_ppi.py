@@ -66,7 +66,7 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         # Cache for protein mappings and interaction data
         self._protein_to_gene: dict[str, str] | None = None
         self._gene_to_protein: dict[str, list[str]] | None = None
-        self._interactions: pd.DataFrame | None = None
+        self._partners: dict[str, list[tuple[str, Any]]] | None = None
         self._kidney_genes: set[str] | None = None
         self._gene_evidence_scores: dict[str, float] | None = None
 
@@ -145,7 +145,11 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
             return  # Already loaded
 
         await self.ensure_data_files()
+        # pandas parsing of the gzip files is CPU-bound: keep it off the event loop (#363)
+        await asyncio.to_thread(self._read_data_files)
 
+    def _read_data_files(self) -> None:
+        """Parse the STRING files and index each gene's interactions (runs in a thread)."""
         logger.sync_info("Loading STRING data files", version=self.version)
 
         # Load protein info file
@@ -203,8 +207,17 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         # Remove rows where mapping failed
         df_links = df_links.dropna(subset=["gene1", "gene2"])
 
-        self._interactions = df_links
-        logger.sync_info(f"Loaded {len(self._interactions)} interactions above threshold")
+        # Each gene's (partner, score) rows in file order: one lookup per gene instead of a
+        # full-table scan per gene (~127 s for 5k genes on the event loop, #363)
+        partners: dict[str, list[tuple[str, Any]]] = {}
+        for gene1, gene2, score in zip(
+            df_links["gene1"], df_links["gene2"], df_links["combined_score"], strict=True
+        ):
+            partners.setdefault(gene1, []).append((gene2, score))
+            if gene2 != gene1:
+                partners.setdefault(gene2, []).append((gene1, score))
+        self._partners = partners
+        logger.sync_info(f"Loaded {len(df_links)} interactions above threshold")
 
     async def _load_kidney_genes(self) -> None:
         """Load kidney genes and their evidence scores from database."""
@@ -269,7 +282,7 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
         # After loading, these are guaranteed to be set
         if (
             self._kidney_genes is None
-            or self._interactions is None
+            or self._partners is None
             or self._gene_evidence_scores is None
         ):
             raise RuntimeError("Data should be loaded at this point")
@@ -286,30 +299,14 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
             if gene_symbol not in self._kidney_genes:
                 continue
 
-            # Get all interactions for this gene
-            gene_interactions = self._interactions[
-                (self._interactions["gene1"] == gene_symbol)
-                | (self._interactions["gene2"] == gene_symbol)
-            ].copy()
-
-            if len(gene_interactions) == 0:
-                # No interactions found
-                raw_scores[gene.id] = 0
-                results[gene.id] = self._format_annotation(gene_symbol, 0, 0, 0, [])
-                continue
-
-            # Identify partners
-            gene_interactions["partner"] = gene_interactions.apply(
-                lambda row, gs=gene_symbol: row["gene2"] if row["gene1"] == gs else row["gene1"],
-                axis=1,
-            )
-
-            # Filter for kidney gene partners only
-            gene_interactions = gene_interactions[
-                gene_interactions["partner"].isin(self._kidney_genes)
+            # This gene's interactions with kidney-gene partners
+            gene_interactions = [
+                (partner, score)
+                for partner, score in self._partners.get(gene_symbol, ())
+                if partner in self._kidney_genes
             ]
 
-            if len(gene_interactions) == 0:
+            if not gene_interactions:
                 # No kidney gene interactions
                 raw_scores[gene.id] = 0
                 results[gene.id] = self._format_annotation(gene_symbol, 0, 0, 0, [])
@@ -318,9 +315,7 @@ class StringPPIAnnotationSource(BaseAnnotationSource):
             # Aggregate interactions by partner gene (handling multiple isoforms)
             partner_interactions: dict[str, dict[str, Any]] = {}
 
-            for _, interaction in gene_interactions.iterrows():
-                partner = interaction["partner"]
-                string_score = interaction["combined_score"]
+            for partner, string_score in gene_interactions:
                 # _gene_evidence_scores is guaranteed to be loaded at this point (checked above)
                 partner_evidence = self._gene_evidence_scores.get(partner, 0)
 

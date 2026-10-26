@@ -275,22 +275,14 @@ class PipelineOrchestrator:
         from app.pipeline.aggregate import update_all_curations
 
         def _aggregate_and_refresh() -> None:
-            from sqlalchemy import text
+            from app.db.safe_sql import refresh_score_views
 
             db = SessionLocal()
             try:
-                update_all_curations(db)
-                # Refresh gene_scores so the frontend can display data
-                try:
-                    db.execute(text("REFRESH MATERIALIZED VIEW gene_scores"))
-                    db.commit()
+                # Curations copy gene_scores, so refresh it first (#366)
+                if refresh_score_views(db):
                     logger.sync_info("Refreshed gene_scores materialized view")
-                except Exception as e:
-                    db.rollback()
-                    logger.sync_warning(
-                        "Failed to refresh gene_scores view",
-                        error=str(e),
-                    )
+                update_all_curations(db)
             finally:
                 db.close()
 

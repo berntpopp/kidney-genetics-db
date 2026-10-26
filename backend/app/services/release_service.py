@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_thread_pool_executor
 from app.core.logging import get_logger
+from app.db.safe_sql import refresh_score_views
 from app.models.data_release import DataRelease
 from app.services.zenodo_service import ZenodoService
 
@@ -333,6 +334,10 @@ class ReleaseService:
         Returns:
             tuple: Path to exported JSON file and number of exported genes
         """
+        # Scores are exported next to live evidence and checksummed: they must match (#367)
+        if not refresh_score_views(self.db):
+            raise RuntimeError("Could not refresh gene_scores; refusing to export stale scores")
+
         # Ensure export directory exists
         self.export_dir.mkdir(exist_ok=True, parents=True)
         export_file = self.export_dir / f"kidney-genetics-db_{version}.json"

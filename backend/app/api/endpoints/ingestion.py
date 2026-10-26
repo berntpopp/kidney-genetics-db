@@ -118,44 +118,6 @@ async def upload_evidence_file(
     )
 
     try:
-        # REPLACE mode: Delete existing data first (with transaction safety)
-        if mode == "replace" and provider_name:
-            from app.services.hybrid_source_manager import get_source_manager
-
-            await logger.info(
-                "REPLACE mode: deleting existing data",
-                provider=provider_name,
-                source=source_name,
-            )
-
-            try:
-                # Start savepoint for rollback capability
-                savepoint = db.begin_nested()
-
-                try:
-                    manager = get_source_manager(source_name, db)
-                    delete_stats = await manager.delete_by_identifier(
-                        provider_name, current_user.username
-                    )
-
-                    await logger.info("REPLACE mode: existing data deleted", stats=delete_stats)
-
-                except Exception as delete_error:
-                    savepoint.rollback()
-                    await logger.error(
-                        "REPLACE mode: delete failed, rolling back", error=delete_error
-                    )
-                    raise DataSourceError(
-                        source_name,
-                        "replace_delete",
-                        f"Failed to delete existing data: {str(delete_error)}",
-                    ) from delete_error
-
-            except Exception:
-                # Rollback entire transaction on failure
-                db.rollback()
-                raise
-
         # Get source processor
         await logger.info("Getting source processor", source_name=source_name)
         source = get_unified_source(source_name, db_session=db)
@@ -221,6 +183,7 @@ async def upload_evidence_file(
 
         genes_created = 0
         genes_updated = 0
+        gene_ids: dict[str, int] = {}
 
         for batch_num in range(total_batches):
             start_idx = batch_num * batch_size
@@ -252,6 +215,7 @@ async def upload_evidence_file(
                         db, norm_result, symbol, {"genes_created": 0, "genes_updated": 0}
                     )
                     if gene:
+                        gene_ids[symbol] = gene.id
                         genes_created += 1 if norm_result.get("created") else 0
                         genes_updated += 1 if not norm_result.get("created") else 0
 
@@ -286,6 +250,12 @@ async def upload_evidence_file(
         if not isinstance(source, DiagnosticPanelsSource | LiteratureSource):
             raise DataSourceError(source_name, "store", "Source does not support evidence storage")
 
+        manager = get_source_manager(source_name, db)
+        if mode == "replace":
+            # Delete only after the new file parsed; the single commit below covers both (#366)
+            delete_stats = await manager.delete_by_identifier(provider_name, current_user.username)
+            await logger.info("REPLACE mode: existing data deleted", stats=delete_stats)
+
         evidence_stats = await source.store_evidence(
             db,
             processed_data,
@@ -294,6 +264,7 @@ async def upload_evidence_file(
             original_filename=file.filename,
             uploaded_by=current_user.id,
             mode=mode,
+            gene_ids=gene_ids,
         )
 
         await logger.info("Evidence storage complete", stats=evidence_stats)
@@ -301,6 +272,9 @@ async def upload_evidence_file(
         db.commit()
 
         await logger.info("Database committed")
+
+        # Uploads change scores in every mode, not only on replace (#367)
+        await manager.recalculate_evidence_scores()
 
         # Convert to expected format
         stats = {
@@ -487,6 +461,7 @@ async def delete_by_identifier(
         stats = await manager.delete_by_identifier(identifier, current_user.username)
 
         db.commit()
+        await manager.recalculate_evidence_scores()
 
         await logger.info(
             "Deletion complete", source=source_name, identifier=identifier, stats=stats

@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any, cast
 
 from app.core.logging import get_logger
-from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin
@@ -98,12 +97,11 @@ class HGNCAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
         return self._extract_annotations(hgnc_data)
 
-    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _fetch_by_hgnc_id(self, hgnc_id: str) -> dict[str, Any] | None:
         """Fetch HGNC data by HGNC ID."""
         clean_id = hgnc_id.replace("HGNC:", "")
 
-        await self.apply_rate_limit()
+        await self.apply_rate_limit(self.base_url)
         client = await self.get_http_client()
 
         try:
@@ -122,10 +120,9 @@ class HGNCAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
         return None
 
-    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _fetch_by_symbol(self, symbol: str) -> dict[str, Any] | None:
         """Fetch HGNC data by gene symbol."""
-        await self.apply_rate_limit()
+        await self.apply_rate_limit(self.base_url)
         client = await self.get_http_client()
 
         try:
@@ -144,10 +141,9 @@ class HGNCAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
         return None
 
-    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def _fetch_by_ensembl_id(self, ensembl_id: str) -> dict[str, Any] | None:
         """Fetch HGNC data by Ensembl gene ID."""
-        await self.apply_rate_limit()
+        await self.apply_rate_limit(self.base_url)
         client = await self.get_http_client()
 
         try:
@@ -276,10 +272,9 @@ class HGNCAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
 
         return results
 
-    @retry_with_backoff(config=RetryConfig(max_retries=3))
     async def search_genes(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """Search for genes in HGNC by query string."""
-        await self.apply_rate_limit()
+        await self.apply_rate_limit(self.base_url)
         client = await self.get_http_client()
 
         try:

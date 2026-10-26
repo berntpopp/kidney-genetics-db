@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import AdminCacheManagement from '@/views/admin/AdminCacheManagement.vue'
 import AdminPipeline from '@/views/admin/AdminPipeline.vue'
 import { getCacheNamespaces } from '@/api/admin/cache'
+import { getAllStatus } from '@/api/admin/pipeline'
 
 vi.mock('@/api/admin/cache', () => ({
   getCacheStats: vi.fn(async () => ({
@@ -46,7 +47,25 @@ vi.mock('@/api/admin/pipeline', () => ({
           last_update_at: new Date(Date.now() - 2 * 60_000).toISOString()
         },
         // No heartbeat from an older backend: keep the plain status
-        { source_name: 'ClinGen', category: 'data_source', status: 'running', last_update_at: null }
+        {
+          source_name: 'ClinGen',
+          category: 'data_source',
+          status: 'running',
+          last_update_at: null
+        },
+        {
+          source_name: 'annotation_pipeline',
+          display_name: 'Gene Annotation Pipeline',
+          category: 'internal_process',
+          status: 'running',
+          current_operation: '1/4 sources done · hpo: fetching',
+          current_item: 1,
+          total_items: 4,
+          progress_percentage: 25,
+          started_at: new Date(Date.now() - 6 * 60_000).toISOString(),
+          last_update_at: new Date(Date.now() - 30_000).toISOString(),
+          estimated_completion: new Date(Date.now() + 4.2 * 60_000).toISOString()
+        }
       ]
     }
   }))
@@ -148,6 +167,51 @@ describe('AdminPipeline stalled sources', () => {
       vi.advanceTimersByTime(9 * 60_000)
       await nextTick()
       expect(badgeOf(w, 'PanelApp').text()).toBe('stalled')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('AdminPipeline annotation pipeline card', () => {
+  const card = (w: VueWrapper) =>
+    w.findAll('.border-dashed').find(c => c.text().includes('Gene Annotation Pipeline'))!
+
+  it('shows sources done, percentage and both timestamps from the progress row', async () => {
+    const w = await mountView(AdminPipeline)
+    const text = card(w).text()
+    expect(text).toContain('1/4 sources done · hpo: fetching')
+    expect(text).toContain('25%')
+    expect(text).toContain('Started: 6 min ago')
+    expect(card(w).find('[role="status"]').text()).toBe('1 of 4 sources done')
+    expect(text).toContain('About 5 min left') // 4.2 min rounds up
+  })
+
+  it('says so when the run passes its estimate instead of counting below zero', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+    const snapshot = await getAllStatus()
+    vi.mocked(getAllStatus).mockImplementation(async () => snapshot)
+    try {
+      const w = await mountView(AdminPipeline)
+      vi.advanceTimersByTime(5 * 60_000)
+      await flushPromises()
+      expect(card(w).text()).toContain('Running longer than estimated')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps relative times counting and polls while the socket is down', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+    const snapshot = await getAllStatus() // the same row on every poll, as the server would send
+    vi.mocked(getAllStatus).mockImplementation(async () => snapshot)
+    try {
+      const w = await mountView(AdminPipeline)
+      const calls = vi.mocked(getAllStatus).mock.calls.length
+      vi.advanceTimersByTime(2 * 60_000)
+      await flushPromises()
+      expect(card(w).text()).toContain('Started: 8 min ago')
+      expect(vi.mocked(getAllStatus).mock.calls.length).toBeGreaterThan(calls)
     } finally {
       vi.useRealTimers()
     }

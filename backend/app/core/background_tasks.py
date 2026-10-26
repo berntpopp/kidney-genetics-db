@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.exceptions import ResourceConflictError
 from app.core.logging import get_logger
 from app.core.task_decorator import TaskMixin
 from app.models.progress import DataSourceProgress, SourceStatus
@@ -120,7 +121,7 @@ class BackgroundTaskManager(TaskMixin):
                 "Source is already queued or running in ARQ",
                 source_name=source_name,
             )
-            raise ValueError(f"Source {source_name} is already running")
+            raise ResourceConflictError("Data source", f"{source_name} is already running")
 
         job_id = await enqueue_pipeline_job(source_name, mode, resume)
 
@@ -152,7 +153,7 @@ class BackgroundTaskManager(TaskMixin):
                 source_name=source_name,
                 task=str(self.running_tasks[source_name]),
             )
-            return
+            raise ResourceConflictError("Data source", f"{source_name} is already running")
 
         # Dynamic task dispatch
         method_name = f"_run_{source_name.lower().replace('_', '_')}"

@@ -9,7 +9,6 @@ This module provides an HTTP client that combines:
 """
 
 import asyncio
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -18,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService, get_cache_service
-from app.core.config import settings
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -47,10 +45,6 @@ class CachedHttpClient:
         self.max_retries = max_retries
         self.retry_delay = retry_delay
 
-        # Create cache directory
-        self.cache_dir = Path(settings.HTTP_CACHE_DIR)
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-
         # Create async HTTP client (plain httpx, no hishel caching layer)
         self.http_client = httpx.AsyncClient(
             timeout=httpx.Timeout(timeout),
@@ -60,7 +54,7 @@ class CachedHttpClient:
         # Circuit breaker state per domain
         self.circuit_breakers: dict[str, dict[str, Any]] = {}
 
-        logger.sync_info("CachedHttpClient initialized", cache_dir=str(self.cache_dir))
+        logger.sync_info("CachedHttpClient initialized")
 
     def _get_domain(self, url: str) -> str:
         """Extract domain from URL for circuit breaker tracking."""
@@ -439,18 +433,6 @@ class CachedHttpClient:
         """Clear HTTP cache."""
         count = 0
 
-        # Clear Hishel cache
-        try:
-            # Hishel doesn't provide a direct clear method, so we'll remove files
-            if self.cache_dir.exists():
-                for cache_file in self.cache_dir.glob("*"):
-                    if cache_file.is_file():
-                        cache_file.unlink()
-                        count += 1
-                logger.sync_info("Cleared HTTP cache files", count=count)
-        except Exception as e:
-            logger.sync_error("Error clearing HTTP cache files", error=str(e))
-
         # Clear database fallback cache
         if namespace:
             db_count = await self.cache_service.clear_namespace(namespace)
@@ -461,20 +443,6 @@ class CachedHttpClient:
     async def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         stats: dict[str, Any] = {}
-
-        # HTTP cache file stats
-        try:
-            if self.cache_dir.exists():
-                cache_files = list(self.cache_dir.glob("*"))
-                total_size = sum(f.stat().st_size for f in cache_files if f.is_file())
-                stats["http_cache"] = {
-                    "files": len(cache_files),
-                    "total_size_mb": round(total_size / (1024 * 1024), 2),
-                    "cache_dir": str(self.cache_dir),
-                }
-        except Exception as e:
-            logger.sync_error("Error getting HTTP cache stats", error=str(e))
-            stats["http_cache"] = {"error": str(e)}
 
         # Circuit breaker stats
         stats["circuit_breakers"] = self.circuit_breakers.copy()

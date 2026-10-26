@@ -179,7 +179,7 @@ services-down:
 # Run backend locally
 backend:
 	@echo "Starting backend API..."
-	@cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --log-level debug --access-log
+	@cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --log-level debug --access-log --timeout-graceful-shutdown 30
 
 # Run frontend locally
 frontend:

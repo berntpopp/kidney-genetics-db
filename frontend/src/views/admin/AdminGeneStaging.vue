@@ -58,58 +58,6 @@
       />
     </div>
 
-    <!-- Test Normalization Tool -->
-    <Card class="mb-6">
-      <CardHeader>
-        <CardTitle class="flex items-center">
-          <TestTube class="size-5 mr-2" />
-          Test Gene Normalization
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p class="text-sm text-muted-foreground mb-4">
-          Use this tool to test how the automatic normalization system would handle a gene symbol.
-          This helps when reviewing similar cases below.
-        </p>
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-          <div class="md:col-span-8 space-y-2">
-            <Label>Gene symbol to test</Label>
-            <Input v-model="testGeneText" placeholder="e.g., BRCA1, PKD1, WT1, MS6HM" />
-          </div>
-          <div class="md:col-span-4 flex items-end">
-            <Button
-              class="w-full"
-              :disabled="testLoading || !testGeneText.trim()"
-              @click="testNormalization"
-            >
-              <Search class="size-4 mr-1" />
-              Test Now
-            </Button>
-          </div>
-        </div>
-        <Alert
-          v-if="testResult"
-          :variant="testResult.success ? 'default' : 'destructive'"
-          class="mt-4"
-        >
-          <AlertDescription>
-            <div v-if="testResult.success">
-              <strong>This gene can be automatically normalized!</strong><br />
-              <div class="mt-2">
-                <code>{{ JSON.stringify(testResult.result, null, 2) }}</code>
-              </div>
-            </div>
-            <div v-else>
-              <strong>This gene failed automatic normalization</strong><br />
-              <span class="text-sm">This is why it would appear in the staging queue below.</span
-              ><br />
-              <div class="mt-1 text-xs">Error: {{ testResult.error }}</div>
-            </div>
-          </AlertDescription>
-        </Alert>
-      </CardContent>
-    </Card>
-
     <!-- Filters -->
     <Card class="mb-4">
       <CardContent class="pt-6">
@@ -526,15 +474,12 @@ import {
   Info,
   List,
   RefreshCw,
-  Search,
-  TestTube,
   UserSearch
 } from 'lucide-vue-next'
 
 // Reactive data
 const loading = ref(false)
 const statsLoading = ref(false)
-const testLoading = ref(false)
 const actionLoading = ref(false)
 
 // Stats data
@@ -553,8 +498,6 @@ const normalizationStats = reactive({
 })
 
 // Test normalization
-const testGeneText = ref('')
-const testResult = ref(null)
 
 // Filters
 const filters = reactive({
@@ -635,26 +578,6 @@ const loadPendingReviews = async () => {
 
 const loadData = async () => {
   await Promise.all([loadStats(), loadPendingReviews()])
-}
-
-const testNormalization = async () => {
-  if (!testGeneText.value.trim()) return
-
-  testLoading.value = true
-  testResult.value = null
-
-  try {
-    const response = await stagingApi.testNormalization(testGeneText.value.trim())
-    testResult.value = response.data
-  } catch (error) {
-    window.logService.error('Failed to test normalization:', error)
-    testResult.value = {
-      success: false,
-      error: error.response?.data?.detail || error.message
-    }
-  } finally {
-    testLoading.value = false
-  }
 }
 
 const approveItem = item => {

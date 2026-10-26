@@ -104,7 +104,7 @@ async def test_bulk_phenotypes_parses_results(source):
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_bulk_phenotypes_handles_api_error(source):
-    """Bulk phenotype query returns empty results on HTTP error."""
+    """A failed chunk is left out (unknown), not stored as "no kidney phenotype" (#365)."""
     mock_response = MagicMock()
     mock_response.status_code = 500
 
@@ -118,9 +118,7 @@ async def test_bulk_phenotypes_handles_api_error(source):
                 source._mpo_terms_cache,
             )
 
-    # All genes should have empty results
-    assert result["PKD1"]["has_kidney_phenotype"] is False
-    assert result["PKD1"]["phenotype_count"] == 0
+    assert "PKD1" not in result
 
 
 @pytest.mark.unit
@@ -198,7 +196,7 @@ async def test_bulk_zygosity_parses_results(source):
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_bulk_zygosity_handles_api_error(source):
-    """Zygosity query returns empty structure on HTTP error."""
+    """A failed zygosity chunk is left out, not stored as all-false (#365)."""
     mock_response = MagicMock()
     mock_response.status_code = 500
 
@@ -209,9 +207,30 @@ async def test_bulk_zygosity_handles_api_error(source):
         with patch.object(source, "apply_rate_limit", new_callable=AsyncMock):
             result = await source._bulk_query_zygosity({"PKD1": ["Pkd1"]}, source._mpo_terms_cache)
 
-    assert result["PKD1"]["homozygous"]["phenotype_count"] == 0
-    assert result["PKD1"]["heterozygous"]["phenotype_count"] == 0
-    assert result["PKD1"]["summary"] == "hm (false); ht (false)"
+    assert "PKD1" not in result
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_bulk_zygosity_shared_mouse_ortholog_reaches_every_human_gene(source):
+    """AMY1A/B/C share mouse Amy1: all three get its rows, and a failure drops all three."""
+    rows = [["MGI:3", "Amy1", "C57BL/6J", "hm", "MP:0000519", "hydroureter"]]
+    ok = MagicMock(status_code=200)
+    ok.json.return_value = {"results": rows}
+    gene_mouse_map = {"AMY1A": ["Amy1"], "AMY1B": ["Amy1"], "AMY1C": ["Amy1"]}
+
+    for response, expect_present in ((ok, True), (MagicMock(status_code=500), False)):
+        client = AsyncMock()
+        client.get = AsyncMock(return_value=response)
+        with patch.object(source, "get_http_client", return_value=client):
+            with patch.object(source, "apply_rate_limit", new_callable=AsyncMock):
+                result = await source._bulk_query_zygosity(gene_mouse_map, source._mpo_terms_cache)
+        assert client.get.await_count == 1  # Amy1 is queried once, not three times
+        for human in gene_mouse_map:
+            if expect_present:
+                assert result[human]["homozygous"]["has_kidney_phenotype"] is True
+            else:
+                assert human not in result
 
 
 # ── fetch_batch (integration of bulk queries) ───────────────────────────

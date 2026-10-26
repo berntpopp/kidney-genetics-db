@@ -699,20 +699,12 @@ async def get_gene(
 
     sources = [row[0] for row in sources_result]
 
-    # Get score breakdown
-    score_breakdown = {}
-    if gene.id:
-        breakdown_result = db.execute(
-            text("""
-                SELECT source_name, normalized_score
-                FROM combined_evidence_scores
-                WHERE gene_id = :gene_id
-                ORDER BY source_name
-            """),
-            {"gene_id": gene.id},
-        )
-        for row in breakdown_result:
-            score_breakdown[row[0]] = round(float(row[1]), 4) if row[1] is not None else 0.0
+    # Score breakdown from the materialized view, not a live rescoring of all evidence (#363)
+    source_scores = (score_result[2] if score_result else None) or {}
+    score_breakdown = {
+        name: float(score) if score is not None else 0.0
+        for name, score in sorted(source_scores.items())
+    }
 
     # Format as JSON:API
     return {

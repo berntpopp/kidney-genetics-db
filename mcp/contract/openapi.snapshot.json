@@ -5079,6 +5079,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Validate Annotations",
         "tags": [
           "Core Resources - Annotations"
@@ -5136,28 +5141,27 @@
               ],
               "title": "Source"
             }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "items": {
-                      "type": "integer"
-                    },
-                    "type": "array"
+          },
+          {
+            "in": "query",
+            "name": "gene_ids",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "integer"
                   },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Gene Ids"
-              }
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Gene Ids"
             }
           }
-        },
+        ],
         "responses": {
           "200": {
             "content": {
@@ -8358,65 +8362,6 @@
           }
         },
         "summary": "Get Normalization Stats",
-        "tags": [
-          "Pipeline - Staging"
-        ]
-      }
-    },
-    "/api/staging/normalization/test": {
-      "post": {
-        "description": "Test gene normalization for a given gene text (for debugging)",
-        "operationId": "test_normalization_api_staging_normalization_test_post",
-        "parameters": [
-          {
-            "description": "Gene text to test normalization",
-            "in": "query",
-            "name": "gene_text",
-            "required": true,
-            "schema": {
-              "description": "Gene text to test normalization",
-              "title": "Gene Text",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Source name for testing",
-            "in": "query",
-            "name": "source_name",
-            "required": false,
-            "schema": {
-              "default": "Manual Test",
-              "description": "Source name for testing",
-              "title": "Source Name",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Test Normalization Api Staging Normalization Test Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Test Normalization",
         "tags": [
           "Pipeline - Staging"
         ]

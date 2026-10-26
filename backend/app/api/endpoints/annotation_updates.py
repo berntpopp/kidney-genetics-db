@@ -4,6 +4,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
@@ -187,6 +188,14 @@ async def refresh_materialized_view(
 # Pipeline Management Endpoints
 
 
+def _refuse_if_pipeline_running(db: Session) -> None:
+    """409 while an annotation run is active, so a second run never starts next to it (#359)."""
+    from app.pipeline.annotation_pipeline import pipeline_run_active
+
+    if pipeline_run_active(db):
+        raise HTTPException(status_code=409, detail="An annotation update is already running")
+
+
 @router.post("/pipeline/update", dependencies=[Depends(require_admin)])
 @limiter.limit(LIMIT_PIPELINE)
 async def trigger_pipeline_update(
@@ -274,6 +283,8 @@ async def trigger_pipeline_update(
 
     from app.pipeline.annotation_pipeline import UpdateStrategy
 
+    _refuse_if_pipeline_running(db)
+
     # Validate strategy
     try:
         update_strategy = UpdateStrategy(strategy)
@@ -290,6 +301,9 @@ async def trigger_pipeline_update(
     background_tasks.add_task(
         _run_pipeline_update, update_strategy, sources, gene_ids, force, task_id
     )
+
+    # End the read: this session is held until the background run ends (#249)
+    db.commit()
 
     return {
         "task_id": task_id,
@@ -331,28 +345,21 @@ async def update_failed_annotations(
         sources=sources,
     )
     await logger.info("Failed annotations update requested", sources=sources)
+    _refuse_if_pipeline_running(db)
 
-    # Query genes that have incomplete annotations
-    from sqlalchemy import and_, exists
+    from sqlalchemy import exists
 
-    from app.models.gene import GeneCuration
-
-    # Find genes with evidence score but missing/incomplete annotations
-    failed_query = (
-        db.query(Gene)
-        .join(GeneCuration, GeneCuration.gene_id == Gene.id)
-        .filter(
-            and_(
-                GeneCuration.evidence_score > 0, ~exists().where(GeneAnnotation.gene_id == Gene.id)
-            )
-        )
-    )
+    # Genes without any annotation (gene_curations.evidence_score is never set, so it
+    # cannot filter here: #366)
+    failed_query = db.query(Gene).filter(~exists().where(GeneAnnotation.gene_id == Gene.id))
 
     failed_genes = failed_query.limit(50).all()  # Limit to 50 genes at a time
 
     if not failed_genes:
         await logger.info("No failed genes found to retry")
         return {"message": "No failed genes to retry", "count": 0, "status": "completed"}
+
+    failed_gene_ids = [g.id for g in failed_genes]
 
     # Generate task ID
     task_id = str(uuid.uuid4())
@@ -362,7 +369,7 @@ async def update_failed_annotations(
         _run_pipeline_update,
         UpdateStrategy.INCREMENTAL,
         sources,
-        [g.id for g in failed_genes],
+        failed_gene_ids,
         False,  # force
         task_id,
     )
@@ -371,12 +378,15 @@ async def update_failed_annotations(
         "Failed annotations update scheduled", gene_count=len(failed_genes), task_id=task_id
     )
 
+    # End the read: this session is held until the background run ends (#249)
+    db.commit()
+
     return {
         "task_id": task_id,
         "status": "scheduled",
         "message": f"Scheduled retry for {len(failed_genes)} failed genes",
         "count": len(failed_genes),
-        "gene_ids": [g.id for g in failed_genes][:10],  # First 10 for preview
+        "gene_ids": failed_gene_ids[:10],  # First 10 for preview
     }
 
 
@@ -409,10 +419,9 @@ async def update_new_genes(
         days_back=days_back,
     )
     await logger.info("New genes update requested", days_back=days_back)
+    _refuse_if_pipeline_running(db)
 
     # Query genes without annotations, ordered by clinical importance
-    from sqlalchemy import func
-
     from app.models.gene import GeneCuration
 
     new_genes = (
@@ -429,6 +438,8 @@ async def update_new_genes(
         await logger.info("No new genes without annotations found")
         return {"message": "No new genes found", "count": 0, "status": "completed"}
 
+    new_gene_ids = [g.id for g in new_genes]
+
     # Generate task ID
     task_id = str(uuid.uuid4())
 
@@ -437,19 +448,22 @@ async def update_new_genes(
         _run_pipeline_update,
         UpdateStrategy.FULL,
         None,  # sources
-        [g.id for g in new_genes],
+        new_gene_ids,
         False,  # force
         task_id,
     )
 
     await logger.info("New genes update scheduled", gene_count=len(new_genes), task_id=task_id)
 
+    # End the read: this session is held until the background run ends (#249)
+    db.commit()
+
     return {
         "task_id": task_id,
         "status": "scheduled",
         "message": f"Scheduled processing for {len(new_genes)} new genes",
         "count": len(new_genes),
-        "gene_ids": [g.id for g in new_genes][:10],  # First 10 for preview
+        "gene_ids": new_gene_ids[:10],  # First 10 for preview
     }
 
 
@@ -480,6 +494,7 @@ async def update_missing_source(
         source=source_name,
     )
     await logger.info("Missing source update requested", source=source_name)
+    _refuse_if_pipeline_running(db)
 
     # Validate source exists
     source = db.query(AnnotationSource).filter_by(source_name=source_name, is_active=True).first()
@@ -495,6 +510,9 @@ async def update_missing_source(
 
     await logger.info(f"{source_name} missing update scheduled", task_id=task_id)
 
+    # End the read: this session is held until the background run ends (#249)
+    db.commit()
+
     return {
         "task_id": task_id,
         "status": "scheduled",
@@ -504,7 +522,7 @@ async def update_missing_source(
     }
 
 
-@router.post("/pipeline/validate")
+@router.post("/pipeline/validate", dependencies=[Depends(require_admin)])
 async def validate_annotations(
     source: str | None = Query(None, description="Specific source to validate"),
     db: Session = Depends(get_db),
@@ -528,7 +546,10 @@ async def validate_annotations(
 
 
 @router.post("/scheduler/trigger/{job_id}", dependencies=[Depends(require_admin)])
+@limiter.limit(LIMIT_PIPELINE)
 async def trigger_scheduled_job(
+    request: Request,
+    response: Response,
     job_id: str,
     current_user: User = Depends(require_admin),
 ) -> dict[str, Any]:
@@ -566,7 +587,7 @@ async def trigger_scheduled_job(
 async def reset_gene_annotations(
     background_tasks: BackgroundTasks,
     source: str | None = None,
-    gene_ids: list[int] | None = None,
+    gene_ids: list[int] | None = Query(None),  # without Query() FastAPI reads a body (#361)
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ) -> dict[str, Any]:
@@ -604,6 +625,9 @@ async def reset_gene_annotations(
         task_id=task_id,
         user_id=current_user.id if current_user else None,
     )
+
+    # End the read: this session is held until the background run ends (#249)
+    db.commit()
 
     return {
         "status": "accepted",
@@ -690,8 +714,6 @@ async def _run_missing_source_update(source_name: str, task_id: str) -> None:
         )
 
         # Order by evidence_score DESC to prioritize clinically important genes
-        from sqlalchemy import func
-
         from app.models.gene import GeneCuration
 
         missing_genes = (
@@ -770,7 +792,16 @@ async def _run_annotation_reset(
 
         # Perform the deletion
         query.delete(synchronize_session=False)
+        # The next incremental run must refetch what was deleted, not wait for the TTL (#370)
+        due = db.query(AnnotationSource)
+        if source:
+            due = due.filter(AnnotationSource.source_name == source)
+        due.update({AnnotationSource.next_update: func.now()}, synchronize_session=False)
         db.commit()
+
+        from app.pipeline.annotation_pipeline import AnnotationPipeline
+
+        await AnnotationPipeline(db)._refresh_materialized_view()  # drop deleted rows from views
 
         # Clear cache for affected data
         from app.core.cache_service import get_cache_service

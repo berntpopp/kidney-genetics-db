@@ -47,9 +47,6 @@ class AnnotationScheduler:
                 replace_existing=True,
             )
 
-            # Schedule source-specific updates based on their TTL
-            self._schedule_source_updates()
-
             self.scheduler.start()
             self.is_running = True
             logger.sync_info("Annotation scheduler started")
@@ -60,12 +57,6 @@ class AnnotationScheduler:
             self.scheduler.shutdown(wait=False)
             self.is_running = False
             logger.sync_info("Annotation scheduler stopped")
-
-    def _schedule_source_updates(self) -> None:
-        """Schedule updates for each source based on their configuration."""
-        # Skip source-specific scheduling for now since the model doesn't have these fields
-        # This will be handled by the daily/weekly general updates
-        pass
 
     async def _run_incremental_update(self) -> None:
         """Run incremental update for all sources."""
@@ -94,23 +85,6 @@ class AnnotationScheduler:
             logger.sync_info("Scheduled full update completed", results=results)
         except Exception as e:
             logger.sync_error(f"Scheduled full update failed: {str(e)}")
-        finally:
-            db.close()
-
-    async def _run_source_update(self, source_name: str) -> None:
-        """Run update for a specific source."""
-        logger.sync_info(f"Starting scheduled update for {source_name}")
-
-        db = SessionLocal()
-        try:
-            pipeline = AnnotationPipeline(db)
-            results = await pipeline.run_update(
-                strategy=UpdateStrategy.SELECTIVE, sources=[source_name], force=False
-            )
-
-            logger.sync_info(f"Scheduled update for {source_name} completed", results=results)
-        except Exception as e:
-            logger.sync_error(f"Scheduled update for {source_name} failed: {str(e)}")
         finally:
             db.close()
 

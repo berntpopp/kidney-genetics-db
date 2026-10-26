@@ -96,19 +96,6 @@ export const getNormalizationLogs = (
 }
 
 /**
- * Test normalization for a gene symbol
- */
-export const testNormalization = (
-  geneText: string,
-  sourceName = 'Manual Test'
-): Promise<AxiosResponse<unknown>> => {
-  const queryParams = new URLSearchParams()
-  queryParams.append('gene_text', geneText)
-  queryParams.append('source_name', sourceName)
-  return apiClient.post(`/api/staging/normalization/test?${queryParams.toString()}`)
-}
-
-/**
  * Bulk approve staging records
  */
 export const bulkApprove = (
@@ -133,7 +120,6 @@ export default {
   getStagingStats,
   getNormalizationStats,
   getNormalizationLogs,
-  testNormalization,
   bulkApprove,
   bulkReject
 }

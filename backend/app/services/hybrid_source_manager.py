@@ -71,22 +71,18 @@ class HybridSourceManager(ABC):
 
         await logger.info("Invalidated caches for affected genes", gene_count=len(gene_ids))
 
-    async def _recalculate_evidence_scores(self, gene_ids: list[int]) -> None:
-        """Recalculate evidence scores using thread pool"""
-        loop = asyncio.get_event_loop()
-
-        # Run in thread pool to avoid blocking event loop
-        await loop.run_in_executor(self._executor, self._recalculate_sync, gene_ids)
-
-    def _recalculate_sync(self, gene_ids: list[int]) -> None:
-        """Synchronous recalculation in thread pool"""
-        # For now, trigger full recalculation
-        # TODO: Optimize to only recalculate affected genes
+    async def recalculate_evidence_scores(self) -> None:
+        """Refresh scores, then curations, in a thread; call it after the caller's commit."""
+        from app.db.safe_sql import refresh_score_views
         from app.pipeline.aggregate import update_all_curations
 
-        update_all_curations(self.db)
+        def refresh() -> None:
+            # Curations copy gene_scores, so the scores must be current first (#367)
+            refresh_score_views(self.db)
+            update_all_curations(self.db)
 
-        logger.sync_info("Evidence recalculation complete", affected_genes=len(gene_ids))
+        await asyncio.get_running_loop().run_in_executor(self._executor, refresh)
+        logger.sync_info("Evidence recalculation complete")
 
 
 class DiagnosticPanelsManager(HybridSourceManager):
@@ -162,14 +158,11 @@ class DiagnosticPanelsManager(HybridSourceManager):
             user=user,
         )
 
-        # Commit changes
-        self.db.commit()
+        # Flush only: the caller commits, so a failed replace upload keeps the old evidence
+        self.db.flush()
 
         # Invalidate caches
         await self._invalidate_gene_caches(list(set(affected_gene_ids)))
-
-        # Recalculate evidence scores in background
-        await self._recalculate_evidence_scores(list(set(affected_gene_ids)))
 
         stats = {
             "status": "success",
@@ -261,14 +254,11 @@ class LiteratureManager(HybridSourceManager):
             user=user,
         )
 
-        # Commit changes
-        self.db.commit()
+        # Flush only: the caller commits, so a failed replace upload keeps the old evidence
+        self.db.flush()
 
         # Invalidate caches
         await self._invalidate_gene_caches(list(set(affected_gene_ids)))
-
-        # Recalculate evidence scores in background
-        await self._recalculate_evidence_scores(list(set(affected_gene_ids)))
 
         stats = {
             "status": "success",
