@@ -24,6 +24,7 @@ from app.pipeline.sources.annotations.gnomad import GnomADAnnotationSource
 from app.pipeline.sources.annotations.gtex import GTExAnnotationSource
 from app.pipeline.sources.annotations.hgnc import HGNCAnnotationSource
 from app.pipeline.sources.annotations.hpo import HPOAnnotationSource
+from app.pipeline.sources.annotations.mondo import MondoAnnotationSource
 from app.pipeline.sources.annotations.mpo_mgi import MPOMGIAnnotationSource
 from app.pipeline.sources.annotations.string_ppi import StringPPIAnnotationSource
 from app.pipeline.sources.annotations.uniprot import UniProtAnnotationSource
@@ -43,6 +44,7 @@ SOURCE_CLASSES: dict[str, type] = {
     "uniprot": UniProtAnnotationSource,
     "mpo_mgi": MPOMGIAnnotationSource,
     "descartes": DescartesAnnotationSource,
+    "mondo": MondoAnnotationSource,
 }
 
 

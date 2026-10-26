@@ -278,3 +278,9 @@ async def test_pipeline_runs_mondo_after_the_parallel_phase(db_session):
         await pipeline.run_update(strategy=UpdateStrategy.FULL)
     assert calls == [["gtex", "hpo"], "mondo"]
     assert "mondo" in checkpoint.await_args.args[0]["sources_remaining"]
+
+
+def test_single_gene_update_endpoint_knows_mondo():
+    from app.api.endpoints.annotation_updates import SOURCE_CLASSES
+
+    assert SOURCE_CLASSES["mondo"] is MondoAnnotationSource
