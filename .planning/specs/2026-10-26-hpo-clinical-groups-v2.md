@@ -123,7 +123,9 @@ was decided after the previous results were known:
    with v0.9.0): seeded 50/50 split, r chosen on half A. It chose 0.40.
 2. A 100-seed sweep then showed the split's choice depends on the seed.
 3. Leave-one-out and a gene-level paired bootstrap, run after the sweep, show
-   that no r in the grid beats 0.5 out of sample.
+   that selecting r gives no out-of-sample gain (LOO F1 of the selection
+   procedure 0.747 vs 0.746 for a fixed 0.5) and that no r in the grid is
+   distinguishable from the best full-set value (0.30).
 4. The final selection rule (same-draw one-standard-error rule) was chosen
    **after** these curves were known. It favours parsimony (fewer secondary
    labels) and selects 0.5. It is not a pre-specified rule.
@@ -190,8 +192,8 @@ the highest F1 in a resample.
 | 0.65 | 0.7348 | 0.0286 | 0.0229 | 0.0154 | [−0.0051, +0.0554] | 13 |
 | 0.70 | 0.7321 | 0.0286 | 0.0256 | 0.0164 | [−0.0048, +0.0611] | 23 |
 
-Every gap CI includes 0: no r in the grid is distinguishable from 0.30 or
-from 0.5. Below the grid (diagnostic, not selectable): 0.25 → 0.7466, 0.20 →
+Every gap CI (to the best r, 0.30) includes 0: no r in the grid is
+distinguishable from 0.30; gaps to 0.5 were not tested separately. Below the grid (diagnostic, not selectable): 0.25 → 0.7466, 0.20 →
 0.7455, so 0.30 is a local peak of the full-set curve, not an edge artefact.
 
 ### Step 4: selection rule (chosen after the curves were known)

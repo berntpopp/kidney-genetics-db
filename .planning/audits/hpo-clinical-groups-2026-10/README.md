@@ -85,7 +85,8 @@ has no neoplasia secondary group. FANCA has no renal-neoplasm annotation in HPO
 
 Spec section "Secondary cut-off". v0.10.0 set r = 0.4 from a seeded 50/50
 split (v2.1); a seed sweep showed that choice is unstable, and leave-one-out
-plus a paired bootstrap show that no r in the grid beats 0.5 out of sample.
+plus a paired bootstrap show that selecting r gives no out-of-sample gain and
+that no r in the grid is distinguishable from the best full-set value (0.30).
 The selection rule (same-draw one-SE rule, favouring fewer secondary labels)
 was chosen after these curves were known. It selects 0.5, the v0.9.0 value:
 `SECONDARY_GROUP_RATIO = 0.5`, `method: hpo-freq-ic-v2`.
