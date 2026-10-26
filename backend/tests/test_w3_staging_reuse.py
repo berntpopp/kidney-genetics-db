@@ -58,3 +58,19 @@ async def test_pending_text_is_not_staged_twice(db_session):
         assert result["KGTW3UNK"]["status"] == "requires_manual_review"
 
     assert len(_rows(db_session, "KGTW3UNK")) == 1
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_rejected_text_is_not_staged_again(db_session):
+    db_session.add(
+        GeneNormalizationStaging(
+            original_text="KGTW3JUNK", source_name=SOURCE, normalization_log={}, status="rejected"
+        )
+    )
+    db_session.flush()
+
+    result = await _normalizer("KGTW3JUNK").normalize_batch_async(db_session, ["KGTW3JUNK"], SOURCE)
+
+    assert result["KGTW3JUNK"]["status"] != "normalized"
+    assert [r.status for r in _rows(db_session, "KGTW3JUNK")] == ["rejected"]
