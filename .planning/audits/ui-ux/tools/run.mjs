@@ -154,6 +154,30 @@ const checks = {}
   const text = await page.evaluate(() => document.body.innerText.trim().length)
   checks.adminDirectLoadNotBlank = page.url().includes('/login') || text > 100 ? 1 : 0
   await ctx.close()
+
+  // #343: after clustering, the header badges must not push the page sideways at 390px
+  for (const theme of THEMES) {
+    const ctx = await browser.newContext({ viewport: VIEWPORTS.mobile, colorScheme: theme })
+    await ctx.addInitScript(t => localStorage.setItem('kgdb-color-mode', t), theme)
+    const page = await ctx.newPage()
+    page.setDefaultTimeout(180000)
+    await page.goto(base + '/network-analysis', { waitUntil: 'networkidle' })
+    // a failed step only fails this check (clustered stays false), never the whole run
+    try {
+      for (const step of [/Filter Genes$/, /Build Network$/, /\bCluster$/]) {
+        await page.getByRole('button', { name: step }).click() // waits until the step is enabled
+      }
+    } catch {}
+    const clustered = await page
+      .getByText(/\d+ clusters/)
+      .waitFor()
+      .then(() => true, () => false)
+    const overflowPx = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth
+    )
+    checks[`networkPostClusterNoOverflow390 ${theme}`] = clustered && overflowPx <= 0 ? 1 : 0
+    await ctx.close()
+  }
 }
 await browser.close()
 

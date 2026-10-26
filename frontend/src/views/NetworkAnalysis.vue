@@ -16,7 +16,7 @@
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div class="flex items-center justify-between">
+      <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center">
           <NetworkIcon class="size-7 mr-2 text-primary" />
           <div>
@@ -26,7 +26,7 @@
             </p>
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <Badge v-if="filteredGenes.length > 0" class="bg-green-600 text-white">
             {{ filteredGenes.length }} genes
           </Badge>
