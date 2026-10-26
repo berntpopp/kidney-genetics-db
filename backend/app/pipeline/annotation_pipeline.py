@@ -4,6 +4,7 @@ Annotation pipeline orchestrator for managing gene annotation updates.
 
 import asyncio
 import json
+import time
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any
@@ -76,24 +77,6 @@ def pipeline_run_active(db: Session) -> bool:
     )
 
 
-def _touch_heartbeat(source_name: str) -> None:
-    with SessionLocal() as session:
-        session.query(DataSourceProgress).filter_by(source_name=source_name).update(
-            {"last_update_at": datetime.now(timezone.utc)}, synchronize_session=False
-        )
-        session.commit()
-
-
-async def _beat(source_name: str) -> None:
-    """Keep the run's heartbeat fresh until cancelled, whatever phase the run is in."""
-    while True:
-        await asyncio.sleep(_HEARTBEAT_SECONDS)
-        try:
-            await asyncio.to_thread(_touch_heartbeat, source_name)
-        except Exception as e:
-            logger.sync_warning(f"Pipeline heartbeat failed: {e}")
-
-
 class UpdateStrategy(str, Enum):
     """Update strategy options."""
 
@@ -126,6 +109,11 @@ class AnnotationPipeline:
         self._phases: dict[str, str] = {}
         self._sources_done = 0
         self._sources_total = 0
+        # Time-remaining estimate: each source's last successful duration (#370)
+        self._todo: list[str] = []
+        self._finished: set[str] = set()
+        self._started: dict[str, float] = {}  # monotonic start per running source
+        self._expected: dict[str, float | None] = {}
 
         # Register available annotation sources
         # These are class types that will be instantiated when needed
@@ -225,7 +213,8 @@ class AnnotationPipeline:
 
             # A resumed run is a new run: started_at is now, not the paused run's start
             self.progress_tracker.start(operation=f"Starting annotation update ({strategy.value})")
-            heartbeat = asyncio.create_task(_beat(self.source_name))
+            self.progress_tracker.estimate_from_rate = False  # _publish sets a history-based one
+            heartbeat = asyncio.create_task(self._beat())
 
             # Determine which sources to update
             logger.sync_debug("Getting sources to update...")
@@ -233,6 +222,14 @@ class AnnotationPipeline:
             effective_force = force or strategy in (UpdateStrategy.FULL, UpdateStrategy.FORCED)
             sources_to_update = await self._get_sources_to_update(sources, effective_force)
             self._sources_total = len(sources_to_update)
+            self._todo = list(sources_to_update)
+            self._expected = {
+                name: (config or {}).get("last_run_seconds")
+                for name, config in self.db.query(
+                    AnnotationSource.source_name, AnnotationSource.config
+                ).filter(AnnotationSource.source_name.in_(self._todo))
+            }
+            self.db.commit()  # end the read; this session must not idle in a transaction
             logger.sync_info(
                 "Sources to update determined",
                 sources_to_update=sources_to_update,
@@ -650,19 +647,59 @@ class AnnotationPipeline:
         """
         if phase is None:
             self._phases.pop(source_name, None)
+            self._finished.add(source_name)
             self._sources_done += 1
         else:
             self._phases[source_name] = phase
+            self._started.setdefault(source_name, time.monotonic())
+        self._publish(force=phase is None)  # a finished source is a milestone: never throttle
+
+    def _seconds_left(self) -> float | None:
+        """Remaining seconds from each source's last duration; None without that history.
+
+        HGNC and MONDO run alone, the rest up to 3 at a time (the semaphore), so the parallel
+        part takes at least its longest source and at least a third of its total.
+        """
+        now = time.monotonic()
+        alone, parallel = 0.0, []
+        for name in self._todo:
+            if name in self._finished:
+                continue
+            expected = self._expected.get(name)
+            if expected is None:
+                return None  # say nothing rather than guess
+            left = max(expected - (now - self._started.get(name, now)), 0.0)
+            if name in ("hgnc", "mondo"):
+                alone += left
+            else:
+                parallel.append(left)
+        return alone + (max(max(parallel), sum(parallel) / 3) if parallel else 0.0)
+
+    def _publish(self, force: bool = False) -> None:
+        """Write "N/M sources done · source: phase" and the time-remaining estimate."""
         if not self.progress_tracker:
             return
         running = ", ".join(f"{name}: {p}" for name, p in self._phases.items())
         done = f"{self._sources_done}/{self._sources_total} sources done"
+        seconds = self._seconds_left()
+        self.progress_tracker.progress_record.estimated_completion = (
+            None if seconds is None else datetime.now(timezone.utc) + timedelta(seconds=seconds)
+        )
         self.progress_tracker.update(
             current_item=self._sources_done,
             total_items=self._sources_total,
             operation=f"{done} · {running}" if running else done,
-            force=phase is None,  # a finished source is a milestone: never throttle it
+            force=force,
         )
+
+    async def _beat(self) -> None:
+        """Heartbeat for the run lock and the page, in every phase, until cancelled."""
+        while True:
+            await asyncio.sleep(_HEARTBEAT_SECONDS)
+            try:
+                self._publish(force=True)  # commits last_update_at and broadcasts
+            except Exception as e:
+                logger.sync_warning(f"Pipeline heartbeat failed: {e}")
 
     def _pause_requested(self) -> bool:
         """True once an admin paused this run (POST /progress/pause/annotation_pipeline)."""
@@ -855,6 +892,7 @@ class AnnotationPipeline:
             force: Whether to force update existing annotations
             source_db: Dedicated session for this source (caller manages lifecycle)
         """
+        started = time.monotonic()
         logger.sync_info(
             f"Starting batch update for {source_name}",
             source_name=source_name,
@@ -1023,6 +1061,11 @@ class AnnotationPipeline:
         # advances next_update even when no genes needed updating (avoids
         # the source being perpetually "due" with nothing to do).
         source_record = source.source_record
+        # Remembered for the next run's time-remaining estimate
+        source_record.config = {
+            **(source_record.config or {}),
+            "last_run_seconds": round(time.monotonic() - started),
+        }
         source_record.last_update = datetime.utcnow()
         source_record.next_update = datetime.utcnow() + timedelta(days=source.cache_ttl_days)
         source_db.commit()

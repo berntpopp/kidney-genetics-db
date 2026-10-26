@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -58,14 +58,15 @@ async def test_resume_while_sources_are_finishing_answers_409(db_session, async_
 
 
 @pytest.mark.asyncio
-async def test_heartbeat_task_keeps_stamping_until_cancelled(monkeypatch):
-    beats: list[str] = []
+async def test_heartbeat_task_keeps_publishing_until_cancelled(monkeypatch):
     monkeypatch.setattr(annotation_pipeline, "_HEARTBEAT_SECONDS", 0.01)
-    monkeypatch.setattr(annotation_pipeline, "_touch_heartbeat", beats.append)
+    pipeline = annotation_pipeline.AnnotationPipeline(MagicMock())
+    beats: list[bool] = []
+    monkeypatch.setattr(pipeline, "_publish", lambda force=False: beats.append(force))
 
-    task = asyncio.create_task(annotation_pipeline._beat("annotation_pipeline"))
+    task = asyncio.create_task(pipeline._beat())
     await asyncio.sleep(0.1)
     task.cancel()
 
     assert len(beats) >= 3
-    assert set(beats) == {"annotation_pipeline"}
+    assert all(beats)  # forced: the heartbeat must reach the DB and the page every time

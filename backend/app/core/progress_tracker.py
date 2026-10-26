@@ -38,6 +38,8 @@ class ProgressTracker:
         self._update_interval = 5.0  # Update database every 5 seconds
         self._last_update_time = datetime.now(timezone.utc)
         self._start_time: datetime | None = None
+        # Linear items/time estimate; callers with a better basis set estimated_completion
+        self.estimate_from_rate = True
 
     def _get_or_create_progress(self) -> DataSourceProgress:
         """Get or create progress record for this source"""
@@ -224,7 +226,11 @@ class ProgressTracker:
             )
 
         # Estimate completion time
-        if self._start_time and self.progress_record.progress_percentage > 0:
+        if (
+            self.estimate_from_rate
+            and self._start_time
+            and self.progress_record.progress_percentage > 0
+        ):
             elapsed = (datetime.now(timezone.utc) - self._start_time).total_seconds()
             if self.progress_record.progress_percentage > 0:
                 total_time = elapsed / (self.progress_record.progress_percentage / 100)
