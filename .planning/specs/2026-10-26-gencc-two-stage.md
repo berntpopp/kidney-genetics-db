@@ -19,8 +19,9 @@ disagreement (DiStefano et al. 2022) is not reflected.
 One `gene_evidence` row per gene with `source_name = 'GenCC'`. Its
 `evidence_data -> 'submissions'` array holds one object per kidney-related GenCC
 submission, written by `backend/app/pipeline/sources/unified/gencc.py`
-(`_extract_gene_info`); the formula reads only its `classification` and
-`submitter` keys (e.g. `"Definitive"`, `"Labcorp Genetics (formerly Invitae)"`).
+(`_extract_gene_info`); the formula reads its `classification` and `submitter` keys (e.g.
+`"Definitive"`, `"Labcorp Genetics (formerly Invitae)"`) and, for the Level 3
+conflict grouping, `raw_data.disease_curie` and `raw_data.moi_curie`.
 Classifications are compared case-insensitively after trimming.
 
 ## Formula
@@ -172,9 +173,10 @@ v0.10.0 shipped it; `0008` replaces the view and its downgrade restores the
 - **Percentile spread.** The issue mentions "plus a percentile spread"; it is
   not part of the decided formula. GenCC stays a classification-weighted
   source and is not mixed with the count percentiles used by other sources.
-- Submitter-specific reliability weights and disease-level (MONDO) grouping:
-  not requested; every non-ClinGen submitter counts equally and the gene-level
-  record is scored as a whole.
+- Submitter-specific reliability weights: not requested; every non-ClinGen
+  submitter counts equally. Quality and agreement are scored per gene; only the
+  conflict check is grouped by disease and mode of inheritance (DiStefano
+  Level 3).
 
 ## Scope and invariants
 
