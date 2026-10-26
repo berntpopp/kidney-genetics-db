@@ -72,12 +72,16 @@ class HybridSourceManager(ABC):
         await logger.info("Invalidated caches for affected genes", gene_count=len(gene_ids))
 
     async def recalculate_evidence_scores(self) -> None:
-        """Recalculate curations in a thread; it commits, so call it after the caller's commit."""
+        """Refresh scores, then curations, in a thread; call it after the caller's commit."""
+        from app.db.safe_sql import refresh_score_views
         from app.pipeline.aggregate import update_all_curations
 
-        await asyncio.get_running_loop().run_in_executor(
-            self._executor, update_all_curations, self.db
-        )
+        def refresh() -> None:
+            # Curations copy gene_scores, so the scores must be current first (#367)
+            refresh_score_views(self.db)
+            update_all_curations(self.db)
+
+        await asyncio.get_running_loop().run_in_executor(self._executor, refresh)
         logger.sync_info("Evidence recalculation complete")
 
 

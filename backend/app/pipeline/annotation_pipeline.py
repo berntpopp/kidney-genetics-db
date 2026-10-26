@@ -16,7 +16,7 @@ from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
 from app.core.resource_monitor import log_resource_checkpoint
 from app.core.retry_utils import RetryConfig, retry_with_backoff
-from app.db.safe_sql import refresh_materialized_view as safe_refresh_matview
+from app.db.safe_sql import SCORE_VIEWS, refresh_score_views
 from app.models.gene import Gene
 from app.models.gene_annotation import AnnotationSource, GeneAnnotation
 from app.models.progress import DataSourceProgress, SourceStatus
@@ -1078,28 +1078,7 @@ class AnnotationPipeline:
         try:
 
             def refresh_sync() -> bool:
-                views_to_refresh = ["gene_scores", "gene_annotations_summary"]
-                all_success = True
-
-                for view_name in views_to_refresh:
-                    try:
-                        safe_refresh_matview(view_db, view_name, concurrent=True)
-                        logger.sync_info(f"Materialized view {view_name} refreshed concurrently")
-                    except Exception:
-                        view_db.rollback()
-                        try:
-                            safe_refresh_matview(view_db, view_name, concurrent=False)
-                            logger.sync_info(
-                                f"Materialized view {view_name} refreshed (non-concurrent)"
-                            )
-                        except Exception as e:
-                            logger.sync_error(
-                                f"Failed to refresh materialized view {view_name}: {e}"
-                            )
-                            view_db.rollback()
-                            all_success = False
-
-                return all_success
+                return refresh_score_views(view_db, (*SCORE_VIEWS, "gene_annotations_summary"))
 
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(get_thread_pool_executor(), refresh_sync)

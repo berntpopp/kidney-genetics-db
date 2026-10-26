@@ -273,8 +273,8 @@ async def upload_evidence_file(
 
         await logger.info("Database committed")
 
-        if mode == "replace":
-            await manager.recalculate_evidence_scores()
+        # Uploads change scores in every mode, not only on replace (#367)
+        await manager.recalculate_evidence_scores()
 
         # Convert to expected format
         stats = {
