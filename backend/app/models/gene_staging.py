@@ -4,7 +4,7 @@ Database models for gene normalization staging
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, Index, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app.models.base import Base
@@ -17,6 +17,16 @@ class GeneNormalizationStaging(Base):
     """
 
     __tablename__ = "gene_normalization_staging"
+    __table_args__ = (
+        # One reusable record per text and source (migration 0010, #366)
+        Index(
+            "uq_gene_normalization_staging_open_text",
+            "original_text",
+            "source_name",
+            unique=True,
+            postgresql_where=text("status IN ('approved', 'pending_review', 'rejected')"),
+        ),
+    )
 
     id = Column(BigInteger, primary_key=True, index=True)
 
