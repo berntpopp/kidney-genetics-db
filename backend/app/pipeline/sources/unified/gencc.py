@@ -6,6 +6,7 @@ gencc_cached.py) with a single, async-first implementation using the unified
 data source architecture.
 """
 
+import asyncio
 from datetime import datetime, timezone
 from io import BytesIO
 from typing import TYPE_CHECKING, Any
@@ -131,7 +132,8 @@ class GenCCUnifiedSource(UnifiedDataSource):
                 raise ValueError(f"HTTP {response.status_code}: Failed to download GenCC file")
 
             # Parse Excel file from response content
-            result: pd.DataFrame = pd.read_excel(BytesIO(response.content))
+            # Off the event loop: parsing ~25k rows blocks it for seconds (#363)
+            result: pd.DataFrame = await asyncio.to_thread(pd.read_excel, BytesIO(response.content))
             logger.sync_info("Parsed GenCC Excel file", total_submissions=len(result))
 
             # Log column structure for debugging
@@ -159,6 +161,10 @@ class GenCCUnifiedSource(UnifiedDataSource):
         Returns:
             Dictionary mapping gene symbols to aggregated gene data
         """
+        return await asyncio.to_thread(self._process_rows, df)  # iterrows blocks (#363)
+
+    def _process_rows(self, df: pd.DataFrame) -> dict[str, Any]:
+        """Synchronous body of process_data, run in a worker thread."""
         logger.sync_info("Processing GenCC submissions", submission_count=len(df))
 
         gene_data_map = {}

@@ -266,30 +266,14 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             """Internal function to fetch panel data."""
             url = f"{self.base_url}/affiliates/{affiliate_id}"
 
-            try:
-                if self.http_client is None:
-                    logger.sync_error("HTTP client not initialized")
-                    return []
+            # Errors propagate: a missing affiliate must not be cached as [] or let a full
+            # refresh prune its evidence (#366).
+            if self.http_client is None:
+                raise RuntimeError("HTTP client not initialized")
 
-                response = await self.http_client.get(url, timeout=30)
-
-                if response.status_code == 200:
-                    data = response.json()
-                    rows = data.get("rows", [])
-                    return cast(list[dict[str, Any]], rows)
-                else:
-                    logger.sync_error(
-                        "Failed to fetch affiliate",
-                        affiliate_id=affiliate_id,
-                        status_code=response.status_code,
-                    )
-                    return []
-
-            except Exception as e:
-                logger.sync_error(
-                    "Error fetching affiliate", affiliate_id=affiliate_id, error_detail=str(e)
-                )
-                return []
+            response = await self.http_client.get(url, timeout=30)
+            response.raise_for_status()
+            return cast(list[dict[str, Any]], response.json().get("rows", []))
 
         # Use unified caching
         cache_key = f"affiliate:{affiliate_id}"

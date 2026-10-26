@@ -8,10 +8,11 @@ Scoring is handled by PostgreSQL views, not Python code.
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
-from app.models.gene import Gene, GeneCuration, GeneEvidence
+from app.models.gene import GeneCuration, GeneEvidence
 
 logger = get_logger(__name__)
 
@@ -36,22 +37,25 @@ def update_all_curations(db: Session) -> dict[str, Any]:
     curations_updated = 0
     started_at = datetime.now(timezone.utc)
 
-    # Get all genes with evidence
-    genes_with_evidence = db.query(Gene).join(GeneEvidence).distinct().all()
+    # Three queries in total instead of two per gene
+    evidence_by_gene: dict[int, list[GeneEvidence]] = {}
+    for record in db.query(GeneEvidence).all():
+        evidence_by_gene.setdefault(record.gene_id, []).append(record)
+    curations = {c.gene_id: c for c in db.query(GeneCuration).all()}
+    # Mirror the score the views compute; without it every curation scored 0 (#366)
+    scores = dict(db.execute(text("SELECT gene_id, percentage_score FROM gene_scores")).all())
 
-    logger.sync_info("Processing genes with evidence", gene_count=len(genes_with_evidence))
+    logger.sync_info("Processing genes with evidence", gene_count=len(evidence_by_gene))
 
-    for gene in genes_with_evidence:
+    for gene_id, evidence_records in evidence_by_gene.items():
         genes_processed += 1
-
-        # Get all evidence for this gene
-        evidence_records = db.query(GeneEvidence).filter(GeneEvidence.gene_id == gene.id).all()
 
         # Aggregate evidence metadata
         evidence_data = _aggregate_evidence_metadata(evidence_records)
+        evidence_data["evidence_score"] = float(scores.get(gene_id) or 0.0)
 
         # Get or create curation record
-        curation = db.query(GeneCuration).filter(GeneCuration.gene_id == gene.id).first()
+        curation = curations.get(gene_id)
 
         if curation:
             # Update existing curation
@@ -59,7 +63,7 @@ def update_all_curations(db: Session) -> dict[str, Any]:
             curations_updated += 1
         else:
             # Create new curation
-            curation = GeneCuration(gene_id=gene.id, **evidence_data)
+            curation = GeneCuration(gene_id=gene_id, **evidence_data)
             db.add(curation)
             curations_created += 1
 
@@ -121,9 +125,6 @@ def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[s
         elif evidence.source_name == "PubTator":
             pubtator_pmids.extend(evidence_data.get("pmids", []))
 
-        elif evidence.source_name == "HPO":
-            omim_data.update(evidence_data)
-
         elif evidence.source_name == "ClinVar":
             clinvar_data.update(evidence_data)
 
@@ -154,8 +155,6 @@ def _aggregate_evidence_metadata(evidence_records: list[GeneEvidence]) -> dict[s
         "pubtator_pmids": unique_pubtator_pmids,
         "omim_data": omim_data,
         "clinvar_data": clinvar_data,
-        # NOTE: evidence_score is calculated by PostgreSQL views, not here
-        "evidence_score": 0.0,  # Placeholder - real scores come from views
         "classification": None,  # Will be set by curation workflow
     }
 

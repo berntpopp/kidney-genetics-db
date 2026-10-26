@@ -140,7 +140,7 @@ class GeneNormalizer:
 
         # Clean and prepare
         cleaned_genes = []
-        gene_mapping = {}
+        gene_mapping: dict[str, list[dict[str, Any]]] = {}
 
         for i, gene_text in enumerate(gene_texts):
             if not gene_text:
@@ -148,12 +148,16 @@ class GeneNormalizer:
 
             cleaned = clean_gene_text(gene_text)
             if cleaned and is_likely_gene_symbol(cleaned):
-                cleaned_genes.append(cleaned)
-                gene_mapping[cleaned] = {
-                    "original": gene_text,
-                    "index": i,
-                    "original_data": original_data_list[i] if original_data_list else None,
-                }
+                if cleaned not in gene_mapping:
+                    cleaned_genes.append(cleaned)
+                # Several texts can clean to one symbol ('PKD1', 'Pkd1'); keep each (#366)
+                gene_mapping.setdefault(cleaned, []).append(
+                    {
+                        "original": gene_text,
+                        "index": i,
+                        "original_data": original_data_list[i] if original_data_list else None,
+                    }
+                )
 
         if not cleaned_genes:
             return {}
@@ -190,7 +194,7 @@ class GeneNormalizer:
 
     def _compile_results(
         self,
-        gene_mapping: dict[str, dict[str, Any]],
+        gene_mapping: dict[str, list[dict[str, Any]]],
         existing_genes: dict[str, dict[str, Any]],
         hgnc_results: dict[str, dict[str, Any]],
         db: Session,
@@ -199,69 +203,69 @@ class GeneNormalizer:
         """Compile final normalization results."""
         results = {}
 
-        for cleaned in gene_mapping:
-            mapping = gene_mapping[cleaned]
-            original_text = mapping["original"]
-            original_data = mapping["original_data"]
+        for cleaned, mappings in gene_mapping.items():
+            for mapping in mappings:
+                original_text = mapping["original"]
+                original_data = mapping["original_data"]
 
-            if cleaned in existing_genes:
-                # Use existing gene data
-                gene_data = existing_genes[cleaned]
-                results[original_text] = {
-                    "status": "normalized",
-                    "approved_symbol": gene_data["approved_symbol"],
-                    "hgnc_id": gene_data["hgnc_id"],
-                    "gene_id": gene_data.get("gene_id"),  # Include gene_id
-                    "staging_id": None,
-                    "error": None,
-                    "source": "database",
-                    "original_data": original_data,
-                }
-            elif cleaned in hgnc_results:
-                # Use HGNC lookup result
-                hgnc_result = hgnc_results[cleaned]
-                approved_symbol = hgnc_result.get("approved_symbol")
-                hgnc_id = hgnc_result.get("hgnc_id")
-
-                if approved_symbol and hgnc_id:
+                if cleaned in existing_genes:
+                    # Use existing gene data
+                    gene_data = existing_genes[cleaned]
                     results[original_text] = {
                         "status": "normalized",
-                        "approved_symbol": approved_symbol,
-                        "hgnc_id": hgnc_id,
+                        "approved_symbol": gene_data["approved_symbol"],
+                        "hgnc_id": gene_data["hgnc_id"],
+                        "gene_id": gene_data.get("gene_id"),  # Include gene_id
                         "staging_id": None,
                         "error": None,
-                        "source": "hgnc",
+                        "source": "database",
                         "original_data": original_data,
                     }
-                elif hgnc_result.get("error"):
-                    # HGNC was unreachable: not a "not found", so do not stage it (#291).
-                    results[original_text] = {
-                        "status": "error",
-                        "approved_symbol": None,
-                        "hgnc_id": None,
-                        "staging_id": None,
-                        "error": f"HGNC lookup failed: {hgnc_result['error']}",
-                        "source": "error",
-                        "original_data": original_data,
-                    }
+                elif cleaned in hgnc_results:
+                    # Use HGNC lookup result
+                    hgnc_result = hgnc_results[cleaned]
+                    approved_symbol = hgnc_result.get("approved_symbol")
+                    hgnc_id = hgnc_result.get("hgnc_id")
+
+                    if approved_symbol and hgnc_id:
+                        results[original_text] = {
+                            "status": "normalized",
+                            "approved_symbol": approved_symbol,
+                            "hgnc_id": hgnc_id,
+                            "staging_id": None,
+                            "error": None,
+                            "source": "hgnc",
+                            "original_data": original_data,
+                        }
+                    elif hgnc_result.get("error"):
+                        # HGNC was unreachable: not a "not found", so do not stage it (#291).
+                        results[original_text] = {
+                            "status": "error",
+                            "approved_symbol": None,
+                            "hgnc_id": None,
+                            "staging_id": None,
+                            "error": f"HGNC lookup failed: {hgnc_result['error']}",
+                            "source": "error",
+                            "original_data": original_data,
+                        }
+                    else:
+                        # Failed normalization - create staging record
+                        results[original_text] = self._create_staging_record(
+                            db,
+                            original_text,
+                            source_name,
+                            original_data,
+                            reason="HGNC lookup failed - no HGNC ID found",
+                        )
                 else:
-                    # Failed normalization - create staging record
+                    # Shouldn't happen, but handle gracefully
                     results[original_text] = self._create_staging_record(
                         db,
                         original_text,
                         source_name,
                         original_data,
-                        reason="HGNC lookup failed - no HGNC ID found",
+                        reason="Unexpected error in batch processing",
                     )
-            else:
-                # Shouldn't happen, but handle gracefully
-                results[original_text] = self._create_staging_record(
-                    db,
-                    original_text,
-                    source_name,
-                    original_data,
-                    reason="Unexpected error in batch processing",
-                )
 
         # Log summary
         status_counts: dict[str, int] = {}
@@ -296,6 +300,18 @@ class GeneNormalizer:
                 original_data=original_data or {},
                 normalization_log={"failure_reason": reason, "attempts": 1},
             )
+
+            if staging_record.status == "approved" and staging_record.manual_hgnc_id:
+                # A curator already resolved this text: use it instead of staging it again
+                return {
+                    "status": "normalized",
+                    "approved_symbol": staging_record.manual_approved_symbol,
+                    "hgnc_id": staging_record.manual_hgnc_id,
+                    "staging_id": staging_record.id,
+                    "error": None,
+                    "source": "staging_approval",
+                    "original_data": original_data,
+                }
 
             logger.sync_debug(
                 "Created staging record for gene", staging_id=staging_record.id, gene_text=gene_text

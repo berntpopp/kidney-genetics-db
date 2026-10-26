@@ -12,7 +12,7 @@ from app.api.deps import get_db
 from app.core.background_tasks import task_manager
 from app.core.datasource_config import DATA_SOURCE_CONFIG, get_auto_update_sources
 from app.core.dependencies import require_admin
-from app.core.exceptions import DataSourceError
+from app.core.exceptions import DataSourceError, ResourceConflictError
 from app.core.gene_filters import count_filtered_genes_from_evidence_sql
 from app.core.logging import get_logger
 from app.core.responses import ResponseBuilder
@@ -484,6 +484,8 @@ async def update_datasource(
                 "mode": mode,
             }
         )
+    except ResourceConflictError:
+        raise  # 409: nothing was triggered
     except Exception as e:
         raise DataSourceError(source_name, "update", f"Failed to start update: {e!s}") from e
 
@@ -497,13 +499,19 @@ async def update_all_datasources(
     """
     try:
         sources = get_auto_update_sources()
+        started, already_running = [], []
         for source_name in sources:
-            await task_manager.run_source(source_name)
+            try:
+                await task_manager.run_source(source_name)
+                started.append(source_name)
+            except ResourceConflictError:
+                already_running.append(source_name)
 
         return ResponseBuilder.build_success_response(
             data={
-                "message": f"Updates triggered for {len(sources)} sources",
-                "sources": sources,
+                "message": f"Updates triggered for {len(started)} sources",
+                "sources": started,
+                "already_running": already_running,
                 "status": "started",
             }
         )
