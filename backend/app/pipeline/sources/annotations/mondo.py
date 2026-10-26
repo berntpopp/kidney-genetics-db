@@ -13,6 +13,7 @@ is rewritten to ``Orphanet:``. Every other prefix (``OMIM:``, ``DECIPHER:``, ...
 looked up as written.
 """
 
+import asyncio
 import re
 from pathlib import Path
 from typing import Any
@@ -171,8 +172,9 @@ class MondoAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
             if not self.bulk_file_url or not _CONFIG.get("sssom_sha256"):
                 raise ValueError("MONDO SSSOM URL or sha256 is not configured")
             path = await self.download_bulk_file()
-            verify_sha256(path, str(_CONFIG["sssom_sha256"]))
-            self._mappings, self._labels = parse_sssom(path)
+            # Hash and parse off the event loop (#363)
+            await asyncio.to_thread(verify_sha256, path, str(_CONFIG["sssom_sha256"]))
+            self._mappings, self._labels = await asyncio.to_thread(parse_sssom, path)
         except Exception as e:
             self._load_error = e
             logger.sync_error(f"MONDO SSSOM unavailable, source run fails: {e}")

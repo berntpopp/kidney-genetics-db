@@ -404,7 +404,8 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
     async def download_bulk_file(self, force: bool = False) -> Path:
         """Download genes_to_phenotype.txt and check its pinned sha256 before parsing."""
         path = await super().download_bulk_file(force=force)
-        return verify_sha256(path, str(get_source_parameter("HPO", "genes_to_phenotype_sha256")))
+        expected = str(get_source_parameter("HPO", "genes_to_phenotype_sha256"))
+        return await asyncio.to_thread(verify_sha256, path, expected)
 
     async def _download_hp_json(self) -> Path:
         """Download (or reuse the cached) pinned hp.json via the bulk-file cache."""
@@ -415,7 +416,8 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
             bulk_cache_dir = self.bulk_cache_dir
 
         path = await _PinnedFile().download_bulk_file_streaming()
-        return verify_sha256(path, str(get_source_parameter("HPO", "hp_json_sha256")))
+        expected = str(get_source_parameter("HPO", "hp_json_sha256"))
+        return await asyncio.to_thread(verify_sha256, path, expected)
 
     async def _load_clinical_group_classifier(self) -> ClinicalGroupClassifier:
         """Load the pinned files and IC once per run; fail closed (#338).
@@ -442,8 +444,10 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
                 group: config["root_terms"]
                 for group, config in get_source_parameter("HPO", "clinical_groups", {}).items()
             }
+            # hp.json parse and IC fit are CPU-bound: keep them off the event loop (#363)
+            parents = await asyncio.to_thread(load_hpo_parents, await self._download_hp_json())
             classifier = ClinicalGroupClassifier(
-                load_hpo_parents(await self._download_hp_json()),
+                parents,
                 groups,
                 str(get_source_parameter("HPO", "hpo_release")),
             )
@@ -451,7 +455,7 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
             for gene_data in self._bulk_data.values():
                 for disease, terms in gene_data["disease_terms"].items():
                     corpus.setdefault(disease, set()).update(terms)
-            classifier.fit_information_content(corpus.values())
+            await asyncio.to_thread(classifier.fit_information_content, corpus.values())
         except Exception as e:
             self._clinical_classifier_error = e
             raise

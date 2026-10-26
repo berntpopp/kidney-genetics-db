@@ -31,6 +31,18 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
+def gunzip_to_sibling(path: Path, overwrite: bool = True) -> Path:
+    """Decompress a ``.gz`` file next to itself and return that path (blocking)."""
+    if path.suffix != ".gz":
+        return path
+    decompressed = path.with_suffix("")
+    if overwrite or not decompressed.exists():
+        logger.sync_info("Decompressing bulk file", src=str(path), dest=str(decompressed))
+        with gzip.open(path, "rb") as f_in, open(decompressed, "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
+    return decompressed
+
+
 class BulkDataSourceMixin:
     """
     Mixin that adds bulk-file download and lookup to a data source.
@@ -237,22 +249,9 @@ class BulkDataSourceMixin:
 
     async def _load_bulk_data(self, force: bool) -> None:
         raw_path = await self.download_bulk_file(force=force)
-
-        # Decompress .gz files to a sibling path
-        parse_path = raw_path
-        if raw_path.suffix == ".gz":
-            decompressed = raw_path.with_suffix("")
-            logger.sync_info(
-                "Decompressing bulk file",
-                src=str(raw_path),
-                dest=str(decompressed),
-            )
-            with gzip.open(raw_path, "rb") as f_in:
-                with open(decompressed, "wb") as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-            parse_path = decompressed
-
-        self._bulk_data = self.parse_bulk_file(parse_path)
+        # Decompress and parse off the event loop so API requests keep being served (#363)
+        parse_path = await asyncio.to_thread(gunzip_to_sibling, raw_path)
+        self._bulk_data = await asyncio.to_thread(self.parse_bulk_file, parse_path)
         logger.sync_info(
             "Bulk data loaded",
             gene_count=len(self._bulk_data),
