@@ -123,6 +123,8 @@
 
         <MondoDiseases :annotations="annotations" class="mb-6" />
 
+        <GeneCuratedAssociations :gene-symbol="gene.approved_symbol" class="mb-6" />
+
         <!-- Evidence Details Section -->
         <div class="mb-6">
           <h2 class="text-2xl font-medium mb-4">Evidence Details</h2>
@@ -199,6 +201,7 @@ import ScoreBreakdown from '../components/ScoreBreakdown.vue'
 import EvidenceCard from '../components/evidence/EvidenceCard.vue'
 import GeneInformationCard from '../components/gene/GeneInformationCard.vue'
 import MondoDiseases from '../components/gene/MondoDiseases.vue'
+import GeneCuratedAssociations from '../components/gene/GeneCuratedAssociations.vue'
 import ComponentError from '@/components/ui/ComponentError.vue'
 
 import { Button } from '@/components/ui/button'
