@@ -244,9 +244,10 @@ class TaskMixin:
             dict[str, Any],
             await pipeline.run_update(
                 strategy=strategy,
-                sources=None,  # the pipeline resumes from its own checkpoint
+                sources=None,  # a resume takes sources and genes from the checkpoint
                 force=False,
                 task_id=tracker.task_id if hasattr(tracker, "task_id") else None,
+                resume=resume,
             ),
         )
 

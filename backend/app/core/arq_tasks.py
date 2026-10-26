@@ -152,8 +152,9 @@ async def run_annotation_pipeline_task(
 
             result: dict[str, Any] = await pipeline.run_update(
                 strategy=strategy,
-                sources=sources,  # the pipeline resumes from its own checkpoint
+                sources=sources,  # a resume takes the rest from the checkpoint
                 force=False,
+                resume=resume,
             )
 
             if result.get("success"):
