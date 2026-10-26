@@ -10,7 +10,7 @@ import asyncio
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, cast
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -97,11 +97,11 @@ class PercentileService:
 
         # Check cache first
         cache_key = f"percentiles:{source}:global"
-        cached = await self.cache_service.get(key=cache_key, namespace="statistics", default=None)
+        cached = await self.get_cached_percentiles_only(source)
 
-        if cached and isinstance(cached, dict):
+        if cached:
             await self.logger.info(f"Using cached percentiles for {source}", gene_count=len(cached))
-            return cast(dict[int, float], cached)
+            return cached
 
         # Calculate from database view
         try:
@@ -219,7 +219,8 @@ class PercentileService:
 
             # Validate structure
             if cached and isinstance(cached, dict):
-                return cast(dict[int, float], cached)
+                # JSONB (L2) turns int gene_id keys into strings
+                return {int(k): v for k, v in cached.items()}
 
         except Exception as e:
             self.logger.sync_debug(f"Cache error getting percentiles: {e}")

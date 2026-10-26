@@ -13,16 +13,20 @@ from typing import Any, cast
 from app.core.database import get_db_context
 from app.core.logging import get_logger
 from app.core.progress_tracker import ProgressTracker
+from app.db.safe_sql import refresh_score_views
 
 logger = get_logger(__name__)
 
 
-def managed_task(source_name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def managed_task(
+    source_name: str, refresh_scores: bool = True
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator for background tasks with common setup/teardown.
 
     Args:
         source_name: Name of the data source for tracking
+        refresh_scores: Refresh gene_scores after success (evidence sources change it)
     """
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -50,6 +54,8 @@ def managed_task(source_name: str) -> Callable[[Callable[..., Any]], Callable[..
                         result = await func(self, db, tracker, resume)
 
                     db.commit()  # Explicit commit on success
+                    if refresh_scores:
+                        await asyncio.to_thread(refresh_score_views, db)
                     logger.sync_info(
                         "Source update completed", source_name=source_name, result=result
                     )
@@ -197,7 +203,7 @@ class TaskMixin:
             )
             return result
 
-    @managed_task("Evidence_Aggregation")
+    @managed_task("Evidence_Aggregation", refresh_scores=False)
     async def _run_evidence_aggregation(
         self, db: Any, tracker: Any, resume: bool = False
     ) -> dict[str, Any]:
@@ -220,7 +226,7 @@ class TaskMixin:
         tracker.complete(f"Aggregated evidence for {result.get('genes_processed', 0)} genes")
         return result
 
-    @managed_task("annotation_pipeline")
+    @managed_task("annotation_pipeline", refresh_scores=False)  # refreshes itself
     async def _run_annotation_pipeline(
         self, db: Any, tracker: Any, resume: bool = False, mode: str = "smart"
     ) -> dict[str, Any]:
@@ -233,47 +239,29 @@ class TaskMixin:
         # Determine strategy based on mode
         strategy = UpdateStrategy.INCREMENTAL if mode == "smart" else UpdateStrategy.FULL
 
-        # Check if we're resuming a paused run
-        if resume:
-            # Get checkpoint data from progress metadata
-            from app.models.progress import DataSourceProgress
-
-            progress = (
-                db.query(DataSourceProgress).filter_by(source_name="annotation_pipeline").first()
-            )
-
-            checkpoint = progress.progress_metadata if progress else None
-            sources = checkpoint.get("sources") if checkpoint else None
-
-            logger.sync_info(
-                "Resuming annotation pipeline", checkpoint=bool(checkpoint), sources=sources
-            )
-        else:
-            sources = None  # Will use all sources
-
         # Run the pipeline update
         result: dict[str, Any] = cast(
             dict[str, Any],
             await pipeline.run_update(
                 strategy=strategy,
-                sources=sources,
+                sources=None,  # the pipeline resumes from its own checkpoint
                 force=False,
                 task_id=tracker.task_id if hasattr(tracker, "task_id") else None,
             ),
         )
 
-        # Update progress based on results
-        if result.get("success"):
+        # Update progress based on results; failed only when no source succeeded
+        errors = result.get("errors", [])
+        if result.get("status") == "already_running":
+            pass  # another live run owns the progress row; leave it alone
+        elif result.get("status") == "paused":
+            tracker.update(operation=result.get("message", "Pipeline paused"))
+        elif errors and not result.get("sources_updated"):
+            tracker.error(f"Pipeline failed: {errors}")
+        else:
             tracker.complete(
                 f"Annotation pipeline completed: {result.get('sources_updated')} sources, "
-                f"{result.get('genes_processed')} genes"
+                f"{result.get('genes_processed')} genes, {len(errors)} source errors"
             )
-        elif result.get("status") == "paused":
-            tracker.update(
-                current_operation=result.get("message", "Pipeline paused"),
-                checkpoint=result.get("checkpoint"),
-            )
-        else:
-            tracker.error(f"Pipeline failed: {result.get('errors', [])}")
 
         return result
