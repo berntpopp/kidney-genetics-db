@@ -53,13 +53,20 @@ const [password, passwordAttrs] = defineField('password', {
 const showPassword = ref(false)
 const forgotPasswordOpen = ref(false)
 
-const onSubmit = handleSubmit(async values => {
-  const success = await authStore.login(values.username, values.password)
-  if (success) {
-    emit('login-success', authStore.user?.username ?? values.username)
-    // Parent (AppHeader) handles closing the modal and showing toast
+const onSubmit = handleSubmit(
+  async values => {
+    const success = await authStore.login(values.username, values.password)
+    if (success) {
+      emit('login-success', authStore.user?.username ?? values.username)
+      // Parent (AppHeader) handles closing the modal and showing toast
+    }
+  },
+  ({ errors: invalid }) => {
+    // Move focus to the first invalid field so screen readers announce its error (#327)
+    const first = (['username', 'password'] as const).find(field => invalid[field])
+    if (first) document.getElementById(`login-${first}`)?.focus()
   }
-})
+)
 
 const closeDialog = () => {
   emit('update:open', false)
