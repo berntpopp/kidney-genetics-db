@@ -19,7 +19,10 @@ d, prefix = Path(sys.argv[1]), (sys.argv[2:] or [""])[0]  # prefix "v1_" = first
 
 
 def load(label):
-    with open(d / f"{prefix}{label}_per_gene.csv") as f:
+    path = d / f"{prefix}{label}_per_gene.csv"
+    if not path.exists():  # v1_before_* was byte-identical to before_* and is not kept
+        path = d / f"{label}_per_gene.csv"
+    with open(path) as f:
         return {r["hgnc_id"]: r for r in csv.DictReader(f)}
 
 

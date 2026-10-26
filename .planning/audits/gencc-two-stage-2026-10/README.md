@@ -9,7 +9,8 @@ evidence, global divisor 7. Formula: `.planning/specs/2026-10-26-gencc-two-stage
 - Each run of `backend/scripts/benchmark_clingen_gencc.py` passed its
   self-check: 5,183/5,183 genes reproduce the live `gene_scores` (tier exact).
   The snapshot was downgraded to `0005` for `before` and upgraded for `after`;
-  `before_per_gene.csv` is byte-identical to `v1_before_per_gene.csv`.
+  the first run's `before` files were byte-identical to `before_*`, so only
+  `before_*` is kept and `compare.py . v1_` falls back to it.
 - Files: `{before,after}_per_gene.csv` (`gencc_score` is the GenCC sub-score;
   `global.full.*` is production `percentage_score`/tier), `*_summary.md`,
   `*_discrepant_genes.csv` (the #282 ClinGen/GenCC exclusion benchmark at each
