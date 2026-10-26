@@ -260,12 +260,9 @@ def _source_without_hp_json(tmp_path: Path) -> HPOAnnotationSource:
 @pytest.mark.asyncio
 async def test_missing_hp_json_fails_batch_and_writes_nothing(tmp_path):
     source = _source_without_hp_json(tmp_path)
-    source.session.query.return_value.all.return_value = [_gene()]
     source.store_annotation = MagicMock()
     with pytest.raises(FileNotFoundError):
         await source.fetch_batch([_gene()])
-    with patch.object(source, "_refresh_materialized_view"):
-        await source.update_all_genes()
     source.store_annotation.assert_not_called()
 
 
@@ -335,13 +332,10 @@ async def test_truncated_cached_genes_to_phenotype_raises_writes_nothing_and_is_
     # A fresh but truncated cache file (would otherwise be reused for 7 days)
     cached.write_text((FIXTURES / "genes_to_phenotype_golden.tsv").read_text()[:2000])
     source._download_hp_json = AsyncMock(return_value=FIXTURES / "hp_golden_subset.json")
-    source.session.query.return_value.all.return_value = [_gene()]
     source.store_annotation = MagicMock()
     with pytest.raises(ValueError, match="sha256"):
         await source.fetch_batch([_gene()])
     assert not cached.exists()
-    with patch.object(source, "_refresh_materialized_view"):
-        await source.update_all_genes()
     source.store_annotation.assert_not_called()
 
 

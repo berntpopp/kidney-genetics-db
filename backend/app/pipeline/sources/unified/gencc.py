@@ -459,19 +459,3 @@ def get_gencc_client(**kwargs: Any) -> GenCCUnifiedSource:
         GenCCUnifiedSource instance
     """
     return GenCCUnifiedSource(**kwargs)
-
-
-# Backwards compatibility function
-async def update_gencc_async(db: Session, tracker: Any) -> dict[str, Any]:
-    """
-    Backwards compatibility function for async GenCC updates.
-
-    Args:
-        db: Database session
-        tracker: Progress tracker
-
-    Returns:
-        Update statistics
-    """
-    client = get_gencc_client(db_session=db)
-    return await client.update_data(db, tracker)
