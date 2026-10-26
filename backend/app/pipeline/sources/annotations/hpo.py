@@ -21,12 +21,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import ColumnElement, and_, func
 from sqlalchemy.orm import Session
 
 from app.core.datasource_config import ANNOTATION_COMMON_CONFIG, get_source_parameter
 from app.core.logging import get_logger
 from app.core.retry_utils import RetryConfig, retry_with_backoff
 from app.models.gene import Gene
+from app.models.gene_annotation import GeneAnnotation
 from app.pipeline.sources.annotations.base import BaseAnnotationSource
 from app.pipeline.sources.unified.bulk_mixin import BulkDataSourceMixin
 
@@ -1065,6 +1067,16 @@ class HPOAnnotationSource(BulkDataSourceMixin, BaseAnnotationSource):
             if group is not None and group.get("method") != CLINICAL_GROUP_METHOD:
                 return False
         return super()._is_valid_annotation(annotation_data)
+
+    @classmethod
+    def stale_annotation_filter(cls) -> ColumnElement[bool]:
+        """SQL twin of _is_valid_annotation: a clinical_group from another method is stale."""
+        group = GeneAnnotation.annotations[("classification", "clinical_group")]
+        method = GeneAnnotation.annotations[("classification", "clinical_group", "method")]
+        return and_(
+            func.jsonb_typeof(group) == "object",
+            method.astext.is_distinct_from(CLINICAL_GROUP_METHOD),
+        )
 
     def validate_annotation(self, annotation_data: dict[str, Any]) -> bool:
         """Validate that annotation data has required fields"""
