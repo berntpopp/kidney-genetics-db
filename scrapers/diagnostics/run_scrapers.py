@@ -26,6 +26,7 @@ from providers import (
     MVZMedicoverScraper,
     NateraScraper,
     PreventionGeneticsScraper,
+    UChicagoGeneticsScraper,
 )
 from schemas import DiagnosticPanelBatch
 
@@ -108,7 +109,8 @@ class ScraperOrchestrator:
             ('mgz_muenchen', MGZMuenchenScraper),
             ('mvz_medicover', MVZMedicoverScraper),
             ('natera', NateraScraper),
-            ('prevention_genetics', PreventionGeneticsScraper)
+            ('prevention_genetics', PreventionGeneticsScraper),
+            ('uchicago_genetics', UChicagoGeneticsScraper),
         ]
 
         for scraper_id, scraper_class in scraper_classes:

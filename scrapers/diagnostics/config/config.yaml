@@ -47,6 +47,13 @@ scrapers:
     enabled: true
     url: https://www.centoportal.com/order/new/products/analysis-method?queryType=TEST&query=CentoNephro
     
+  # Verified 2026-10-27: static HTML, robots.txt allows /category/ and /tests/ (Crawl-delay: 10).
+  # Scope: every panel linked from the public Nephrology test category.
+  uchicago_genetics:
+    enabled: true
+    url: https://dnatesting.uchicago.edu/category/nephrology
+    rate_limit: 10
+
   blueprint_genetics:
     enabled: true
     url: https://blueprintgenetics.com/tests/panels/nephrology/
