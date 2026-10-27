@@ -42,38 +42,38 @@ export interface GroupConfig {
 }
 
 /**
- * Configuration for evidence tiers. Colours keep OKLab distance > 0.15 under
- * deuteranopia and tinted chips >= 4.5:1 (tierPalette.spec.ts, #325); the icon is
- * the non-colour cue.
+ * Configuration for evidence tiers. Colours are the --strength-N tokens in
+ * assets/main.css, which keep OKLab distance > 0.15 under deuteranopia and tinted
+ * chips >= 4.5:1 (tierPalette.spec.ts, #325); the icon is the non-colour cue.
  */
 export const TIER_CONFIG: Record<TierName, TierConfig> = {
   comprehensive_support: {
     label: 'Comprehensive Support',
-    color: '#16a34a',
+    color: 'var(--strength-5)',
     icon: CircleCheck,
     description: '4+ sources with robust evidence (score ≥50%)'
   },
   multi_source_support: {
     label: 'Multi-Source Support',
-    color: '#2563eb',
+    color: 'var(--strength-4)',
     icon: CircleCheckBig,
     description: '3+ sources with emerging evidence (score ≥35%)'
   },
   established_support: {
     label: 'Established Support',
-    color: '#38bdf8',
+    color: 'var(--strength-3)',
     icon: Check,
     description: '2+ sources with moderate evidence (score ≥20%)'
   },
   preliminary_evidence: {
     label: 'Preliminary Evidence',
-    color: '#fbbf24',
+    color: 'var(--strength-2)',
     icon: CircleAlert,
     description: 'Initial evidence requiring validation (score ≥10%)'
   },
   minimal_evidence: {
     label: 'Minimal Evidence',
-    color: '#4b5563',
+    color: 'var(--strength-1)',
     icon: Info,
     description: 'Limited early-stage evidence (score <10%)'
   }
@@ -85,27 +85,28 @@ export const TIER_CONFIG: Record<TierName, TierConfig> = {
 export const GROUP_CONFIG: Record<GroupName, GroupConfig> = {
   well_supported: {
     label: 'Well-Supported',
-    color: '#22c55e',
+    color: 'var(--strength-4)',
     icon: Star,
     description: '2+ sources with strong evidence scores'
   },
   emerging_evidence: {
     label: 'Emerging Evidence',
-    color: '#f59e0b',
+    color: 'var(--strength-2)',
     icon: Star,
     description: 'Initial evidence, needs further validation'
   }
 }
 
 /**
- * Inline style for a chip tinted with `color` (hex). The text is mixed toward the
- * theme foreground so it stays WCAG AA on the tint in light and dark mode (#320).
+ * Inline style for a chip tinted with `color` (any CSS colour, including var(--token)).
+ * The text is mixed toward the theme foreground so it stays WCAG AA on the tint in
+ * light and dark mode (#320).
  */
 export function tintedChipStyle(color: string): Record<string, string> {
   return {
-    backgroundColor: color + '20',
+    backgroundColor: `color-mix(in srgb, ${color} 12.5%, transparent)`,
     color: `color-mix(in oklab, ${color} 55%, var(--foreground))`,
-    borderColor: color + '40'
+    borderColor: `color-mix(in srgb, ${color} 25%, transparent)`
   }
 }
 
@@ -118,7 +119,7 @@ export function getTierConfig(tier: string | null | undefined): TierConfig {
   if (!tier || !(tier in TIER_CONFIG)) {
     return {
       label: 'No Classification',
-      color: '#9ca3af',
+      color: 'var(--muted-foreground)',
       icon: CircleHelp,
       description: 'No evidence tier assigned'
     }
@@ -135,7 +136,7 @@ export function getGroupConfig(group: string | null | undefined): GroupConfig {
   if (!group || !(group in GROUP_CONFIG)) {
     return {
       label: 'Unclassified',
-      color: '#9ca3af',
+      color: 'var(--muted-foreground)',
       icon: CircleHelp,
       description: 'No evidence group assigned'
     }
@@ -186,4 +187,99 @@ export function getScoreExplanation(
   const label = getTierConfig(tier).label
   if (!sourceCount) return `${score.toFixed(1)}% — ${label}`
   return `${score.toFixed(1)}% — ${label} from ${sourceCount} ${sourceCount === 1 ? 'source' : 'sources'}`
+}
+
+/** ClinGen / GenCC classification shown as a strength step, or as a warning/danger tone */
+export interface ClassificationConfig {
+  label: string
+  /** Strength step 1-5; null for Disputed/Refuted/unknown, which are not strengths */
+  strength: 1 | 2 | 3 | 4 | 5 | null
+  tone: 'strength' | 'warning' | 'danger' | 'neutral'
+  color: string
+  description: string
+}
+
+const classification = (
+  label: string,
+  strength: ClassificationConfig['strength'],
+  description: string,
+  tone: ClassificationConfig['tone'] = 'strength'
+): ClassificationConfig => ({
+  label,
+  strength,
+  tone,
+  color: strength ? `var(--strength-${strength})` : `var(--${tone})`,
+  description
+})
+
+/** Keys are lower-case with spaces; look up through getClassificationConfig() */
+export const CLASSIFICATION_CONFIG: Record<string, ClassificationConfig> = {
+  definitive: classification(
+    'Definitive',
+    5,
+    'Gene-disease relationship replicated and upheld over time; the strongest classification'
+  ),
+  strong: classification(
+    'Strong',
+    4,
+    'Strong genetic and experimental evidence, not yet replicated over time'
+  ),
+  moderate: classification(
+    'Moderate',
+    3,
+    'Moderate evidence: several unrelated cases with supporting experimental data'
+  ),
+  limited: classification(
+    'Limited',
+    2,
+    'Limited evidence: few cases or little experimental support; the relationship is unproven'
+  ),
+  supportive: classification(
+    'Supportive',
+    2,
+    'Reported as supportive by a submitter without a full semiquantitative assessment'
+  ),
+  'no known disease relationship': classification(
+    'No Known Disease Relationship',
+    1,
+    'No evidence of a gene-disease relationship has been reported'
+  ),
+  'animal model only': classification(
+    'Animal Model Only',
+    1,
+    'Evidence comes from animal models only; no human cases reported'
+  ),
+  disputed: classification(
+    'Disputed',
+    null,
+    'Conflicting evidence disputes the gene-disease relationship',
+    'warning'
+  ),
+  refuted: classification(
+    'Refuted',
+    null,
+    'Evidence refuting the relationship significantly outweighs any support',
+    'danger'
+  )
+}
+
+/**
+ * Classification config for a ClinGen/GenCC label ("Definitive", "No Known Disease
+ * Relationship", "disputed evidence", ...). Unknown labels render neutral.
+ */
+export function getClassificationConfig(label: string | null | undefined): ClassificationConfig {
+  const key = (label ?? '')
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+evidence$/, '')
+    .trim()
+  return (
+    CLASSIFICATION_CONFIG[key] ?? {
+      label: label || 'No Classification',
+      strength: null,
+      tone: 'neutral',
+      color: 'var(--muted-foreground)',
+      description: 'No classification assigned'
+    }
+  )
 }

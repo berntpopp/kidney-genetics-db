@@ -1,17 +1,19 @@
 /**
- * Tier colours must stay apart under deuteranopia and keep tinted chips at WCAG AA (#325).
- * Deuteranopia: Machado et al. 2009, severity 1. Distance: Euclidean in OKLab.
- * Chip text: tintedChipStyle mixes the hex 55% toward --foreground in OKLab on a 0x20 tint.
+ * The evidence-strength ramp must stay apart under deuteranopia and keep tinted chips at
+ * WCAG AA in both themes (#325). Tier colours are var(--strength-N); the values are read
+ * from src/assets/main.css. Deuteranopia: Machado et al. 2009, severity 1. Distance:
+ * Euclidean in OKLab. Chip text: tintedChipStyle mixes the colour 55% toward --foreground
+ * in OKLab on a 12.5% tint.
  */
+import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
-import { TIER_CONFIG } from '@/utils/evidenceTiers'
+import { TIER_CONFIG, tintedChipStyle } from '@/utils/evidenceTiers'
 
 type RGB = number[]
 const toLin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
 const toSrgb = (c: number) => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055)
 const clamp = (c: number) => Math.min(1, Math.max(0, c))
 const mul = (m: number[][], v: RGB) => m.map(r => r[0]! * v[0]! + r[1]! * v[1]! + r[2]! * v[2]!)
-const hexLin = (h: string) => [1, 3, 5].map(i => toLin(parseInt(h.slice(i, i + 2), 16) / 255))
 
 const LMS = [
   [0.4122214708, 0.5363325363, 0.0514459929],
@@ -49,37 +51,53 @@ const contrast = (a: RGB, b: RGB) => {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
   return (hi! + 0.05) / (lo! + 0.05)
 }
-// Theme tokens from src/assets/main.css: oklch(0.985 0 0) and oklch(0.141 0.005 285.823)
-const near = fromOklab([0.985, 0, 0])
-const ink = fromOklab([0.141, 0.005 * Math.cos(4.989), 0.005 * Math.sin(4.989)])
 
-const tiers = Object.entries(TIER_CONFIG)
+// cwd = frontend/; the first block is :root (light), the second .dark
+const [lightCss = '', darkCss = ''] = readFileSync('src/assets/main.css', 'utf8').split('.dark {')
+function token(css: string, name: string): RGB {
+  const m = css.match(new RegExp(`--${name}: oklch\\(([\\d.]+) ([\\d.]+) ([\\d.]+)\\)`))
+  if (!m) throw new Error(`--${name} not found`)
+  const [L = 0, C = 0, h = 0] = m.slice(1).map(Number)
+  return fromOklab([L, C * Math.cos((h * Math.PI) / 180), C * Math.sin((h * Math.PI) / 180)])
+}
 
-describe('tier palette under deuteranopia (#325)', () => {
-  it.each(
-    tiers.flatMap(([a, ca], i) => tiers.slice(i + 1).map(([b, cb]) => [a, b, ca.color, cb.color]))
-  )('%s and %s stay distinguishable', (_a, _b, ca, cb) => {
-    const sim = (h: string) => oklab(mul(DEUTERANOPIA, hexLin(h)).map(clamp))
-    const [x, y] = [sim(ca!), sim(cb!)]
-    expect(Math.hypot(...x.map((v, i) => v - y[i]!))).toBeGreaterThan(0.15)
-  })
+const themes = [
+  { name: 'light', css: lightCss },
+  { name: 'dark', css: darkCss }
+]
+const steps = [1, 2, 3, 4, 5]
+
+it('tiers use the strength tokens and chips accept CSS variables', () => {
+  expect(Object.values(TIER_CONFIG).map(t => t.color)).toEqual(
+    [5, 4, 3, 2, 1].map(n => `var(--strength-${n})`)
+  )
+  // no hex-alpha concatenation such as "var(--x)20"
+  expect(Object.values(tintedChipStyle('var(--strength-5)')).join()).not.toMatch(/\)[0-9a-f]{2}/)
 })
 
-describe('tier chip contrast (#325)', () => {
-  it.each(
-    tiers.flatMap(([t, c]) => [
-      [t, c.color, near, ink],
-      [t, c.color, ink, near]
-    ])
-  )('%s chip text is >= 4.5:1', (_t, hex, bg, fg) => {
-    const color = hexLin(hex as string)
-    const [c, f] = [oklab(color), oklab(fg as RGB)]
-    const text = fromOklab(c.map((v, i) => v * 0.55 + f[i]! * 0.45))
-    const alpha = 0x20 / 255
-    // Browsers composite alpha in sRGB, not linear light
-    const tint = color.map((v, i) =>
-      toLin(toSrgb(v) * alpha + toSrgb((bg as RGB)[i]!) * (1 - alpha))
-    )
-    expect(contrast(text, tint)).toBeGreaterThanOrEqual(4.5)
-  })
+describe.each(themes)('$name strength ramp under deuteranopia (#325)', ({ css }) => {
+  it.each(steps.flatMap((a, i) => steps.slice(i + 1).map(b => [a, b])))(
+    'strength-%i and strength-%i stay distinguishable',
+    (a, b) => {
+      const sim = (n: number) => oklab(mul(DEUTERANOPIA, token(css, `strength-${n}`)).map(clamp))
+      const [x, y] = [sim(a!), sim(b!)]
+      expect(Math.hypot(...x.map((v, i) => v - y[i]!))).toBeGreaterThan(0.15)
+    }
+  )
+})
+
+describe.each(themes)('$name strength chip contrast (#325)', ({ css }) => {
+  it.each(steps.flatMap(n => ['background', 'card'].map(c => [n, c])))(
+    'strength-%i chip text on --%s is >= 4.5:1',
+    (n, canvas) => {
+      const color = token(css, `strength-${n}`)
+      const bg = token(css, canvas as string)
+      const [c, f] = [oklab(color), oklab(token(css, 'foreground'))]
+      const text = fromOklab(c.map((v, i) => v * 0.55 + f[i]! * 0.45))
+      const alpha = 0.125
+      // color-mix(in srgb, ..., transparent) composites in sRGB, not linear light
+      const tint = color.map((v, i) => toLin(toSrgb(v) * alpha + toSrgb(bg[i]!) * (1 - alpha)))
+      expect(contrast(text, tint)).toBeGreaterThanOrEqual(4.5)
+    }
+  )
 })

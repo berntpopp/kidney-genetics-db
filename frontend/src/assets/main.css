@@ -33,9 +33,9 @@
     --primary: oklch(0.5 0.15 237.323);
     --primary-foreground: oklch(0.984 0.003 247.858);
 
-    /* Secondary — violet hue, lightness lowered for WCAG AA with secondary-foreground */
-    --secondary: oklch(0.55 0.222 292.717);
-    --secondary-foreground: oklch(0.984 0.003 247.858);
+    /* Secondary — neutral (= muted); the violet secondary is retired (DESIGN.md) */
+    --secondary: oklch(0.967 0.001 286.375);
+    --secondary-foreground: oklch(0.21 0.006 285.885);
 
     /* Muted */
     --muted: oklch(0.967 0.001 286.375);
@@ -45,9 +45,9 @@
     --accent: oklch(0.967 0.001 286.375);
     --accent-foreground: oklch(0.21 0.006 285.885);
 
-    /* Destructive */
-    --destructive: oklch(0.637 0.237 25.331);
-    --destructive-foreground: oklch(0.984 0.003 247.858);
+    /* Destructive — alias of --danger */
+    --destructive: var(--danger);
+    --destructive-foreground: var(--danger-foreground);
 
     /* Border / Input / Ring */
     --border: oklch(0.943 0.003 286.32);
@@ -73,6 +73,37 @@
 
     /* Radius */
     --radius: 0.625rem;
+
+    /* Evidence strength — ordinal, dark = strong; tuned by tierPalette.spec.ts */
+    --strength-1: oklch(0.87 0.09 88);
+    --strength-2: oklch(0.79 0.11 198);
+    --strength-3: oklch(0.62 0.08 215);
+    --strength-4: oklch(0.49 0.15 258);
+    --strength-5: oklch(0.32 0.14 275);
+
+    /* Status — solid >= 4.5:1 with -foreground and as text on the canvas / -subtle */
+    --success: oklch(0.5 0.13 152);
+    --success-foreground: oklch(0.985 0 0);
+    --success-subtle: oklch(0.96 0.03 152);
+    --warning: oklch(0.54 0.15 50);
+    --warning-foreground: oklch(0.985 0 0);
+    --warning-subtle: oklch(0.96 0.035 75);
+    --danger: oklch(0.52 0.19 27);
+    --danger-foreground: oklch(0.985 0 0);
+    --danger-subtle: oklch(0.96 0.025 20);
+    --info: var(--primary);
+    --info-foreground: var(--primary-foreground);
+    --info-subtle: oklch(0.96 0.025 237);
+
+    /* Sources — Okabe-Ito categorical palette, charts and marker dots only */
+    --source-1: oklch(0.532 0.131 244);
+    --source-2: oklch(0.753 0.158 76.8);
+    --source-3: oklch(0.62 0.13 165.5);
+    --source-4: oklch(0.679 0.118 346.3);
+    --source-5: oklch(0.735 0.117 236.2);
+    --source-6: oklch(0.621 0.17 47.5);
+    --source-7: oklch(0.902 0.172 105);
+    --source-8: oklch(0.596 0 0);
 
     /* Domain colors — Kidney/DNA science palette */
     --kidney-primary: oklch(0.704 0.14 180.72);
@@ -100,9 +131,9 @@
     --primary: oklch(0.779 0.15 237.323);
     --primary-foreground: oklch(0.141 0.005 285.823);
 
-    /* Secondary — lighter violet in dark mode */
-    --secondary: oklch(0.718 0.189 292.717);
-    --secondary-foreground: oklch(0.141 0.005 285.823);
+    /* Secondary — neutral (= muted) */
+    --secondary: oklch(0.21 0.006 285.885);
+    --secondary-foreground: oklch(0.985 0 0);
 
     /* Muted */
     --muted: oklch(0.21 0.006 285.885);
@@ -112,9 +143,9 @@
     --accent: oklch(0.21 0.006 285.885);
     --accent-foreground: oklch(0.985 0 0);
 
-    /* Destructive */
-    --destructive: oklch(0.724 0.19 21.555);
-    --destructive-foreground: oklch(0.141 0.005 285.823);
+    /* Destructive — alias of --danger */
+    --destructive: var(--danger);
+    --destructive-foreground: var(--danger-foreground);
 
     /* Border / Input / Ring */
     --border: oklch(0.295 0.005 286.033);
@@ -138,6 +169,29 @@
     --chart-4: oklch(0.829 0.159 85.872);
     --chart-5: oklch(0.724 0.19 21.555);
 
+    /* Evidence strength (dark) — strong = most contrast with the canvas */
+    --strength-1: oklch(0.29 0.04 92);
+    --strength-2: oklch(0.5 0.09 162);
+    --strength-3: oklch(0.63 0.12 233);
+    --strength-4: oklch(0.79 0.11 247);
+    --strength-5: oklch(0.92 0.04 272);
+
+    /* Status (dark) */
+    --success: oklch(0.76 0.15 152);
+    --success-foreground: oklch(0.141 0.005 285.823);
+    --success-subtle: oklch(0.26 0.045 152);
+    --warning: oklch(0.8 0.14 75);
+    --warning-foreground: oklch(0.141 0.005 285.823);
+    --warning-subtle: oklch(0.26 0.045 70);
+    --danger: oklch(0.72 0.17 22);
+    --danger-foreground: oklch(0.141 0.005 285.823);
+    --danger-subtle: oklch(0.26 0.05 22);
+    --info-subtle: oklch(0.26 0.045 237);
+
+    /* Sources (dark) — blue and grey lifted for >= 3:1 on the canvas */
+    --source-1: oklch(0.65 0.13 244);
+    --source-8: oklch(0.68 0 0);
+
     /* Domain colors — dark mode */
     --kidney-primary: oklch(0.834 0.1 181.07);
     --kidney-secondary: oklch(0.763 0.124 179.87);
@@ -156,6 +210,38 @@
   ::before,
   ::after {
     border-color: var(--border);
+  }
+
+  /* The scrollbar's space is always reserved, so the header never moves between routes */
+  html {
+    scrollbar-gutter: stable;
+    accent-color: var(--primary);
+    caret-color: var(--primary);
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--primary) 25%, transparent);
+    color: var(--foreground);
+  }
+
+  /* Tailwind v4 preflight resets buttons to cursor: default */
+  button,
+  [role='button'],
+  a[href],
+  summary,
+  label[for],
+  select,
+  [role='tab'],
+  [role='option'],
+  [role='menuitem'],
+  [role='switch'],
+  [role='checkbox'] {
+    cursor: pointer;
+  }
+
+  :disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
   }
 }
 
@@ -192,6 +278,37 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Evidence strength */
+  --color-strength-1: var(--strength-1);
+  --color-strength-2: var(--strength-2);
+  --color-strength-3: var(--strength-3);
+  --color-strength-4: var(--strength-4);
+  --color-strength-5: var(--strength-5);
+
+  /* Status */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-subtle: var(--info-subtle);
+
+  /* Sources (charts and marker dots only) */
+  --color-source-1: var(--source-1);
+  --color-source-2: var(--source-2);
+  --color-source-3: var(--source-3);
+  --color-source-4: var(--source-4);
+  --color-source-5: var(--source-5);
+  --color-source-6: var(--source-6);
+  --color-source-7: var(--source-7);
+  --color-source-8: var(--source-8);
 
   /* Charts */
   --color-chart-1: var(--chart-1);
