@@ -2,7 +2,7 @@
 import { ref, computed, h } from 'vue'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { useTable } from '@tanstack/vue-table'
-import { ChartBarBig, ChevronRight, Download, RefreshCw, Loader2 } from 'lucide-vue-next'
+import { ChartBarBig, ChevronRight, Download, RefreshCw } from 'lucide-vue-next'
 import {
   DataTable,
   DataTableColumnHeader,
@@ -12,11 +12,10 @@ import {
 import type { DataTableFeatures } from '@/components/ui/data-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { DataState } from '@/components/shared'
 import {
   Select,
   SelectContent,
@@ -134,19 +133,7 @@ const columns: ColumnDef<DataTableFeatures, any>[] = [
     header: ({ column }) => h(DataTableColumnHeader, { column, title: 'FDR' }),
     cell: ({ row }) => {
       const fdr = row.getValue('fdr') as number
-      return h(
-        Badge,
-        {
-          variant: 'outline',
-          class: 'font-mono text-xs',
-          style: {
-            backgroundColor: getFdrBgColor(fdr),
-            borderColor: getFdrTextColor(fdr),
-            color: getFdrTextColor(fdr)
-          }
-        },
-        () => formatPValue(fdr)
-      )
+      return h('span', { class: 'font-mono text-sm tabular-nums' }, formatPValue(fdr))
     },
     size: 100
   },
@@ -155,15 +142,7 @@ const columns: ColumnDef<DataTableFeatures, any>[] = [
     header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Score' }),
     cell: ({ row }) => {
       const score = row.getValue('enrichment_score') as number
-      return h(
-        Badge,
-        {
-          variant: 'secondary',
-          class: 'font-mono text-xs',
-          style: { color: getEnrichmentTextColor(score) }
-        },
-        () => score.toFixed(2)
-      )
+      return h('span', { class: 'font-mono text-sm tabular-nums' }, score.toFixed(2))
     },
     size: 80
   },
@@ -232,27 +211,6 @@ const formatPValue = (value: number) => {
   return value.toFixed(3)
 }
 
-const getFdrBgColor = (fdr: number) => {
-  if (fdr < 0.001) return 'hsl(var(--chart-2) / 0.1)'
-  if (fdr < 0.01) return 'hsl(var(--chart-1) / 0.1)'
-  if (fdr < 0.05) return 'hsl(var(--chart-4) / 0.1)'
-  return 'hsl(var(--muted))'
-}
-
-const getFdrTextColor = (fdr: number) => {
-  if (fdr < 0.001) return 'hsl(var(--chart-2))'
-  if (fdr < 0.01) return 'hsl(var(--chart-1))'
-  if (fdr < 0.05) return 'hsl(var(--chart-4))'
-  return 'hsl(var(--muted-foreground))'
-}
-
-const getEnrichmentTextColor = (score: number) => {
-  if (score >= 5) return 'hsl(var(--chart-2))'
-  if (score >= 3) return 'hsl(var(--chart-1))'
-  if (score >= 1.3) return 'hsl(var(--chart-4))'
-  return 'hsl(var(--muted-foreground))'
-}
-
 const showGenes = (term: any) => {
   selectedTerm.value = term
   geneDialog.value = true
@@ -302,7 +260,7 @@ const exportResults = () => {
     <CardHeader class="pb-3">
       <div class="flex items-start justify-between">
         <div>
-          <CardTitle class="text-lg">Functional Enrichment Analysis</CardTitle>
+          <CardTitle tag="h2" class="text-lg">Functional Enrichment Analysis</CardTitle>
           <p class="text-sm text-muted-foreground mt-1">
             {{ enrichmentStats }}
           </p>
@@ -401,35 +359,33 @@ const exportResults = () => {
 
     <!-- Results -->
     <CardContent class="p-0">
-      <!-- Loading State -->
-      <div v-if="loading" class="flex flex-col items-center justify-center py-12">
-        <Loader2 class="h-10 w-10 animate-spin text-primary mb-4" />
-        <p class="text-sm text-muted-foreground">Running enrichment analysis...</p>
-      </div>
-
-      <!-- Error State -->
-      <div v-else-if="error" class="p-4">
-        <Alert variant="destructive">
-          <AlertTitle>Enrichment Error</AlertTitle>
-          <AlertDescription>{{ error }}</AlertDescription>
-        </Alert>
-      </div>
-
-      <!-- Empty State -->
-      <div
-        v-else-if="!results || results.length === 0"
-        class="flex flex-col items-center justify-center py-12 text-muted-foreground"
+      <DataState
+        :loading="loading"
+        :error="error"
+        :empty="!results || results.length === 0"
+        error-title="Could not run the enrichment analysis"
+        @retry="$emit('refresh')"
       >
-        <ChartBarBig class="h-16 w-16 mb-4" />
-        <p class="text-base">No significant enrichment found</p>
-        <p class="text-sm">Try adjusting the FDR threshold or cluster selection</p>
-      </div>
-
-      <!-- Data Table -->
-      <template v-else>
+        <template #loading>
+          <div class="space-y-2 p-4">
+            <p class="text-sm text-muted-foreground">Running enrichment analysis…</p>
+            <div
+              v-for="n in 6"
+              :key="n"
+              class="h-9 rounded-md bg-muted motion-safe:animate-pulse"
+            />
+          </div>
+        </template>
+        <template #empty>
+          <ChartBarBig class="size-8 text-muted-foreground" aria-hidden="true" />
+          <p class="text-sm font-medium">No significant enrichment found</p>
+          <p class="text-sm text-muted-foreground">
+            Try adjusting the FDR threshold or cluster selection.
+          </p>
+        </template>
         <DataTable :table="table" />
         <DataTablePagination :table="table" :page-size-options="[10, 20, 50, 100]" />
-      </template>
+      </DataState>
     </CardContent>
 
     <!-- Gene List Dialog -->
@@ -443,15 +399,16 @@ const exportResults = () => {
         </DialogHeader>
         <ScrollArea class="max-h-[300px]">
           <div class="flex flex-wrap gap-2 p-1">
-            <Badge
+            <Button
               v-for="gene in selectedTerm?.genes"
               :key="gene"
               variant="outline"
-              class="cursor-pointer hover:bg-primary/10"
+              size="sm"
+              class="h-7 px-2 text-xs"
               @click="emit('geneClick', gene)"
             >
               {{ gene }}
-            </Badge>
+            </Button>
           </div>
         </ScrollArea>
         <div class="flex justify-end">

@@ -1,14 +1,15 @@
 <template>
   <Dialog :open="modelValue" @update:open="$emit('update:modelValue', $event)">
-    <DialogContent class="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <DialogContent class="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
       <!-- Header -->
       <DialogHeader>
         <div class="flex items-center gap-3">
           <Badge
-            :style="{ backgroundColor: clusterColor, color: '#fff' }"
+            variant="outline"
+            :style="tintedChipStyle(clusterColor)"
             class="flex items-center gap-1"
           >
-            <Atom class="size-4" />
+            <Atom class="size-4" aria-hidden="true" />
             {{ clusterDisplayName || `Cluster ${clusterId + 1}` }}
           </Badge>
           <div>
@@ -26,7 +27,7 @@
       <div v-if="clusterStatistics" class="p-4 bg-muted/50 rounded-md">
         <div class="flex items-center mb-3">
           <ChartBarBig class="size-5 mr-2 text-primary" />
-          <h4 class="text-sm font-medium">HPO Classification Summary</h4>
+          <h3 class="text-sm font-medium">HPO Classification Summary</h3>
           <Badge variant="secondary" class="ml-auto flex items-center gap-1">
             <Database class="size-3" />
             {{ clusterStatistics.hpoDataCount }} / {{ clusterStatistics.total }} genes ({{
@@ -45,7 +46,8 @@
               <Badge
                 v-for="stat in clusterStatistics.clinical"
                 :key="stat.key"
-                :style="{ backgroundColor: stat.color, color: '#fff' }"
+                variant="outline"
+                :style="tintedChipStyle(stat.color)"
               >
                 {{ stat.label }}: {{ stat.percentage }}%
               </Badge>
@@ -59,7 +61,8 @@
               <Badge
                 v-for="stat in clusterStatistics.onset"
                 :key="stat.key"
-                :style="{ backgroundColor: stat.color, color: '#fff' }"
+                variant="outline"
+                :style="tintedChipStyle(stat.color)"
               >
                 {{ stat.label }}: {{ stat.percentage }}%
               </Badge>
@@ -74,32 +77,32 @@
             <div class="flex flex-wrap gap-1">
               <template v-if="clusterStatistics.syndromic.assessedCount > 0">
                 <Badge
-                  :style="{
-                    backgroundColor: networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.true,
-                    color: '#fff'
-                  }"
+                  variant="outline"
+                  :style="
+                    tintedChipStyle(networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.true)
+                  "
                 >
                   Syndromic: {{ clusterStatistics.syndromic.syndromicPercentage }}%
                 </Badge>
                 <Badge
-                  :style="{
-                    backgroundColor:
-                      networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.false,
-                    color: '#fff'
-                  }"
+                  variant="outline"
+                  :style="
+                    tintedChipStyle(networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.false)
+                  "
                 >
                   Isolated: {{ clusterStatistics.syndromic.isolatedPercentage }}%
                 </Badge>
               </template>
               <Badge
                 v-if="clusterStatistics.syndromic.unknownCount > 0"
-                :style="{
-                  backgroundColor: networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.null,
-                  color: '#fff'
-                }"
+                variant="outline"
+                :style="
+                  tintedChipStyle(networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.null)
+                "
               >
                 {{ networkAnalysisConfig.nodeColoring.labels.syndromic.null }}:
-                {{ clusterStatistics.syndromic.unknownCount }} genes
+                {{ clusterStatistics.syndromic.unknownCount }}
+                {{ clusterStatistics.syndromic.unknownCount === 1 ? 'gene' : 'genes' }}
               </Badge>
             </div>
           </div>
@@ -114,7 +117,7 @@
           <thead>
             <tr class="border-b bg-muted/50">
               <th class="p-2 text-left font-semibold whitespace-nowrap">Gene Symbol</th>
-              <th class="p-2 text-left font-semibold whitespace-nowrap">Gene ID</th>
+              <th class="p-2 text-left font-semibold whitespace-nowrap">HGNC</th>
               <th class="p-2 text-right font-semibold whitespace-nowrap">Actions</th>
             </tr>
           </thead>
@@ -134,9 +137,10 @@
                 </router-link>
               </td>
 
-              <!-- Gene ID -->
+              <!-- HGNC identifier, named by its symbol -->
               <td class="p-2">
-                <span class="font-mono text-xs">{{ item.gene_id }}</span>
+                <OntologyTerm v-if="item.hgnc_id" :id="item.hgnc_id" :name="item.symbol" />
+                <span v-else class="text-xs text-muted-foreground">Not available</span>
               </td>
 
               <!-- Actions -->
@@ -276,7 +280,10 @@ import {
   Eye,
   MapPin
 } from 'lucide-vue-next'
-import { networkAnalysisConfig } from '../../config/networkAnalysis'
+import { toast } from 'vue-sonner'
+import { networkAnalysisConfig, OTHER_CLUSTER_COLOR } from '../../config/networkAnalysis'
+import { tintedChipStyle } from '@/utils/evidenceTiers'
+import { OntologyTerm } from '@/components/shared'
 import { computeHpoClusterStats } from './hpoClusterStats'
 
 import {
@@ -314,7 +321,7 @@ const props = defineProps({
   },
   clusterColor: {
     type: String,
-    default: '#1976D2'
+    default: OTHER_CLUSTER_COLOR
   },
   genes: {
     type: Array,
@@ -387,11 +394,11 @@ const copyGeneSymbol = symbol => {
   navigator.clipboard
     .writeText(symbol)
     .then(() => {
-      // Successfully copied - silent success (standard UX pattern for copy operations)
+      toast.success(`Copied ${symbol}`)
       window.logService?.debug('[ClusterDetails] Gene symbol copied to clipboard', { symbol })
     })
     .catch(error => {
-      // Log copy failure
+      toast.error(`Could not copy ${symbol}`)
       window.logService?.error('[ClusterDetails] Failed to copy gene symbol', {
         symbol,
         error: error.message
@@ -406,8 +413,8 @@ const exportClusterGenes = () => {
   const clusterName = props.clusterDisplayName || `Cluster ${props.clusterId + 1}`
 
   // Create CSV content
-  const csvHeaders = ['Gene Symbol', 'Gene ID', 'Cluster']
-  const rows = props.genes.map(g => [g.symbol, g.gene_id, clusterName])
+  const csvHeaders = ['Gene Symbol', 'HGNC ID', 'Cluster']
+  const rows = props.genes.map(g => [g.symbol, g.hgnc_id ?? '', clusterName])
 
   const csv = [csvHeaders.join(','), ...rows.map(row => row.join(','))].join('\n')
 

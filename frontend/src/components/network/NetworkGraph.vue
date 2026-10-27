@@ -2,7 +2,9 @@
   <Card class="network-graph-card w-full">
     <CardHeader class="flex flex-row items-center justify-between space-y-0 p-4">
       <div>
-        <CardTitle class="text-lg font-medium">Protein-Protein Interaction Network</CardTitle>
+        <CardTitle tag="h2" class="text-lg font-semibold"
+          >Protein-Protein Interaction Network</CardTitle
+        >
         <p class="text-sm text-muted-foreground mt-1">
           {{ networkStats }}
         </p>
@@ -109,6 +111,7 @@
           <Input
             v-model="localSearchPattern"
             placeholder="e.g., COL*, PKD1, *A1"
+            aria-label="Search genes in the network"
             class="pl-8 h-9"
             :class="{ 'pr-24': matchCount > 0 }"
             @input="handleSearchInput"
@@ -116,15 +119,17 @@
           />
           <button
             v-if="localSearchPattern"
+            type="button"
             aria-label="Clear search"
-            class="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
+            class="absolute top-1.5 right-1.5 inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             @click="clearSearchHighlight"
           >
             <X class="size-4" />
           </button>
           <Badge
             v-if="matchCount > 0"
-            class="absolute right-8 top-1.5 bg-green-600 text-white text-xs"
+            variant="secondary"
+            class="absolute right-8 top-1.5 text-xs tabular-nums"
           >
             {{ matchCount }} {{ matchCount === 1 ? 'match' : 'matches' }}
           </Badge>
@@ -241,30 +246,32 @@
         </div>
       </div>
 
-      <!-- Loading State -->
-      <div v-if="loading" class="flex items-center justify-center" :style="{ height: graphHeight }">
-        <div class="text-center">
-          <div
-            class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"
-          />
-          <p class="text-sm text-muted-foreground mt-4">Loading network...</p>
-        </div>
+      <!-- Loading State: the canvas keeps its height, with a progress message -->
+      <div
+        v-if="loading"
+        class="absolute inset-0 flex items-center justify-center bg-muted/40"
+        role="status"
+      >
+        <p class="flex items-center gap-2 text-sm text-muted-foreground">
+          <LoaderCircle class="size-5 motion-safe:animate-spin" aria-hidden="true" />
+          Building and laying out the network…
+        </p>
       </div>
 
       <!-- Error State -->
-      <div v-if="error" class="flex items-center justify-center" :style="{ height: graphHeight }">
-        <Alert variant="destructive" class="max-w-md">
-          <AlertCircle class="size-4" />
-          <AlertTitle>Network Error</AlertTitle>
-          <AlertDescription>{{ error }}</AlertDescription>
-        </Alert>
+      <div v-if="error && !loading" class="absolute inset-0 flex items-center justify-center p-4">
+        <DataState
+          class="max-w-md"
+          :error="error"
+          error-title="Could not build the network"
+          @retry="$emit('refresh')"
+        />
       </div>
 
       <!-- Empty State -->
       <div
         v-if="!loading && !error && !cyInstance"
-        class="flex items-center justify-center"
-        :style="{ height: graphHeight }"
+        class="absolute inset-0 flex items-center justify-center"
       >
         <div class="text-center text-muted-foreground">
           <NetworkIcon class="size-16 mb-4 mx-auto" />
@@ -300,12 +307,13 @@
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs text-muted-foreground font-medium">
             {{ colorMode === 'cluster' ? legendTitle : 'Clusters' }}
-            <span v-if="colorMode !== 'cluster'" class="ml-1 opacity-60">(inactive)</span>
+            <span v-if="colorMode !== 'cluster'" class="ml-1">(inactive)</span>
           </span>
           <!-- Sort options only for cluster mode -->
           <div v-if="colorMode === 'cluster'" class="inline-flex rounded-md border">
             <Button
-              :variant="clusterSortMethod === 'size' ? 'default' : 'ghost'"
+              :variant="clusterSortMethod === 'size' ? 'secondary' : 'ghost'"
+              :aria-pressed="clusterSortMethod === 'size'"
               size="sm"
               class="h-7 rounded-none rounded-l-md text-xs px-2"
               title="Sort by cluster size (largest first)"
@@ -315,7 +323,8 @@
               Size
             </Button>
             <Button
-              :variant="clusterSortMethod === 'spatial' ? 'default' : 'ghost'"
+              :variant="clusterSortMethod === 'spatial' ? 'secondary' : 'ghost'"
+              :aria-pressed="clusterSortMethod === 'spatial'"
               size="sm"
               class="h-7 rounded-none rounded-r-md text-xs px-2"
               title="Sort by spatial proximity in graph"
@@ -334,7 +343,7 @@
                   variant="outline"
                   role="button"
                   tabindex="0"
-                  class="cursor-pointer cluster-chip"
+                  class="cluster-chip min-h-6 cursor-pointer"
                   :class="item.isActive ? 'text-foreground' : 'text-muted-foreground'"
                   :style="item.isActive ? legendChipStyle(item.color) : {}"
                   @mouseenter="highlightCluster(item.id)"
@@ -346,6 +355,7 @@
                   @keydown.space.prevent="openClusterDialog(item.id)"
                 >
                   {{ item.label }}
+                  <span class="tabular-nums text-muted-foreground">{{ item.size }}</span>
                 </Badge>
               </TooltipTrigger>
 
@@ -364,90 +374,30 @@
 
                 <Separator class="my-1.5" />
 
-                <!-- HPO Data Coverage -->
-                <div class="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                  <Database class="size-3" />
+                <!-- HPO Data Coverage (tooltip is inverted: text stays on background tokens) -->
+                <div class="mb-2 flex items-center gap-1 text-xs text-background/80">
+                  <Database class="size-3" aria-hidden="true" />
                   HPO data: {{ clusterStatistics.get(item.id).hpoDataCount }} /
                   {{ clusterStatistics.get(item.id).total }}
                   ({{ clusterStatistics.get(item.id).hpoDataPercentage }}%)
                 </div>
 
-                <!-- Clinical Group Breakdown -->
-                <div v-if="clusterStatistics.get(item.id).clinical.length > 0" class="mb-2">
-                  <div class="text-xs font-medium mb-1">Clinical Classification</div>
-                  <div class="flex flex-wrap gap-1">
-                    <Badge
-                      v-for="stat in clusterStatistics.get(item.id).clinical"
-                      :key="stat.key"
-                      class="text-xs"
-                      :style="{ backgroundColor: stat.color, color: 'white' }"
-                    >
-                      {{ stat.label }}: {{ stat.percentage }}%
-                    </Badge>
-                  </div>
-                </div>
-
-                <!-- Onset Group Breakdown -->
-                <div v-if="clusterStatistics.get(item.id).onset.length > 0" class="mb-2">
-                  <div class="text-xs font-medium mb-1">Age of Onset</div>
-                  <div class="flex flex-wrap gap-1">
-                    <Badge
-                      v-for="stat in clusterStatistics.get(item.id).onset"
-                      :key="stat.key"
-                      class="text-xs"
-                      :style="{ backgroundColor: stat.color, color: 'white' }"
-                    >
-                      {{ stat.label }}: {{ stat.percentage }}%
-                    </Badge>
-                  </div>
-                </div>
-
-                <!-- Syndromic Assessment: percentages of assessed genes only -->
-                <div>
-                  <div class="text-xs font-medium mb-1">
-                    Syndromic Assessment ({{
-                      clusterStatistics.get(item.id).syndromic.assessedCount
-                    }}
-                    assessed)
-                  </div>
-                  <div class="flex flex-wrap gap-1">
-                    <template v-if="clusterStatistics.get(item.id).syndromic.assessedCount > 0">
-                      <Badge
-                        class="text-xs"
-                        :style="{
-                          backgroundColor:
-                            networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.true,
-                          color: 'white'
-                        }"
-                      >
-                        Syndromic:
-                        {{ clusterStatistics.get(item.id).syndromic.syndromicPercentage }}%
-                      </Badge>
-                      <Badge
-                        class="text-xs"
-                        :style="{
-                          backgroundColor:
-                            networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.false,
-                          color: 'white'
-                        }"
-                      >
-                        Isolated:
-                        {{ clusterStatistics.get(item.id).syndromic.isolatedPercentage }}%
-                      </Badge>
-                    </template>
-                    <Badge
-                      v-if="clusterStatistics.get(item.id).syndromic.unknownCount > 0"
-                      class="text-xs"
-                      :style="{
-                        backgroundColor:
-                          networkAnalysisConfig.nodeColoring.colorSchemes.syndromic.null,
-                        color: 'white'
-                      }"
-                    >
-                      {{ networkAnalysisConfig.nodeColoring.labels.syndromic.null }}:
-                      {{ clusterStatistics.get(item.id).syndromic.unknownCount }} genes
-                    </Badge>
-                  </div>
+                <div
+                  v-for="group in tooltipGroups(clusterStatistics.get(item.id))"
+                  :key="group.title"
+                  class="mb-2 last:mb-0"
+                >
+                  <div class="mb-1 text-xs font-medium">{{ group.title }}</div>
+                  <ul class="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                    <li v-for="row in group.rows" :key="row.label" class="flex items-center gap-1">
+                      <span
+                        class="size-2 shrink-0 rounded-full"
+                        :style="{ backgroundColor: row.color }"
+                        aria-hidden="true"
+                      />
+                      {{ row.label }}: <span class="tabular-nums">{{ row.value }}</span>
+                    </li>
+                  </ul>
                 </div>
               </TooltipContent>
             </Tooltip>
@@ -466,6 +416,7 @@
       :cluster-color="selectedClusterColor"
       :genes="selectedClusterGenes"
       :hpo-classifications="hpoClassifications"
+      :hgnc-ids="hgncIds"
       @highlight-gene="highlightGeneInNetwork"
     />
   </Card>
@@ -474,11 +425,11 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import {
-  AlertCircle,
   ArrowUpDown,
   CheckSquare,
   Database,
   Download,
+  LoaderCircle,
   Maximize2,
   Network as NetworkIcon,
   Palette,
@@ -503,12 +454,18 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { DataState } from '@/components/shared'
+import { useAppTheme } from '@/composables/useAppTheme'
+import { markOutline } from '../visualizations/chartMarks'
+import { canvasColor, clearCanvasColors } from './canvasColor'
 
 import ClusterDetailsDialog from './ClusterDetailsDialog.vue'
 import { useNetworkSearch } from '../../composables/useNetworkSearch'
-import { networkAnalysisConfig } from '../../config/networkAnalysis'
+import { networkAnalysisConfig, OTHER_CLUSTER_COLOR } from '../../config/networkAnalysis'
 import { computeHpoClusterStats } from './hpoClusterStats'
+
+// Nodes before clustering, and anything without a category, stay neutral
+const DEFAULT_NODE_COLOR = 'var(--muted-foreground)'
 
 // Register cose-bilkent layout
 cytoscape.use(coseBilkent)
@@ -550,8 +507,15 @@ const props = defineProps({
   loadingHPOData: {
     type: Boolean,
     default: false
+  },
+  /** gene_id -> HGNC ID, to name genes by their identifier instead of internal ids */
+  hgncIds: {
+    type: Map,
+    default: () => new Map()
   }
 })
+
+const { isDark } = useAppTheme()
 
 // Emits
 const emit = defineEmits(['refresh', 'update:colorMode', 'nodeClick', 'selectCluster'])
@@ -614,6 +578,7 @@ const clusterLegendItems = computed(() => {
 
   return sortedClusterColors.value.map(cluster => ({
     label: getClusterDisplayName(cluster.backendId),
+    size: clusterSizes.value.get(cluster.backendId) ?? 0,
     color: cluster.color,
     id: cluster.backendId,
     type: 'cluster',
@@ -643,6 +608,50 @@ const hpoLegendItems = computed(() => {
   }))
 })
 
+// Rows for the cluster tooltip: one swatch + label per HPO group (neutral text)
+const tooltipGroups = stats => {
+  const schemes = networkAnalysisConfig.nodeColoring.colorSchemes
+  const { syndromic } = stats
+  const syndromicRows = []
+  if (syndromic.assessedCount > 0) {
+    syndromicRows.push(
+      {
+        label: 'Syndromic',
+        value: `${syndromic.syndromicPercentage}%`,
+        color: schemes.syndromic.true
+      },
+      {
+        label: 'Isolated',
+        value: `${syndromic.isolatedPercentage}%`,
+        color: schemes.syndromic.false
+      }
+    )
+  }
+  if (syndromic.unknownCount > 0) {
+    syndromicRows.push({
+      label: networkAnalysisConfig.nodeColoring.labels.syndromic.null,
+      value: `${syndromic.unknownCount} ${syndromic.unknownCount === 1 ? 'gene' : 'genes'}`,
+      color: schemes.syndromic.null
+    })
+  }
+  const pct = rows => rows.map(r => ({ label: r.label, value: `${r.percentage}%`, color: r.color }))
+  return [
+    { title: 'Clinical Classification', rows: pct(stats.clinical) },
+    { title: 'Age of Onset', rows: pct(stats.onset) },
+    { title: `Syndromic Assessment (${syndromic.assessedCount} assessed)`, rows: syndromicRows }
+  ].filter(g => g.rows.length > 0)
+}
+
+// Genes per cluster, for the legend chips
+const clusterSizes = computed(() => {
+  const sizes = new Map()
+  for (const el of props.networkData?.cytoscape_json?.elements ?? []) {
+    const id = el.data?.cluster_id
+    if (el.data?.gene_id && id !== undefined) sizes.set(id, (sizes.get(id) ?? 0) + 1)
+  }
+  return sizes
+})
+
 // Legend title based on color mode
 const legendTitle = computed(() => {
   const mode = networkAnalysisConfig.nodeColoring.modes.find(m => m.value === props.colorMode)
@@ -650,8 +659,8 @@ const legendTitle = computed(() => {
 })
 
 const selectedClusterColor = computed(() => {
-  if (selectedClusterId.value === null) return '#1976D2'
-  return clusterColors.value[selectedClusterId.value] || '#1976D2'
+  if (selectedClusterId.value === null) return OTHER_CLUSTER_COLOR
+  return clusterColors.value[selectedClusterId.value] || OTHER_CLUSTER_COLOR
 })
 
 // Sort cluster colors by display ID or spatial proximity
@@ -757,7 +766,7 @@ const nodeColorMap = computed(() => {
       if (clusterId !== undefined && props.clusterColorsMap.has(clusterId)) {
         colorMap.set(node.data.gene_id, props.clusterColorsMap.get(clusterId))
       } else {
-        colorMap.set(node.data.gene_id, node.data.color || '#1976D2')
+        colorMap.set(node.data.gene_id, DEFAULT_NODE_COLOR)
       }
     })
     return colorMap
@@ -767,7 +776,7 @@ const nodeColorMap = computed(() => {
   if (!props.hpoClassifications?.data) {
     // No HPO data available, use default color
     nodes.forEach(node => {
-      colorMap.set(node.data.gene_id, '#9E9E9E') // Grey for no data
+      colorMap.set(node.data.gene_id, OTHER_CLUSTER_COLOR)
     })
     return colorMap
   }
@@ -786,7 +795,7 @@ const nodeColorMap = computed(() => {
     const classification = hpoLookup.get(geneId)
 
     if (!classification) {
-      colorMap.set(geneId, colorSchemes[props.colorMode]?.null || '#9E9E9E')
+      colorMap.set(geneId, colorSchemes[props.colorMode]?.null || OTHER_CLUSTER_COLOR)
       return
     }
 
@@ -800,7 +809,9 @@ const nodeColorMap = computed(() => {
     }
 
     const color =
-      colorSchemes[props.colorMode]?.[value] || colorSchemes[props.colorMode]?.null || '#9E9E9E'
+      colorSchemes[props.colorMode]?.[value] ||
+      colorSchemes[props.colorMode]?.null ||
+      OTHER_CLUSTER_COLOR
     colorMap.set(geneId, color)
   })
 
@@ -882,8 +893,10 @@ const showTooltip = (node, event) => {
     hpoPercentages
   }
 
-  // Position tooltip's top-left corner at bottom-right of pointer cursor
-  tooltipX.value = (event.renderedPosition?.x || event.position?.x || 0) + 15
+  // Top-left corner at the bottom-right of the pointer, kept inside the canvas
+  const width = cytoscapeContainer.value?.clientWidth ?? 0
+  const x = (event.renderedPosition?.x || event.position?.x || 0) + 15
+  tooltipX.value = width ? Math.max(0, Math.min(x, width - 260)) : x
   tooltipY.value = (event.renderedPosition?.y || event.position?.y || 0) + 15
 
   tooltipVisible.value = true
@@ -983,6 +996,7 @@ const openClusterDialog = backendClusterId => {
 
   const genes = clusterNodes.map(node => ({
     gene_id: node.data('gene_id'),
+    hgnc_id: props.hgncIds.get(node.data('gene_id')) ?? null,
     symbol: node.data('label'),
     cluster_id: backendClusterId
   }))
@@ -1155,9 +1169,10 @@ const initializeCytoscape = () => {
   if (props.networkData.cytoscape_json?.elements) {
     props.networkData.cytoscape_json.elements.forEach(element => {
       const clusterId = element.data?.cluster_id
-      // Parent's size-ranked colours win over the backend's per-id palette (#325)
-      const color = props.clusterColorsMap.get(clusterId) ?? element.data?.color
-      if (clusterId !== undefined && color) colors[clusterId] = color
+      // Size-ranked token colours from the parent; the backend's hex palette is ignored (#325)
+      if (clusterId !== undefined) {
+        colors[clusterId] = props.clusterColorsMap.get(clusterId) ?? OTHER_CLUSTER_COLOR
+      }
     })
   }
   clusterColors.value = colors
@@ -1166,86 +1181,7 @@ const initializeCytoscape = () => {
   cyInstance.value = cytoscape({
     container: cytoscapeContainer.value,
     elements: props.networkData.cytoscape_json?.elements || [],
-    style: [
-      {
-        selector: 'node',
-        style: {
-          'background-color': ele => {
-            const geneId = ele.data('gene_id')
-            return nodeColorMap.value.get(geneId) || ele.data('color') || '#1976D2'
-          },
-          label: 'data(label)',
-          width: 40,
-          height: 40,
-          'font-size': 12,
-          'text-valign': 'center',
-          'text-halign': 'center',
-          'text-outline-width': 2,
-          'text-outline-color': '#ffffff',
-          'min-zoomed-font-size': 8,
-          color: '#000000',
-          'transition-property': 'border-width, border-color, opacity, overlay-opacity',
-          'transition-duration': '0.2s'
-        }
-      },
-      {
-        selector: 'node.highlighted',
-        style: {
-          'border-width': 5,
-          'border-color': '#FFC107',
-          'border-opacity': 1,
-          'overlay-color': '#FFC107',
-          'overlay-opacity': 0.25,
-          'overlay-padding': 12,
-          'z-index': 999
-        }
-      },
-      {
-        selector: 'node.dimmed',
-        style: {
-          opacity: 0.25,
-          'text-opacity': 0.25
-        }
-      },
-      {
-        selector: 'edge',
-        style: {
-          width: ele => {
-            const weight = ele.data('weight') || 0.5
-            return Math.max(1, weight * 5)
-          },
-          'line-color': '#cccccc',
-          'target-arrow-color': '#cccccc',
-          opacity: 0.6,
-          'curve-style': 'bezier',
-          'transition-property': 'line-color, width, opacity',
-          'transition-duration': '0.2s'
-        }
-      },
-      {
-        selector: 'edge.highlighted',
-        style: {
-          'line-color': '#FFC107',
-          'target-arrow-color': '#FFC107',
-          width: 4,
-          opacity: 1,
-          'z-index': 999
-        }
-      },
-      {
-        selector: 'edge.dimmed',
-        style: {
-          opacity: 0.1
-        }
-      },
-      {
-        selector: 'node:selected',
-        style: {
-          'border-width': 3,
-          'border-color': '#FF5722'
-        }
-      }
-    ],
+    style: buildStylesheet(),
     layout: {
       name: layoutType.value,
       animate: true,
@@ -1271,11 +1207,13 @@ const initializeCytoscape = () => {
 
   // Node hover events for cluster highlighting and tooltip
   cyInstance.value.on('mouseover', 'node', event => {
+    if (cytoscapeContainer.value) cytoscapeContainer.value.style.cursor = 'pointer'
     highlightCluster(event.target.data('cluster_id'))
     showTooltip(event.target, event)
   })
 
   cyInstance.value.on('mouseout', 'node', () => {
+    if (cytoscapeContainer.value) cytoscapeContainer.value.style.cursor = ''
     clearHighlight()
     hideTooltip()
   })
@@ -1289,6 +1227,89 @@ const initializeCytoscape = () => {
   nextTick(() => {
     fitGraph()
   })
+}
+
+const nodeColor = ele => nodeColorMap.value.get(ele.data('gene_id')) || DEFAULT_NODE_COLOR
+
+/** Stylesheet from theme tokens; canvasColor() turns them into colours Cytoscape can parse */
+const buildStylesheet = () => {
+  const highlight = canvasColor(networkAnalysisConfig.search.highlightColor)
+  const edge = canvasColor('var(--muted-foreground)')
+  return [
+    {
+      selector: 'node',
+      style: {
+        'background-color': ele => canvasColor(nodeColor(ele)),
+        // Outline keeps light fills (e.g. the yellow series) >= 3:1 on the canvas
+        'border-width': 1,
+        'border-color': ele => canvasColor(markOutline(nodeColor(ele))),
+        label: 'data(label)',
+        width: 40,
+        height: 40,
+        'font-size': 12,
+        'text-valign': 'center',
+        'text-halign': 'center',
+        'text-outline-width': 2,
+        'text-outline-color': canvasColor('var(--background)'),
+        'min-zoomed-font-size': 8,
+        color: canvasColor('var(--foreground)'),
+        'transition-property': 'border-width, border-color, opacity, overlay-opacity',
+        'transition-duration': '0.2s'
+      }
+    },
+    {
+      selector: 'node.highlighted, node.search-match',
+      style: {
+        'border-width': 5,
+        'border-color': highlight,
+        'border-opacity': 1,
+        'overlay-opacity': 0,
+        'z-index': 999
+      }
+    },
+    {
+      selector: 'node.dimmed',
+      style: {
+        opacity: 0.25,
+        'text-opacity': 0.25
+      }
+    },
+    {
+      selector: 'edge',
+      style: {
+        width: ele => Math.max(1, (ele.data('weight') || 0.5) * 5),
+        'line-color': edge,
+        'target-arrow-color': edge,
+        opacity: 0.35,
+        'curve-style': 'bezier',
+        'transition-property': 'line-color, width, opacity',
+        'transition-duration': '0.2s'
+      }
+    },
+    {
+      selector: 'edge.highlighted, edge.search-edge-match',
+      style: {
+        'line-color': highlight,
+        'target-arrow-color': highlight,
+        width: 4,
+        opacity: 1,
+        'z-index': 999
+      }
+    },
+    {
+      selector: 'edge.dimmed',
+      style: {
+        opacity: 0.1
+      }
+    },
+    {
+      selector: 'node:selected',
+      style: {
+        'border-width': 3,
+        'border-color': canvasColor('var(--foreground)')
+      }
+    }
+  ]
 }
 
 const destroyCytoscape = () => {
@@ -1335,7 +1356,7 @@ const exportGraph = () => {
 
   const png = cyInstance.value.png({
     output: 'blob',
-    bg: '#ffffff',
+    bg: canvasColor('var(--background)'),
     full: true,
     scale: 2
   })
@@ -1384,9 +1405,11 @@ watch([() => props.colorMode, () => props.hpoClassifications], ([newColorMode], 
   // Update node colors based on new color map
   try {
     cyInstance.value.nodes().forEach(node => {
-      const geneId = node.data('gene_id')
-      const color = nodeColorMap.value.get(geneId) || node.data('color') || '#1976D2'
-      node.style('background-color', color)
+      const color = nodeColor(node)
+      node.style({
+        'background-color': canvasColor(color),
+        'border-color': canvasColor(markOutline(color))
+      })
       updatedCount++
     })
   } catch {
@@ -1402,6 +1425,14 @@ watch([() => props.colorMode, () => props.hpoClassifications], ([newColorMode], 
       uniqueColors: new Set([...nodeColorMap.value.values()]).size
     }
   )
+})
+
+// Theme switch: re-resolve the token colours for the canvas
+watch(isDark, () => {
+  clearCanvasColors()
+  if (cyInstance.value && !cyInstance.value.destroyed()) {
+    cyInstance.value.style(buildStylesheet())
+  }
 })
 
 // Lifecycle
@@ -1425,7 +1456,7 @@ onUnmounted(() => {
 
 <style scoped>
 .network-graph-card {
-  position: relative; /* Allow absolute positioning of search overlay */
+  position: relative;
 }
 
 .network-container-wrapper {
@@ -1435,39 +1466,32 @@ onUnmounted(() => {
 
 .cytoscape-container {
   width: 100%;
-  background-color: #fafafa;
+  background-color: var(--background);
   border-radius: 4px;
   position: relative;
 }
 
-.dark .cytoscape-container {
-  background-color: hsl(var(--muted));
-}
-
 .cluster-chip {
   cursor: pointer;
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s;
+  transition: filter 0.2s;
 }
 
 .cluster-chip:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  filter: brightness(0.95);
 }
 
-/* Tooltip styling */
+/* Node tooltip: popover tokens in both themes */
 .node-tooltip {
   position: absolute;
-  background: rgba(33, 33, 33, 0.95);
-  color: white;
+  max-width: 260px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 13px;
   pointer-events: none;
-  z-index: 9999;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transform: translateX(-50%);
+  z-index: 50;
   white-space: nowrap;
 }
 
@@ -1479,27 +1503,25 @@ onUnmounted(() => {
 
 .tooltip-cluster {
   font-size: 12px;
-  color: #bbdefb;
+  color: var(--muted-foreground);
   font-weight: 500;
 }
 
 .tooltip-hpo {
   margin-top: 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .tooltip-hpo-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--border);
   margin: 6px 0;
 }
 
 .tooltip-hpo-section-title {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: #64b5f6;
-  letter-spacing: 0.5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted-foreground);
   margin-bottom: 4px;
 }
 
@@ -1510,7 +1532,6 @@ onUnmounted(() => {
 
 .tooltip-hpo-label {
   font-weight: 600;
-  color: #90caf9;
   margin-right: 4px;
 }
 
@@ -1526,63 +1547,13 @@ onUnmounted(() => {
 }
 
 .tooltip-context-percent {
-  font-weight: 700;
-  color: #ffeb3b;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   margin-right: 6px;
-  min-width: 38px;
-  font-size: 11px;
+  min-width: 42px;
 }
 
 .tooltip-context-label {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 10px;
-}
-
-/* Dark theme adjustments */
-.dark .node-tooltip {
-  background: rgba(250, 250, 250, 0.95);
-  color: #212121;
-}
-
-.dark .tooltip-cluster {
-  color: #1976d2;
-}
-
-.dark .tooltip-hpo-divider {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.dark .tooltip-hpo-section-title {
-  color: #1976d2;
-}
-
-.dark .tooltip-hpo-label {
-  color: #1976d2;
-}
-
-.dark .tooltip-context-percent {
-  color: #f57c00;
-}
-
-.dark .tooltip-context-label {
-  color: rgba(0, 0, 0, 0.7);
-}
-
-/* Search match highlighting */
-.search-match {
-  border-width: 4px !important;
-  border-color: #ffc107 !important;
-  border-style: solid !important;
-  border-opacity: 1 !important;
-  z-index: 998;
-  box-shadow: 0 0 16px rgba(255, 193, 7, 0.6);
-  transition: all 0.3s ease-out;
-}
-
-.search-edge-match {
-  line-color: #ffc107 !important;
-  width: 3 !important;
-  opacity: 0.9 !important;
-  z-index: 997;
+  color: var(--muted-foreground);
 }
 </style>

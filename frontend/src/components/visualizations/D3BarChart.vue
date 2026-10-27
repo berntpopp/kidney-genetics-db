@@ -10,8 +10,8 @@ import { scaleBand, scaleLinear } from 'd3-scale'
 import { max } from 'd3-array'
 import { axisLeft, axisBottom } from 'd3-axis'
 import { format } from 'd3-format'
-import { color } from 'd3-color'
 import 'd3-transition'
+import { markOutline } from './chartMarks'
 
 const { isDark } = useAppTheme()
 const chartContainer = ref(null)
@@ -38,9 +38,10 @@ const props = defineProps({
     type: String,
     default: 'Gene Count'
   },
+  /** Any CSS colour, e.g. a source's var(--source-n); defaults to a neutral */
   barColor: {
     type: String,
-    default: null
+    default: 'var(--muted-foreground)'
   },
   height: {
     type: Number,
@@ -56,13 +57,14 @@ const props = defineProps({
   }
 })
 
-// Computed bar color (use theme primary if not provided)
-const computedBarColor = computed(() => {
-  if (props.barColor) return props.barColor
-  const el = chartContainer.value || document.documentElement
-  const style = window.getComputedStyle(el)
-  return style.getPropertyValue('--primary').trim() || '#1976D2'
-})
+// Text alternative for the SVG: every value, not only on hover
+const ariaLabel = computed(
+  () =>
+    `Bar chart of ${props.yAxisLabel} by ${props.xAxisLabel}: ` +
+    props.data
+      .map(d => `${d.category}: ${props.valueFormatter(d.gene_count)} ${props.valueLabel}`)
+      .join('; ')
+)
 
 const renderChart = () => {
   if (!chartContainer.value || !props.data || props.data.length === 0) {
@@ -124,6 +126,8 @@ const renderChart = () => {
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', containerHeight)
+    .attr('role', 'img')
+    .attr('aria-label', ariaLabel.value)
 
   const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
 
@@ -195,24 +199,16 @@ const renderChart = () => {
     .attr('width', xScale.bandwidth())
     .attr('y', height) // Start from bottom
     .attr('height', 0) // Start with 0 height
-    .attr('fill', computedBarColor.value)
     .attr('rx', 2) // Rounded corners
-    .style('cursor', 'pointer')
+    .style('fill', props.barColor)
+    .style('stroke', markOutline(props.barColor))
+    .style('stroke-width', 1)
     .on('mouseover', function (event, d) {
-      // Highlight bar
-      select(this)
-        .transition()
-        .duration(200)
-        .attr('fill', color(computedBarColor.value).darker(0.3))
-
-      // Show tooltip
+      select(this).style('fill-opacity', 0.8)
       showTooltip(event, d)
     })
     .on('mouseout', function () {
-      // Return to normal
-      select(this).transition().duration(200).attr('fill', computedBarColor.value)
-
-      // Hide tooltip
+      select(this).style('fill-opacity', 1)
       hideTooltip()
     })
 
@@ -223,6 +219,21 @@ const renderChart = () => {
     .delay((d, i) => i * 50) // Stagger animation
     .attr('y', d => yScale(d.gene_count))
     .attr('height', d => height - yScale(d.gene_count))
+
+  // Value labels: readable without hover, in print and on touch screens
+  g.selectAll('.bar-value')
+    .data(props.data)
+    .enter()
+    .append('text')
+    .attr('class', 'bar-value')
+    .attr('aria-hidden', 'true')
+    .attr('x', d => xScale(String(d.category)) + xScale.bandwidth() / 2)
+    .attr('y', d => yScale(d.gene_count) - 4)
+    .style('text-anchor', 'middle')
+    .style('fill', textColor)
+    .style('font-size', '11px')
+    .style('font-variant-numeric', 'tabular-nums')
+    .text(d => Number(props.valueFormatter(d.gene_count)).toLocaleString())
 
   // Add X-axis label
   svg
@@ -253,7 +264,7 @@ const showTooltip = (event, d) => {
   if (!tooltip) {
     tooltip = select('body')
       .append('div')
-      .attr('class', 'chart-tooltip')
+      .attr('class', 'chart-tooltip shadow-md')
       .style('position', 'absolute')
       .style('pointer-events', 'none')
       .style('background', 'var(--card)')
@@ -264,7 +275,6 @@ const showTooltip = (event, d) => {
       .style('font-size', '12px')
       .style('line-height', '1.4')
       .style('z-index', '1000')
-      .style('box-shadow', '0 2px 8px rgba(0,0,0,0.15)')
       .style('opacity', 0)
   }
 
@@ -274,7 +284,7 @@ const showTooltip = (event, d) => {
     .html(
       `
     <div>
-      <strong style="color: var(--primary); display: block; margin-bottom: 4px;">
+      <strong style="display: block; margin-bottom: 4px; font-weight: 600;">
         ${d.category}
       </strong>
       <div>${props.valueFormatter(d.gene_count)} ${props.valueLabel}</div>

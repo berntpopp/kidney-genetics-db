@@ -59,7 +59,7 @@ describe('DataSources load states (#316)', () => {
     } as never)
     await w
       .findAll('button')
-      .find(b => b.text() === 'Try again')!
+      .find(b => b.text() === 'Retry')!
       .trigger('click')
     await flushPromises()
     expect(getDataSources).toHaveBeenCalledTimes(2)
@@ -122,11 +122,37 @@ describe('DataSources counts', () => {
     const w = mountView()
     await flushPromises()
 
-    expect(w.text()).toContain('6 of 7')
-    expect(w.text()).toMatch(/35%\s*of Genes with 2\+ Sources/)
-    expect(w.text()).toContain('12Publications')
-    expect(w.text()).toContain('1Provider')
+    // Labels precede their values in the DOM (flex-col-reverse puts the value on top)
+    expect(w.text()).toMatch(/Active Sources\s*6 of 7/)
+    expect(w.text()).toMatch(/of Genes with 2\+ Sources\s*35%/)
+    expect(w.text()).toContain('Publications12')
+    expect(w.text()).toContain('Provider1')
     expect(w.text()).not.toContain('Providers')
-    expect(w.text()).toContain('Inactive')
+    const pubtator = w.find('[data-source="PubTator"]')
+    expect(pubtator.find('[data-slot="chip"]').text()).toBe('Inactive')
+  })
+})
+
+describe('DataSources cards (Evidence Ledger)', () => {
+  afterEach(() => wrapper?.unmount())
+
+  it('names sources by display name with a status badge, on neutral cards', async () => {
+    getDataSources.mockReset()
+    getDataSources.mockResolvedValue({
+      total_active: 1,
+      total_unique_genes: 814,
+      sources: [
+        { name: 'DiagnosticPanels', status: 'active', stats: { gene_count: 814 } },
+        { name: 'PubTator', status: 'unknown', stats: { gene_count: 0 } }
+      ]
+    } as never)
+    const w = mountView()
+    await flushPromises()
+
+    const cards = w.findAll('[data-source]')
+    expect(cards[0]!.find('h3').text()).toBe('Diagnostic panels')
+    expect(cards[0]!.find('[data-slot="chip"]').text()).toBe('Active')
+    expect(cards[1]!.find('[data-slot="chip"]').text()).toBe('Unknown')
+    expect(w.html()).not.toMatch(/text-white|linear-gradient/)
   })
 })

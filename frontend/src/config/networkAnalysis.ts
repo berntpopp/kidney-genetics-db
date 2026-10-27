@@ -79,23 +79,13 @@ export interface NetworkAnalysisConfig {
 }
 
 /**
- * Cluster colours by size rank (0 = largest). Only the 10 largest clusters get a
- * colour of their own; the rest share grey, since more hues stop being tellable apart (#325).
- * d3 category10 with its grey swapped for indigo so grey only means "other".
+ * Cluster colours by size rank (0 = largest): the Okabe-Ito tokens --source-1..7, the app's
+ * only colour-blind-validated categorical palette. Only the 7 largest clusters get a colour of
+ * their own; the rest share the neutral --source-8, since more hues stop being tellable apart
+ * (#325). Canvas code resolves these with canvasColor() (components/network/canvasColor.ts).
  */
-export const CLUSTER_PALETTE = [
-  '#1f77b4',
-  '#ff7f0e',
-  '#2ca02c',
-  '#d62728',
-  '#9467bd',
-  '#8c564b',
-  '#e377c2',
-  '#393b79',
-  '#bcbd22',
-  '#17becf'
-]
-export const OTHER_CLUSTER_COLOR = '#d1d5db'
+export const CLUSTER_PALETTE = [1, 2, 3, 4, 5, 6, 7].map(n => `var(--source-${n})`)
+export const OTHER_CLUSTER_COLOR = 'var(--source-8)'
 
 export const clusterColorByRank = (rank: number): string =>
   CLUSTER_PALETTE[rank] ?? OTHER_CLUSTER_COLOR
@@ -159,7 +149,7 @@ export const networkAnalysisConfig: NetworkAnalysisConfig = {
   search: {
     enabled: true, // Enable/disable search functionality
     placeholder: 'Search genes (e.g., COL*, PKD1, *A1)', // Input placeholder text
-    highlightColor: '#FFC107', // Orange (Material Amber) for search matches
+    highlightColor: 'var(--primary)', // Search matches use the selection colour
     maxResults: 100, // Maximum number of results to display
     caseSensitive: false, // Case-insensitive search by default
     wildcardSupport: true, // Enable wildcard patterns (* and ?)
@@ -188,28 +178,28 @@ export const networkAnalysisConfig: NetworkAnalysisConfig = {
     // Default color mode
     defaultMode: 'cluster',
 
-    // Color schemes for HPO-based coloring
+    // Categorical token colours for HPO-based colouring (Okabe-Ito, see CLUSTER_PALETTE)
     colorSchemes: {
       clinical_group: {
-        cyst_cilio: '#009688', // Teal - Cystic/Ciliopathy
-        cakut: '#2196F3', // Blue - CAKUT
-        glomerulopathy: '#F44336', // Red - Glomerulopathy
-        complement: '#9C27B0', // Purple - Complement
-        tubulopathy: '#FF9800', // Orange - Tubulopathy
-        nephrolithiasis: '#795548', // Brown - Nephrolithiasis
-        neoplasia: '#607D8B', // Blue Grey - Renal neoplasia (>= 3:1 on light and dark canvas)
-        null: '#9E9E9E' // Grey - No classification
+        cyst_cilio: 'var(--source-3)',
+        cakut: 'var(--source-1)',
+        glomerulopathy: 'var(--source-6)',
+        complement: 'var(--source-4)',
+        tubulopathy: 'var(--source-2)',
+        nephrolithiasis: 'var(--source-7)',
+        neoplasia: 'var(--source-5)',
+        null: OTHER_CLUSTER_COLOR
       },
       onset_group: {
-        congenital: '#E91E63', // Pink - Congenital
-        pediatric: '#FFC107', // Amber - Pediatric
-        adult: '#4CAF50', // Green - Adult
-        null: '#9E9E9E' // Grey - No classification
+        congenital: 'var(--source-4)',
+        pediatric: 'var(--source-2)',
+        adult: 'var(--source-1)',
+        null: OTHER_CLUSTER_COLOR
       },
       syndromic: {
-        true: '#FF5722', // Deep Orange - Syndromic
-        false: '#607D8B', // Blue Grey - Isolated
-        null: '#9E9E9E' // Grey - Unknown
+        true: 'var(--source-6)',
+        false: 'var(--source-5)',
+        null: OTHER_CLUSTER_COLOR
       }
     },
 
