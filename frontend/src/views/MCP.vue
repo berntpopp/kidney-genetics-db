@@ -20,7 +20,7 @@
     </PageHeader>
 
     <!-- Page-vs-endpoint disclaimer -->
-    <Alert class="mb-10 max-w-[70ch]">
+    <Alert class="mb-10">
       <Info class="size-4" />
       <AlertTitle>This page explains how to connect</AlertTitle>
       <AlertDescription>
@@ -34,7 +34,7 @@
       <p class="mb-4 max-w-[70ch] text-muted-foreground">
         Use this address in every client below. Transport: MCP Streamable HTTP.
       </p>
-      <div class="max-w-3xl overflow-hidden rounded-md border bg-muted">
+      <div class="overflow-hidden rounded-md border bg-muted">
         <div class="flex items-center justify-between gap-2 border-b px-3 py-1">
           <span class="text-xs font-medium text-muted-foreground">URL</span>
           <Button

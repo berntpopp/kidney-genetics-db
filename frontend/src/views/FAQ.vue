@@ -24,7 +24,7 @@
       type="single"
       collapsible
       :unmount-on-hide="false"
-      class="max-w-3xl divide-y rounded-lg border bg-card"
+      class="divide-y rounded-lg border bg-card"
     >
       <AccordionItem
         v-for="(faq, index) in faqs"
@@ -38,7 +38,9 @@
         >
           {{ faq.question }}
         </AccordionTrigger>
-        <AccordionContent class="max-w-[70ch] px-4 text-sm leading-relaxed text-muted-foreground">
+        <AccordionContent
+          class="px-4 [&_p]:max-w-[75ch] text-sm leading-relaxed text-muted-foreground"
+        >
           <p v-for="(para, i) in faq.answer" :key="i" class="mb-3 last:mb-0">
             <template v-for="(seg, j) in segments(para)" :key="j">
               <template v-if="typeof seg === 'string'">{{ seg }}</template>
