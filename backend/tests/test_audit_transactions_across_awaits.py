@@ -133,3 +133,50 @@ def test_pipeline_session_invalidated_when_reset_fails():
     _close_pipeline_session(session)
 
     session.invalidate.assert_called_once()
+
+
+@pytest.fixture
+def tracker(db, test_engine):
+    from app.core.progress_tracker import ProgressTracker
+
+    session, _ = db
+    name = f"AuditTx{uuid.uuid4().hex[:6]}"
+    yield ProgressTracker(session, name)
+    with test_engine.begin() as conn:
+        conn.execute(text("DELETE FROM data_source_progress WHERE source_name = :s"), {"s": name})
+
+
+@pytest.mark.asyncio
+async def test_throttled_progress_update_does_not_hold_transaction(tracker):
+    # update_data(): start() commits, then a throttled update right before the long fetch
+    tracker.start("Starting update")
+    tracker.update(operation="Fetching data from source")
+    await asyncio.sleep(2)
+    tracker.db.execute(text("SELECT 1"))  # raises if PostgreSQL killed the idle transaction
+
+
+@pytest.mark.asyncio
+async def test_throttled_progress_update_after_other_commit_does_not_hold_transaction(tracker):
+    # Annotation pipeline: other commits on its session expire the record before _report()
+    tracker.start("Starting update")
+    tracker.db.commit()
+    tracker.update(operation="gnomad: per-gene 0/33")
+    await asyncio.sleep(2)
+    tracker.db.execute(text("SELECT 1"))
+
+
+@pytest.mark.asyncio
+async def test_pubtator_page_fetch_does_not_hold_transaction(db):
+    from app.pipeline.sources.unified.pubtator import PubTatorUnifiedSource
+
+    session, _ = db
+    source = PubTatorUnifiedSource(db_session=session)
+
+    async def slow_get(*args, **kwargs):
+        await asyncio.sleep(2)
+        return SimpleNamespace(status_code=200, json=lambda: {"results": []})
+
+    session.execute(text("SELECT 1"))  # the previous page's PMID lookup
+    with patch.object(source.http_client, "get", slow_get):
+        assert await source._fetch_page(1, "kidney") == {"results": []}
+    session.execute(text("SELECT 1"))

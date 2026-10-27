@@ -269,6 +269,9 @@ class PubTatorUnifiedSource(UnifiedDataSource):
 
         Rate limiting ensures compliance with PubTator3 API limits (3 req/s).
         """
+        if self.db_session is not None:
+            self.db_session.commit()  # no transaction may idle across the request (#249)
+
         # Rate limit BEFORE making request - CRITICAL for API compliance
         await self.rate_limiter.wait()
 

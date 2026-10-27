@@ -171,6 +171,7 @@ class ProgressTracker:
             items_failed: Number of items failed (incremental)
             force: Force immediate database update
         """
+        idle = not self.db.in_transaction()
         # Log update call
         logger.sync_debug(
             "ProgressTracker.update() called",
@@ -256,6 +257,9 @@ class ProgressTracker:
         if should_update:
             self._commit_and_broadcast()
             self._last_update_time = now
+        elif idle and self.db.in_transaction():
+            # Reading the expired record began a transaction; callers await network next (#249)
+            self.db.commit()
 
     def complete(self, operation: str = "Update completed") -> None:
         """Mark source as completed"""
@@ -364,6 +368,10 @@ class ProgressTracker:
             # Handle stale database connections with retry
             max_retries = 2
             for attempt in range(max_retries):
+                # Keep the record loaded: reading it after an expiring commit began a
+                # transaction that idled across the caller's next network await (#249)
+                expire_on_commit = self.db.expire_on_commit
+                self.db.expire_on_commit = False
                 try:
                     self.db.commit()
                     logger.sync_debug(
@@ -389,6 +397,8 @@ class ProgressTracker:
                             error=str(e),
                         )
                         raise
+                finally:
+                    self.db.expire_on_commit = expire_on_commit
 
             # Publish to event bus instead of direct callback
             # This eliminates the need for complex async/sync handling
