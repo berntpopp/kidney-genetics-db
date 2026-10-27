@@ -554,9 +554,9 @@
     <ConfirmAction
       v-model:open="showCleanupDialog"
       title="Delete old logs?"
-      :confirm-label="cleaning ? 'Deleting…' : 'Delete logs'"
+      confirm-label="Delete logs"
       danger
-      :disabled="cleaning || !(cleanupDays >= 1)"
+      :disabled="!(cleanupDays >= 1)"
       @confirm="executeCleanup"
     >
       <p>
@@ -572,6 +572,7 @@
 </template>
 
 <script setup>
+import { formatDateTime } from '@/utils/formatDate'
 /**
  * System Log Viewer
  * Complete log management interface with filtering, search, and export
@@ -634,7 +635,6 @@ const logs = ref([])
 const loading = ref(false)
 const loadError = ref(null)
 const exporting = ref(false)
-const cleaning = ref(false)
 const statsLoading = ref(false)
 const showDetailsDialog = ref(false)
 const showCleanupDialog = ref(false)
@@ -884,7 +884,6 @@ const exportLogs = async () => {
 }
 
 const executeCleanup = async () => {
-  cleaning.value = true
   try {
     const response = await logsApi.cleanupLogs(cleanupDays.value)
     const data = response.data || response
@@ -897,13 +896,11 @@ const executeCleanup = async () => {
   } catch (error) {
     window.logService.error('Failed to cleanup logs:', error)
     toast.error('Failed to cleanup logs', { duration: Infinity })
-  } finally {
-    cleaning.value = false
   }
 }
 
 // Exact time per row; relative labels collapsed every recent log to "Just now"
-const formatTimestamp = timestamp => (timestamp ? new Date(timestamp).toLocaleString() : 'N/A')
+const formatTimestamp = timestamp => formatDateTime(timestamp) || 'N/A'
 
 const formatDuration = ms => {
   if (ms < 1000) return `${ms}ms`

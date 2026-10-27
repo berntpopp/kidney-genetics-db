@@ -54,6 +54,14 @@ const button = (text: string) =>
   [...document.querySelectorAll('button')].find(b => b.textContent?.includes(text)) as HTMLElement
 
 describe('AdminHybridSources upload', () => {
+  it('"Browse files" opens the hidden file picker', async () => {
+    await mountWithFile()
+    const input = document.querySelector('input[type="file"]')!
+    const click = vi.spyOn(input, 'click').mockImplementation(() => {})
+    button('Browse files').click()
+    expect(click).toHaveBeenCalledTimes(1)
+  })
+
   it('shows an indeterminate status while uploading, with no percentage', async () => {
     vi.useFakeTimers()
     await mountWithFile()

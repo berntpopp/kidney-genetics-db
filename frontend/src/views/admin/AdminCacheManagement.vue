@@ -1,4 +1,5 @@
 <script setup>
+import { formatDateTime } from '@/utils/formatDate'
 /**
  * Cache Management View
  * Monitor and control cache performance
@@ -272,11 +273,7 @@ const showNamespaceDetails = async namespace => {
   }
 }
 
-const formatDate = dateString => {
-  if (!dateString) return 'N/A'
-  const date = new Date(dateString)
-  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
-}
+const formatDate = dateString => formatDateTime(dateString) || 'N/A'
 
 const getAge = dateString => {
   if (!dateString) return 'N/A'

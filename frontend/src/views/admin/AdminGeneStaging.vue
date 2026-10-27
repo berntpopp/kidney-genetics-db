@@ -340,6 +340,7 @@
 </template>
 
 <script setup>
+import { formatDateTime } from '@/utils/formatDate'
 import { h, ref, reactive, onMounted, computed, watch } from 'vue'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 
@@ -714,10 +715,7 @@ const confirmReject = async () => {
 }
 
 // Utility methods
-const formatDate = dateString => {
-  if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleString()
-}
+const formatDate = dateString => formatDateTime(dateString) || 'N/A'
 
 // A filter change starts again at the first page
 watch(

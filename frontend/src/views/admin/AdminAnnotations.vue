@@ -610,6 +610,7 @@
 </template>
 
 <script setup>
+import { formatDateTime } from '@/utils/formatDate'
 import { ref, reactive, onMounted, computed } from 'vue'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import { Chip, DataState, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
@@ -1037,10 +1038,7 @@ const triggerJob = async jobId => {
 }
 
 // Utility methods
-const formatDate = dateString => {
-  if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleString()
-}
+const formatDate = dateString => formatDateTime(dateString) || 'N/A'
 
 // Load data on mount
 onMounted(() => {

@@ -93,8 +93,9 @@
 
               <!-- Drag & drop zone; the Browse button is the keyboard path -->
               <div
-                class="rounded-lg border-2 border-dashed p-10 text-center transition-colors"
+                class="cursor-pointer rounded-lg border-2 border-dashed p-10 text-center transition-colors"
                 :class="isDragging ? 'border-primary bg-primary/5' : 'border-border'"
+                @click="openFilePicker"
                 @dragover.prevent="isDragging = true"
                 @dragleave.prevent="isDragging = false"
                 @drop.prevent="handleFileDrop"
@@ -108,7 +109,7 @@
                   {{ isDragging ? 'Drop file here' : 'Drag and drop a file here' }}
                 </p>
                 <p class="mt-1 text-sm text-muted-foreground">or</p>
-                <Button variant="outline" class="mt-2" @click="fileInput?.click()">
+                <Button variant="outline" class="mt-2" @click.stop="openFilePicker">
                   Browse files
                 </Button>
                 <input
@@ -408,9 +409,8 @@
     <ConfirmAction
       v-model:open="deleteDialog"
       :title="`Delete ${deleteTarget?.identifier}?`"
-      :confirm-label="deleting ? 'Deleting…' : 'Delete'"
+      confirm-label="Delete"
       danger
-      :disabled="deleting"
       @confirm="executeDelete"
     >
       <p>
@@ -422,8 +422,7 @@
     <ConfirmAction
       v-model:open="softDeleteDialog"
       title="Mark upload as deleted?"
-      :confirm-label="deleting ? 'Processing…' : 'Mark as deleted'"
-      :disabled="deleting"
+      confirm-label="Mark as deleted"
       @confirm="executeSoftDelete"
     >
       <p>
@@ -447,6 +446,7 @@ import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import ConfirmAction from '@/components/admin/ConfirmAction.vue'
 import { Chip, DataState, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
 import { sourceDisplayName } from '@/utils/sources'
+import { formatDateTime } from '@/utils/formatDate'
 import * as ingestionApi from '@/api/admin/ingestion'
 import { toast } from 'vue-sonner'
 import { Card } from '@/components/ui/card'
@@ -524,9 +524,9 @@ const deleteDialog = ref(false)
 const deleteTarget = ref(null)
 const softDeleteDialog = ref(false)
 const softDeleteTarget = ref(null)
-const deleting = ref(false)
-
-const fileInput = ref(null)
+// The input sits inside a v-for, so the template ref is an array
+const fileInput = ref([])
+const openFilePicker = () => fileInput.value?.[0]?.click()
 
 // Computed
 const totalRecords = computed(
@@ -685,7 +685,6 @@ const confirmDelete = item => {
 const executeDelete = async () => {
   if (!deleteTarget.value) return
 
-  deleting.value = true
   try {
     await ingestionApi.deleteByIdentifier(selectedSource.value, deleteTarget.value.identifier)
     toast.success('Successfully deleted', { duration: 5000 })
@@ -697,8 +696,6 @@ const executeDelete = async () => {
     toast.error(`Delete failed: ${error.response?.data?.detail || error.message}`, {
       duration: Infinity
     })
-  } finally {
-    deleting.value = false
   }
 }
 
@@ -710,7 +707,6 @@ const confirmSoftDelete = item => {
 const executeSoftDelete = async () => {
   if (!softDeleteTarget.value) return
 
-  deleting.value = true
   try {
     await ingestionApi.softDeleteUpload(selectedSource.value, softDeleteTarget.value.id)
     toast.success('Upload marked as deleted', { duration: 5000 })
@@ -721,8 +717,6 @@ const executeSoftDelete = async () => {
     toast.error(`Soft delete failed: ${error.response?.data?.detail || error.message}`, {
       duration: Infinity
     })
-  } finally {
-    deleting.value = false
   }
 }
 
@@ -734,10 +728,7 @@ const formatFileSize = bytes => {
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
 }
 
-const formatDate = dateStr => {
-  if (!dateStr) return 'N/A'
-  return new Date(dateStr).toLocaleString()
-}
+const formatDate = iso => formatDateTime(iso) || 'N/A'
 
 // Watch for source change to reload data
 watch(selectedSource, () => {

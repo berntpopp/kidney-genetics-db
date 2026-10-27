@@ -1,4 +1,5 @@
 <script setup>
+import { formatDateTime } from '@/utils/formatDate'
 /**
  * User Management View
  * Full CRUD operations for user accounts with role management
@@ -117,11 +118,7 @@ const ROLE_INFO = {
 }
 const loadError = ref(null)
 
-const formatDate = dateString => {
-  if (!dateString) return 'Never'
-  const date = new Date(dateString)
-  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
-}
+const formatDate = dateString => formatDateTime(dateString) || 'Never'
 
 // Column definitions for TanStack Table
 const iconButton = (label, icon, onClick, opts = {}) =>

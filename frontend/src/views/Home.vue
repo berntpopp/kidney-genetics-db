@@ -223,6 +223,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDate } from '@/utils/formatDate'
 import { ArrowRight, Search, Copy, Check, Github } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { useWindowSize } from '@vueuse/core'
@@ -358,14 +359,6 @@ const audiences = [
     ctaRoute: '/about'
   }
 ]
-
-// Unambiguous for an international audience, e.g. "15 Mar 2026"
-const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  })
 
 async function loadStats() {
   statsLoaded.value = false

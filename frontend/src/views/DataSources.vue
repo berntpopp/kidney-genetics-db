@@ -158,6 +158,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatDate as formatDay } from '@/utils/formatDate'
 import { RouterLink } from 'vue-router'
 import { ChartBarBig, CircleHelp } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
@@ -383,8 +384,7 @@ const formatDate = (dateStr: string | null | undefined) => {
   if (diffDays === 1) return 'Yesterday'
   if (diffDays < 7) return `${diffDays} days ago`
   if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-  // en-CA formats as YYYY-MM-DD in local time, matching the relative labels
-  return date.toLocaleDateString('en-CA')
+  return formatDay(date)
 }
 
 const loadDataSources = async () => {

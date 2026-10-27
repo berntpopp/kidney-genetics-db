@@ -360,6 +360,7 @@
 </template>
 
 <script setup>
+import { formatDateTime } from '@/utils/formatDate'
 /**
  * Data Releases Management View
  * Create and manage CalVer data releases with comprehensive UI/UX
@@ -522,11 +523,7 @@ const updateStats = () => {
   statsLoading.value = false
 }
 
-const formatDate = dateString => {
-  if (!dateString) return 'Never'
-  const date = new Date(dateString)
-  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
-}
+const formatDate = dateString => formatDateTime(dateString) || 'Never'
 
 const createRelease = async () => {
   if (!isFormValid.value) return
