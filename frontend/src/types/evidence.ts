@@ -47,8 +47,11 @@ export interface GenCCEvidenceData {
   evidence_score: number
 }
 
+/** Legacy rows store bare HPO IDs; new rows { id, name } (#421) */
+export type HPOTermEntry = string | { id: string; name?: string | null }
+
 export interface HPOEvidenceData {
-  hpo_terms: string[]
+  hpo_terms: HPOTermEntry[]
   term_count?: number
   evidence_score: number
 }

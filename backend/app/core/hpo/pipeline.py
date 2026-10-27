@@ -2,6 +2,7 @@
 Main HPO data processing pipeline for kidney phenotypes.
 """
 
+import asyncio
 from typing import Any
 
 from app.core.cache_service import CacheService
@@ -59,7 +60,7 @@ class HPOPipeline:
             {
                 "gene_symbol": {
                     "entrez_id": int,
-                    "hpo_terms": [str]
+                    "hpo_terms": [{"id": str, "name": str | None}]
                 }
             }
         """
@@ -133,9 +134,20 @@ class HPOPipeline:
                 # Add HPO term
                 gene_evidence[gene_symbol]["hpo_terms"].add(hpo_id)
 
-        # Step 4: Convert sets to lists for JSON serialization
+        # Step 4: Attach term names from the ontology (#421) and convert sets to lists
+        term_ids = sorted({t for g in gene_evidence.values() for t in g["hpo_terms"]})
+        names: dict[str, str | None] = {}
+        for i in range(0, len(term_ids), self.batch_size):
+            batch = term_ids[i : i + self.batch_size]
+            terms = await asyncio.gather(*(self.terms.get_term(t) for t in batch))
+            names.update(
+                (t, term.name if term and term.name else None)
+                for t, term in zip(batch, terms, strict=True)
+            )
         for gene_data in gene_evidence.values():
-            gene_data["hpo_terms"] = sorted(gene_data["hpo_terms"])
+            gene_data["hpo_terms"] = [
+                {"id": t, "name": names.get(t)} for t in sorted(gene_data["hpo_terms"])
+            ]
 
         logger.sync_info("Processed genes with kidney phenotypes", gene_count=len(gene_evidence))
 

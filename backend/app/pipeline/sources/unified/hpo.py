@@ -86,6 +86,7 @@ class HPOUnifiedSource(UnifiedDataSource):
         self.max_depth = get_source_parameter("HPO", "max_depth", 10)
         self.batch_size = get_source_parameter("HPO", "batch_size", 5)
         self.request_delay = get_source_parameter("HPO", "request_delay", 0.2)
+        self._syndromic_descendants: dict[str, set[str]] | None = None
 
         logger.sync_info("HPOUnifiedSource initialized", root_term=self.kidney_root_term)
 
@@ -388,6 +389,9 @@ class HPOUnifiedSource(UnifiedDataSource):
 
         if not phenotype_ids:
             return score_syndromic_features(phenotype_ids, {})
+        # Load the indicator descendants once per run, not once per gene (#421)
+        if self._syndromic_descendants is not None:
+            return score_syndromic_features(phenotype_ids, self._syndromic_descendants)
 
         # Get syndromic indicators configuration
         syndromic_indicators = get_source_parameter("HPO", "syndromic_indicators", {})
@@ -414,5 +418,6 @@ class HPOUnifiedSource(UnifiedDataSource):
                 root_term, max_depth=pipeline.max_depth, include_self=True
             )
             syndromic_descendants[category] = descendants or set()
+        self._syndromic_descendants = syndromic_descendants
 
         return score_syndromic_features(phenotype_ids, syndromic_descendants)

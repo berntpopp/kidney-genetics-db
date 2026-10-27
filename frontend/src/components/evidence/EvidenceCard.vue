@@ -67,7 +67,6 @@
             v-if="bodyComponent"
             :evidence-data="evidence.evidence_data ?? {}"
             :source-name="evidence.source_name"
-            v-bind="evidence.source_name === 'HPO' ? { hpoNames: context.hpoNames } : {}"
           />
         </div>
         <footer
@@ -112,7 +111,7 @@ const props = defineProps({
   evidence: { type: Object, required: true },
   /** { approved_symbol, hgnc_id } for gene-specific source links */
   gene: { type: Object, default: () => ({ approved_symbol: '' }) },
-  /** { hpoNames, ncbiGeneId } from the gene's annotations */
+  /** { ncbiGeneId } from the gene's annotations */
   context: { type: Object, default: () => ({}) }
 })
 

@@ -136,8 +136,10 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         text(
             """
             WITH hpo_ids AS (
-                SELECT DISTINCT jsonb_array_elements_text(evidence_data->'hpo_terms') as hpo_id
-                FROM gene_evidence
+                -- Terms are {"id", "name"} objects; legacy rows hold bare ID strings (#421)
+                SELECT DISTINCT COALESCE(term->>'id', term #>> '{}') as hpo_id
+                FROM gene_evidence,
+                    jsonb_array_elements(evidence_data->'hpo_terms') as term
                 WHERE source_name = 'HPO'
             )
             SELECT COUNT(*) as phenotype_count
