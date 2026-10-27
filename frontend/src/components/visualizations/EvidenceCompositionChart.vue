@@ -1,13 +1,19 @@
 <template>
   <Card class="evidence-composition-container w-full">
-    <CardHeader class="flex flex-col sm:flex-row sm:items-center gap-2 pb-2">
-      <div class="flex items-center">
-        <Circle class="size-5 mr-2 shrink-0" />
-        <CardTitle tag="h2" class="text-base">Evidence Composition</CardTitle>
+    <CardHeader class="flex flex-col gap-2 pb-2 sm:flex-row sm:items-center">
+      <div class="flex items-center gap-2">
+        <Circle class="size-5 shrink-0" aria-hidden="true" />
+        <CardTitle tag="h2" class="text-lg font-semibold">Evidence Composition</CardTitle>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger as-child>
-              <CircleHelp class="size-4 ml-2 text-muted-foreground cursor-help shrink-0" />
+              <button
+                type="button"
+                aria-label="About this chart"
+                class="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                <CircleHelp class="size-4" aria-hidden="true" />
+              </button>
             </TooltipTrigger>
             <TooltipContent side="bottom" class="max-w-xs">
               <span>{{ getViewDescription() }}</span>
@@ -16,98 +22,70 @@
         </TooltipProvider>
       </div>
       <div class="sm:flex-1" />
-      <div class="inline-flex rounded-md border">
-        <Button
-          :variant="activeView === 'tiers' ? 'default' : 'ghost'"
-          size="sm"
-          class="rounded-none first:rounded-l-md last:rounded-r-md"
-          @click="activeView = 'tiers'"
-        >
-          Tiers
-        </Button>
-        <Button
-          :variant="activeView === 'coverage' ? 'default' : 'ghost'"
-          size="sm"
-          class="rounded-none first:rounded-l-md last:rounded-r-md"
-          @click="activeView = 'coverage'"
-        >
-          Coverage
-        </Button>
-        <Button
-          :variant="activeView === 'weights' ? 'default' : 'ghost'"
-          size="sm"
-          class="rounded-none first:rounded-l-md last:rounded-r-md"
-          @click="activeView = 'weights'"
-        >
-          Weights
-        </Button>
-      </div>
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        size="sm"
+        aria-label="Composition view"
+        :model-value="activeView"
+        @update:model-value="v => v && (activeView = v)"
+      >
+        <ToggleGroupItem v-for="view in views" :key="view.value" :value="view.value">
+          {{ view.label }}
+        </ToggleGroupItem>
+      </ToggleGroup>
     </CardHeader>
 
     <CardContent>
-      <!-- Loading state -->
-      <div v-if="loading" class="flex items-center justify-center" style="height: 400px">
-        <div
-          class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"
-        />
-      </div>
+      <DataState
+        :loading="loading"
+        :error="error"
+        :empty="!data"
+        error-title="Could not load evidence composition"
+        empty-message="No composition data for the selected tiers."
+        @retry="loadData"
+      >
+        <template #loading><ChartSkeleton :stats="0" /></template>
 
-      <!-- Error state -->
-      <Alert v-else-if="error" variant="destructive" class="mb-4">
-        <AlertDescription>{{ error }}</AlertDescription>
-      </Alert>
-
-      <!-- Chart visualization -->
-      <div v-else-if="data">
-        <!-- Chart container -->
-        <div class="chart-container">
-          <!-- Evidence Tier Distribution -->
-          <div v-if="activeView === 'tiers'">
-            <h3 class="text-lg font-semibold mb-4">Evidence Tier Distribution</h3>
-            <div v-if="tierChartData.length > 0">
-              <D3DonutChart :data="tierChartData" :total="totalGenes" center-label="Total Genes" />
-            </div>
-            <Alert v-else class="mb-4">
-              <AlertDescription>No tier distribution data available</AlertDescription>
-            </Alert>
-          </div>
-
-          <!-- Source coverage chart -->
-          <div v-else-if="activeView === 'coverage'">
-            <h3 class="text-lg font-semibold mb-4">Source Coverage Distribution</h3>
-            <div v-if="coverageChartData.length > 0">
-              <D3BarChart
-                :data="coverageChartData"
-                x-axis-label="Number of Sources"
-                y-axis-label="Gene Count"
-                bar-color="#2196F3"
-                value-label="genes"
-              />
-            </div>
-            <Alert v-else class="mb-4">
-              <AlertDescription>No coverage distribution data available</AlertDescription>
-            </Alert>
-          </div>
-
-          <!-- Source contribution weights -->
-          <div v-else-if="activeView === 'weights'">
-            <h3 class="text-lg font-semibold mb-4">Source Contribution Weights</h3>
-            <div v-if="weightsChartData.length > 0">
-              <D3DonutChart
-                :data="weightsChartData"
-                :show-total="true"
-                :total="100"
-                :center-label="`Total Coverage (${totalGenes.toLocaleString()} genes)`"
-                :is-percentage="true"
-                :value-formatter="v => v.toFixed(1)"
-              />
-            </div>
-            <Alert v-else class="mb-4">
-              <AlertDescription>No weight distribution data available</AlertDescription>
-            </Alert>
-          </div>
+        <div v-if="activeView === 'tiers'">
+          <h3 class="mb-4 text-base font-semibold">Evidence Tier Distribution</h3>
+          <DataState :empty="tierChartData.length === 0" empty-message="No tier distribution data.">
+            <D3DonutChart :data="tierChartData" :total="totalGenes" center-label="Total Genes" />
+          </DataState>
         </div>
-      </div>
+
+        <div v-else-if="activeView === 'coverage'">
+          <h3 class="mb-4 text-base font-semibold">Source Coverage Distribution</h3>
+          <DataState
+            :empty="coverageChartData.length === 0"
+            empty-message="No coverage distribution data."
+          >
+            <D3BarChart
+              :data="coverageChartData"
+              x-axis-label="Number of Sources"
+              y-axis-label="Gene Count"
+              value-label="genes"
+            />
+          </DataState>
+        </div>
+
+        <div v-else-if="activeView === 'weights'">
+          <h3 class="mb-4 text-base font-semibold">Source Contribution Weights</h3>
+          <DataState
+            :empty="weightsChartData.length === 0"
+            empty-message="No weight distribution data."
+          >
+            <D3DonutChart
+              :data="weightsChartData"
+              :show-total="true"
+              :total="100"
+              :center-label="`Total Coverage (${totalGenes.toLocaleString()} genes)`"
+              :is-percentage="true"
+              :value-formatter="v => v.toFixed(1)"
+            />
+          </DataState>
+        </div>
+      </DataState>
     </CardContent>
   </Card>
 </template>
@@ -118,11 +96,19 @@ import { Circle, CircleHelp } from 'lucide-vue-next'
 import { statisticsApi } from '@/api/statistics'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { DataState } from '@/components/shared'
+import ChartSkeleton from './ChartSkeleton.vue'
 import D3DonutChart from './D3DonutChart.vue'
 import D3BarChart from './D3BarChart.vue'
 import { TIER_CONFIG } from '@/utils/evidenceTiers'
+import { getSourceConfig, SOURCE_NAMES } from '@/utils/sources'
+
+const views = [
+  { value: 'tiers', label: 'Tiers' },
+  { value: 'coverage', label: 'Coverage' },
+  { value: 'weights', label: 'Weights' }
+]
 
 // Props
 const props = defineProps({
@@ -137,7 +123,7 @@ const props = defineProps({
 })
 
 // Reactive data
-const loading = ref(false)
+const loading = ref(true) // until the first load settles, so nothing flashes "empty"
 const error = ref(null)
 const data = ref(null)
 const activeView = ref('tiers') // Default to tiers view
@@ -146,11 +132,11 @@ const activeView = ref('tiers') // Default to tiers view
 const tierChartData = computed(() => {
   if (!data.value?.evidence_tier_distribution) return []
 
-  // Labels and colors from TIER_CONFIG, as everywhere else; backend values only for unknown tiers
+  // Labels and colors from TIER_CONFIG, as everywhere else; unknown tiers stay neutral
   return data.value.evidence_tier_distribution.map(tier => ({
     category: TIER_CONFIG[tier.tier]?.label ?? tier.tier_label,
     gene_count: tier.gene_count,
-    color: TIER_CONFIG[tier.tier]?.color ?? tier.color,
+    color: TIER_CONFIG[tier.tier]?.color ?? 'var(--muted-foreground)',
     icon: TIER_CONFIG[tier.tier]?.icon
   }))
 })
@@ -176,25 +162,21 @@ const coverageChartData = computed(() => {
 const weightsChartData = computed(() => {
   if (!data.value?.source_contribution_weights) return []
 
-  // Define source colors for donut chart
-  const sourceColors = {
-    PubTator: '#FF6384',
-    HPO: '#36A2EB',
-    DiagnosticPanels: '#FFCE56',
-    Literature: '#4BC0C0',
-    PanelApp: '#9966FF',
-    GenCC: '#FF9F40',
-    ClinGen: '#C9CBCF'
+  // Fixed source order and chart colours from utils/sources.ts, as on every chart
+  const order = source => {
+    const i = SOURCE_NAMES.indexOf(source)
+    return i === -1 ? SOURCE_NAMES.length : i
   }
-
-  // Convert weights object to array for donut chart (percentages)
   return Object.entries(data.value.source_contribution_weights)
-    .map(([source, weight]) => ({
-      category: source,
-      gene_count: parseFloat((weight * 100).toFixed(1)), // Keep 1 decimal for display
-      color: sourceColors[source] || '#9E9E9E'
-    }))
-    .sort((a, b) => b.gene_count - a.gene_count)
+    .sort(([a], [b]) => order(a) - order(b))
+    .map(([source, weight]) => {
+      const config = getSourceConfig(source)
+      return {
+        category: config.displayName,
+        gene_count: parseFloat((weight * 100).toFixed(1)), // Keep 1 decimal for display
+        color: config.chartColor
+      }
+    })
 })
 
 // Methods
@@ -259,21 +241,3 @@ onMounted(() => {
   loadData()
 })
 </script>
-
-<style scoped>
-.chart-container {
-  min-height: 400px;
-  padding: 16px;
-  background: hsl(var(--card));
-  border-radius: 4px;
-  border: 1px solid hsl(var(--border));
-}
-
-/* Responsive adjustments */
-@media (max-width: 600px) {
-  .chart-container {
-    min-height: 300px;
-    padding: 8px;
-  }
-}
-</style>

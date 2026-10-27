@@ -1,15 +1,21 @@
 <template>
   <Card class="w-full">
-    <CardHeader class="flex flex-row items-center space-y-0 pb-2">
-      <div class="flex items-center flex-1">
-        <ChartScatter class="size-5 mr-2" />
+    <CardHeader class="flex flex-row flex-wrap items-center gap-2 space-y-0 pb-2">
+      <div class="flex flex-1 items-center gap-2">
+        <ChartScatter class="size-5 shrink-0" aria-hidden="true" />
         <CardTitle tag="h2" class="text-lg font-semibold">Gene Source Overlaps</CardTitle>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger as-child>
-              <CircleHelp class="size-4 ml-2 text-muted-foreground cursor-help" />
+              <button
+                type="button"
+                aria-label="About this chart"
+                class="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                <CircleHelp class="size-4" aria-hidden="true" />
+              </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">
+            <TooltipContent side="bottom" class="max-w-xs">
               <span
                 >UpSet plot showing intersections between gene data sources. Click bars or dots to
                 see the gene count of each intersection.</span
@@ -19,7 +25,7 @@
         </TooltipProvider>
       </div>
       <!-- Always rendered so the header keeps its height when data arrives (#324) -->
-      <Badge variant="outline" :class="{ invisible: !data }">
+      <Badge variant="outline" class="tabular-nums" :class="{ invisible: !data }">
         {{ (data?.total_unique_genes ?? totalGenes).toLocaleString() }}/{{
           totalGenes.toLocaleString()
         }}
@@ -28,157 +34,141 @@
     </CardHeader>
 
     <CardContent>
-      <!-- Loading state (only on initial load) -->
-      <div v-if="loading && !data" class="flex justify-center items-center" style="height: 400px">
-        <div
-          class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"
-        />
-      </div>
-
-      <!-- Error state -->
-      <Alert v-else-if="error" variant="destructive" class="mb-4">
-        <AlertDescription>{{ error }}</AlertDescription>
-      </Alert>
-
-      <!-- UpSet visualization -->
-      <div v-else-if="data" class="relative">
-        <!-- Loading overlay for data updates -->
-        <div
-          v-if="loading"
-          class="absolute inset-0 z-10 flex items-center justify-center bg-background/80"
+      <!-- Provider for the SourceLabel tooltips (also when rendered outside App) -->
+      <TooltipProvider>
+        <DataState
+          :loading="loading && !data"
+          :error="error"
+          :empty="!data"
+          error-title="Could not load source overlaps"
+          empty-message="No source overlap data for the selected tiers."
+          @retry="reload"
         >
-          <div
-            class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"
-          />
-        </div>
+          <template #loading><ChartSkeleton /></template>
 
-        <!-- Summary stats -->
-        <div class="mb-4">
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-            <div>
-              <div class="text-lg font-semibold text-primary">{{ data.sets.length }}</div>
-              <div class="text-xs text-muted-foreground">Data Sources</div>
-            </div>
-            <div>
-              <div class="text-lg font-semibold text-primary">
-                {{ data.intersections.length }}
-              </div>
-              <div class="text-xs text-muted-foreground">Intersections</div>
-            </div>
-            <div>
-              <div class="text-lg font-semibold text-primary">
-                {{ data.overlap_statistics.genes_in_all_sources }}
-              </div>
-              <div class="text-xs text-muted-foreground">In All Sources</div>
-            </div>
-            <div>
-              <div class="text-lg font-semibold text-primary">
-                {{ data.overlap_statistics.single_source_combinations }}
-              </div>
-              <div class="text-xs text-muted-foreground">Single Source Only</div>
-            </div>
-          </div>
-        </div>
-
-        <Separator class="mb-4" />
-
-        <!-- Source Selection Interface -->
-        <div class="source-selection-container mb-4">
-          <div class="flex items-center flex-wrap gap-2">
-            <div class="flex items-center">
-              <Filter class="size-4 mr-2" />
-              <span class="text-sm font-medium"
-                >Selected Sources ({{ selectedSources.length }}):</span
-              >
-            </div>
-
-            <!-- Source chips inline -->
-            <Badge v-for="source in selectedSources" :key="source" class="gap-1 m-1">
-              {{ source }}
-              <button
-                :aria-label="`Remove ${source}`"
-                class="ml-1 rounded-full hover:bg-destructive/20"
-                @click="removeSource(source)"
-              >
-                <X :size="12" />
-              </button>
-            </Badge>
-
-            <!-- Select All chip -->
-            <Badge
-              v-if="selectedSources.length < availableSources.length"
-              variant="outline"
-              class="cursor-pointer m-1"
-              @click="selectAllSources"
+          <div v-if="data" class="relative">
+            <!-- Loading overlay for data updates -->
+            <div
+              v-if="loading"
+              class="absolute inset-0 z-10 flex items-center justify-center bg-background/80"
+              role="status"
             >
-              <CheckSquare :size="14" class="mr-1" />
-              Select All
-            </Badge>
+              <LoaderCircle class="size-8 text-muted-foreground motion-safe:animate-spin" />
+              <span class="sr-only">Updating overlaps…</span>
+            </div>
 
-            <!-- Add source menu -->
-            <DropdownMenu v-if="availableToAdd.length > 0">
-              <DropdownMenuTrigger as-child>
-                <Badge variant="outline" class="cursor-pointer m-1">
-                  <Plus :size="14" class="mr-1" /> Add Source
-                </Badge>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem
-                  v-for="source in availableToAdd"
-                  :key="source"
-                  @click="addSource(source)"
+            <!-- Summary stats -->
+            <dl class="mb-4 grid grid-cols-2 gap-4 text-center sm:grid-cols-4">
+              <div v-for="stat in summaryStats" :key="stat.label" class="flex flex-col-reverse">
+                <dt class="text-xs text-muted-foreground">{{ stat.label }}</dt>
+                <dd class="text-lg font-semibold tabular-nums text-foreground">
+                  {{ stat.value.toLocaleString() }}
+                </dd>
+              </div>
+            </dl>
+
+            <Separator class="mb-4" />
+
+            <!-- Source selection -->
+            <div class="mb-4 flex flex-wrap items-center gap-2 rounded-md bg-muted/50 p-3">
+              <span class="inline-flex items-center gap-2 text-sm font-medium">
+                <Filter class="size-4" aria-hidden="true" />
+                Selected sources ({{ selectedSources.length }}):
+              </span>
+              <span
+                v-for="source in selectedSources"
+                :key="source"
+                class="inline-flex items-center gap-0.5 rounded-md border bg-background pl-2 text-xs font-medium"
+              >
+                <SourceLabel :source="source" />
+                <button
+                  type="button"
+                  :aria-label="`Remove ${sourceDisplayName(source)}`"
+                  class="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  @click="removeSource(source)"
                 >
-                  {{ source }}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <X class="size-3.5" aria-hidden="true" />
+                </button>
+              </span>
+              <Button
+                v-if="selectedSources.length < availableSources.length"
+                variant="outline"
+                size="sm"
+                class="h-7"
+                @click="selectAllSources"
+              >
+                <CheckSquare aria-hidden="true" />
+                Select all
+              </Button>
+              <DropdownMenu v-if="availableToAdd.length > 0">
+                <DropdownMenuTrigger as-child>
+                  <Button variant="outline" size="sm" class="h-7">
+                    <Plus aria-hidden="true" />
+                    Add source
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem
+                    v-for="source in availableToAdd"
+                    :key="source"
+                    @click="addSource(source)"
+                  >
+                    <SourceLabel :source="source" />
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <p v-show="selectedSources.length > 0" class="mb-2 text-xs text-muted-foreground">
+              Distinct intersections: each gene is counted once, under exactly the selected sources
+              it is found in. Showing the
+              {{ Math.min(UPSET_COMBINATION_LIMIT, data.intersections.length) }} largest of
+              {{ data.intersections.length }}.
+            </p>
+
+            <!-- UpSet Plot Container -->
+            <div
+              v-show="selectedSources.length > 0"
+              ref="upsetContainer"
+              class="upset-plot w-full"
+            />
+
+            <DataState
+              v-if="selectedSources.length === 0"
+              empty
+              empty-message="No sources selected. Add one or more data sources above to see their overlaps."
+            />
+
+            <!-- Selected intersection details -->
+            <div v-if="selectedIntersection" class="mt-4 rounded-lg border p-4" aria-live="polite">
+              <h3 class="mb-1 text-base font-semibold">
+                Selected Intersection: {{ selectedIntersection.name }}
+              </h3>
+              <p class="text-sm">
+                <strong class="tabular-nums">{{
+                  selectedIntersection.cardinality.toLocaleString()
+                }}</strong>
+                genes found only in these sources, among the selected sources
+              </p>
+            </div>
           </div>
-        </div>
-
-        <p v-show="selectedSources.length > 0" class="mb-2 text-xs text-muted-foreground">
-          Distinct intersections: each gene is counted once, under exactly the selected sources it
-          is found in. Showing the
-          {{ Math.min(UPSET_COMBINATION_LIMIT, data.intersections.length) }} largest of
-          {{ data.intersections.length }}.
-        </p>
-
-        <!-- UpSet Plot Container -->
-        <div
-          v-show="selectedSources.length > 0"
-          ref="upsetContainer"
-          class="upset-plot"
-          style="width: 100%"
-        ></div>
-
-        <!-- Empty state when no sources selected -->
-        <div v-show="selectedSources.length === 0" class="empty-state">
-          <ChartScatter class="size-16 text-muted-foreground" />
-          <h3 class="text-lg font-semibold mt-4 mb-2 text-muted-foreground">No Sources Selected</h3>
-          <p class="text-sm text-muted-foreground">
-            Select one or more data sources above to view the UpSet plot visualization.
-          </p>
-        </div>
-
-        <!-- Selected intersection details -->
-        <Card v-if="selectedIntersection" variant="outline" class="mt-4 border">
-          <CardHeader class="pb-2">
-            <CardTitle class="text-lg font-semibold">
-              Selected Intersection: {{ selectedIntersection.name }}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <strong>{{ selectedIntersection.cardinality.toLocaleString() }}</strong> genes found
-            only in these sources, among the selected sources
-          </CardContent>
-        </Card>
-      </div>
+        </DataState>
+      </TooltipProvider>
     </CardContent>
   </Card>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { ChartScatter, CircleHelp, Filter, X, Plus, CheckSquare } from 'lucide-vue-next'
+import {
+  ChartScatter,
+  CheckSquare,
+  CircleHelp,
+  Filter,
+  LoaderCircle,
+  Plus,
+  X
+} from 'lucide-vue-next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
@@ -188,7 +178,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem
 } from '@/components/ui/dropdown-menu'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { DataState, SourceLabel } from '@/components/shared'
+import { resolveCssColor, sourceDisplayName } from '@/utils/sources'
+import ChartSkeleton from './ChartSkeleton.vue'
 import { Separator } from '@/components/ui/separator'
 import { statisticsApi } from '@/api/statistics'
 import { renderUpSet } from '@upsetjs/bundle'
@@ -210,7 +203,7 @@ const props = defineProps({
 const { isDark } = useAppTheme()
 
 // Reactive data
-const loading = ref(false)
+const loading = ref(true) // until the first load settles, so nothing flashes "empty"
 const error = ref(null)
 const data = ref(null)
 const selectedIntersection = ref(null)
@@ -221,6 +214,21 @@ const totalGenes = ref(0)
 let resizeObserver = null
 
 // Computed properties
+// Counts are defined by the API; this only labels them
+const summaryStats = computed(() =>
+  data.value
+    ? [
+        { label: 'Data Sources', value: data.value.sets.length },
+        { label: 'Intersections', value: data.value.intersections.length },
+        { label: 'In All Sources', value: data.value.overlap_statistics.genes_in_all_sources },
+        {
+          label: 'Single Source Only',
+          value: data.value.overlap_statistics.single_source_combinations
+        }
+      ]
+    : []
+)
+
 const availableToAdd = computed(() =>
   availableSources.value.filter(source => !selectedSources.value.includes(source))
 )
@@ -245,22 +253,23 @@ const loadAvailableSources = async () => {
       }
     }
   } catch (err) {
+    // A failed source list must not leave a blank card
+    error.value = err.message || 'Failed to load the data sources'
     window.logService.error('Error loading available sources:', err)
   }
 }
 
 // Load data
 const loadData = async () => {
+  // Nothing selected: keep the last data so the source chips stay to re-add from
+  if (selectedSources.value.length === 0) {
+    loading.value = false
+    return
+  }
   loading.value = true
   error.value = null
 
   try {
-    if (selectedSources.value.length === 0) {
-      data.value = null
-      loading.value = false
-      return
-    }
-
     window.logService.info('Calling API with sources', {
       sources: selectedSources.value,
       selectedTiers: props.selectedTiers,
@@ -290,6 +299,14 @@ const loadData = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const reload = async () => {
+  error.value = null
+  loading.value = true
+  await loadTotalGenes()
+  await loadAvailableSources()
+  await loadData()
 }
 
 // Source selection methods
@@ -400,7 +417,7 @@ const renderUpSetPlot = () => {
     const rows = topIntersections
       .map(
         i =>
-          `<tr><td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;">${(i.sets || []).join(' ∩ ')}</td><td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right;font-weight:600;font-size:12px;">${i.size || 0}</td></tr>`
+          `<tr><td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;">${(i.sets || []).map(sourceDisplayName).join(' ∩ ')}</td><td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right;font-weight:600;font-size:12px;">${i.size || 0}</td></tr>`
       )
       .join('')
     upsetContainer.value.innerHTML = `
@@ -426,11 +443,30 @@ const renderUpSetPlot = () => {
 
   if (data.value.intersections.length === 0) {
     upsetContainer.value.innerHTML =
-      '<p style="text-align: center; padding: 40px;">No data to display</p>'
+      '<p style="text-align: center; padding: 40px; color: var(--muted-foreground);">No overlaps for the selected sources.</p>'
     return
   }
 
-  const { sets, combinations } = buildUpSetCombinations(data.value.intersections)
+  const { sets, combinations } = buildUpSetCombinations(
+    data.value.intersections.map(i => ({ ...i, sets: (i.sets || []).map(sourceDisplayName) }))
+  )
+  // The widget draws SVG: hand it the app's font and resolved theme tokens
+  const el = upsetContainer.value
+  const token = name => resolveCssColor(`var(${name})`, el)
+  const theme = {
+    theme: isDark.value ? 'dark' : 'light',
+    fontFamily: window.getComputedStyle(el).fontFamily,
+    fontSizes: { setLabel: '13px', axisTick: '11px', barLabel: '11px', chartLabel: '12px' },
+    color: token('--foreground'),
+    textColor: token('--foreground'),
+    selectionColor: token('--primary'),
+    hoverHintColor: token('--muted'),
+    alternatingBackgroundColor: token('--muted'),
+    notMemberColor: token('--input'),
+    setName: 'Genes per source',
+    combinationName: 'Genes per intersection',
+    exportButtons: false
+  }
 
   window.logService.info('Rendering UpSet plot', {
     setsCount: sets.length,
@@ -447,7 +483,7 @@ const renderUpSetPlot = () => {
         combinations,
         width: containerWidth,
         height: calculatedHeight,
-        theme: isDark.value ? 'dark' : 'light',
+        ...theme,
         selection: selectedIntersection.value,
         onClick: set => {
           // A set row's size counts every gene in that source, not an exclusive intersection
@@ -465,7 +501,7 @@ const renderUpSetPlot = () => {
       window.logService.info('UpSet plot rendered successfully')
     } catch (err) {
       window.logService.error('Error rendering UpSet plot', err)
-      upsetContainer.value.innerHTML = `<p style="text-align: center; padding: 40px; color: red;">Error rendering chart: ${err.message}</p>`
+      error.value = `The chart could not be drawn: ${err.message}`
     }
   }
 
@@ -482,29 +518,22 @@ const loadTotalGenes = async () => {
   }
 }
 
-// Setup ResizeObserver
-onMounted(async () => {
-  await loadTotalGenes()
-  await loadAvailableSources()
-  await loadData()
-
-  // Set up ResizeObserver to handle window resizing
-  if (upsetContainer.value) {
-    // eslint-disable-next-line no-undef
-    resizeObserver = new ResizeObserver(() => {
-      // Re-render on resize
-      renderUpSetPlot()
-    })
-    resizeObserver.observe(upsetContainer.value)
-  }
+// Re-render on resize; the container appears and disappears with the data/error states
+onMounted(() => {
+  resizeObserver =
+    typeof window.ResizeObserver === 'function'
+      ? new window.ResizeObserver(() => renderUpSetPlot())
+      : null
+  reload()
 })
 
-// Cleanup
+watch(upsetContainer, (el, old) => {
+  if (old) resizeObserver?.unobserve(old)
+  if (el) resizeObserver?.observe(el)
+})
+
 onUnmounted(() => {
-  if (resizeObserver && upsetContainer.value) {
-    resizeObserver.unobserve(upsetContainer.value)
-    resizeObserver.disconnect()
-  }
+  resizeObserver?.disconnect()
 })
 </script>
 
@@ -512,16 +541,5 @@ onUnmounted(() => {
 .upset-plot {
   overflow-x: auto;
   overflow-y: hidden;
-}
-
-.source-selection-container {
-  background-color: hsl(var(--card));
-  border-radius: 4px;
-  padding: 12px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
 }
 </style>

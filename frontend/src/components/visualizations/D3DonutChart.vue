@@ -7,7 +7,10 @@
       data-testid="donut-legend"
     >
       <li v-for="item in legendItems" :key="item.category" class="flex items-center gap-1.5">
-        <span class="size-3 shrink-0 rounded-sm" :style="{ backgroundColor: item.color }" />
+        <span
+          class="size-3 shrink-0 rounded-sm border"
+          :style="{ backgroundColor: item.color, borderColor: markOutline(item.color) }"
+        />
         <component :is="item.icon" v-if="item.icon" class="size-3.5 shrink-0" aria-hidden="true" />
         <span>{{ item.category }}</span>
         <span class="tabular-nums text-muted-foreground">{{ item.value }}</span>
@@ -20,11 +23,13 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useAppTheme } from '@/composables/useAppTheme'
 import { select } from 'd3-selection'
-import { scaleOrdinal } from 'd3-scale'
-import { schemeTableau10 } from 'd3-scale-chromatic'
 import { pie as d3pie, arc as d3arc } from 'd3-shape'
 import { interpolate } from 'd3-interpolate'
 import 'd3-transition'
+import { markOutline } from './chartMarks'
+
+// Slices without an explicit colour stay neutral; callers pass token colours
+const FALLBACK_COLOR = 'var(--muted-foreground)'
 
 const { isDark } = useAppTheme()
 const chartContainer = ref(null)
@@ -87,17 +92,18 @@ const computedTotal = computed(() => {
   return props.data.reduce((sum, d) => sum + d.gene_count, 0)
 })
 
-// Color scale for segments (use provided colors or generate)
-const colorScale = computed(() => {
-  return scaleOrdinal()
-    .domain(props.data.map(d => d.category))
-    .range(schemeTableau10)
-})
+const fmt = value => (typeof value === 'number' ? value.toLocaleString() : value)
+
+const ariaLabel = computed(
+  () =>
+    `Donut chart, ${props.centerLabel}: ` +
+    legendItems.value.map(item => `${item.category}: ${item.value}`).join('; ')
+)
 
 const legendItems = computed(() =>
   props.data.map(d => ({
     category: d.category,
-    color: d.color || colorScale.value(d.category),
+    color: d.color || FALLBACK_COLOR,
     icon: d.icon,
     value: props.isPercentage
       ? `${props.valueFormatter(d.gene_count)}%`
@@ -151,7 +157,12 @@ const renderChart = () => {
   const radius = Math.min(width, height) / 2 - 20 // 20px margin
 
   // Create SVG
-  const svg = select(chartContainer.value).append('svg').attr('width', width).attr('height', height)
+  const svg = select(chartContainer.value)
+    .append('svg')
+    .attr('width', width)
+    .attr('height', height)
+    .attr('role', 'img')
+    .attr('aria-label', ariaLabel.value)
 
   // Create main group centered
   const g = svg.append('g').attr('transform', `translate(${width / 2}, ${height / 2})`)
@@ -160,6 +171,7 @@ const renderChart = () => {
   const pie = d3pie()
     .value(d => d.gene_count)
     .sort(null) // Keep original order
+    .padAngle(0.012) // Gaps separate slices; the outline gives each >= 3:1 on the canvas
 
   // Create arc generator for donut
   const arc = d3arc()
@@ -171,8 +183,8 @@ const renderChart = () => {
     .innerRadius(radius * 0.6)
     .outerRadius(radius + 5) // Slightly larger on hover
 
-  // Get theme colors from computed style (SVG fill needs resolved color, not CSS var)
-  const textColor = window.getComputedStyle(chartContainer.value).color
+  const textColor = 'var(--foreground)'
+  const labelColor = 'var(--muted-foreground)'
 
   // Generate pie data
   const pieData = pie(props.data)
@@ -184,10 +196,9 @@ const renderChart = () => {
     .enter()
     .append('path')
     .attr('d', arc)
-    .attr('fill', d => d.data.color || colorScale.value(d.data.category))
-    .attr('stroke', 'var(--background)')
-    .attr('stroke-width', 2)
-    .style('cursor', 'pointer')
+    .style('fill', d => d.data.color || FALLBACK_COLOR)
+    .style('stroke', d => markOutline(d.data.color || FALLBACK_COLOR))
+    .style('stroke-width', 1)
     .on('mouseover', function (event, d) {
       // Highlight segment
       select(this).transition().duration(200).attr('d', arcHover)
@@ -235,10 +246,9 @@ const renderChart = () => {
       centerGroup
         .append('text')
         .attr('dy', '0.5em')
-        .style('font-size', '11px')
+        .style('font-size', '12px')
         .style('font-weight', 'normal')
-        .style('fill', textColor)
-        .style('opacity', 0.6)
+        .style('fill', labelColor)
         .text(props.centerLabel)
 
       // Line 3: Gene count (smaller)
@@ -254,10 +264,9 @@ const renderChart = () => {
       centerGroup
         .append('text')
         .attr('dy', '2.8em')
-        .style('font-size', '11px')
+        .style('font-size', '12px')
         .style('font-weight', 'normal')
-        .style('fill', textColor)
-        .style('opacity', 0.6)
+        .style('fill', labelColor)
         .text(props.averageLabel)
     } else if (hasAverage) {
       // Count view with average: 3-line composition
@@ -267,15 +276,14 @@ const renderChart = () => {
         .style('font-size', '36px')
         .style('font-weight', 'bold')
         .style('fill', textColor)
-        .text(computedTotal.value)
+        .text(fmt(computedTotal.value))
 
       centerGroup
         .append('text')
         .attr('dy', '0.3em')
         .style('font-size', '12px')
         .style('font-weight', 'normal')
-        .style('fill', textColor)
-        .style('opacity', 0.6)
+        .style('fill', labelColor)
         .text(props.centerLabel)
 
       centerGroup
@@ -283,9 +291,8 @@ const renderChart = () => {
         .attr('dy', '2.1em')
         .style('font-size', '14px')
         .style('font-weight', '500')
-        .style('fill', textColor)
-        .style('opacity', 0.8)
-        .text(`${props.averageLabel}: ${props.average}`)
+        .style('fill', labelColor)
+        .text(`${props.averageLabel}: ${fmt(props.average)}`)
     } else {
       // Simple 2-line composition: value + label
       centerGroup
@@ -294,15 +301,14 @@ const renderChart = () => {
         .style('font-size', '42px')
         .style('font-weight', 'bold')
         .style('fill', textColor)
-        .text(props.isPercentage ? `${computedTotal.value}%` : computedTotal.value)
+        .text(props.isPercentage ? `${computedTotal.value}%` : fmt(computedTotal.value))
 
       centerGroup
         .append('text')
         .attr('dy', '1.5em')
         .style('font-size', '13px')
         .style('font-weight', 'normal')
-        .style('fill', textColor)
-        .style('opacity', 0.7)
+        .style('fill', labelColor)
         .text(props.centerLabel)
     }
   }
@@ -313,7 +319,7 @@ const showTooltip = (event, d) => {
   if (!tooltip) {
     tooltip = select('body')
       .append('div')
-      .attr('class', 'chart-tooltip')
+      .attr('class', 'chart-tooltip shadow-md')
       .style('position', 'absolute')
       .style('pointer-events', 'none')
       .style('background', 'var(--card)')
@@ -324,7 +330,6 @@ const showTooltip = (event, d) => {
       .style('font-size', '12px')
       .style('line-height', '1.4')
       .style('z-index', '1000')
-      .style('box-shadow', '0 2px 8px rgba(0,0,0,0.15)')
       .style('opacity', 0)
   }
 
@@ -345,7 +350,7 @@ const showTooltip = (event, d) => {
     .html(
       `
     <div>
-      <strong style="color: var(--primary); display: block; margin-bottom: 4px;">
+      <strong style="display: block; margin-bottom: 4px; font-weight: 600;">
         ${d.data.category}
       </strong>
       <div>${valueDisplay}</div>

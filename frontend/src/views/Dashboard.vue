@@ -1,126 +1,113 @@
 <template>
-  <div class="container mx-auto px-4 py-6">
-    <!-- Breadcrumb -->
-    <Breadcrumb class="mb-2">
-      <BreadcrumbList>
-        <BreadcrumbItem v-for="(crumb, index) in breadcrumbs" :key="index">
-          <BreadcrumbLink v-if="!crumb.disabled && crumb.to" as-child>
-            <RouterLink :to="crumb.to">{{ crumb.title }}</RouterLink>
-          </BreadcrumbLink>
-          <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
-          <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
+  <div :class="PAGE_CONTAINER">
+    <PageHeader
+      title="Data Visualization Dashboard"
+      description="How the kidney-disease gene evidence is spread across sources, tiers and classifications."
+    >
+      <template #breadcrumb>
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem v-for="(crumb, index) in breadcrumbs" :key="index">
+              <BreadcrumbLink v-if="!crumb.disabled && crumb.to" as-child>
+                <RouterLink :to="crumb.to">{{ crumb.title }}</RouterLink>
+              </BreadcrumbLink>
+              <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
+              <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </template>
+    </PageHeader>
 
-    <!-- Header -->
-    <div class="flex items-center gap-3 mb-6">
-      <LayoutDashboard class="size-6 text-primary" />
-      <div>
-        <h1 class="text-2xl font-bold">Data Visualization Dashboard</h1>
-        <p class="text-sm text-muted-foreground">
-          Comprehensive analysis of gene-disease associations across multiple genomic data sources
-        </p>
-      </div>
-    </div>
-
-    <!-- Visualization Tabs -->
-    <Card>
-      <!-- Global Filters -->
-      <div class="flex flex-wrap items-center gap-2 px-6 pt-6 pb-2">
+    <!-- Global filters: they apply to every chart -->
+    <TooltipProvider>
+      <div class="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label="Chart filters">
         <span class="text-sm font-medium text-muted-foreground">Tiers:</span>
-        <Badge
+        <Chip
           v-for="tier in tierOptions"
           :key="tier.value"
-          as="button"
-          type="button"
+          :tier="tier.value"
           :aria-pressed="selectedTiers.includes(tier.value)"
-          class="cursor-pointer select-none transition-opacity"
+          class="min-h-6"
           :class="
-            selectedTiers.length === 0 || selectedTiers.includes(tier.value)
-              ? 'opacity-100'
-              : 'opacity-30'
+            selectedTiers.includes(tier.value)
+              ? 'ring-2 ring-foreground/70 ring-offset-1 ring-offset-background'
+              : ''
           "
-          :style="{
-            ...tintedChipStyle(tier.color),
-            borderColor: selectedTiers.includes(tier.value) ? tier.color : 'transparent'
-          }"
           @click="toggleTier(tier.value)"
         >
           {{ tier.title }}
-        </Badge>
+          <Check v-if="selectedTiers.includes(tier.value)" aria-hidden="true" />
+        </Chip>
         <Button
           v-if="selectedTiers.length > 0"
           variant="ghost"
           size="sm"
-          class="text-xs h-6 px-2"
+          class="h-7 px-2 text-xs"
           @click="selectedTiers = []"
         >
           Clear
         </Button>
-        <div class="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+        <div class="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
           <Label
             for="show-insufficient-global"
-            class="text-sm text-muted-foreground cursor-pointer whitespace-nowrap"
+            class="min-h-6 cursor-pointer text-sm whitespace-nowrap text-muted-foreground"
           >
             Include zero-score genes
           </Label>
           <Switch id="show-insufficient-global" v-model="showInsufficientEvidence" />
         </div>
       </div>
-      <Tabs v-model="activeTab" class="w-full">
-        <CardHeader class="pb-0">
-          <TabsList class="w-full grid grid-cols-3">
-            <TabsTrigger value="overlaps">
-              <ChartScatter :size="16" class="mr-1 sm:mr-2 shrink-0" />
-              <span class="truncate">Overlaps</span>
-            </TabsTrigger>
-            <TabsTrigger value="distributions">
-              <ChartBar :size="16" class="mr-1 sm:mr-2 shrink-0" />
-              <span class="truncate">Distributions</span>
-            </TabsTrigger>
-            <TabsTrigger value="composition">
-              <Circle :size="16" class="mr-1 sm:mr-2 shrink-0" />
-              <span class="truncate">Composition</span>
-            </TabsTrigger>
-          </TabsList>
-        </CardHeader>
-        <CardContent>
-          <TabsContent value="overlaps">
-            <ErrorBoundary fallback-message="Chart failed to render.">
-              <UpSetChart
-                :selected-tiers="selectedTiers"
-                :show-insufficient-evidence="showInsufficientEvidence"
-              />
-            </ErrorBoundary>
-          </TabsContent>
-          <TabsContent value="distributions">
-            <ErrorBoundary fallback-message="Chart failed to render.">
-              <SourceDistributionsChart
-                v-if="activeTab === 'distributions'"
-                :selected-tiers="selectedTiers"
-                :show-insufficient-evidence="showInsufficientEvidence"
-              />
-            </ErrorBoundary>
-          </TabsContent>
-          <TabsContent value="composition">
-            <ErrorBoundary fallback-message="Chart failed to render.">
-              <EvidenceCompositionChart
-                v-if="activeTab === 'composition'"
-                :selected-tiers="selectedTiers"
-                :show-insufficient-evidence="showInsufficientEvidence"
-              />
-            </ErrorBoundary>
-          </TabsContent>
-        </CardContent>
-      </Tabs>
-    </Card>
+    </TooltipProvider>
+
+    <Tabs v-model="activeTab" class="w-full">
+      <TabsList class="mb-4 grid h-auto w-full grid-cols-3">
+        <TabsTrigger value="overlaps" class="min-h-8">
+          <ChartScatter class="hidden sm:block" aria-hidden="true" />
+          Overlaps
+        </TabsTrigger>
+        <TabsTrigger value="distributions" class="min-h-8">
+          <ChartBar class="hidden sm:block" aria-hidden="true" />
+          Distributions
+        </TabsTrigger>
+        <TabsTrigger value="composition" class="min-h-8">
+          <Circle class="hidden sm:block" aria-hidden="true" />
+          Composition
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="overlaps">
+        <ErrorBoundary fallback-message="Chart failed to render.">
+          <UpSetChart
+            :selected-tiers="selectedTiers"
+            :show-insufficient-evidence="showInsufficientEvidence"
+          />
+        </ErrorBoundary>
+      </TabsContent>
+      <TabsContent value="distributions">
+        <ErrorBoundary fallback-message="Chart failed to render.">
+          <SourceDistributionsChart
+            v-if="activeTab === 'distributions'"
+            :selected-tiers="selectedTiers"
+            :show-insufficient-evidence="showInsufficientEvidence"
+          />
+        </ErrorBoundary>
+      </TabsContent>
+      <TabsContent value="composition">
+        <ErrorBoundary fallback-message="Chart failed to render.">
+          <EvidenceCompositionChart
+            v-if="activeTab === 'composition'"
+            :selected-tiers="selectedTiers"
+            :show-insufficient-evidence="showInsufficientEvidence"
+          />
+        </ErrorBoundary>
+      </TabsContent>
+    </Tabs>
   </div>
 </template>
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
-import { LayoutDashboard, ChartScatter, ChartBar, Circle } from 'lucide-vue-next'
+import { ChartScatter, ChartBar, Check, Circle } from 'lucide-vue-next'
 import ErrorBoundary from '@/components/ui/error-boundary/ErrorBoundary.vue'
 import { ref, watch, onMounted, computed, defineAsyncComponent } from 'vue'
 import ComponentSkeleton from '@/components/ui/ComponentSkeleton.vue'
@@ -149,7 +136,8 @@ const EvidenceCompositionChart = defineAsyncComponent({
   delay: 200,
   timeout: 10000
 })
-import { TIER_CONFIG, tintedChipStyle } from '@/utils/evidenceTiers'
+import { TIER_CONFIG } from '@/utils/evidenceTiers'
+import { Chip, PageHeader, PAGE_CONTAINER } from '@/components/shared'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
@@ -161,12 +149,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 defineOptions({
   name: 'Dashboard'

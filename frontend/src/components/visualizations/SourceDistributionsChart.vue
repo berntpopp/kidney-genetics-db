@@ -1,12 +1,18 @@
 <template>
   <Card class="source-distributions-container w-full">
-    <CardHeader class="flex flex-row items-center space-y-0 pb-2">
-      <ChartBar class="size-5 mr-2" />
+    <CardHeader class="flex flex-row flex-wrap items-center gap-2 space-y-0 pb-2">
+      <ChartBar class="size-5" aria-hidden="true" />
       <CardTitle tag="h2" class="text-lg font-semibold">Source Distributions</CardTitle>
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger as-child>
-            <CircleHelp class="size-4 ml-2 text-muted-foreground cursor-help" />
+            <button
+              type="button"
+              aria-label="About this chart"
+              class="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <CircleHelp class="size-4" aria-hidden="true" />
+            </button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
             <span>{{
@@ -19,7 +25,7 @@
       </TooltipProvider>
       <div class="flex-1" />
       <Select v-if="data && Object.keys(data).length > 0" v-model="selectedSource">
-        <SelectTrigger aria-label="Data source" class="w-[200px] h-8">
+        <SelectTrigger aria-label="Data source" class="h-8 w-full sm:w-[200px]">
           <SelectValue placeholder="Select source" />
         </SelectTrigger>
         <SelectContent>
@@ -31,58 +37,50 @@
     </CardHeader>
 
     <CardContent>
-      <!-- Loading state -->
-      <div v-if="loading" class="flex items-center justify-center" style="height: 400px">
-        <div
-          class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"
-        />
-      </div>
+      <DataState
+        :loading="loading"
+        :error="error"
+        :empty="!data || Object.keys(data).length === 0"
+        error-title="Could not load source distributions"
+        empty-message="No distribution data for the selected tiers."
+        @retry="loadData"
+      >
+        <template #loading><ChartSkeleton /></template>
 
-      <!-- Error state -->
-      <Alert v-else-if="error" variant="destructive" class="mb-4">
-        <AlertDescription>{{ error }}</AlertDescription>
-      </Alert>
-
-      <!-- Chart visualization -->
-      <div v-else-if="data && selectedSource && sourceData">
-        <!-- Source metadata -->
-        <Card class="mb-4">
-          <CardContent class="pt-6">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div v-for="(value, key) in displayedMetadata" :key="key">
-                <div class="text-lg font-semibold text-primary">{{ value }}</div>
-                <div class="text-xs text-muted-foreground">{{ formatMetadataLabel(key) }}</div>
-              </div>
+        <div v-if="selectedSource && sourceData">
+          <!-- Source metadata -->
+          <dl class="mb-4 grid grid-cols-2 gap-4 text-center md:grid-cols-4">
+            <div v-for="(value, key) in displayedMetadata" :key="key" class="flex flex-col-reverse">
+              <dt class="text-xs text-muted-foreground">{{ formatMetadataLabel(key) }}</dt>
+              <dd class="text-lg font-semibold tabular-nums text-foreground">
+                {{ formatMetadataValue(value) }}
+              </dd>
             </div>
-          </CardContent>
-        </Card>
+          </dl>
 
-        <!-- Dynamic chart based on visualization type -->
-        <div v-if="hasDistributionData" class="chart-container">
-          <!-- ClinGen/GenCC: D3 Donut for classifications -->
-          <D3DonutChart
-            v-if="visualizationType === 'classification_donut'"
-            :data="d3ChartData"
-            :total="sourceMetadata.total_genes"
-            :average="sourceMetadata.average"
-            center-label="Total"
-          />
-
-          <!-- All other sources: D3 Bar Chart with blue color -->
-          <D3BarChart
-            v-else
-            :data="d3ChartData"
-            :x-axis-label="getXAxisLabel(selectedSource)"
-            :y-axis-label="'Gene Count'"
-            bar-color="#1E88E5"
-          />
+          <DataState
+            :empty="!hasDistributionData"
+            empty-message="No distribution data available for this source."
+          >
+            <!-- ClinGen/GenCC: classifications on the strength ramp -->
+            <D3DonutChart
+              v-if="visualizationType === 'classification_donut'"
+              :data="d3ChartData"
+              :total="sourceMetadata.total_genes"
+              :average="sourceMetadata.average"
+              center-label="Total"
+            />
+            <!-- Counts per gene in the source's chart colour -->
+            <D3BarChart
+              v-else
+              :data="d3ChartData"
+              :x-axis-label="getXAxisLabel(selectedSource)"
+              y-axis-label="Gene Count"
+              :bar-color="getSourceConfig(selectedSource).chartColor"
+            />
+          </DataState>
         </div>
-
-        <!-- No data message -->
-        <Alert v-else class="mb-4">
-          <AlertDescription>No distribution data available for this source</AlertDescription>
-        </Alert>
-      </div>
+      </DataState>
     </CardContent>
   </Card>
 </template>
@@ -103,7 +101,10 @@ import {
   SelectContent,
   SelectItem
 } from '@/components/ui/select'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { DataState } from '@/components/shared'
+import { getClassificationConfig } from '@/utils/evidenceTiers'
+import { getSourceConfig, sourceDisplayName } from '@/utils/sources'
+import ChartSkeleton from './ChartSkeleton.vue'
 
 // Props
 const props = defineProps({
@@ -118,7 +119,7 @@ const props = defineProps({
 })
 
 // Reactive data
-const loading = ref(false)
+const loading = ref(true) // until the first load settles, so nothing flashes "empty"
 const error = ref(null)
 const data = ref(null)
 const selectedSource = ref(null)
@@ -127,7 +128,7 @@ const selectedSource = ref(null)
 const sourceOptions = computed(() => {
   if (!data.value) return []
   return Object.keys(data.value).map(source => ({
-    title: source,
+    title: sourceDisplayName(source),
     value: source
   }))
 })
@@ -163,25 +164,18 @@ const d3ChartData = computed(() => {
     return []
   }
 
-  // Color palette for donut charts
-  const colors = [
-    '#1f77b4',
-    '#ff7f0e',
-    '#2ca02c',
-    '#d62728',
-    '#9467bd',
-    '#8c564b',
-    '#e377c2',
-    '#7f7f7f'
-  ]
-
-  return sourceData.value.distribution
+  const rows = sourceData.value.distribution
     .filter(d => d && d.category !== undefined && d.gene_count !== undefined)
-    .map((d, i) => ({
-      category: String(d.category),
-      gene_count: Number(d.gene_count),
-      color: colors[i % colors.length] // Only used by donut chart
-    }))
+    .map(d => ({ category: String(d.category), gene_count: Number(d.gene_count) }))
+  if (visualizationType.value !== 'classification_donut') return rows
+
+  // Classifications: ordinal strength colour and icon, strongest first (not index-based)
+  return rows
+    .map(d => {
+      const c = getClassificationConfig(d.category)
+      return { ...d, category: c.label, color: c.color, icon: c.icon, strength: c.strength ?? 0 }
+    })
+    .sort((a, b) => b.strength - a.strength)
 })
 
 // Methods
@@ -220,6 +214,8 @@ const loadData = async () => {
     loading.value = false
   }
 }
+
+const formatMetadataValue = value => (typeof value === 'number' ? value.toLocaleString() : value)
 
 const formatMetadataLabel = key => {
   return key.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase())
@@ -281,25 +277,3 @@ onMounted(() => {
   loadData()
 })
 </script>
-
-<style scoped>
-.source-distributions-container {
-  width: 100%;
-}
-
-.chart-container {
-  min-height: 400px;
-  padding: 24px;
-  background: hsl(var(--card));
-  border-radius: 8px;
-  border: 1px solid hsl(var(--border));
-}
-
-/* Responsive adjustments */
-@media (max-width: 600px) {
-  .chart-container {
-    padding: 16px;
-    min-height: 300px;
-  }
-}
-</style>
