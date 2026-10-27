@@ -99,6 +99,10 @@ async def test_every_tool_is_read_only_closed_world_idempotent(app: FastMCP) -> 
         tool = await app.get_tool(name)
         annotations = tool.annotations
         assert annotations is not None, f"{name} has no annotations block"
-        assert annotations.readOnlyHint is True, f"{name} readOnlyHint must be True"
-        assert annotations.openWorldHint is False, f"{name} openWorldHint must be False"
-        assert annotations.idempotentHint is True, f"{name} idempotentHint must be True"
+        assert annotations.read_only_hint is True, f"{name} readOnlyHint must be True"
+        assert annotations.open_world_hint is False, (
+            f"{name} openWorldHint must be False"
+        )
+        assert annotations.idempotent_hint is True, (
+            f"{name} idempotentHint must be True"
+        )

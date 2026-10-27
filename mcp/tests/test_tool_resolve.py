@@ -63,9 +63,9 @@ async def test_resolve_tool_registered_readonly() -> None:
     assert "kgdb_resolve_gene" in by_name
     tool = by_name["kgdb_resolve_gene"]
     assert tool.annotations is not None
-    assert tool.annotations.readOnlyHint is True
-    assert tool.annotations.idempotentHint is True
-    assert tool.annotations.openWorldHint is False
+    assert tool.annotations.read_only_hint is True
+    assert tool.annotations.idempotent_hint is True
+    assert tool.annotations.open_world_hint is False
     assert tool.annotations.title
 
 

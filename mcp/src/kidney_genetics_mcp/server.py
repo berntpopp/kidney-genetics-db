@@ -11,7 +11,7 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ValidationError as FastMCPValidationError
 from fastmcp.server.middleware import CallNext, MiddlewareContext
 from fastmcp.server.middleware import Middleware as FastMCPMiddleware
-from fastmcp.tools.tool import ToolResult
+from fastmcp.tools import ToolResult
 from pydantic import ValidationError
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
