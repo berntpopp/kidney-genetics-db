@@ -30,8 +30,10 @@ useAppTheme()
 // Global JSON-LD: Organization + WebSite schema
 useJsonLd(getOrganizationWebSiteSchema())
 
-// Global noindex for admin/auth routes
+// Route meta title as the fallback document title (views with useSeoMeta override it);
+// global noindex for admin/auth routes
 useHead({
+  title: computed(() => (route.meta.title ? `${route.meta.title} | KGDB` : undefined)),
   meta: computed(() =>
     route.meta.noindex ? [{ name: 'robots', content: 'noindex, nofollow' }] : []
   )
@@ -64,12 +66,11 @@ onUnmounted(() => {
         Skip to main content
       </a>
       <AppHeader />
-      <main id="main-content" tabindex="-1" class="flex-1 pb-20 focus:outline-none">
+      <main id="main-content" tabindex="-1" class="flex-1 focus:outline-none">
+        <!-- No route transition: an out-in fade emptied <main> and shifted the page on every navigation -->
         <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <!-- Keyed by path: symbol changes remount gene views; query-only changes do not -->
-            <component :is="Component" :key="route.path" />
-          </transition>
+          <!-- Keyed by path: symbol changes remount gene views; query-only changes do not -->
+          <component :is="Component" :key="route.path" />
         </router-view>
       </main>
       <AppFooter />
@@ -78,14 +79,3 @@ onUnmounted(() => {
     </div>
   </TooltipProvider>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

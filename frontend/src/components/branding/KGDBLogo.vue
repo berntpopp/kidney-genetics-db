@@ -268,7 +268,7 @@ const handleClick = event => {
     sans-serif;
   font-weight: 700;
   font-size: var(--logo-text-size);
-  color: hsl(var(--foreground));
+  color: var(--foreground);
   letter-spacing: -0.02em;
 }
 
