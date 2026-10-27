@@ -13,11 +13,11 @@ colors:
   secondary: "oklch(0.967 0.001 286.375)"
   secondary-foreground: "oklch(0.21 0.006 285.885)"
   ring: "oklch(0.685 0.169 237.323)"
-  strength-5: "oklch(0.42 0.15 262)"
-  strength-4: "oklch(0.52 0.14 245)"
-  strength-3: "oklch(0.64 0.12 222)"
-  strength-2: "oklch(0.76 0.09 200)"
-  strength-1: "oklch(0.82 0.015 260)"
+  strength-5: "oklch(0.32 0.14 275)"
+  strength-4: "oklch(0.49 0.15 258)"
+  strength-3: "oklch(0.62 0.08 215)"
+  strength-2: "oklch(0.79 0.11 198)"
+  strength-1: "oklch(0.87 0.09 88)"
   success: "oklch(0.52 0.13 152)"
   warning: "oklch(0.58 0.13 65)"
   info: "oklch(0.5 0.15 237.323)"
@@ -86,7 +86,7 @@ A neutral zinc canvas with one sky-blue action colour and one ordinal strength r
 - **Secondary** (`--secondary`) is neutral (same as `--muted`): secondary buttons, counts and plain labels. The former violet secondary is retired.
 
 ### Evidence strength (the only meaningful colour)
-An ordinal ramp, dark = strong. Text and icons on tinted chips are mixed toward `--foreground` so chips stay ≥ 4.5:1 in both themes; adjacent steps keep an OKLab distance > 0.15 under deuteranopia (enforced by `tierPalette.spec.ts`). Final values are tuned against that test; the frontmatter lists the intended starting points.
+An ordinal, viridis-like ramp (pale gold → teal → blue → deep indigo). In light mode the strongest step is the darkest; in dark mode the ramp is reversed so the strongest step is the lightest (most prominent on the dark canvas). Text and icons on tinted chips are mixed toward `--foreground` so chips stay ≥ 4.5:1 in both themes; adjacent steps keep an OKLab distance > 0.15 under deuteranopia (enforced by `tierPalette.spec.ts`, which reads the values from `main.css`). Dark values: 1 `oklch(0.29 0.04 92)`, 2 `oklch(0.5 0.09 162)`, 3 `oklch(0.63 0.12 233)`, 4 `oklch(0.79 0.11 247)`, 5 `oklch(0.92 0.04 272)`.
 
 | Token | Tier | ClinGen / GenCC classification | Score band |
 |---|---|---|---|
