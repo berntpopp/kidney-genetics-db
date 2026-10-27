@@ -131,16 +131,19 @@ class DatabaseLogger:
                 if hasattr(request.state, "current_user") and request.state.current_user:
                     user_id = getattr(request.state.current_user, "id", None)
 
-            # UnifiedLogger passes no Request, only the bound request context and log kwargs
+            # UnifiedLogger passes no Request, only the bound request context and log kwargs.
+            # Other loggers reuse status_code/path for upstream APIs and files, so only the
+            # request middleware may fill status and duration.
             extra = extra_data or {}
-            endpoint = endpoint or extra.get("path") or extra.get("endpoint")
+            endpoint = endpoint or extra.get("endpoint")
             method = method or extra.get("method")
-            if status_code is None and isinstance(extra.get("status_code"), int):
-                status_code = extra["status_code"]
-            if processing_time_ms is None and isinstance(
-                extra.get("processing_time_ms"), int | float
-            ):
-                processing_time_ms = extra["processing_time_ms"]
+            if source == "request_middleware":
+                if status_code is None and isinstance(extra.get("status_code"), int):
+                    status_code = extra["status_code"]
+                if processing_time_ms is None and isinstance(
+                    extra.get("processing_time_ms"), int | float
+                ):
+                    processing_time_ms = extra["processing_time_ms"]
 
             # Prepare error data
             error_type: str | None = None
