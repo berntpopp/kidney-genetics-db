@@ -57,7 +57,10 @@ export const ONTOLOGY_SOURCES: Record<OntologySource, OntologySourceConfig> = {
   ClinVar: {
     name: 'ClinVar',
     prefix: '',
-    url: l => `https://www.ncbi.nlm.nih.gov/clinvar/variation/${l.replace(/^VCV0*/, '')}/`
+    url: l =>
+      l.startsWith('RCV')
+        ? `https://www.ncbi.nlm.nih.gov/clinvar/${l}/`
+        : `https://www.ncbi.nlm.nih.gov/clinvar/variation/${l.replace(/^VCV0*/, '').replace(/\.\d+$/, '')}/`
   }
 }
 

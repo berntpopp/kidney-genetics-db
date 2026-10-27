@@ -134,7 +134,6 @@
                 :score="gene.evidence_score"
                 :tier="gene.evidence_tier"
                 :breakdown="gene.score_breakdown"
-                variant="card"
                 class="flex-1"
               />
             </div>

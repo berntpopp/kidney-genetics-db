@@ -1,40 +1,7 @@
 <template>
   <div>
-    <!-- Compact inline display for tables -->
-    <div v-if="variant === 'inline'" class="inline-flex items-center">
-      <HoverPopover content-class="max-w-xs p-3">
-        <Badge
-          as="span"
-          :class="[chipSizeClasses, 'cursor-pointer font-medium tabular-nums']"
-          :style="tintedChipStyle(tierConfig.color)"
-          variant="outline"
-        >
-          <component :is="tierConfig.icon" :size="12" class="mr-1" aria-hidden="true" />
-          {{ formattedScore }}
-        </Badge>
-        <template #content>
-          <p class="text-xs text-foreground">
-            {{ getScoreExplanation(score, Object.keys(breakdown || {}).length, tier) }}
-          </p>
-          <div v-if="sortedBreakdownEntries.length" class="mt-2 space-y-1">
-            <div
-              v-for="[source, sourceScore] in topSourceEntries"
-              :key="source"
-              class="flex justify-between text-xs"
-            >
-              <span class="text-foreground">{{ sourceDisplayName(source) }}</span>
-              <span class="ml-3 font-mono text-foreground">{{ formatPercent(sourceScore) }}</span>
-            </div>
-            <p v-if="remainingSourceCount > 0" class="text-xs text-muted-foreground">
-              +{{ remainingSourceCount }} more
-            </p>
-          </div>
-        </template>
-      </HoverPopover>
-    </div>
-
     <!-- Detailed card display for gene detail pages -->
-    <Card v-else-if="variant === 'card'" class="h-full gap-4">
+    <Card class="h-full gap-4">
       <CardHeader>
         <CardTitle tag="h2" class="text-base">Evidence score</CardTitle>
       </CardHeader>
@@ -95,12 +62,10 @@
 
 <script setup>
 import { computed } from 'vue'
-import HoverPopover from '@/components/ui/HoverPopover.vue'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Chip } from '@/components/shared'
-import { getScoreExplanation, getTierConfig, tintedChipStyle } from '@/utils/evidenceTiers'
+import { getTierConfig } from '@/utils/evidenceTiers'
 import { sourceDisplayName } from '@/utils/sources'
 import { CircleHelp } from 'lucide-vue-next'
 
@@ -108,18 +73,7 @@ const props = defineProps({
   score: { type: Number, default: null },
   // Backend evidence_tier; the only source of the label (issue 314)
   tier: { type: String, default: null },
-  breakdown: { type: Object, default: () => ({}) },
-  variant: {
-    type: String,
-    default: 'inline',
-    validator: value => ['inline', 'card'].includes(value)
-  },
-  size: {
-    type: String,
-    default: 'small',
-    validator: value => ['x-small', 'small', 'default'].includes(value)
-  },
-  maxSources: { type: Number, default: 3 }
+  breakdown: { type: Object, default: () => ({}) }
 })
 
 const formattedScore = computed(() => (props.score == null ? 'N/A' : props.score.toFixed(1)))
@@ -130,27 +84,11 @@ const formatPercent = value => `${(value * 100).toFixed(1)}%`
 // Label, color and icon come only from the backend evidence_tier (issue 314)
 const tierConfig = computed(() => getTierConfig(props.tier))
 
-const chipSizeClasses = computed(() => {
-  switch (props.size) {
-    case 'x-small':
-      return 'text-[10px] px-1.5 py-0'
-    case 'small':
-      return 'text-xs px-2 py-0.5'
-    default:
-      return 'text-sm px-2.5 py-1'
-  }
-})
-
 const sortedBreakdownEntries = computed(() =>
   // Only real numeric contributions may be shown as percentages
   Object.entries(props.breakdown ?? {})
     .filter(([, value]) => Number.isFinite(value))
     .sort(([, a], [, b]) => b - a)
-)
-
-const topSourceEntries = computed(() => sortedBreakdownEntries.value.slice(0, props.maxSources))
-const remainingSourceCount = computed(() =>
-  Math.max(0, sortedBreakdownEntries.value.length - props.maxSources)
 )
 
 const donutRadius = 40 // (96 - 8) / 2 - 4

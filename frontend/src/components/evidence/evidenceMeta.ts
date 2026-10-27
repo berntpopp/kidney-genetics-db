@@ -189,7 +189,7 @@ export function evidenceMeta(
         .sort((a, b) => a.localeCompare(b))
       return {
         summary: names.length
-          ? andMore(names.slice(0, 2).join(', '), terms.length - 2, 'term')
+          ? andMore(names.slice(0, 2).join(', '), terms.length - Math.min(names.length, 2), 'term')
           : 'Kidney phenotypes annotated to this gene',
         stats: [stat(terms.length, 'phenotype term')],
         classification: null,
@@ -251,7 +251,10 @@ export function evidenceMeta(
       }
     }
     case 'PubTator': {
-      const sampled = (d.mentions ?? []).length
+      // Same deduplicated set PubTatorEvidence lists
+      const sampled = new Set(
+        (d.top_mentions ?? d.mentions ?? []).map((m: { pmid: unknown }) => m.pmid)
+      ).size
       return {
         summary: `Text-mined mentions of ${gene.approved_symbol} in kidney-disease abstracts`,
         stats: [

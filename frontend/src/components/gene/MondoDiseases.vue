@@ -12,7 +12,7 @@
         :error="error"
         :empty="!diseases.length"
         error-title="Could not load disease mappings"
-        empty-message="No MONDO disease mapping for this gene yet."
+        empty-message="No MONDO mappings in the annotation data for this gene."
         min-height="4rem"
         @retry="$emit('retry')"
       >

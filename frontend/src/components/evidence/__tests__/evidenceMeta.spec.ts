@@ -70,6 +70,19 @@ describe('evidence card summaries', () => {
     )
   })
 
+  it('counts unnamed HPO terms in "and N more"', () => {
+    const meta = evidenceMeta('HPO', { hpo_terms: ['HP:1', 'HP:2', 'HP:3'] }, gene, {
+      hpoNames: { 'HP:1': 'Renal cyst' }
+    })
+    expect(meta.summary).toBe('Renal cyst and 2 more terms')
+  })
+
+  it('counts PubTator mentions as the deduplicated list does', () => {
+    const mentions = [{ pmid: '1' }, { pmid: '1' }, { pmid: '2' }]
+    const meta = evidenceMeta('PubTator', { top_mentions: mentions }, gene)
+    expect(meta.stats.map(s => `${s.value} ${s.unit}`)).toContain('2 sampled mentions')
+  })
+
   it('counts PanelApp panels once although the payload repeats them', () => {
     const panel = { id: 678, name: 'Unexplained young onset ESRD', region: 'UK' }
     const meta = evidenceMeta('PanelApp', { panels: [panel, panel, panel] }, gene)

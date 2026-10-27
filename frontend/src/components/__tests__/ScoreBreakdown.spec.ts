@@ -7,7 +7,7 @@ import ScoreBreakdown from '@/components/ScoreBreakdown.vue'
 
 const card = (props: Record<string, unknown>) =>
   mount({
-    render: () => h(TooltipProvider, () => h(ScoreBreakdown, { variant: 'card', ...props }))
+    render: () => h(TooltipProvider, () => h(ScoreBreakdown, props))
   })
 
 describe('ScoreBreakdown', () => {

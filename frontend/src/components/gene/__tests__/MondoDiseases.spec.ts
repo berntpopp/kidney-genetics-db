@@ -64,7 +64,9 @@ describe('MondoDiseases (#28)', () => {
   })
 
   it('says so when a gene has no mapping, and shows a failed load as an error', () => {
-    expect(mountWith().find('[data-state="empty"]').text()).toContain('No MONDO disease mapping')
+    expect(mountWith().find('[data-state="empty"]').text()).toContain(
+      'No MONDO mappings in the annotation data'
+    )
     const failed = mountWith(undefined, { error: new Error('offline') })
     expect(failed.find('[data-state="error"]').text()).toContain('Could not load disease mappings')
   })
