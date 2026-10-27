@@ -165,7 +165,12 @@ const palette = () => ({
 const MIN_PLOT_WIDTH = 720
 
 // Resolved token colours: SVG attributes must survive PNG export, so no var() in the plot
-const c = css => computedColor(css, chartContainer.value)
+// Memoised per CSS string (a DOM style read per lollipop per zoom frame); cleared per render
+const colorCache = new Map()
+const c = css => {
+  if (!colorCache.has(css)) colorCache.set(css, computedColor(css, chartContainer.value))
+  return colorCache.get(css)
+}
 let colors = {}
 
 const clinvarUrl = computed(
@@ -278,6 +283,7 @@ const renderChart = () => {
 
   // Close any pinned tooltip on re-render
   unpinTooltip()
+  colorCache.clear()
   colors = palette()
 
   // Clear previous chart

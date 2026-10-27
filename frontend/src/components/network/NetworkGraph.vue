@@ -1365,6 +1365,7 @@ const exportGraph = () => {
   link.href = URL.createObjectURL(png)
   link.download = `network_${Date.now()}.png`
   link.click()
+  setTimeout(() => URL.revokeObjectURL(link.href))
 }
 
 // Watchers
@@ -1384,56 +1385,25 @@ watch(
   }
 )
 
-// Watch for color mode or HPO classification changes and update node colors
-watch([() => props.colorMode, () => props.hpoClassifications], ([newColorMode], [oldColorMode]) => {
-  window.logService?.info('[NetworkGraph] Color mode or HPO data changed', {
-    colorMode: newColorMode,
-    oldColorMode,
-    hasHPOData: !!props.hpoClassifications?.data,
-    hpoDataCount: props.hpoClassifications?.data?.length || 0,
-    hasCyInstance: !!cyInstance.value
-  })
-
-  if (!cyInstance.value || cyInstance.value.destroyed()) {
-    window.logService?.warn('[NetworkGraph] No cytoscape instance, skipping color update')
-    return
-  }
-
-  const nodeCount = cyInstance.value.nodes().length
-  let updatedCount = 0
-
-  // Update node colors based on new color map
-  try {
-    cyInstance.value.nodes().forEach(node => {
-      const color = nodeColor(node)
-      node.style({
-        'background-color': canvasColor(color),
-        'border-color': canvasColor(markOutline(color))
-      })
-      updatedCount++
-    })
-  } catch {
-    // Cytoscape instance may be in a transitional state during destroy/recreate
-    window.logService?.warn('[NetworkGraph] Skipped color update — instance transitioning')
-    return
-  }
-
-  window.logService?.info(
-    `[NetworkGraph] ✓ Updated colors for ${updatedCount}/${nodeCount} nodes`,
-    {
-      colorMode: newColorMode,
-      uniqueColors: new Set([...nodeColorMap.value.values()]).size
-    }
-  )
-})
-
-// Theme switch: re-resolve the token colours for the canvas
-watch(isDark, () => {
-  clearCanvasColors()
+// Restyle from the stylesheet, which colours nodes per colour mode; per-node bypass styles
+// would override it and never pick up a theme change
+const restyle = () => {
   if (cyInstance.value && !cyInstance.value.destroyed()) {
     cyInstance.value.style(buildStylesheet())
   }
-})
+}
+
+watch([() => props.colorMode, () => props.hpoClassifications], restyle)
+
+// Theme switch: re-resolve the token colours after VueUse has toggled the `dark` class
+watch(
+  isDark,
+  () => {
+    clearCanvasColors()
+    restyle()
+  },
+  { flush: 'post' }
+)
 
 // Lifecycle
 onMounted(async () => {

@@ -425,6 +425,7 @@ const exportClusterGenes = () => {
   const sanitizedName = clusterName.toLowerCase().replace(/\s+/g, '_')
   link.download = `${sanitizedName}_genes_${Date.now()}.csv`
   link.click()
+  setTimeout(() => URL.revokeObjectURL(link.href))
 }
 
 // Reset page when genes change

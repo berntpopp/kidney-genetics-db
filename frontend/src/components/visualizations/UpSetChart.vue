@@ -62,7 +62,7 @@
               <div v-for="stat in summaryStats" :key="stat.label" class="flex flex-col-reverse">
                 <dt class="text-xs text-muted-foreground">{{ stat.label }}</dt>
                 <dd class="text-lg font-semibold tabular-nums text-foreground">
-                  {{ stat.value.toLocaleString() }}
+                  {{ (stat.value ?? 0).toLocaleString() }}
                 </dd>
               </div>
             </dl>
