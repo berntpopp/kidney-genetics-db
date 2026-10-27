@@ -1,36 +1,27 @@
 <template>
-  <div class="container mx-auto px-4 py-6">
+  <div :class="PAGE_CONTAINER">
     <!-- Header -->
-    <AdminHeader
-      title="System Settings"
-      subtitle="Manage application configuration"
-      :icon="Cog"
-      icon-color="deep-purple"
-      :breadcrumbs="ADMIN_BREADCRUMBS.settings"
-    />
+    <AdminHeader title="System Settings" subtitle="Manage application configuration" />
 
     <!-- Stats Overview -->
-    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+    <div class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
       <AdminStatsCard
         title="Total Settings"
         :value="stats.total"
         :loading="statsLoading"
         :icon="Settings"
-        color="primary"
       />
       <AdminStatsCard
         title="Requires Restart"
         :value="stats.requires_restart"
         :loading="statsLoading"
         :icon="RotateCw"
-        color="warning"
       />
       <AdminStatsCard
         title="Recent Changes"
         :value="stats.recent_changes_24h"
         :loading="statsLoading"
         :icon="HistoryIcon"
-        color="info"
       />
     </div>
 
@@ -58,98 +49,114 @@
     </Card>
 
     <!-- Settings by Category -->
-    <div v-for="(settingsGroup, category) in groupedSettings" :key="category" class="mb-6">
-      <Card>
-        <CardHeader>
-          <CardTitle class="flex items-center gap-2 text-lg">
-            <component :is="getCategoryIcon(category)" class="size-5" />
-            {{ formatCategoryName(category) }}
-          </CardTitle>
-        </CardHeader>
-        <CardContent class="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Setting Key</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead class="text-center">Status</TableHead>
-                <TableHead class="text-center w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="item in settingsGroup" :key="item.id" class="hover:bg-muted/50">
-                <TableCell class="font-medium text-sm">{{ item.key }}</TableCell>
-                <TableCell>
-                  <code v-if="item.is_sensitive" class="rounded bg-muted px-1.5 py-0.5 text-xs"
-                    >***MASKED***</code
-                  >
-                  <code v-else class="rounded bg-muted px-1.5 py-0.5 text-xs">{{
-                    formatValue(item.value)
-                  }}</code>
-                </TableCell>
-                <TableCell class="text-xs text-muted-foreground">{{ item.description }}</TableCell>
-                <TableCell class="text-center">
-                  <Badge
-                    v-if="item.requires_restart"
-                    variant="outline"
-                    class="text-yellow-600 border-yellow-600"
-                  >
-                    Restart Required
-                  </Badge>
-                  <span v-else class="text-xs text-muted-foreground">--</span>
-                </TableCell>
-                <TableCell>
-                  <div class="flex justify-center gap-1">
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <Button
-                          aria-label="Edit Setting"
-                          variant="ghost"
-                          size="icon"
-                          class="h-8 w-8"
-                          :disabled="item.is_readonly"
-                          @click="showEditDialog(item)"
-                        >
-                          <Pencil class="size-4 text-primary" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Edit Setting</TooltipContent>
-                    </Tooltip>
+    <DataState
+      :loading="loading && !settings.length"
+      :error="loadError"
+      error-title="Could not load settings"
+      :empty="!settings.length"
+      empty-message="No settings in this category."
+      @retry="loadSettings"
+    >
+      <template #loading>
+        <div
+          class="h-64 rounded-xl border bg-muted/50 motion-safe:animate-pulse"
+          aria-hidden="true"
+        />
+      </template>
+      <div v-for="(settingsGroup, category) in groupedSettings" :key="category" class="mb-6">
+        <Card>
+          <CardHeader>
+            <CardTitle class="flex items-center gap-2 text-lg">
+              <component
+                :is="getCategoryIcon(category)"
+                class="size-5 text-muted-foreground"
+                aria-hidden="true"
+              />
+              {{ formatCategoryName(category) }}
+            </CardTitle>
+          </CardHeader>
+          <CardContent class="p-0">
+            <!-- Fixed columns so Value and Description line up across every category card -->
+            <Table class="min-w-[720px] table-fixed">
+              <colgroup>
+                <col class="w-[30%]" />
+                <col class="w-[22%]" />
+                <col />
+                <col class="w-[96px]" />
+              </colgroup>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Setting Key</TableHead>
+                  <TableHead>Value</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead><span class="sr-only">Actions</span></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="item in settingsGroup" :key="item.id">
+                  <TableCell class="whitespace-normal">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="font-medium text-sm break-all">{{ item.key }}</span>
+                      <StatusBadge
+                        v-if="item.requires_restart"
+                        status="warning"
+                        label="Restart required"
+                        tooltip="A change takes effect after the server restarts"
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell class="whitespace-normal">
+                    <code v-if="item.is_sensitive" class="rounded bg-muted px-1.5 py-0.5 text-xs"
+                      >***MASKED***</code
+                    >
+                    <code v-else class="rounded bg-muted px-1.5 py-0.5 text-xs break-all">{{
+                      formatValue(item.value)
+                    }}</code>
+                  </TableCell>
+                  <TableCell class="text-xs text-muted-foreground whitespace-normal">{{
+                    item.description
+                  }}</TableCell>
+                  <TableCell>
+                    <div class="flex justify-end gap-1">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <Button
+                            :aria-label="`Edit ${item.key}`"
+                            variant="ghost"
+                            size="icon-sm"
+                            :disabled="item.is_readonly"
+                            @click="showEditDialog(item)"
+                          >
+                            <Pencil class="size-4" aria-hidden="true" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{{
+                          item.is_readonly ? 'Read-only setting' : 'Edit setting'
+                        }}</TooltipContent>
+                      </Tooltip>
 
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <Button
-                          aria-label="View History"
-                          variant="ghost"
-                          size="icon"
-                          class="h-8 w-8"
-                          @click="showHistoryDialog(item)"
-                        >
-                          <HistoryIcon class="size-4 text-blue-500" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>View History</TooltipContent>
-                    </Tooltip>
-                  </div>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-
-    <!-- Empty State -->
-    <Card v-if="!loading && Object.keys(groupedSettings).length === 0">
-      <CardContent class="py-8 text-center">
-        <Settings class="mx-auto size-16 text-muted-foreground" />
-        <div class="mt-4 text-lg font-semibold">No Settings Found</div>
-        <div class="text-sm text-muted-foreground">
-          Select a different category or clear filters
-        </div>
-      </CardContent>
-    </Card>
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <Button
+                            :aria-label="`History of ${item.key}`"
+                            variant="ghost"
+                            size="icon-sm"
+                            @click="showHistoryDialog(item)"
+                          >
+                            <HistoryIcon class="size-4" aria-hidden="true" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Change history</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </DataState>
 
     <!-- Dialogs -->
     <SettingEditDialog
@@ -167,11 +174,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { History as HistoryIcon, Pencil, RotateCw } from 'lucide-vue-next'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
+import { DataState, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import SettingEditDialog from '@/components/admin/settings/SettingEditDialog.vue'
 import SettingHistoryDialog from '@/components/admin/settings/SettingHistoryDialog.vue'
 import { useSettingsApi } from '@/composables/useSettingsApi'
-import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import {
   Cog,
   DatabaseBackup,
@@ -185,7 +192,6 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import {
   Table,
@@ -224,6 +230,7 @@ const selectedSetting = ref(null)
 const selectedCategory = ref(null)
 const statsLoading = ref(true)
 const loading = ref(true)
+const loadError = ref(null)
 
 // Dialogs
 const dialogs = ref({
@@ -275,6 +282,7 @@ const loadStats = async () => {
 
 const loadSettings = async () => {
   loading.value = true
+  loadError.value = null
   try {
     const category = selectedCategory.value === 'all' ? null : selectedCategory.value
     const data = await apiLoadSettings({
@@ -286,6 +294,7 @@ const loadSettings = async () => {
     settings.value = data.settings || []
   } catch (error) {
     window.logService.error('Failed to load settings:', error)
+    loadError.value = error.message || 'Request failed'
   } finally {
     loading.value = false
   }
