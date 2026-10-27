@@ -3,17 +3,17 @@
 
 version: 2
 updates:
-  # Python dependencies (pyproject.toml)
-  - package-ecosystem: "pip"
+  # Python dependencies (pyproject.toml + uv.lock)
+  - package-ecosystem: "uv"
     directory: "/backend"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "09:00"
       timezone: "Europe/Berlin"
+    cooldown:
+      default-days: 3
     open-pull-requests-limit: 10
-    reviewers:
-      - "berntpopp"
     labels:
       - "dependencies"
       - "python"
@@ -49,9 +49,9 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Europe/Berlin"
+    cooldown:
+      default-days: 3
     open-pull-requests-limit: 10
-    reviewers:
-      - "berntpopp"
     labels:
       - "dependencies"
       - "frontend"
@@ -66,13 +66,10 @@ updates:
           - "patch"
         exclude-patterns:
           - "vue"
-          - "vuetify"
           - "vite"
     ignore:
       # Monitor but don't auto-update major framework versions
       - dependency-name: "vue"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "vuetify"
         update-types: ["version-update:semver-major"]
       - dependency-name: "vite"
         update-types: ["version-update:semver-major"]
@@ -88,9 +85,9 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Europe/Berlin"
+    cooldown:
+      default-days: 3
     open-pull-requests-limit: 5
-    reviewers:
-      - "berntpopp"
     labels:
       - "dependencies"
       - "github-actions"
@@ -111,9 +108,9 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Europe/Berlin"
+    cooldown:
+      default-days: 3
     open-pull-requests-limit: 5
-    reviewers:
-      - "berntpopp"
     labels:
       - "dependencies"
       - "docker"
@@ -133,12 +130,62 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Europe/Berlin"
+    cooldown:
+      default-days: 3
     open-pull-requests-limit: 5
-    reviewers:
-      - "berntpopp"
     labels:
       - "dependencies"
       - "docker"
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
+
+  # MCP server (independent uv project)
+  - package-ecosystem: "uv"
+    directory: "/mcp"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Berlin"
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      mcp-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Docker base images - MCP and patched PostgreSQL
+  - package-ecosystem: "docker"
+    directories:
+      - "/mcp"
+      - "/postgres"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Berlin"
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    ignore:
+      # Python 3.13 is the MCP/CI baseline (AGENTS.md); bump deliberately
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # PostgreSQL major upgrades need a dump/restore
+      - dependency-name: "postgres"
+        update-types: ["version-update:semver-major"]
