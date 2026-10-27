@@ -2,53 +2,6 @@
   <div :class="PAGE_CONTAINER">
     <AdminHeader title="Admin" subtitle="Live system status and entry points to each area" root />
 
-    <!-- Live KPIs, each a link to the view that acts on it -->
-    <div class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-      <AdminStatsCard
-        title="Pending staging"
-        :value="stats.pendingStaging"
-        :loading="statsLoading"
-        :icon="ADMIN_ICONS.staging"
-        to="/admin/staging"
-      />
-      <AdminStatsCard
-        title="Running pipeline jobs"
-        :value="stats.pipelineJobs"
-        :loading="statsLoading"
-        :icon="ADMIN_ICONS.pipeline"
-        to="/admin/pipeline"
-      />
-      <AdminStatsCard
-        title="Errors (24 h)"
-        :value="stats.errors24h"
-        :loading="statsLoading"
-        :icon="ADMIN_ICONS.logs"
-        to="/admin/logs"
-      />
-      <AdminStatsCard
-        title="Cache hit rate"
-        :value="stats.cacheHitRate"
-        :loading="statsLoading"
-        format="percent"
-        :icon="ADMIN_ICONS.cache"
-        to="/admin/cache"
-      />
-      <AdminStatsCard
-        title="Data releases"
-        :value="stats.totalReleases"
-        :loading="statsLoading"
-        :icon="ADMIN_ICONS.releases"
-        to="/admin/releases"
-      />
-      <AdminStatsCard
-        title="Active users"
-        :value="stats.activeUsers"
-        :loading="statsLoading"
-        :icon="ADMIN_ICONS.users"
-        to="/admin/users"
-      />
-    </div>
-
     <!-- Sections: real links, each with its live status where one exists -->
     <nav aria-label="Admin sections">
       <ul class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -99,7 +52,6 @@ import { getStagingStats } from '@/api/admin/staging'
 import { getLogStatistics } from '@/api/admin/logs'
 import { listReleases } from '@/api/admin/releases'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
-import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import { PAGE_CONTAINER, StatusBadge } from '@/components/shared'
 import { ADMIN_ICONS } from '@/utils/adminIcons'
 
@@ -145,6 +97,10 @@ const liveStatus = {
       : s.totalReleases > 0
         ? { status: 'info', label: count(s.totalReleases, 'release', 'releases') }
         : { status: 'draft', label: 'No release yet' },
+  cache: s =>
+    s.cacheHitRate === null
+      ? UNAVAILABLE
+      : { status: 'info', label: `${s.cacheHitRate}% hit rate` },
   users: s =>
     s.activeUsers === null
       ? UNAVAILABLE

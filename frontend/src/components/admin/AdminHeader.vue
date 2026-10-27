@@ -17,28 +17,25 @@ import {
 defineProps<{
   title: string
   subtitle?: string
-  /** The admin dashboard itself: breadcrumb is just "Admin" */
+  /** The admin dashboard itself: no breadcrumb */
   root?: boolean
 }>()
 </script>
 
 <template>
   <PageHeader :title="title" :description="subtitle">
-    <template #breadcrumb>
+    <template v-if="!root" #breadcrumb>
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbPage v-if="root">Admin</BreadcrumbPage>
-            <BreadcrumbLink v-else as-child>
+            <BreadcrumbLink as-child>
               <RouterLink to="/admin">Admin</RouterLink>
             </BreadcrumbLink>
           </BreadcrumbItem>
-          <template v-if="!root">
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{{ title }}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </template>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{{ title }}</BreadcrumbPage>
+          </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
     </template>

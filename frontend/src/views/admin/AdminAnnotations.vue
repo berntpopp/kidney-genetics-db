@@ -438,8 +438,8 @@
 
     <!-- Scheduled Jobs -->
     <Card class="mb-6">
-      <CardHeader class="flex flex-row items-center justify-between">
-        <CardTitle class="flex items-center">
+      <CardHeader class="flex flex-row flex-wrap items-center justify-between gap-2">
+        <CardTitle class="flex flex-wrap items-center gap-y-1">
           Scheduled Jobs
           <StatusBadge
             :status="schedulerInfo.scheduler_running ? 'running' : 'idle'"
