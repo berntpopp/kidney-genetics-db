@@ -1,121 +1,56 @@
 <template>
   <div v-if="gnomadData">
-    <div class="text-xs text-muted-foreground mb-2">Constraint Scores (gnomAD):</div>
+    <h3 class="mb-2 text-xs font-medium text-muted-foreground">Constraint scores (gnomAD)</h3>
 
-    <div v-if="gnomadData.constraint_not_available" class="flex items-center">
-      <Badge variant="outline" class="text-xs" :style="tintedChipStyle('#6b7280')">
-        <Info :size="12" class="mr-1" />
-        No constraint scores available
-      </Badge>
-    </div>
+    <p v-if="gnomadData.constraint_not_available" class="text-sm text-muted-foreground">
+      No gnomAD constraint scores for this gene.
+    </p>
 
-    <div v-else class="flex flex-wrap gap-2">
-      <!-- pLI Score -->
-      <HoverPopover content-class="w-auto p-2 max-w-xs">
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle(getPLIColor(gnomadData.pli))"
-        >
-          pLI: {{ formatPLI(gnomadData.pli) }}
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">Loss-of-Function Intolerance</p>
-          <p class="text-xs text-muted-foreground">Probability of LoF intolerance (pLI)</p>
-          <p class="text-xs mt-1">Score: {{ gnomadData.pli?.toFixed(4) || 'N/A' }}</p>
-          <p class="text-xs">{{ getPLIInterpretation(gnomadData.pli) }}</p>
-        </template>
-      </HoverPopover>
-
-      <!-- Missense Z-score -->
-      <HoverPopover content-class="w-auto p-2 max-w-xs">
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle(getZScoreColor(gnomadData.mis_z))"
-        >
-          Mis Z: {{ formatZScore(gnomadData.mis_z) }}
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">Missense Constraint</p>
-          <p class="text-xs text-muted-foreground">Z-score for missense variants</p>
-          <p class="text-xs mt-1">Score: {{ gnomadData.mis_z?.toFixed(2) || 'N/A' }}</p>
-          <p class="text-xs">{{ getZScoreInterpretation(gnomadData.mis_z) }}</p>
-        </template>
-      </HoverPopover>
-
-      <!-- LoF Z-score -->
-      <HoverPopover v-if="gnomadData.lof_z" content-class="w-auto p-2 max-w-xs">
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle('#6b7280')"
-        >
-          LoF Z: {{ formatZScore(gnomadData.lof_z) }}
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">LoF Constraint</p>
-          <p class="text-xs text-muted-foreground">Z-score for loss-of-function variants</p>
-          <p class="text-xs mt-1">Score: {{ gnomadData.lof_z?.toFixed(2) || 'N/A' }}</p>
-          <p class="text-xs">{{ getZScoreInterpretation(gnomadData.lof_z) }}</p>
-        </template>
-      </HoverPopover>
+    <div v-else class="flex flex-wrap gap-1.5">
+      <Chip
+        kind="neutral"
+        class="tabular-nums"
+        :label="`pLI ${fixed(gnomadData.pli, 2)}`"
+        :tooltip="`Probability of loss-of-function intolerance (pLI) ${fixed(gnomadData.pli, 4)}: ${pliText(gnomadData.pli)}. Range 0–1; ≥ 0.9 is intolerant.`"
+      />
+      <Chip
+        kind="neutral"
+        class="tabular-nums"
+        :label="`Missense Z ${fixed(gnomadData.mis_z, 2)}`"
+        :tooltip="`Missense Z-score ${fixed(gnomadData.mis_z, 2)}: ${zText(gnomadData.mis_z)}. Higher means fewer missense variants than expected.`"
+      />
+      <Chip
+        v-if="gnomadData.lof_z != null"
+        kind="neutral"
+        class="tabular-nums"
+        :label="`LoF Z ${fixed(gnomadData.lof_z, 2)}`"
+        :tooltip="`Loss-of-function Z-score ${fixed(gnomadData.lof_z, 2)}: ${zText(gnomadData.lof_z)}. Higher means fewer loss-of-function variants than expected.`"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { Badge } from '@/components/ui/badge'
-import { tintedChipStyle } from '@/utils/evidenceTiers'
-import HoverPopover from '@/components/ui/HoverPopover.vue'
-import { Info } from 'lucide-vue-next'
+import { Chip } from '@/components/shared'
 
 defineProps({
-  gnomadData: {
-    type: Object,
-    default: null
-  }
+  gnomadData: { type: Object, default: null }
 })
 
-const getPLIColor = pli => {
-  if (!pli) return '#6b7280'
-  if (pli >= 0.9) return '#ef4444'
-  if (pli >= 0.5) return '#f59e0b'
-  return '#22c55e'
+const fixed = (value, digits) => (value == null ? 'n/a' : Number(value).toFixed(digits))
+
+const pliText = pli => {
+  if (pli == null) return 'no data'
+  if (pli >= 0.9) return 'highly intolerant of loss of function'
+  if (pli >= 0.5) return 'moderately intolerant of loss of function'
+  return 'tolerant of loss of function'
 }
 
-const getZScoreColor = zScore => {
-  if (!zScore) return '#6b7280'
-  if (zScore >= 3.09) return '#ef4444'
-  if (zScore >= 2) return '#f59e0b'
-  return '#22c55e'
-}
-
-const formatPLI = pli => {
-  if (!pli) return 'N/A'
-  return pli.toFixed(2)
-}
-
-const formatZScore = zScore => {
-  if (!zScore) return 'N/A'
-  return zScore.toFixed(2)
-}
-
-const getPLIInterpretation = pli => {
-  if (!pli) return 'No data available'
-  if (pli >= 0.9) return 'Highly LoF intolerant'
-  if (pli >= 0.5) return 'Moderately LoF intolerant'
-  return 'LoF tolerant'
-}
-
-const getZScoreInterpretation = zScore => {
-  if (!zScore) return 'No data available'
-  if (zScore >= 3.09) return 'Extremely intolerant (p < 0.001)'
-  if (zScore >= 2) return 'Intolerant'
-  if (zScore >= 0) return 'Near expectation'
-  return 'More tolerant than expected'
+const zText = z => {
+  if (z == null) return 'no data'
+  if (z >= 3.09) return 'extremely constrained (p < 0.001)'
+  if (z >= 2) return 'constrained'
+  if (z >= 0) return 'near expectation'
+  return 'more variation than expected'
 }
 </script>

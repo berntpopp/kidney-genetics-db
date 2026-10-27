@@ -1,231 +1,107 @@
 <template>
   <div v-if="hpoData">
-    <div class="text-xs text-muted-foreground mb-2">Human Phenotypes (HPO):</div>
+    <h3 class="mb-2 text-xs font-medium text-muted-foreground">Human phenotypes (HPO)</h3>
 
-    <div
+    <p
       v-if="hpoData.phenotype_count === 0 || hpoData.no_data_available"
-      class="flex items-center"
+      class="text-sm text-muted-foreground"
     >
-      <Badge variant="outline" class="text-xs" :style="tintedChipStyle('#6b7280')">
-        <Info :size="12" class="mr-1" />
-        No phenotypes available
-      </Badge>
-    </div>
+      No HPO phenotypes for this gene.
+    </p>
 
-    <div v-else class="flex items-center flex-wrap gap-2">
-      <!-- Clinical Group -->
-      <HoverPopover
-        v-if="hpoData.classification?.clinical_group?.primary"
-        content-class="w-auto p-2 max-w-xs"
-      >
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="
-            tintedChipStyle(getClinicalGroupColor(hpoData.classification.clinical_group.primary))
-          "
-        >
-          {{ formatClinicalGroup(hpoData.classification.clinical_group.primary) }}
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">Clinical Classification</p>
-          <p class="text-xs text-muted-foreground mb-1">
-            Primary: {{ formatClinicalGroup(hpoData.classification.clinical_group.primary) }}
-          </p>
-          <p class="text-xs" data-testid="clinical-group-score">
-            <!-- v1 annotations (no method) keep their old score until the next HPO run -->
-            {{
-              hpoData.classification.clinical_group.method
-                ? 'Share of kidney-group evidence'
-                : 'Score (pre-v2 classification)'
-            }}:
-            {{
-              (
-                hpoData.classification.clinical_group.scores[
-                  hpoData.classification.clinical_group.primary
-                ] * 100
-              ).toFixed(0)
-            }}%
-          </p>
-          <p v-if="hpoData.classification.clinical_group.secondary?.length" class="text-xs">
-            Secondary:
-            {{
-              hpoData.classification.clinical_group.secondary.map(formatClinicalGroup).join(', ')
-            }}
-          </p>
-        </template>
-      </HoverPopover>
-
-      <!-- Secondary clinical groups (evidence >= half of the primary's, #338) -->
+    <div v-else class="flex flex-wrap items-center gap-1.5">
+      <Chip
+        v-if="clinical?.primary"
+        kind="neutral"
+        data-testid="clinical-group"
+        :label="groupLabel(clinical.primary)"
+        :tooltip="clinicalTooltip"
+      />
       <span
-        v-if="hpoData.classification?.clinical_group?.secondary?.length"
+        v-if="clinical?.secondary?.length"
         data-testid="clinical-group-secondary"
-        class="flex items-center gap-1"
+        class="contents"
       >
         <span class="sr-only">Secondary clinical groups:</span>
-        <Badge
-          v-for="group in hpoData.classification.clinical_group.secondary"
+        <Chip
+          v-for="group in clinical.secondary"
           :key="group"
-          as="span"
-          variant="outline"
-          class="text-[10px] px-1.5 py-0"
-          :style="tintedChipStyle(getClinicalGroupColor(group))"
-          :title="`Secondary clinical group: ${formatClinicalGroup(group)}`"
-        >
-          {{ formatClinicalGroup(group) }}
-        </Badge>
+          kind="neutral"
+          class="text-muted-foreground"
+          :label="groupLabel(group)"
+          :tooltip="`Secondary clinical group: ${groupLabel(group)} (at least half the evidence of the primary group)`"
+        />
       </span>
-
-      <!-- Onset Group -->
-      <HoverPopover
-        v-if="hpoData.classification?.onset_group?.primary"
-        content-class="w-auto p-2 max-w-xs"
-      >
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle('#6b7280')"
-        >
-          {{ formatOnsetGroup(hpoData.classification.onset_group.primary) }} onset
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">Age of Onset</p>
-          <p class="text-xs text-muted-foreground">
-            {{ formatOnsetGroup(hpoData.classification.onset_group.primary) }}
-            ({{
-              (
-                hpoData.classification.onset_group.scores[
-                  hpoData.classification.onset_group.primary
-                ] * 100
-              ).toFixed(0)
-            }}%)
-          </p>
-        </template>
-      </HoverPopover>
-
-      <!-- Syndromic Badge -->
-      <HoverPopover
-        v-if="hpoData.classification?.syndromic_assessment"
-        content-class="w-auto p-2 max-w-xs"
-      >
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="
-            tintedChipStyle(
-              hpoData.classification.syndromic_assessment.is_syndromic ? '#f59e0b' : '#6b7280'
-            )
-          "
-        >
-          {{ hpoData.classification.syndromic_assessment.is_syndromic ? 'Syndromic' : 'Isolated' }}
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">Presentation Type</p>
-          <p class="text-xs text-muted-foreground">
-            {{
-              hpoData.classification.syndromic_assessment.is_syndromic
-                ? 'Syndromic kidney disease'
-                : 'Isolated kidney phenotype'
-            }}
-          </p>
-          <p
-            v-if="hpoData.classification.syndromic_assessment.extra_renal_categories?.length"
-            class="text-xs mt-1"
-          >
-            Extra-renal:
-            {{ hpoData.classification.syndromic_assessment.extra_renal_categories.join(', ') }}
-          </p>
-        </template>
-      </HoverPopover>
-
-      <!-- Phenotype Count -->
-      <HoverPopover content-class="w-auto p-2 max-w-xs">
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle('#0ea5e9')"
-        >
-          {{ hpoData.kidney_phenotype_count }}/{{ hpoData.phenotype_count }} kidney
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">HPO Phenotypes</p>
-          <p class="text-xs text-muted-foreground">
-            {{ hpoData.kidney_phenotype_count }} kidney-related phenotypes out of
-            {{ hpoData.phenotype_count }} total
-          </p>
-        </template>
-      </HoverPopover>
-
-      <!-- Disease associations -->
-      <HoverPopover v-if="hpoData.disease_count > 0" content-class="w-auto p-2 max-w-xs">
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle('#3b82f6')"
-        >
-          {{ hpoData.disease_count }} diseases
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">Disease Associations</p>
-          <p class="text-xs text-muted-foreground">
-            {{ hpoData.disease_count }} disease associations in HPO
-          </p>
-        </template>
-      </HoverPopover>
+      <Chip
+        v-if="onset?.primary"
+        kind="neutral"
+        :label="`${ONSET[onset.primary] ?? onset.primary} onset`"
+        :tooltip="`Most likely age of onset from the HPO annotations: ${ONSET[onset.primary] ?? onset.primary} (${pct(onset.scores?.[onset.primary])})`"
+      />
+      <Chip
+        v-if="syndromic"
+        kind="neutral"
+        :label="syndromic.is_syndromic ? 'Syndromic' : 'Isolated'"
+        :tooltip="syndromicTooltip"
+      />
+      <Chip
+        kind="neutral"
+        class="tabular-nums"
+        :label="`${hpoData.kidney_phenotype_count} of ${hpoData.phenotype_count} kidney`"
+        :tooltip="`${hpoData.kidney_phenotype_count} kidney-related phenotypes out of ${hpoData.phenotype_count} HPO phenotypes annotated to this gene`"
+      />
+      <Chip
+        v-if="hpoData.disease_count > 0"
+        kind="neutral"
+        class="tabular-nums"
+        :label="`${hpoData.disease_count} ${hpoData.disease_count === 1 ? 'disease' : 'diseases'}`"
+        :tooltip="`${hpoData.disease_count} disease associations in HPO`"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { Badge } from '@/components/ui/badge'
-import { tintedChipStyle } from '@/utils/evidenceTiers'
-import HoverPopover from '@/components/ui/HoverPopover.vue'
-import { Info } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { Chip } from '@/components/shared'
 
-defineProps({
-  hpoData: {
-    type: Object,
-    default: null
-  }
+const props = defineProps({
+  hpoData: { type: Object, default: null }
 })
 
-const getClinicalGroupColor = group => {
-  const colors = {
-    complement: '#8b5cf6',
-    cakut: '#3b82f6',
-    glomerulopathy: '#ef4444',
-    cyst_cilio: '#14b8a6',
-    tubulopathy: '#f97316',
-    nephrolithiasis: '#92400e',
-    neoplasia: '#64748b'
-  }
-  return colors[group] || '#6b7280'
+const GROUPS = {
+  complement: 'Complement',
+  cakut: 'CAKUT',
+  glomerulopathy: 'Glomerulopathy',
+  cyst_cilio: 'Cystic/Ciliopathy',
+  tubulopathy: 'Tubulopathy',
+  nephrolithiasis: 'Nephrolithiasis',
+  neoplasia: 'Neoplasia'
 }
+const ONSET = { adult: 'Adult', pediatric: 'Pediatric', congenital: 'Congenital' }
 
-const formatClinicalGroup = group => {
-  const labels = {
-    complement: 'Complement',
-    cakut: 'CAKUT',
-    glomerulopathy: 'Glomerulopathy',
-    cyst_cilio: 'Cystic/Ciliopathy',
-    tubulopathy: 'Tubulopathy',
-    nephrolithiasis: 'Nephrolithiasis',
-    neoplasia: 'Neoplasia'
-  }
-  return labels[group] || group
-}
+const groupLabel = group => GROUPS[group] ?? group
+const pct = value => (value == null ? 'n/a' : `${(value * 100).toFixed(0)}%`)
 
-const formatOnsetGroup = group => {
-  const labels = {
-    adult: 'Adult',
-    pediatric: 'Pediatric',
-    congenital: 'Congenital'
-  }
-  return labels[group] || group
-}
+const clinical = computed(() => props.hpoData?.classification?.clinical_group)
+const onset = computed(() => props.hpoData?.classification?.onset_group)
+const syndromic = computed(() => props.hpoData?.classification?.syndromic_assessment)
+
+const clinicalTooltip = computed(() => {
+  const c = clinical.value
+  // v1 annotations (no method) keep their old score until the next HPO run
+  const scoreLabel = c.method ? 'Share of kidney-group evidence' : 'Score (pre-v2 classification)'
+  const secondary = c.secondary?.length
+    ? ` Secondary: ${c.secondary.map(groupLabel).join(', ')}.`
+    : ''
+  return `Clinical group: ${groupLabel(c.primary)}. ${scoreLabel}: ${pct(c.scores?.[c.primary])}.${secondary}`
+})
+
+const syndromicTooltip = computed(() => {
+  const s = syndromic.value
+  const extra = s.extra_renal_categories?.length
+    ? ` Extra-renal: ${s.extra_renal_categories.join(', ')}.`
+    : ''
+  return `${s.is_syndromic ? 'Syndromic kidney disease' : 'Isolated kidney phenotype'}.${extra}`
+})
 </script>

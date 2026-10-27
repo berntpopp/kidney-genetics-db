@@ -1,194 +1,75 @@
 <template>
   <div v-if="gtexData || descartesData">
-    <div class="text-xs text-muted-foreground mb-2">Kidney Expression (GTEx/scRNA):</div>
+    <h3 class="mb-2 text-xs font-medium text-muted-foreground">Kidney expression</h3>
 
-    <div v-if="hasNoData" class="flex items-center">
-      <Badge variant="outline" class="text-xs" :style="tintedChipStyle('#6b7280')">
-        <Info :size="12" class="mr-1" />
-        No expression data available
-      </Badge>
-    </div>
+    <p v-if="!chips.length" class="text-sm text-muted-foreground">
+      No kidney expression data for this gene.
+    </p>
 
-    <div v-else class="flex items-center flex-wrap gap-2">
-      <!-- GTEx Expression -->
-      <template v-if="gtexData">
-        <span class="text-xs text-muted-foreground">GTEx:</span>
-
-        <!-- Kidney Cortex -->
-        <HoverPopover v-if="gtexData.tissues?.Kidney_Cortex" content-class="w-auto p-2 max-w-xs">
-          <Badge
-            as="span"
-            variant="outline"
-            class="cursor-pointer"
-            :style="tintedChipStyle(getTPMColor(gtexData.tissues.Kidney_Cortex.median_tpm))"
-          >
-            Cortex: {{ formatTPM(gtexData.tissues.Kidney_Cortex.median_tpm) }}
-          </Badge>
-          <template #content>
-            <p class="font-medium text-xs">Kidney Cortex Expression</p>
-            <p class="text-xs text-muted-foreground">GTEx v8 median TPM</p>
-            <p class="text-xs mt-1">
-              Value: {{ gtexData.tissues.Kidney_Cortex.median_tpm?.toFixed(2) || 'N/A' }} TPM
-            </p>
-            <p class="text-xs">
-              {{ getTPMInterpretation(gtexData.tissues.Kidney_Cortex.median_tpm) }}
-            </p>
-          </template>
-        </HoverPopover>
-
-        <!-- Kidney Medulla -->
-        <HoverPopover v-if="gtexData.tissues?.Kidney_Medulla" content-class="w-auto p-2 max-w-xs">
-          <Badge
-            as="span"
-            variant="outline"
-            class="cursor-pointer"
-            :style="tintedChipStyle(getTPMColor(gtexData.tissues.Kidney_Medulla.median_tpm))"
-          >
-            Medulla: {{ formatTPM(gtexData.tissues.Kidney_Medulla.median_tpm) }}
-          </Badge>
-          <template #content>
-            <p class="font-medium text-xs">Kidney Medulla Expression</p>
-            <p class="text-xs text-muted-foreground">GTEx v8 median TPM</p>
-            <p class="text-xs mt-1">
-              Value: {{ gtexData.tissues.Kidney_Medulla.median_tpm?.toFixed(2) || 'N/A' }} TPM
-            </p>
-            <p class="text-xs">
-              {{ getTPMInterpretation(gtexData.tissues.Kidney_Medulla.median_tpm) }}
-            </p>
-          </template>
-        </HoverPopover>
-
-        <span
-          v-if="!gtexData.tissues?.Kidney_Cortex && !gtexData.tissues?.Kidney_Medulla"
-          class="text-xs text-muted-foreground"
-        >
-          No data
-        </span>
-      </template>
-
-      <!-- Descartes Expression -->
-      <template v-if="descartesData">
-        <span class="text-xs text-muted-foreground ml-3">scRNA:</span>
-
-        <!-- Kidney TPM -->
-        <HoverPopover v-if="descartesData.kidney_tpm !== null" content-class="w-auto p-2 max-w-xs">
-          <Badge
-            as="span"
-            variant="outline"
-            class="cursor-pointer"
-            :style="tintedChipStyle(getTPMColor(descartesData.kidney_tpm))"
-          >
-            TPM: {{ formatTPM(descartesData.kidney_tpm) }}
-          </Badge>
-          <template #content>
-            <p class="font-medium text-xs">Single-cell Kidney Expression</p>
-            <p class="text-xs text-muted-foreground">Descartes Human Cell Atlas</p>
-            <p class="text-xs mt-1">TPM: {{ descartesData.kidney_tpm?.toFixed(2) || 'N/A' }}</p>
-            <p v-if="descartesData.kidney_percentage" class="text-xs">
-              Cells expressing: {{ (descartesData.kidney_percentage * 100)?.toFixed(2) }}%
-            </p>
-            <p class="text-xs">{{ getTPMInterpretation(descartesData.kidney_tpm) }}</p>
-          </template>
-        </HoverPopover>
-
-        <!-- Cell percentage -->
-        <HoverPopover
-          v-if="descartesData.kidney_percentage !== null"
-          content-class="w-auto p-2 max-w-xs"
-        >
-          <Badge
-            as="span"
-            variant="outline"
-            class="cursor-pointer"
-            :style="tintedChipStyle(getPercentageColor(descartesData.kidney_percentage))"
-          >
-            {{ (descartesData.kidney_percentage * 100)?.toFixed(2) }}% cells
-          </Badge>
-          <template #content>
-            <p class="font-medium text-xs">Cell Expression Percentage</p>
-            <p class="text-xs text-muted-foreground">Descartes Human Cell Atlas</p>
-            <p class="text-xs mt-1">
-              {{ (descartesData.kidney_percentage * 100)?.toFixed(2) }}% of kidney cells express
-              this gene
-            </p>
-          </template>
-        </HoverPopover>
-
-        <span
-          v-if="descartesData.kidney_tpm === null && descartesData.kidney_percentage === null"
-          class="text-xs text-muted-foreground"
-        >
-          No data
-        </span>
-      </template>
+    <div v-else class="flex flex-wrap items-center gap-1.5">
+      <Chip
+        v-for="chip in chips"
+        :key="chip.label"
+        kind="neutral"
+        class="tabular-nums"
+        :label="chip.label"
+        :tooltip="chip.tooltip"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { Badge } from '@/components/ui/badge'
-import { tintedChipStyle } from '@/utils/evidenceTiers'
-import HoverPopover from '@/components/ui/HoverPopover.vue'
-import { Info } from 'lucide-vue-next'
+import { Chip } from '@/components/shared'
 
 const props = defineProps({
-  gtexData: {
-    type: Object,
-    default: null
-  },
-  descartesData: {
-    type: Object,
-    default: null
-  }
+  gtexData: { type: Object, default: null },
+  descartesData: { type: Object, default: null }
 })
-
-const hasNoData = computed(() => {
-  const gtexNoData =
-    props.gtexData?.no_data_available ||
-    (!props.gtexData?.tissues?.Kidney_Cortex && !props.gtexData?.tissues?.Kidney_Medulla)
-
-  const descartesNoData =
-    props.descartesData?.no_data_available ||
-    (props.descartesData?.kidney_tpm === null && props.descartesData?.kidney_percentage === null)
-
-  return (
-    (props.gtexData && gtexNoData && !props.descartesData) ||
-    (props.descartesData && descartesNoData && !props.gtexData) ||
-    (props.gtexData && props.descartesData && gtexNoData && descartesNoData)
-  )
-})
-
-const getTPMColor = tpm => {
-  if (tpm === null || tpm === undefined) return '#6b7280'
-  if (tpm >= 100) return '#22c55e'
-  if (tpm >= 10) return '#3b82f6'
-  if (tpm >= 1) return '#f59e0b'
-  return '#9ca3af'
-}
-
-const getPercentageColor = percentage => {
-  if (!percentage) return '#6b7280'
-  if (percentage >= 0.5) return '#22c55e'
-  if (percentage >= 0.1) return '#3b82f6'
-  if (percentage >= 0.01) return '#f59e0b'
-  return '#9ca3af'
-}
 
 const formatTPM = tpm => {
-  if (tpm === null || tpm === undefined) return 'N/A'
+  if (tpm == null) return 'n/a'
   if (tpm < 0.01) return '<0.01'
   if (tpm < 1) return tpm.toFixed(2)
   if (tpm < 100) return tpm.toFixed(1)
   return Math.round(tpm).toString()
 }
 
-const getTPMInterpretation = tpm => {
-  if (tpm === null || tpm === undefined) return 'No expression data'
-  if (tpm >= 100) return 'Very high expression'
-  if (tpm >= 10) return 'Moderate expression'
-  if (tpm >= 1) return 'Low expression'
-  if (tpm > 0) return 'Very low expression'
-  return 'Not expressed'
+const level = tpm => {
+  if (tpm == null) return 'no data'
+  if (tpm >= 100) return 'very high expression'
+  if (tpm >= 10) return 'moderate expression'
+  if (tpm >= 1) return 'low expression'
+  if (tpm > 0) return 'very low expression'
+  return 'not expressed'
 }
+
+const chips = computed(() => {
+  const out = []
+  const tissues = props.gtexData?.no_data_available ? {} : (props.gtexData?.tissues ?? {})
+  for (const [key, name] of [
+    ['Kidney_Cortex', 'Cortex'],
+    ['Kidney_Medulla', 'Medulla']
+  ]) {
+    const tpm = tissues[key]?.median_tpm
+    if (tpm == null) continue
+    out.push({
+      label: `GTEx ${name} ${formatTPM(tpm)} TPM`,
+      tooltip: `GTEx v8 median expression in kidney ${name.toLowerCase()}: ${tpm.toFixed(2)} transcripts per million (${level(tpm)})`
+    })
+  }
+  const d = props.descartesData?.no_data_available ? null : props.descartesData
+  if (d?.kidney_tpm != null)
+    out.push({
+      label: `scRNA ${formatTPM(d.kidney_tpm)} TPM`,
+      tooltip: `Descartes Human Cell Atlas, kidney single-cell expression: ${d.kidney_tpm.toFixed(2)} transcripts per million (${level(d.kidney_tpm)})`
+    })
+  if (d?.kidney_percentage != null)
+    out.push({
+      label: `${(d.kidney_percentage * 100).toFixed(2)}% of cells`,
+      tooltip: `Descartes Human Cell Atlas: ${(d.kidney_percentage * 100).toFixed(2)}% of kidney cells express this gene`
+    })
+  return out
+})
 </script>

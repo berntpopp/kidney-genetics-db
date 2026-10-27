@@ -1,142 +1,65 @@
 <template>
   <div v-if="mouseData">
-    <div class="text-xs text-muted-foreground mb-2">Mouse Phenotypes (MGI/MPO):</div>
+    <h3 class="mb-2 text-xs font-medium text-muted-foreground">Mouse phenotypes (MGI)</h3>
 
-    <div
+    <p
       v-if="mouseData.phenotype_count === 0 || mouseData.no_data_available"
-      class="flex items-center"
+      class="text-sm text-muted-foreground"
     >
-      <Badge variant="outline" class="text-xs" :style="tintedChipStyle('#6b7280')">
-        <Info :size="12" class="mr-1" />
-        No phenotypes available
-      </Badge>
-    </div>
+      No kidney phenotypes in mouse models.
+    </p>
 
-    <div v-else class="flex items-center flex-wrap gap-2">
-      <!-- Phenotype count -->
-      <HoverPopover content-class="w-auto p-2 max-w-xs">
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle(getPhenotypeCountColor(mouseData.phenotype_count))"
-        >
-          {{ mouseData.phenotype_count }} phenotypes
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">Kidney-Related Phenotypes</p>
-          <p class="text-xs text-muted-foreground mb-2">
-            {{ mouseData.phenotype_count }} phenotypes found in mouse models
-          </p>
-          <div v-if="mouseData.phenotypes?.length" class="text-xs">
-            <p class="font-medium mb-1">Sample phenotypes:</p>
-            <div
-              v-for="phenotype in mouseData.phenotypes.slice(0, 5)"
-              :key="phenotype.term"
-              class="mb-1"
-            >
-              <span class="font-mono">{{ phenotype.term }}</span
-              >: {{ phenotype.name }}
-            </div>
-            <p v-if="mouseData.phenotype_count > 5" class="text-muted-foreground">
-              +{{ mouseData.phenotype_count - 5 }} more phenotypes
-            </p>
-          </div>
-        </template>
-      </HoverPopover>
-
-      <!-- Zygosity breakdown -->
-      <HoverPopover
-        v-if="mouseData.zygosity_analysis?.homozygous?.phenotype_count > 0"
-        content-class="w-auto p-2"
-      >
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle('#ef4444')"
-        >
-          {{ mouseData.zygosity_analysis.homozygous.phenotype_count }} hm
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">Homozygous Knockout</p>
-          <p class="text-xs text-muted-foreground">
-            {{ mouseData.zygosity_analysis.homozygous.phenotype_count }} kidney phenotypes
-          </p>
-        </template>
-      </HoverPopover>
-
-      <HoverPopover
-        v-if="mouseData.zygosity_analysis?.heterozygous?.phenotype_count > 0"
-        content-class="w-auto p-2"
-      >
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle('#f59e0b')"
-        >
-          {{ mouseData.zygosity_analysis.heterozygous.phenotype_count }} ht
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">Heterozygous Knockout</p>
-          <p class="text-xs text-muted-foreground">
-            {{ mouseData.zygosity_analysis.heterozygous.phenotype_count }} kidney phenotypes
-          </p>
-        </template>
-      </HoverPopover>
-
-      <HoverPopover
-        v-if="mouseData.zygosity_analysis?.conditional?.phenotype_count > 0"
-        content-class="w-auto p-2"
-      >
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle('#3b82f6')"
-        >
-          {{ mouseData.zygosity_analysis.conditional.phenotype_count }} cn
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">Conditional Knockout</p>
-          <p class="text-xs text-muted-foreground">
-            {{ mouseData.zygosity_analysis.conditional.phenotype_count }} kidney phenotypes
-          </p>
-        </template>
-      </HoverPopover>
-    </div>
-
-    <!-- System analysis -->
-    <div
-      v-if="mouseData.system_analysis?.renal_urinary"
-      class="flex items-center flex-wrap gap-2 mt-2"
-    >
-      <Badge variant="outline" :style="tintedChipStyle('#8b5cf6')">
-        Renal: {{ mouseData.system_analysis.renal_urinary.phenotype_count }} phenotypes
-      </Badge>
+    <div v-else class="flex flex-wrap items-center gap-1.5">
+      <Chip
+        kind="neutral"
+        class="tabular-nums"
+        :label="`${mouseData.phenotype_count} ${mouseData.phenotype_count === 1 ? 'phenotype' : 'phenotypes'}`"
+        :tooltip="phenotypeTooltip"
+      />
+      <Chip
+        v-for="z in zygosity"
+        :key="z.key"
+        kind="neutral"
+        class="tabular-nums"
+        :label="`${z.count} ${z.label}`"
+        :tooltip="`${z.count} kidney phenotypes in ${z.label} knockout mice`"
+      />
+      <Chip
+        v-if="mouseData.system_analysis?.renal_urinary"
+        kind="neutral"
+        class="tabular-nums"
+        :label="`${mouseData.system_analysis.renal_urinary.phenotype_count} renal/urinary`"
+        tooltip="Phenotypes in the renal/urinary system branch of the Mammalian Phenotype Ontology"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { Badge } from '@/components/ui/badge'
-import { tintedChipStyle } from '@/utils/evidenceTiers'
-import HoverPopover from '@/components/ui/HoverPopover.vue'
-import { Info } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { Chip } from '@/components/shared'
 
-defineProps({
-  mouseData: {
-    type: Object,
-    default: null
-  }
+const props = defineProps({
+  mouseData: { type: Object, default: null }
 })
 
-const getPhenotypeCountColor = count => {
-  if (!count || count === 0) return '#6b7280'
-  if (count >= 20) return '#ef4444'
-  if (count >= 10) return '#f59e0b'
-  if (count >= 5) return '#3b82f6'
-  return '#22c55e'
-}
+const zygosity = computed(() =>
+  [
+    ['homozygous', 'homozygous'],
+    ['heterozygous', 'heterozygous'],
+    ['conditional', 'conditional']
+  ]
+    .map(([key, label]) => ({
+      key,
+      label,
+      count: props.mouseData?.zygosity_analysis?.[key]?.phenotype_count ?? 0
+    }))
+    .filter(z => z.count > 0)
+)
+
+const phenotypeTooltip = computed(() => {
+  const names = (props.mouseData?.phenotypes ?? []).slice(0, 5).map(p => p.name)
+  const more = props.mouseData.phenotype_count - names.length
+  return `Kidney-related phenotypes in mouse models${names.length ? `, e.g. ${names.join(', ')}` : ''}${more > 0 ? ` and ${more} more` : ''}`
+})
 </script>

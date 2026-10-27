@@ -1,56 +1,71 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { h } from 'vue'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import MondoDiseases from '@/components/gene/MondoDiseases.vue'
 import type { MondoAnnotation } from '@/types/mondo'
+// HNF1B MONDO annotation as served by https://kidney-genetics.org/api (read-only, 2026-10-27)
+import hnf1b from './fixtures/mondo-HNF1B.json'
 
-const data: MondoAnnotation = {
-  mondo_diseases: [
-    {
-      mondo_id: 'MONDO:0008263',
-      label: 'polycystic kidney disease 1',
-      source_ids: ['OMIM:173900'],
-      sources: ['GenCC', 'HPO']
-    }
-  ],
-  mapped_count: 1,
-  unmapped: [{ source_id: 'OMIM:999999', sources: ['HPO'], reason: 'no exactMatch' }],
-  unmapped_count: 1,
-  ambiguous: [],
-  ambiguous_count: 0,
-  provenance: {
-    mondo_release: '2026-10-06',
-    sssom_url: 'https://example.invalid/mondo.sssom.tsv',
-    sssom_sha256: 'x',
-    predicate: 'skos:exactMatch',
-    license: 'CC BY 4.0'
-  }
-}
-
-const mountWith = (mondo?: MondoAnnotation) =>
-  mount(MondoDiseases, {
-    props: { annotations: { annotations: mondo ? { mondo: [{ data: mondo }] } : {} } }
+const mountWith = (mondo?: MondoAnnotation, props: Record<string, unknown> = {}) =>
+  mount({
+    render: () =>
+      h(TooltipProvider, () =>
+        h(MondoDiseases, {
+          annotations: { annotations: mondo ? { mondo: [{ data: mondo }] } : {} },
+          ...props
+        })
+      )
   })
 
 describe('MondoDiseases (#28)', () => {
-  it('renders mapped MONDO rows, source IDs, unmapped count and CC BY attribution', () => {
-    const wrapper = mountWith(data)
-    expect(wrapper.find('h2').text()).toBe('MONDO Diseases')
-    const link = wrapper.find('a[href="https://monarchinitiative.org/MONDO:0008263"]')
-    expect(link.text()).toBe('MONDO:0008263')
-    expect(wrapper.text()).toContain('polycystic kidney disease 1')
-    expect(wrapper.text()).toContain('OMIM:173900')
-    expect(wrapper.text()).toContain('1 without an exact match')
-    const attribution = wrapper.find('[data-testid="mondo-attribution"]').text()
-    expect(attribution).toContain('2026-10-06')
-    expect(attribution).toContain('CC BY 4.0')
+  it('lists HNF1B diseases name first, sorted by name, with linked MONDO IDs', () => {
+    const wrapper = mountWith(hnf1b as MondoAnnotation)
+    expect(wrapper.find('h2').text()).toBe('Diseases (MONDO)')
+    const rows = wrapper.findAll('[data-testid="mondo-list"] > li')
+    expect(rows).toHaveLength(9)
+
+    const names = rows.map(r => r.find('[data-slot="ontology-term"] span').text())
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)))
+    expect(names[0]).toBe('chromosome 17q12 deletion syndrome')
+
+    const rcad = rows.find(r => r.text().includes('renal cysts and diabetes syndrome'))!
+    const term = rcad.find('a[href="https://monarchinitiative.org/MONDO:0007669"]')
+    expect(term.text()).toBe('renal cysts and diabetes syndromeMONDO:0007669')
+    expect(term.find('.font-mono').text()).toBe('MONDO:0007669')
   })
 
-  it('is hidden without a MONDO annotation or without mapped diseases', () => {
-    expect(mountWith().find('h2').exists()).toBe(false)
-    expect(
-      mountWith({ ...data, mondo_diseases: [] })
-        .find('h2')
-        .exists()
-    ).toBe(false)
+  it('deduplicates source IDs, drops the term itself and links each one', () => {
+    const wrapper = mountWith(hnf1b as MondoAnnotation)
+    const rcad = wrapper
+      .findAll('[data-testid="mondo-list"] > li')
+      .find(r => r.text().includes('renal cysts and diabetes syndrome'))!
+    const sourceLinks = rcad.findAll('p a').map(a => a.attributes('href'))
+    // ORPHA:93111 and Orphanet:93111 are one ID; MONDO:0007669 is the term itself
+    expect(sourceLinks).toEqual([
+      'https://omim.org/entry/137920',
+      'https://www.orpha.net/en/disease/detail/93111'
+    ])
+    expect(rcad.find('p').text()).not.toContain('MONDO:0007669')
+    expect(rcad.findAll('[data-slot="chip"]').map(c => c.text())).toEqual([
+      'ClinGen',
+      'GenCC',
+      'HPO'
+    ])
+  })
+
+  it('keeps the licence footnote as a quiet caption', () => {
+    const attribution = mountWith(hnf1b as MondoAnnotation).find(
+      '[data-testid="mondo-attribution"]'
+    )
+    expect(attribution.classes()).toContain('text-xs')
+    expect(attribution.text()).toContain('2026-10-06')
+    expect(attribution.text()).toContain('CC BY 4.0')
+  })
+
+  it('says so when a gene has no mapping, and shows a failed load as an error', () => {
+    expect(mountWith().find('[data-state="empty"]').text()).toContain('No MONDO disease mapping')
+    const failed = mountWith(undefined, { error: new Error('offline') })
+    expect(failed.find('[data-state="error"]').text()).toContain('Could not load disease mappings')
   })
 })

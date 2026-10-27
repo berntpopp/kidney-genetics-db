@@ -1,217 +1,106 @@
 <template>
   <div v-if="clinvarData">
-    <div class="text-xs text-muted-foreground mb-2">Clinical Variants (ClinVar):</div>
+    <h3 class="mb-2 text-xs font-medium text-muted-foreground">Clinical variants (ClinVar)</h3>
 
-    <div
-      v-if="clinvarData.total_variants === 0 || clinvarData.no_data_available"
-      class="flex items-center"
+    <p
+      v-if="!clinvarData.total_variants || clinvarData.no_data_available"
+      class="text-sm text-muted-foreground"
     >
-      <Badge variant="outline" class="text-xs" :style="tintedChipStyle('#6b7280')">
-        <Info :size="12" class="mr-1" />
-        No variants available
-      </Badge>
-    </div>
+      No ClinVar variants for {{ geneSymbol }}.
+    </p>
 
-    <div v-else class="flex items-center flex-wrap gap-2">
-      <!-- Total variants -->
-      <HoverPopover content-class="w-auto p-2 max-w-xs">
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle('#0ea5e9')"
-        >
-          {{ clinvarData.total_variants }} total
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">Total ClinVar Variants</p>
-          <p class="text-xs text-muted-foreground">
-            All variants submitted to ClinVar for {{ geneSymbol }}
-          </p>
-          <hr class="my-2 border-border" />
-          <div class="text-xs">
-            <p class="font-medium mb-1">Review Confidence:</p>
-            <div class="flex items-center">
-              <ShieldCheck :size="12" class="mr-1 text-green-600 dark:text-green-400" />
-              <span class="font-medium">{{ clinvarData.high_confidence_percentage }}%</span>
-              <span class="ml-1">with high-quality review</span>
-            </div>
-            <p class="text-xs mt-1 text-muted-foreground" style="font-size: 0.7rem">
-              ({{
-                clinvarData.high_confidence_count ||
-                Math.round(
-                  (clinvarData.total_variants * clinvarData.high_confidence_percentage) / 100
-                )
-              }}
-              of {{ clinvarData.total_variants }} variants)
-            </p>
-            <p class="text-xs mt-2 text-muted-foreground" style="font-size: 0.7rem">
-              High-quality = Expert panel reviewed or<br />
-              multiple submitters with no conflicts
-            </p>
-          </div>
-        </template>
-      </HoverPopover>
-
-      <!-- Pathogenic/Likely pathogenic -->
-      <HoverPopover
-        v-if="clinvarData.pathogenic_count + clinvarData.likely_pathogenic_count > 0"
-        content-class="w-auto p-2 max-w-xs"
-      >
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle('#ef4444')"
-        >
-          {{ clinvarData.pathogenic_count + clinvarData.likely_pathogenic_count }} P/LP
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">Pathogenic Variants</p>
-          <div class="text-xs text-muted-foreground">
-            <p>Pathogenic: {{ clinvarData.pathogenic_count }}</p>
-            <p>Likely pathogenic: {{ clinvarData.likely_pathogenic_count }}</p>
-            <p class="mt-1">{{ clinvarData.pathogenic_percentage }}% of all variants</p>
-            <div v-if="clinvarData.consequence_categories" class="mt-2">
-              <hr class="my-1 border-border" />
-              <span v-if="clinvarData.consequence_categories.truncating">
-                Truncating: {{ clinvarData.consequence_categories.truncating }}<br />
-              </span>
-              <span v-if="clinvarData.consequence_categories.missense">
-                Missense: {{ clinvarData.consequence_categories.missense }}
-              </span>
-            </div>
-          </div>
-        </template>
-      </HoverPopover>
-
-      <!-- VUS -->
-      <HoverPopover v-if="clinvarData.vus_count > 0" content-class="w-auto p-2 max-w-xs">
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle('#f59e0b')"
-        >
-          {{ clinvarData.vus_count }} VUS
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">Uncertain Significance</p>
-          <p class="text-xs text-muted-foreground">
-            Variants of uncertain significance requiring further evidence
-          </p>
-        </template>
-      </HoverPopover>
-
-      <!-- Benign/Likely benign -->
-      <HoverPopover
-        v-if="clinvarData.benign_count + clinvarData.likely_benign_count > 0"
-        content-class="w-auto p-2 max-w-xs"
-      >
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle('#22c55e')"
-        >
-          {{ clinvarData.benign_count + clinvarData.likely_benign_count }} B/LB
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs">Benign Variants</p>
-          <div class="text-xs text-muted-foreground">
-            <p>Benign: {{ clinvarData.benign_count }}</p>
-            <p>Likely benign: {{ clinvarData.likely_benign_count }}</p>
-          </div>
-        </template>
-      </HoverPopover>
-
-      <!-- Molecular consequences -->
-      <HoverPopover
-        v-if="clinvarData.consequence_categories && clinvarData.total_variants > 0"
-        content-class="w-auto p-2 max-w-sm"
-      >
-        <Badge
-          as="span"
-          variant="outline"
-          class="cursor-pointer"
-          :style="tintedChipStyle('#7c3aed')"
-        >
-          <Dna :size="12" class="mr-1" />
-          Consequences
-        </Badge>
-        <template #content>
-          <p class="font-medium text-xs mb-2">Molecular Consequences</p>
-
-          <div
-            v-if="clinvarData.consequence_categories.truncating > 0"
-            class="mb-2 p-2 rounded"
-            style="background-color: rgba(255, 82, 82, 0.1)"
-          >
-            <div class="flex items-center">
-              <AlertTriangle :size="14" class="mr-1 text-destructive" />
-              <strong class="text-xs"
-                >{{ clinvarData.consequence_categories.truncating }} Truncating</strong
-              >
-            </div>
-            <p class="text-xs text-muted-foreground">
-              {{ clinvarData.truncating_percentage }}% of all variants
-            </p>
-            <p class="text-muted-foreground" style="font-size: 0.7rem">
-              (nonsense, frameshift, essential splice sites)
-            </p>
-          </div>
-
-          <div class="text-xs text-muted-foreground">
-            <p v-if="clinvarData.consequence_categories.missense > 0">
-              <strong>Missense:</strong> {{ clinvarData.consequence_categories.missense }} ({{
-                clinvarData.missense_percentage
-              }}%)
-            </p>
-            <p v-if="clinvarData.consequence_categories.synonymous > 0">
-              <strong>Synonymous:</strong> {{ clinvarData.consequence_categories.synonymous }} ({{
-                clinvarData.synonymous_percentage
-              }}%)
-            </p>
-            <p v-if="clinvarData.consequence_categories.inframe > 0">
-              <strong>In-frame:</strong> {{ clinvarData.consequence_categories.inframe }}
-            </p>
-            <p v-if="clinvarData.consequence_categories.splice_region > 0">
-              <strong>Splice region:</strong>
-              {{ clinvarData.consequence_categories.splice_region }}
-            </p>
-          </div>
-
-          <div v-if="clinvarData.top_molecular_consequences?.length" class="mt-2">
-            <hr class="my-2 border-border" />
-            <p class="text-xs text-muted-foreground">Most common:</p>
-            <p
-              v-for="(cons, idx) in clinvarData.top_molecular_consequences.slice(0, 3)"
-              :key="idx"
-              class="text-xs text-muted-foreground"
-            >
-              &bull; {{ cons.consequence }}: {{ cons.count }}
-            </p>
-          </div>
-        </template>
-      </HoverPopover>
+    <div v-else class="flex flex-wrap items-center gap-1.5">
+      <Chip
+        kind="neutral"
+        class="tabular-nums"
+        :label="`${fmt(clinvarData.total_variants)} total`"
+        :tooltip="totalTooltip"
+      />
+      <Chip
+        v-for="chip in significanceChips"
+        :key="chip.label"
+        kind="neutral"
+        class="tabular-nums"
+        :class="STATUS_TONE_CLASSES[chip.tone]"
+        :label="`${fmt(chip.count)} ${chip.label}`"
+        :tooltip="chip.tooltip"
+      />
+      <Chip
+        v-if="consequencesTooltip"
+        kind="neutral"
+        :icon="Dna"
+        label="Consequences"
+        :tooltip="consequencesTooltip"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { Badge } from '@/components/ui/badge'
-import { tintedChipStyle } from '@/utils/evidenceTiers'
-import HoverPopover from '@/components/ui/HoverPopover.vue'
-import { Info, ShieldCheck, Dna, AlertTriangle } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { Dna } from 'lucide-vue-next'
+import { Chip } from '@/components/shared'
+import { STATUS_TONE_CLASSES } from '@/utils/status'
+import { SIGNIFICANCE } from './variantColors'
 
-defineProps({
-  clinvarData: {
-    type: Object,
-    default: null
-  },
-  geneSymbol: {
-    type: String,
-    required: true
-  }
+const props = defineProps({
+  clinvarData: { type: Object, default: null },
+  geneSymbol: { type: String, required: true }
+})
+
+const fmt = n => Number(n ?? 0).toLocaleString()
+
+const totalTooltip = computed(() => {
+  const d = props.clinvarData
+  const high =
+    d.high_confidence_count ?? Math.round((d.total_variants * d.high_confidence_percentage) / 100)
+  return `${fmt(d.total_variants)} variants submitted to ClinVar for ${props.geneSymbol}; ${fmt(high)} (${d.high_confidence_percentage}%) have a high-quality review (expert panel, or multiple submitters without conflicts)`
+})
+
+// Clinical significance is a risk axis, not evidence strength: status tones plus a label
+const significanceChips = computed(() => {
+  const d = props.clinvarData
+  return [
+    {
+      label: 'P/LP',
+      tone: SIGNIFICANCE.pathogenic.tone,
+      count: (d.pathogenic_count ?? 0) + (d.likely_pathogenic_count ?? 0),
+      tooltip: `Pathogenic ${fmt(d.pathogenic_count)}, likely pathogenic ${fmt(d.likely_pathogenic_count)}${d.pathogenic_percentage != null ? ` (${d.pathogenic_percentage}% of all variants)` : ''}`
+    },
+    {
+      label: 'VUS',
+      tone: SIGNIFICANCE.vus.tone,
+      count: d.vus_count ?? 0,
+      tooltip: SIGNIFICANCE.vus.description
+    },
+    {
+      label: 'Conflicting',
+      tone: SIGNIFICANCE.conflicting.tone,
+      count: d.conflicting_count ?? 0,
+      tooltip: SIGNIFICANCE.conflicting.description
+    },
+    {
+      label: 'B/LB',
+      tone: SIGNIFICANCE.benign.tone,
+      count: (d.benign_count ?? 0) + (d.likely_benign_count ?? 0),
+      tooltip: `Benign ${fmt(d.benign_count)}, likely benign ${fmt(d.likely_benign_count)}`
+    }
+  ].filter(c => c.count > 0)
+})
+
+const consequencesTooltip = computed(() => {
+  const c = props.clinvarData?.consequence_categories
+  if (!c) return ''
+  const d = props.clinvarData
+  return [
+    c.truncating &&
+      `Truncating ${fmt(c.truncating)} (${d.truncating_percentage}%; nonsense, frameshift, essential splice site)`,
+    c.missense && `missense ${fmt(c.missense)} (${d.missense_percentage}%)`,
+    c.synonymous && `synonymous ${fmt(c.synonymous)} (${d.synonymous_percentage}%)`,
+    c.inframe && `in-frame ${fmt(c.inframe)}`,
+    c.splice_region && `splice region ${fmt(c.splice_region)}`
+  ]
+    .filter(Boolean)
+    .join('; ')
 })
 </script>

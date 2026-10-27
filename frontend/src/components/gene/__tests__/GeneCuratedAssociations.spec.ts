@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
+import { h } from 'vue'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 vi.stubGlobal('logService', { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })
 vi.mock('@/api/curation', async importOriginal => ({
@@ -36,10 +38,10 @@ async function mountFor(symbol: string) {
     history: createMemoryHistory(),
     routes: [{ path: '/:rest(.*)', component: { render: () => null } }]
   })
-  const w = mount(GeneCuratedAssociations, {
-    props: { geneSymbol: symbol },
-    global: { plugins: [router] }
-  })
+  const w = mount(
+    { render: () => h(TooltipProvider, () => h(GeneCuratedAssociations, { geneSymbol: symbol })) },
+    { global: { plugins: [router] } }
+  )
   await flushPromises()
   return w
 }
