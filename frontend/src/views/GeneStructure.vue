@@ -1,61 +1,47 @@
 <template>
-  <div>
-    <!-- Loading State -->
-    <div v-if="loading" class="container mx-auto px-4 py-12 text-center">
-      <div
-        class="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"
-      />
-      <p class="text-lg mt-4 text-muted-foreground">Loading gene structure data...</p>
-    </div>
-
-    <!-- Error State -->
-    <div v-else-if="error" class="container mx-auto px-4 py-6">
-      <Alert variant="destructive" class="mb-4">
-        <AlertTitle>Error Loading Gene Data</AlertTitle>
-        <AlertDescription>{{ error }}</AlertDescription>
-      </Alert>
-      <Button variant="outline" as-child>
-        <router-link :to="`/genes/${symbol}`">
-          <ArrowLeft :size="14" class="mr-1" />
-          Back to Gene Details
-        </router-link>
-      </Button>
-    </div>
-
-    <!-- Main Content -->
-    <div v-else-if="gene">
-      <!-- Breadcrumb Navigation -->
-      <div class="py-2 bg-muted">
-        <Breadcrumb class="container mx-auto px-4">
+  <div :class="PAGE_CONTAINER">
+    <PageHeader
+      :title="gene?.approved_symbol ?? symbol"
+      description="Gene structure and protein domains with ClinVar variants"
+    >
+      <template #breadcrumb>
+        <Breadcrumb>
           <BreadcrumbList>
-            <template v-for="(crumb, index) in breadcrumbs" :key="index">
+            <template v-for="(crumb, index) in breadcrumbs" :key="crumb.title">
               <BreadcrumbItem>
-                <BreadcrumbLink v-if="crumb.to" :href="crumb.to">
-                  <Home v-if="index === 0" class="size-4 mr-1 inline" />
-                  {{ crumb.title }}
+                <BreadcrumbPage v-if="index === breadcrumbs.length - 1">{{
+                  crumb.title
+                }}</BreadcrumbPage>
+                <BreadcrumbLink v-else as-child>
+                  <RouterLink :to="crumb.to" class="inline-flex items-center gap-1">
+                    <Home v-if="index === 0" class="size-4" aria-hidden="true" />
+                    {{ crumb.title }}
+                  </RouterLink>
                 </BreadcrumbLink>
-                <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
               </BreadcrumbItem>
               <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
             </template>
           </BreadcrumbList>
         </Breadcrumb>
-      </div>
+      </template>
+      <template #actions>
+        <Button variant="outline" size="sm" as-child>
+          <RouterLink :to="`/genes/${symbol}`">
+            <ArrowLeft aria-hidden="true" />
+            Gene details
+          </RouterLink>
+        </Button>
+      </template>
+    </PageHeader>
 
-      <div class="container mx-auto px-4 py-4">
-        <!-- Page Header -->
-        <div class="flex items-center mb-4">
-          <Button variant="ghost" size="icon" as-child class="mr-3">
-            <router-link :aria-label="`Back to ${symbol}`" :to="`/genes/${symbol}`">
-              <ArrowLeft :size="16" />
-            </router-link>
-          </Button>
-          <div>
-            <h1 class="text-2xl font-bold leading-tight">{{ gene.approved_symbol }}</h1>
-            <p class="text-sm text-muted-foreground">Gene Structure &amp; Protein Domains</p>
-          </div>
-        </div>
-
+    <DataState
+      :loading="loading"
+      :error="error"
+      error-title="Could not load gene data"
+      min-height="24rem"
+      @retry="fetchGeneData"
+    >
+      <div v-if="gene">
         <!-- Tabbed Visualization -->
         <Tabs v-model="activeTab">
           <TabsList class="mb-3">
@@ -115,16 +101,9 @@
                 </div>
               </CardHeader>
               <CardContent>
-                <div v-if="loadingEnsembl" class="text-center py-8">
-                  <div
-                    class="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto"
-                  />
-                  <p class="text-sm mt-2 text-muted-foreground">
-                    Loading gene structure from Ensembl...
-                  </p>
-                </div>
+                <DataState v-if="loadingEnsembl" loading min-height="280px" />
                 <div v-else-if="!ensemblData" class="text-center py-8">
-                  <CircleAlert class="size-12 text-yellow-600 dark:text-yellow-400 mx-auto" />
+                  <CircleAlert class="mx-auto size-12 text-warning" aria-hidden="true" />
                   <p class="text-base mt-2 text-muted-foreground">
                     Gene structure data not available from Ensembl
                   </p>
@@ -173,16 +152,9 @@
                 </div>
               </CardHeader>
               <CardContent>
-                <div v-if="loadingUniprot" class="text-center py-8">
-                  <div
-                    class="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto"
-                  />
-                  <p class="text-sm mt-2 text-muted-foreground">
-                    Loading protein domains from UniProt...
-                  </p>
-                </div>
+                <DataState v-if="loadingUniprot" loading min-height="280px" />
                 <div v-else-if="!uniprotData" class="text-center py-8">
-                  <CircleAlert class="size-12 text-yellow-600 dark:text-yellow-400 mx-auto" />
+                  <CircleAlert class="mx-auto size-12 text-warning" aria-hidden="true" />
                   <p class="text-base mt-2 text-muted-foreground">
                     Protein domain data not available from UniProt
                   </p>
@@ -204,12 +176,13 @@
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </DataState>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
+import { RouterLink } from 'vue-router'
 import ErrorBoundary from '@/components/ui/error-boundary/ErrorBoundary.vue'
 import ComponentSkeleton from '@/components/ui/ComponentSkeleton.vue'
 import ComponentError from '@/components/ui/ComponentError.vue'
@@ -233,7 +206,7 @@ const ProteinDomainVisualization = defineAsyncComponent({
   timeout: 10000
 })
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
+import { DataState, PageHeader, PAGE_CONTAINER } from '@/components/shared'
 import { Button } from '@/components/ui/button'
 import {
   Breadcrumb,
@@ -365,9 +338,5 @@ async function fetchUniprotData() {
 // Lifecycle
 onMounted(() => {
   fetchGeneData()
-})
-
-onUnmounted(() => {
-  // Clean up any D3 elements (handled by child components)
 })
 </script>

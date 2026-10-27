@@ -137,35 +137,41 @@ describe('Gene structure filter chips', () => {
 
     expect(wrapper.text()).toContain('Classification')
     expect(wrapper.text()).not.toContain('Class.')
-    expect(wrapper.text()).toMatch(/\d+ of 2 loaded variants shown/)
+    expect(wrapper.text()).toMatch(/\d+ shown of 2 loaded variants/)
 
-    const chip = wrapper.findAll('button[aria-pressed]')[0]
+    // [0] is the "colour by" switch; [1] is the Pathogenic toggle
+    const chips = () =>
+      wrapper!.findAll('[aria-label="Classification filter"] button[aria-pressed]')
+    const chip = chips()[1]!
+    expect(chip.text()).toBe('Pathogenic')
     expect(chip.attributes('type')).toBe('button')
     const before = chip.attributes('aria-pressed')
     await chip.trigger('click')
-    expect(wrapper.findAll('button[aria-pressed]')[0].attributes('aria-pressed')).not.toBe(before)
+    expect(chips()[1]!.attributes('aria-pressed')).not.toBe(before)
   })
 })
 
 describe('Evidence card footer', () => {
   it('omits the date line instead of printing "Unknown"', async () => {
     const { h } = await import('vue')
-    const { Accordion } = await import('@/components/ui/accordion')
+    const { TooltipProvider } = await import('@/components/ui/tooltip')
     const EvidenceCard = (await import('@/components/evidence/EvidenceCard.vue')).default
     const evidence = { source_name: 'ClinGen', evidence_data: {}, evidence_date: null }
     wrapper = mount(
       {
         render: () =>
-          h(Accordion, { type: 'single', defaultValue: 'ClinGen' }, () =>
-            h(EvidenceCard, { evidence })
+          h(TooltipProvider, () =>
+            h(EvidenceCard, { evidence, gene: { approved_symbol: 'PKD1', hgnc_id: 'HGNC:9008' } })
           )
       },
-      { global: { stubs: { ClinGenEvidence: true } } }
+      { global: { stubs: { ClinGenEvidence: true } }, attachTo: document.body }
     )
+    await wrapper.get('button[aria-expanded]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('View Source')
+    expect(wrapper.text()).toContain('View on ClinGen')
     expect(wrapper.text()).not.toContain('Unknown')
+    expect(wrapper.text()).not.toContain('Last updated')
   })
 })
 
