@@ -237,7 +237,7 @@ function acknowledgeDisclaimer() {
           <Tooltip>
             <TooltipTrigger as-child>
               <Button variant="ghost" size="icon" class="size-8" as-child>
-                <RouterLink to="/faq" aria-label="FAQ">
+                <RouterLink to="/about#faq" aria-label="FAQ">
                   <HelpCircle class="size-4" aria-hidden="true" />
                 </RouterLink>
               </Button>

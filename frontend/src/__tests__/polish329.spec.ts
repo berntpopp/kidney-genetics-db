@@ -7,7 +7,6 @@ import { flushPromises, mount } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import { createRouter, createMemoryHistory, RouterView } from 'vue-router'
 import NotFound from '@/views/NotFound.vue'
-import FAQ from '@/views/FAQ.vue'
 import DataSources from '@/views/DataSources.vue'
 import GeneStructureVisualization from '@/components/visualizations/GeneStructureVisualization.vue'
 
@@ -67,41 +66,6 @@ describe('404 page', () => {
 
     expect(router.currentRoute.value.path).toBe('/genes')
     expect(router.currentRoute.value.query.search).toBe('PKD1')
-  })
-})
-
-describe('FAQ', () => {
-  it('uses the shared breadcrumb and an accordion that opens by its trigger', async () => {
-    const router = routerWith('/faq', FAQ)
-    await router.push('/faq')
-    await router.isReady()
-    wrapper = mount(RouterView, { global: { plugins: [router] }, attachTo: document.body })
-
-    expect(wrapper.find('nav[aria-label="breadcrumb"] a[href="/"]').exists()).toBe(true)
-    // Closed answers stay in the DOM (prerendered HTML) but hidden
-    const closed = wrapper.get('[data-slot="accordion-content"]')
-    expect(closed.text()).toContain('KGDB contains genes associated with kidney diseases')
-    expect(closed.attributes('hidden')).toBeDefined()
-    const trigger = wrapper.get('[data-slot="accordion-trigger"]')
-    expect(trigger.attributes('aria-expanded')).toBe('false')
-    await trigger.trigger('click')
-    expect(trigger.attributes('aria-expanded')).toBe('true')
-    expect(wrapper.text()).toContain('KGDB contains genes associated with kidney diseases')
-  })
-})
-
-describe('FAQ prerender', () => {
-  it('server-renders closed answers as hidden="until-found"', async () => {
-    const { createSSRApp } = await import('vue')
-    const { renderToString } = await import('vue/server-renderer')
-    const router = routerWith('/faq', FAQ)
-    await router.push('/faq')
-    await router.isReady()
-    const app = createSSRApp(RouterView)
-    app.use(router)
-    const html = await renderToString(app)
-    expect(html).toContain('hidden="until-found"')
-    expect(html).toContain('KGDB contains genes associated with kidney diseases')
   })
 })
 
@@ -176,7 +140,7 @@ describe('Evidence card footer', () => {
 })
 
 describe('Main navigation', () => {
-  it('links the FAQ from the header, not only the footer', async () => {
+  it('links About (which holds the questions) from the header, with no stale /faq link', async () => {
     vi.stubGlobal('matchMedia', () => ({
       matches: false,
       addEventListener() {},
@@ -194,8 +158,9 @@ describe('Main navigation', () => {
       { global: { plugins: [router, createPinia()] } }
     )
 
-    const link = wrapper.get('nav a[href="/faq"]')
-    expect(link.text()).toBe('FAQ')
+    expect(wrapper.find('a[href="/faq"]').exists()).toBe(false)
+    const link = wrapper.get('nav a[href="/about"]')
+    expect(link.text()).toBe('About')
     expect(link.attributes('aria-current')).toBeUndefined()
     // Icon-only theme toggle has an accessible name, not just a title
     expect(wrapper.find('button[aria-label="Switch to dark mode"]').exists()).toBe(true)

@@ -43,6 +43,7 @@ export default defineConfig({
           !p.startsWith('/forgot-password') &&
           !p.startsWith('/reset-password') &&
           !p.startsWith('/curation') && // data loads client-side only
+          p !== '/faq' && // redirect to /about#faq (nginx 301)
           !p.includes(':')
       )
     }

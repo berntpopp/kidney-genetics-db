@@ -24,7 +24,9 @@ export const createApp = ViteSSG(
   App,
   {
     routes,
-    base: import.meta.env.BASE_URL
+    base: import.meta.env.BASE_URL,
+    // Honour #hash links across routes (e.g. /faq -> /about#faq); 80px clears the sticky header
+    scrollBehavior: (to, _from, saved) => saved ?? (to.hash ? { el: to.hash, top: 80 } : undefined)
   },
   async ({ app, router }) => {
     // Create and install Pinia (vite-ssg does NOT do this automatically)
