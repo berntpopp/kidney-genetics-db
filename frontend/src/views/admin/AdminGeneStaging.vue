@@ -449,7 +449,8 @@ const rejectForm = reactive({
 // Computed: every source with pending items, from the stats rather than the current page
 const sourceOptions = computed(() =>
   Object.entries(stagingStats.by_source || {})
-    .filter(([, pending]) => pending > 0)
+    // keep the chosen source listed after its last item is decided
+    .filter(([source, pending]) => pending > 0 || source === filters.sourceFilter)
     .map(([source]) => source)
     .sort()
     .map(source => ({ title: sourceDisplayName(source), value: source }))
@@ -644,7 +645,9 @@ const loadPendingReviews = async () => {
     const { items, pagination: page } = response.data
     // Deciding the last item of the last page leaves it empty: step back one page
     if (!items.length && pageIndex > 0 && page.total > 0) {
-      pagination.value = { pageIndex: Math.ceil(page.total / pageSize) - 1, pageSize }
+      // always move back, so an inconsistent total cannot loop on the same page
+      const lastPage = Math.ceil(page.total / pageSize) - 1
+      pagination.value = { pageIndex: Math.min(pageIndex - 1, lastPage), pageSize }
       return loadPendingReviews()
     }
     pendingReviews.value = items

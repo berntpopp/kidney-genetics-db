@@ -121,6 +121,18 @@ describe('AdminGeneStaging server paging (#422)', () => {
     expect(rows()[0]?.querySelector('code')?.textContent).toBe('GENE25')
   })
 
+  it('steps back a page when the last page comes back empty', async () => {
+    vi.mocked(stagingApi.getPendingStaging)
+      .mockResolvedValueOnce(page(0, 25, 26) as never)
+      .mockResolvedValueOnce(page(25, 0, 25) as never)
+      .mockResolvedValueOnce(page(0, 25, 25) as never)
+    await mountView()
+    await nextPage()
+    expect(lastCall()).toEqual({ limit: 25, offset: 0 })
+    expect(rows()).toHaveLength(25)
+    expect(document.body.textContent).not.toContain('Nothing to review')
+  })
+
   it('sends the expert and search filters to the server from the first page', async () => {
     for (let i = 0; i < 4; i++) {
       vi.mocked(stagingApi.getPendingStaging).mockResolvedValueOnce(page(0, 25, 402) as never)
