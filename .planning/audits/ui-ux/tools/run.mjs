@@ -1,5 +1,6 @@
 // Repeatable UX audit: production build -> nginx-like server -> Playwright probes + Lighthouse -> one JSON file.
 // usage (from the repo root): node .planning/audits/ui-ux/tools/run.mjs --label after-fixes [--skip-build] [--no-lighthouse] [--runs 2]
+// Each page entry also records axe-core WCAG 2.2 A/AA violations (`axe`: rule -> failing elements).
 // Needs the API on :8000 with data (make hybrid-up && make backend). Compare runs with compare.mjs.
 import { execFileSync, spawn } from 'node:child_process'
 import fs from 'node:fs'
@@ -12,7 +13,9 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const repo = path.resolve(here, '../../../..')
 const frontend = path.join(repo, 'frontend')
 // audit tooling lives outside frontend/, so borrow its installed Playwright
-const { chromium } = createRequire(path.join(frontend, 'package.json'))('playwright')
+const frontendRequire = createRequire(path.join(frontend, 'package.json'))
+const { chromium } = frontendRequire('playwright')
+const { AxeBuilder } = frontendRequire('@axe-core/playwright')
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`)
   return i === -1 ? fallback : process.argv[i + 1]
@@ -113,6 +116,10 @@ for (const route of ROUTES) {
         }
       })
       await page.waitForTimeout(500)
+      // WCAG 2.2 A/AA rules only; best-practice rules are advice, not violations
+      const axe = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+        .analyze()
       const m = await page.evaluate(() => ({
         cls: window.__cls,
         shifts: window.__shifts.filter(s => s.v > 0.005).slice(0, 5),
@@ -124,7 +131,15 @@ for (const route of ROUTES) {
         overflowPx: m.overflowPx,
         ...(theme === 'dark' && { themeFlash: m.firstFrameDark ? 0 : 1 }),
         consoleErrors: errors,
-        topShifts: m.shifts
+        topShifts: m.shifts,
+        // failing elements per rule (compare.mjs: more is worse, a new rule is a regression)
+        axe: Object.fromEntries(axe.violations.map(v => [v.id, v.nodes.length])),
+        axeDetails: axe.violations.map(v => ({
+          id: v.id,
+          impact: v.impact,
+          help: v.help,
+          targets: v.nodes.slice(0, 3).map(n => n.target.join(' '))
+        }))
       }
       await ctx.close()
     }

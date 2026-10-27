@@ -217,10 +217,12 @@
               <TableRow>
                 <TableHead class="w-[170px]">Timestamp</TableHead>
                 <TableHead class="w-[100px]">Level</TableHead>
-                <TableHead class="hidden w-[80px] xl:table-cell">Method</TableHead>
-                <TableHead class="hidden w-[200px] xl:table-cell">Path</TableHead>
-                <TableHead class="hidden w-[80px] xl:table-cell">Status</TableHead>
-                <TableHead class="hidden w-[90px] text-right xl:table-cell">Duration</TableHead>
+                <template v-if="hasRequestFields">
+                  <TableHead class="hidden w-[80px] xl:table-cell">Method</TableHead>
+                  <TableHead class="hidden w-[200px] xl:table-cell">Path</TableHead>
+                  <TableHead class="hidden w-[80px] xl:table-cell">Status</TableHead>
+                  <TableHead class="hidden w-[90px] text-right xl:table-cell">Duration</TableHead>
+                </template>
                 <TableHead>Message</TableHead>
                 <TableHead class="w-[88px]"><span class="sr-only">Actions</span></TableHead>
               </TableRow>
@@ -235,26 +237,33 @@
                 <TableCell>
                   <StatusBadge :status="item.level" />
                 </TableCell>
-                <TableCell class="hidden xl:table-cell">
-                  <Chip v-if="item.method" kind="neutral" :label="item.method" class="font-mono" />
-                </TableCell>
-                <TableCell class="hidden xl:table-cell">
-                  <code
-                    v-if="item.path"
-                    class="text-xs truncate block max-w-[200px]"
-                    :title="item.path"
-                  >
-                    {{ item.path }}
-                  </code>
-                </TableCell>
-                <TableCell class="hidden xl:table-cell">
-                  <StatusBadge v-if="item.status_code" :status="item.status_code" />
-                </TableCell>
-                <TableCell class="hidden text-right xl:table-cell">
-                  <span v-if="item.duration_ms" class="text-xs tabular-nums">
-                    {{ formatDuration(item.duration_ms) }}
-                  </span>
-                </TableCell>
+                <template v-if="hasRequestFields">
+                  <TableCell class="hidden xl:table-cell">
+                    <Chip
+                      v-if="item.method"
+                      kind="neutral"
+                      :label="item.method"
+                      class="font-mono"
+                    />
+                  </TableCell>
+                  <TableCell class="hidden xl:table-cell">
+                    <code
+                      v-if="item.path"
+                      class="text-xs truncate block max-w-[200px]"
+                      :title="item.path"
+                    >
+                      {{ item.path }}
+                    </code>
+                  </TableCell>
+                  <TableCell class="hidden xl:table-cell">
+                    <StatusBadge v-if="item.status_code" :status="item.status_code" />
+                  </TableCell>
+                  <TableCell class="hidden text-right xl:table-cell">
+                    <span v-if="item.duration_ms" class="text-xs tabular-nums">
+                      {{ formatDuration(item.duration_ms) }}
+                    </span>
+                  </TableCell>
+                </template>
                 <TableCell>
                   <div class="truncate max-w-[480px]" :title="item.message">
                     {{ item.message }}
@@ -634,6 +643,10 @@ import {
 const logs = ref([])
 const loading = ref(false)
 const loadError = ref(null)
+// Only request logs carry these; hide the columns when no row on the page has them
+const hasRequestFields = computed(() =>
+  logs.value.some(l => l.method || l.path || l.status_code != null || l.duration_ms != null)
+)
 const exporting = ref(false)
 const statsLoading = ref(false)
 const showDetailsDialog = ref(false)

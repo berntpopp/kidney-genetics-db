@@ -37,6 +37,7 @@ What it measures, per route × desktop (1440×900) / mobile (390×844) × light/
 - `overflowPx`: horizontal page overflow (should be 0).
 - `themeFlash`: 1 if the first frame is not dark when dark is stored (should be 0).
 - `consoleErrors`: console errors plus uncaught page errors.
+- `axe`: axe-core WCAG 2.2 A/AA violations, rule id → failing elements (`axeDetails` names impact and sample targets). `compare.mjs` treats more failing elements, or a rule newly failing on a page the baseline also scanned, as a regression.
 - `lighthouse`: category scores, LCP/CLS/TBT, failing accessibility items (axe), contrast items.
 - `checks`: 1 = pass, 0 = fail.
   - `prerenderedHtmlForGzipClients`

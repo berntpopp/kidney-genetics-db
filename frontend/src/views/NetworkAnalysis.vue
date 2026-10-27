@@ -121,7 +121,7 @@
           <!-- Step 1: Filter -->
           <Button :disabled="loadingGenes" size="sm" @click="fetchFilteredGenes">
             <span
-              class="inline-flex items-center justify-center size-4 rounded-full bg-primary-foreground/20 text-[10px] font-bold mr-1.5"
+              class="inline-flex items-center justify-center size-5 rounded-full bg-primary-foreground text-primary text-xs font-bold mr-1.5"
             >
               1
             </span>
@@ -137,7 +137,7 @@
             @click="buildNetwork"
           >
             <span
-              class="inline-flex items-center justify-center size-4 rounded-full bg-primary-foreground/20 text-[10px] font-bold mr-1.5"
+              class="inline-flex items-center justify-center size-5 rounded-full bg-primary-foreground text-primary text-xs font-bold mr-1.5"
             >
               2
             </span>
@@ -149,7 +149,7 @@
           <!-- Step 3: Cluster -->
           <Button :disabled="!networkData || clustering" size="sm" @click="clusterNetwork">
             <span
-              class="inline-flex items-center justify-center size-4 rounded-full bg-primary-foreground/20 text-[10px] font-bold mr-1.5"
+              class="inline-flex items-center justify-center size-5 rounded-full bg-primary-foreground text-primary text-xs font-bold mr-1.5"
             >
               3
             </span>
@@ -222,7 +222,7 @@
               @click="runEnrichmentAndSwitch"
             >
               <span
-                class="inline-flex items-center justify-center size-4 rounded-full bg-primary-foreground/20 text-[10px] font-bold mr-1.5"
+                class="inline-flex items-center justify-center size-5 rounded-full bg-primary-foreground text-primary text-xs font-bold mr-1.5"
               >
                 4
               </span>
@@ -363,11 +363,7 @@
         <TabsTrigger value="enrichment" :disabled="!clusterStats">
           <ChartBarBig class="size-4 mr-1.5" />
           Enrichment
-          <Badge
-            v-if="enrichmentResults"
-            variant="secondary"
-            class="ml-1.5 text-[10px] px-1.5 py-0"
-          >
+          <Badge v-if="enrichmentResults" variant="secondary" class="ml-1.5 text-xs px-1.5 py-0">
             {{ enrichmentResults.total_terms }}
           </Badge>
         </TabsTrigger>

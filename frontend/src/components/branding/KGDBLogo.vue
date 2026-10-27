@@ -21,7 +21,7 @@
     >
       <img :src="logoSrc" :alt="alt" class="kgdb-logo__image" />
       <div class="kgdb-logo__text">
-        <span class="kgdb-logo__text-line kgdb-logo__text-primary">Kidney-Genetics</span>
+        <span class="kgdb-logo__text-line kgdb-logo__text-primary">Kidney-Genetics </span>
         <span class="kgdb-logo__text-line kgdb-logo__text-secondary">Database</span>
       </div>
     </div>
@@ -33,14 +33,14 @@
     >
       <img :src="logoSrc" :alt="alt" class="kgdb-logo__image" />
       <div class="kgdb-logo__text">
-        <span class="kgdb-logo__text-line kgdb-logo__text-primary">Kidney-Genetics</span>
+        <span class="kgdb-logo__text-line kgdb-logo__text-primary">Kidney-Genetics </span>
         <span class="kgdb-logo__text-line kgdb-logo__text-secondary">Database</span>
       </div>
     </div>
 
     <!-- Text-only variant (rarely used) -->
     <div v-else-if="variant === 'text-only'" class="kgdb-logo__text-only">
-      <span class="kgdb-logo__text-line kgdb-logo__text-primary">Kidney-Genetics</span>
+      <span class="kgdb-logo__text-line kgdb-logo__text-primary">Kidney-Genetics </span>
       <span class="kgdb-logo__text-line kgdb-logo__text-secondary">Database</span>
     </div>
   </div>

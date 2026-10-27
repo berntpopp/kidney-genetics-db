@@ -46,7 +46,7 @@ const tip = computed(() =>
         <span v-if="name" class="text-foreground">{{ name }}</span>
         <span
           class="font-mono text-xs"
-          :class="name ? 'ml-1 text-muted-foreground' : 'text-foreground'"
+          :class="name ? 'ml-1 text-muted-foreground' : url ? 'text-primary' : 'text-foreground'"
           >{{ displayId }}</span
         >
       </component>

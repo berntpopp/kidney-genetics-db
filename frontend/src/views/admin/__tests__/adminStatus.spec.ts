@@ -175,6 +175,27 @@ describe('AdminPipeline stalled sources', () => {
   })
 })
 
+describe('AdminPipeline staleness', () => {
+  it('flags only sources whose last completed run is older than 30 days', async () => {
+    const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString()
+    const done = (source_name: string, d: number) => ({
+      source_name,
+      category: 'data_source',
+      status: 'completed',
+      started_at: daysAgo(d),
+      completed_at: daysAgo(d)
+    })
+    vi.mocked(getAllStatus).mockResolvedValueOnce({
+      data: { data: [done('HPO', 200), done('GenCC', 2)] }
+    } as never)
+    const w = await mountView(AdminPipeline)
+    const card = (name: string) =>
+      w.findAll('[data-testid="source-card"]').find(c => c.text().includes(name))!
+    expect(card('HPO').text()).toContain('Stale (over 30 days)')
+    expect(card('GenCC').text()).not.toContain('Stale')
+  })
+})
+
 describe('AdminPipeline annotation pipeline card', () => {
   const card = (w: VueWrapper) =>
     w.findAll('.border-dashed').find(c => c.text().includes('Gene Annotation Pipeline'))!

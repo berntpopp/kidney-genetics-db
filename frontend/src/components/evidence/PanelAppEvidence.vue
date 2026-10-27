@@ -36,7 +36,7 @@
       />
     </div>
     <ul v-if="modes.length" class="space-y-1 text-sm text-muted-foreground">
-      <li v-for="mode in modes" :key="mode">{{ mode }}</li>
+      <li v-for="mode in modes" :key="mode.raw" :title="mode.raw">{{ mode.label }}</li>
     </ul>
   </section>
 </template>
@@ -45,7 +45,7 @@
 import { computed } from 'vue'
 import { Chip, OntologyTerm } from '@/components/shared'
 import EvidenceList from './EvidenceList.vue'
-import { parsePanelAppPhenotypes, uniquePanels } from './evidenceMeta'
+import { panelAppMoiLabel, parsePanelAppPhenotypes, uniquePanels } from './evidenceMeta'
 
 const props = defineProps({
   evidenceData: { type: Object, required: true },
@@ -69,7 +69,12 @@ const phenotypes = computed(() => parsePanelAppPhenotypes(props.evidenceData?.ph
 const levels = computed(() =>
   [...new Set((props.evidenceData?.evidence_levels ?? []).map(String))].sort().reverse()
 )
-const modes = computed(() => props.evidenceData?.modes_of_inheritance ?? [])
+
+const modes = computed(() =>
+  (props.evidenceData?.modes_of_inheritance ?? [])
+    .filter(Boolean)
+    .map(raw => ({ raw, label: panelAppMoiLabel(raw) }))
+)
 
 const panelUrl = p =>
   p.region === 'UK'

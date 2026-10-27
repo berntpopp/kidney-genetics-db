@@ -498,13 +498,13 @@ const renderChart = () => {
         })
 
       // Exon number label (use transcript order, only if wide enough)
-      if (exonWidth > 20) {
+      if (exonWidth > 24) {
         exonLabelsGroup
           .append('text')
           .attr('x', x + exonWidth / 2)
           .attr('y', backboneY + 4)
           .attr('text-anchor', 'middle')
-          .style('font-size', '10px')
+          .style('font-size', '12px')
           .style('fill', colors.exonLabel)
           .style('pointer-events', 'none')
           .text(exon.transcript_order)
@@ -622,9 +622,9 @@ const renderChart = () => {
   scaleBarGroup
     .append('text')
     .attr('x', scaleBarLength / 2)
-    .attr('y', scaleBarY + 14)
+    .attr('y', scaleBarY + 16)
     .attr('text-anchor', 'middle')
-    .style('font-size', '10px')
+    .style('font-size', '12px')
     .style('fill', colors.text)
     .text(`${scaleBarValue} kb`)
 
@@ -634,9 +634,8 @@ const renderChart = () => {
     .attr('x', containerWidth - margin.right)
     .attr('y', containerHeight - 10)
     .attr('text-anchor', 'end')
-    .style('font-size', '10px')
+    .style('font-size', '12px')
     .style('fill', colors.text)
-    .style('opacity', 0.7)
     .text(
       `chr${props.ensemblData.chromosome}:${geneStart?.toLocaleString()}-${geneEnd?.toLocaleString()} (${geneLengthKb} kb)`
     )

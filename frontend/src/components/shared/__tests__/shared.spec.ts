@@ -83,6 +83,11 @@ describe('OntologyTerm', () => {
     expect(el.attributes('tabindex')).toBe('0')
     expect(el.text()).toBe('LOCAL-1')
   })
+
+  it('colours a linked bare ID like other links', () => {
+    const id = render(OntologyTerm, { id: 'HGNC:9008', source: 'HGNC' }).find('a span')
+    expect(id.classes()).toContain('text-primary')
+  })
 })
 
 describe('OntologyTermList', () => {
