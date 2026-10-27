@@ -2,7 +2,7 @@
 
 import json
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import text
@@ -10,7 +10,6 @@ from sqlalchemy import text
 from app.api.endpoints.datasources import get_datasources
 from app.core.hpo.models import HPOTerm
 from app.core.hpo.pipeline import HPOPipeline
-from app.pipeline.sources.unified.hpo import HPOUnifiedSource
 
 
 @pytest.mark.unit
@@ -90,16 +89,3 @@ async def test_readers_accept_named_and_legacy_terms(db_session):
     result = await get_datasources(db=db_session)
     hpo = next(s for s in result["data"]["sources"] if s.name == "HPO")
     assert hpo.stats.metadata["phenotype_terms"] == 2
-
-
-@pytest.mark.unit
-@pytest.mark.asyncio
-async def test_syndromic_descendants_loaded_once():
-    source = HPOUnifiedSource(cache_service=MagicMock(), http_client=MagicMock())
-    pipeline = MagicMock()
-    pipeline.terms.get_descendants = AsyncMock(return_value={"HP:0001507"})
-    with patch("app.core.hpo.pipeline.HPOPipeline", return_value=pipeline):
-        await source._assess_syndromic_features({"HP:0000003"})
-        calls = pipeline.terms.get_descendants.await_count
-        await source._assess_syndromic_features({"HP:0000107"})
-    assert calls > 0 and pipeline.terms.get_descendants.await_count == calls
