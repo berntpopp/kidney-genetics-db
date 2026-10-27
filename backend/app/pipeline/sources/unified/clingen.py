@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
-from app.core.datasource_config import get_source_parameter
+from app.core.datasource_config import get_source_parameter, matches_kidney_keyword
 from app.core.logging import get_logger
 from app.pipeline.sources.unified.base import UnifiedDataSource
 
@@ -84,22 +84,6 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             },
         )
 
-        # Kidney disease keywords
-        self.kidney_keywords = [
-            "kidney",
-            "renal",
-            "nephro",
-            "glomerul",
-            "tubul",
-            "polycystic",
-            "alport",
-            "nephritis",
-            "cystic",
-            "ciliopathy",
-            "complement",
-            "cakut",
-        ]
-
         logger.sync_info(
             "ClinGenUnifiedSource initialized", kidney_panels=len(self.kidney_panel_names)
         )
@@ -150,7 +134,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
             disease = row[2].strip().lower()
             is_kidney_panel = gcep in self.kidney_panel_names
             # Also include entries from non-kidney panels if disease is kidney-related
-            is_kidney_disease = any(kw in disease for kw in self.kidney_keywords)
+            is_kidney_disease = matches_kidney_keyword(disease)
 
             if not is_kidney_panel and not is_kidney_disease:
                 continue
@@ -285,7 +269,7 @@ class ClinGenUnifiedSource(UnifiedDataSource):
         combined_text = f"{disease_name} {expert_panel}"
 
         # Check for kidney keywords
-        is_kidney = any(keyword in combined_text for keyword in self.kidney_keywords)
+        is_kidney = matches_kidney_keyword(combined_text)
 
         # Since these are from kidney-specific panels, be more permissive
         if not is_kidney and disease_name:

@@ -87,7 +87,7 @@ class TestPanelAppConfig:
         assert "kidney" in keywords
         assert "renal" in keywords
         assert "nephro" in keywords
-        assert len(keywords) == 18  # All deduplicated keywords
+        assert len(keywords) == 19  # All deduplicated keywords
 
 
 class TestPubTatorConfig:
@@ -154,7 +154,7 @@ class TestGenCCConfig:
         """Verify kidney keywords are applied to GenCC."""
         config = get_source_config("GenCC")
         assert "kidney_keywords" in config
-        assert len(config["kidney_keywords"]) == 18
+        assert len(config["kidney_keywords"]) == 19
 
 
 class TestHPOConfig:

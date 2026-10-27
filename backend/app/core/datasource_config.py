@@ -7,6 +7,7 @@ REFACTORED: Using pydantic-settings with YAML sources for external configuration
 Maintains 100% backward compatibility with all existing APIs.
 """
 
+from collections.abc import Iterable
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
@@ -122,6 +123,22 @@ def _apply_keywords_to_sources() -> None:
     for source_name in ["PanelApp", "GenCC"]:
         if source_name in config.datasources:
             config.datasources[source_name]["kidney_keywords"] = kidney_keywords
+
+
+def matches_kidney_keyword(text: str, keywords: Iterable[str] | None = None) -> bool:
+    """Return True if text contains a kidney keyword (default: keywords.yaml ``kidney``).
+
+    Terms under ``kidney_exclude`` (e.g. "adrenal") are blanked out first, so they never
+    match but do not veto a real kidney term elsewhere in the text. Keywords stay substring
+    matches on purpose: word-start matching would drop compounds such as
+    "oculocerebrorenal" (OCRL) and "branchiootorenal" (EYA1) (#369).
+    """
+    config = get_config()
+    text = text.lower()
+    for term in config.keywords.get("kidney_exclude", []):
+        text = text.replace(term, " ")
+    words = config.keywords.get("kidney", []) if keywords is None else keywords
+    return any(keyword in text for keyword in words)
 
 
 # Initialize configuration and apply keywords

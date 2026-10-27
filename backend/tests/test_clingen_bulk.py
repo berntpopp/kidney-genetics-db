@@ -66,20 +66,6 @@ def source():
             "Complement-Mediated Kidney Diseases Gene Curation Expert Panel",
             "Congenital Anomalies of the Kidney and Urinary Tract Gene Curation Expert Panel",
         }
-        src.kidney_keywords = [
-            "kidney",
-            "renal",
-            "nephro",
-            "glomerul",
-            "tubul",
-            "polycystic",
-            "alport",
-            "nephritis",
-            "cystic",
-            "ciliopathy",
-            "complement",
-            "cakut",
-        ]
         src.http_client = AsyncMock()
         src.cache_ttl = 86400
         return src
