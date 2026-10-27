@@ -1,12 +1,13 @@
 /**
  * HPO evidence must show one unambiguous normalized contribution, not the
- * capped raw phenotype-count heuristic (#278).
+ * capped raw phenotype-count heuristic (#278), and name its terms.
  */
 
 import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { h } from 'vue'
-import { Accordion } from '@/components/ui/accordion'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { Chip } from '@/components/shared'
 import EvidenceCard from '@/components/evidence/EvidenceCard.vue'
 
 const hpoEvidence = (normalized_score: number | null) => ({
@@ -19,23 +20,59 @@ const hpoEvidence = (normalized_score: number | null) => ({
   }
 })
 
-const render = (evidence: ReturnType<typeof hpoEvidence>) =>
-  mount(() =>
-    h(Accordion, { type: 'single', defaultValue: 'HPO' }, () => h(EvidenceCard, { evidence }))
+const render = (evidence: ReturnType<typeof hpoEvidence>, context = {}) =>
+  mount(
+    { render: () => h(TooltipProvider, () => h(EvidenceCard, { evidence, context })) },
+    { attachTo: document.body }
   )
+
+const scoreChip = (evidence: ReturnType<typeof hpoEvidence>) =>
+  render(evidence)
+    .findAllComponents(Chip)
+    .find(c => String(c.props('label')).startsWith('Score'))
 
 describe('HPO evidence score display', () => {
   it('shows the normalized percentile as a percentage and hides the raw heuristic', () => {
     const wrapper = render(hpoEvidence(0.901))
-    const badge = wrapper.find('[title^="Normalized"]')
-    expect(badge.text()).toBe('90.1%')
-    expect(badge.attributes('title')).toContain('percentile rank')
+    const chip = wrapper
+      .findAllComponents(Chip)
+      .find(c => String(c.props('label')).startsWith('Score'))!
+    expect(chip.text()).toBe('Score 90.1%')
+    expect(chip.props('tooltip')).toContain('percentile rank')
     expect(wrapper.text()).not.toContain('Evidence Score')
     expect(wrapper.text()).not.toMatch(/\b100\b/)
+    expect(wrapper.get('[data-testid="evidence-stats"]').text()).toBe('19 phenotype terms')
+    wrapper.unmount()
   })
 
   it('shows a zero contribution as 0.0% and an unavailable one not at all', () => {
-    expect(render(hpoEvidence(0)).find('[title^="Normalized"]').text()).toBe('0.0%')
-    expect(render(hpoEvidence(null)).find('[title^="Normalized"]').exists()).toBe(false)
+    expect(scoreChip(hpoEvidence(0))!.text()).toBe('Score 0.0%')
+    expect(scoreChip(hpoEvidence(null))).toBeUndefined()
+  })
+})
+
+describe('HPO evidence terms', () => {
+  it('renders term names from the annotation, name first, sorted, linked to HPO', async () => {
+    const evidence = hpoEvidence(0.5)
+    evidence.evidence_data.hpo_terms = ['HP:0000107', 'HP:0000003', 'HP:0000083']
+    const wrapper = render(evidence, {
+      hpoNames: { 'HP:0000107': 'Renal cyst', 'HP:0000003': 'Multicystic kidney dysplasia' }
+    })
+    expect(wrapper.get('[data-testid="evidence-summary"]').text()).toBe(
+      'Multicystic kidney dysplasia, Renal cyst and 1 more term'
+    )
+    await wrapper.get('button[aria-expanded]').trigger('click')
+    await flushPromises()
+
+    const terms = wrapper.findAll('[data-slot="ontology-term"]')
+    expect(terms.map(t => t.text())).toEqual([
+      'Multicystic kidney dysplasiaHP:0000003',
+      'Renal cystHP:0000107',
+      // a term without a loaded name keeps its linked ID, sorted last
+      'HP:0000083'
+    ])
+    expect(terms[1]!.attributes('href')).toBe('https://hpo.jax.org/browse/term/HP:0000107')
+    expect(terms[1]!.find('.font-mono').classes()).toContain('text-muted-foreground')
+    wrapper.unmount()
   })
 })
