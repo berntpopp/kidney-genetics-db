@@ -43,10 +43,13 @@ async function mountRoute(path: string, component: object, extraRoutes: string[]
   })
   await router.push(path)
   await router.isReady()
-  wrapper = mount(defineComponent({ render: () => h(TooltipProvider, () => h(RouterView)) }), {
-    global: { plugins: [router, createPinia()], stubs: { KGDBLogo: true } },
-    attachTo: document.body
-  })
+  wrapper = mount(
+    { render: () => h(TooltipProvider, () => h(RouterView)) },
+    {
+      global: { plugins: [router, createPinia()], stubs: { KGDBLogo: true } },
+      attachTo: document.body
+    }
+  )
   await flushPromises()
   return { w: wrapper, router }
 }

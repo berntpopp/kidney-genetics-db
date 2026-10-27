@@ -202,12 +202,7 @@ const columns: ColumnDef<DataTableFeatures, GeneRow>[] = [
     },
     size: 120
   },
-  {
-    accessorKey: 'evidence_tier',
-    header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Tier' }),
-    cell: ({ row }) => h(Chip, { tier: (row.getValue('evidence_tier') as string) ?? null }),
-    size: 190
-  },
+  // Score before Tier: on phones the headline number stays in view and the wide tier chip scrolls
   {
     accessorKey: 'evidence_score',
     header: ({ column }) => rightHeader(column as never, 'Score'),
@@ -225,6 +220,12 @@ const columns: ColumnDef<DataTableFeatures, GeneRow>[] = [
     },
     meta: { class: 'text-right' },
     size: 100
+  },
+  {
+    accessorKey: 'evidence_tier',
+    header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Tier' }),
+    cell: ({ row }) => h(Chip, { tier: (row.getValue('evidence_tier') as string) ?? null }),
+    size: 190
   },
   {
     accessorKey: 'evidence_count',
@@ -616,7 +617,7 @@ onMounted(async () => {
 <template>
   <div class="space-y-3">
     <!-- Search & Filter Bar -->
-    <Card>
+    <Card class="gap-0 py-0">
       <CardContent class="py-3 px-4">
         <!-- Row 1: Search + Sort + Action buttons -->
         <div class="flex flex-col sm:flex-row gap-2">
