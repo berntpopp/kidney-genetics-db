@@ -96,7 +96,8 @@ class TestSecretStrCallSites:
         from app.core.config import settings
 
         val = settings.DATABASE_URL.get_secret_value()
-        assert val.startswith("postgresql://")
+        # A bare postgresql:// URL is pinned to psycopg2 (SQLAlchemy 2.1 defaults to psycopg 3)
+        assert val.startswith("postgresql+psycopg2://")
 
     def test_settings_admin_password_returns_string(self):
         from app.core.config import settings
