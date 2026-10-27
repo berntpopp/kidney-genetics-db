@@ -44,7 +44,7 @@ class GeneNormalizationStaging(Base):
 
     # Manual review fields
     reviewed_by = Column(String, nullable=True)
-    reviewed_at = Column(DateTime, nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
     review_notes = Column(Text, nullable=True)
 
     # Manual correction fields
@@ -58,8 +58,12 @@ class GeneNormalizationStaging(Base):
     # Values: automatic_retry, manual_correction, merged_with_existing, rejected_invalid
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True
+    )
+    updated_at = Column(
+        DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
 
     # Priority scoring (higher = more important to review)
     priority_score = Column(Integer, default=0, nullable=False, index=True)
@@ -98,7 +102,9 @@ class GeneNormalizationLog(Base):
     staging_id = Column(BigInteger, nullable=True)  # FK to staging table if manual review needed
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(
+        DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True
+    )
 
     # Performance tracking
     api_calls_made = Column(Integer, default=0, nullable=False)

@@ -117,8 +117,8 @@ class PipelineRun(Base, TimestampMixin):
 
     id = Column(BigInteger, primary_key=True, index=True)
     status = Column(String(50), default="running")
-    started_at = Column(DateTime)
-    completed_at = Column(DateTime)
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
     stats = Column(JSONB)
     error_log = Column(Text)
 

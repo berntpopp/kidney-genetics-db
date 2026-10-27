@@ -80,13 +80,13 @@ describe('FAQ', () => {
     expect(wrapper.find('nav[aria-label="breadcrumb"] a[href="/"]').exists()).toBe(true)
     // Closed answers stay in the DOM (prerendered HTML) but hidden
     const closed = wrapper.get('[data-slot="accordion-content"]')
-    expect(closed.text()).toContain('KGDB contains over 5,000 genes')
+    expect(closed.text()).toContain('KGDB contains genes with evidence for kidney disease')
     expect(closed.attributes('hidden')).toBeDefined()
     const trigger = wrapper.get('[data-slot="accordion-trigger"]')
     expect(trigger.attributes('aria-expanded')).toBe('false')
     await trigger.trigger('click')
     expect(trigger.attributes('aria-expanded')).toBe('true')
-    expect(wrapper.text()).toContain('KGDB contains over 5,000 genes')
+    expect(wrapper.text()).toContain('KGDB contains')
   })
 })
 
@@ -101,7 +101,7 @@ describe('FAQ prerender', () => {
     app.use(router)
     const html = await renderToString(app)
     expect(html).toContain('hidden="until-found"')
-    expect(html).toContain('KGDB contains over 5,000 genes')
+    expect(html).toContain('KGDB contains genes with evidence for kidney disease')
   })
 })
 

@@ -146,11 +146,11 @@ const activeView = ref('tiers') // Default to tiers view
 const tierChartData = computed(() => {
   if (!data.value?.evidence_tier_distribution) return []
 
-  // Labels and colors from TIER_CONFIG, as everywhere else; backend values only for unknown tiers
+  // Labels and colors from TIER_CONFIG, as everywhere else; the API sends no colours
   return data.value.evidence_tier_distribution.map(tier => ({
     category: TIER_CONFIG[tier.tier]?.label ?? tier.tier_label,
     gene_count: tier.gene_count,
-    color: TIER_CONFIG[tier.tier]?.color ?? tier.color,
+    color: TIER_CONFIG[tier.tier]?.color,
     icon: TIER_CONFIG[tier.tier]?.icon
   }))
 })

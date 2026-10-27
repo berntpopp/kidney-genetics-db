@@ -32,14 +32,14 @@ class User(Base, TimestampMixin):
     is_admin = Column(Boolean, default=False)  # Legacy field, kept for compatibility
 
     # Login tracking
-    last_login = Column(DateTime, nullable=True)
+    last_login = Column(DateTime(timezone=True), nullable=True)
     failed_login_attempts = Column(Integer, default=0, nullable=False)
-    locked_until = Column(DateTime, nullable=True)
+    locked_until = Column(DateTime(timezone=True), nullable=True)
 
     # Token fields
     refresh_token = Column(Text, nullable=True)
     password_reset_token = Column(String(255), nullable=True)
-    password_reset_expires = Column(DateTime, nullable=True)
+    password_reset_expires = Column(DateTime(timezone=True), nullable=True)
     email_verification_token = Column(String(255), nullable=True)
 
     # Relationships
