@@ -197,7 +197,7 @@
           <h2 id="about-faq" class="text-xl font-semibold tracking-tight">Questions</h2>
           <div v-for="item in questions" :key="item.question" class="space-y-2">
             <h3 class="text-base font-semibold">{{ item.question }}</h3>
-            <p v-for="(para, i) in item.answer" :key="i" class="text-muted-foreground">
+            <p v-for="(para, i) in item.answer" :key="i">
               <template v-for="(seg, j) in segments(para)" :key="j">
                 <template v-if="typeof seg === 'string'">{{ seg }}</template>
                 <a v-else-if="seg.href" :href="seg.href" :class="LINK">{{ seg.text }}</a>
