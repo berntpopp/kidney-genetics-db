@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { h } from 'vue'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { Chip } from '@/components/shared'
 import GenePhenotypes from '@/components/gene/GenePhenotypes.vue'
+
+const render = (hpoData: Record<string, unknown>) =>
+  mount({ render: () => h(TooltipProvider, () => h(GenePhenotypes, { hpoData })) })
 import { networkAnalysisConfig } from '@/config/networkAnalysis'
 
 const hpo = (clinicalGroup: Record<string, unknown>) => ({
@@ -12,35 +18,33 @@ const hpo = (clinicalGroup: Record<string, unknown>) => ({
 
 describe('GenePhenotypes clinical group (#338)', () => {
   it('labels neoplasia and shows secondary groups as chips', () => {
-    const wrapper = mount(GenePhenotypes, {
-      props: {
-        hpoData: hpo({
-          primary: 'neoplasia',
-          secondary: ['glomerulopathy'],
-          scores: { neoplasia: 0.543, glomerulopathy: 0.457 }
-        })
-      }
-    })
+    const wrapper = render(
+      hpo({
+        primary: 'neoplasia',
+        secondary: ['glomerulopathy'],
+        scores: { neoplasia: 0.543, glomerulopathy: 0.457 }
+      })
+    )
     const secondary = wrapper.find('[data-testid="clinical-group-secondary"]')
     expect(wrapper.text()).toContain('Neoplasia')
     expect(secondary.text()).toContain('Glomerulopathy')
   })
 
   it('renders v1 annotations without secondary groups', () => {
-    const wrapper = mount(GenePhenotypes, {
-      props: { hpoData: hpo({ primary: 'cakut', scores: { cakut: 1 } }) }
-    })
+    const wrapper = render(hpo({ primary: 'cakut', scores: { cakut: 1 } }))
     expect(wrapper.text()).toContain('CAKUT')
     expect(wrapper.find('[data-testid="clinical-group-secondary"]').exists()).toBe(false)
   })
 })
 
 describe('GenePhenotypes score label (#338)', () => {
-  const inline = { HoverPopover: { template: '<div><slot /><slot name="content" /></div>' } }
   const label = (clinicalGroup: Record<string, unknown>) =>
-    mount(GenePhenotypes, { props: { hpoData: hpo(clinicalGroup) }, global: { stubs: inline } })
-      .find('[data-testid="clinical-group-score"]')
-      .text()
+    String(
+      render(hpo(clinicalGroup))
+        .findAllComponents(Chip)
+        .find(c => String(c.props('tooltip')).startsWith('Clinical group'))!
+        .props('tooltip')
+    )
 
   it('calls a v2 score a share of kidney-group evidence', () => {
     expect(label({ primary: 'cakut', scores: { cakut: 0.6 }, method: 'hpo-freq-ic-v2' })).toContain(

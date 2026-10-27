@@ -1,0 +1,70 @@
+{
+  "unmapped": [],
+  "ambiguous": [],
+  "provenance": {
+    "license": "CC BY 4.0",
+    "predicate": "skos:exactMatch",
+    "sssom_url": "https://raw.githubusercontent.com/monarch-initiative/mondo/9bfccbe9217cdfa6a225058bfa6e4bd55512b432/src/ontology/mappings/mondo.sssom.tsv",
+    "sssom_sha256": "ec15afdb32fab3d3cb679d357e25ef4fb38b5e2c468ff4ac5456da10e2f6c80b",
+    "mondo_release": "2026-10-06"
+  },
+  "mapped_count": 9,
+  "mondo_diseases": [
+    {
+      "label": "type 2 diabetes mellitus",
+      "sources": ["HPO"],
+      "mondo_id": "MONDO:0005148",
+      "source_ids": ["OMIM:125853"]
+    },
+    {
+      "label": "renal cysts and diabetes syndrome",
+      "sources": ["ClinGen", "GenCC", "HPO"],
+      "mondo_id": "MONDO:0007669",
+      "source_ids": ["MONDO:0007669", "OMIM:137920", "ORPHA:93111", "Orphanet:93111"]
+    },
+    {
+      "label": "nonpapillary renal cell carcinoma",
+      "sources": ["HPO"],
+      "mondo_id": "MONDO:0007763",
+      "source_ids": ["OMIM:144700"]
+    },
+    {
+      "label": "Mayer-Rokitansky-Küster-Hauser syndrome type 2",
+      "sources": ["HPO"],
+      "mondo_id": "MONDO:0010989",
+      "source_ids": ["ORPHA:2578"]
+    },
+    {
+      "label": "chromosome 17q12 deletion syndrome",
+      "sources": ["HPO"],
+      "mondo_id": "MONDO:0013797",
+      "source_ids": ["ORPHA:261265"]
+    },
+    {
+      "label": "medullary sponge kidney",
+      "sources": ["GenCC", "HPO"],
+      "mondo_id": "MONDO:0015268",
+      "source_ids": ["MONDO:0015268", "ORPHA:1309", "Orphanet:1309"]
+    },
+    {
+      "label": "renal dysplasia, unilateral",
+      "sources": ["GenCC"],
+      "mondo_id": "MONDO:0019644",
+      "source_ids": ["MONDO:0019644", "Orphanet:93172"]
+    },
+    {
+      "label": "renal dysplasia, bilateral",
+      "sources": ["GenCC"],
+      "mondo_id": "MONDO:0019645",
+      "source_ids": ["MONDO:0019645", "Orphanet:93173"]
+    },
+    {
+      "label": "unilateral multicystic dysplastic kidney",
+      "sources": ["GenCC"],
+      "mondo_id": "MONDO:0019981",
+      "source_ids": ["MONDO:0019981", "Orphanet:97363"]
+    }
+  ],
+  "unmapped_count": 0,
+  "ambiguous_count": 0
+}
