@@ -30,8 +30,10 @@
           <Badge v-if="filteredGenes.length > 0" class="bg-green-600 text-white">
             {{ filteredGenes.length }} genes
           </Badge>
-          <Badge v-if="networkStats" variant="secondary">
-            Built network: {{ networkStats.nodes }} nodes &middot; {{ networkStats.edges }} edges
+          <!-- Same network as the graph card: clustering drops clusters below the minimum size -->
+          <Badge v-if="displayNetwork" variant="secondary">
+            Network: {{ displayNetwork.nodes }} genes &middot;
+            {{ displayNetwork.edges }} interactions
           </Badge>
           <Badge v-if="clusterStats" variant="secondary">
             {{ clusterStats.num_clusters }} clusters &middot; Q={{
@@ -574,7 +576,6 @@ const buildingNetwork = ref(false)
 const clustering = ref(false)
 const networkData = ref(null)
 const clusterData = ref(null)
-const networkStats = ref(null)
 const clusterStats = ref(null)
 const networkError = ref(null)
 
@@ -711,7 +712,6 @@ const resetAll = () => {
   filteredGenes.value = []
   networkData.value = null
   clusterData.value = null
-  networkStats.value = null
   clusterStats.value = null
   networkError.value = null
   selectedClusters.value = []
@@ -798,11 +798,6 @@ const buildNetwork = async () => {
     networkData.value = response
     clusterData.value = null
     clusterStats.value = null
-    networkStats.value = {
-      nodes: response.nodes,
-      edges: response.edges,
-      components: response.components
-    }
     activeTab.value = 'network'
     window.logService?.info('Network built successfully')
   } catch (error) {

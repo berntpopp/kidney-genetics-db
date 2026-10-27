@@ -13,7 +13,10 @@ from app.core.background_tasks import task_manager
 from app.core.datasource_config import DATA_SOURCE_CONFIG, get_auto_update_sources
 from app.core.dependencies import require_admin
 from app.core.exceptions import DataSourceError, ResourceConflictError
-from app.core.gene_filters import count_filtered_genes_from_evidence_sql
+from app.core.gene_filters import (
+    count_filtered_genes_from_evidence_sql,
+    get_gene_evidence_filter_join,
+)
 from app.core.logging import get_logger
 from app.core.responses import ResponseBuilder
 from app.models.gene import PipelineRun
@@ -33,8 +36,6 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
 
     try:
         # Get statistics for each source from the database (with score filtering)
-        from app.core.gene_filters import get_gene_evidence_filter_join
-
         join_clause, filter_clause = get_gene_evidence_filter_join()
         result = db.execute(
             text(
@@ -159,6 +160,18 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         )
     ).scalar()
 
+    # Literature: unique curated publications
+    literature_metadata = db.execute(
+        text(
+            """
+            SELECT COUNT(DISTINCT pmid)
+            FROM gene_evidence,
+                 jsonb_array_elements_text(evidence_data->'publications') AS pmid
+            WHERE source_name = 'Literature'
+        """
+        )
+    ).scalar()
+
     # PanelApp: panels and regions
     panelapp_metadata = db.execute(
         text(
@@ -230,6 +243,10 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
                 stats.metadata["search_query"] = (
                     '("kidney disease" OR "renal disease") AND (gene OR syndrome) AND (variant OR mutation)'
                 )
+
+            elif source_name == "Literature":
+                stats.metadata["publications"] = literature_metadata or 0
+                stats.metadata["type"] = "Curated Literature"
 
             elif source_name == "PanelApp" and panelapp_metadata:
                 stats.metadata["panels"] = panelapp_metadata[0] or 0
@@ -325,17 +342,32 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
     # Get last update from any source
     last_update = db.execute(text("SELECT MAX(updated_at) FROM gene_evidence")).scalar()
 
-    # Calculate source coverage
-    source_coverage = 0
-    if unique_genes > 0:
-        avg_sources_per_gene = total_evidence / unique_genes
-        source_coverage = min(round((avg_sources_per_gene / 6) * 100), 100)
+    # Source coverage: share of the same filtered genes that have evidence from >= 2 sources
+    join_clause, filter_clause = get_gene_evidence_filter_join()
+    multi_source_genes = (
+        db.execute(
+            text(
+                f"""
+                SELECT COUNT(*) FROM (
+                    SELECT gene_evidence.gene_id
+                    FROM gene_evidence
+                    {join_clause}
+                    WHERE {filter_clause}
+                    GROUP BY gene_evidence.gene_id
+                    HAVING COUNT(DISTINCT gene_evidence.source_name) >= 2
+                ) multi
+            """
+            )
+        ).scalar()
+        or 0
+    )
+    source_coverage = round(multi_source_genes * 100 / unique_genes) if unique_genes else 0
 
     # Field explanations for tooltips
     explanations = {
         "active_sources": "Number of data sources currently integrated and providing gene evidence",
         "unique_genes": f"Total number of distinct genes across all sources ({unique_genes:,} genes with kidney disease associations)",
-        "source_coverage": f"Average overlap between sources ({source_coverage}%). Each gene appears in ~{round(total_evidence / unique_genes, 1) if unique_genes > 0 else 0} sources on average. Higher coverage indicates stronger validation across multiple sources.",
+        "source_coverage": f"{source_coverage}% of genes with evidence ({multi_source_genes:,} of {unique_genes:,}) are supported by two or more independent sources.",
         "last_updated": "Most recent data update from any source. Updates occur when sources are refreshed or new data is uploaded.",
         # Source-specific explanations
         "expert_panels": "Number of clinical expert panels that have reviewed and validated gene-disease relationships",
@@ -343,7 +375,7 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
         "submissions": "Individual gene-disease relationship submissions from consortium members",
         "submitters": "Number of organizations contributing gene-disease validity assessments",
         "phenotypes": "Distinct Human Phenotype Ontology terms associated with kidney/urinary system abnormalities",
-        "publications": "Unique PubMed articles mentioning kidney disease genes identified through text mining",
+        "publications": "Unique PubMed articles linked to kidney disease genes in this source",
         "panels": "Clinical or diagnostic gene panels for kidney disease testing",
         "regions": "Geographic regions or organizations maintaining the gene panels",
         "providers": "Commercial diagnostic laboratories offering kidney genetic testing panels",
@@ -356,6 +388,8 @@ async def get_datasources(db: Session = Depends(get_db)) -> dict[str, Any]:
             "total_sources": len(sources),
             "last_pipeline_run": last_run.completed_at if last_run else None,
             "total_unique_genes": unique_genes,
+            "multi_source_genes": multi_source_genes,
+            "source_coverage": source_coverage,
             "orphaned_genes": orphaned_genes,
             "total_evidence_records": total_evidence,
             "last_data_update": last_update,

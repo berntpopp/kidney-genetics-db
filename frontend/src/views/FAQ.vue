@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   Accordion,
@@ -63,6 +63,7 @@ import {
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
 import { TIER_CONFIG } from '@/utils/evidenceTiers'
+import { datasourceApi } from '@/api/datasources'
 
 useSeoMeta({
   title: 'FAQ — Kidney Genetics Database',
@@ -77,11 +78,22 @@ const breadcrumbs = [
 ]
 useJsonLd(computed(() => getBreadcrumbSchema(breadcrumbs)))
 
-const faqs = [
+// Counts come from /api/datasources; the prerendered page states none rather than stale ones
+const counts = ref<{ genes: number; sources: number } | null>(null)
+onMounted(async () => {
+  try {
+    const response = await datasourceApi.getDataSources()
+    counts.value = { genes: response.total_unique_genes, sources: response.total_sources }
+  } catch {
+    // keep the count-free wording
+  }
+})
+
+const faqs = computed(() => [
   {
     question: 'What genes are included in the Kidney Genetics Database?',
     answer: [
-      'KGDB contains over 5,000 genes associated with kidney diseases, curated from 7 authoritative sources: PanelApp (UK and Australia), ClinGen, GenCC, HPO, PubTator, curated literature, and commercial diagnostic panels.',
+      `KGDB contains ${counts.value ? `${counts.value.genes.toLocaleString()} ` : ''}genes with evidence for kidney disease, curated from ${counts.value ? `${counts.value.sources} ` : ''}sources: PanelApp (UK and Australia), ClinGen, GenCC, HPO, PubTator, curated literature, and commercial diagnostic panels.`,
       'Genes are included if they have at least one kidney disease association reported by any of these sources. Each gene receives an evidence score from 0 to 100 based on the strength and breadth of supporting evidence.'
     ]
   },
@@ -137,19 +149,21 @@ const faqs = [
       'Disease associations are derived from HPO phenotype terms, ClinGen gene-disease validity classifications, and GenCC submissions.'
     ]
   }
-]
+])
 
 // FAQPage JSON-LD schema
-useJsonLd({
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: faqs.map(faq => ({
-    '@type': 'Question',
-    name: faq.question,
-    acceptedAnswer: {
-      '@type': 'Answer',
-      text: faq.answer.join(' ')
-    }
+useJsonLd(
+  computed(() => ({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.value.map(faq => ({
+      '@type': 'Question',
+      name: faq.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: faq.answer.join(' ')
+      }
+    }))
   }))
-})
+)
 </script>

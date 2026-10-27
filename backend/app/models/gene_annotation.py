@@ -133,7 +133,7 @@ class AnnotationHistory(Base):
     old_data = Column(JSONB)
     new_data = Column(JSONB)
     changed_by = Column(String(100))
-    changed_at = Column(DateTime, default=datetime.utcnow)
+    changed_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     change_reason = Column(Text)
 
     def __repr__(self) -> str:

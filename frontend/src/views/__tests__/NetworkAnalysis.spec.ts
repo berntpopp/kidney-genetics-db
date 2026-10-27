@@ -218,7 +218,6 @@ describe('NetworkAnalysis.vue', () => {
       vm.filteredGenes = [{ id: '1', gene_symbol: 'PKD1' }]
       vm.networkData = { nodes: 5, edges: 3 }
       vm.clusterData = { nodes: 5, edges: 3 }
-      vm.networkStats = { nodes: 5, edges: 3, components: 1 }
       vm.clusterStats = {
         clusters: { gene1: 0 },
         num_clusters: 1,
@@ -253,7 +252,6 @@ describe('NetworkAnalysis.vue', () => {
       expect(vm.filteredGenes).toEqual([])
       expect(vm.networkData).toBeNull()
       expect(vm.clusterData).toBeNull()
-      expect(vm.networkStats).toBeNull()
       expect(vm.clusterStats).toBeNull()
       expect(vm.networkError).toBeNull()
       expect(vm.selectedClusters).toEqual([])
@@ -628,12 +626,17 @@ describe('NetworkAnalysis.vue', () => {
   })
 
   describe('header counts (#325)', () => {
-    it('labels the node and edge counts as the built network', async () => {
+    it('counts the network the graph displays, clustered if clustered', async () => {
       const wrapper = mountComponent({ Badge: { template: '<span><slot /></span>' } })
       const vm = wrapper.vm as any
-      vm.networkStats = { nodes: 470, edges: 2655, components: 1 }
+      vm.networkData = { nodes: 458, edges: 2453, components: 1 }
       await nextTick()
-      expect(wrapper.text()).toContain('Built network: 470 nodes · 2655 edges')
+      expect(wrapper.text()).toContain('Network: 458 genes · 2453 interactions')
+      // Clustering drops clusters below the minimum size; header and graph agree
+      vm.clusterData = { nodes: 434, edges: 2428, components: 1 }
+      await nextTick()
+      expect(wrapper.text()).toContain('Network: 434 genes · 2428 interactions')
+      expect(wrapper.text()).not.toContain('458')
     })
   })
 })

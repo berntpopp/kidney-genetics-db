@@ -150,3 +150,14 @@ describe('Backups cleanup without retention data', () => {
     expect(button('Cleanup Old').hasAttribute('disabled')).toBe(true)
   })
 })
+
+describe('Annotation pipeline status', () => {
+  it('does not call the pipeline ready while sources are due', async () => {
+    vi.mocked(annotationsApi.getPipelineStatus).mockResolvedValueOnce({
+      data: { pipeline_ready: true, updates_due: ['ensembl', 'hpo', 'mondo'] }
+    } as never)
+    await mountView(AdminAnnotations)
+    expect(document.body.textContent).toContain('3 Sources Due')
+    expect(document.body.textContent).not.toContain('All Sources')
+  })
+})

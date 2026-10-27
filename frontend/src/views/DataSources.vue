@@ -114,7 +114,7 @@
                         {{ getMetadataCount(source, 'primary').toLocaleString() }}
                       </div>
                       <div class="text-xs text-muted-foreground">
-                        {{ getMetadataLabel(source, 'primary') }}
+                        {{ getCountLabel(source, 'primary') }}
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>{{ getMetadataTooltip(source, 'primary') }}</TooltipContent>
@@ -129,7 +129,7 @@
                         {{ getMetadataCount(source, 'secondary').toLocaleString() }}
                       </div>
                       <div class="text-xs text-muted-foreground">
-                        {{ getMetadataLabel(source, 'secondary') }}
+                        {{ getCountLabel(source, 'secondary') }}
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>{{ getMetadataTooltip(source, 'secondary') }}</TooltipContent>
@@ -163,7 +163,7 @@
                 <TooltipTrigger as-child>
                   <div class="text-center">
                     <div class="text-3xl font-bold text-primary">
-                      {{ summaryStats.total_active }}
+                      {{ summaryStats.total_active }} of {{ summaryStats.total_sources }}
                     </div>
                     <div class="text-sm text-muted-foreground">
                       Active Sources
@@ -197,10 +197,10 @@
                 <TooltipTrigger as-child>
                   <div class="text-center">
                     <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                      {{ calculateCoverage() }}%
+                      {{ summaryStats.source_coverage }}%
                     </div>
                     <div class="text-sm text-muted-foreground">
-                      Source Coverage
+                      of Genes with 2+ Sources
                       <CircleHelp class="size-3 ml-1 inline-block" />
                     </div>
                   </div>
@@ -296,11 +296,19 @@ const sourceDescriptions: Record<string, string> = {
 
 const summaryStats = computed(() => {
   if (!apiResponse.value) {
-    return { total_active: 0, unique_genes: 0, last_update: null }
+    return {
+      total_active: 0,
+      total_sources: 0,
+      source_coverage: 0,
+      unique_genes: 0,
+      last_update: null
+    }
   }
   const response = apiResponse.value as Record<string, unknown>
   return {
     total_active: (response.total_active as number) || 0,
+    total_sources: (response.total_sources as number) || 0,
+    source_coverage: (response.source_coverage as number) || 0,
     unique_genes: (response.total_unique_genes as number) || 0,
     last_update: (response.last_data_update as string) || null
   }
@@ -355,6 +363,8 @@ const getStatusLabel = (status: string) => {
       return 'Error'
     case 'pending':
       return 'Pending'
+    case 'inactive':
+      return 'Inactive'
     default:
       return 'Unknown'
   }
@@ -374,6 +384,7 @@ const getMetadataCount = (source: Record<string, unknown>, type: string): number
       case 'HPO':
         return metadata.phenotype_terms || 0
       case 'PubTator':
+      case 'Literature':
         return metadata.publications || 0
       case 'PanelApp':
         return metadata.panels || 0
@@ -409,6 +420,7 @@ const getMetadataLabel = (source: Record<string, unknown>, type: string) => {
       case 'HPO':
         return 'Phenotypes'
       case 'PubTator':
+      case 'Literature':
         return 'Publications'
       case 'PanelApp':
         return 'Panels'
@@ -453,12 +465,10 @@ const getMetadataTooltip = (source: Record<string, unknown>, type: string) => {
   return tooltipMap[label] || `Number of ${label.toLowerCase()} in this data source`
 }
 
-const calculateCoverage = () => {
-  const uniqueGenes = summaryStats.value.unique_genes || 1
-  const response = apiResponse.value as Record<string, unknown> | null
-  const totalEvidence = (response?.total_evidence_records as number) || 0
-  const avgSourcesPerGene = totalEvidence / uniqueGenes
-  return Math.min(Math.round((avgSourcesPerGene / 6) * 100), 100)
+// "1 Provider", not "1 Providers"
+const getCountLabel = (source: Record<string, unknown>, type: string) => {
+  const label = getMetadataLabel(source, type)
+  return getMetadataCount(source, type) === 1 ? label.replace(/s$/, '') : label
 }
 
 const formatDate = (dateStr: string | null | undefined) => {

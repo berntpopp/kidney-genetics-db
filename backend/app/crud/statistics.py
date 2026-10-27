@@ -110,6 +110,7 @@ class CRUDStatistics:
                         "highest_overlap_count": 0,
                         "genes_in_all_sources": 0,
                         "single_source_combinations": 0,
+                        "single_source_genes": 0,
                         "total_combinations": 0,
                     },
                 }
@@ -221,10 +222,7 @@ class CRUDStatistics:
                     genes_in_all_sources = intersection["size"]
                     break
 
-            # Count single-source combinations
-            single_source_count = sum(
-                1 for intersection in intersections if len(intersection["sets"]) == 1
-            )
+            single_source = [i for i in intersections if len(i["sets"]) == 1]
 
             return {
                 "sets": sets,
@@ -233,7 +231,9 @@ class CRUDStatistics:
                 "overlap_statistics": {
                     "highest_overlap_count": len(source_names),
                     "genes_in_all_sources": genes_in_all_sources,
-                    "single_source_combinations": single_source_count,
+                    "single_source_combinations": len(single_source),
+                    # Genes found in exactly one source (the combinations count is not genes)
+                    "single_source_genes": sum(i["size"] for i in single_source),
                     "total_combinations": len(intersections),
                 },
             }
@@ -316,21 +316,20 @@ class CRUDStatistics:
                 filter_clause=filter_clause,
             )
 
-            # Get all sources with filtering
+            # Get all sources with their distinct gene counts, with filtering
             sources_query = f"""
-                SELECT DISTINCT gene_evidence.source_name
+                SELECT gene_evidence.source_name, COUNT(DISTINCT gene_evidence.gene_id)
                 FROM gene_evidence
                 {join_clause}
                 WHERE {filter_clause}
+                GROUP BY gene_evidence.source_name
                 ORDER BY gene_evidence.source_name
             """
             sources = db.execute(text(sources_query)).fetchall()
 
             source_distributions = {}
 
-            for source_row in sources:
-                source_name = source_row[0]
-
+            for source_name, gene_count in sources:
                 # Get appropriate handler for source
                 handler = SourceDistributionHandlerFactory.get_handler(source_name)
 
@@ -338,6 +337,9 @@ class CRUDStatistics:
                 distribution_data, metadata = handler.get_distribution(
                     db, join_clause, filter_clause
                 )
+                # Distinct genes, as in /datasources and the UpSet sets: a gene with two
+                # classifications counts once, so category sums may exceed this total.
+                metadata["total_genes"] = gene_count
 
                 # Convert to response format
                 distribution = [
@@ -378,36 +380,30 @@ class CRUDStatistics:
             Dictionary with evidence composition analysis using actual evidence_tier column
         """
         try:
-            # Tier label and color mapping (matches frontend evidenceTiers.js)
+            # Tier labels and order; colours are presentation and live in the frontend TIER_CONFIG
             tier_config_map = {
                 "comprehensive_support": {
                     "label": "Comprehensive Support",
-                    "color": "#4CAF50",  # success (green)
                     "order": 1,
                 },
                 "multi_source_support": {
                     "label": "Multi-Source Support",
-                    "color": "#2196F3",  # info (blue)
                     "order": 2,
                 },
                 "established_support": {
                     "label": "Established Support",
-                    "color": "#1976D2",  # primary (darker blue)
                     "order": 3,
                 },
                 "preliminary_evidence": {
                     "label": "Preliminary Evidence",
-                    "color": "#FFC107",  # warning (amber)
                     "order": 4,
                 },
                 "minimal_evidence": {
                     "label": "Minimal Evidence",
-                    "color": "#9E9E9E",  # grey
                     "order": 5,
                 },
                 "no_evidence": {
                     "label": "Insufficient Evidence",
-                    "color": "#BDBDBD",  # lighter grey
                     "order": 6,
                 },
             }
@@ -447,14 +443,13 @@ class CRUDStatistics:
                 """)
             ).fetchall()
 
-            # Build tier distribution with proper labels and colors
+            # Build tier distribution with proper labels
             evidence_tier_distribution = [
                 {
                     "tier": row[0],
                     "tier_label": tier_config_map.get(row[0], {}).get("label", row[0]),
                     "gene_count": row[1],
                     "percentage": row[2],
-                    "color": tier_config_map.get(row[0], {}).get("color", "#BDBDBD"),
                 }
                 for row in score_distribution
                 if row[0]

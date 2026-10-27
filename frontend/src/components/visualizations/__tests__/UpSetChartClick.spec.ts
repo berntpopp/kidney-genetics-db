@@ -12,7 +12,11 @@ const overlaps = {
     { sets: ['B'], size: 1 }
   ],
   total_unique_genes: 6,
-  overlap_statistics: { genes_in_all_sources: 2, single_source_combinations: 2 }
+  overlap_statistics: {
+    genes_in_all_sources: 2,
+    single_source_combinations: 2,
+    single_source_genes: 4
+  }
 }
 
 vi.mock('@/api/statistics', () => ({
@@ -50,6 +54,12 @@ describe('UpSetChart selection (#315)', () => {
     await flushPromises()
     expect(wrapper.text()).not.toContain('Selected Intersection')
     expect(wrapper.text()).not.toContain('5 genes found only')
+  })
+
+  it('counts single-source genes, not single-source combinations', async () => {
+    const wrapper = mount(UpSetChart)
+    await flushPromises()
+    expect(wrapper.text()).toContain('4Genes in One Source Only')
   })
 
   it('shows the exclusive count for a clicked intersection bar', async () => {
