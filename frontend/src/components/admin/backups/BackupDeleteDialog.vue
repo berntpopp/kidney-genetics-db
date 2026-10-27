@@ -3,7 +3,7 @@
     <AlertDialogContent>
       <AlertDialogHeader>
         <AlertDialogTitle class="flex items-center gap-2">
-          <Trash2 class="size-5 text-destructive" />
+          <Trash2 class="size-5 text-danger" aria-hidden="true" />
           Delete Backup
         </AlertDialogTitle>
         <AlertDialogDescription>
@@ -21,7 +21,7 @@
       <AlertDialogFooter>
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <AlertDialogAction
-          class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          :class="buttonVariants({ variant: 'destructive' })"
           :disabled="loading"
           @click.prevent="$emit('delete')"
         >
@@ -49,6 +49,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction
 } from '@/components/ui/alert-dialog'
+import { buttonVariants } from '@/components/ui/button'
 
 const { formatSize } = useBackupFormatters()
 
