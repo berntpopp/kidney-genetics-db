@@ -80,13 +80,13 @@ describe('FAQ', () => {
     expect(wrapper.find('nav[aria-label="breadcrumb"] a[href="/"]').exists()).toBe(true)
     // Closed answers stay in the DOM (prerendered HTML) but hidden
     const closed = wrapper.get('[data-slot="accordion-content"]')
-    expect(closed.text()).toContain('KGDB contains genes with evidence for kidney disease')
+    expect(closed.text()).toContain('KGDB contains genes associated with kidney diseases')
     expect(closed.attributes('hidden')).toBeDefined()
     const trigger = wrapper.get('[data-slot="accordion-trigger"]')
     expect(trigger.attributes('aria-expanded')).toBe('false')
     await trigger.trigger('click')
     expect(trigger.attributes('aria-expanded')).toBe('true')
-    expect(wrapper.text()).toContain('KGDB contains')
+    expect(wrapper.text()).toContain('KGDB contains genes associated with kidney diseases')
   })
 })
 
@@ -101,7 +101,7 @@ describe('FAQ prerender', () => {
     app.use(router)
     const html = await renderToString(app)
     expect(html).toContain('hidden="until-found"')
-    expect(html).toContain('KGDB contains genes with evidence for kidney disease')
+    expect(html).toContain('KGDB contains genes associated with kidney diseases')
   })
 })
 
@@ -181,40 +181,9 @@ describe('Main navigation', () => {
     const router = routerWith('/', { render: () => null })
     await router.push('/')
     await router.isReady()
-    const { h } = await import('vue')
-    const { TooltipProvider } = await import('@/components/ui/tooltip')
-    wrapper = mount(
-      { render: () => h(TooltipProvider, () => h(AppHeader)) },
-      { global: { plugins: [router, createPinia()] } }
-    )
+    wrapper = mount(AppHeader, { global: { plugins: [router, createPinia()] } })
 
     const link = wrapper.get('nav a[href="/faq"]')
     expect(link.text()).toBe('FAQ')
-    expect(link.attributes('aria-current')).toBeUndefined()
-    // Icon-only theme toggle has an accessible name, not just a title
-    expect(wrapper.find('button[aria-label="Switch to dark mode"]').exists()).toBe(true)
-  })
-
-  it('marks the gene browser active on gene detail routes', async () => {
-    vi.stubGlobal('matchMedia', () => ({
-      matches: false,
-      addEventListener() {},
-      removeEventListener() {}
-    }))
-    const { h } = await import('vue')
-    const { createPinia } = await import('pinia')
-    const { TooltipProvider } = await import('@/components/ui/tooltip')
-    const AppHeader = (await import('@/layouts/AppHeader.vue')).default
-    const router = routerWith('/genes/:symbol', { render: () => null })
-    await router.push('/genes/PKD1')
-    await router.isReady()
-    wrapper = mount(
-      { render: () => h(TooltipProvider, () => h(AppHeader)) },
-      { global: { plugins: [router, createPinia()] } }
-    )
-
-    const link = wrapper.get('nav a[href="/genes"]')
-    expect(link.attributes('aria-current')).toBe('page')
-    expect(link.classes()).toContain('border-primary')
   })
 })

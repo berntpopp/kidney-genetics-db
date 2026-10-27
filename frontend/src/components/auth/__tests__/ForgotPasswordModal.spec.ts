@@ -6,6 +6,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { DOMWrapper, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import ForgotPasswordModal from '@/components/auth/ForgotPasswordModal.vue'
+import { expectLinkedError } from './formTestUtils'
 
 vi.mock('@/api/auth', () => ({ requestPasswordReset: vi.fn() }))
 import * as authApi from '@/api/auth'
@@ -26,7 +27,7 @@ async function submit(email = '') {
   await flushPromises()
   // DialogContent teleports to body, outside the wrapper
   const q = (sel: string) => new DOMWrapper(document.querySelector(sel)!)
-  await q('#forgot-email').setValue(email)
+  await q('input[name="email"]').setValue(email)
   ;(document.querySelector('button[type="submit"]') as HTMLElement).focus()
   await q('form').trigger('submit')
   // vee-validate validates asynchronously before calling the submit handler
@@ -39,11 +40,8 @@ describe('ForgotPasswordModal', () => {
     'links the error and focuses the email field for %j (#327)',
     async email => {
       await submit(email)
-      const input = document.querySelector('#forgot-email')!
-      expect(input.getAttribute('aria-invalid')).toBe('true')
-      expect(input.getAttribute('aria-describedby')).toBe('forgot-email-error')
-      expect(document.getElementById('forgot-email-error')?.textContent?.trim()).not.toBe('')
-      expect(document.activeElement?.id).toBe('forgot-email')
+      expectLinkedError(document, 'email')
+      expect(document.activeElement?.getAttribute('name')).toBe('email')
       expect(authApi.requestPasswordReset).not.toHaveBeenCalled()
     }
   )

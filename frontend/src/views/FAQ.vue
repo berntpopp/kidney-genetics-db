@@ -1,41 +1,52 @@
 <template>
-  <div class="container mx-auto px-4 py-8 max-w-3xl">
-    <Breadcrumb class="mb-4">
-      <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink as-child>
-            <RouterLink to="/">Home</RouterLink>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbPage>FAQ</BreadcrumbPage>
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
-
-    <h1 class="text-2xl font-bold mb-2">Frequently Asked Questions</h1>
-    <p class="text-muted-foreground mb-8">
-      Common questions about the Kidney Genetics Database and how to use it.
-    </p>
+  <div :class="PAGE_CONTAINER">
+    <PageHeader
+      title="Frequently asked questions"
+      description="Common questions about the Kidney Genetics Database and how to use it."
+    >
+      <template #breadcrumb>
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem v-for="(crumb, index) in breadcrumbs" :key="index">
+              <BreadcrumbLink v-if="!crumb.disabled && crumb.to" as-child>
+                <RouterLink :to="crumb.to">{{ crumb.title }}</RouterLink>
+              </BreadcrumbLink>
+              <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
+              <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </template>
+    </PageHeader>
 
     <!-- Answers stay in the prerendered HTML -->
-    <Accordion type="single" collapsible :unmount-on-hide="false" class="space-y-4">
+    <Accordion
+      type="single"
+      collapsible
+      :unmount-on-hide="false"
+      class="max-w-3xl divide-y rounded-lg border bg-card"
+    >
       <AccordionItem
         v-for="(faq, index) in faqs"
         :key="index"
         :value="String(index)"
-        class="rounded-lg border border-border last:border-b"
+        class="border-b-0"
       >
         <AccordionTrigger
           heading-tag="h2"
-          class="p-4 text-base hover:no-underline hover:bg-muted/50"
+          class="rounded-none px-4 py-4 text-base font-semibold hover:bg-muted/50 hover:no-underline"
         >
           {{ faq.question }}
         </AccordionTrigger>
-        <AccordionContent class="px-4 text-sm text-muted-foreground leading-relaxed">
-          <p v-for="(para, i) in faq.answer" :key="i" class="mb-2 last:mb-0">
-            {{ para }}
+        <AccordionContent class="max-w-[70ch] px-4 text-sm leading-relaxed text-muted-foreground">
+          <p v-for="(para, i) in faq.answer" :key="i" class="mb-3 last:mb-0">
+            <template v-for="(seg, j) in segments(para)" :key="j">
+              <template v-if="typeof seg === 'string'">{{ seg }}</template>
+              <RouterLink v-else-if="seg.to" :to="seg.to" :class="LINK">{{ seg.text }}</RouterLink>
+              <a v-else :href="seg.href" target="_blank" rel="noopener noreferrer" :class="LINK">{{
+                seg.text
+              }}</a>
+            </template>
           </p>
         </AccordionContent>
       </AccordionItem>
@@ -44,8 +55,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { config } from '@/config'
+import { PageHeader, PAGE_CONTAINER } from '@/components/shared'
+import { getPublicBreadcrumbs } from '@/utils/publicBreadcrumbs'
 import {
   Accordion,
   AccordionContent,
@@ -63,7 +77,6 @@ import {
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
 import { TIER_CONFIG } from '@/utils/evidenceTiers'
-import { datasourceApi } from '@/api/datasources'
 
 useSeoMeta({
   title: 'FAQ — Kidney Genetics Database',
@@ -72,28 +85,31 @@ useSeoMeta({
   canonicalPath: '/faq'
 })
 
-const breadcrumbs = [
-  { title: 'Home', to: '/' },
-  { title: 'FAQ', to: null }
-]
+const breadcrumbs = getPublicBreadcrumbs('FAQ', '/faq')
+
+const LINK = 'text-primary underline underline-offset-4 hover:text-primary/80'
+// Swagger UI lives at the backend root /docs (same rule as AppFooter)
+const apiDocsUrl = `${config.apiBaseUrl}/docs`
+
+/** An answer paragraph: plain text, or text with internal (to) and external (href) links */
+type Segment = string | { text: string; to?: string; href?: string }
+type Paragraph = string | Segment[]
+const segments = (para: Paragraph): Segment[] => (typeof para === 'string' ? [para] : para)
+const plainText = (para: Paragraph) =>
+  segments(para)
+    .map(seg => (typeof seg === 'string' ? seg : seg.text))
+    .join('')
 useJsonLd(computed(() => getBreadcrumbSchema(breadcrumbs)))
 
-// Counts come from /api/datasources; the prerendered page states none rather than stale ones
-const counts = ref<{ genes: number; sources: number } | null>(null)
-onMounted(async () => {
-  try {
-    const response = await datasourceApi.getDataSources()
-    counts.value = { genes: response.total_unique_genes, sources: response.total_sources }
-  } catch {
-    // keep the count-free wording
-  }
-})
-
-const faqs = computed(() => [
+const faqs: { question: string; answer: Paragraph[] }[] = [
   {
     question: 'What genes are included in the Kidney Genetics Database?',
     answer: [
-      `KGDB contains ${counts.value ? `${counts.value.genes.toLocaleString()} ` : ''}genes with evidence for kidney disease, curated from ${counts.value ? `${counts.value.sources} ` : ''}sources: PanelApp (UK and Australia), ClinGen, GenCC, HPO, PubTator, curated literature, and commercial diagnostic panels.`,
+      [
+        'KGDB contains genes associated with kidney diseases, curated from these sources: PanelApp (UK and Australia), ClinGen, GenCC, HPO, PubTator, curated literature, and diagnostic panels. The ',
+        { text: 'Data Sources', to: '/data-sources' },
+        ' page lists each source with its current gene count.'
+      ],
       'Genes are included if they have at least one kidney disease association reported by any of these sources. Each gene receives an evidence score from 0 to 100 based on the strength and breadth of supporting evidence.'
     ]
   },
@@ -101,11 +117,17 @@ const faqs = computed(() => [
     question: 'How is the evidence score calculated?',
     answer: [
       'The evidence score is a weighted composite score (0-100) that aggregates data from all available sources. Each source contributes a sub-score based on the strength of its evidence. For example, a gene classified as "Definitive" by ClinGen receives a higher sub-score than one classified as "Limited".',
-      `Each gene is assigned an evidence tier: ${Object.values(TIER_CONFIG)
-        .map(t => `"${t.label}" (${t.description})`)
-        .join(
-          ', '
-        )}. The scoring methodology ensures that genes supported by multiple independent sources rank higher than those from a single source.`,
+      [
+        `Each gene is assigned an evidence tier from its score and the number of sources supporting it: ${Object.values(
+          TIER_CONFIG
+        )
+          .map(t => `"${t.label}"`)
+          .join(
+            ', '
+          )}. The scoring methodology ensures that genes supported by multiple independent sources rank higher than those from a single source. The `,
+        { text: 'About page', to: '/about#scoring' },
+        ' lists the score and source thresholds of each tier.'
+      ],
       'Genes with a score of 0 have no tier and are shown as "No Classification". This includes genes whose only evidence is a "No Known Disease Relationship" or an unknown GenCC classification.'
     ]
   },
@@ -125,13 +147,23 @@ const faqs = computed(() => [
     question: 'How often is the database updated?',
     answer: [
       'The database is updated continuously through an automated pipeline that synchronizes with upstream data sources. Each source is checked for new data regularly, and gene evidence scores are recalculated whenever new evidence becomes available.',
-      'You can see the last update date on the homepage and the detailed status of each data source on the Data Sources page.'
+      [
+        'You can see the last update date on the homepage and the detailed status of each data source on the ',
+        { text: 'Data Sources', to: '/data-sources' },
+        ' page.'
+      ]
     ]
   },
   {
     question: 'Can I access the data programmatically?',
     answer: [
-      'Yes. KGDB provides a JSON:API compliant REST API for programmatic access. You can query genes, filter by evidence score, and retrieve detailed annotations. The API documentation is available at /api/docs (Swagger UI).',
+      [
+        'Yes. KGDB provides a JSON:API compliant REST API for programmatic access. You can query genes, filter by evidence score, and retrieve detailed annotations. See the interactive ',
+        { text: 'API documentation', href: apiDocsUrl },
+        '. AI agents can connect through the read-only ',
+        { text: 'MCP server', to: '/mcp' },
+        '.'
+      ],
       'All public data is freely accessible without authentication under the CC BY 4.0 license.'
     ]
   },
@@ -139,7 +171,16 @@ const faqs = computed(() => [
     question: 'How should I cite the Kidney Genetics Database?',
     answer: [
       'Please cite: Popp B, Rank N, Wolff A, Halbritter J. Kidney-Genetics: An evidence-based database for kidney disease associated genes. Nephrol Dial Transplant. 2024;39(Supplement_1):gfae069-0787-2170.',
-      'You can also use: Kidney Genetics Database. https://kidney-genetics.org. Accessed [date].'
+      [
+        'You can also use: Kidney Genetics Database. ',
+        { text: 'https://kidney-genetics.org', href: 'https://kidney-genetics.org' },
+        '. Accessed [date]. To cite the software, use its Zenodo DOI ',
+        {
+          text: '10.5281/zenodo.19316248',
+          href: 'https://doi.org/10.5281/zenodo.19316248'
+        },
+        '.'
+      ]
     ]
   },
   {
@@ -149,21 +190,19 @@ const faqs = computed(() => [
       'Disease associations are derived from HPO phenotype terms, ClinGen gene-disease validity classifications, and GenCC submissions.'
     ]
   }
-])
+]
 
 // FAQPage JSON-LD schema
-useJsonLd(
-  computed(() => ({
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: faqs.value.map(faq => ({
-      '@type': 'Question',
-      name: faq.question,
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: faq.answer.join(' ')
-      }
-    }))
+useJsonLd({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map(faq => ({
+    '@type': 'Question',
+    name: faq.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.answer.map(plainText).join(' ')
+    }
   }))
-)
+})
 </script>

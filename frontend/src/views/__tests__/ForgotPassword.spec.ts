@@ -7,6 +7,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import ForgotPassword from '@/views/ForgotPassword.vue'
+import { expectLinkedError, field } from '@/components/auth/__tests__/formTestUtils'
 
 vi.mock('@/api/auth', () => ({ requestPasswordReset: vi.fn() }))
 import * as authApi from '@/api/auth'
@@ -29,7 +30,7 @@ async function submit(email = '') {
     attachTo: document.body
   })
   await flushPromises()
-  await wrapper.find('#page-forgot-email').setValue(email)
+  await wrapper.find('input[name="email"]').setValue(email)
   ;(wrapper.find('button[type="submit"]').element as HTMLElement).focus()
   await wrapper.find('form').trigger('submit')
   // vee-validate validates asynchronously before calling the submit handler
@@ -41,11 +42,8 @@ async function submit(email = '') {
 describe('ForgotPassword', () => {
   it('links the error and focuses the email field on an invalid submit (#327)', async () => {
     const w = await submit('not-an-email')
-    const input = w.find('#page-forgot-email')
-    expect(input.attributes('aria-invalid')).toBe('true')
-    expect(input.attributes('aria-describedby')).toBe('page-forgot-email-error')
-    expect(w.find('#page-forgot-email-error').text()).not.toBe('')
-    expect(document.activeElement?.id).toBe('page-forgot-email')
+    expectLinkedError(w.element, 'email')
+    expect(document.activeElement?.getAttribute('name')).toBe('email')
     expect(authApi.requestPasswordReset).not.toHaveBeenCalled()
   })
 
@@ -55,6 +53,26 @@ describe('ForgotPassword', () => {
     })
     const w = await submit('user@example.org')
     expect(w.find('[role="alert"]').text()).toBe('Server error')
-    expect(w.find('#page-forgot-email').attributes('aria-invalid')).toBe('false')
+    expect(field(w.element, 'email').getAttribute('aria-invalid')).toBe('false')
+  })
+
+  it('does not promise an email before the server confirms reset by email', async () => {
+    const w = await submit('not-an-email')
+    expect(w.text()).toContain('Where reset by email is available')
+    expect(w.text()).toContain('an administrator can reset your password')
+  })
+
+  it('shows the server message when reset by email is unavailable', async () => {
+    vi.mocked(authApi.requestPasswordReset).mockRejectedValueOnce({
+      response: {
+        status: 503,
+        data: {
+          detail: 'Password reset by email is not available. Ask an administrator to reset it.'
+        }
+      }
+    })
+    const w = await submit('user@example.org')
+    expect(w.find('[role="alert"]').text()).toContain('Ask an administrator')
+    expect(w.find('[role="status"]').exists()).toBe(false)
   })
 })
