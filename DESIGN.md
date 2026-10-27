@@ -82,7 +82,8 @@ A neutral zinc canvas with one sky-blue action colour and one ordinal strength r
 - **Ledger Blue** (`--primary`, oklch(0.5 0.15 237.323); dark oklch(0.779 0.15 237.323)): actions, links, focus ring, selected navigation. Never used to express evidence strength.
 
 ### Neutral
-- **Canvas** (`--background`), **Sheet** (`--card`), **Rule** (`--border`), **Ink** (`--foreground`), **Pencil** (`--muted-foreground`): the shadcn zinc neutrals, unchanged.
+- **Canvas** (`--background`), **Sheet** (`--card`), **Rule** (`--border`), **Ink** (`--foreground`), **Pencil** (`--muted-foreground`): the shadcn zinc neutrals in light mode. Dark mode uses a GitHub-dark-like blue-grey (canvas `oklch(0.176 0.014 258.4)` ≈ #0d1117, sheet ≈ #161b22, muted ≈ #21262d, rule ≈ #30363d, ink ≈ #e6edf3; confirmed 2026-10-27), never pure black.
+- **Strength chips** mix 45% of the strength colour with 55% foreground for text, so every step stays ≥ 4.5:1 on both canvases.
 - **Secondary** (`--secondary`) is neutral (same as `--muted`): secondary buttons, counts and plain labels. The former violet secondary is retired.
 
 ### Evidence strength (the only meaningful colour)

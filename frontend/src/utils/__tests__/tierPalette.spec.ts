@@ -93,7 +93,7 @@ describe.each(themes)('$name strength chip contrast (#325)', ({ css }) => {
       const color = token(css, `strength-${n}`)
       const bg = token(css, canvas as string)
       const [c, f] = [oklab(color), oklab(token(css, 'foreground'))]
-      const text = fromOklab(c.map((v, i) => v * 0.55 + f[i]! * 0.45))
+      const text = fromOklab(c.map((v, i) => v * 0.45 + f[i]! * 0.55))
       const alpha = 0.125
       // color-mix(in srgb, ..., transparent) composites in sRGB, not linear light
       const tint = color.map((v, i) => toLin(toSrgb(v) * alpha + toSrgb(bg[i]!) * (1 - alpha)))

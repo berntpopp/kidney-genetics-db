@@ -49,7 +49,7 @@ describe('tintedChipStyle (#320)', () => {
       expect(style.backgroundColor).toBe(`color-mix(in srgb, ${color} 12.5%, transparent)`)
       expect(style.borderColor).toBe(`color-mix(in srgb, ${color} 25%, transparent)`)
       expect(style.color).not.toBe(color)
-      expect(style.color).toBe(`color-mix(in oklab, ${color} 55%, var(--foreground))`)
+      expect(style.color).toBe(`color-mix(in oklab, ${color} 45%, var(--foreground))`)
     }
   })
 })

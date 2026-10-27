@@ -107,7 +107,7 @@ export const GROUP_CONFIG: Record<GroupName, GroupConfig> = {
 export function tintedChipStyle(color: string): Record<string, string> {
   return {
     backgroundColor: `color-mix(in srgb, ${color} 12.5%, transparent)`,
-    color: `color-mix(in oklab, ${color} 55%, var(--foreground))`,
+    color: `color-mix(in oklab, ${color} 45%, var(--foreground))`,
     borderColor: `color-mix(in srgb, ${color} 25%, transparent)`
   }
 }

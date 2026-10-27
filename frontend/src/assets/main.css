@@ -116,50 +116,50 @@
     color-scheme: dark;
 
     /* Background / Foreground */
-    --background: oklch(0.141 0.005 285.823);
-    --foreground: oklch(0.985 0 0);
+    --background: oklch(0.176 0.014 258.4);
+    --foreground: oklch(0.943 0.011 243.7);
 
     /* Card */
-    --card: oklch(0.179 0.006 285.885);
-    --card-foreground: oklch(0.985 0 0);
+    --card: oklch(0.220 0.016 256.8);
+    --card-foreground: oklch(0.943 0.011 243.7);
 
     /* Popover */
-    --popover: oklch(0.179 0.006 285.885);
-    --popover-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.220 0.016 256.8);
+    --popover-foreground: oklch(0.943 0.011 243.7);
 
     /* Primary — lighter sky in dark mode */
     --primary: oklch(0.779 0.15 237.323);
     --primary-foreground: oklch(0.141 0.005 285.823);
 
     /* Secondary — neutral (= muted) */
-    --secondary: oklch(0.21 0.006 285.885);
-    --secondary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.267 0.015 256.8);
+    --secondary-foreground: oklch(0.943 0.011 243.7);
 
     /* Muted */
-    --muted: oklch(0.21 0.006 285.885);
-    --muted-foreground: oklch(0.75 0.015 286.067);
+    --muted: oklch(0.267 0.015 256.8);
+    --muted-foreground: oklch(0.677 0.016 254.6);
 
     /* Accent */
-    --accent: oklch(0.21 0.006 285.885);
-    --accent-foreground: oklch(0.985 0 0);
+    --accent: oklch(0.267 0.015 256.8);
+    --accent-foreground: oklch(0.943 0.011 243.7);
 
     /* Destructive — alias of --danger */
     --destructive: var(--danger);
     --destructive-foreground: var(--danger-foreground);
 
     /* Border / Input / Ring */
-    --border: oklch(0.295 0.005 286.033);
-    --input: oklch(0.274 0.006 286.033);
+    --border: oklch(0.330 0.015 252.3);
+    --input: oklch(0.330 0.015 252.3);
     --ring: oklch(0.779 0.15 237.323);
 
     /* Sidebar */
-    --sidebar: oklch(0.179 0.006 285.885);
-    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar: oklch(0.220 0.016 256.8);
+    --sidebar-foreground: oklch(0.943 0.011 243.7);
     --sidebar-primary: oklch(0.779 0.15 237.323);
     --sidebar-primary-foreground: oklch(0.141 0.005 285.823);
-    --sidebar-accent: oklch(0.21 0.006 285.885);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(0.295 0.005 286.033);
+    --sidebar-accent: oklch(0.267 0.015 256.8);
+    --sidebar-accent-foreground: oklch(0.943 0.011 243.7);
+    --sidebar-border: oklch(0.330 0.015 252.3);
     --sidebar-ring: oklch(0.779 0.15 237.323);
 
     /* Chart colors (dark) */
