@@ -192,6 +192,13 @@ const isStalled = source =>
   !!source.last_update_at &&
   now.value - Date.parse(source.last_update_at) > STALLED_AFTER_MS
 
+// A finished run older than this is flagged so admins see the data may be out of date
+const STALE_AFTER_DAYS = 30
+const isStale = source =>
+  source.status !== 'running' &&
+  !!source.completed_at &&
+  now.value - Date.parse(source.completed_at) > STALE_AFTER_DAYS * 86_400_000
+
 const formatTime = dateString => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString)
@@ -442,6 +449,9 @@ onUnmounted(() => {
               </div>
               <div v-else-if="source.completed_at">
                 Completed: {{ formatTime(source.completed_at) }}
+                <span v-if="isStale(source)" class="font-medium text-warning">
+                  · Stale (over {{ STALE_AFTER_DAYS }} days)
+                </span>
               </div>
               <div v-if="source.estimated_completion && source.status === 'running'">
                 {{ formatRemaining(source.estimated_completion) }}
@@ -609,6 +619,9 @@ onUnmounted(() => {
               </div>
               <div v-else-if="process.completed_at">
                 Completed: {{ formatTime(process.completed_at) }}
+                <span v-if="isStale(process)" class="font-medium text-warning">
+                  · Stale (over {{ STALE_AFTER_DAYS }} days)
+                </span>
               </div>
             </div>
 

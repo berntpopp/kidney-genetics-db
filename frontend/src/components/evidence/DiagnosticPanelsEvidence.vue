@@ -34,6 +34,13 @@ const groups = computed(() => {
       .map(([provider, panels]) => ({ title: provider.replace(/_/g, ' '), panels: sorted(panels) }))
       .sort((a, b) => a.title.localeCompare(b.title))
   const panels = d.provider_panels ? Object.values(d.provider_panels).flat() : d.panels
-  return [{ title: 'Panels', panels: sorted(panels) }]
+  // Stored evidence lists labs per gene, not per panel, so name them beside the panels
+  const labs = (d.provider_panels ? Object.keys(d.provider_panels) : (d.providers ?? []))
+    .filter(isRealProvider)
+    .map(p => p.replace(/_/g, ' '))
+  return [
+    { title: 'Panels', panels: sorted(panels) },
+    { title: labs.length === 1 ? 'Laboratory' : 'Laboratories', panels: sorted(labs) }
+  ]
 })
 </script>

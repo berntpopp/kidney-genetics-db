@@ -36,7 +36,7 @@
       />
     </div>
     <ul v-if="modes.length" class="space-y-1 text-sm text-muted-foreground">
-      <li v-for="mode in modes" :key="mode">{{ mode }}</li>
+      <li v-for="mode in modes" :key="mode.raw" :title="mode.raw">{{ mode.label }}</li>
     </ul>
   </section>
 </template>
@@ -69,7 +69,29 @@ const phenotypes = computed(() => parsePanelAppPhenotypes(props.evidenceData?.ph
 const levels = computed(() =>
   [...new Set((props.evidenceData?.evidence_levels ?? []).map(String))].sort().reverse()
 )
-const modes = computed(() => props.evidenceData?.modes_of_inheritance ?? [])
+// PanelApp's fixed mode-of-inheritance vocabulary in the wording the GenCC/ClinGen cards use;
+// the raw value stays in the tooltip, and unknown values pass through unchanged
+const MOI_LABELS = [
+  [/^MONOALLELIC.*NOT imprinted/i, 'Autosomal dominant (monoallelic)'],
+  [/^MONOALLELIC.*maternally imprinted/i, 'Autosomal dominant, maternally imprinted'],
+  [/^MONOALLELIC.*paternally imprinted/i, 'Autosomal dominant, paternally imprinted'],
+  [/^MONOALLELIC.*imprinted status unknown/i, 'Autosomal dominant, imprinting unknown'],
+  [/^BIALLELIC/i, 'Autosomal recessive (biallelic)'],
+  [/^BOTH.*more SEVERE/i, 'Autosomal dominant or recessive (biallelic more severe)'],
+  [/^BOTH/i, 'Autosomal dominant or recessive'],
+  [/^X-LINKED.*biallelic mutations in females/i, 'X-linked recessive'],
+  [/^X-LINKED.*monoallelic mutations in females/i, 'X-linked, females may be affected'],
+  [/^MITOCHONDRIAL/i, 'Mitochondrial'],
+  [/^Other/i, 'Other'],
+  [/^Unknown$/i, 'Unknown']
+]
+const moiLabel = raw => MOI_LABELS.find(([re]) => re.test(raw))?.[1] ?? raw
+
+const modes = computed(() =>
+  (props.evidenceData?.modes_of_inheritance ?? [])
+    .filter(Boolean)
+    .map(raw => ({ raw, label: moiLabel(raw) }))
+)
 
 const panelUrl = p =>
   p.region === 'UK'
