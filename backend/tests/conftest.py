@@ -21,18 +21,16 @@ def get_test_database_url() -> str:
     Checks TEST_DATABASE_URL, then DATABASE_URL env vars, then falls back
     to the application settings (which reads from .env file).
     """
-    test_url = os.environ.get("TEST_DATABASE_URL")
-    if test_url:
-        return test_url
+    from pydantic import SecretStr
 
-    db_url = os.environ.get("DATABASE_URL")
-    if db_url:
-        return db_url
+    from app.core.config import Settings, settings
 
-    # Fall back to settings (which reads from .env file)
-    from app.core.config import settings
-
-    return settings.DATABASE_URL.get_secret_value()
+    env_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if not env_url:
+        # Fall back to settings (which reads from .env file)
+        return settings.DATABASE_URL.get_secret_value()
+    # Same driver pin as the app: SQLAlchemy 2.1 maps bare postgresql:// to psycopg 3
+    return Settings.pin_database_driver(SecretStr(env_url)).get_secret_value()
 
 
 # Create engine once for all tests - uses existing PostgreSQL from Docker
