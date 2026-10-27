@@ -1867,6 +1867,35 @@
         "title": "NormalizationStatsResponse",
         "type": "object"
       },
+      "PaginationMeta": {
+        "description": "Offset paging metadata, as in the other admin list endpoints",
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "PaginationMeta",
+        "type": "object"
+      },
       "PasswordChange": {
         "description": "Password change request (for logged-in users)",
         "properties": {
@@ -1920,6 +1949,27 @@
           "new_password"
         ],
         "title": "PasswordResetConfirm",
+        "type": "object"
+      },
+      "PendingStagingPage": {
+        "description": "One page of pending staging records",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GeneNormalizationStagingResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "PendingStagingPage",
         "type": "object"
       },
       "ReleaseList": {
@@ -8413,7 +8463,7 @@
     },
     "/api/staging/staging/pending": {
       "get": {
-        "description": "Get genes pending manual review, ordered by priority",
+        "description": "Get one page of genes pending manual review, ordered by priority, with the total",
         "operationId": "get_pending_reviews_api_staging_staging_pending_get",
         "parameters": [
           {
@@ -8425,7 +8475,21 @@
               "default": 50,
               "description": "Maximum number of records to return",
               "maximum": 200,
+              "minimum": 1,
               "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of records to skip",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of records to skip",
+              "minimum": 0,
+              "title": "Offset",
               "type": "integer"
             }
           },
@@ -8439,6 +8503,42 @@
               "title": "Source Filter",
               "type": "string"
             }
+          },
+          {
+            "description": "Filter by whether expert review is required",
+            "in": "query",
+            "name": "requires_expert_review",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by whether expert review is required",
+              "title": "Requires Expert Review"
+            }
+          },
+          {
+            "description": "Case-insensitive gene text match",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Case-insensitive gene text match",
+              "title": "Search"
+            }
           }
         ],
         "responses": {
@@ -8446,11 +8546,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/GeneNormalizationStagingResponse"
-                  },
-                  "title": "Response Get Pending Reviews Api Staging Staging Pending Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/PendingStagingPage"
                 }
               }
             },

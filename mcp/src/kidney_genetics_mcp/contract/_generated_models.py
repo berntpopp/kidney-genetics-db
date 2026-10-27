@@ -713,6 +713,13 @@ class NormalizationStatsResponse(BaseModel):
     total_attempts: Annotated[int, Field(title="Total Attempts")]
 
 
+class PaginationMeta(BaseModel):
+    has_more: Annotated[bool, Field(title="Has More")]
+    limit: Annotated[int, Field(title="Limit")]
+    offset: Annotated[int, Field(title="Offset")]
+    total: Annotated[int, Field(title="Total")]
+
+
 class PasswordChange(BaseModel):
     current_password: Annotated[str, Field(title="Current Password")]
     new_password: Annotated[str, Field(min_length=8, title="New Password")]
@@ -725,6 +732,11 @@ class PasswordReset(BaseModel):
 class PasswordResetConfirm(BaseModel):
     new_password: Annotated[str, Field(min_length=8, title="New Password")]
     token: Annotated[str, Field(title="Token")]
+
+
+class PendingStagingPage(BaseModel):
+    items: Annotated[list[GeneNormalizationStagingResponse], Field(title="Items")]
+    pagination: PaginationMeta
 
 
 class ReleaseResponse(BaseModel):

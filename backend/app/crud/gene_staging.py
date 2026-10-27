@@ -64,9 +64,15 @@ class GeneNormalizationStagingCRUD:
         return staging_record
 
     def get_pending_reviews(
-        self, db: Session, limit: int = 50, source_filter: str | None = None
-    ) -> list[GeneNormalizationStaging]:
-        """Get genes pending manual review, ordered by priority"""
+        self,
+        db: Session,
+        limit: int = 50,
+        offset: int = 0,
+        source_filter: str | None = None,
+        requires_expert_review: bool | None = None,
+        search: str | None = None,
+    ) -> tuple[list[GeneNormalizationStaging], int]:
+        """One page of genes pending manual review, ordered by priority, and the total"""
 
         query = db.query(GeneNormalizationStaging).filter(
             GeneNormalizationStaging.status == "pending_review"
@@ -74,15 +80,26 @@ class GeneNormalizationStagingCRUD:
 
         if source_filter:
             query = query.filter(GeneNormalizationStaging.source_name == source_filter)
+        if requires_expert_review is not None:
+            query = query.filter(
+                GeneNormalizationStaging.requires_expert_review == requires_expert_review
+            )
+        if search:
+            query = query.filter(
+                GeneNormalizationStaging.original_text.icontains(search, autoescape=True)
+            )
 
+        total = query.count()
+        # id breaks priority ties so pages never overlap or skip rows
         result: list[GeneNormalizationStaging] = (
             query.order_by(
-                desc(GeneNormalizationStaging.priority_score), GeneNormalizationStaging.created_at
+                desc(GeneNormalizationStaging.priority_score), GeneNormalizationStaging.id
             )
+            .offset(offset)
             .limit(limit)
             .all()
         )
-        return result
+        return result, total
 
     @staticmethod
     def _pending(db: Session, staging_id: int) -> GeneNormalizationStaging:
