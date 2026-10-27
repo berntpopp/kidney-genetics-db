@@ -17,17 +17,36 @@ python3 run_scrapers.py --dry-run
 
 ## Supported Providers
 
-| Provider | Genes | Type | Status | HGNC |
-|----------|-------|------|--------|------|
-| Invitae | 400 | Single panel | ✅ Working | ✅ Normalized |
-| Mayo Clinic | 303 | Single panel | ✅ Working (Stealth) | ✅ Normalized |
-| Centogene | TBD | Single panel | ⏳ Configured | Ready |
-| MGZ München | TBD | Single panel | ⏳ Configured | Ready |
-| Natera RenaSight | TBD | Single panel | ⏳ Configured | Ready |
-| Blueprint Genetics | TBD | Multi-panel (24) | ⏳ Configured | Ready |
-| CeGaT | TBD | Single panel | ⏳ Configured | Ready |
-| PreventionGenetics | TBD | Single panel | ⏳ Configured | Ready |
-| MVZ Medicover | TBD | Single panel | ⏳ Configured | Ready |
+Statuses without a date are historical and have not been re-verified. Gene counts are not
+kept here; read them from a dated `output/YYYY-MM-DD/<provider>.json` run.
+
+| Provider | Type | Status |
+|----------|------|--------|
+| UChicago Genetic Services | Multi-panel (Nephrology category) | Verified 2026-10-27 (static HTML, see below) |
+| Invitae | Single panel | Historical: working |
+| Mayo Clinic | Single panel | Historical: working (Stealth) |
+| Centogene | Single panel | Historical: configured |
+| MGZ München | Single panel | Historical: configured |
+| Natera RenaSight | Single panel | Historical: configured |
+| Blueprint Genetics | Multi-panel (24) | Historical: configured |
+| CeGaT | Single panel | Historical: configured |
+| PreventionGenetics | Single panel | Historical: configured |
+| MVZ Medicover | Single panel | Historical: configured |
+
+### Provider Validation (2026-10-27)
+
+Candidates from issue #1, checked with plain HTTP only (no login, CAPTCHA or ToS workaround).
+Only a source with a public, attributable, static gene list was added.
+
+| Candidate | Checked URL | Public kidney gene list? | robots.txt / terms | Verdict |
+|-----------|-------------|--------------------------|--------------------|---------|
+| UChicago Genetic Services | https://dnatesting.uchicago.edu/category/nephrology | Yes: static HTML panel pages with linked gene lists | `/category/` and `/tests/` allowed, `Crawl-delay: 10` (honoured); no site terms restricting access found | **Added** (`uchicago_genetics`) |
+| GeneDx | https://www.genedx.com/test-catalog | No: static catalog lists exome/genome/targeted testing only; no kidney panel | Allowed (sitemap only) | Not usable |
+| Fulgent Genetics | https://www.fulgentgenetics.com/ | No static list: AngularJS app; gene lists only via undocumented internal POST APIs | Allowed except order/login paths; terms PDF not reviewed | Blocked (no stable public source) |
+| Ambry Genetics | https://ambrygen.com/genetic-testing-sitemap.xml | No kidney-disease panel (only an HLRCC cancer page) | `Disallow:` empty | Not usable |
+| Myriad Genetics | https://myriad.com/page-sitemap.xml | No kidney/nephrology panel | Generic paths allowed; named AI crawlers blocked | Not usable |
+| CHOP | https://www.chop.edu/ | No public kidney panel gene list found | Allowed for content paths | Not usable |
+| Boston Children's | https://www.childrenshospital.org/ | Kidney genetics clinic page only; no gene list | Allowed for content paths | Not usable |
 
 ## Configuration
 
@@ -50,9 +69,8 @@ To disable a scraper, set `enabled: false`.
 Results saved to:
 ```
 output/YYYY-MM-DD/
-├── blueprint_genetics.json    # 370 genes from 24 panels
-├── natera.json               # 407 genes  
-├── invitae.json              # 400 genes
+├── blueprint_genetics.json
+├── uchicago_genetics.json
 └── ...
 ```
 
@@ -109,6 +127,12 @@ scrapers:
 from providers.new_provider import NewProviderScraper
 # Add to scraper_classes list
 ('new_provider', NewProviderScraper)
+```
+
+### Tests
+
+```bash
+python -m pytest tests/   # offline: mocked HGNC, captured HTML fixtures in tests/fixtures/
 ```
 
 ### Debug Individual Scrapers
