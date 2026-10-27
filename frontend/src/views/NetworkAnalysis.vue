@@ -205,7 +205,7 @@
             </Popover>
 
             <Select v-model="enrichmentType">
-              <SelectTrigger aria-label="Enrichment type" class="h-8 w-32 text-xs">
+              <SelectTrigger aria-label="Enrichment type" class="h-8 w-44 text-xs">
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>

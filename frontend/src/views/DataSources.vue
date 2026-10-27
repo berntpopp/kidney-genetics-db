@@ -225,7 +225,8 @@ const summaryStats = computed(() => {
 const STATUS_TOOLTIPS: Record<string, string> = {
   active: 'Data from this source is loaded and in use.',
   error: 'The last update of this source failed.',
-  pending: 'An update of this source is pending.'
+  pending: 'An update of this source is pending.',
+  inactive: 'This source is switched off in the current configuration.'
 }
 
 const getStatusTooltip = (status: string) =>

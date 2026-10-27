@@ -10,7 +10,7 @@
               <button
                 type="button"
                 aria-label="About this chart"
-                class="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 <CircleHelp class="size-4" aria-hidden="true" />
               </button>
@@ -30,7 +30,12 @@
         :model-value="activeView"
         @update:model-value="v => v && (activeView = v)"
       >
-        <ToggleGroupItem v-for="view in views" :key="view.value" :value="view.value">
+        <ToggleGroupItem
+          v-for="view in views"
+          :key="view.value"
+          :value="view.value"
+          class="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+        >
           {{ view.label }}
         </ToggleGroupItem>
       </ToggleGroup>

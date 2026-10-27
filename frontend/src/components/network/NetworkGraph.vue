@@ -343,7 +343,7 @@
                   variant="outline"
                   role="button"
                   tabindex="0"
-                  class="cursor-pointer cluster-chip"
+                  class="cluster-chip min-h-6 cursor-pointer"
                   :class="item.isActive ? 'text-foreground' : 'text-muted-foreground'"
                   :style="item.isActive ? legendChipStyle(item.color) : {}"
                   @mouseenter="highlightCluster(item.id)"
@@ -1263,9 +1263,7 @@ const buildStylesheet = () => {
         'border-width': 5,
         'border-color': highlight,
         'border-opacity': 1,
-        'overlay-color': highlight,
-        'overlay-opacity': 0.2,
-        'overlay-padding': 12,
+        'overlay-opacity': 0,
         'z-index': 999
       }
     },

@@ -1,7 +1,7 @@
 <template>
   <Card class="w-full">
     <CardHeader class="flex flex-row flex-wrap items-center gap-2 space-y-0 pb-2">
-      <div class="flex flex-1 items-center gap-2">
+      <div class="flex min-w-60 flex-1 items-center gap-2">
         <ChartScatter class="size-5 shrink-0" aria-hidden="true" />
         <CardTitle tag="h2" class="text-lg font-semibold">Gene Source Overlaps</CardTitle>
         <TooltipProvider>
@@ -10,7 +10,7 @@
               <button
                 type="button"
                 aria-label="About this chart"
-                class="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 <CircleHelp class="size-4" aria-hidden="true" />
               </button>
@@ -408,8 +408,8 @@ const renderUpSetPlot = () => {
   // Get container dimensions
   const containerWidth = upsetContainer.value.clientWidth
 
-  // Show simplified table view on narrow screens instead of blocking
-  if (containerWidth < 280) {
+  // Narrow screens get the table: the plot's labels collide below this width
+  if (containerWidth < 480) {
     const topIntersections = data.value.intersections
       .slice()
       .sort((a, b) => (b.size || 0) - (a.size || 0))

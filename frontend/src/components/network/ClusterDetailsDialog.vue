@@ -1,6 +1,6 @@
 <template>
   <Dialog :open="modelValue" @update:open="$emit('update:modelValue', $event)">
-    <DialogContent class="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <DialogContent class="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
       <!-- Header -->
       <DialogHeader>
         <div class="flex items-center gap-3">
@@ -101,7 +101,8 @@
                 "
               >
                 {{ networkAnalysisConfig.nodeColoring.labels.syndromic.null }}:
-                {{ clusterStatistics.syndromic.unknownCount }} genes
+                {{ clusterStatistics.syndromic.unknownCount }}
+                {{ clusterStatistics.syndromic.unknownCount === 1 ? 'gene' : 'genes' }}
               </Badge>
             </div>
           </div>

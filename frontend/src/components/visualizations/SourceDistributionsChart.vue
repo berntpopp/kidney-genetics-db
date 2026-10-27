@@ -9,7 +9,7 @@
             <button
               type="button"
               aria-label="About this chart"
-              class="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               <CircleHelp class="size-4" aria-hidden="true" />
             </button>
@@ -49,7 +49,7 @@
 
         <div v-if="selectedSource && sourceData">
           <!-- Source metadata -->
-          <dl class="mb-4 grid grid-cols-2 gap-4 text-center md:grid-cols-4">
+          <dl class="mb-4 flex flex-wrap justify-center gap-x-12 gap-y-4 text-center">
             <div v-for="(value, key) in displayedMetadata" :key="key" class="flex flex-col-reverse">
               <dt class="text-xs text-muted-foreground">{{ formatMetadataLabel(key) }}</dt>
               <dd class="text-lg font-semibold tabular-nums text-foreground">
