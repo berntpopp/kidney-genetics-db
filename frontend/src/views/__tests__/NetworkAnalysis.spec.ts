@@ -204,9 +204,11 @@ describe('NetworkAnalysis.vue', () => {
   // 1. resetAll restores every piece of state to defaults
   // -------------------------------------------------------------------------
   it('lets the header and its badges wrap on narrow screens (#343)', () => {
-    const header = mountComponent().find('h1').element.closest('.justify-between')!
-    expect(header.classList).toContain('flex-wrap')
-    expect(header.lastElementChild!.classList).toContain('flex-wrap')
+    const header = mountComponent({ PageHeader: false })
+      .find('h1')
+      .element.closest('[data-slot="page-header"]')!
+    // Title and badges stack on mobile; the badge group wraps
+    expect(header.querySelector('.flex-col')!.lastElementChild!.classList).toContain('flex-wrap')
   })
 
   describe('resetAll', () => {
@@ -533,15 +535,15 @@ describe('NetworkAnalysis.vue', () => {
       return { clusters, num_clusters: 12, modularity: 0.5 }
     }
 
-    it('colours only the 10 largest clusters, each distinctly, and greys the rest', async () => {
+    it('colours only the 7 largest clusters, each distinctly, and greys the rest', async () => {
       const vm = mountComponent().vm as any
       vm.clusterStats = twelveClusters()
       vm.clusterData = { nodes: 1, edges: 0, cytoscape_json: { elements: [] } }
       await nextTick()
       const colors = vm.clusterList.map((c: any) => c.color)
-      expect(colors.slice(0, 10)).toEqual(CLUSTER_PALETTE)
-      expect(new Set(colors.slice(0, 10)).size).toBe(10)
-      expect(colors.slice(10)).toEqual([OTHER_CLUSTER_COLOR, OTHER_CLUSTER_COLOR])
+      expect(colors.slice(0, 7)).toEqual(CLUSTER_PALETTE)
+      expect(new Set(colors.slice(0, 7)).size).toBe(7)
+      expect(colors.slice(7)).toEqual(Array(5).fill(OTHER_CLUSTER_COLOR))
       // The graph gets the same colours
       expect(vm.clusterColors.get(0)).toBe(CLUSTER_PALETTE[0])
       expect(vm.clusterColors.get(11)).toBe(OTHER_CLUSTER_COLOR)
@@ -629,7 +631,10 @@ describe('NetworkAnalysis.vue', () => {
 
   describe('header counts (#325)', () => {
     it('labels the node and edge counts as the built network', async () => {
-      const wrapper = mountComponent({ Badge: { template: '<span><slot /></span>' } })
+      const wrapper = mountComponent({
+        PageHeader: false,
+        Badge: { template: '<span><slot /></span>' }
+      })
       const vm = wrapper.vm as any
       vm.networkStats = { nodes: 470, edges: 2655, components: 1 }
       await nextTick()

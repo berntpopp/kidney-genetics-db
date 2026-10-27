@@ -1,46 +1,36 @@
 <template>
-  <div class="container mx-auto px-4 py-4">
-    <!-- Header -->
-    <div class="mb-3">
-      <Breadcrumb class="mb-1">
-        <BreadcrumbList>
-          <template v-for="(item, index) in breadcrumbs" :key="index">
-            <BreadcrumbSeparator v-if="index > 0">
-              <ChevronRight class="size-4" />
-            </BreadcrumbSeparator>
-            <BreadcrumbItem>
-              <BreadcrumbLink v-if="item.to" :href="item.to">{{ item.title }}</BreadcrumbLink>
-              <BreadcrumbPage v-else>{{ item.title }}</BreadcrumbPage>
+  <div :class="PAGE_CONTAINER">
+    <PageHeader
+      title="Network Analysis"
+      description="Protein-protein interactions and functional clusters of kidney-disease genes"
+    >
+      <template #breadcrumb>
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem v-for="(crumb, index) in breadcrumbs" :key="index">
+              <BreadcrumbLink v-if="!crumb.disabled && crumb.to" as-child>
+                <RouterLink :to="crumb.to">{{ crumb.title }}</RouterLink>
+              </BreadcrumbLink>
+              <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
+              <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
             </BreadcrumbItem>
-          </template>
-        </BreadcrumbList>
-      </Breadcrumb>
-
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center">
-          <NetworkIcon class="size-7 mr-2 text-primary" />
-          <div>
-            <h1 class="text-xl font-bold leading-tight">Network Analysis</h1>
-            <p class="text-xs text-muted-foreground">
-              Protein-protein interactions &amp; functional clusters
-            </p>
-          </div>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <Badge v-if="filteredGenes.length > 0" class="bg-green-600 text-white">
-            {{ filteredGenes.length }} genes
-          </Badge>
-          <Badge v-if="networkStats" variant="secondary">
-            Built network: {{ networkStats.nodes }} nodes &middot; {{ networkStats.edges }} edges
-          </Badge>
-          <Badge v-if="clusterStats" variant="secondary">
-            {{ clusterStats.num_clusters }} clusters &middot; Q={{
-              clusterStats.modularity.toFixed(3)
-            }}
-          </Badge>
-        </div>
-      </div>
-    </div>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </template>
+      <template #actions>
+        <Badge v-if="filteredGenes.length > 0" variant="secondary" class="tabular-nums">
+          {{ filteredGenes.length }} genes
+        </Badge>
+        <Badge v-if="networkStats" variant="secondary" class="tabular-nums">
+          Built network: {{ networkStats.nodes }} nodes &middot; {{ networkStats.edges }} edges
+        </Badge>
+        <Badge v-if="clusterStats" variant="secondary" class="tabular-nums">
+          {{ clusterStats.num_clusters }} clusters &middot; Q={{
+            clusterStats.modularity.toFixed(3)
+          }}
+        </Badge>
+      </template>
+    </PageHeader>
 
     <!-- Control Bar -->
     <Card class="mb-3">
@@ -130,7 +120,7 @@
           <!-- Step 1: Filter -->
           <Button :disabled="loadingGenes" size="sm" @click="fetchFilteredGenes">
             <span
-              class="inline-flex items-center justify-center size-4 rounded-full bg-white/20 text-[10px] font-bold mr-1.5"
+              class="inline-flex items-center justify-center size-4 rounded-full bg-primary-foreground/20 text-[10px] font-bold mr-1.5"
             >
               1
             </span>
@@ -146,7 +136,7 @@
             @click="buildNetwork"
           >
             <span
-              class="inline-flex items-center justify-center size-4 rounded-full bg-white/20 text-[10px] font-bold mr-1.5"
+              class="inline-flex items-center justify-center size-4 rounded-full bg-primary-foreground/20 text-[10px] font-bold mr-1.5"
             >
               2
             </span>
@@ -158,7 +148,7 @@
           <!-- Step 3: Cluster -->
           <Button :disabled="!networkData || clustering" size="sm" @click="clusterNetwork">
             <span
-              class="inline-flex items-center justify-center size-4 rounded-full bg-white/20 text-[10px] font-bold mr-1.5"
+              class="inline-flex items-center justify-center size-4 rounded-full bg-primary-foreground/20 text-[10px] font-bold mr-1.5"
             >
               3
             </span>
@@ -231,7 +221,7 @@
               @click="runEnrichmentAndSwitch"
             >
               <span
-                class="inline-flex items-center justify-center size-4 rounded-full bg-white/20 text-[10px] font-bold mr-1.5"
+                class="inline-flex items-center justify-center size-4 rounded-full bg-primary-foreground/20 text-[10px] font-bold mr-1.5"
               >
                 4
               </span>
@@ -242,38 +232,54 @@
           </template>
 
           <!-- Right side: utility actions -->
-          <div class="flex gap-1 ml-auto">
-            <Button
-              v-if="filteredGenes.length > 0"
-              variant="ghost"
-              size="icon"
-              class="size-8"
-              :disabled="isEncoding"
-              title="Share URL"
-              @click="handleShareNetwork"
-            >
-              <Share2 class="size-3.5" />
-            </Button>
-            <Button
-              v-if="hasAnyState"
-              variant="ghost"
-              size="icon"
-              class="size-8 text-destructive hover:text-destructive"
-              title="Reset all"
-              @click="resetAll"
-            >
-              <RotateCcw class="size-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="size-8"
-              title="Advanced filters"
-              @click="showAdvanced = !showAdvanced"
-            >
-              <SlidersHorizontal class="size-3.5" :class="{ 'text-primary': showAdvanced }" />
-            </Button>
-          </div>
+          <TooltipProvider>
+            <div class="ml-auto flex gap-1">
+              <Tooltip v-if="filteredGenes.length > 0">
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-8"
+                    :disabled="isEncoding"
+                    aria-label="Share this analysis as a link"
+                    @click="handleShareNetwork"
+                  >
+                    <Share2 class="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Share this analysis as a link</TooltipContent>
+              </Tooltip>
+              <Tooltip v-if="hasAnyState">
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-8 text-danger hover:text-danger"
+                    aria-label="Reset all"
+                    @click="resetAll"
+                  >
+                    <RotateCcw class="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Reset all</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-8"
+                    aria-label="Advanced filters"
+                    :aria-pressed="showAdvanced"
+                    @click="showAdvanced = !showAdvanced"
+                  >
+                    <SlidersHorizontal class="size-3.5" :class="{ 'text-primary': showAdvanced }" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Advanced filters</TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
         </div>
 
         <!-- Row 3: Advanced filters (collapsible) -->
@@ -378,6 +384,7 @@
             :cluster-id-mapping="clusterIdMapping"
             :cluster-colors-map="clusterColors"
             :hpo-classifications="hpoClassifications"
+            :hgnc-ids="hgncIds"
             :loading-h-p-o-data="loadingHPOClassifications"
             :height="networkAnalysisConfig.ui.defaultGraphHeight"
             @refresh="buildNetwork"
@@ -441,7 +448,10 @@
         </DialogHeader>
         <Separator />
         <div class="space-y-3 py-2">
-          <div><strong>Gene ID:</strong> {{ selectedGene.gene_id }}</div>
+          <div v-if="hgncIds.get(selectedGene.gene_id)">
+            <strong>HGNC:</strong>
+            <OntologyTerm :id="hgncIds.get(selectedGene.gene_id)" :name="selectedGene.label" />
+          </div>
           <div v-if="selectedGene.cluster_id !== undefined">
             <strong>Cluster:</strong>
             <Badge
@@ -477,7 +487,6 @@ import {
   ChartBarBig,
   ChartScatter,
   Check,
-  ChevronRight,
   Circle,
   Filter,
   Network as NetworkIcon,
@@ -486,7 +495,7 @@ import {
   SlidersHorizontal
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
-import { useRouter, useRoute } from 'vue-router'
+import { RouterLink, useRouter, useRoute } from 'vue-router'
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -520,6 +529,8 @@ import {
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { OntologyTerm, PageHeader, PAGE_CONTAINER } from '@/components/shared'
 
 import { geneApi } from '../api/genes'
 import { networkApi } from '../api/network'
@@ -652,6 +663,11 @@ const clusterIdMapping = computed(() => {
   })
   return mapping
 })
+
+// gene_id -> HGNC ID, so genes are named by their identifier, never by internal ids
+const hgncIds = computed(
+  () => new Map(filteredGenes.value.filter(g => g.hgnc_id).map(g => [parseInt(g.id), g.hgnc_id]))
+)
 
 // Backend cluster id -> colour by size rank; colours the graph, legend and list alike
 const clusterColors = computed(
@@ -934,7 +950,7 @@ const handleClusterSelection = clusterId => {
 }
 
 const handleGeneClick = geneSymbol => {
-  window.location.href = `/genes/${geneSymbol}`
+  router.push(`/genes/${geneSymbol}`)
 }
 
 // URL State Management
