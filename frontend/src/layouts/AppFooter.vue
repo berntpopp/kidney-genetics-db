@@ -115,7 +115,7 @@ function acknowledgeDisclaimer() {
                 variant="ghost"
                 size="sm"
                 class="h-8 px-2 text-xs text-muted-foreground tabular-nums"
-                aria-label="Version information"
+                :aria-label="`Version v${frontendVersion} details`"
               >
                 <Info class="size-3.5" aria-hidden="true" />
                 v{{ frontendVersion }}
@@ -150,6 +150,7 @@ function acknowledgeDisclaimer() {
                 <span
                   class="flex size-6 items-center justify-center rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   tabindex="0"
+                  role="img"
                   :aria-label="isOnline ? 'Online' : 'Offline'"
                 >
                   <Wifi v-if="isOnline" class="size-3.5 text-success" aria-hidden="true" />
@@ -167,6 +168,7 @@ function acknowledgeDisclaimer() {
                 <span
                   class="flex size-6 items-center justify-center rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   tabindex="0"
+                  role="img"
                   :aria-label="backendReachable ? 'Backend reachable' : 'Backend unreachable'"
                 >
                   <Server

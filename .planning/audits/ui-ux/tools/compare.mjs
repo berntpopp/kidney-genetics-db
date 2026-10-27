@@ -15,7 +15,8 @@ const flatten = (obj, prefix = [], acc = {}) => {
   }
   return acc
 }
-const LOWER_IS_BETTER = /(cls|overflowPx|themeFlash|consoleErrors|Ms|Violations)$/
+const AXE = / › axe › /
+const LOWER_IS_BETTER = /(cls|overflowPx|themeFlash|consoleErrors|Ms|Violations)$| › axe › /
 const pick = o => ({
   meanOverall: o.meanOverall,
   checks: o.checks,
@@ -35,7 +36,10 @@ let better = 0
 for (const k of Object.keys({ ...fa, ...fb })) {
   const [x, y] = [fa[k], fb[k]]
   if (x === undefined || y === undefined) {
-    rows.push([k, x ?? '—', y ?? '—', '', 'new/removed'])
+    // an axe rule failing on a page the baseline also scanned is a regression
+    const newAxe = x === undefined && AXE.test(k) && a.pages?.[k.split(' › ')[1]]?.axe
+    if (newAxe) worse++
+    rows.push([k, x ?? '—', y ?? '—', '', newAxe ? 'WORSE' : 'new/removed'])
     continue
   }
   const d = y - x
