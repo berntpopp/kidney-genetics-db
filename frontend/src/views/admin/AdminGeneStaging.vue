@@ -54,17 +54,10 @@
       />
     </div>
 
-    <!-- Pending reviews: up to API_LIMIT highest-priority items, filtered and paged here -->
+    <!-- Pending reviews: filtered and paged on the server -->
     <Card>
       <CardHeader class="gap-4">
         <CardTitle>Pending reviews</CardTitle>
-        <p
-          v-if="!loading && !loadError"
-          class="text-sm text-muted-foreground"
-          data-testid="staging-scope"
-        >
-          {{ scopeText }}
-        </p>
         <div class="grid grid-cols-1 gap-3 md:grid-cols-[1fr_12rem_auto] md:items-end">
           <div class="relative">
             <Search
@@ -100,9 +93,9 @@
           :loading="loading && !pendingReviews.length"
           :error="loadError"
           error-title="Could not load pending reviews"
-          :empty="!filteredReviews.length"
+          :empty="!pendingReviews.length"
           :empty-message="
-            pendingReviews.length ? 'No pending items match these filters.' : 'Nothing to review.'
+            hasFilters ? 'No pending items match these filters.' : 'Nothing to review.'
           "
           class="mx-4 mb-4"
           @retry="loadPendingReviews"
@@ -117,7 +110,11 @@
             </div>
           </template>
           <DataTable :table="table" />
-          <DataTablePagination :table="table" :page-size-options="[25, 50, 100]" />
+          <DataTablePagination
+            :table="table"
+            :page-size-options="[25, 50, 100]"
+            noun="pending item"
+          />
         </DataState>
       </CardContent>
     </Card>
@@ -341,13 +338,14 @@
 
 <script setup>
 import { formatDateTime } from '@/utils/formatDate'
-import { h, ref, reactive, onMounted, computed, watch } from 'vue'
+import { h, ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 
 import { useTable } from '@tanstack/vue-table'
 import { Chip, DataState, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
 import { DataTable, DataTablePagination, dataTableFeatures } from '@/components/ui/data-table'
 import { sourceDisplayName } from '@/utils/sources'
+import { debounce } from '@/utils/debounce'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as stagingApi from '@/api/admin/staging'
 import { toast } from 'vue-sonner'
@@ -399,8 +397,6 @@ import {
 // Reactive data
 const loading = ref(false)
 const loadError = ref(null)
-// The API returns at most 200 items, highest priority first, and has no offset (backend gap)
-const API_LIMIT = 200
 const statsLoading = ref(false)
 const actionLoading = ref(false)
 
@@ -428,8 +424,10 @@ const filters = reactive({
   expertReviewOnly: false
 })
 
-// Data
+// Data: the current server page and the filtered total
 const pendingReviews = ref([])
+const totalPending = ref(0)
+const pagination = ref({ pageIndex: 0, pageSize: 25 })
 
 // Dialogs
 const approveDialog = ref(false)
@@ -448,32 +446,19 @@ const rejectForm = reactive({
   notes: ''
 })
 
-// Computed
-const sourceOptions = computed(() => {
-  const sources = [...new Set(pendingReviews.value.map(item => item.source_name))].sort()
-  return sources.map(source => ({ title: sourceDisplayName(source), value: source }))
-})
+// Computed: every source with pending items, from the stats rather than the current page
+const sourceOptions = computed(() =>
+  Object.entries(stagingStats.by_source || {})
+    // keep the chosen source listed after its last item is decided
+    .filter(([source, pending]) => pending > 0 || source === filters.sourceFilter)
+    .map(([source]) => source)
+    .sort()
+    .map(source => ({ title: sourceDisplayName(source), value: source }))
+)
 
-const filteredReviews = computed(() => {
-  const q = filters.search.trim().toLowerCase()
-  return pendingReviews.value.filter(
-    item =>
-      (filters.sourceFilter === 'all' || item.source_name === filters.sourceFilter) &&
-      (!filters.expertReviewOnly || item.requires_expert_review) &&
-      (!q || item.original_text?.toLowerCase().includes(q))
-  )
-})
-
-const scopeText = computed(() => {
-  const loaded = pendingReviews.value.length
-  const total = stagingStats.total_pending
-  const shown = filteredReviews.value.length
-  const base =
-    total > loaded
-      ? `The ${loaded.toLocaleString()} highest-priority of ${total.toLocaleString()} pending items are loaded; reviewing them brings the next ones in.`
-      : `${loaded.toLocaleString()} pending items.`
-  return shown === loaded ? base : `${shown.toLocaleString()} match the filters. ${base}`
-})
+const hasFilters = computed(
+  () => filters.sourceFilter !== 'all' || filters.expertReviewOnly || !!filters.search.trim()
+)
 
 const hgncSearchUrl = text =>
   `https://www.genenames.org/tools/search/#!/?query=${encodeURIComponent(text)}`
@@ -604,10 +589,22 @@ const columns = [
 const table = useTable({
   features: dataTableFeatures,
   get data() {
-    return filteredReviews.value
+    return pendingReviews.value
   },
   columns,
-  initialState: { pagination: { pageIndex: 0, pageSize: 25 } }
+  manualPagination: true,
+  get rowCount() {
+    return totalPending.value
+  },
+  state: {
+    get pagination() {
+      return pagination.value
+    }
+  },
+  onPaginationChange: updater => {
+    pagination.value = typeof updater === 'function' ? updater(pagination.value) : updater
+    loadPendingReviews()
+  }
 })
 
 // Methods
@@ -630,17 +627,37 @@ const loadStats = async () => {
   }
 }
 
+let loadSeq = 0
 const loadPendingReviews = async () => {
+  const seq = ++loadSeq
+  const { pageIndex, pageSize } = pagination.value
   loading.value = true
   loadError.value = null
   try {
-    const response = await stagingApi.getPendingStaging({ limit: API_LIMIT })
-    pendingReviews.value = response.data
+    const response = await stagingApi.getPendingStaging({
+      limit: pageSize,
+      offset: pageIndex * pageSize,
+      source_filter: filters.sourceFilter === 'all' ? undefined : filters.sourceFilter,
+      requires_expert_review: filters.expertReviewOnly || undefined,
+      search: filters.search.trim() || undefined
+    })
+    if (seq !== loadSeq) return // a newer request superseded this one
+    const { items, pagination: page } = response.data
+    // Deciding the last item of the last page leaves it empty: step back one page
+    if (!items.length && pageIndex > 0 && page.total > 0) {
+      // always move back, so an inconsistent total cannot loop on the same page
+      const lastPage = Math.ceil(page.total / pageSize) - 1
+      pagination.value = { pageIndex: Math.min(pageIndex - 1, lastPage), pageSize }
+      return loadPendingReviews()
+    }
+    pendingReviews.value = items
+    totalPending.value = page.total
   } catch (error) {
+    if (seq !== loadSeq) return
     window.logService.error('Failed to load pending reviews:', error)
     loadError.value = error.message || 'Request failed'
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 
@@ -717,11 +734,15 @@ const confirmReject = async () => {
 // Utility methods
 const formatDate = dateString => formatDateTime(dateString) || 'N/A'
 
-// A filter change starts again at the first page
-watch(
-  () => [filters.sourceFilter, filters.search, filters.expertReviewOnly],
-  () => table.setPageIndex(0)
-)
+// A filter change asks the server again, starting at the first page
+const reloadFromFirstPage = () => {
+  pagination.value = { ...pagination.value, pageIndex: 0 }
+  loadPendingReviews()
+}
+const reloadAfterTyping = debounce(reloadFromFirstPage, 300)
+watch(() => [filters.sourceFilter, filters.expertReviewOnly], reloadFromFirstPage)
+watch(() => filters.search, reloadAfterTyping)
+onBeforeUnmount(() => reloadAfterTyping.cancel())
 
 // Load data on mount
 onMounted(() => {

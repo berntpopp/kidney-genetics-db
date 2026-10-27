@@ -35,6 +35,22 @@ class GeneNormalizationStagingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PaginationMeta(BaseModel):
+    """Offset paging metadata, as in the other admin list endpoints"""
+
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+
+class PendingStagingPage(BaseModel):
+    """One page of pending staging records"""
+
+    items: list[GeneNormalizationStagingResponse]
+    pagination: PaginationMeta
+
+
 class GeneNormalizationLogResponse(BaseModel):
     """Response schema for gene normalization logs"""
 

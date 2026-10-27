@@ -10,7 +10,15 @@ import type { AxiosResponse } from 'axios'
 export interface StagingQueryParams {
   limit?: number
   offset?: number
+  source_filter?: string
   requires_expert_review?: boolean
+  search?: string
+}
+
+/** One page of pending staging records and the filtered total */
+export interface PendingStagingPage {
+  items: Record<string, unknown>[]
+  pagination: { total: number; limit: number; offset: number; has_more: boolean }
 }
 
 /** Parameters for getNormalizationLogs */
@@ -39,14 +47,16 @@ export interface StagingRejectionData {
  */
 export const getPendingStaging = (
   params: StagingQueryParams = {}
-): Promise<AxiosResponse<unknown>> => {
+): Promise<AxiosResponse<PendingStagingPage>> => {
   const queryParams = new URLSearchParams()
 
   if (params.limit) queryParams.append('limit', String(params.limit))
   if (params.offset) queryParams.append('offset', String(params.offset))
+  if (params.source_filter) queryParams.append('source_filter', params.source_filter)
   if (params.requires_expert_review !== undefined) {
     queryParams.append('requires_expert_review', String(params.requires_expert_review))
   }
+  if (params.search) queryParams.append('search', params.search)
 
   return apiClient.get(`/api/staging/staging/pending?${queryParams.toString()}`)
 }

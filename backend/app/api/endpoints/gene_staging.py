@@ -16,6 +16,8 @@ from app.schemas.gene_staging import (
     GeneNormalizationLogResponse,
     GeneNormalizationStagingResponse,
     NormalizationStatsResponse,
+    PaginationMeta,
+    PendingStagingPage,
     StagingApprovalRequest,
     StagingRejectionRequest,
     StagingStatsResponse,
@@ -24,22 +26,32 @@ from app.schemas.gene_staging import (
 router = APIRouter()
 
 
-@router.get("/staging/pending", response_model=list[GeneNormalizationStagingResponse])
+@router.get("/staging/pending", response_model=PendingStagingPage)
 async def get_pending_reviews(
     *,
     db: Session = Depends(get_db),
     _: User = Depends(require_curator),  # raw gene texts and source context (#374)
-    limit: int = Query(default=50, le=200, description="Maximum number of records to return"),
+    limit: int = Query(default=50, ge=1, le=200, description="Maximum number of records to return"),
+    offset: int = Query(default=0, ge=0, description="Number of records to skip"),
     source_filter: str = Query(default=None, description="Filter by data source"),
-) -> list[GeneNormalizationStagingResponse]:
+    requires_expert_review: bool | None = Query(
+        default=None, description="Filter by whether expert review is required"
+    ),
+    search: str | None = Query(default=None, description="Case-insensitive gene text match"),
+) -> PendingStagingPage:
     """
-    Get genes pending manual review, ordered by priority
+    Get one page of genes pending manual review, ordered by priority, with the total
     """
-    staging_records = staging_crud.get_pending_reviews(
-        db=db, limit=limit, source_filter=source_filter
+    staging_records, total = staging_crud.get_pending_reviews(
+        db=db,
+        limit=limit,
+        offset=offset,
+        source_filter=source_filter,
+        requires_expert_review=requires_expert_review,
+        search=search,
     )
 
-    return [
+    items = [
         GeneNormalizationStagingResponse(
             id=record.id,
             original_text=record.original_text,
@@ -54,6 +66,12 @@ async def get_pending_reviews(
         )
         for record in staging_records
     ]
+    return PendingStagingPage(
+        items=items,
+        pagination=PaginationMeta(
+            total=total, limit=limit, offset=offset, has_more=offset + limit < total
+        ),
+    )
 
 
 @router.post("/staging/{staging_id}/approve")
