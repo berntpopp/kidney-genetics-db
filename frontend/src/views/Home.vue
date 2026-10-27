@@ -1,255 +1,251 @@
 <template>
   <div>
-    <!-- Hero Section -->
-    <div class="w-full bg-gradient-to-br from-primary/10 via-background to-primary/5 py-12 px-4">
-      <div class="container mx-auto text-center">
-        <!-- Logo with integrated text -->
-        <div class="flex items-center justify-center mb-6">
+    <!-- Hero: identity, search and the current state of the ledger -->
+    <section class="border-b bg-card">
+      <div class="mx-auto w-full max-w-7xl px-4 py-10 text-center sm:px-6 md:py-14 lg:px-8">
+        <div class="mb-5 flex items-center justify-center">
           <KGDBLogo
             :size="logoSize"
             variant="with-text"
             text-layout="horizontal"
             :animated="true"
             :breathing="false"
-            :interactive="true"
-            @click="router.push('/')"
+            :interactive="false"
           />
         </div>
 
         <h1 class="sr-only">
-          Kidney Genetics Database — Renal &amp; Nephrology Gene Evidence Curation
+          Kidney-Genetics Database — Renal &amp; Nephrology Gene Evidence Curation
         </h1>
         <p
-          class="text-base md:text-lg text-muted-foreground mx-auto max-w-[600px] md:whitespace-nowrap mb-10"
+          class="mx-auto mb-8 max-w-[60ch] text-base text-balance text-muted-foreground md:text-lg"
         >
-          Evidence-based renal &amp; nephrology gene curation with multi-source integration
+          One reproducible evidence score and tier for every kidney-disease gene, traceable to its
+          sources.
         </p>
 
-        <!-- Gene search -->
         <form
-          class="flex items-center gap-3 max-w-xl mx-auto px-4 mb-4"
+          role="search"
+          class="mx-auto mb-6 flex max-w-xl items-center gap-2"
           @submit.prevent="handleSearch"
         >
           <div class="relative w-full">
             <Search
-              class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none"
+              class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
             />
-            <input
+            <Input
               v-model="searchQuery"
-              type="text"
-              placeholder="Search by gene symbol, HGNC ID, or keyword..."
+              type="search"
+              placeholder="Gene symbol or HGNC ID, e.g. PKD1"
               aria-label="Search genes"
-              class="flex h-11 w-full rounded-lg border border-input bg-background pl-10 pr-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              class="h-11 pl-10"
             />
           </div>
-          <button
-            type="submit"
-            aria-label="Search genes"
-            class="inline-flex items-center justify-center rounded-lg text-sm font-medium h-11 px-5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
-          >
-            Search
-          </button>
+          <Button type="submit" class="h-11 px-5">Search</Button>
         </form>
-      </div>
-    </div>
 
-    <div class="container mx-auto px-4 -mt-8">
-      <!-- Statistics Cards with Gradients -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        <template v-if="statsLoaded">
-          <component
-            :is="stat.route ? RouterLink : 'div'"
-            v-for="stat in stats"
-            :key="stat.title"
-            v-bind="stat.route ? { to: stat.route } : {}"
-            class="stat-card block overflow-hidden rounded-lg shadow-sm transition-all"
-            :class="{ 'stat-card-clickable': stat.route }"
+        <!-- Ledger line: every number comes from the data-sources API -->
+        <div class="mx-auto max-w-xl text-left">
+          <DataState
+            :loading="!statsLoaded"
+            :error="statsError"
+            error-title="Database statistics are unavailable right now"
+            @retry="loadStats"
           >
-            <div
-              class="p-4 text-center rounded-lg"
-              :style="`background: linear-gradient(135deg, ${getGradientColors(stat.color)});`"
+            <template #loading>
+              <div
+                class="mx-auto h-5 w-80 max-w-full rounded-md bg-muted motion-safe:animate-pulse"
+              />
+            </template>
+            <p class="flex flex-wrap justify-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
+              <RouterLink to="/genes" class="hover:text-foreground hover:underline">
+                <span class="font-semibold text-foreground tabular-nums">{{
+                  geneCount?.toLocaleString()
+                }}</span>
+                genes with evidence
+              </RouterLink>
+              <RouterLink to="/data-sources" class="hover:text-foreground hover:underline">
+                <span class="font-semibold text-foreground tabular-nums">{{ activeSources }}</span>
+                active sources
+              </RouterLink>
+              <span>
+                Data updated
+                <span class="font-semibold text-foreground tabular-nums">{{ lastUpdate }}</span>
+              </span>
+            </p>
+          </DataState>
+        </div>
+      </div>
+    </section>
+
+    <div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+      <!-- The evidence story: how a gene earns its tier -->
+      <section class="grid gap-10 py-12 lg:grid-cols-2 lg:gap-16" aria-labelledby="how-heading">
+        <div>
+          <h2 id="how-heading" class="mb-2 text-xl font-semibold">
+            From sources to an evidence tier
+          </h2>
+          <p class="mb-6 max-w-[65ch] text-sm text-muted-foreground">
+            Each gene's score is computed from named sources with a documented weighting, so every
+            number can be audited back to its line items.
+          </p>
+          <ol class="space-y-5">
+            <li v-for="(step, i) in pipelineSteps" :key="step.title" class="flex gap-4">
+              <span
+                class="flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold text-muted-foreground tabular-nums"
+                aria-hidden="true"
+                >{{ i + 1 }}</span
+              >
+              <div>
+                <h3 class="font-semibold">{{ step.title }}</h3>
+                <p class="max-w-[65ch] text-sm text-muted-foreground">{{ step.description }}</p>
+              </div>
+            </li>
+          </ol>
+        </div>
+
+        <div>
+          <h2 class="mb-2 text-xl font-semibold">Evidence tiers</h2>
+          <p class="mb-6 max-w-[65ch] text-sm text-muted-foreground">
+            Tiers combine the evidence score with the number of supporting sources.
+          </p>
+          <ul class="divide-y rounded-xl border bg-card">
+            <li
+              v-for="tier in tiers"
+              :key="tier.key"
+              class="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:gap-4"
             >
-              <component :is="stat.icon" class="size-8 text-white mb-2 mx-auto" />
-              <div class="text-3xl font-bold text-white">
-                {{ stat.value }}
-              </div>
-              <div class="text-sm text-white/95">
-                {{ stat.title }}
-              </div>
-            </div>
-          </component>
-        </template>
-        <template v-else>
-          <div v-for="n in 3" :key="n" class="overflow-hidden rounded-lg shadow-sm">
-            <div class="p-4 text-center rounded-lg bg-muted animate-pulse">
-              <div class="size-8 rounded-full bg-muted-foreground/20 mb-2 mx-auto" />
-              <div class="h-9 w-20 rounded bg-muted-foreground/20 mx-auto mb-2" />
-              <div class="h-4 w-28 rounded bg-muted-foreground/20 mx-auto" />
-            </div>
-          </div>
-        </template>
-      </div>
+              <RouterLink
+                :to="{ path: '/genes', query: { tier: tier.key } }"
+                class="shrink-0 rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:w-52"
+              >
+                <Chip :tier="tier.key" tooltip="" class="hover:brightness-95" />
+              </RouterLink>
+              <span class="text-sm text-muted-foreground">{{ tier.description }}</span>
+            </li>
+          </ul>
+        </div>
+      </section>
 
-      <!-- Data Sources Strip -->
-      <div class="mt-8 py-6 bg-muted/50 -mx-4 px-4 rounded-lg">
-        <p class="text-sm text-muted-foreground text-center mb-4">
-          Integrated from 7 authoritative genomic sources
-        </p>
-        <div class="flex flex-wrap items-center justify-center gap-4 md:gap-8">
-          <RouterLink
-            v-for="source in dataSources"
-            :key="source.name"
-            to="/data-sources"
-            class="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <component :is="source.icon" class="size-4" />
-            {{ source.name }}
+      <!-- Sources -->
+      <section class="border-t py-10" aria-labelledby="sources-heading">
+        <div class="flex flex-col gap-4 md:flex-row md:items-baseline md:justify-between">
+          <h2 id="sources-heading" class="text-xl font-semibold">Evidence sources</h2>
+          <RouterLink to="/data-sources" class="text-sm font-medium text-primary hover:underline">
+            Source status and versions
           </RouterLink>
         </div>
-      </div>
+        <ul class="mt-4 flex flex-wrap gap-x-6 gap-y-3 text-sm">
+          <li v-for="source in SOURCE_NAMES" :key="source">
+            <SourceLabel :source="source" />
+          </li>
+        </ul>
+      </section>
 
-      <!-- Key Benefits -->
-      <div class="py-12">
-        <h2 class="text-2xl font-medium text-center mb-6">Why Use This Database?</h2>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div v-for="benefit in keyBenefits" :key="benefit.title" class="text-center p-4">
-            <div
-              class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mx-auto mb-4"
-            >
-              <component :is="benefit.icon" class="size-5" />
-            </div>
-            <h3 class="text-lg font-semibold mb-2">{{ benefit.title }}</h3>
-            <p class="text-sm text-muted-foreground">{{ benefit.description }}</p>
+      <!-- Why and for whom -->
+      <section class="border-t py-10" aria-labelledby="why-heading">
+        <h2 id="why-heading" class="mb-6 text-xl font-semibold">Why use this database</h2>
+        <dl class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div v-for="benefit in keyBenefits" :key="benefit.title">
+            <dt class="font-semibold">{{ benefit.title }}</dt>
+            <dd class="mt-1 text-sm text-muted-foreground">{{ benefit.description }}</dd>
           </div>
-        </div>
-      </div>
+        </dl>
+      </section>
 
-      <!-- How It Works -->
-      <div class="py-12 bg-muted/30 -mx-4 px-4 rounded-lg">
-        <h2 class="text-2xl font-medium text-center mb-8">How It Works</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div v-for="step in pipelineSteps" :key="step.step" class="text-center p-4">
-            <div
-              class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mx-auto mb-3"
-            >
-              <component :is="step.icon" class="size-6" />
-            </div>
-            <div class="text-xs font-bold text-primary mb-1">Step {{ step.step }}</div>
-            <h3 class="text-lg font-semibold mb-2">{{ step.title }}</h3>
-            <p class="text-sm text-muted-foreground">{{ step.description }}</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Who Is This For? -->
-      <div class="py-12">
-        <h2 class="text-2xl font-medium text-center mb-8">Who Is This For?</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div
-            v-for="audience in audiences"
-            :key="audience.title"
-            class="rounded-lg border border-border p-6 text-center hover:shadow-sm transition-shadow"
-          >
-            <div
-              class="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary mx-auto mb-4"
-            >
-              <component :is="audience.icon" class="size-7" />
-            </div>
-            <h3 class="text-lg font-semibold mb-2">{{ audience.title }}</h3>
-            <p class="text-sm text-muted-foreground mb-4">{{ audience.description }}</p>
+      <section class="border-t py-10" aria-labelledby="who-heading">
+        <h2 id="who-heading" class="mb-6 text-xl font-semibold">Who is this for</h2>
+        <div class="grid gap-8 md:grid-cols-3">
+          <div v-for="audience in audiences" :key="audience.title">
+            <h3 class="font-semibold">{{ audience.title }}</h3>
+            <p class="mt-1 mb-3 text-sm text-muted-foreground">{{ audience.description }}</p>
             <RouterLink
               :to="audience.ctaRoute"
-              class="text-sm font-medium text-primary hover:text-primary/80"
+              class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
             >
-              {{ audience.cta }} &rarr;
+              {{ audience.cta }}
+              <ArrowRight class="size-3.5" aria-hidden="true" />
             </RouterLink>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- How to Cite + Affiliation -->
-      <div class="py-12 bg-muted/30 -mx-4 px-4 rounded-lg mb-16">
-        <div class="max-w-2xl mx-auto">
-          <h2 class="text-2xl font-medium text-center mb-6">How to Cite</h2>
-          <div class="relative rounded-md border bg-background p-4 text-sm mb-3">
-            <p class="text-muted-foreground pr-8">{{ primaryCitation }}</p>
-            <button
-              class="absolute top-3 right-3 p-1.5 rounded-md hover:bg-muted"
-              :aria-label="citationCopied ? 'Citation copied' : 'Copy citation'"
-              @click="copyCitation"
-            >
-              <Check v-if="citationCopied" class="size-4 text-green-600" />
-              <Copy v-else class="size-4 text-muted-foreground" />
-            </button>
+      <section class="border-t py-10 mb-6" aria-labelledby="cite-heading">
+        <div class="max-w-3xl">
+          <h2 id="cite-heading" class="mb-4 text-xl font-semibold">How to cite</h2>
+          <div class="relative mb-3 rounded-md border bg-card p-4 text-sm">
+            <p class="pr-10 text-foreground">{{ primaryCitation }}</p>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  class="absolute top-2 right-2"
+                  :aria-label="citationCopied ? 'Citation copied' : 'Copy citation'"
+                  @click="copyCitation"
+                >
+                  <Check v-if="citationCopied" class="size-4 text-success" aria-hidden="true" />
+                  <Copy v-else class="size-4 text-muted-foreground" aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{{ citationCopied ? 'Copied' : 'Copy citation' }}</TooltipContent>
+            </Tooltip>
             <span class="sr-only" aria-live="polite">{{
               citationCopied ? 'Citation copied to clipboard' : ''
             }}</span>
           </div>
-          <p class="text-xs text-muted-foreground text-center mb-8">
-            Or cite as: Kidney Genetics Database. https://kidney-genetics.org. Accessed
+          <p class="mb-6 text-xs text-muted-foreground">
+            Or cite as: Kidney-Genetics Database. https://kidney-genetics.org. Accessed
             {{ new Date().toISOString().slice(0, 10) }}.
           </p>
 
-          <div class="flex items-center justify-center gap-4 text-sm text-muted-foreground">
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
             <span>Halbritter Lab — Nephrology &amp; Clinical Genetics</span>
-            <span class="text-border">·</span>
+            <span aria-hidden="true">·</span>
             <a
               href="https://github.com/berntpopp/kidney-genetics-db"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
-              aria-label="Open Source on GitHub"
+              class="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
             >
-              <Github class="size-4" />
-              Open Source
+              <Github class="size-4" aria-hidden="true" />
+              Open source on GitHub
             </a>
-            <span class="text-border">·</span>
+            <span aria-hidden="true">·</span>
             <span>CC BY 4.0</span>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import {
-  Dna,
-  DatabaseZap,
-  AlarmClockCheck,
-  ShieldCheck,
-  RefreshCw,
-  Microscope,
-  Search,
-  Unlock,
-  Code2,
-  Download,
-  BarChart3,
-  CheckCircle,
-  Stethoscope,
-  Copy,
-  Check,
-  Github
-} from 'lucide-vue-next'
+import { ArrowRight, Search, Copy, Check, Github } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { useWindowSize } from '@vueuse/core'
 import { RouterLink, useRouter } from 'vue-router'
 import { datasourceApi } from '../api/datasources'
 import { KGDBLogo } from '@/components/branding'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Chip, DataState, SourceLabel } from '@/components/shared'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getDatasetSchema } from '@/composables/useJsonLd'
-import { TIER_CONFIG } from '@/utils/evidenceTiers'
+import { TIER_CONFIG, type TierName } from '@/utils/evidenceTiers'
+import { SOURCE_NAMES } from '@/utils/sources'
 
 const router = useRouter()
 
 const { width } = useWindowSize()
-const statsLoaded = ref(false)
 
 const searchQuery = ref('')
 function handleSearch() {
   const q = searchQuery.value.trim()
-  if (q) router.push({ path: '/genes', query: { search: q } })
+  router.push(q ? { path: '/genes', query: { search: q } } : '/genes')
 }
 
 const citationCopied = ref(false)
@@ -269,43 +265,25 @@ function copyCitation() {
 // Responsive logo sizing
 const logoSize = computed(() => {
   if (width.value < 640) return 60
-  if (width.value < 960) return 100
-  return 180
+  if (width.value < 960) return 96
+  return 140
 })
 
-const stats = ref([
-  {
-    title: 'Genes with Evidence',
-    value: 0 as number | string,
-    color: 'primary',
-    icon: Dna,
-    route: '/genes'
-  },
-  {
-    title: 'Active Sources',
-    value: 0 as number | string,
-    color: 'primary',
-    icon: DatabaseZap,
-    route: '/data-sources'
-  },
-  {
-    title: 'Last Update',
-    value: 'Loading...' as number | string,
-    color: 'primary',
-    icon: AlarmClockCheck,
-    route: null
-  }
-])
+const tiers = (Object.entries(TIER_CONFIG) as [TierName, (typeof TIER_CONFIG)[TierName]][]).map(
+  ([key, config]) => ({ key, ...config })
+)
+
+// Database statistics (from the data-sources API)
+const statsLoaded = ref(false)
+const statsError = ref<string | null>(null)
+const geneCount = ref<number | null>(null)
+const activeSources = ref<number | null>(null)
+const lastUpdate = ref<string | null>(null)
 
 // Reactive gene count for SEO
-const geneCountLabel = computed(() => {
-  const raw = stats.value[0].value
-  if (typeof raw === 'string') {
-    const n = parseInt(raw.replace(/,/g, ''), 10)
-    return n > 0 ? raw : '5,000+'
-  }
-  return (raw as number) > 0 ? (raw as number).toLocaleString() : '5,000+'
-})
+const geneCountLabel = computed(() =>
+  geneCount.value && geneCount.value > 0 ? geneCount.value.toLocaleString() : '5,000+'
+)
 
 useSeoMeta({
   title: 'Kidney Genetics Database — Renal & Nephrology Gene Evidence Scores',
@@ -317,180 +295,100 @@ useSeoMeta({
 })
 
 // Dataset JSON-LD (reactive — updates when stats load)
-useJsonLd(
-  computed(() => {
-    const geneCount =
-      typeof stats.value[0].value === 'string'
-        ? parseInt(stats.value[0].value.replace(/,/g, ''), 10) || undefined
-        : (stats.value[0].value as number) || undefined
-    return getDatasetSchema(geneCount)
-  })
-)
-
-const dataSources = [
-  { name: 'PanelApp', icon: DatabaseZap },
-  { name: 'ClinGen', icon: ShieldCheck },
-  { name: 'GenCC', icon: RefreshCw },
-  { name: 'HPO', icon: Dna },
-  { name: 'PubTator', icon: Microscope },
-  { name: 'Literature', icon: Search },
-  { name: 'Diagnostic Panels', icon: AlarmClockCheck }
-]
+useJsonLd(computed(() => getDatasetSchema(geneCount.value || undefined)))
 
 const keyBenefits = [
   {
-    title: 'Evidence-Based',
-    description: 'Weighted multi-source scoring from 0-100 with tier classification',
-    icon: ShieldCheck
+    title: 'Evidence-based',
+    description: 'Weighted multi-source scoring from 0 to 100 with a tier per gene'
   },
   {
-    title: 'Multi-Source',
-    description: 'Aggregated from 7 clinical and research databases',
-    icon: RefreshCw
+    title: 'Multi-source',
+    description: 'Aggregated from clinical and research databases, each with its provenance'
   },
   {
-    title: 'Research-Grade',
-    description: 'Professional-quality curation workflow with complete audit trails',
-    icon: Microscope
+    title: 'Research-grade',
+    description: 'Expert curation workflow with complete audit trails'
   },
   {
-    title: 'Open Access',
-    description: 'Free under CC BY 4.0 — no registration required for browsing',
-    icon: Unlock
+    title: 'Open access',
+    description: 'Free under CC BY 4.0; no registration required for browsing'
   }
 ]
 
 const pipelineSteps = [
   {
-    step: 1,
     title: 'Collect',
-    icon: Download,
     description:
-      'Gene-disease associations gathered from PanelApp, ClinGen, GenCC, HPO, PubTator, literature, and diagnostic panels'
+      'Gene-disease associations are gathered from PanelApp, ClinGen, GenCC, HPO, PubTator, curated literature and diagnostic panels.'
   },
   {
-    step: 2,
     title: 'Score',
-    icon: BarChart3,
-    description: `Evidence aggregated into a weighted confidence score (0-100) with tier classification from ${TIER_CONFIG.comprehensive_support.label} to ${TIER_CONFIG.minimal_evidence.label}`
+    description: `Evidence is aggregated into a weighted score from 0 to 100 and a tier from ${TIER_CONFIG.comprehensive_support.label} to ${TIER_CONFIG.minimal_evidence.label}.`
   },
   {
-    step: 3,
     title: 'Curate',
-    icon: CheckCircle,
     description:
-      'Validated genes with annotations including expression, variants, interactions, and phenotypes'
+      'Genes are annotated with expression, variants, interactions and phenotypes, and associations are expert-reviewed.'
   }
 ]
 
 const audiences = [
   {
     title: 'Nephrologists',
-    icon: Stethoscope,
     description:
-      'Explore evidence-scored gene panels for kidney disease diagnostics and precision medicine',
-    cta: 'Browse Genes',
+      'Explore evidence-scored gene panels for kidney disease diagnostics and precision medicine.',
+    cta: 'Browse genes',
     ctaRoute: '/genes'
   },
   {
     title: 'Geneticists',
-    icon: Dna,
     description:
-      'Access curated gene-disease associations with cross-referenced variant and phenotype data',
-    cta: 'View Data Sources',
+      'Access curated gene-disease associations with cross-referenced variant and phenotype data.',
+    cta: 'View data sources',
     ctaRoute: '/data-sources'
   },
   {
     title: 'Bioinformaticians',
-    icon: Code2,
-    description: 'Query via REST API, download gene lists, and integrate with analysis pipelines',
-    cta: 'API Documentation',
+    description: 'Query the REST API, download gene lists and integrate with analysis pipelines.',
+    cta: 'API documentation',
     ctaRoute: '/about'
   }
 ]
 
-const getGradientColors = (color: string) => {
-  const gradients: Record<string, string> = {
-    primary: '#0284C7, #075985',
-    success: '#10B981, #059669',
-    info: '#3B82F6, #2563EB',
-    secondary: '#8B5CF6, #7C3AED',
-    warning: '#F59E0B, #D97706',
-    error: '#EF4444, #DC2626'
-  }
-  return gradients[color] || gradients.primary
-}
+// Unambiguous for an international audience, e.g. "15 Mar 2026"
+const formatDate = (dateStr: string) =>
+  new Date(dateStr).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
 
-const formatDate = (dateStr: string | null) => {
-  if (!dateStr) return 'Never'
-  const date = new Date(dateStr)
-  const today = new Date()
-  const diffDays = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-
-  if (diffDays === 0) return 'today'
-  if (diffDays === 1) return 'yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-  return date.toLocaleDateString()
-}
-
-onMounted(async () => {
+async function loadStats() {
+  statsLoaded.value = false
+  statsError.value = null
   try {
     const sourceResponse = await datasourceApi.getDataSources()
 
-    stats.value[0].value = (sourceResponse.total_unique_genes || 0).toLocaleString()
-    stats.value[1].value = sourceResponse.total_active
+    geneCount.value = sourceResponse.total_unique_genes || 0
+    activeSources.value = sourceResponse.total_active
 
-    if (sourceResponse.last_data_update) {
-      stats.value[2].value = formatDate(sourceResponse.last_data_update)
-    } else if (sourceResponse.last_pipeline_run) {
-      stats.value[2].value = formatDate(sourceResponse.last_pipeline_run)
-    } else {
-      const mostRecent = sourceResponse.sources
-        .filter((s: { stats?: { last_updated?: string } }) => s.stats?.last_updated)
-        .map((s: { stats: { last_updated: string } }) => new Date(s.stats.last_updated))
-        .sort((a: Date, b: Date) => b.getTime() - a.getTime())[0]
-
-      stats.value[2].value = mostRecent ? formatDate(mostRecent.toISOString()) : 'Never'
-    }
+    const latest =
+      sourceResponse.last_data_update ??
+      sourceResponse.last_pipeline_run ??
+      sourceResponse.sources
+        .map((s: { stats?: { last_updated?: string } }) => s.stats?.last_updated)
+        .filter((d: string | undefined): d is string => !!d)
+        .sort()
+        .at(-1)
+    lastUpdate.value = latest ? formatDate(latest) : 'not yet'
   } catch (error) {
     window.logService.error('Error fetching stats:', error)
-    stats.value[2].value = 'Error'
+    statsError.value = 'Try again in a moment.'
   } finally {
     statsLoaded.value = true
   }
-})
+}
+
+onMounted(loadStats)
 </script>
-
-<style scoped>
-.stat-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.stat-card-clickable:hover {
-  transform: translateY(-4px) scale(1.02);
-  box-shadow:
-    0 10px 15px -3px rgb(0 0 0 / 0.1),
-    0 4px 6px -4px rgb(0 0 0 / 0.1);
-}
-
-.stat-card-clickable:active {
-  transform: translateY(-2px) scale(1.01);
-  transition-duration: 0.1s;
-}
-
-.stat-card-clickable:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .stat-card {
-    transition-duration: 0.01ms !important;
-  }
-
-  .stat-card-clickable:hover {
-    transform: none;
-  }
-}
-</style>
