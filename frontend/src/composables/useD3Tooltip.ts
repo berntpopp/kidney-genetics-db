@@ -47,15 +47,15 @@ export function useD3Tooltip(): D3TooltipReturn {
         .attr('class', 'visualization-tooltip')
         .style('position', 'absolute')
         .style('pointer-events', 'none')
-        .style('background', '#ffffff')
-        .style('color', '#333333')
-        .style('border', '1px solid #e0e0e0')
+        .style('background', 'var(--popover)')
+        .style('color', 'var(--popover-foreground)')
+        .style('border', '1px solid var(--border)')
         .style('padding', '0')
         .style('border-radius', '8px')
         .style('font-size', '12px')
         .style('line-height', '1.5')
         .style('z-index', '9999')
-        .style('box-shadow', '0 4px 16px rgba(0,0,0,0.2)')
+        .style('box-shadow', '0 4px 16px color-mix(in oklab, var(--foreground) 20%, transparent)')
         .style('max-width', '350px')
         .style('max-height', '400px')
         .style('opacity', 0)
@@ -113,9 +113,9 @@ export function useD3Tooltip(): D3TooltipReturn {
     // Create pinned tooltip with close button and scrollable content
     const pinnedContent = `
       <div style="position: relative;">
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #eee; background: #f5f5f5; border-radius: 8px 8px 0 0;">
-          <span style="font-weight: 600; font-size: 11px; color: #666;">VARIANT DETAILS</span>
-          <button class="tooltip-close-btn" style="background: none; border: none; cursor: pointer; font-size: 18px; color: #666; padding: 0 4px; line-height: 1;">&times;</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--muted); border-radius: 8px 8px 0 0;">
+          <span style="font-weight: 600; font-size: 11px; color: var(--muted-foreground);">VARIANT DETAILS</span>
+          <button class="tooltip-close-btn" style="background: none; border: none; cursor: pointer; font-size: 18px; color: var(--muted-foreground); padding: 0 4px; line-height: 1;">&times;</button>
         </div>
         <div style="padding: 10px 14px; max-height: 300px; overflow-y: auto;">
           ${content}

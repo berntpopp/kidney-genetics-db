@@ -1,19 +1,15 @@
 /**
  * The Token-Only Rule (DESIGN.md): no raw Tailwind palette classes, hex/rgb()/hsl() colour
- * literals or hsl(var(--token)) in components. Existing offenders are frozen in
- * design-token-baseline.json; a file whose count goes up, or a new offending file, fails.
- * After migrating a file, lower the baseline:
- *   UPDATE_DESIGN_TOKEN_BASELINE=1 npx vitest run src/__tests__/designTokens.spec.ts
+ * literals or hsl(var(--token)) in components. Every offender fails; colours come from
+ * assets/main.css tokens and the config modules below.
  */
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
-
-const BASELINE_PATH = 'src/__tests__/design-token-baseline.json' // cwd = frontend/
 
 const PATTERNS = {
   palette:
     /\b(?:bg|text|border|ring|fill|stroke|from|via|to|outline|decoration|divide|placeholder|accent|caret|shadow)-(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone)-\d{2,3}\b/g,
-  hex: /(?<![\w&/])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b/g,
+  hex: /(?<![\w&/(])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b/g,
   colorFn: /\b(?:rgba?|hsla?)\(/g,
   hslVar: /hsl\(\s*var\(--/g
 } as const
@@ -31,7 +27,10 @@ const EXCLUDED = new Set([
  * Files exempt because a library needs literal colour input. Each entry needs a reason;
  * prefer resolveCssColor() from utils/sources.ts over adding one.
  */
-const ALLOWLIST: Record<string, string> = {}
+const ALLOWLIST: Record<string, string> = {
+  // Brand commitment (PRODUCT.md): the KGDB logo keeps its own kidney colour
+  'src/components/branding/KGDBLogo.vue': 'brand logo colour'
+}
 
 function countViolations(src: string): Counts {
   const counts: Counts = {}
@@ -64,23 +63,13 @@ describe('design tokens (Token-Only Rule)', () => {
       )
     ).toEqual({ palette: 2, hex: 1, colorFn: 2, hslVar: 1 })
     expect(
-      countViolations(`class="bg-strength-5 text-success" href="#!/hgnc_id" '&#123;' url/#abc`)
+      countViolations(
+        `class="bg-strength-5 text-success" href="#!/hgnc_id" '&#123;' url/#abc // fixed (#325)`
+      )
     ).toEqual({})
   })
 
-  it('no file adds raw colours beyond the baseline', () => {
-    const current = scan()
-    if (process.env.UPDATE_DESIGN_TOKEN_BASELINE) {
-      writeFileSync(BASELINE_PATH, JSON.stringify(current, null, 2) + '\n')
-    }
-    const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8')) as Record<string, Counts>
-    const regressions: string[] = []
-    for (const [file, counts] of Object.entries(current)) {
-      for (const [kind, n] of Object.entries(counts) as [Kind, number][]) {
-        const allowed = baseline[file]?.[kind] ?? 0
-        if (n > allowed) regressions.push(`${file}: ${kind} ${allowed} -> ${n}`)
-      }
-    }
-    expect(regressions, 'Use tokens (DESIGN.md Token-Only Rule)').toEqual([])
+  it('no component uses raw colours', () => {
+    expect(scan(), 'Use tokens (DESIGN.md Token-Only Rule)').toEqual({})
   })
 })

@@ -120,11 +120,11 @@
     --foreground: oklch(0.943 0.011 243.7);
 
     /* Card */
-    --card: oklch(0.220 0.016 256.8);
+    --card: oklch(0.22 0.016 256.8);
     --card-foreground: oklch(0.943 0.011 243.7);
 
     /* Popover */
-    --popover: oklch(0.220 0.016 256.8);
+    --popover: oklch(0.22 0.016 256.8);
     --popover-foreground: oklch(0.943 0.011 243.7);
 
     /* Primary — lighter sky in dark mode */
@@ -148,18 +148,18 @@
     --destructive-foreground: var(--danger-foreground);
 
     /* Border / Input / Ring */
-    --border: oklch(0.330 0.015 252.3);
-    --input: oklch(0.330 0.015 252.3);
+    --border: oklch(0.33 0.015 252.3);
+    --input: oklch(0.33 0.015 252.3);
     --ring: oklch(0.779 0.15 237.323);
 
     /* Sidebar */
-    --sidebar: oklch(0.220 0.016 256.8);
+    --sidebar: oklch(0.22 0.016 256.8);
     --sidebar-foreground: oklch(0.943 0.011 243.7);
     --sidebar-primary: oklch(0.779 0.15 237.323);
     --sidebar-primary-foreground: oklch(0.141 0.005 285.823);
     --sidebar-accent: oklch(0.267 0.015 256.8);
     --sidebar-accent-foreground: oklch(0.943 0.011 243.7);
-    --sidebar-border: oklch(0.330 0.015 252.3);
+    --sidebar-border: oklch(0.33 0.015 252.3);
     --sidebar-ring: oklch(0.779 0.15 237.323);
 
     /* Chart colors (dark) */
