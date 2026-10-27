@@ -3,7 +3,7 @@ Version information endpoint - Public access, no auth required
 
 This endpoint provides version information for all system components:
 - Backend API version (from pyproject.toml)
-- Database schema version (from schema_versions table)
+- Database schema revision (from Alembic's alembic_version table)
 - Frontend version (added by frontend when querying)
 - Environment information
 """
@@ -37,12 +37,10 @@ async def get_version(db: Session = Depends(get_db)) -> dict[str, Any]:
                 "type": "FastAPI"
             },
             "database": {
-                "version": "0.1.0",
-                "alembic_revision": "df7756c38ecd",
-                "description": "Initial version tracking system",
-                "applied_at": "2025-10-10T13:20:00+00:00"
+                "version": "0012",
+                "alembic_revision": "0012"
             },
-            "environment": "development",
+            "environment": "production",
             "timestamp": "2025-10-10T14:30:00Z"
         }
     """

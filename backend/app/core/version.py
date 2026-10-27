@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -42,39 +43,22 @@ def get_package_version() -> str:
 
 def get_database_version(db: Session) -> dict[str, Any] | None:
     """
-    Get latest database schema version from schema_versions table.
+    Get the applied schema revision from Alembic's own alembic_version table.
+
+    schema_versions only ever got the initial row, so it always said 0001 (#431).
 
     Args:
         db: Database session
 
     Returns:
-        Dict with version info or None if no versions found:
-        {
-            "version": "0.1.0",
-            "alembic_revision": "abc123def456",
-            "description": "Initial schema",
-            "applied_at": "2025-01-10T10:00:00+00:00"
-        }
+        {"version": "0012", "alembic_revision": "0012"}, or None if unavailable
     """
     try:
-        result = db.execute(
-            text("""
-                SELECT version, alembic_revision, description, applied_at
-                FROM schema_versions
-                ORDER BY applied_at DESC
-                LIMIT 1
-            """)
-        ).fetchone()
+        revision = db.execute(text("SELECT version_num FROM alembic_version")).scalar()
+        if revision:
+            return {"version": revision, "alembic_revision": revision}
 
-        if result:
-            return {
-                "version": result.version,
-                "alembic_revision": result.alembic_revision,
-                "description": result.description,
-                "applied_at": result.applied_at.isoformat() if result.applied_at else None,
-            }
-
-        logger.sync_warning("No schema versions found in database")
+        logger.sync_warning("No Alembic revision found in database")
         return None
 
     except Exception as e:
@@ -98,10 +82,8 @@ def get_all_versions(db: Session) -> dict[str, Any]:
                 "type": "FastAPI"
             },
             "database": {
-                "version": "0.1.0",
-                "alembic_revision": "abc123",
-                "description": "...",
-                "applied_at": "..."
+                "version": "0012",
+                "alembic_revision": "0012"
             },
             "environment": "production",
             "timestamp": "2025-01-10T12:00:00+00:00"
@@ -115,7 +97,7 @@ def get_all_versions(db: Session) -> dict[str, Any]:
     versions = {
         "backend": {"version": backend_version, "name": "kidney-genetics-db", "type": "FastAPI"},
         "database": db_version or {"version": "unknown"},
-        "environment": os.getenv("ENV", "development"),
+        "environment": settings.ENVIRONMENT,
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
 

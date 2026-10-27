@@ -9019,7 +9019,7 @@
     },
     "/version": {
       "get": {
-        "description": "Get version information for all components.\n\nPublic endpoint - no authentication required.\n\nReturns:\n    Dict containing version information for backend, database, and environment:\n    {\n        \"backend\": {\n            \"version\": \"0.1.0\",\n            \"name\": \"kidney-genetics-db\",\n            \"type\": \"FastAPI\"\n        },\n        \"database\": {\n            \"version\": \"0.1.0\",\n            \"alembic_revision\": \"df7756c38ecd\",\n            \"description\": \"Initial version tracking system\",\n            \"applied_at\": \"2025-10-10T13:20:00+00:00\"\n        },\n        \"environment\": \"development\",\n        \"timestamp\": \"2025-10-10T14:30:00Z\"\n    }",
+        "description": "Get version information for all components.\n\nPublic endpoint - no authentication required.\n\nReturns:\n    Dict containing version information for backend, database, and environment:\n    {\n        \"backend\": {\n            \"version\": \"0.1.0\",\n            \"name\": \"kidney-genetics-db\",\n            \"type\": \"FastAPI\"\n        },\n        \"database\": {\n            \"version\": \"0012\",\n            \"alembic_revision\": \"0012\"\n        },\n        \"environment\": \"production\",\n        \"timestamp\": \"2025-10-10T14:30:00Z\"\n    }",
         "operationId": "get_version_version_get",
         "responses": {
           "200": {
