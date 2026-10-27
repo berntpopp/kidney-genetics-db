@@ -128,6 +128,15 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: SecretStr
     POSTGRES_DB: str = "kidney_genetics"
 
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def pin_database_driver(cls, v: SecretStr) -> SecretStr:
+        # SQLAlchemy 2.1 maps bare postgresql:// to psycopg 3; the app runs on psycopg2
+        url = v.get_secret_value()
+        if url.startswith("postgresql://"):
+            return SecretStr("postgresql+psycopg2://" + url.removeprefix("postgresql://"))
+        return v
+
     @field_validator("JWT_SECRET_KEY")
     @classmethod
     def validate_jwt_secret(cls, v: SecretStr) -> SecretStr:
