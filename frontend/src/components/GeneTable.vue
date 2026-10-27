@@ -6,9 +6,9 @@ import { Info, EyeOff, Search, FilterX, RefreshCw } from 'lucide-vue-next'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
 import { geneApi } from '../api/genes'
-import ScoreBreakdown from './ScoreBreakdown.vue'
-import EvidenceTierBadge from './EvidenceTierBadge.vue'
-import { TIER_CONFIG } from '@/utils/evidenceTiers'
+import { TIER_CONFIG, getScoreExplanation, type TierName } from '@/utils/evidenceTiers'
+import { getSourceConfig, sourceDisplayName } from '@/utils/sources'
+import { Chip, DataState, OntologyTerm } from '@/components/shared'
 import {
   DataTable,
   DataTableColumnHeader,
@@ -31,11 +31,9 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
-import { Progress } from '@/components/ui/progress'
-import ComponentError from '@/components/ui/ComponentError.vue'
 
 // Gene row type for table data
 interface GeneRow {
@@ -44,6 +42,7 @@ interface GeneRow {
   hgnc_id: string
   aliases?: string[]
   evidence_count?: number
+  evidence_score?: number | null
   percentage_score?: number
   source_count?: number
   sources?: string[]
@@ -92,6 +91,7 @@ watch(
   mobile => {
     columnVisibility.value = {
       hgnc_id: !mobile,
+      evidence_count: !mobile,
       sources: !mobile
     }
   },
@@ -109,7 +109,8 @@ const availableTiers = computed(() => {
   return Object.entries(TIER_CONFIG).map(([key, config]) => ({
     title: config.label,
     value: key,
-    color: config.color
+    color: config.color,
+    icon: config.icon
   }))
 })
 
@@ -124,6 +125,28 @@ const sortOptions = [
   { title: 'Count (Low → High)', value: 'count_asc' }
 ]
 
+// Score bands of DESIGN.md (>= 50, 35, 20, 10) tint the score with the matching strength step
+const SCORE_BANDS: [number, TierName][] = [
+  [50, 'comprehensive_support'],
+  [35, 'multi_source_support'],
+  [20, 'established_support'],
+  [10, 'preliminary_evidence']
+]
+const scoreBand = (score: number): TierName =>
+  SCORE_BANDS.find(([min]) => score >= min)?.[1] ?? 'minimal_evidence'
+
+const MAX_SOURCE_CHIPS = 3
+const sourceChip = (s: string) =>
+  h(Chip, {
+    key: s,
+    kind: 'neutral',
+    label: sourceDisplayName(s),
+    tooltip: getSourceConfig(s).description || undefined
+  })
+
+const rightHeader = (column: never, title: string) =>
+  h('div', { class: 'flex justify-end -mr-3' }, h(DataTableColumnHeader, { column, title }))
+
 // Column definitions
 const columns: ColumnDef<DataTableFeatures, GeneRow>[] = [
   {
@@ -137,24 +160,31 @@ const columns: ColumnDef<DataTableFeatures, GeneRow>[] = [
           RouterLink,
           {
             to: `/genes/${symbol}`,
-            class: 'text-primary hover:underline font-medium font-mono text-sm'
+            class: 'inline-block py-1 text-primary hover:underline font-medium font-mono text-sm'
           },
           () => symbol
         ),
         ...(aliases?.length
           ? [
-              h(TooltipProvider, null, () =>
-                h(Tooltip, null, {
-                  default: () => [
-                    h(TooltipTrigger, { asChild: true }, () =>
-                      h(Info, { class: 'h-3 w-3 text-muted-foreground' })
-                    ),
-                    h(TooltipContent, null, () =>
-                      h('div', null, [h('strong', null, 'Aliases: '), aliases.join(', ')])
+              h(Tooltip, null, {
+                default: () => [
+                  h(TooltipTrigger, { asChild: true }, () =>
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        class:
+                          'inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                        'aria-label': `Aliases of ${symbol}: ${aliases.join(', ')}`
+                      },
+                      h(Info, { class: 'size-3.5', 'aria-hidden': 'true' })
                     )
-                  ]
-                })
-              )
+                  ),
+                  h(TooltipContent, null, () =>
+                    h('div', null, [h('strong', null, 'Aliases: '), aliases.join(', ')])
+                  )
+                ]
+              })
             ]
           : [])
       ])
@@ -167,82 +197,70 @@ const columns: ColumnDef<DataTableFeatures, GeneRow>[] = [
     cell: ({ row }) => {
       const id = row.getValue('hgnc_id') as string | null
       return id
-        ? h('code', { class: 'text-xs bg-muted px-1 py-0.5 rounded font-mono' }, id)
-        : h(Badge, { variant: 'secondary', class: 'text-[10px]' }, () => 'N/A')
+        ? h(OntologyTerm, { id, source: 'HGNC' })
+        : h('span', { class: 'text-muted-foreground' }, 'Not available')
     },
-    size: 110
+    size: 120
   },
   {
     accessorKey: 'evidence_tier',
     header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Tier' }),
-    cell: ({ row }) =>
-      h(EvidenceTierBadge, { tier: row.getValue('evidence_tier'), size: 'x-small' }),
+    cell: ({ row }) => h(Chip, { tier: (row.getValue('evidence_tier') as string) ?? null }),
+    size: 190
+  },
+  {
+    accessorKey: 'evidence_score',
+    header: ({ column }) => rightHeader(column as never, 'Score'),
+    cell: ({ row }) => {
+      const score = row.getValue('evidence_score') as number | null | undefined
+      if (score === null || score === undefined) {
+        return h('span', { class: 'text-muted-foreground' }, 'Not scored')
+      }
+      return h(Chip, {
+        tier: scoreBand(score),
+        label: score.toFixed(1),
+        class: 'tabular-nums',
+        tooltip: getScoreExplanation(score, row.original.evidence_count, row.original.evidence_tier)
+      })
+    },
+    meta: { class: 'text-right' },
     size: 100
   },
   {
     accessorKey: 'evidence_count',
-    header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Evidence' }),
-    cell: ({ row }) => {
-      const count = row.getValue('evidence_count') as number
-      return h('div', { class: 'flex items-center gap-2' }, [
-        h(
-          Badge,
-          {
-            variant: 'secondary',
-            class: 'font-mono text-xs'
-          },
-          () => count
-        ),
-        h(Progress, {
-          modelValue: getEvidenceStrength(count),
-          class: 'h-0.5 w-10'
-        })
-      ])
-    },
-    size: 100
-  },
-  {
-    accessorKey: 'evidence_score',
-    header: ({ column }) => h(DataTableColumnHeader, { column, title: 'Score' }),
-    cell: ({ row }) => {
-      const score = row.getValue('evidence_score')
-      if (score === null || score === undefined) {
-        return h(Badge, { variant: 'secondary', class: 'text-[10px]' }, () => 'N/A')
-      }
-      return h(ScoreBreakdown, {
-        score,
-        tier: row.original.evidence_tier ?? '',
-        // The list API returns source names only; per-source scores exist on the detail page
-        variant: 'inline',
-        size: 'small'
-      })
-    },
-    size: 100
+    header: ({ column }) => rightHeader(column as never, 'Sources (n)'),
+    cell: ({ row }) =>
+      h(
+        'span',
+        { class: 'tabular-nums text-foreground' },
+        String(row.getValue('evidence_count') ?? 0)
+      ),
+    meta: { class: 'text-right' },
+    size: 110
   },
   {
     accessorKey: 'sources',
     header: 'Sources',
     cell: ({ row }) => {
       const sources = (row.getValue('sources') as string[]) || []
+      const hidden = sources.slice(MAX_SOURCE_CHIPS)
       return h('div', { class: 'flex flex-wrap gap-1' }, [
-        ...sources.slice(0, 3).map(s =>
-          h(
-            Badge,
-            {
-              key: s,
-              variant: 'outline',
-              class: 'text-[10px] font-medium'
-            },
-            () => s
-          )
-        ),
-        ...(sources.length > 3
-          ? [h('span', { class: 'text-xs text-muted-foreground' }, `+${sources.length - 3}`)]
+        ...sources.slice(0, MAX_SOURCE_CHIPS).map(sourceChip),
+        ...(hidden.length
+          ? [
+              h(Chip, {
+                kind: 'neutral',
+                label: `+${hidden.length}`,
+                class: 'tabular-nums',
+                'aria-label': `${hidden.length} more sources: ${hidden.map(sourceDisplayName).join(', ')}`,
+                tooltip: hidden.map(sourceDisplayName).join(', ')
+              })
+            ]
           : [])
       ])
     },
     enableSorting: false,
-    size: 200
+    size: 260
   }
 ]
 
@@ -454,7 +472,7 @@ const loadGenes = async (): Promise<void> => {
 
       if (response.meta.filters.available_sources) {
         availableSources.value = response.meta.filters.available_sources.map((source: string) => ({
-          title: source,
+          title: sourceDisplayName(source),
           value: source
         }))
       }
@@ -568,12 +586,6 @@ const toggleTier = (tier: string) => {
   loadGenes()
 }
 
-// Helper methods
-const getEvidenceStrength = (count: number) => {
-  const max = filterMeta.value?.evidence_count?.max || 6
-  return max > 0 ? Math.min((count / max) * 100, 100) : 0
-}
-
 // Watch for route changes
 watch(
   () => route.query,
@@ -611,11 +623,14 @@ onMounted(async () => {
           <div class="relative flex-1">
             <Search
               :size="16"
-              class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+              class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
             />
             <Input
               v-model="search"
-              placeholder="PKD1, HGNC:9008..."
+              type="search"
+              aria-label="Search genes by symbol or HGNC ID"
+              placeholder="Gene symbol or HGNC ID, e.g. PKD1"
               class="pl-9 h-9"
               @input="debouncedSearch"
             />
@@ -660,7 +675,7 @@ onMounted(async () => {
                       :model-value="selectedSources.includes(source.value)"
                       @update:model-value="toggleSource(source.value)"
                     />
-                    <Label :for="`source-${source.value}`" class="text-sm cursor-pointer">
+                    <Label :for="`source-${source.value}`" class="text-sm">
                       {{ source.title }}
                     </Label>
                   </div>
@@ -705,10 +720,12 @@ onMounted(async () => {
                       :model-value="selectedTiers.includes(tier.value)"
                       @update:model-value="toggleTier(tier.value)"
                     />
-                    <Label :for="`tier-${tier.value}`" class="text-sm cursor-pointer">
-                      <span
-                        class="inline-block w-2 h-2 rounded-full mr-1"
-                        :style="{ backgroundColor: tier.color }"
+                    <Label :for="`tier-${tier.value}`" class="text-sm">
+                      <component
+                        :is="tier.icon"
+                        class="size-3.5 shrink-0"
+                        :style="{ color: tier.color }"
+                        aria-hidden="true"
                       />
                       {{ tier.title }}
                     </Label>
@@ -750,8 +767,12 @@ onMounted(async () => {
 
         <!-- Row 2: Sliders + Zero-score toggle (compact) -->
         <div class="flex flex-col md:flex-row items-start md:items-center gap-x-6 gap-y-2 mt-2">
-          <div class="flex items-center gap-2 min-w-[200px] flex-1">
-            <Label class="text-xs whitespace-nowrap">Score</Label>
+          <div
+            role="group"
+            aria-labelledby="score-range-label"
+            class="flex items-center gap-2 min-w-[200px] flex-1 w-full md:w-auto"
+          >
+            <Label id="score-range-label" class="text-xs whitespace-nowrap">Evidence score</Label>
             <Slider
               v-model="evidenceScoreRange"
               :min="0"
@@ -760,13 +781,19 @@ onMounted(async () => {
               class="flex-1"
               @update:model-value="debouncedSearch"
             />
-            <span class="text-xs text-muted-foreground font-mono whitespace-nowrap">
+            <span
+              class="w-14 text-right text-xs text-muted-foreground tabular-nums whitespace-nowrap"
+            >
               {{ evidenceScoreRange[0] }}–{{ evidenceScoreRange[1] }}
             </span>
           </div>
 
-          <div class="flex items-center gap-2 min-w-[180px] flex-1">
-            <Label class="text-xs whitespace-nowrap">Count</Label>
+          <div
+            role="group"
+            aria-labelledby="count-range-label"
+            class="flex items-center gap-2 min-w-[180px] flex-1 w-full md:w-auto"
+          >
+            <Label id="count-range-label" class="text-xs whitespace-nowrap">Sources (n)</Label>
             <Slider
               v-model="evidenceCountRange"
               :min="1"
@@ -775,7 +802,9 @@ onMounted(async () => {
               class="flex-1"
               @update:model-value="debouncedSearch"
             />
-            <span class="text-xs text-muted-foreground font-mono whitespace-nowrap">
+            <span
+              class="w-14 text-right text-xs text-muted-foreground tabular-nums whitespace-nowrap"
+            >
               {{ evidenceCountRange[0] }}–{{ evidenceCountRange[1] }}
             </span>
           </div>
@@ -786,52 +815,54 @@ onMounted(async () => {
               :model-value="showZeroScoreGenes"
               @update:model-value="toggleZeroScore"
             />
-            <Label for="zero-score" class="text-xs cursor-pointer whitespace-nowrap">
-              Include zero-score
+            <Label for="zero-score" class="text-xs whitespace-nowrap">
+              Include genes with score 0
             </Label>
-            <Badge
+            <Chip
               v-if="!showZeroScoreGenes && hiddenGeneCount > 0"
-              variant="outline"
-              class="text-xs"
-            >
-              <EyeOff class="h-3 w-3 mr-1" />
-              {{ hiddenGeneCount.toLocaleString() }}
-            </Badge>
+              kind="neutral"
+              :icon="EyeOff"
+              class="tabular-nums"
+              :label="hiddenGeneCount.toLocaleString()"
+              :tooltip="`${hiddenGeneCount.toLocaleString()} genes with score 0 are hidden`"
+            />
           </div>
-
-          <!-- Total gene count -->
-          <Badge v-if="genes.length > 0" variant="secondary" class="text-xs font-normal ml-auto">
-            {{ genes.length }}/{{ totalItems.toLocaleString() }} genes
-          </Badge>
         </div>
       </CardContent>
     </Card>
 
-    <!-- Data Table -->
-    <ComponentError v-if="loadError" :error="loadError" @retry="loadGenes" />
-
-    <Card v-else-if="genes.length > 0 || loading">
-      <!-- Kept in the DOM while loading so the table does not shift; visibility:hidden keeps it out of tab order and the a11y tree -->
-      <DataTablePagination
-        :class="{ invisible: genes.length === 0 }"
-        :table="table"
-        :page-size-options="itemsPerPageOptions"
-      />
-      <DataTable :table="table" :loading="loading" loading-text="Loading genes..." />
-    </Card>
-
-    <!-- Empty State -->
-    <Card v-else class="text-center">
-      <CardContent class="py-12">
-        <Search class="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
-        <h3 class="text-lg font-medium mb-2">No genes found</h3>
-        <p class="text-sm text-muted-foreground mb-4">
-          {{ search ? `No results for "${search}"` : 'Try adjusting your filters' }}
+    <!-- Data Table: skeleton rows while the first page loads; error and empty via DataState -->
+    <DataState
+      :error="loadError"
+      error-title="Could not load genes"
+      :empty="!loading && genes.length === 0"
+      @retry="loadGenes"
+    >
+      <template #empty>
+        <Search class="size-6 text-muted-foreground" aria-hidden="true" />
+        <p class="font-medium">No genes found</p>
+        <p class="text-sm text-muted-foreground">
+          {{ search ? `No genes match "${search}".` : 'No genes match these filters.' }}
         </p>
-        <Button v-if="hasActiveFilters" variant="outline" @click="clearAllFilters">
-          Clear Filters
+        <Button v-if="hasActiveFilters" variant="outline" size="sm" @click="clearAllFilters">
+          Clear filters
         </Button>
-      </CardContent>
-    </Card>
+      </template>
+      <Card class="min-w-0 gap-0 py-2">
+        <!-- Kept in the DOM while loading so the table does not shift; visibility:hidden keeps it out of tab order and the a11y tree -->
+        <DataTablePagination
+          :class="{ invisible: genes.length === 0 }"
+          :table="table"
+          :page-size-options="itemsPerPageOptions"
+          noun="gene"
+        />
+        <DataTable
+          :table="table"
+          :loading="loading"
+          :skeleton-rows="itemsPerPage"
+          loading-text="Loading genes…"
+        />
+      </Card>
+    </DataState>
   </div>
 </template>
