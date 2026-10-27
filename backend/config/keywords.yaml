@@ -12,6 +12,7 @@ keywords:
     # Note: "tubul" was REMOVED as it's too broad and matches tubulinopathies (brain disorders)
     - tubulopathy  # More specific for kidney tubule disorders
     - tubulointerstitial  # Specific for kidney tubule disorders
+    - renotubular  # Fanconi renotubular syndrome (GATM, SLC34A1, EHHADH) (#369)
     - polycystic
     - alport
     - nephritis

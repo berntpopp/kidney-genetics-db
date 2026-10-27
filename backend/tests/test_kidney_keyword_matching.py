@@ -33,6 +33,7 @@ def test_non_kidney_diseases_do_not_match(text):
         "focal segmental glomerulosclerosis 4",
         "oculocerebrorenal syndrome",
         "branchiootorenal syndrome 1",
+        "Fanconi renotubular syndrome 1",
     ],
 )
 def test_kidney_diseases_match(text):
