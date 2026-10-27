@@ -1,254 +1,165 @@
 <template>
-  <div class="container mx-auto px-4 py-6">
-    <!-- Breadcrumb -->
-    <Breadcrumb class="mb-2">
-      <BreadcrumbList>
-        <BreadcrumbItem v-for="(crumb, index) in breadcrumbs" :key="index">
-          <BreadcrumbLink v-if="!crumb.disabled && crumb.to" as-child>
-            <RouterLink :to="crumb.to">{{ crumb.title }}</RouterLink>
-          </BreadcrumbLink>
-          <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
-          <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
+  <div :class="PAGE_CONTAINER">
+    <PageHeader
+      title="Data Sources"
+      description="Live status and statistics from integrated data sources"
+    >
+      <template #breadcrumb>
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem v-for="(crumb, index) in breadcrumbs" :key="index">
+              <BreadcrumbLink v-if="!crumb.disabled && crumb.to" as-child>
+                <RouterLink :to="crumb.to">{{ crumb.title }}</RouterLink>
+              </BreadcrumbLink>
+              <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
+              <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </template>
+    </PageHeader>
 
-    <!-- Header -->
-    <div class="flex items-center gap-3 mb-6">
-      <RefreshCw class="size-6 text-primary" />
-      <div>
-        <h1 class="text-2xl font-bold">Data Sources</h1>
-        <p class="text-sm text-muted-foreground">
-          Live status and statistics from integrated data sources
-        </p>
-      </div>
-    </div>
-
-    <!-- Loading State: skeletons in the loaded layout so nothing shifts when data arrives -->
-    <div v-if="loading" aria-busy="true">
-      <span class="sr-only">Loading data sources...</span>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <!-- 7 = sources in backend/config/datasources.yaml; the API returns all, inactive included -->
-        <Card v-for="n in 7" :key="n" class="h-full overflow-hidden animate-pulse">
-          <div class="p-4 bg-muted">
-            <div class="h-7 w-32 rounded bg-muted-foreground/20" />
+    <TooltipProvider>
+      <DataState
+        :loading="loading"
+        :error="loadError"
+        :empty="dataSources.length === 0"
+        error-title="Could not load data sources"
+        empty-message="No data sources available."
+        @retry="loadDataSources"
+      >
+        <!-- Skeletons in the loaded layout so nothing shifts when data arrives -->
+        <template #loading>
+          <h2 class="mb-3 text-xl font-semibold">Sources</h2>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <!-- 7 = sources in backend/config/datasources.yaml; the API returns all, inactive included -->
+            <Card v-for="n in 7" :key="n" class="h-full gap-0 py-0 motion-safe:animate-pulse">
+              <div class="flex items-start justify-between gap-3 p-4 pb-2">
+                <div class="h-6 w-28 rounded-md bg-muted" />
+              </div>
+              <CardContent class="px-4 pb-4">
+                <div class="mb-4 h-10 rounded-md bg-muted" />
+                <div class="mb-3 h-12 rounded-md bg-muted" />
+                <Separator class="my-3" />
+                <div class="h-4 rounded-md bg-muted" />
+              </CardContent>
+            </Card>
           </div>
-          <CardContent class="p-4">
-            <div class="h-10 rounded bg-muted mb-4" />
-            <div class="h-11 rounded bg-muted mb-3" />
-            <Separator class="my-3" />
-            <div class="h-4 rounded bg-muted" />
-          </CardContent>
-        </Card>
-      </div>
-      <Card class="mt-6">
-        <CardHeader class="flex flex-row items-center gap-2">
-          <ChartBarBig class="size-5 text-primary" />
-          <CardTitle>Database Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 animate-pulse">
-            <div v-for="n in 4" :key="n" class="h-14 rounded bg-muted" />
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          <Card class="mt-6">
+            <CardHeader class="flex flex-row items-center gap-2">
+              <ChartBarBig class="size-5 text-muted-foreground" aria-hidden="true" />
+              <CardTitle tag="h2" class="text-xl">Database Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div class="grid grid-cols-2 gap-4 motion-safe:animate-pulse sm:grid-cols-4">
+                <div v-for="n in 4" :key="n" class="h-14 rounded-md bg-muted" />
+              </div>
+            </CardContent>
+          </Card>
+        </template>
 
-    <ComponentError v-else-if="loadError" :error="loadError" @retry="loadDataSources" />
-
-    <template v-else>
-      <p v-if="dataSources.length === 0" class="py-12 text-center text-muted-foreground">
-        No data sources available.
-      </p>
-
-      <!-- Data Sources Cards -->
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card
-          v-for="source in dataSources"
-          :key="source.name"
-          class="source-card h-full overflow-hidden"
-          @mouseenter="hoveredCard = source.name"
-          @mouseleave="hoveredCard = null"
-        >
-          <!-- Header with gradient -->
-          <div
-            class="p-4"
-            :style="`background: linear-gradient(135deg, ${getSourceGradient(source.name)});`"
+        <h2 class="mb-3 text-xl font-semibold">Sources</h2>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Card
+            v-for="source in dataSources"
+            :key="source.name"
+            class="h-full gap-0 py-0"
+            :data-source="source.name"
           >
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <component :is="getSourceIcon(source.name)" class="size-6 text-white" />
-                <div>
-                  <h2 class="text-lg font-bold text-white">{{ source.name }}</h2>
-                  <div v-if="source.type" class="text-xs text-white/95">{{ source.type }}</div>
-                </div>
+            <div class="flex items-start justify-between gap-3 p-4 pb-2">
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold">
+                  <SourceLabel :source="source.name" />
+                </h3>
+                <p v-if="source.type" class="text-xs text-muted-foreground">{{ source.type }}</p>
               </div>
-              <Badge
-                :variant="source.status === 'active' ? 'default' : 'secondary'"
-                :class="getStatusBadgeClass(source.status)"
-              >
-                {{ getStatusLabel(source.status) }}
-              </Badge>
-            </div>
-          </div>
-
-          <!-- Content -->
-          <CardContent class="p-4">
-            <p class="text-sm text-muted-foreground mb-4">
-              {{ source.description || getSourceDescription(source.name) }}
-            </p>
-
-            <!-- Statistics -->
-            <div class="flex justify-between items-center mb-3">
-              <div class="text-center">
-                <div class="text-lg font-bold text-green-700 dark:text-green-400">
-                  {{ (source.stats?.gene_count || 0).toLocaleString() }}
-                </div>
-                <div class="text-xs text-muted-foreground">Genes</div>
-              </div>
-              <div class="text-center">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <div class="text-lg font-bold text-primary">
-                        {{ getMetadataCount(source, 'primary').toLocaleString() }}
-                      </div>
-                      <div class="text-xs text-muted-foreground">
-                        {{ getMetadataLabel(source, 'primary') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>{{ getMetadataTooltip(source, 'primary') }}</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <div v-if="getMetadataCount(source, 'secondary') > 0" class="text-center">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <div class="text-lg font-bold text-blue-600 dark:text-blue-400">
-                        {{ getMetadataCount(source, 'secondary').toLocaleString() }}
-                      </div>
-                      <div class="text-xs text-muted-foreground">
-                        {{ getMetadataLabel(source, 'secondary') }}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>{{ getMetadataTooltip(source, 'secondary') }}</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
+              <StatusBadge :status="source.status" :tooltip="getStatusTooltip(source.status)" />
             </div>
 
-            <!-- Last Update -->
-            <Separator class="my-3" />
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-muted-foreground">Last Updated</span>
-              <span class="text-xs font-medium">
-                {{ formatDate(source.stats?.last_updated) }}
-              </span>
+            <CardContent class="flex flex-1 flex-col px-4 pb-4">
+              <p class="mb-4 text-sm text-muted-foreground">
+                {{ source.description || getSourceConfig(source.name).description }}
+              </p>
+
+              <!-- Counts as neutral stats; the label below each value is its unit -->
+              <div class="mb-3 grid grid-cols-3 gap-2 text-center">
+                <div class="flex flex-col-reverse">
+                  <span class="text-xs text-muted-foreground">Genes</span>
+                  <span class="text-lg font-semibold tabular-nums text-foreground">
+                    {{ (source.stats?.gene_count || 0).toLocaleString() }}
+                  </span>
+                </div>
+                <div v-for="kind in metricKinds(source)" :key="kind">
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <button
+                        type="button"
+                        class="flex w-full flex-col-reverse rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      >
+                        <span class="text-xs text-muted-foreground">
+                          {{ getMetadataLabel(source, kind) }}
+                        </span>
+                        <span class="text-lg font-semibold tabular-nums text-foreground">
+                          {{ getMetadataCount(source, kind).toLocaleString() }}
+                        </span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent class="max-w-xs">{{
+                      getMetadataTooltip(source, kind)
+                    }}</TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+
+              <Separator class="mt-auto mb-3" />
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-muted-foreground">Last updated</span>
+                <span class="font-medium tabular-nums">
+                  {{ formatDate(source.stats?.last_updated) }}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <!-- Summary Statistics -->
+        <Card class="mt-6">
+          <CardHeader class="flex flex-row items-center gap-2">
+            <ChartBarBig class="size-5 text-muted-foreground" aria-hidden="true" />
+            <CardTitle tag="h2" class="text-xl">Database Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <Tooltip v-for="stat in summaryItems" :key="stat.label">
+                <TooltipTrigger as-child>
+                  <button
+                    type="button"
+                    class="flex flex-col-reverse items-center rounded-md text-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <span class="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                      {{ stat.label }}
+                      <CircleHelp class="size-3" aria-hidden="true" />
+                    </span>
+                    <span
+                      class="text-xl font-semibold whitespace-nowrap tabular-nums text-foreground sm:text-3xl"
+                    >
+                      {{ stat.value }}
+                    </span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent class="max-w-xs">{{ stat.tooltip }}</TooltipContent>
+              </Tooltip>
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      <!-- Summary Statistics -->
-      <Card class="mt-6">
-        <CardHeader class="flex flex-row items-center gap-2">
-          <ChartBarBig class="size-5 text-primary" />
-          <CardTitle>Database Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <div class="text-center">
-                    <div class="text-3xl font-bold text-primary">
-                      {{ summaryStats.total_active }}
-                    </div>
-                    <div class="text-sm text-muted-foreground">
-                      Active Sources
-                      <CircleHelp class="size-3 ml-1 inline-block" />
-                    </div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>{{
-                  apiResponse?.explanations?.active_sources || 'Number of active data sources'
-                }}</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <div class="text-center">
-                    <div class="text-3xl font-bold text-green-700 dark:text-green-400">
-                      {{ summaryStats.unique_genes.toLocaleString() }}
-                    </div>
-                    <div class="text-sm text-muted-foreground">
-                      Genes with Evidence
-                      <CircleHelp class="size-3 ml-1 inline-block" />
-                    </div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>{{
-                  apiResponse?.explanations?.unique_genes || 'Total unique genes with evidence'
-                }}</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <div class="text-center">
-                    <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                      {{ calculateCoverage() }}%
-                    </div>
-                    <div class="text-sm text-muted-foreground">
-                      Source Coverage
-                      <CircleHelp class="size-3 ml-1 inline-block" />
-                    </div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>{{
-                  apiResponse?.explanations?.source_coverage ||
-                  'Percentage of multi-source coverage'
-                }}</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <div class="text-center">
-                    <div class="text-3xl font-bold" style="color: #8b5cf6">
-                      {{ formatDate(summaryStats.last_update) }}
-                    </div>
-                    <div class="text-sm text-muted-foreground">
-                      Last Updated
-                      <CircleHelp class="size-3 ml-1 inline-block" />
-                    </div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>{{
-                  apiResponse?.explanations?.last_updated || 'Most recent data update'
-                }}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        </CardContent>
-      </Card>
-    </template>
+      </DataState>
+    </TooltipProvider>
   </div>
 </template>
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
-import {
-  RefreshCw,
-  ChartBarBig,
-  CircleHelp,
-  LayoutDashboard,
-  User,
-  FileText,
-  TestTube,
-  Dna,
-  Stethoscope,
-  Database
-} from 'lucide-vue-next'
+import { ChartBarBig, CircleHelp } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { datasourceApi } from '@/api/datasources'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
@@ -263,10 +174,16 @@ import {
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import ComponentError from '@/components/ui/ComponentError.vue'
+import {
+  DataState,
+  PageHeader,
+  PAGE_CONTAINER,
+  SourceLabel,
+  StatusBadge
+} from '@/components/shared'
+import { getSourceConfig } from '@/utils/sources'
 
 const breadcrumbs = PUBLIC_BREADCRUMBS.dataSources
 
@@ -281,18 +198,17 @@ useSeoMeta({
 
 const loading = ref(true)
 const loadError = ref<Error | null>(null)
-const hoveredCard = ref<string | null>(null)
-const dataSources = ref<Array<Record<string, unknown>>>([])
-const apiResponse = ref<Record<string, unknown> | null>(null)
-
-const sourceDescriptions: Record<string, string> = {
-  PanelApp: 'Expert-curated gene panels from UK Genomics England and Australian Genomics',
-  HPO: 'Human Phenotype Ontology providing standardized phenotype-gene associations',
-  PubTator: 'Literature mining from PubMed Central with automated text analysis',
-  ClinGen: 'Clinical Genome Resource providing authoritative disease-gene relationships',
-  GenCC: 'Harmonized gene-disease relationships from 40+ submitters worldwide',
-  DiagnosticPanels: 'Commercial diagnostic panels from leading genetic testing laboratories'
+/** One source as /api/datasources/ returns it */
+interface SourceRow {
+  name: string
+  status: string
+  type?: string
+  description?: string
+  stats?: { gene_count?: number; last_updated?: string; metadata?: Record<string, number> }
 }
+
+const dataSources = ref<SourceRow[]>([])
+const apiResponse = ref<Record<string, unknown> | null>(null)
 
 const summaryStats = computed(() => {
   if (!apiResponse.value) {
@@ -306,61 +222,20 @@ const summaryStats = computed(() => {
   }
 })
 
-const getSourceGradient = (sourceName: string) => {
-  const gradients: Record<string, string> = {
-    PanelApp: '#0EA5E9, #0284C7',
-    HPO: '#8B5CF6, #7C3AED',
-    PubTator: '#3B82F6, #2563EB',
-    ClinGen: '#F59E0B, #D97706',
-    GenCC: '#10B981, #059669',
-    DiagnosticPanels: '#EF4444, #DC2626'
-  }
-  return gradients[sourceName] || gradients['PanelApp']
+const STATUS_TOOLTIPS: Record<string, string> = {
+  active: 'Data from this source is loaded and in use.',
+  error: 'The last update of this source failed.',
+  pending: 'An update of this source is pending.'
 }
 
-const getSourceIcon = (sourceName: string) => {
-  const icons: Record<string, typeof Database> = {
-    PanelApp: LayoutDashboard,
-    HPO: User,
-    PubTator: FileText,
-    ClinGen: TestTube,
-    GenCC: Dna,
-    DiagnosticPanels: Stethoscope
-  }
-  return icons[sourceName] || Database
-}
+const getStatusTooltip = (status: string) =>
+  STATUS_TOOLTIPS[status] ?? 'The server reported no status for this source.'
 
-const getSourceDescription = (sourceName: string) => {
-  return sourceDescriptions[sourceName] || 'Integrated data source for genetic information'
-}
+/** Source-specific metrics shown beside the gene count (secondary only when non-zero) */
+const metricKinds = (source: SourceRow) =>
+  getMetadataCount(source, 'secondary') > 0 ? ['primary', 'secondary'] : ['primary']
 
-const getStatusBadgeClass = (status: string) => {
-  switch (status) {
-    case 'active':
-      return 'bg-green-700 text-white'
-    case 'error':
-      return 'bg-red-600 text-white'
-    case 'pending':
-      return 'bg-yellow-700 text-white'
-    default:
-      return ''
-  }
-}
-
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    case 'active':
-      return 'Active'
-    case 'error':
-      return 'Error'
-    case 'pending':
-      return 'Pending'
-    default:
-      return 'Unknown'
-  }
-}
-
-const getMetadataCount = (source: Record<string, unknown>, type: string): number => {
+const getMetadataCount = (source: SourceRow, type: string): number => {
   const stats = source.stats as Record<string, unknown> | undefined
   const metadata = stats?.metadata as Record<string, number> | undefined
   if (!metadata) return 0
@@ -399,7 +274,7 @@ const getMetadataCount = (source: Record<string, unknown>, type: string): number
   return 0
 }
 
-const getMetadataLabel = (source: Record<string, unknown>, type: string) => {
+const getMetadataLabel = (source: SourceRow, type: string) => {
   if (type === 'primary') {
     switch (source.name) {
       case 'ClinGen':
@@ -434,7 +309,7 @@ const getMetadataLabel = (source: Record<string, unknown>, type: string) => {
   return ''
 }
 
-const getMetadataTooltip = (source: Record<string, unknown>, type: string) => {
+const getMetadataTooltip = (source: SourceRow, type: string) => {
   const explanations = (apiResponse.value as Record<string, unknown>)?.explanations as
     Record<string, string> | undefined
   const tooltipMap: Record<string, string | undefined> = {
@@ -452,6 +327,32 @@ const getMetadataTooltip = (source: Record<string, unknown>, type: string) => {
   const label = getMetadataLabel(source, type)
   return tooltipMap[label] || `Number of ${label.toLowerCase()} in this data source`
 }
+
+const summaryItems = computed(() => {
+  const explanations = (apiResponse.value?.explanations ?? {}) as Record<string, string>
+  return [
+    {
+      label: 'Active Sources',
+      value: summaryStats.value.total_active.toLocaleString(),
+      tooltip: explanations.active_sources || 'Number of active data sources'
+    },
+    {
+      label: 'Genes with Evidence',
+      value: summaryStats.value.unique_genes.toLocaleString(),
+      tooltip: explanations.unique_genes || 'Total unique genes with evidence'
+    },
+    {
+      label: 'Source Coverage',
+      value: `${calculateCoverage()}%`,
+      tooltip: explanations.source_coverage || 'Percentage of multi-source coverage'
+    },
+    {
+      label: 'Last Updated',
+      value: formatDate(summaryStats.value.last_update),
+      tooltip: explanations.last_updated || 'Most recent data update'
+    }
+  ]
+})
 
 const calculateCoverage = () => {
   const uniqueGenes = summaryStats.value.unique_genes || 1
@@ -486,7 +387,7 @@ const loadDataSources = async () => {
     window.logService.info('Datasource API response:', response)
 
     apiResponse.value = response
-    dataSources.value = response.sources || []
+    dataSources.value = (response.sources as SourceRow[]) || []
   } catch (error) {
     window.logService.error('Failed to load data sources:', error)
     dataSources.value = []
@@ -499,26 +400,3 @@ const loadDataSources = async () => {
 
 onMounted(loadDataSources)
 </script>
-
-<style scoped>
-.source-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.source-card:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 10px 15px -3px rgb(0 0 0 / 0.1),
-    0 4px 6px -4px rgb(0 0 0 / 0.1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .source-card {
-    transition-duration: 0.01ms !important;
-  }
-
-  .source-card:hover {
-    transform: none;
-  }
-}
-</style>

@@ -59,7 +59,7 @@ describe('DataSources load states (#316)', () => {
     } as never)
     await w
       .findAll('button')
-      .find(b => b.text() === 'Try again')!
+      .find(b => b.text() === 'Retry')!
       .trigger('click')
     await flushPromises()
     expect(getDataSources).toHaveBeenCalledTimes(2)
@@ -92,5 +92,29 @@ describe('DataSources loading layout (#324)', () => {
     // The API sends no source.type, so loaded headers have the name row only
     const header = busy.find('.grid > [data-slot="card"] > div')
     expect(header.findAll('div')).toHaveLength(1)
+  })
+})
+
+describe('DataSources cards (Evidence Ledger)', () => {
+  afterEach(() => wrapper?.unmount())
+
+  it('names sources by display name with a status badge, on neutral cards', async () => {
+    getDataSources.mockReset()
+    getDataSources.mockResolvedValue({
+      total_active: 1,
+      total_unique_genes: 814,
+      sources: [
+        { name: 'DiagnosticPanels', status: 'active', stats: { gene_count: 814 } },
+        { name: 'PubTator', status: 'unknown', stats: { gene_count: 0 } }
+      ]
+    } as never)
+    const w = mountView()
+    await flushPromises()
+
+    const cards = w.findAll('[data-source]')
+    expect(cards[0]!.find('h3').text()).toBe('Diagnostic panels')
+    expect(cards[0]!.find('[data-slot="chip"]').text()).toBe('Active')
+    expect(cards[1]!.find('[data-slot="chip"]').text()).toBe('Unknown')
+    expect(w.html()).not.toMatch(/text-white|linear-gradient/)
   })
 })
