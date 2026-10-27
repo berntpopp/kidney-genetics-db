@@ -1,105 +1,83 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, useTemplateRef } from 'vue'
 import { z } from 'zod/v3'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import { useAuthStore } from '@/stores/auth'
-import { useRouter, RouterLink } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import KidneyGeneticsLogo from '@/components/KidneyGeneticsLogo.vue'
+import FormAlert from '@/components/auth/FormAlert.vue'
+import { focusFirstInvalid } from '@/components/auth/focusFirstInvalid'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { ArrowLeft } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
-const router = useRouter()
+const formRef = useTemplateRef('form')
 
 // Same Zod schema as ForgotPasswordModal
 const forgotPasswordSchema = toTypedSchema(
   z.object({
-    email: z.string().min(1, 'Email is required').email('Invalid email address')
+    email: z.string().min(1, 'Email is required').email('Enter a valid email address')
   })
 )
 
-const { handleSubmit, defineField, errors } = useForm({
-  validationSchema: forgotPasswordSchema
-})
-
-const [email, emailAttrs] = defineField('email', {
-  validateOnBlur: true,
-  validateOnInput: true
+const { handleSubmit } = useForm({
+  validationSchema: forgotPasswordSchema,
+  initialValues: { email: '' }
 })
 
 const submitted = ref(false)
 
 const onSubmit = handleSubmit(
   async values => {
-    const success = await authStore.requestPasswordReset(values.email)
-
-    if (success) {
-      submitted.value = true
-      setTimeout(() => {
-        router.push('/login')
-      }, 3000)
-    }
+    // A server without email (SMTP) answers 503 with "ask an administrator"; shown as the error
+    submitted.value = await authStore.requestPasswordReset(values.email)
   },
-  // Move focus to the invalid field so screen readers announce its error (#327)
-  () => document.getElementById('page-forgot-email')?.focus()
+  () => focusFirstInvalid(formRef.value)
 )
 </script>
 
 <template>
-  <div class="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4">
+  <div class="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-8">
     <div class="w-full max-w-sm">
       <Card>
-        <!-- Logo and Title -->
-        <CardContent class="pt-8 pb-4 text-center">
+        <CardContent class="pt-2 text-center">
           <div class="mb-4 flex items-center justify-center">
             <KidneyGeneticsLogo :size="64" variant="kidneys" :animated="false" />
           </div>
-          <h1 class="mb-2 text-2xl font-medium">Reset Password</h1>
+          <h1 class="mb-2 text-2xl font-semibold tracking-tight">Forgot your password?</h1>
           <p class="text-sm text-muted-foreground">
-            Enter your email address and we'll send you instructions to reset your password
+            Enter your account email. Where reset by email is available, we send you a link;
+            otherwise an administrator can reset your password.
           </p>
         </CardContent>
 
-        <!-- Reset Form -->
-        <CardContent class="px-6 pb-2">
-          <form class="space-y-4" @submit.prevent="onSubmit">
-            <div class="space-y-2">
-              <Label for="page-forgot-email">Email Address</Label>
-              <Input
-                id="page-forgot-email"
-                v-model="email"
-                v-bind="emailAttrs"
-                type="email"
-                placeholder="Enter your email"
-                :disabled="authStore.isLoading || submitted"
-                autofocus
-                :class="{ 'border-destructive': errors.email }"
-                :aria-invalid="!!errors.email"
-                :aria-describedby="errors.email ? 'page-forgot-email-error' : undefined"
-              />
-              <p v-if="errors.email" id="page-forgot-email-error" class="text-sm text-destructive">
-                {{ errors.email }}
-              </p>
-            </div>
+        <CardContent>
+          <form ref="form" class="space-y-4" novalidate @submit.prevent="onSubmit">
+            <FormField v-slot="{ componentField }" name="email">
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input
+                    v-bind="componentField"
+                    type="email"
+                    autocomplete="email"
+                    :disabled="authStore.isLoading || submitted"
+                    autofocus
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            </FormField>
 
-            <div
-              v-if="submitted"
-              class="rounded-md border border-green-500/50 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400"
-            >
+            <FormAlert v-if="submitted" tone="success">
               If an account uses this address, a reset link is on its way. It is valid for one hour.
-            </div>
+            </FormAlert>
 
-            <div
-              v-if="authStore.error"
-              role="alert"
-              class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
-            >
-              {{ authStore.error }}
-            </div>
+            <FormAlert v-if="authStore.error">{{ authStore.error }}</FormAlert>
 
             <Button
               type="submit"
@@ -107,25 +85,18 @@ const onSubmit = handleSubmit(
               size="lg"
               :disabled="authStore.isLoading || submitted"
             >
-              <span v-if="authStore.isLoading" class="flex items-center gap-2">
-                <span
-                  class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                />
-                Sending...
-              </span>
-              <span v-else>Send Reset Email</span>
+              {{ authStore.isLoading ? 'Sending…' : 'Send reset link' }}
             </Button>
           </form>
         </CardContent>
 
-        <!-- Footer -->
-        <CardFooter class="justify-center pb-6 pt-0">
+        <CardFooter class="justify-center">
           <RouterLink
             to="/login"
             class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft class="size-4" />
-            Back to Login
+            <ArrowLeft class="size-4" aria-hidden="true" />
+            Back to sign in
           </RouterLink>
         </CardFooter>
       </Card>

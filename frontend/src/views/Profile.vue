@@ -1,232 +1,151 @@
 <template>
-  <div class="container mx-auto px-4 py-6">
-    <!-- Breadcrumb -->
-    <Breadcrumb class="mb-2">
-      <BreadcrumbList>
-        <BreadcrumbItem v-for="(crumb, index) in breadcrumbs" :key="index">
-          <BreadcrumbLink v-if="!crumb.disabled && crumb.to" as-child>
-            <RouterLink :to="crumb.to">{{ crumb.title }}</RouterLink>
-          </BreadcrumbLink>
-          <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
-          <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
+  <div :class="PAGE_CONTAINER">
+    <PageHeader title="Your profile" description="Your account details and password.">
+      <template #breadcrumb>
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink as-child><RouterLink to="/">Home</RouterLink></BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem><BreadcrumbPage>Profile</BreadcrumbPage></BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </template>
+    </PageHeader>
 
-    <!-- Header -->
-    <div class="flex items-center gap-3 mb-6">
-      <CircleUser class="size-6 text-primary" />
-      <div>
-        <h1 class="text-2xl font-bold">User Profile</h1>
-        <p class="text-sm text-muted-foreground">Manage your account settings</p>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <!-- Left Column - User Info -->
-      <div class="md:col-span-1 space-y-4">
-        <Card>
-          <CardContent class="pt-6">
-            <div class="flex flex-col items-center text-center">
-              <Avatar class="h-24 w-24 mb-4">
-                <AvatarFallback class="text-2xl bg-primary text-primary-foreground">
-                  <User class="size-12" />
-                </AvatarFallback>
-              </Avatar>
-
-              <h2 class="text-xl font-medium mb-1">{{ authStore.user?.username }}</h2>
-              <p class="text-sm text-muted-foreground mb-3">{{ authStore.user?.email }}</p>
-
-              <Badge :variant="roleColor === 'error' ? 'destructive' : 'secondary'" class="mb-4">
-                {{ authStore.userRole }}
-              </Badge>
-
-              <Separator class="my-4" />
-
-              <div class="w-full text-left space-y-2">
-                <div class="flex justify-between text-sm">
-                  <span class="text-muted-foreground">Member Since</span>
-                  <span>{{ formatDate(authStore.user?.created_at) }}</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-muted-foreground">Last Login</span>
-                  <span>{{ formatDate(authStore.user?.last_login) }}</span>
-                </div>
-                <div v-if="authStore.user?.is_active" class="flex justify-between text-sm">
-                  <span class="text-muted-foreground">Status</span>
-                  <Badge
-                    variant="secondary"
-                    class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                  >
-                    Active
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <!-- Quick Actions -->
-        <Card v-if="authStore.isAdmin">
-          <CardHeader class="pb-2">
-            <CardTitle class="text-lg">Admin Actions</CardTitle>
-          </CardHeader>
-          <CardContent class="space-y-1">
-            <RouterLink
-              to="/admin"
-              class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
-            >
-              <ShieldCheck :size="16" />
-              Admin Panel
-            </RouterLink>
-            <RouterLink
-              to="/admin/users"
-              class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
-            >
-              <Users :size="16" />
-              Manage Users
-            </RouterLink>
-          </CardContent>
-        </Card>
-      </div>
-
-      <!-- Right Column - Settings -->
-      <div class="md:col-span-2 space-y-4">
-        <!-- Account Information -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div class="space-y-6 lg:col-span-1">
         <Card>
           <CardHeader>
-            <CardTitle class="flex items-center gap-2">
-              <UserCog class="size-5" />
-              Account Information
-            </CardTitle>
+            <CardTitle tag="h2" class="text-base font-semibold">Account</CardTitle>
           </CardHeader>
           <CardContent>
             <!-- Read-only: there is no self-service profile endpoint; admins edit users (#374) -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div class="space-y-2">
-                <Label for="username">Username</Label>
-                <Input id="username" :model-value="accountData.username" disabled />
-              </div>
-              <div class="space-y-2">
-                <Label for="email">Email</Label>
-                <Input id="email" :model-value="accountData.email" type="email" disabled />
-              </div>
-              <div class="space-y-2 md:col-span-2">
-                <Label for="full_name">Full Name</Label>
-                <Input id="full_name" :model-value="accountData.full_name" disabled />
-              </div>
-            </div>
-            <p class="text-sm text-muted-foreground">
+            <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
+              <dt class="text-muted-foreground">Username</dt>
+              <dd class="min-w-0 break-words font-medium">{{ authStore.user?.username }}</dd>
+              <dt class="text-muted-foreground">Email</dt>
+              <dd class="min-w-0 break-all">{{ authStore.user?.email }}</dd>
+              <template v-if="fullName">
+                <dt class="text-muted-foreground">Full name</dt>
+                <dd class="min-w-0 break-words">{{ fullName }}</dd>
+              </template>
+              <dt class="text-muted-foreground">Role</dt>
+              <dd><Chip kind="neutral" :label="roleLabel" /></dd>
+              <dt class="text-muted-foreground">Status</dt>
+              <dd>
+                <StatusBadge :status="authStore.user?.is_active ? 'active' : 'inactive'" />
+              </dd>
+              <dt class="text-muted-foreground">Member since</dt>
+              <dd class="tabular-nums">{{ formatDate(authStore.user?.created_at) }}</dd>
+              <dt class="text-muted-foreground">Last sign-in</dt>
+              <dd class="tabular-nums">{{ formatDate(lastLogin) }}</dd>
+            </dl>
+            <p class="mt-4 text-sm text-muted-foreground">
               To change your name or email, ask an administrator.
             </p>
           </CardContent>
         </Card>
 
-        <!-- Change Password -->
-        <Card>
+        <Card v-if="authStore.isAdmin">
           <CardHeader>
-            <CardTitle class="flex items-center gap-2">
-              <KeyRound class="size-5" />
-              Change Password
-            </CardTitle>
+            <CardTitle tag="h2" class="text-base font-semibold">Administration</CardTitle>
           </CardHeader>
-          <CardContent>
-            <form @submit.prevent="changePassword">
-              <div class="space-y-4 mb-4">
-                <div class="space-y-2">
-                  <Label for="current-password">Current Password</Label>
-                  <Input
-                    id="current-password"
-                    v-model="passwordData.currentPassword"
-                    type="password"
-                    :aria-invalid="invalidPasswordField === 'current-password'"
-                    :aria-describedby="
-                      invalidPasswordField === 'current-password' ? 'password-error' : undefined
-                    "
-                    placeholder="Current password"
-                  />
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div class="space-y-2">
-                    <Label for="new-password">New Password</Label>
-                    <div class="relative">
-                      <Input
-                        id="new-password"
-                        v-model="passwordData.newPassword"
-                        :type="showNewPassword ? 'text' : 'password'"
-                        placeholder="New password"
-                        :aria-invalid="invalidPasswordField === 'new-password'"
-                        :aria-describedby="
-                          invalidPasswordField === 'new-password' ? 'password-error' : undefined
-                        "
-                      />
-                      <Button
-                        :aria-label="showNewPassword ? 'Hide password' : 'Show password'"
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        class="absolute right-0 top-0 h-full px-3"
-                        @click="showNewPassword = !showNewPassword"
-                      >
-                        <Eye v-if="!showNewPassword" :size="16" />
-                        <EyeOff v-else :size="16" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div class="space-y-2">
-                    <Label for="confirm-password">Confirm New Password</Label>
-                    <Input
-                      id="confirm-password"
-                      v-model="passwordData.confirmPassword"
-                      type="password"
-                      :aria-invalid="invalidPasswordField === 'confirm-password'"
-                      :aria-describedby="
-                        invalidPasswordField === 'confirm-password' ? 'password-error' : undefined
-                      "
-                      placeholder="Confirm password"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Alert
-                v-if="passwordSuccess"
-                class="mb-4 border-green-500 bg-green-50 dark:bg-green-950"
-              >
-                <AlertDescription>{{ passwordSuccess }}</AlertDescription>
-              </Alert>
-              <Alert v-if="passwordError" id="password-error" variant="destructive" class="mb-4">
-                <AlertDescription>{{ passwordError }}</AlertDescription>
-              </Alert>
-
-              <div class="flex justify-end">
-                <Button type="submit" :disabled="passwordLoading">
-                  {{ passwordLoading ? 'Changing...' : 'Change Password' }}
-                </Button>
-              </div>
-            </form>
+          <CardContent class="space-y-1">
+            <RouterLink
+              to="/admin"
+              class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+            >
+              <ShieldCheck class="size-4 text-muted-foreground" aria-hidden="true" />
+              Admin panel
+            </RouterLink>
+            <RouterLink
+              to="/admin/users"
+              class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+            >
+              <Users class="size-4 text-muted-foreground" aria-hidden="true" />
+              Manage users
+            </RouterLink>
           </CardContent>
         </Card>
       </div>
+
+      <Card class="lg:col-span-2">
+        <CardHeader>
+          <CardTitle tag="h2" class="text-base font-semibold">Change password</CardTitle>
+          <CardDescription>You will be signed out and asked to sign in again.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form ref="form" class="space-y-4" novalidate @submit.prevent="onSubmit">
+            <FormField v-slot="{ componentField }" name="currentPassword">
+              <FormItem class="sm:max-w-[calc(50%-0.5rem)]">
+                <FormLabel>Current password</FormLabel>
+                <FormControl>
+                  <PasswordInput
+                    v-bind="componentField"
+                    autocomplete="current-password"
+                    :disabled="authStore.isLoading"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            </FormField>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField v-slot="{ componentField }" name="newPassword">
+                <FormItem>
+                  <FormLabel>New password</FormLabel>
+                  <FormControl>
+                    <PasswordInput
+                      v-bind="componentField"
+                      autocomplete="new-password"
+                      :disabled="authStore.isLoading"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              </FormField>
+              <FormField v-slot="{ componentField }" name="confirmPassword">
+                <FormItem>
+                  <FormLabel>Repeat new password</FormLabel>
+                  <FormControl>
+                    <PasswordInput
+                      v-bind="componentField"
+                      autocomplete="new-password"
+                      :disabled="authStore.isLoading"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              </FormField>
+            </div>
+
+            <FormAlert v-if="authStore.error">{{ authStore.error }}</FormAlert>
+
+            <div class="flex justify-end">
+              <Button type="submit" :disabled="authStore.isLoading">
+                {{ authStore.isLoading ? 'Changing…' : 'Change password' }}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
-import {
-  CircleUser,
-  User,
-  UserCog,
-  KeyRound,
-  Eye,
-  EyeOff,
-  ShieldCheck,
-  Users
-} from 'lucide-vue-next'
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { computed, onMounted, useTemplateRef } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
+import { z } from 'zod/v3'
+import { toTypedSchema } from '@vee-validate/zod'
+import { useForm } from 'vee-validate'
+import { ShieldCheck, Users } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
-import { useRouter } from 'vue-router'
+import { Chip, PageHeader, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
+import FormAlert from '@/components/auth/FormAlert.vue'
+import PasswordInput from '@/components/auth/PasswordInput.vue'
+import { focusFirstInvalid } from '@/components/auth/focusFirstInvalid'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -235,53 +154,34 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 
 const authStore = useAuthStore()
 const router = useRouter()
-
-const breadcrumbs = [
-  { title: 'Home', to: '/', disabled: false },
-  { title: 'Profile', disabled: true }
-]
+const formRef = useTemplateRef('form')
 
 onMounted(() => {
+  authStore.clearError()
   if (!authStore.isAuthenticated) {
     router.push('/login?redirect=/profile')
   }
-  if (authStore.user) {
-    accountData.username = authStore.user.username || ''
-    accountData.email = authStore.user.email || ''
-    accountData.full_name = (authStore.user as { full_name?: string }).full_name || ''
-  }
 })
 
-const accountData = reactive({ username: '', email: '', full_name: '' })
+// Optional fields the API may send beyond the User type
+const extra = computed(
+  () => (authStore.user ?? {}) as { full_name?: string | null; last_login?: string | null }
+)
+const fullName = computed(() => extra.value.full_name || '')
+const lastLogin = computed(() => extra.value.last_login)
 
-const passwordLoading = ref(false)
-const passwordSuccess = ref('')
-const passwordError = ref('')
-const showNewPassword = ref(false)
-const invalidPasswordField = ref('')
-const passwordData = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
-
-const roleColor = computed(() => {
-  switch (authStore.userRole) {
-    case 'admin':
-      return 'error'
-    case 'curator':
-      return 'warning'
-    default:
-      return 'primary'
-  }
-})
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrator',
+  curator: 'Curator',
+  public: 'Public'
+}
+const roleLabel = computed(() => ROLE_LABELS[authStore.userRole ?? ''] ?? authStore.userRole ?? '')
 
 const formatDate = (dateString: string | undefined | null) => {
   if (!dateString) return 'Never'
@@ -289,45 +189,27 @@ const formatDate = (dateString: string | undefined | null) => {
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-// Mark the invalid field and move focus to it so screen readers announce the error (#327)
-const failPassword = async (field: string, message: string) => {
-  passwordError.value = message
-  invalidPasswordField.value = field
-  await nextTick()
-  document.getElementById(field)?.focus()
-}
+const passwordSchema = toTypedSchema(
+  z
+    .object({
+      currentPassword: z.string().min(1, 'Enter your current password'),
+      newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+      confirmPassword: z.string().min(1, 'Repeat the new password')
+    })
+    .refine(v => v.newPassword === v.confirmPassword, {
+      message: 'Passwords do not match',
+      path: ['confirmPassword']
+    })
+)
 
-const changePassword = async () => {
-  if (!passwordData.currentPassword || !passwordData.newPassword) {
-    const field = passwordData.currentPassword ? 'new-password' : 'current-password'
-    return failPassword(field, 'All password fields are required')
-  }
-  if (passwordData.newPassword !== passwordData.confirmPassword) {
-    return failPassword('confirm-password', 'Passwords do not match')
-  }
-  if (passwordData.newPassword.length < 8) {
-    return failPassword('new-password', 'Password must be at least 8 characters')
-  }
+const { handleSubmit } = useForm({
+  validationSchema: passwordSchema,
+  initialValues: { currentPassword: '', newPassword: '', confirmPassword: '' }
+})
 
-  invalidPasswordField.value = ''
-  passwordLoading.value = true
-  passwordError.value = ''
-  passwordSuccess.value = ''
-
-  const success = await authStore.changePassword(
-    passwordData.currentPassword,
-    passwordData.newPassword
-  )
-
-  if (success) {
-    passwordSuccess.value = 'Password changed successfully!'
-    passwordData.currentPassword = ''
-    passwordData.newPassword = ''
-    passwordData.confirmPassword = ''
-  } else {
-    passwordError.value = authStore.error || 'Failed to change password'
-  }
-
-  passwordLoading.value = false
-}
+// On success the store signs out and redirects to /login (#290)
+const onSubmit = handleSubmit(
+  values => authStore.changePassword(values.currentPassword, values.newPassword),
+  () => focusFirstInvalid(formRef.value)
+)
 </script>
