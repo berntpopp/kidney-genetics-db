@@ -211,13 +211,9 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresAdmin: true, title: 'Hybrid Sources', noindex: true }
   },
   {
+    // The FAQ is now the Questions section of About
     path: '/faq',
-    name: 'faq',
-    component: () => import('../views/FAQ.vue'),
-    meta: {
-      title: 'FAQ',
-      description: 'Frequently asked questions about the Kidney Genetics Database.'
-    }
+    redirect: { path: '/about', hash: '#faq' }
   },
   {
     path: '/mcp',

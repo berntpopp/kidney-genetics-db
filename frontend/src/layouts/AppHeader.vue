@@ -27,7 +27,6 @@ import {
   Network,
   RefreshCw,
   Info,
-  HelpCircle,
   CircleUser,
   ShieldEllipsis,
   ListChecks,
@@ -56,8 +55,7 @@ const navLinks = [
   { to: '/network-analysis', label: 'Network Analysis', icon: Network },
   { to: '/data-sources', label: 'Data Sources', icon: RefreshCw },
   { to: '/curation/associations', label: 'Curated', icon: BookCheck },
-  { to: '/about', label: 'About', icon: Info },
-  { to: '/faq', label: 'FAQ', icon: HelpCircle }
+  { to: '/about', label: 'About', icon: Info }
 ]
 
 const isActive = (path: string) => {

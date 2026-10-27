@@ -20,7 +20,7 @@
     </PageHeader>
 
     <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_13rem] lg:gap-12">
-      <div class="min-w-0 space-y-12 leading-relaxed [&_h2]:scroll-mt-20 [&_p]:max-w-[75ch]">
+      <div class="min-w-0 space-y-12 leading-relaxed [&_h2]:scroll-mt-20 [&_p]:max-w-[90ch]">
         <section aria-labelledby="about-what" class="space-y-3">
           <h2 id="about-what" class="text-xl font-semibold tracking-tight">What it is</h2>
           <!-- Gene and source counts change with every data release; bind live statistics here, never hard-code them -->
@@ -79,9 +79,9 @@
             </div>
           </dl>
           <p class="text-sm text-muted-foreground">
-            A gene with a score of 0 has no tier and is shown as "No Classification".
-            <RouterLink to="/faq" :class="LINK">FAQ</RouterLink> answers more questions about
-            scoring, clinical groups and syndromic genes.
+            A gene with a score of 0 has no tier and is shown as "No Classification". See
+            <a href="#faq" :class="LINK">Questions</a> for syndromic genes, clinical groups and
+            update frequency.
           </p>
         </section>
 
@@ -192,6 +192,20 @@
             </Button>
           </div>
         </section>
+
+        <section id="faq" aria-labelledby="about-faq" class="scroll-mt-20 space-y-6">
+          <h2 id="about-faq" class="text-xl font-semibold tracking-tight">Questions</h2>
+          <div v-for="item in questions" :key="item.question" class="space-y-2">
+            <h3 class="text-base font-semibold">{{ item.question }}</h3>
+            <p v-for="(para, i) in item.answer" :key="i" class="text-muted-foreground">
+              <template v-for="(seg, j) in segments(para)" :key="j">
+                <template v-if="typeof seg === 'string'">{{ seg }}</template>
+                <a v-else-if="seg.href" :href="seg.href" :class="LINK">{{ seg.text }}</a>
+                <RouterLink v-else :to="seg.to!" :class="LINK">{{ seg.text }}</RouterLink>
+              </template>
+            </p>
+          </div>
+        </section>
       </div>
 
       <nav aria-label="On this page" class="hidden lg:block">
@@ -227,7 +241,8 @@ const toc = [
   { id: 'about-sources', label: 'Evidence sources' },
   { id: 'about-releases', label: 'Releases and versions' },
   { id: 'about-cite', label: 'How to cite' },
-  { id: 'about-access', label: 'Access and source code' }
+  { id: 'about-access', label: 'Access and source code' },
+  { id: 'faq', label: 'Questions' }
 ]
 import {
   Breadcrumb,
@@ -243,10 +258,80 @@ const breadcrumbs = PUBLIC_BREADCRUMBS.about
 
 useJsonLd(getBreadcrumbSchema(breadcrumbs))
 
+/** An answer paragraph: plain text, or text with in-page (href) and route (to) links */
+type Segment = string | { text: string; to?: string; href?: string }
+type Paragraph = string | Segment[]
+const segments = (para: Paragraph): Segment[] => (typeof para === 'string' ? [para] : para)
+const plainText = (para: Paragraph) =>
+  segments(para)
+    .map(seg => (typeof seg === 'string' ? seg : seg.text))
+    .join('')
+
+// Scoring, sources, citation and API access are answered by the sections above, not repeated here
+const questions: { question: string; answer: Paragraph[] }[] = [
+  {
+    question: 'Which kidney diseases are covered?',
+    answer: [
+      [
+        'There is no fixed disease list. A gene is included when at least one ',
+        { text: 'evidence source', href: '#about-sources' },
+        ' links it to kidney disease, so coverage spans the genetic kidney diseases those sources curate: for example polycystic kidney disease, Alport syndrome, nephronophthisis, focal segmental glomerulosclerosis, congenital nephrotic syndrome, tubulopathies and congenital anomalies of the kidney and urinary tract (CAKUT).'
+      ]
+    ]
+  },
+  {
+    question: 'Why do some genes have no tier?',
+    answer: [
+      [
+        'A tier requires a score above 0 (see ',
+        { text: 'How the evidence score works', href: '#scoring' },
+        '). Genes with a score of 0 are shown as "No Classification". This includes genes whose only evidence is a "No Known Disease Relationship" or an unknown GenCC classification.'
+      ]
+    ]
+  },
+  {
+    question: 'When is a gene called syndromic?',
+    answer: [
+      "When its HPO phenotypes clearly reach beyond the kidney. We count the distinct HPO terms that fall under growth, skeletal, nervous-system, or head-and-neck abnormalities (a term in two of these groups counts once) and divide by the gene's total number of HPO terms. If at least 30% of its terms are extra-renal, the gene is labelled syndromic; otherwise it is isolated."
+    ]
+  },
+  {
+    question: 'How is the clinical group assigned?',
+    answer: [
+      'Each clinical group (complement, CAKUT, glomerulopathy, cystic/ciliopathy, tubulopathy, nephrolithiasis, renal neoplasia) is defined by a few HPO root terms; a phenotype counts for a group when it is one of these terms or a more specific term below it.',
+      "For every disease linked to the gene, each matching phenotype adds its frequency in that disease times its information content (rarer, more specific terms weigh more). Where a disease lists both a term and a term below it, only the more specific term counts. The group with the most evidence summed over the gene's diseases is the primary group; other groups with at least half of the primary group's evidence are shown as secondary groups. The score shown is the group's share of the gene's kidney-group evidence.",
+      'Classifications use the pinned HPO release 2026-09-01.'
+    ]
+  },
+  {
+    question: 'How often is the data updated?',
+    answer: [
+      'Updates are scheduled runs, not a continuous feed. Evidence sources are re-imported in update runs started by the database maintainers. Gene annotations, including the HPO phenotypes behind the syndromic and clinical-group labels, are refreshed by an automated pipeline: every night for genes with missing or incomplete annotations, and once a week for all genes.',
+      [
+        'The ',
+        { text: 'Data Sources', to: '/data-sources' },
+        ' page shows when each source was last updated. Citable snapshots are published as data releases (see ',
+        { text: 'Releases and versions', href: '#about-releases' },
+        ').'
+      ]
+    ]
+  }
+]
+
+useJsonLd({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: questions.map(item => ({
+    '@type': 'Question',
+    name: item.question,
+    acceptedAnswer: { '@type': 'Answer', text: item.answer.map(plainText).join(' ') }
+  }))
+})
+
 useSeoMeta({
   title: 'About — Kidney Genetics Database Methodology',
   description:
-    'How the Kidney Genetics Database scores kidney disease genes: evidence sources, the 0–100 evidence score, evidence tiers, releases and how to cite.',
+    'How the Kidney Genetics Database scores kidney disease genes: evidence sources, the 0–100 evidence score, evidence tiers, clinical groups, update schedule, releases and how to cite.',
   canonicalPath: '/about'
 })
 
