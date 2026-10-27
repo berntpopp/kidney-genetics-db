@@ -110,7 +110,9 @@ describe('AdminGeneStaging reach (all pending items)', () => {
     await flushPromises()
     expect(rows()).toHaveLength(5)
 
-    const search = document.querySelector('[aria-label="Search gene text"]') as HTMLInputElement
+    const search = document.querySelector('[aria-label="Search gene text"]') as HTMLElement & {
+      value: string
+    }
     search.value = 'gene29'
     search.dispatchEvent(new Event('input'))
     await flushPromises()
