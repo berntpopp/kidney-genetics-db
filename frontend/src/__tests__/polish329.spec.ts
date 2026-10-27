@@ -106,14 +106,14 @@ describe('FAQ prerender', () => {
 })
 
 describe('Data Sources cards', () => {
-  it('group thousands, print ISO dates and invent no "API" type', async () => {
+  it('group thousands, print unambiguous dates and invent no "API" type', async () => {
     const router = routerWith('/data-sources', DataSources)
     wrapper = mount(DataSources, { global: { plugins: [router] } })
     await flushPromises()
 
     const text = wrapper.text()
     expect(text).toContain('4,321')
-    expect(text).toContain('2025-03-04')
+    expect(text).toContain('4 Mar 2025')
     expect(text).not.toMatch(/\bAPI\b/)
   })
 })
