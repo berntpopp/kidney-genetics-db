@@ -5,6 +5,7 @@
  * classification and the gene-specific link to the record at the source.
  */
 import { getClassificationConfig } from '@/utils/evidenceTiers'
+import type { HPOTermEntry } from '@/types/evidence'
 
 type Data = Record<string, any>
 
@@ -29,10 +30,14 @@ export interface EvidenceGene {
 }
 
 export interface EvidenceContext {
-  /** HPO term ID -> name, from the gene's HPO annotation */
-  hpoNames?: Record<string, string>
   ncbiGeneId?: string | number | null
 }
+
+/** HPO evidence terms as { id, name }; legacy rows store bare ID strings (#421) */
+export const hpoTerms = (d: { hpo_terms?: HPOTermEntry[] }) =>
+  (d.hpo_terms ?? []).map(t =>
+    typeof t === 'string' ? { id: t, name: null } : { id: t.id, name: t.name ?? null }
+  )
 
 export const plural = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many)
 
@@ -182,9 +187,9 @@ export function evidenceMeta(
       }
     }
     case 'HPO': {
-      const terms: string[] = d.hpo_terms ?? []
+      const terms = hpoTerms(d)
       const names = terms
-        .map(id => ctx.hpoNames?.[id])
+        .map(t => t.name)
         .filter((n): n is string => !!n)
         .sort((a, b) => a.localeCompare(b))
       return {

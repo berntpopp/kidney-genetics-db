@@ -102,6 +102,25 @@ class HPOTerms(HPOAPIBase):
         )
         return descendants
 
+    async def get_descendant_names(self, hpo_id: str) -> dict[str, str]:
+        """Names of the descendants of a term, from the same cached response as get_descendants."""
+        try:
+            response = await self._get(
+                f"hp/terms/{hpo_id}/descendants",
+                cache_key=f"descendants:{hpo_id}",
+                ttl=self.ttl_stable,
+            )
+        except Exception as e:
+            logger.sync_debug("Descendant names unavailable", hpo_id=hpo_id, error=str(e))
+            return {}
+        if not isinstance(response, list):
+            return {}
+        return {
+            item["id"]: item["name"]
+            for item in response
+            if isinstance(item, dict) and item.get("id") and item.get("name")
+        }
+
     async def _get_descendants_recursive(self, hpo_id: str, max_depth: int) -> set[str]:
         """
         Recursively collect descendants via children endpoint.

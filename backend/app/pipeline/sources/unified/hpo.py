@@ -6,14 +6,14 @@ async-first implementation using the unified data source architecture.
 
 Persistence: HPO data is stored in two places by two pipelines (#254).
 - GeneEvidence (source_name "HPO"): written by this unified source during ingestion.
-  evidence_data holds hpo_terms, evidence_score, syndromic_assessment and
-  last_updated; it is the gene's HPO evidence record used for evidence scoring.
+  evidence_data holds hpo_terms ({id, name}), evidence_score and last_updated;
+  it is the gene's HPO evidence record used for evidence scoring.
 - gene_annotations (source "hpo"): written by the annotation pipeline
   (app.pipeline.sources.annotations.hpo) for every gene. annotations holds all
   phenotypes, diseases, kidney_phenotypes and classification (clinical_group,
   onset_group, syndromic_assessment). Gene pages, the network view and
-  /hpo-classifications read is_syndromic from here.
-Both compute syndromic_assessment with the shared score_syndromic_features.
+  /hpo-classifications read is_syndromic from here; it is the only
+  syndromic_assessment (#421 dropped the unread copy from the evidence).
 """
 
 from datetime import datetime, timezone
@@ -250,17 +250,9 @@ class HPOUnifiedSource(UnifiedDataSource):
             if not gene_symbol or len(gene_symbol) < 2:
                 continue
 
-            # Structure the evidence data including syndromic assessment
-            hpo_terms = evidence_data.get("hpo_terms", [])
-            phenotype_ids = {term["id"] for term in hpo_terms if "id" in term}
-
-            # Calculate syndromic assessment
-            syndromic_assessment = await self._assess_syndromic_features(phenotype_ids)
-
             gene_data_map[gene_symbol] = {
-                "hpo_terms": hpo_terms,
+                "hpo_terms": evidence_data.get("hpo_terms", []),
                 "evidence_score": self._calculate_hpo_score(evidence_data),
-                "syndromic_assessment": syndromic_assessment,
                 "last_updated": datetime.now(timezone.utc).isoformat(),
             }
 
@@ -372,47 +364,3 @@ class HPOUnifiedSource(UnifiedDataSource):
         )
 
         return disease_info
-
-    async def _assess_syndromic_features(self, phenotype_ids: set[str]) -> dict:
-        """
-        Assess if gene has syndromic features based on HPO phenotypes.
-
-        Args:
-            phenotype_ids: Set of HPO term IDs for the gene
-
-        Returns:
-            Dictionary with syndromic assessment results
-        """
-        from app.core.datasource_config import get_source_parameter
-        from app.pipeline.sources.annotations.hpo import score_syndromic_features
-
-        if not phenotype_ids:
-            return score_syndromic_features(phenotype_ids, {})
-
-        # Get syndromic indicators configuration
-        syndromic_indicators = get_source_parameter("HPO", "syndromic_indicators", {})
-
-        # Fetch descendants for each syndromic indicator term
-        from app.core.cache_service import get_cache_service
-        from app.core.cached_http_client import CachedHttpClient
-        from app.core.hpo.pipeline import HPOPipeline
-
-        cache_service = self.cache_service
-        http_client = self.http_client
-
-        # Create HPO pipeline if we don't have cache/client
-        if not cache_service or not http_client:
-            cache_service = get_cache_service(self.db_session) if self.db_session else None
-            http_client = CachedHttpClient(cache_service=cache_service) if cache_service else None
-
-        pipeline = HPOPipeline(cache_service=cache_service, http_client=http_client)
-
-        # Get descendants for each category
-        syndromic_descendants = {}
-        for category, root_term in syndromic_indicators.items():
-            descendants = await pipeline.terms.get_descendants(
-                root_term, max_depth=pipeline.max_depth, include_self=True
-            )
-            syndromic_descendants[category] = descendants or set()
-
-        return score_syndromic_features(phenotype_ids, syndromic_descendants)

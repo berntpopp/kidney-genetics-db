@@ -9,6 +9,7 @@ import { h } from 'vue'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Chip } from '@/components/shared'
 import EvidenceCard from '@/components/evidence/EvidenceCard.vue'
+import type { HPOTermEntry } from '@/types/evidence'
 
 const hpoEvidence = (normalized_score: number | null) => ({
   source_name: 'HPO',
@@ -16,7 +17,10 @@ const hpoEvidence = (normalized_score: number | null) => ({
   normalized_score,
   evidence_data: {
     evidence_score: 100,
-    hpo_terms: Array.from({ length: 19 }, (_, i) => `HP:${String(i).padStart(7, '0')}`)
+    hpo_terms: Array.from(
+      { length: 19 },
+      (_, i) => `HP:${String(i).padStart(7, '0')}`
+    ) as HPOTermEntry[]
   }
 })
 
@@ -52,12 +56,14 @@ describe('HPO evidence score display', () => {
 })
 
 describe('HPO evidence terms', () => {
-  it('renders term names from the annotation, name first, sorted, linked to HPO', async () => {
+  it('renders term names from the evidence, name first, sorted, linked to HPO (#421)', async () => {
     const evidence = hpoEvidence(0.5)
-    evidence.evidence_data.hpo_terms = ['HP:0000107', 'HP:0000003', 'HP:0000083']
-    const wrapper = render(evidence, {
-      hpoNames: { 'HP:0000107': 'Renal cyst', 'HP:0000003': 'Multicystic kidney dysplasia' }
-    })
+    evidence.evidence_data.hpo_terms = [
+      { id: 'HP:0000107', name: 'Renal cyst' },
+      { id: 'HP:0000003', name: 'Multicystic kidney dysplasia' },
+      'HP:0000083' // legacy bare-ID entry
+    ]
+    const wrapper = render(evidence)
     expect(wrapper.get('[data-testid="evidence-summary"]').text()).toBe(
       'Multicystic kidney dysplasia, Renal cyst and 1 more term'
     )

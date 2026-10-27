@@ -71,9 +71,11 @@ describe('evidence card summaries', () => {
   })
 
   it('counts unnamed HPO terms in "and N more"', () => {
-    const meta = evidenceMeta('HPO', { hpo_terms: ['HP:1', 'HP:2', 'HP:3'] }, gene, {
-      hpoNames: { 'HP:1': 'Renal cyst' }
-    })
+    const meta = evidenceMeta(
+      'HPO',
+      { hpo_terms: [{ id: 'HP:1', name: 'Renal cyst' }, { id: 'HP:2', name: null }, 'HP:3'] },
+      gene
+    )
     expect(meta.summary).toBe('Renal cyst and 2 more terms')
   })
 

@@ -280,7 +280,6 @@ const identifiers = computed(() => {
 const evidenceContext = computed(() => {
   const hpo = firstAnnotation('hpo')
   return {
-    hpoNames: Object.fromEntries((hpo?.phenotypes ?? []).map(p => [p.id, p.name])),
     ncbiGeneId: hgnc.value?.ncbi_gene_id ?? hpo?.ncbi_gene_id ?? null
   }
 })
