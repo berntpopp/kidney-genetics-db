@@ -7,14 +7,12 @@
 import { ref, h, onMounted, onUnmounted } from 'vue'
 import { useTable } from '@tanstack/vue-table'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
+import { DataState, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as cacheApi from '@/api/admin/cache'
-import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import { toast } from 'vue-sonner'
 import {
   Check,
-  CircleAlert,
-  CircleCheck,
   Database,
   Flame,
   Folder,
@@ -29,7 +27,7 @@ import {
 } from 'lucide-vue-next'
 import { DataTable, dataTableFeatures } from '@/components/ui/data-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -56,6 +54,7 @@ const namespaces = ref([])
 const healthStatus = ref(null)
 const statsLoading = ref(false)
 const namespacesLoading = ref(false)
+const namespacesError = ref(null)
 const clearing = ref(false)
 const warming = ref(false)
 const checkingHealth = ref(false)
@@ -67,6 +66,26 @@ const hitRateTrend = ref(null)
 const refreshInterval = ref(null)
 
 // Column definitions for TanStack Table
+const NUM = 'text-right tabular-nums'
+const iconButton = (label, icon, onClick, danger = false) =>
+  h(Tooltip, null, {
+    default: () => [
+      h(TooltipTrigger, { asChild: true }, () =>
+        h(
+          Button,
+          {
+            variant: 'ghost',
+            size: 'icon-sm',
+            'aria-label': label,
+            class: danger ? 'text-danger hover:text-danger' : '',
+            onClick
+          },
+          () => h(icon, { class: 'size-4', 'aria-hidden': 'true' })
+        )
+      ),
+      h(TooltipContent, null, () => label)
+    ]
+  })
 const namespaceColumns = [
   {
     accessorKey: 'namespace',
@@ -75,18 +94,18 @@ const namespaceColumns = [
   },
   {
     accessorKey: 'entry_count',
-    header: 'Entries',
+    header: () => h('div', { class: 'text-right' }, 'Entries'),
     cell: ({ row }) => {
       const count = row.getValue('entry_count')
-      return h('span', null, count != null ? count.toLocaleString() : '0')
+      return h('div', { class: NUM }, count != null ? count.toLocaleString() : '0')
     }
   },
   {
     accessorKey: 'size_mb',
-    header: 'Size',
+    header: () => h('div', { class: 'text-right' }, 'Size'),
     cell: ({ row }) => {
       const size = row.getValue('size_mb')
-      return h('span', null, size != null ? `${size.toFixed(2)} MB` : '0 MB')
+      return h('div', { class: NUM }, size != null ? `${size.toFixed(2)} MB` : '0 MB')
     }
   },
   {
@@ -99,44 +118,12 @@ const namespaceColumns = [
   },
   {
     id: 'actions',
-    header: '',
+    header: () => h('span', { class: 'sr-only' }, 'Actions'),
     cell: ({ row }) => {
       const ns = row.original
-      return h('div', { class: 'flex items-center gap-1' }, [
-        h(Tooltip, null, {
-          default: () => [
-            h(TooltipTrigger, { asChild: true }, () =>
-              h(
-                Button,
-                {
-                  variant: 'ghost',
-                  size: 'icon',
-                  class: 'h-8 w-8',
-                  onClick: () => showNamespaceDetails(ns)
-                },
-                () => h(Info, { class: 'size-4' })
-              )
-            ),
-            h(TooltipContent, null, () => 'View details')
-          ]
-        }),
-        h(Tooltip, null, {
-          default: () => [
-            h(TooltipTrigger, { asChild: true }, () =>
-              h(
-                Button,
-                {
-                  variant: 'ghost',
-                  size: 'icon',
-                  class: 'h-8 w-8 text-destructive',
-                  onClick: () => confirmClearNamespace(ns)
-                },
-                () => h(Trash2, { class: 'size-4' })
-              )
-            ),
-            h(TooltipContent, null, () => 'Clear namespace')
-          ]
-        })
+      return h('div', { class: 'flex items-center justify-end gap-1' }, [
+        iconButton(`Details for ${ns.namespace}`, Info, () => showNamespaceDetails(ns)),
+        iconButton(`Clear ${ns.namespace}`, Trash2, () => confirmClearNamespace(ns), true)
       ])
     },
     enableSorting: false,
@@ -179,13 +166,13 @@ const loadStats = async () => {
 
 const loadNamespaces = async () => {
   namespacesLoading.value = true
+  namespacesError.value = null
   try {
     const response = await cacheApi.getCacheNamespaces()
     namespaces.value = response.data || response || []
   } catch (error) {
     window.logService.error('Failed to load namespaces:', error)
-    toast.error('Failed to load cache namespaces', { duration: Infinity })
-    namespaces.value = [] // Ensure we have an array even on error
+    namespacesError.value = error.message || 'Request failed'
   } finally {
     namespacesLoading.value = false
   }
@@ -327,14 +314,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-6">
-    <AdminHeader
-      title="Cache Management"
-      subtitle="Monitor and control cache performance"
-      :icon="MemoryStick"
-      icon-color="purple"
-      :breadcrumbs="ADMIN_BREADCRUMBS.cache"
-    />
+  <div :class="PAGE_CONTAINER">
+    <AdminHeader title="Cache Management" subtitle="Monitor and control cache performance" />
 
     <!-- Cache Stats Overview -->
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -344,7 +325,6 @@ onUnmounted(() => {
         format="percent"
         :loading="statsLoading"
         :icon="Target"
-        color="success"
         :trend="hitRateTrend"
       />
       <AdminStatsCard
@@ -352,7 +332,6 @@ onUnmounted(() => {
         :value="cacheStats.total_entries || 0"
         :loading="statsLoading"
         :icon="Database"
-        color="info"
       />
       <AdminStatsCard
         v-if="statsLoading || cacheStats.total_size_bytes > 0"
@@ -361,14 +340,12 @@ onUnmounted(() => {
         format="bytes"
         :loading="statsLoading"
         :icon="MemoryStick"
-        color="warning"
       />
       <AdminStatsCard
         title="Namespaces"
         :value="namespaces.length"
         :loading="namespacesLoading"
         :icon="Folder"
-        color="purple"
       />
     </div>
 
@@ -376,11 +353,6 @@ onUnmounted(() => {
     <Card class="mb-4">
       <CardContent class="p-4">
         <div class="flex flex-wrap gap-2">
-          <Button variant="destructive" size="sm" :disabled="clearing" @click="confirmClearAll">
-            <Loader2 v-if="clearing" class="size-4 mr-2 animate-spin" />
-            <Trash2 v-else class="size-4 mr-2" />
-            Clear All Cache
-          </Button>
           <Button size="sm" :disabled="warming" @click="warmCache">
             <Loader2 v-if="warming" class="size-4 mr-2 animate-spin" />
             <Flame v-else class="size-4 mr-2" />
@@ -401,6 +373,17 @@ onUnmounted(() => {
             <HeartPulse v-else class="size-4 mr-2" />
             Health Check
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            class="text-danger hover:text-danger sm:ml-auto"
+            :disabled="clearing"
+            @click="confirmClearAll"
+          >
+            <Loader2 v-if="clearing" class="size-4 mr-2 animate-spin" />
+            <Trash2 v-else class="size-4 mr-2" />
+            Clear All Cache
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -411,11 +394,26 @@ onUnmounted(() => {
         <CardTitle>Cache Namespaces</CardTitle>
       </CardHeader>
       <CardContent class="p-0">
-        <div v-if="namespacesLoading" class="flex items-center justify-center py-12">
-          <Loader2 class="size-6 animate-spin text-muted-foreground" />
-          <span class="ml-2 text-sm text-muted-foreground">Loading namespaces...</span>
-        </div>
-        <DataTable v-else :table="table" />
+        <DataState
+          :loading="namespacesLoading && !namespaces.length"
+          :error="namespacesError"
+          error-title="Could not load cache namespaces"
+          :empty="!namespaces.length"
+          empty-message="The cache is empty."
+          class="m-4"
+          @retry="loadNamespaces"
+        >
+          <template #loading>
+            <div class="space-y-3 p-4" aria-hidden="true">
+              <div
+                v-for="i in 4"
+                :key="i"
+                class="h-8 rounded-md bg-muted motion-safe:animate-pulse"
+              />
+            </div>
+          </template>
+          <DataTable :table="table" />
+        </DataState>
       </CardContent>
     </Card>
 
@@ -423,20 +421,14 @@ onUnmounted(() => {
     <Card v-if="healthStatus" class="mt-4">
       <CardHeader>
         <CardTitle class="flex items-center gap-2">
-          <component
-            :is="healthStatus.healthy ? CircleCheck : CircleAlert"
-            class="size-5"
-            :class="
-              healthStatus.healthy ? 'text-green-600 dark:text-green-400' : 'text-destructive'
-            "
-          />
-          Cache Health Status: <span class="capitalize">{{ healthStatus.status }}</span>
+          Cache Health Status
+          <StatusBadge :status="healthStatus.status" />
         </CardTitle>
       </CardHeader>
       <CardContent>
         <ul
           v-if="healthStatus.issues.length"
-          class="mb-4 list-disc space-y-1 pl-5 text-sm text-destructive"
+          class="mb-4 list-disc space-y-1 pl-5 text-sm text-foreground marker:text-warning"
           data-testid="health-issues"
         >
           <li v-for="issue in healthStatus.issues" :key="issue">{{ issue }}</li>
@@ -447,11 +439,8 @@ onUnmounted(() => {
               <component
                 :is="healthStatus.memory_cache?.available ? Check : X"
                 class="size-4"
-                :class="
-                  healthStatus.memory_cache?.available
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-destructive'
-                "
+                aria-hidden="true"
+                :class="healthStatus.memory_cache?.available ? 'text-success' : 'text-danger'"
               />
               <span>
                 Memory Cache:
@@ -467,11 +456,8 @@ onUnmounted(() => {
               <component
                 :is="healthStatus.db_cache?.available ? Check : X"
                 class="size-4"
-                :class="
-                  healthStatus.db_cache?.available
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-destructive'
-                "
+                aria-hidden="true"
+                :class="healthStatus.db_cache?.available ? 'text-success' : 'text-danger'"
               />
               <span>
                 Database Cache:
@@ -495,22 +481,23 @@ onUnmounted(() => {
         <AlertDialogHeader>
           <AlertDialogTitle>Confirm Clear Cache</AlertDialogTitle>
           <AlertDialogDescription>
-            <span v-if="clearingNamespace">
+            <span v-if="clearingNamespace" class="block">
               Are you sure you want to clear the "{{ clearingNamespace.namespace }}" namespace? This
               will remove {{ clearingNamespace.entry_count }} entries.
             </span>
-            <span v-else>
+            <span v-else class="block">
               Are you sure you want to clear ALL cache entries? This will remove
               {{ cacheStats.total_entries }} entries across all namespaces.
             </span>
-            <br />
-            <span class="text-destructive font-medium">This action cannot be undone.</span>
+            <span class="mt-2 block font-medium text-foreground"
+              >This action cannot be undone.</span
+            >
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel @click="showClearDialog = false">Cancel</AlertDialogCancel>
           <AlertDialogAction
-            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :class="buttonVariants({ variant: 'destructive' })"
             :disabled="clearing"
             @click="executeClear"
           >

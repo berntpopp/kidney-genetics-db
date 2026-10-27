@@ -8,11 +8,11 @@ import { ref, computed, onMounted, h } from 'vue'
 import { useTable } from '@tanstack/vue-table'
 import { useAuthStore } from '@/stores/auth'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
-import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
+import { Chip, DataState, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
 import { toast } from 'vue-sonner'
 import {
   CircleCheck,
-  CircleX,
+  CircleMinus,
   Loader2,
   Pencil,
   Search,
@@ -20,12 +20,13 @@ import {
   UserCheck,
   UserPlus,
   UserX,
-  Users
+  ShieldCheck,
+  PenLine,
+  Eye
 } from 'lucide-vue-next'
 import { DataTable, dataTableFeatures } from '@/components/ui/data-table'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -108,19 +109,13 @@ const filteredUsers = computed(() => {
   )
 })
 
-// Role color helpers
-const getRoleVariant = role => {
-  switch (role) {
-    case 'admin':
-      return 'destructive'
-    case 'curator':
-      return 'default'
-    case 'viewer':
-      return 'secondary'
-    default:
-      return 'outline'
-  }
+// Roles are permissions, not statuses: neutral chips with an icon and an explanation
+const ROLE_INFO = {
+  admin: { icon: ShieldCheck, tip: 'Admin: full access, including users, pipelines and backups' },
+  curator: { icon: PenLine, tip: 'Curator: can curate genes and review staging' },
+  viewer: { icon: Eye, tip: 'Viewer: read-only access' }
 }
+const loadError = ref(null)
 
 const formatDate = dateString => {
   if (!dateString) return 'Never'
@@ -129,11 +124,46 @@ const formatDate = dateString => {
 }
 
 // Column definitions for TanStack Table
+const iconButton = (label, icon, onClick, opts = {}) =>
+  h(Tooltip, null, {
+    default: () => [
+      h(TooltipTrigger, { asChild: true }, () =>
+        h(
+          Button,
+          {
+            variant: 'ghost',
+            size: 'icon-sm',
+            'aria-label': label,
+            class: opts.danger ? 'text-danger hover:text-danger' : '',
+            disabled: opts.disabled,
+            onClick
+          },
+          () => h(icon, { class: 'size-4', 'aria-hidden': 'true' })
+        )
+      ),
+      h(TooltipContent, null, () => label)
+    ]
+  })
+
 const columns = [
   {
     accessorKey: 'username',
     header: 'Username',
     cell: ({ row }) => h('span', { class: 'font-medium' }, row.getValue('username'))
+  },
+  {
+    accessorKey: 'role',
+    header: 'Role',
+    cell: ({ row }) => {
+      const role = row.getValue('role')
+      const info = ROLE_INFO[role]
+      return h(Chip, { kind: 'neutral', label: role, icon: info?.icon, tooltip: info?.tip })
+    }
+  },
+  {
+    accessorKey: 'is_active',
+    header: 'Status',
+    cell: ({ row }) => h(StatusBadge, { status: row.getValue('is_active') ? 'active' : 'inactive' })
   },
   {
     accessorKey: 'email',
@@ -142,30 +172,32 @@ const columns = [
   {
     accessorKey: 'full_name',
     header: 'Full Name',
-    cell: ({ row }) => h('span', null, row.getValue('full_name') || '-')
-  },
-  {
-    accessorKey: 'role',
-    header: 'Role',
     cell: ({ row }) =>
-      h(Badge, { variant: getRoleVariant(row.getValue('role')) }, () => row.getValue('role'))
-  },
-  {
-    accessorKey: 'is_active',
-    header: 'Status',
-    cell: ({ row }) =>
-      h(Badge, { variant: row.getValue('is_active') ? 'default' : 'secondary' }, () =>
-        row.getValue('is_active') ? 'Active' : 'Inactive'
+      h(
+        'span',
+        { class: row.getValue('full_name') ? '' : 'text-muted-foreground' },
+        row.getValue('full_name') || '—'
       )
   },
   {
     accessorKey: 'is_verified',
     header: 'Verified',
-    cell: ({ row }) =>
-      h(row.getValue('is_verified') ? CircleCheck : CircleX, {
-        class: `size-4 ${row.getValue('is_verified') ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`
-      }),
-    size: 80
+    cell: ({ row }) => {
+      const ok = row.getValue('is_verified')
+      return h(
+        'span',
+        {
+          class:
+            'inline-flex items-center gap-1 text-sm ' +
+            (ok ? 'text-success' : 'text-muted-foreground')
+        },
+        [
+          h(ok ? CircleCheck : CircleMinus, { class: 'size-4', 'aria-hidden': 'true' }),
+          ok ? 'Yes' : 'No'
+        ]
+      )
+    },
+    size: 90
   },
   {
     accessorKey: 'last_login',
@@ -174,72 +206,28 @@ const columns = [
       const val = row.getValue('last_login')
       return h(
         'span',
-        { class: val ? '' : 'text-muted-foreground' },
+        { class: 'tabular-nums ' + (val ? '' : 'text-muted-foreground') },
         val ? formatDate(val) : 'Never'
       )
     }
   },
   {
     id: 'actions',
-    header: '',
+    header: () => h('span', { class: 'sr-only' }, 'Actions'),
     cell: ({ row }) => {
       const user = row.original
-      return h('div', { class: 'flex items-center gap-1' }, [
-        h(Tooltip, null, {
-          default: () => [
-            h(TooltipTrigger, { asChild: true }, () =>
-              h(
-                Button,
-                {
-                  variant: 'ghost',
-                  size: 'icon',
-                  class: 'h-8 w-8',
-                  onClick: () => editUser(user)
-                },
-                () => h(Pencil, { class: 'size-4' })
-              )
-            ),
-            h(TooltipContent, null, () => 'Edit user')
-          ]
-        }),
-        h(Tooltip, null, {
-          default: () => [
-            h(TooltipTrigger, { asChild: true }, () =>
-              h(
-                Button,
-                {
-                  variant: 'ghost',
-                  size: 'icon',
-                  class: 'h-8 w-8',
-                  disabled: user.id === authStore.user?.id,
-                  onClick: () => requestToggleUserStatus(user)
-                },
-                () =>
-                  h(user.is_active ? UserX : UserCheck, {
-                    class: 'size-4'
-                  })
-              )
-            ),
-            h(TooltipContent, null, () => `${user.is_active ? 'Deactivate' : 'Activate'} user`)
-          ]
-        }),
-        h(Tooltip, null, {
-          default: () => [
-            h(TooltipTrigger, { asChild: true }, () =>
-              h(
-                Button,
-                {
-                  variant: 'ghost',
-                  size: 'icon',
-                  class: 'h-8 w-8 text-destructive',
-                  disabled: user.id === authStore.user?.id,
-                  onClick: () => confirmDelete(user)
-                },
-                () => h(Trash2, { class: 'size-4' })
-              )
-            ),
-            h(TooltipContent, null, () => 'Delete user')
-          ]
+      const self = user.id === authStore.user?.id
+      return h('div', { class: 'flex items-center justify-end gap-1' }, [
+        iconButton(`Edit ${user.username}`, Pencil, () => editUser(user)),
+        iconButton(
+          `${user.is_active ? 'Deactivate' : 'Activate'} ${user.username}`,
+          user.is_active ? UserX : UserCheck,
+          () => requestToggleUserStatus(user),
+          { disabled: self }
+        ),
+        iconButton(`Delete ${user.username}`, Trash2, () => confirmDelete(user), {
+          disabled: self,
+          danger: true
         })
       ])
     },
@@ -261,19 +249,19 @@ const table = useTable({
 // Methods
 const loadUsers = async () => {
   loading.value = true
+  loadError.value = null
   try {
     const data = await authStore.getAllUsers()
     users.value = data
   } catch (error) {
     window.logService.error('Failed to load users:', error)
+    loadError.value = error.response?.data?.detail || error.message || 'Request failed'
 
     // Check if it's an authentication error
     if (error.response?.status === 401) {
       toast.error('Session expired. Please login again.', { duration: Infinity })
       // Clear auth and redirect to login
       await authStore.logout()
-    } else {
-      toast.error('Failed to load users. Check if backend is running.', { duration: Infinity })
     }
   } finally {
     loading.value = false
@@ -421,27 +409,25 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-6">
-    <AdminHeader
-      title="User Management"
-      subtitle="Manage user accounts, roles, and permissions"
-      :icon="Users"
-      icon-color="primary"
-      :breadcrumbs="ADMIN_BREADCRUMBS.users"
-    />
+  <div :class="PAGE_CONTAINER">
+    <AdminHeader title="User Management" subtitle="Manage user accounts, roles, and permissions" />
 
     <!-- Actions Bar -->
     <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
       <div class="relative w-full md:w-1/2">
-        <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Search
+          class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
         <Input
           v-model="search"
+          aria-label="Search users"
           placeholder="Search users by name, email, or username"
           class="pl-9"
         />
       </div>
       <Button size="sm" @click="showCreateDialog = true">
-        <UserPlus class="size-4 mr-2" />
+        <UserPlus class="size-4" aria-hidden="true" />
         Add User
       </Button>
     </div>
@@ -449,11 +435,26 @@ onMounted(() => {
     <!-- User Table -->
     <Card>
       <CardContent class="p-0">
-        <div v-if="loading" class="flex items-center justify-center py-12">
-          <Loader2 class="size-6 animate-spin text-muted-foreground" />
-          <span class="ml-2 text-sm text-muted-foreground">Loading users...</span>
-        </div>
-        <DataTable v-else :table="table" />
+        <DataState
+          :loading="loading && !users.length"
+          :error="loadError"
+          error-title="Could not load users"
+          :empty="!filteredUsers.length"
+          :empty-message="search ? 'No users match this search.' : 'No users yet.'"
+          class="m-4"
+          @retry="loadUsers"
+        >
+          <template #loading>
+            <div class="space-y-3 p-4" aria-hidden="true">
+              <div
+                v-for="i in 4"
+                :key="i"
+                class="h-8 rounded-md bg-muted motion-safe:animate-pulse"
+              />
+            </div>
+          </template>
+          <DataTable :table="table" />
+        </DataState>
       </CardContent>
     </Card>
 
@@ -563,7 +564,7 @@ onMounted(() => {
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :class="buttonVariants({ variant: 'destructive' })"
             @click="toggleUserStatus(deactivatingUser)"
           >
             Deactivate
@@ -585,7 +586,7 @@ onMounted(() => {
         <AlertDialogFooter>
           <AlertDialogCancel @click="showDeleteDialog = false">Cancel</AlertDialogCancel>
           <AlertDialogAction
-            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :class="buttonVariants({ variant: 'destructive' })"
             :disabled="deleting"
             @click="deleteUser"
           >

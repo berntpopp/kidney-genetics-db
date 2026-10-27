@@ -1,11 +1,8 @@
 <template>
-  <div class="container mx-auto px-4 py-6">
+  <div :class="PAGE_CONTAINER">
     <AdminHeader
       title="Gene Staging"
       subtitle="Review genes that couldn't be automatically normalized to HGNC symbols"
-      :icon="Dna"
-      icon-color="red"
-      :breadcrumbs="ADMIN_BREADCRUMBS.staging"
     >
       <template #actions>
         <Button :disabled="loading" @click="loadData">
@@ -19,199 +16,109 @@
     <Alert class="mb-6">
       <Info class="size-4" />
       <AlertDescription>
-        <strong>Gene Staging Process:</strong> When data sources provide gene names that can't be
-        automatically matched to official HGNC symbols, they're sent here for manual review. Your
-        job is to either <strong>approve</strong> them with the correct HGNC symbol, or
-        <strong>reject</strong> them if they're not real genes.
+        <p>
+          <strong class="font-medium text-foreground">How staging works:</strong> when a source
+          provides a gene name that cannot be matched to an official HGNC symbol, it lands here.
+          <strong class="font-medium text-foreground">Approve</strong> it with the correct HGNC
+          symbol and ID, or <strong class="font-medium text-foreground">reject</strong> it if it is
+          not a gene.
+        </p>
       </AlertDescription>
     </Alert>
 
     <!-- Stats Overview -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
       <AdminStatsCard
         title="Needs Your Review"
         :value="stagingStats.total_pending"
         :loading="statsLoading"
         :icon="UserSearch"
-        color="warning"
       />
       <AdminStatsCard
         title="Successfully Approved"
         :value="stagingStats.total_approved"
         :loading="statsLoading"
         :icon="CircleCheck"
-        color="success"
       />
       <AdminStatsCard
         title="Rejected (Not Genes)"
         :value="stagingStats.total_rejected"
         :loading="statsLoading"
         :icon="CircleX"
-        color="error"
       />
       <AdminStatsCard
         title="Auto-Normalization Rate"
         :value="`${(normalizationStats.success_rate * 100).toFixed(1)}%`"
         :loading="statsLoading"
         :icon="Bot"
-        color="info"
       />
     </div>
 
-    <!-- Filters -->
-    <Card class="mb-4">
-      <CardContent class="pt-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="space-y-2">
-            <Label>Data Source</Label>
-            <Select v-model="filters.sourceFilter">
-              <SelectTrigger aria-label="Data Source">
-                <SelectValue placeholder="All sources" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All sources</SelectItem>
-                <SelectItem
-                  v-for="source in sourceOptions"
-                  :key="source.value"
-                  :value="source.value"
-                >
-                  {{ source.title }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+    <!-- Pending reviews: up to API_LIMIT highest-priority items, filtered and paged here -->
+    <Card>
+      <CardHeader class="gap-4">
+        <CardTitle>Pending reviews</CardTitle>
+        <p
+          v-if="!loading && !loadError"
+          class="text-sm text-muted-foreground"
+          data-testid="staging-scope"
+        >
+          {{ scopeText }}
+        </p>
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-[1fr_12rem_auto] md:items-end">
+          <div class="relative">
+            <Search
+              class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              v-model="filters.search"
+              class="pl-9"
+              placeholder="Search gene text"
+              aria-label="Search gene text"
+            />
           </div>
-          <div class="space-y-2">
-            <Label>Results per page</Label>
-            <Select v-model="filtersLimitStr" @update:model-value="updateFilterLimit">
-              <SelectTrigger aria-label="Results per page">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="n in [10, 25, 50, 100]" :key="n" :value="String(n)">
-                  {{ n }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="flex items-end">
-            <div class="flex items-center gap-2">
-              <Switch
-                :model-value="filters.expertReviewOnly"
-                @update:model-value="filters.expertReviewOnly = $event"
-              />
-              <Label>Expert review only</Label>
-            </div>
+          <Select v-model="filters.sourceFilter">
+            <SelectTrigger aria-label="Data source">
+              <SelectValue placeholder="All sources" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All sources</SelectItem>
+              <SelectItem v-for="source in sourceOptions" :key="source.value" :value="source.value">
+                {{ source.title }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <div class="flex h-9 items-center gap-2">
+            <Switch id="expert-only" v-model="filters.expertReviewOnly" />
+            <Label for="expert-only">Expert review only</Label>
           </div>
         </div>
-      </CardContent>
-    </Card>
-
-    <!-- Pending Reviews Table -->
-    <Card>
-      <CardHeader>
-        <CardTitle class="flex items-center">
-          <List class="size-5 mr-2" />
-          Pending Reviews ({{ pendingReviews.length }})
-        </CardTitle>
       </CardHeader>
       <CardContent class="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead class="w-[180px]">Gene Symbol</TableHead>
-              <TableHead class="w-[120px]">Data Source</TableHead>
-              <TableHead class="w-[140px]">Review Priority</TableHead>
-              <TableHead class="w-[120px]">Expert Needed</TableHead>
-              <TableHead class="w-[120px]">Submitted</TableHead>
-              <TableHead class="w-[140px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-if="loading">
-              <TableCell colspan="6" class="text-center py-8 text-muted-foreground">
-                Loading...
-              </TableCell>
-            </TableRow>
-            <TableRow v-else-if="pendingReviews.length === 0">
-              <TableCell colspan="6" class="text-center py-8 text-muted-foreground">
-                No pending reviews
-              </TableCell>
-            </TableRow>
-            <TableRow v-for="item in pendingReviews" :key="item.id">
-              <TableCell>
-                <code class="text-xs">{{ item.original_text }}</code>
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline">{{ item.source_name }}</Badge>
-              </TableCell>
-              <TableCell>
-                <Badge :variant="getPriorityVariant(item.priority_score)">
-                  {{ item.priority_score }}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <component
-                  :is="item.requires_expert_review ? BriefcaseBusiness : Check"
-                  class="size-4"
-                  :class="
-                    item.requires_expert_review
-                      ? 'text-orange-500'
-                      : 'text-green-600 dark:text-green-400'
-                  "
-                />
-              </TableCell>
-              <TableCell>
-                <span class="text-xs">{{ formatDate(item.created_at) }}</span>
-              </TableCell>
-              <TableCell>
-                <div class="flex gap-1">
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <Button
-                        aria-label="Approve: This IS a valid gene"
-                        variant="ghost"
-                        size="icon"
-                        class="h-8 w-8 text-green-600"
-                        @click="approveItem(item)"
-                      >
-                        <CircleCheck class="size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Approve: This IS a valid gene</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <Button
-                        aria-label="Reject: This is NOT a valid gene"
-                        variant="ghost"
-                        size="icon"
-                        class="h-8 w-8 text-destructive"
-                        @click="rejectItem(item)"
-                      >
-                        <CircleX class="size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Reject: This is NOT a valid gene</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <Button
-                        aria-label="View details"
-                        variant="ghost"
-                        size="icon"
-                        class="h-8 w-8"
-                        @click="showItemDetails(item)"
-                      >
-                        <Info class="size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>View details</TooltipContent>
-                  </Tooltip>
-                </div>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+        <DataState
+          :loading="loading && !pendingReviews.length"
+          :error="loadError"
+          error-title="Could not load pending reviews"
+          :empty="!filteredReviews.length"
+          :empty-message="
+            pendingReviews.length ? 'No pending items match these filters.' : 'Nothing to review.'
+          "
+          class="mx-4 mb-4"
+          @retry="loadPendingReviews"
+        >
+          <template #loading>
+            <div class="space-y-3 p-4" aria-hidden="true">
+              <div
+                v-for="i in 6"
+                :key="i"
+                class="h-8 rounded-md bg-muted motion-safe:animate-pulse"
+              />
+            </div>
+          </template>
+          <DataTable :table="table" />
+          <DataTablePagination :table="table" :page-size-options="[25, 50, 100]" />
+        </DataState>
       </CardContent>
     </Card>
 
@@ -220,21 +127,25 @@
       <DialogContent class="max-w-[700px]">
         <DialogHeader>
           <DialogTitle class="flex items-center">
-            <CircleCheck class="size-5 text-green-600 dark:text-green-400 mr-2" />
+            <CircleCheck class="size-5 text-success mr-2" aria-hidden="true" />
             Approve Gene: {{ selectedItem?.original_text }}
           </DialogTitle>
         </DialogHeader>
         <div class="space-y-4">
           <Alert>
             <AlertDescription>
-              <strong>You're confirming this IS a valid gene.</strong> Please provide the correct,
-              official HGNC gene symbol. The system will create a new gene record or link to an
-              existing one.
+              <p>
+                <strong class="font-medium text-foreground"
+                  >You are confirming this is a gene.</strong
+                >
+                Provide the official HGNC symbol and ID; the system creates a gene record or links
+                to an existing one.
+              </p>
             </AlertDescription>
           </Alert>
 
           <div>
-            <strong>Original text from {{ selectedItem?.source_name }}:</strong>
+            <strong>Original text from {{ sourceDisplayName(selectedItem?.source_name) }}:</strong>
             <code class="text-lg ml-2">{{ selectedItem?.original_text }}</code>
           </div>
 
@@ -308,7 +219,7 @@
       <AlertDialogContent class="max-w-[600px]">
         <AlertDialogHeader>
           <AlertDialogTitle class="flex items-center">
-            <CircleX class="size-5 text-destructive mr-2" />
+            <CircleX class="size-5 text-danger mr-2" aria-hidden="true" />
             Reject: {{ selectedItem?.original_text }}
           </AlertDialogTitle>
           <AlertDialogDescription>
@@ -318,7 +229,7 @@
         </AlertDialogHeader>
         <div class="space-y-4">
           <div>
-            <strong>Text from {{ selectedItem?.source_name }}:</strong>
+            <strong>Text from {{ sourceDisplayName(selectedItem?.source_name) }}:</strong>
             <code class="text-lg ml-2">{{ selectedItem?.original_text }}</code>
           </div>
 
@@ -356,7 +267,7 @@
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :class="buttonVariants({ variant: 'destructive' })"
             :disabled="actionLoading || !rejectForm.notes?.trim()"
             @click="confirmReject"
           >
@@ -380,10 +291,10 @@
                 <strong>Original Text:</strong><br />
                 <code class="text-sm">{{ selectedItem.original_text }}</code>
               </div>
-              <div><strong>Source:</strong> {{ selectedItem.source_name }}</div>
+              <div><strong>Source:</strong> {{ sourceDisplayName(selectedItem.source_name) }}</div>
               <div>
-                <strong>Priority Score:</strong>
-                {{ (selectedItem.priority_score * 100).toFixed(1) }}%
+                <strong>Review priority:</strong>
+                <span class="tabular-nums">{{ selectedItem.priority_score ?? '—' }}</span>
               </div>
               <div>
                 <strong>Expert Review Required:</strong>
@@ -395,9 +306,7 @@
               <div><strong>Updated:</strong> {{ formatDate(selectedItem.updated_at) }}</div>
               <div>
                 <strong>Status:</strong>
-                <Badge :variant="getStatusVariant(selectedItem.status)" class="ml-1">
-                  {{ selectedItem.status }}
-                </Badge>
+                <StatusBadge :status="selectedItem.status" class="ml-1" />
               </div>
             </div>
           </div>
@@ -431,15 +340,18 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { h, ref, reactive, onMounted, computed, watch } from 'vue'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
+
+import { useTable } from '@tanstack/vue-table'
+import { Chip, DataState, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
+import { DataTable, DataTablePagination, dataTableFeatures } from '@/components/ui/data-table'
+import { sourceDisplayName } from '@/utils/sources'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as stagingApi from '@/api/admin/staging'
-import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import { toast } from 'vue-sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -469,31 +381,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Ban,
   Bot,
   BriefcaseBusiness,
-  Check,
   CircleCheck,
   CircleX,
-  Dna,
+  ExternalLink,
   Info,
-  List,
   RefreshCw,
+  Search,
   UserSearch
 } from 'lucide-vue-next'
 
 // Reactive data
 const loading = ref(false)
+const loadError = ref(null)
+// The API returns at most 200 items, highest priority first, and has no offset (backend gap)
+const API_LIMIT = 200
 const statsLoading = ref(false)
 const actionLoading = ref(false)
 
@@ -516,11 +422,10 @@ const normalizationStats = reactive({
 
 // Filters
 const filters = reactive({
-  sourceFilter: null,
-  limit: 50,
+  sourceFilter: 'all',
+  search: '',
   expertReviewOnly: false
 })
-const filtersLimitStr = ref('50')
 
 // Data
 const pendingReviews = ref([])
@@ -544,15 +449,167 @@ const rejectForm = reactive({
 
 // Computed
 const sourceOptions = computed(() => {
-  const sources = [...new Set(pendingReviews.value.map(item => item.source_name))]
-  return sources.map(source => ({ title: source, value: source }))
+  const sources = [...new Set(pendingReviews.value.map(item => item.source_name))].sort()
+  return sources.map(source => ({ title: sourceDisplayName(source), value: source }))
+})
+
+const filteredReviews = computed(() => {
+  const q = filters.search.trim().toLowerCase()
+  return pendingReviews.value.filter(
+    item =>
+      (filters.sourceFilter === 'all' || item.source_name === filters.sourceFilter) &&
+      (!filters.expertReviewOnly || item.requires_expert_review) &&
+      (!q || item.original_text?.toLowerCase().includes(q))
+  )
+})
+
+const scopeText = computed(() => {
+  const loaded = pendingReviews.value.length
+  const total = stagingStats.total_pending
+  const shown = filteredReviews.value.length
+  const base =
+    total > loaded
+      ? `The ${loaded.toLocaleString()} highest-priority of ${total.toLocaleString()} pending items are loaded; reviewing them brings the next ones in.`
+      : `${loaded.toLocaleString()} pending items.`
+  return shown === loaded ? base : `${shown.toLocaleString()} match the filters. ${base}`
+})
+
+const hgncSearchUrl = text =>
+  `https://www.genenames.org/tools/search/#!/?query=${encodeURIComponent(text)}`
+
+const iconAction = (label, icon, onClick) =>
+  h(Tooltip, null, {
+    default: () => [
+      h(TooltipTrigger, { asChild: true }, () =>
+        h(Button, { variant: 'ghost', size: 'icon-sm', 'aria-label': label, onClick }, () =>
+          h(icon, { class: 'size-4', 'aria-hidden': 'true' })
+        )
+      ),
+      h(TooltipContent, null, () => label)
+    ]
+  })
+
+const columns = [
+  {
+    accessorKey: 'original_text',
+    header: 'Gene text',
+    cell: ({ row }) => {
+      const text = row.original.original_text
+      return h('div', { class: 'flex items-center gap-1' }, [
+        h('code', { class: 'font-mono text-sm' }, text),
+        h(Tooltip, null, {
+          default: () => [
+            h(TooltipTrigger, { asChild: true }, () =>
+              h(
+                'a',
+                {
+                  href: hgncSearchUrl(text),
+                  target: '_blank',
+                  rel: 'noopener',
+                  'aria-label': `Search HGNC for ${text}`,
+                  class:
+                    'inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
+                },
+                h(ExternalLink, { class: 'size-3.5', 'aria-hidden': 'true' })
+              )
+            ),
+            h(TooltipContent, null, () => `Search HGNC for ${text}`)
+          ]
+        })
+      ])
+    }
+  },
+  {
+    accessorKey: 'source_name',
+    header: 'Source',
+    cell: ({ row }) => h('span', { class: 'text-sm' }, sourceDisplayName(row.original.source_name))
+  },
+  {
+    accessorKey: 'priority_score',
+    header: () => h('div', { class: 'text-right' }, 'Priority'),
+    cell: ({ row }) =>
+      h(Tooltip, null, {
+        default: () => [
+          h(TooltipTrigger, { asChild: true }, () =>
+            h(
+              'div',
+              { class: 'text-right tabular-nums', tabindex: 0 },
+              row.original.priority_score ?? '—'
+            )
+          ),
+          h(TooltipContent, null, () => 'Review priority: higher scores are listed first')
+        ]
+      }),
+    size: 90
+  },
+  {
+    accessorKey: 'requires_expert_review',
+    header: 'Expert review',
+    cell: ({ row }) =>
+      row.original.requires_expert_review
+        ? h(Chip, {
+            kind: 'neutral',
+            label: 'Needed',
+            icon: BriefcaseBusiness,
+            tooltip: 'Ambiguous text: needs a domain expert before approval'
+          })
+        : h('span', { class: 'text-sm text-muted-foreground' }, 'No'),
+    size: 120
+  },
+  {
+    accessorKey: 'created_at',
+    header: 'Submitted',
+    cell: ({ row }) =>
+      h(
+        'span',
+        { class: 'text-sm tabular-nums whitespace-nowrap' },
+        formatDate(row.original.created_at)
+      )
+  },
+  {
+    id: 'actions',
+    header: () => h('span', { class: 'sr-only' }, 'Actions'),
+    cell: ({ row }) => {
+      const item = row.original
+      return h('div', { class: 'flex items-center justify-end gap-1.5' }, [
+        h(
+          Button,
+          {
+            variant: 'outline',
+            size: 'sm',
+            'aria-label': `Approve ${item.original_text}`,
+            onClick: () => approveItem(item)
+          },
+          () => [h(CircleCheck, { class: 'text-success', 'aria-hidden': 'true' }), 'Approve']
+        ),
+        h(
+          Button,
+          {
+            variant: 'outline',
+            size: 'sm',
+            'aria-label': `Reject ${item.original_text}`,
+            onClick: () => rejectItem(item)
+          },
+          () => [h(CircleX, { class: 'text-danger', 'aria-hidden': 'true' }), 'Reject']
+        ),
+        iconAction(`Details for ${item.original_text}`, Info, () => showItemDetails(item))
+      ])
+    },
+    enableSorting: false,
+    size: 260
+  }
+]
+
+const table = useTable({
+  features: dataTableFeatures,
+  get data() {
+    return filteredReviews.value
+  },
+  columns,
+  initialState: { pagination: { pageIndex: 0, pageSize: 25 } }
 })
 
 // Methods
-const updateFilterLimit = val => {
-  filters.limit = parseInt(val)
-  filtersLimitStr.value = val
-}
 
 const loadStats = async () => {
   statsLoading.value = true
@@ -574,18 +631,13 @@ const loadStats = async () => {
 
 const loadPendingReviews = async () => {
   loading.value = true
+  loadError.value = null
   try {
-    const params = {
-      limit: filters.limit,
-      source_filter: filters.sourceFilter === 'all' ? '' : filters.sourceFilter,
-      requires_expert_review: filters.expertReviewOnly || undefined
-    }
-
-    const response = await stagingApi.getPendingStaging(params)
+    const response = await stagingApi.getPendingStaging({ limit: API_LIMIT })
     pendingReviews.value = response.data
   } catch (error) {
     window.logService.error('Failed to load pending reviews:', error)
-    toast.error('Failed to load pending reviews', { duration: Infinity })
+    loadError.value = error.message || 'Request failed'
   } finally {
     loading.value = false
   }
@@ -667,33 +719,10 @@ const formatDate = dateString => {
   return new Date(dateString).toLocaleString()
 }
 
-const getPriorityVariant = score => {
-  if (score >= 80) return 'destructive'
-  if (score >= 50) return 'outline'
-  if (score >= 30) return 'secondary'
-  return 'default'
-}
-
-const getStatusVariant = status => {
-  switch (status?.toLowerCase()) {
-    case 'pending':
-      return 'outline'
-    case 'approved':
-      return 'default'
-    case 'rejected':
-      return 'destructive'
-    default:
-      return 'secondary'
-  }
-}
-
-// Watchers for filters
+// A filter change starts again at the first page
 watch(
-  [() => filters.sourceFilter, () => filters.limit, () => filters.expertReviewOnly],
-  () => {
-    loadPendingReviews()
-  },
-  { deep: true }
+  () => [filters.sourceFilter, filters.search, filters.expertReviewOnly],
+  () => table.setPageIndex(0)
 )
 
 // Load data on mount

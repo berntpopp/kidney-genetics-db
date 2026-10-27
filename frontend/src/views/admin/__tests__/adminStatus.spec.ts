@@ -7,7 +7,7 @@ import { h, nextTick, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { Badge } from '@/components/ui/badge'
+import { StatusBadge } from '@/components/shared'
 import AdminCacheManagement from '@/views/admin/AdminCacheManagement.vue'
 import AdminPipeline from '@/views/admin/AdminPipeline.vue'
 import { getCacheNamespaces } from '@/api/admin/cache'
@@ -106,7 +106,8 @@ async function mountView(view: object) {
 describe('AdminCacheManagement health', () => {
   it('lists the API health issues next to the warning status', async () => {
     const w = await mountView(AdminCacheManagement)
-    expect(w.text()).toContain('Cache Health Status: warning')
+    expect(w.text()).toContain('Cache Health Status')
+    expect(w.text()).toContain('Warning')
     expect(w.find('[data-testid="health-issues"]').text()).toContain('Low cache hit rate: 30.0%')
   })
 
@@ -131,10 +132,11 @@ describe('AdminCacheManagement health', () => {
 })
 
 describe('AdminPipeline status badge', () => {
-  it('shows Completed with the outline badge variant', async () => {
+  it('shows Completed through the shared success status', async () => {
     const w = await mountView(AdminPipeline)
-    const badge = w.findAllComponents(Badge).find(b => b.text() === 'completed')!
-    expect(badge.props('variant')).toBe('outline')
+    const badge = w.findAllComponents(StatusBadge).find(b => b.text() === 'Completed')!
+    expect(badge.props('status')).toBe('completed')
+    expect(badge.find('[data-slot="chip"]').classes()).toContain('text-success')
   })
 })
 
@@ -143,30 +145,30 @@ describe('AdminPipeline stalled sources', () => {
     w
       .findAll('[data-testid="source-card"]')
       .find(c => c.text().includes(name))!
-      .findComponent(Badge)
+      .findComponent(StatusBadge)
 
   it('flags a running source with no progress update for over 10 minutes', async () => {
     const w = await mountView(AdminPipeline)
     const badge = badgeOf(w, 'GenCC')
-    expect(badge.text()).toBe('stalled')
-    expect(badge.props('variant')).toBe('destructive')
-    expect(badge.attributes('title')).toContain('last progress update 11 min ago')
+    expect(badge.text()).toBe('Stalled')
+    expect(badge.props('status')).toBe('stale')
+    expect(badge.props('tooltip')).toContain('last progress update 11 min ago')
   })
 
   it('keeps running for recent updates and when last_update_at is missing', async () => {
     const w = await mountView(AdminPipeline)
-    expect(badgeOf(w, 'PanelApp').text()).toBe('running')
-    expect(badgeOf(w, 'ClinGen').text()).toBe('running')
+    expect(badgeOf(w, 'PanelApp').text()).toBe('Running')
+    expect(badgeOf(w, 'ClinGen').text()).toBe('Running')
   })
 
   it('turns a source stalled while the page stays open', async () => {
     vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
     try {
       const w = await mountView(AdminPipeline)
-      expect(badgeOf(w, 'PanelApp').text()).toBe('running')
+      expect(badgeOf(w, 'PanelApp').text()).toBe('Running')
       vi.advanceTimersByTime(9 * 60_000)
       await nextTick()
-      expect(badgeOf(w, 'PanelApp').text()).toBe('stalled')
+      expect(badgeOf(w, 'PanelApp').text()).toBe('Stalled')
     } finally {
       vi.useRealTimers()
     }

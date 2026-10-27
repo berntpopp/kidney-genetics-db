@@ -55,7 +55,7 @@ async function mountView() {
 describe('AdminGeneStaging review dialogs', () => {
   it('approves without a reviewer field or payload key', async () => {
     await mountView()
-    ;(document.querySelector('button.text-green-600') as HTMLElement).click()
+    ;(document.querySelector('button[aria-label="Approve PKD1"]') as HTMLElement).click()
     await flushPromises()
 
     expect(document.body.textContent).not.toContain('Your Name/ID')
@@ -78,5 +78,51 @@ describe('AdminGeneStaging review dialogs', () => {
     await mountView()
     expect(document.querySelectorAll('table [role="checkbox"]')).toHaveLength(0)
     expect(document.body.textContent).not.toContain('Bulk')
+  })
+})
+
+describe('AdminGeneStaging reach (all pending items)', () => {
+  const many = Array.from({ length: 30 }, (_, i) => ({
+    id: 100 + i,
+    original_text: `GENE${i}`,
+    source_name: i % 2 ? 'PanelApp' : 'DiagnosticPanels',
+    requires_expert_review: i === 3,
+    created_at: null
+  }))
+  const rows = () => [...document.querySelectorAll('tbody tr')]
+
+  it('requests the API maximum and says how many of the pending total are loaded', async () => {
+    vi.mocked(stagingApi.getStagingStats).mockResolvedValueOnce({
+      data: { total_pending: 402 }
+    } as never)
+    await mountView()
+    expect(stagingApi.getPendingStaging).toHaveBeenCalledWith({ limit: 200 })
+    expect(document.querySelector('[data-testid="staging-scope"]')?.textContent).toContain(
+      'of 402 pending'
+    )
+  })
+
+  it('pages 25 rows at a time and searches across every loaded item', async () => {
+    vi.mocked(stagingApi.getPendingStaging).mockResolvedValueOnce({ data: many } as never)
+    await mountView()
+    expect(rows()).toHaveLength(25)
+    ;(document.querySelector('[aria-label="Go to next page"]') as HTMLElement).click()
+    await flushPromises()
+    expect(rows()).toHaveLength(5)
+
+    const search = document.querySelector('[aria-label="Search gene text"]') as HTMLInputElement
+    search.value = 'gene29'
+    search.dispatchEvent(new Event('input'))
+    await flushPromises()
+    expect(rows().map(r => r.querySelector('code')?.textContent)).toEqual(['GENE29'])
+  })
+
+  it('shows an inline error with Retry instead of an empty list when loading fails', async () => {
+    vi.mocked(stagingApi.getPendingStaging).mockRejectedValueOnce(new Error('500'))
+    await mountView()
+    expect(document.querySelector('[data-state="error"]')?.textContent).toContain(
+      'Could not load pending reviews'
+    )
+    expect(document.body.textContent).not.toContain('Nothing to review')
   })
 })
