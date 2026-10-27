@@ -15,7 +15,7 @@ import {
   MemoryStick,
   FileText,
   Settings,
-  Minus,
+  Workflow,
   Dna,
   Tags,
   Package,
@@ -46,7 +46,7 @@ export const ADMIN_ICONS: Record<string, Component> = {
   settings: Settings,
 
   // Data pipeline
-  pipeline: Minus,
+  pipeline: Workflow,
   staging: Dna,
   annotations: Tags,
 
@@ -68,28 +68,6 @@ export const ADMIN_ICONS: Record<string, Component> = {
   error: CircleAlert,
   warning: AlertTriangle,
   info: Info
-}
-
-/**
- * Get Tailwind text color class based on admin section.
- * Replaces Vuetify color string with Tailwind equivalent.
- */
-export const getAdminIconColor = (section: string): string => {
-  const colorMap: Record<string, string> = {
-    dashboard: 'text-primary',
-    users: 'text-primary',
-    cache: 'text-purple-600 dark:text-purple-400',
-    logs: 'text-orange-600 dark:text-orange-400',
-    pipeline: 'text-green-600 dark:text-green-400',
-    staging: 'text-red-600 dark:text-red-400',
-    annotations: 'text-teal-600 dark:text-teal-400',
-    releases: 'text-indigo-600 dark:text-indigo-400',
-    backups: 'text-slate-600 dark:text-slate-400',
-    settings: 'text-violet-600 dark:text-violet-400',
-    hybridSources: 'text-cyan-600 dark:text-cyan-400'
-  }
-
-  return colorMap[section] ?? 'text-primary'
 }
 
 export default ADMIN_ICONS

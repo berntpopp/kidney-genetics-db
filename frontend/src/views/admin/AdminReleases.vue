@@ -1,49 +1,38 @@
 <template>
-  <div class="container mx-auto px-4 py-6">
-    <AdminHeader
-      title="Data Releases"
-      subtitle="Create and manage CalVer data releases"
-      :icon="Package"
-      icon-color="indigo"
-      :breadcrumbs="ADMIN_BREADCRUMBS.releases"
-    />
+  <div :class="PAGE_CONTAINER">
+    <AdminHeader title="Data Releases" subtitle="Create and manage CalVer data releases" />
 
     <!-- Stats Overview -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
       <AdminStatsCard
         title="Total Releases"
         :value="stats.total"
         :loading="statsLoading"
         :icon="Package"
-        color="indigo"
       />
       <AdminStatsCard
         title="Published"
         :value="stats.published"
         :loading="statsLoading"
         :icon="CircleCheck"
-        color="success"
       />
-      <AdminStatsCard
-        title="Draft"
-        :value="stats.draft"
-        :loading="statsLoading"
-        :icon="Pencil"
-        color="warning"
-      />
+      <AdminStatsCard title="Draft" :value="stats.draft" :loading="statsLoading" :icon="Pencil" />
       <AdminStatsCard
         title="Latest Version"
-        :value="stats.latest || 'None'"
+        :value="stats.latest || null"
         :loading="statsLoading"
         :icon="SquarePlus"
-        color="info"
       />
     </div>
 
     <!-- Actions Bar -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
       <div class="space-y-2">
-        <Input v-model="search" placeholder="Search releases by version or notes..." />
+        <Input
+          v-model="search"
+          aria-label="Search releases"
+          placeholder="Search releases by version or notes"
+        />
       </div>
       <div class="flex justify-end items-end">
         <Button @click="showCreateDialog = true">
@@ -56,107 +45,101 @@
     <!-- Releases Table -->
     <Card>
       <CardContent class="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Version</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead class="text-right">Gene Count</TableHead>
-              <TableHead>Published</TableHead>
-              <TableHead>Release Notes</TableHead>
-              <TableHead class="text-center">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-if="loading">
-              <TableCell colspan="6" class="text-center py-8 text-muted-foreground">
-                Loading...
-              </TableCell>
-            </TableRow>
-            <TableRow v-else-if="filteredReleases.length === 0">
-              <TableCell colspan="6" class="text-center py-8 text-muted-foreground">
-                No releases found
-              </TableCell>
-            </TableRow>
-            <TableRow
-              v-for="item in filteredReleases"
-              :key="item.id"
-              class="cursor-pointer hover:bg-muted/50"
-              @click="viewReleaseDetails(item)"
-            >
-              <TableCell>
-                <code class="text-xs">{{ item.version }}</code>
-              </TableCell>
-              <TableCell>
-                <Badge :variant="item.status === 'published' ? 'default' : 'secondary'">
-                  {{ item.status }}
-                </Badge>
-              </TableCell>
-              <TableCell class="text-right">
-                <span v-if="item.gene_count">{{ item.gene_count.toLocaleString() }}</span>
-                <span v-else class="text-muted-foreground">&mdash;</span>
-              </TableCell>
-              <TableCell>
-                <span v-if="item.published_at">{{ formatDate(item.published_at) }}</span>
-                <span v-else class="text-muted-foreground">Not published</span>
-              </TableCell>
-              <TableCell>
-                <span class="text-sm truncate block max-w-[200px]">{{ item.release_notes }}</span>
-              </TableCell>
-              <TableCell class="text-center" @click.stop>
-                <Button
-                  v-if="item.status === 'draft'"
-                  variant="ghost"
-                  size="icon"
-                  class="h-7 w-7"
-                  title="Edit release"
-                  @click="editRelease(item)"
-                >
-                  <Pencil class="size-4" />
-                </Button>
-                <Button
-                  v-if="item.status === 'draft'"
-                  variant="ghost"
-                  size="icon"
-                  class="h-7 w-7 text-green-600"
-                  title="Publish release"
-                  @click="confirmPublish(item)"
-                >
-                  <Send class="size-4" />
-                </Button>
-                <Button
-                  v-if="item.status === 'draft'"
-                  variant="ghost"
-                  size="icon"
-                  class="h-7 w-7 text-destructive"
-                  title="Delete release"
-                  @click="confirmDelete(item)"
-                >
-                  <Trash2 class="size-4" />
-                </Button>
-                <Button
-                  v-if="item.status === 'published'"
-                  variant="ghost"
-                  size="icon"
-                  class="h-7 w-7"
-                  title="Download export"
-                  @click="downloadExport(item)"
-                >
-                  <Download class="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="h-7 w-7"
-                  title="View details"
-                  @click="viewReleaseDetails(item)"
-                >
-                  <Info class="size-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+        <DataState
+          :loading="loading && !releases.length"
+          :error="loadError"
+          error-title="Could not load releases"
+          :empty="!filteredReleases.length"
+          class="m-4"
+          @retry="loadReleases"
+        >
+          <template #loading>
+            <div class="space-y-3 p-4" aria-hidden="true">
+              <div
+                v-for="i in 4"
+                :key="i"
+                class="h-8 rounded-md bg-muted motion-safe:animate-pulse"
+              />
+            </div>
+          </template>
+          <template #empty>
+            <div class="space-y-3">
+              <p class="text-sm text-muted-foreground">
+                {{
+                  search
+                    ? 'No releases match this search.'
+                    : 'No releases yet. A release freezes the current gene list as a citable CalVer snapshot with an export and checksum.'
+                }}
+              </p>
+              <Button v-if="!search" size="sm" @click="showCreateDialog = true">
+                <PlusCircle class="size-4" aria-hidden="true" />
+                Create first release
+              </Button>
+            </div>
+          </template>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Version</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead class="text-right">Gene Count</TableHead>
+                <TableHead>Published</TableHead>
+                <TableHead>Release Notes</TableHead>
+                <TableHead><span class="sr-only">Actions</span></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow
+                v-for="item in filteredReleases"
+                :key="item.id"
+                class="cursor-pointer"
+                @click="viewReleaseDetails(item)"
+              >
+                <TableCell>
+                  <code class="text-xs">{{ item.version }}</code>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge :status="item.status" />
+                </TableCell>
+                <TableCell class="text-right tabular-nums">
+                  <span v-if="item.gene_count">{{ item.gene_count.toLocaleString() }}</span>
+                  <span v-else class="text-muted-foreground">&mdash;</span>
+                </TableCell>
+                <TableCell>
+                  <span v-if="item.published_at" class="tabular-nums">{{
+                    formatDate(item.published_at)
+                  }}</span>
+                  <span v-else class="text-muted-foreground">Not published</span>
+                </TableCell>
+                <TableCell>
+                  <span class="text-sm truncate block max-w-[200px]" :title="item.release_notes">{{
+                    item.release_notes
+                  }}</span>
+                </TableCell>
+                <TableCell @click.stop>
+                  <div class="flex justify-end gap-1">
+                    <template v-for="action in rowActions(item)" :key="action.label">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            :aria-label="`${action.label} ${item.version}`"
+                            :class="action.danger && 'text-danger hover:text-danger'"
+                            @click="action.run(item)"
+                          >
+                            <component :is="action.icon" class="size-4" aria-hidden="true" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{{ action.label }}</TooltipContent>
+                      </Tooltip>
+                    </template>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </DataState>
       </CardContent>
     </Card>
 
@@ -173,7 +156,7 @@
             <p class="text-xs text-muted-foreground">
               Format: YYYY.MM (e.g., 2025.10 for October 2025)
             </p>
-            <p v-if="versionError" class="text-xs text-destructive">{{ versionError }}</p>
+            <p v-if="versionError" class="text-xs text-danger">{{ versionError }}</p>
           </div>
 
           <div class="space-y-2">
@@ -212,7 +195,7 @@
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :class="buttonVariants({ variant: 'destructive' })"
             :disabled="deleting"
             @click="deleteRelease"
           >
@@ -228,10 +211,10 @@
         <AlertDialogHeader>
           <AlertDialogTitle>Publish Release {{ publishingRelease?.version }}?</AlertDialogTitle>
           <AlertDialogDescription as="div">
-            <Alert variant="destructive" class="mb-4">
+            <Alert class="mb-4">
               <AlertDescription>
-                <strong>This action will:</strong>
-                <ul class="mt-2 list-disc list-inside">
+                <p class="font-medium text-foreground">This action will:</p>
+                <ul class="list-disc list-inside">
                   <li>Close all current gene temporal ranges</li>
                   <li>Export genes to JSON file</li>
                   <li>Calculate SHA256 checksum</li>
@@ -259,12 +242,7 @@
         <DialogHeader>
           <DialogTitle class="flex items-center gap-2">
             Release {{ selectedRelease?.version }}
-            <Badge
-              v-if="selectedRelease"
-              :variant="selectedRelease.status === 'published' ? 'default' : 'secondary'"
-            >
-              {{ selectedRelease.status }}
-            </Badge>
+            <StatusBadge v-if="selectedRelease" :status="selectedRelease.status" />
           </DialogTitle>
         </DialogHeader>
 
@@ -272,7 +250,7 @@
           <!-- Release Information -->
           <div class="space-y-3">
             <div class="flex items-center gap-3 border-b pb-2">
-              <Package class="size-5 text-indigo-600 dark:text-indigo-400" />
+              <Package class="size-5 text-muted-foreground" aria-hidden="true" />
               <div>
                 <div class="text-xs text-muted-foreground">Version</div>
                 <code>{{ selectedRelease.version }}</code>
@@ -280,7 +258,7 @@
             </div>
 
             <div class="flex items-center gap-3 border-b pb-2">
-              <Calendar class="size-5" />
+              <Calendar class="size-5 text-muted-foreground" aria-hidden="true" />
               <div>
                 <div class="text-xs text-muted-foreground">Created</div>
                 <span class="text-sm">{{ formatDate(selectedRelease.created_at) }}</span>
@@ -288,7 +266,7 @@
             </div>
 
             <div v-if="selectedRelease.published_at" class="flex items-center gap-3 border-b pb-2">
-              <CalendarCheck class="size-5 text-green-600 dark:text-green-400" />
+              <CalendarCheck class="size-5 text-muted-foreground" aria-hidden="true" />
               <div>
                 <div class="text-xs text-muted-foreground">Published</div>
                 <span class="text-sm">{{ formatDate(selectedRelease.published_at) }}</span>
@@ -296,7 +274,7 @@
             </div>
 
             <div v-if="selectedRelease.gene_count" class="flex items-center gap-3 border-b pb-2">
-              <Dna class="size-5" />
+              <Dna class="size-5 text-muted-foreground" aria-hidden="true" />
               <div>
                 <div class="text-xs text-muted-foreground">Gene Count</div>
                 <span class="text-sm">{{ selectedRelease.gene_count.toLocaleString() }} genes</span>
@@ -307,7 +285,7 @@
               v-if="selectedRelease.export_checksum"
               class="flex items-center gap-3 border-b pb-2"
             >
-              <ShieldCheck class="size-5 text-green-600 dark:text-green-400" />
+              <ShieldCheck class="size-5 text-muted-foreground" aria-hidden="true" />
               <div class="flex-1">
                 <div class="text-xs text-muted-foreground">Checksum (SHA256)</div>
                 <div class="flex items-center gap-1">
@@ -316,7 +294,7 @@
                     variant="ghost"
                     size="icon"
                     class="h-6 w-6"
-                    title="Copy checksum"
+                    aria-label="Copy checksum"
                     @click="copyToClipboard(selectedRelease.export_checksum)"
                   >
                     <Copy class="size-3" />
@@ -341,17 +319,15 @@
           <div>
             <h4 class="text-sm font-semibold mb-2">Citation</h4>
             <div v-if="selectedRelease.doi" class="mb-2">
-              <Badge variant="outline" class="text-xs">
-                <ExternalLink class="size-3 mr-1" />
-                <a
-                  :href="`https://doi.org/${selectedRelease.doi}`"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="hover:underline"
-                >
-                  {{ selectedRelease.doi }}
-                </a>
-              </Badge>
+              <a
+                :href="`https://doi.org/${selectedRelease.doi}`"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1 font-mono text-xs text-primary underline-offset-4 hover:underline"
+              >
+                {{ selectedRelease.doi }}
+                <ExternalLink class="size-3" aria-hidden="true" />
+              </a>
             </div>
             <div class="rounded-md border p-3 relative">
               <code class="text-xs">{{ generateCitation(selectedRelease) }}</code>
@@ -359,7 +335,7 @@
                 variant="ghost"
                 size="icon"
                 class="h-6 w-6 absolute top-2 right-2"
-                title="Copy citation"
+                aria-label="Copy citation"
                 @click="copyToClipboard(generateCitation(selectedRelease))"
               >
                 <Copy class="size-3" />
@@ -384,6 +360,7 @@
 </template>
 
 <script setup>
+import { formatDateTime } from '@/utils/formatDate'
 /**
  * Data Releases Management View
  * Create and manage CalVer data releases with comprehensive UI/UX
@@ -392,12 +369,12 @@
 import { ref, computed, onMounted } from 'vue'
 import * as releasesApi from '@/api/admin/releases'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
+import { DataState, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
-import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import { toast } from 'vue-sonner'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -448,6 +425,7 @@ import {
 // State
 const releases = ref([])
 const loading = ref(false)
+const loadError = ref(null)
 const statsLoading = ref(false)
 const search = ref('')
 const showCreateDialog = ref(false)
@@ -501,16 +479,31 @@ const filteredReleases = computed(() => {
   )
 })
 
+// Row actions by lifecycle: drafts are edited, published or deleted; published ones exported
+const rowActions = item =>
+  [
+    item.status === 'draft' && { label: 'Edit', icon: Pencil, run: editRelease },
+    item.status === 'draft' && { label: 'Publish', icon: Send, run: confirmPublish },
+    item.status === 'draft' && { label: 'Delete', icon: Trash2, run: confirmDelete, danger: true },
+    item.status === 'published' && {
+      label: 'Download export',
+      icon: Download,
+      run: downloadExport
+    },
+    { label: 'Details', icon: Info, run: viewReleaseDetails }
+  ].filter(Boolean)
+
 // Methods
 const loadReleases = async () => {
   loading.value = true
+  loadError.value = null
   try {
     const data = (await releasesApi.listReleases()).data
     releases.value = data.data || []
     updateStats()
   } catch (error) {
     window.logService.error('Failed to load releases:', error)
-    toast.error('Failed to load releases', { duration: Infinity })
+    loadError.value = error.message || 'Request failed'
   } finally {
     loading.value = false
   }
@@ -530,11 +523,7 @@ const updateStats = () => {
   statsLoading.value = false
 }
 
-const formatDate = dateString => {
-  if (!dateString) return 'Never'
-  const date = new Date(dateString)
-  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
-}
+const formatDate = dateString => formatDateTime(dateString) || 'Never'
 
 const createRelease = async () => {
   if (!isFormValid.value) return

@@ -59,7 +59,10 @@ describe('UpSetChart selection (#315)', () => {
   it('counts single-source genes, not single-source combinations', async () => {
     const wrapper = mount(UpSetChart)
     await flushPromises()
-    expect(wrapper.text()).toContain('4Genes in One Source Only')
+    const stat = wrapper
+      .findAll('dl > div')
+      .find(d => d.text().includes('Genes in One Source Only'))
+    expect(stat?.find('dd').text()).toBe('4')
   })
 
   it('shows the exclusive count for a clicked intersection bar', async () => {

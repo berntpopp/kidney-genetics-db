@@ -28,6 +28,7 @@ class OverlapStatistics(BaseModel):
     highest_overlap_count: int
     genes_in_all_sources: int
     single_source_combinations: int
+    single_source_genes: int
     total_combinations: int
 
 

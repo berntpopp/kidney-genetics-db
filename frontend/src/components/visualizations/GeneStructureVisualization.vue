@@ -1,174 +1,72 @@
 <template>
   <div class="gene-structure-visualization">
-    <div v-if="hasVariants" class="space-y-1.5 mb-3">
-      <!-- Row 1: Classification chips -->
-      <div class="flex items-center gap-1.5">
-        <button
-          class="text-xs font-medium text-muted-foreground hover:text-foreground w-24 text-left"
-          :class="{ 'text-primary font-semibold': colorBy === 'classification' }"
-          title="Click to color by classification"
-          @click="colorBy = 'classification'"
-        >
-          Classification
-          <Palette v-if="colorBy === 'classification'" class="size-2.5 inline ml-0.5" />
-        </button>
-        <div class="flex flex-wrap gap-0.5">
-          <Badge
-            v-for="cat in classificationOptions"
-            :key="cat.value"
-            as="button"
-            type="button"
-            :aria-pressed="selectedClassifications.includes(cat.value)"
-            :variant="selectedClassifications.includes(cat.value) ? 'default' : 'outline'"
-            class="cursor-pointer select-none text-xs px-1.5 py-0 h-5"
-            :style="
-              selectedClassifications.includes(cat.value)
-                ? {
-                    ...tintedChipStyle(getClassificationColor(cat.value)),
-                    borderColor: getClassificationColor(cat.value)
-                  }
-                : {
-                    color: tintedChipStyle(getClassificationColor(cat.value)).color,
-                    borderColor: getClassificationColor(cat.value) + '40'
-                  }
-            "
-            @click="toggleClassification(cat.value)"
+    <div v-if="hasVariants" class="mb-3 space-y-2">
+      <VariantFilters
+        v-model:color-by="colorBy"
+        v-model:classifications="selectedClassifications"
+        v-model:effects="selectedEffects"
+      />
+      <div class="flex flex-wrap items-center gap-2">
+        <p class="text-xs text-muted-foreground">
+          {{ filteredVariants.length.toLocaleString() }} shown of
+          {{ allVariants.length.toLocaleString() }} loaded variants<template
+            v-if="clinvarData?.total_variants"
           >
-            {{ cat.label }}
-          </Badge>
-        </div>
-        <button
-          class="text-xs text-muted-foreground hover:text-foreground ml-0.5"
-          @click="selectAllClassifications"
-        >
-          All
-        </button>
-        <button
-          class="text-xs text-muted-foreground hover:text-foreground"
-          @click="selectedClassifications = []"
-        >
-          None
-        </button>
-      </div>
-
-      <!-- Row 2: Effect chips -->
-      <div class="flex items-center gap-1.5">
-        <button
-          class="text-xs font-medium text-muted-foreground hover:text-foreground w-24 text-left"
-          :class="{ 'text-primary font-semibold': colorBy === 'effect' }"
-          title="Click to color by effect"
-          @click="colorBy = 'effect'"
-        >
-          Effect
-          <Palette v-if="colorBy === 'effect'" class="size-2.5 inline ml-0.5" />
-        </button>
-        <div class="flex flex-wrap gap-0.5">
-          <Badge
-            v-for="eff in effectOptions"
-            :key="eff.value"
-            as="button"
-            type="button"
-            :aria-pressed="selectedEffects.includes(eff.value)"
-            :variant="selectedEffects.includes(eff.value) ? 'default' : 'outline'"
-            class="cursor-pointer select-none text-xs px-1.5 py-0 h-5"
-            :style="
-              selectedEffects.includes(eff.value)
-                ? {
-                    ...tintedChipStyle(getEffectColor(eff.value)),
-                    borderColor: getEffectColor(eff.value)
-                  }
-                : {
-                    color: tintedChipStyle(getEffectColor(eff.value)).color,
-                    borderColor: getEffectColor(eff.value) + '40'
-                  }
-            "
-            @click="toggleEffect(eff.value)"
+            ({{ clinvarData.total_variants.toLocaleString() }} in
+            <a
+              :href="clinvarUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="rounded-sm text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >ClinVar</a
+            >)</template
           >
-            {{ eff.label }}
-          </Badge>
-        </div>
-        <button
-          class="text-xs text-muted-foreground hover:text-foreground ml-0.5"
-          @click="selectAllEffects"
-        >
-          All
-        </button>
-        <button
-          class="text-xs text-muted-foreground hover:text-foreground"
-          @click="selectedEffects = []"
-        >
-          None
-        </button>
-      </div>
-
-      <!-- Row 3: Summary + tools -->
-      <div class="flex items-center gap-2">
-        <span class="text-xs text-muted-foreground">
-          {{ filteredVariants.length }} of {{ allVariants.length }} loaded variants shown
-        </span>
+        </p>
         <div class="flex-1" />
-        <div class="inline-flex rounded-md border">
+        <div class="inline-flex rounded-md border" role="group" aria-label="Plot tools">
           <Button
+            v-for="tool in tools"
+            :key="tool.label"
             variant="ghost"
-            size="icon"
-            class="h-6 w-6 rounded-none rounded-l-md"
-            :disabled="!canZoomIn"
-            title="Zoom in"
-            @click="zoomIn"
+            size="icon-sm"
+            class="rounded-none first:rounded-l-md last:rounded-r-md"
+            :disabled="tool.disabled"
+            :aria-label="tool.label"
+            :title="tool.label"
+            @click="tool.action"
           >
-            <ZoomIn class="size-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-6 w-6 rounded-none"
-            :disabled="!canZoomOut"
-            title="Zoom out"
-            @click="zoomOut"
-          >
-            <ZoomOut class="size-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-6 w-6 rounded-none"
-            :disabled="!isZoomed"
-            title="Reset zoom"
-            @click="resetZoom"
-          >
-            <SearchX class="size-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-6 w-6 rounded-none rounded-r-md"
-            title="Download as PNG"
-            @click="downloadPng"
-          >
-            <Download class="size-3" />
+            <component :is="tool.icon" aria-hidden="true" />
           </Button>
         </div>
       </div>
     </div>
 
     <!-- Visualization Container -->
-    <div ref="chartContainer" class="chart-container"></div>
+    <div class="overflow-x-auto">
+      <div
+        ref="chartContainer"
+        class="chart-container"
+        :style="{ minWidth: `${MIN_PLOT_WIDTH}px` }"
+      ></div>
+    </div>
+    <p class="mt-1 text-xs text-muted-foreground sm:hidden">
+      Scroll sideways to see the whole plot.
+    </p>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
-import { Download, Palette, ZoomIn, ZoomOut, SearchX } from 'lucide-vue-next'
+import { Download, ZoomIn, ZoomOut, SearchX } from 'lucide-vue-next'
 import { useAppTheme } from '@/composables/useAppTheme'
-import { Badge } from '@/components/ui/badge'
-import { tintedChipStyle } from '@/utils/evidenceTiers'
 import { Button } from '@/components/ui/button'
 import { select, selectAll } from 'd3-selection'
 import { scaleLinear } from 'd3-scale'
 import { zoom, zoomIdentity } from 'd3-zoom'
-import { color as d3color } from 'd3-color'
 import 'd3-transition'
 import { useD3Tooltip } from '@/composables/useD3Tooltip'
+import VariantFilters from '@/components/gene/VariantFilters.vue'
+import { computedColor, effectColor, significanceColor } from '@/components/gene/variantColors'
 
 const { isDark } = useAppTheme()
 const chartContainer = ref(null)
@@ -222,42 +120,6 @@ const canZoomOut = computed(() => zoomLevel.value > 1.01)
 let zoomBehavior = null
 let currentTransform = zoomIdentity
 
-// Classification options for filter
-const classificationOptions = [
-  { value: 'pathogenic', label: 'Pathogenic' },
-  { value: 'likely_pathogenic', label: 'Likely Path.' },
-  { value: 'vus', label: 'VUS' },
-  { value: 'conflicting', label: 'Conflicting' },
-  { value: 'likely_benign', label: 'Likely Ben.' },
-  { value: 'benign', label: 'Benign' }
-]
-
-// Effect options for filter
-const effectOptions = [
-  { value: 'truncating', label: 'Truncating' },
-  { value: 'missense', label: 'Missense' },
-  { value: 'inframe', label: 'Inframe' },
-  { value: 'splice_region', label: 'Splice' },
-  { value: 'synonymous', label: 'Synonymous' },
-  { value: 'other', label: 'Other' }
-]
-
-// Colors for clinical classifications
-const classificationColors = {
-  pathogenic: '#D32F2F',
-  likely_pathogenic: '#F57C00',
-  vus: '#FBC02D',
-  conflicting: '#7B1FA2',
-  likely_benign: '#0288D1',
-  benign: '#388E3C',
-  other: '#757575'
-}
-
-// Get color for classification
-const getClassificationColor = category => {
-  return classificationColors[category] || '#757575'
-}
-
 // Get all variants from ClinVar data - use genomic_variants for gene structure view
 // This includes ALL variants with genomic positions (including splice variants)
 const allVariants = computed(() => {
@@ -268,19 +130,11 @@ const allVariants = computed(() => {
 // Check if we have variants to display
 const hasVariants = computed(() => allVariants.value.length > 0)
 
-// Select all/none helpers
-const selectAllClassifications = () => {
-  selectedClassifications.value = classificationOptions.map(o => o.value)
-}
-const selectAllEffects = () => {
-  selectedEffects.value = effectOptions.map(o => o.value)
-}
-
 // Get lollipop color for a variant based on current colorBy mode
 const getVariantColor = variant => {
   return colorBy.value === 'classification'
-    ? getClassificationColor(variant.category)
-    : getEffectColor(variant.effect_category)
+    ? c(significanceColor(variant.category))
+    : c(effectColor(variant.effect_category))
 }
 
 // Filter variants — both dimensions apply simultaneously (AND logic)
@@ -297,38 +151,6 @@ const filteredVariants = computed(() => {
   }
   return variants
 })
-
-// Effect colors for variant types
-const effectColors = {
-  truncating: '#B71C1C',
-  missense: '#E65100',
-  inframe: '#F9A825',
-  splice_region: '#6A1B9A',
-  synonymous: '#2E7D32',
-  other: '#757575'
-}
-
-const getEffectColor = effect => {
-  return effectColors[effect] || '#757575'
-}
-
-const toggleClassification = value => {
-  const idx = selectedClassifications.value.indexOf(value)
-  if (idx === -1) {
-    selectedClassifications.value = [...selectedClassifications.value, value]
-  } else {
-    selectedClassifications.value = selectedClassifications.value.filter(v => v !== value)
-  }
-}
-
-const toggleEffect = value => {
-  const idx = selectedEffects.value.indexOf(value)
-  if (idx === -1) {
-    selectedEffects.value = [...selectedEffects.value, value]
-  } else {
-    selectedEffects.value = selectedEffects.value.filter(v => v !== value)
-  }
-}
 
 // Get exons from canonical transcript
 // Sort by transcript order (5'→3'), not genomic position
@@ -369,13 +191,39 @@ const variantsWithGenomicPos = computed(() => {
     }))
 })
 
-// Colors for visualization
-const colors = computed(() => ({
-  exon: '#1976D2',
-  exonHover: '#1565C0',
-  intron: isDark.value ? '#424242' : '#E0E0E0',
-  text: isDark.value ? '#FFFFFF' : '#333333'
-}))
+// Neutral structure colours; only variants carry meaning (variantColors.ts)
+const palette = () => ({
+  exon: c('var(--muted-foreground)'),
+  exonHover: c('var(--foreground)'),
+  exonLabel: c('var(--background)'),
+  intron: c('var(--border)'),
+  text: c('var(--foreground)'),
+  background: c('var(--background)')
+})
+
+// Plot is never narrower than this; a narrow screen scrolls it sideways instead of crushing it
+const MIN_PLOT_WIDTH = 720
+
+// Resolved token colours: SVG attributes must survive PNG export, so no var() in the plot
+// Memoised per CSS string (a DOM style read per lollipop per zoom frame); cleared per render
+const colorCache = new Map()
+const c = css => {
+  if (!colorCache.has(css)) colorCache.set(css, computedColor(css, chartContainer.value))
+  return colorCache.get(css)
+}
+let colors = {}
+
+const clinvarUrl = computed(
+  () =>
+    `https://www.ncbi.nlm.nih.gov/clinvar/?term=${encodeURIComponent(`${props.clinvarData?.gene_symbol ?? ''}[gene]`)}`
+)
+
+const tools = computed(() => [
+  { label: 'Zoom in', icon: ZoomIn, disabled: !canZoomIn.value, action: zoomIn },
+  { label: 'Zoom out', icon: ZoomOut, disabled: !canZoomOut.value, action: zoomOut },
+  { label: 'Reset zoom', icon: SearchX, disabled: !isZoomed.value, action: resetZoom },
+  { label: 'Download as PNG', icon: Download, disabled: false, action: downloadPng }
+])
 
 // Download as PNG
 const downloadPng = () => {
@@ -392,7 +240,7 @@ const downloadPng = () => {
   ctx.scale(2, 2)
 
   img.onload = () => {
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = c('var(--background)')
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     ctx.drawImage(img, 0, 0)
     const link = document.createElement('a')
@@ -426,10 +274,10 @@ const resetZoom = () => {
 const buildVariantTooltip = (variants, isPinned = false) => {
   const count = variants.length
   const firstVariant = variants[0]
-  const color = getClassificationColor(firstVariant.category)
+  const color = c(significanceColor(firstVariant.category))
 
   let tooltipContent = `
-    <div style="font-weight: 600; color: ${color}; margin-bottom: 4px;">
+    <div style="font-weight: 600; margin-bottom: 4px;">
       ${count} variant${count > 1 ? 's' : ''} in this region
     </div>
   `
@@ -438,27 +286,27 @@ const buildVariantTooltip = (variants, isPinned = false) => {
   const displayVariants = isPinned ? variants : variants.slice(0, 3)
 
   displayVariants.forEach(v => {
-    const effectColor = getEffectColor(v.effect_category)
+    const variantEffectColor = c(effectColor(v.effect_category))
     const clinvarId = v.accession ? v.accession.replace('VCV', '').replace(/^0+/, '') : ''
 
     tooltipContent += `
-      <div style="border-top: 1px solid #eee; padding-top: 6px; margin-top: 6px;">
+      <div style="border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent); padding-top: 6px; margin-top: 6px;">
         <div style="font-weight: 600;">${v.protein_change || 'Unknown'}</div>
-        ${v.cdna_change ? `<div style="font-size: 11px; color: #666;">${v.cdna_change}</div>` : ''}
+        ${v.cdna_change ? `<div style="font-size: 11px; opacity: 0.75;">${v.cdna_change}</div>` : ''}
         <div style="font-size: 11px; margin-top: 2px;">
-          <span style="color: ${color}; font-weight: 500;">${v.classification || 'Unknown'}</span>
-          <span style="color: ${effectColor}; margin-left: 6px; background: ${effectColor}22; padding: 1px 4px; border-radius: 3px;">${v.effect_category || 'other'}</span>
+          <span style="font-weight: 500;"><span style="display: inline-block; width: 8px; height: 8px; border-radius: 9999px; margin-right: 4px; background: ${color};"></span>${v.classification || 'Unknown'}</span>
+          <span style="margin-left: 8px;"><span style="display: inline-block; width: 8px; height: 8px; border-radius: 9999px; margin-right: 4px; background: ${variantEffectColor};"></span>${v.effect_category || 'other'}</span>
         </div>
-        <div style="font-size: 10px; color: #666; margin-top: 2px;">
+        <div style="font-size: 10px; opacity: 0.75; margin-top: 2px;">
           ${v.review_status || ''} ${clinvarId ? '•' : ''}
-          ${clinvarId ? `<a href="https://www.ncbi.nlm.nih.gov/clinvar/variation/${clinvarId}/" target="_blank" rel="noopener noreferrer" style="color: #1976D2; text-decoration: none;">${v.accession}</a>` : ''}
+          ${clinvarId ? `<a href="https://www.ncbi.nlm.nih.gov/clinvar/variation/${clinvarId}/" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">${v.accession}</a>` : ''}
         </div>
       </div>
     `
   })
 
   if (!isPinned && count > 3) {
-    tooltipContent += `<div style="font-size: 11px; color: #666; margin-top: 6px; font-style: italic;">Click to see all ${count} variants</div>`
+    tooltipContent += `<div style="font-size: 11px; opacity: 0.75; margin-top: 6px; font-style: italic;">Click to see all ${count} variants</div>`
   }
 
   return tooltipContent
@@ -471,6 +319,8 @@ const renderChart = () => {
 
   // Close any pinned tooltip on re-render
   unpinTooltip()
+  colorCache.clear()
+  colors = palette()
 
   // Clear previous chart
   select(chartContainer.value).selectAll('*').remove()
@@ -493,7 +343,7 @@ const renderChart = () => {
       .style('align-items', 'center')
       .style('justify-content', 'center')
       .style('height', containerHeight + 'px')
-      .style('color', 'var(--v-theme-on-surface-variant)')
+      .style('color', 'var(--muted-foreground)')
       .text('Container too small')
     return
   }
@@ -513,6 +363,11 @@ const renderChart = () => {
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', containerHeight)
+    .attr('role', 'img')
+    .attr(
+      'aria-label',
+      `${props.geneSymbol} gene structure: ${exons.value.length} exons on the ${strand} strand, ${variantsWithGenomicPos.value.length} ClinVar variants shown`
+    )
 
   // Create clip path for zoom
   svg
@@ -544,7 +399,7 @@ const renderChart = () => {
     .attr('text-anchor', 'middle')
     .style('font-size', '14px')
     .style('font-weight', '600')
-    .style('fill', colors.value.text)
+    .style('fill', colors.text)
     .text(
       `${props.geneSymbol} - ${props.ensemblData.canonical_transcript?.transcript_id || 'Canonical Transcript'} (${strand} strand)`
     )
@@ -560,18 +415,19 @@ const renderChart = () => {
     .attr('y', backboneY - backboneHeight / 2)
     .attr('width', width)
     .attr('height', backboneHeight)
-    .attr('fill', colors.value.intron)
+    .attr('fill', colors.intron)
     .attr('rx', 2)
 
   // Draw strand direction arrow (outside clip)
-  const strandSymbol = strand === '+' ? '\u25B6' : '\u25C0'
+  // U+FE0E keeps the arrow a text glyph, not a colour emoji
+  const strandSymbol = strand === '+' ? '\u25B6\uFE0E' : '\u25C0\uFE0E'
   g.append('text')
     .attr('class', 'strand-arrow')
     .attr('x', strand === '+' ? width + 10 : -10)
     .attr('y', backboneY + 5)
     .attr('text-anchor', strand === '+' ? 'start' : 'end')
     .style('font-size', '16px')
-    .style('fill', colors.value.text)
+    .style('fill', colors.text)
     .text(strandSymbol)
 
   // Draw exons
@@ -597,9 +453,9 @@ const renderChart = () => {
         .attr('y', backboneY - exonHeight / 2)
         .attr('width', exonWidth)
         .attr('height', exonHeight)
-        .attr('fill', colors.value.exon)
+        .attr('fill', colors.exon)
         .attr('rx', 3)
-        .attr('stroke', '#1565C0')
+        .attr('stroke', colors.background)
         .attr('stroke-width', 1)
         .style('cursor', 'pointer')
 
@@ -611,20 +467,20 @@ const renderChart = () => {
           select(this)
             .transition()
             .duration(150)
-            .attr('fill', colors.value.exonHover)
+            .attr('fill', colors.exonHover)
             .attr('y', backboneY - exonHeight / 2 - 2)
             .attr('height', exonHeight + 4)
 
           showTooltip(
             event,
             `
-            <div style="font-weight: 600; color: #1976D2; margin-bottom: 4px;">
+            <div style="font-weight: 600; margin-bottom: 4px;">
               Exon ${exon.transcript_order} (of ${exons.value.length})
             </div>
             <div><strong>ID:</strong> ${exon.exon_id}</div>
             <div><strong>Genomic:</strong> ${exon.start?.toLocaleString()} - ${exon.end?.toLocaleString()}</div>
             <div><strong>Length:</strong> ${exon.length?.toLocaleString()} bp</div>
-            <div style="font-size: 10px; color: #666; margin-top: 4px;">
+            <div style="font-size: 10px; opacity: 0.75; margin-top: 4px;">
               Transcript order: 5' to 3'
             </div>
           `
@@ -634,7 +490,7 @@ const renderChart = () => {
           select(this)
             .transition()
             .duration(150)
-            .attr('fill', colors.value.exon)
+            .attr('fill', colors.exon)
             .attr('y', backboneY - exonHeight / 2)
             .attr('height', exonHeight)
 
@@ -649,7 +505,7 @@ const renderChart = () => {
           .attr('y', backboneY + 4)
           .attr('text-anchor', 'middle')
           .style('font-size', '10px')
-          .style('fill', 'white')
+          .style('fill', colors.exonLabel)
           .style('pointer-events', 'none')
           .text(exon.transcript_order)
       }
@@ -709,7 +565,7 @@ const renderChart = () => {
         .attr('cy', lollipopBaseY - lollipopStalkHeight - radius)
         .attr('r', radius)
         .attr('fill', color)
-        .attr('stroke', d3color(color).darker(0.5))
+        .attr('stroke', colors.background)
         .attr('stroke-width', 1)
         .style('cursor', 'pointer')
 
@@ -760,7 +616,7 @@ const renderChart = () => {
     .attr('y1', scaleBarY)
     .attr('x2', scaleBarLength)
     .attr('y2', scaleBarY)
-    .attr('stroke', colors.value.text)
+    .attr('stroke', colors.text)
     .attr('stroke-width', 2)
 
   scaleBarGroup
@@ -769,7 +625,7 @@ const renderChart = () => {
     .attr('y', scaleBarY + 14)
     .attr('text-anchor', 'middle')
     .style('font-size', '10px')
-    .style('fill', colors.value.text)
+    .style('fill', colors.text)
     .text(`${scaleBarValue} kb`)
 
   // Chromosome location label
@@ -779,7 +635,7 @@ const renderChart = () => {
     .attr('y', containerHeight - 10)
     .attr('text-anchor', 'end')
     .style('font-size', '10px')
-    .style('fill', colors.value.text)
+    .style('fill', colors.text)
     .style('opacity', 0.7)
     .text(
       `chr${props.ensemblData.chromosome}:${geneStart?.toLocaleString()}-${geneEnd?.toLocaleString()} (${geneLengthKb} kb)`
@@ -904,28 +760,5 @@ watch(
 
 .chart-container:active {
   cursor: grabbing;
-}
-
-.filter-controls {
-  padding: 12px;
-  background: hsl(var(--muted));
-  border-radius: 8px;
-}
-
-.filter-group {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.filter-label {
-  min-width: 90px;
-}
-
-.zoom-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 </style>

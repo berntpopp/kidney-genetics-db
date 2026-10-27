@@ -1,45 +1,37 @@
 <template>
-  <div class="container mx-auto px-4 py-6">
+  <div :class="PAGE_CONTAINER">
     <!-- Header -->
-    <AdminHeader
-      title="Database Backups"
-      subtitle="Create, manage, and restore database backups"
-      :icon="DatabaseBackup"
-      icon-color="blue-grey"
-      :breadcrumbs="ADMIN_BREADCRUMBS.backups"
-    >
+    <AdminHeader title="Database Backups" subtitle="Create, manage, and restore database backups">
       <template #actions>
         <Button
           variant="outline"
-          class="mr-2"
+          class="text-danger hover:text-danger"
           :disabled="cleanupLoading || stats.retentionDays == null"
           @click="dialogs.cleanup = true"
         >
-          <Trash class="mr-2 size-4" />
+          <Trash class="size-4" aria-hidden="true" />
           Cleanup Old
         </Button>
         <Button :disabled="apiLoading" @click="dialogs.create = true">
-          <DatabaseBackup class="mr-2 size-4" />
+          <DatabaseBackup class="size-4" aria-hidden="true" />
           Create Backup
         </Button>
       </template>
     </AdminHeader>
 
     <!-- Stats Overview -->
-    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+    <div class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
       <AdminStatsCard
         title="Total Backups"
         :value="stats.totalBackups"
         :loading="statsLoading"
         :icon="Database"
-        color="primary"
       />
       <AdminStatsCard
         title="Latest Backup"
         :value="stats.latestBackupAge"
         :loading="statsLoading"
         :icon="Clock"
-        color="info"
       />
       <AdminStatsCard
         title="Total Size"
@@ -47,14 +39,12 @@
         :loading="statsLoading"
         format="bytes"
         :icon="HardDrive"
-        color="purple"
       />
       <AdminStatsCard
         title="Retention Days"
-        :value="stats.retentionDays ?? '—'"
+        :value="stats.retentionDays"
         :loading="statsLoading"
         :icon="CalendarClock"
-        color="warning"
       />
     </div>
 
@@ -69,14 +59,14 @@
 
     <!-- Backups Table -->
     <Card>
-      <CardContent class="p-2 border-b">
-        <div class="flex items-center justify-between">
+      <CardContent v-if="totalBackups > 0" class="p-2 border-b">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-4">
             <span class="text-sm">
-              <span class="font-bold">{{ totalBackups }}</span>
-              <span class="text-muted-foreground"> Backups</span>
+              <span class="font-semibold tabular-nums">{{ totalBackups.toLocaleString() }}</span>
+              <span class="text-muted-foreground"> backups</span>
             </span>
-            <span class="text-sm text-muted-foreground">{{ pageRangeText }}</span>
+            <span class="text-sm text-muted-foreground tabular-nums">{{ pageRangeText }}</span>
           </div>
           <div class="flex items-center gap-2">
             <span class="mr-2 text-xs text-muted-foreground">Per page:</span>
@@ -101,9 +91,9 @@
                   }
                 "
               >
-                <ChevronLeft class="size-4" />
+                <ChevronLeft class="size-4" aria-hidden="true" />
               </Button>
-              <span class="px-2 text-sm text-muted-foreground"
+              <span class="px-2 text-sm text-muted-foreground tabular-nums"
                 >{{ currentPage }} / {{ pageCount || 1 }}</span
               >
               <Button
@@ -118,121 +108,86 @@
                   }
                 "
               >
-                <ChevronRight class="size-4" />
+                <ChevronRight class="size-4" aria-hidden="true" />
               </Button>
             </div>
           </div>
         </div>
       </CardContent>
 
-      <!-- Data Table -->
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Filename</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Trigger</TableHead>
-            <TableHead>Size</TableHead>
-            <TableHead>Duration</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead class="text-center">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow v-if="apiLoading">
-            <TableCell :colspan="7" class="text-center py-8">
-              <div class="flex justify-center">
-                <div
-                  class="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"
-                />
-              </div>
-            </TableCell>
-          </TableRow>
-          <TableRow v-else-if="backups.length === 0">
-            <TableCell :colspan="7" class="text-center py-8 text-muted-foreground">
-              No backups found
-            </TableCell>
-          </TableRow>
-          <TableRow v-for="item in backups" :key="item.id" class="hover:bg-muted/50">
-            <TableCell class="text-sm">{{ item.filename }}</TableCell>
-            <TableCell>
-              <Badge :variant="getStatusVariant(item.status)">
-                {{ item.status }}
-              </Badge>
-            </TableCell>
-            <TableCell>
-              <Badge variant="outline" class="text-xs">{{ item.trigger_source }}</Badge>
-            </TableCell>
-            <TableCell class="text-xs">{{ formatSize(item.file_size_mb) }}</TableCell>
-            <TableCell class="text-xs">{{ formatDuration(item.duration_seconds) }}</TableCell>
-            <TableCell class="text-xs">{{ formatDate(item.created_at) }}</TableCell>
-            <TableCell>
-              <div class="flex justify-center gap-1">
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <Button
-                      :aria-label="`Download Backup ${item.filename}`"
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      @click="handleDownloadBackup(item)"
-                    >
-                      <Download class="size-4 text-primary" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Download Backup</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <Button
-                      :aria-label="`Restore Backup ${item.filename}`"
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      :disabled="item.status !== 'completed'"
-                      @click="showRestoreDialog(item)"
-                    >
-                      <DatabaseBackup class="size-4 text-green-600" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Restore Backup</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <Button
-                      :aria-label="`View Details ${item.filename}`"
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      @click="showDetailsDialog(item)"
-                    >
-                      <Info class="size-4 text-blue-500" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>View Details</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <Button
-                      :aria-label="`Delete Backup ${item.filename}`"
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8"
-                      @click="showDeleteDialog(item)"
-                    >
-                      <Trash2 class="size-4 text-destructive" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Delete Backup</TooltipContent>
-                </Tooltip>
-              </div>
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+      <DataState
+        :loading="listLoading && !backups.length"
+        :error="listError"
+        error-title="Could not load backups"
+        :empty="!backups.length"
+        :empty-message="
+          hasFilters
+            ? 'No backups match these filters.'
+            : 'No backups yet. Create one before risky operations such as a full pipeline run.'
+        "
+        class="m-4"
+        @retry="loadBackups"
+      >
+        <template #loading>
+          <div class="space-y-3 p-4" aria-hidden="true">
+            <div
+              v-for="i in 4"
+              :key="i"
+              class="h-8 rounded-md bg-muted motion-safe:animate-pulse"
+            />
+          </div>
+        </template>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Filename</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Trigger</TableHead>
+              <TableHead class="text-right">Size</TableHead>
+              <TableHead class="text-right">Duration</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead><span class="sr-only">Actions</span></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="item in backups" :key="item.id">
+              <TableCell class="text-sm">{{ item.filename }}</TableCell>
+              <TableCell>
+                <StatusBadge :status="item.status" />
+              </TableCell>
+              <TableCell>
+                <Chip kind="neutral" :label="item.trigger_source" />
+              </TableCell>
+              <TableCell class="text-right text-xs tabular-nums">{{
+                formatSize(item.file_size_mb)
+              }}</TableCell>
+              <TableCell class="text-right text-xs tabular-nums">{{
+                formatDuration(item.duration_seconds)
+              }}</TableCell>
+              <TableCell class="text-xs tabular-nums">{{ formatDate(item.created_at) }}</TableCell>
+              <TableCell>
+                <div class="flex justify-end gap-1">
+                  <Tooltip v-for="action in rowActions(item)" :key="action.label">
+                    <TooltipTrigger as-child>
+                      <Button
+                        :aria-label="`${action.label} ${item.filename}`"
+                        variant="ghost"
+                        size="icon-sm"
+                        :class="action.danger && 'text-danger hover:text-danger'"
+                        :disabled="action.disabled"
+                        @click="action.run(item)"
+                      >
+                        <component :is="action.icon" class="size-4" aria-hidden="true" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{{ action.label }}</TooltipContent>
+                  </Tooltip>
+                </div>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </DataState>
     </Card>
 
     <!-- Dialogs -->
@@ -271,7 +226,7 @@
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            :class="buttonVariants({ variant: 'destructive' })"
             :disabled="cleanupLoading"
             @click="handleCleanupOldBackups"
           >
@@ -310,6 +265,7 @@ import {
 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
+import { Chip, DataState, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import BackupCreateDialog from '@/components/admin/backups/BackupCreateDialog.vue'
 import BackupRestoreDialog from '@/components/admin/backups/BackupRestoreDialog.vue'
@@ -319,11 +275,9 @@ import BackupFilters from '@/components/admin/backups/BackupFilters.vue'
 
 import { useBackupApi } from '@/composables/useBackupApi'
 import { useBackupFormatters } from '@/composables/useBackupFormatters'
-import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Button, buttonVariants } from '@/components/ui/button'
 import {
   Table,
   TableBody,
@@ -408,15 +362,23 @@ const pageRangeText = computed(() => {
   return `${start}-${end} of ${totalBackups.value}`
 })
 
-const getStatusVariant = status => {
-  const variants = {
-    completed: 'default',
-    running: 'secondary',
-    failed: 'destructive',
-    pending: 'outline'
-  }
-  return variants[status] || 'secondary'
-}
+const listLoading = ref(false)
+const listError = ref(null)
+const hasFilters = computed(
+  () => !!(searchQuery.value || filters.value.status || filters.value.triggerSource)
+)
+
+const rowActions = item => [
+  { label: 'Download backup', icon: Download, run: handleDownloadBackup },
+  {
+    label: 'Restore backup',
+    icon: DatabaseBackup,
+    run: showRestoreDialog,
+    disabled: item.status !== 'completed'
+  },
+  { label: 'Backup details', icon: Info, run: showDetailsDialog },
+  { label: 'Delete backup', icon: Trash2, run: showDeleteDialog, danger: true }
+]
 
 // Methods
 const loadStats = async () => {
@@ -437,6 +399,8 @@ const loadStats = async () => {
 }
 
 const loadBackups = async () => {
+  listLoading.value = true
+  listError.value = null
   try {
     const data = await apiLoadBackups({
       limit: itemsPerPage.value,
@@ -450,6 +414,9 @@ const loadBackups = async () => {
     totalBackups.value = data.total || 0
   } catch (error) {
     window.logService.error('Failed to load backups:', error)
+    listError.value = error.message || 'Request failed'
+  } finally {
+    listLoading.value = false
   }
 }
 

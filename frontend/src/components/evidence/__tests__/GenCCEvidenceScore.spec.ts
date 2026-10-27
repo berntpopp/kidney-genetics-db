@@ -6,7 +6,8 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { h } from 'vue'
-import { Accordion } from '@/components/ui/accordion'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { Chip } from '@/components/shared'
 import EvidenceCard from '@/components/evidence/EvidenceCard.vue'
 
 const evidence = (source_name: string) => ({
@@ -23,27 +24,24 @@ const evidence = (source_name: string) => ({
   }
 })
 
-const render = (source: string) =>
-  mount(() =>
-    h(Accordion, { type: 'single', defaultValue: source }, () =>
-      h(EvidenceCard, { evidence: evidence(source) })
-    )
-  )
+const scoreChip = (source: string) =>
+  mount({ render: () => h(TooltipProvider, () => h(EvidenceCard, { evidence: evidence(source) })) })
+    .findAllComponents(Chip)
+    .find(c => String(c.props('label')).startsWith('Score'))!
 
 describe('GenCC evidence score display', () => {
   it('shows the adjusted normalized score and hides the raw MAX score', () => {
-    const wrapper = render('GenCC')
-    const badge = wrapper.find('[title^="Normalized"]')
-    expect(badge.text()).toBe('70.0%')
-    expect(badge.attributes('title')).toContain(
+    const chip = scoreChip('GenCC')
+    expect(chip.text()).toBe('Score 70.0%')
+    expect(chip.props('tooltip')).toContain(
       'strongest classification, adjusted for agreeing and conflicting submitters'
     )
-    expect(wrapper.text()).not.toContain('Weighted Evidence Score')
-    expect(wrapper.text()).not.toContain('0.80')
+    expect(chip.props('kind')).toBe('neutral')
   })
 
   it('keeps the ClinGen tooltip as a classification weight', () => {
-    const badge = render('ClinGen').find('[title^="Normalized"]')
-    expect(badge.attributes('title')).toBe('Normalized score: classification weight (0–100%)')
+    expect(scoreChip('ClinGen').props('tooltip')).toBe(
+      'Source score (0–100%): weight of the strongest classification'
+    )
   })
 })

@@ -80,13 +80,13 @@ describe('FAQ', () => {
     expect(wrapper.find('nav[aria-label="breadcrumb"] a[href="/"]').exists()).toBe(true)
     // Closed answers stay in the DOM (prerendered HTML) but hidden
     const closed = wrapper.get('[data-slot="accordion-content"]')
-    expect(closed.text()).toContain('KGDB contains genes with evidence for kidney disease')
+    expect(closed.text()).toContain('KGDB contains genes associated with kidney diseases')
     expect(closed.attributes('hidden')).toBeDefined()
     const trigger = wrapper.get('[data-slot="accordion-trigger"]')
     expect(trigger.attributes('aria-expanded')).toBe('false')
     await trigger.trigger('click')
     expect(trigger.attributes('aria-expanded')).toBe('true')
-    expect(wrapper.text()).toContain('KGDB contains')
+    expect(wrapper.text()).toContain('KGDB contains genes associated with kidney diseases')
   })
 })
 
@@ -101,19 +101,19 @@ describe('FAQ prerender', () => {
     app.use(router)
     const html = await renderToString(app)
     expect(html).toContain('hidden="until-found"')
-    expect(html).toContain('KGDB contains genes with evidence for kidney disease')
+    expect(html).toContain('KGDB contains genes associated with kidney diseases')
   })
 })
 
 describe('Data Sources cards', () => {
-  it('group thousands, print ISO dates and invent no "API" type', async () => {
+  it('group thousands, print unambiguous dates and invent no "API" type', async () => {
     const router = routerWith('/data-sources', DataSources)
     wrapper = mount(DataSources, { global: { plugins: [router] } })
     await flushPromises()
 
     const text = wrapper.text()
     expect(text).toContain('4,321')
-    expect(text).toContain('2025-03-04')
+    expect(text).toContain('4 Mar 2025')
     expect(text).not.toMatch(/\bAPI\b/)
   })
 })
@@ -137,35 +137,41 @@ describe('Gene structure filter chips', () => {
 
     expect(wrapper.text()).toContain('Classification')
     expect(wrapper.text()).not.toContain('Class.')
-    expect(wrapper.text()).toMatch(/\d+ of 2 loaded variants shown/)
+    expect(wrapper.text()).toMatch(/\d+ shown of 2 loaded variants/)
 
-    const chip = wrapper.findAll('button[aria-pressed]')[0]
+    // [0] is the "colour by" switch; [1] is the Pathogenic toggle
+    const chips = () =>
+      wrapper!.findAll('[aria-label="Classification filter"] button[aria-pressed]')
+    const chip = chips()[1]!
+    expect(chip.text()).toBe('Pathogenic')
     expect(chip.attributes('type')).toBe('button')
     const before = chip.attributes('aria-pressed')
     await chip.trigger('click')
-    expect(wrapper.findAll('button[aria-pressed]')[0].attributes('aria-pressed')).not.toBe(before)
+    expect(chips()[1]!.attributes('aria-pressed')).not.toBe(before)
   })
 })
 
 describe('Evidence card footer', () => {
   it('omits the date line instead of printing "Unknown"', async () => {
     const { h } = await import('vue')
-    const { Accordion } = await import('@/components/ui/accordion')
+    const { TooltipProvider } = await import('@/components/ui/tooltip')
     const EvidenceCard = (await import('@/components/evidence/EvidenceCard.vue')).default
     const evidence = { source_name: 'ClinGen', evidence_data: {}, evidence_date: null }
     wrapper = mount(
       {
         render: () =>
-          h(Accordion, { type: 'single', defaultValue: 'ClinGen' }, () =>
-            h(EvidenceCard, { evidence })
+          h(TooltipProvider, () =>
+            h(EvidenceCard, { evidence, gene: { approved_symbol: 'PKD1', hgnc_id: 'HGNC:9008' } })
           )
       },
-      { global: { stubs: { ClinGenEvidence: true } } }
+      { global: { stubs: { ClinGenEvidence: true } }, attachTo: document.body }
     )
+    await wrapper.get('button[aria-expanded]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('View Source')
+    expect(wrapper.text()).toContain('View on ClinGen')
     expect(wrapper.text()).not.toContain('Unknown')
+    expect(wrapper.text()).not.toContain('Last updated')
   })
 })
 
@@ -181,9 +187,40 @@ describe('Main navigation', () => {
     const router = routerWith('/', { render: () => null })
     await router.push('/')
     await router.isReady()
-    wrapper = mount(AppHeader, { global: { plugins: [router, createPinia()] } })
+    const { h } = await import('vue')
+    const { TooltipProvider } = await import('@/components/ui/tooltip')
+    wrapper = mount(
+      { render: () => h(TooltipProvider, () => h(AppHeader)) },
+      { global: { plugins: [router, createPinia()] } }
+    )
 
     const link = wrapper.get('nav a[href="/faq"]')
     expect(link.text()).toBe('FAQ')
+    expect(link.attributes('aria-current')).toBeUndefined()
+    // Icon-only theme toggle has an accessible name, not just a title
+    expect(wrapper.find('button[aria-label="Switch to dark mode"]').exists()).toBe(true)
+  })
+
+  it('marks the gene browser active on gene detail routes', async () => {
+    vi.stubGlobal('matchMedia', () => ({
+      matches: false,
+      addEventListener() {},
+      removeEventListener() {}
+    }))
+    const { h } = await import('vue')
+    const { createPinia } = await import('pinia')
+    const { TooltipProvider } = await import('@/components/ui/tooltip')
+    const AppHeader = (await import('@/layouts/AppHeader.vue')).default
+    const router = routerWith('/genes/:symbol', { render: () => null })
+    await router.push('/genes/PKD1')
+    await router.isReady()
+    wrapper = mount(
+      { render: () => h(TooltipProvider, () => h(AppHeader)) },
+      { global: { plugins: [router, createPinia()] } }
+    )
+
+    const link = wrapper.get('nav a[href="/genes"]')
+    expect(link.attributes('aria-current')).toBe('page')
+    expect(link.classes()).toContain('border-primary')
   })
 })

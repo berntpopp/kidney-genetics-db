@@ -12,6 +12,7 @@ import { useTable } from '@tanstack/vue-table'
 import { dataTableFeatures } from '@/components/ui/data-table'
 import DataTablePagination from '@/components/ui/data-table/DataTablePagination.vue'
 import HoverPopover from '@/components/ui/HoverPopover.vue'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 vi.mock('@unhead/vue', () => ({ useHead: vi.fn() }))
 vi.mock('@/api/datasources', () => ({
@@ -42,10 +43,13 @@ async function mountRoute(path: string, component: object, extraRoutes: string[]
   })
   await router.push(path)
   await router.isReady()
-  wrapper = mount(RouterView, {
-    global: { plugins: [router, createPinia()], stubs: { KGDBLogo: true } },
-    attachTo: document.body
-  })
+  wrapper = mount(
+    { render: () => h(TooltipProvider, () => h(RouterView)) },
+    {
+      global: { plugins: [router, createPinia()], stubs: { KGDBLogo: true } },
+      attachTo: document.body
+    }
+  )
   await flushPromises()
   return { w: wrapper, router }
 }
@@ -105,16 +109,20 @@ describe('HoverPopover', () => {
   })
 })
 
-describe('Home stat cards', () => {
-  it('renders routed cards as links that navigate', async () => {
+describe('Home statistics', () => {
+  it('shows API numbers as links that navigate', async () => {
     const Home = (await import('@/views/Home.vue')).default
     const { w, router } = await mountRoute('/', Home, ['/genes', '/data-sources', '/about'])
+    await flushPromises()
 
-    const genes = w.get('a.stat-card[href="/genes"]')
-    expect(genes.text()).toContain('Genes with Evidence')
-    expect(w.find('a.stat-card[href="/data-sources"]').exists()).toBe(true)
-    // The non-routed card stays a plain element, not a fake control
-    expect(w.findAll('a.stat-card')).toHaveLength(2)
+    const genes = w.findAll('a[href="/genes"]').find(a => a.text().includes('genes with evidence'))!
+    expect(genes.text()).toContain('5,080')
+    const sources = w
+      .findAll('a[href="/data-sources"]')
+      .find(a => a.text().includes('sources active'))!
+    expect(sources.text()).toContain('7')
+    // Unambiguous date format, not the US locale default
+    expect(w.text()).toContain('1 Oct 2026')
 
     await genes.trigger('click')
     await flushPromises()

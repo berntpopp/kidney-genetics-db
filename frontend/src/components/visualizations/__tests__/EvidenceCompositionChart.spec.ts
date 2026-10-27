@@ -32,8 +32,8 @@ describe('EvidenceCompositionChart tiers (#325)', () => {
     const wrapper = mount(EvidenceCompositionChart)
     await flushPromises()
     const swatch = wrapper.find('[data-testid="donut-legend"] li span')
-    // TIER_CONFIG.comprehensive_support.color = #16a34a
-    expect(swatch.attributes('style')).toContain('rgb(22, 163, 74)')
+    // TIER_CONFIG.comprehensive_support.color
+    expect(swatch.attributes('style')).toContain('var(--strength-5)')
   })
 
   it('shows the tier icon next to the swatch as a non-colour cue', async () => {

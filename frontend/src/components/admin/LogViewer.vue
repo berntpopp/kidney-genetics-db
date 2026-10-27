@@ -18,7 +18,9 @@ import { LogLevel } from '@/services/logService'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { tintedChipStyle } from '@/utils/evidenceTiers'
+import { Chip, StatusBadge } from '@/components/shared'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { toast } from 'vue-sonner'
 import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
 import {
@@ -76,22 +78,8 @@ const filteredLogs = computed(() => {
   return filtered.reverse()
 })
 
-function getLogColor(level) {
-  switch (level) {
-    case LogLevel.DEBUG:
-      return '#6b7280'
-    case LogLevel.INFO:
-      return '#3b82f6'
-    case LogLevel.WARN:
-      return '#f59e0b'
-    case LogLevel.ERROR:
-      return '#ef4444'
-    case LogLevel.CRITICAL:
-      return '#ef4444'
-    default:
-      return '#6b7280'
-  }
-}
+// Client log levels on the shared status vocabulary (WARN is the client's name for warning)
+const levelStatus = level => (level === LogLevel.WARN ? 'warning' : level)
 
 function formatTimestamp(timestamp) {
   return new Date(timestamp).toLocaleTimeString('en-US', {
@@ -148,10 +136,11 @@ function copyLogEntry(log) {
     navigator.clipboard
       .writeText(logText)
       .then(() => {
-        window.logService.debug('Log entry copied to clipboard')
+        toast.success('Log entry copied', { duration: 2000 })
       })
       .catch(error => {
         window.logService.error('Failed to copy log entry:', error)
+        toast.error('Could not copy the log entry')
       })
   } catch (error) {
     window.logService.error('Failed to copy log entry:', error)
@@ -270,15 +259,19 @@ watch(
             <span class="text-xs text-muted-foreground">Filter by level</span>
           </div>
           <div class="flex flex-wrap gap-1">
-            <Badge
+            <Chip
               v-for="opt in logLevelOptions"
               :key="opt.value"
-              :variant="selectedLevels.includes(opt.value) ? 'default' : 'outline'"
-              class="cursor-pointer text-xs"
+              kind="neutral"
+              :label="opt.title"
+              :aria-pressed="selectedLevels.includes(opt.value)"
+              :class="
+                selectedLevels.includes(opt.value)
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'bg-transparent text-muted-foreground'
+              "
               @click="toggleLevel(opt.value)"
-            >
-              {{ opt.title }}
-            </Badge>
+            />
           </div>
         </div>
 
@@ -305,14 +298,11 @@ watch(
         <!-- Level stats -->
         <div v-if="logStore.logCount > 0" class="flex flex-wrap gap-1">
           <template v-for="(count, level) in logStore.logsByLevel" :key="level">
-            <Badge
+            <StatusBadge
               v-if="count > 0"
-              variant="outline"
-              class="text-[10px]"
-              :style="{ ...tintedChipStyle(getLogColor(level)), borderColor: getLogColor(level) }"
-            >
-              {{ level }}: {{ count }}
-            </Badge>
+              :status="levelStatus(level)"
+              :label="`${level}: ${count}`"
+            />
           </template>
         </div>
       </div>
@@ -331,34 +321,33 @@ watch(
         <div
           v-for="(log, index) in filteredLogs"
           :key="`${log.timestamp}-${index}`"
-          class="rounded-md border p-2 text-sm hover:shadow-sm transition-all"
-          :style="{ borderLeftColor: getLogColor(log.level), borderLeftWidth: '3px' }"
+          class="rounded-md border p-2 text-sm"
         >
           <!-- Log Header -->
           <div class="flex items-center justify-between mb-1">
             <div class="flex items-center gap-2">
-              <Badge
-                class="text-[10px]"
-                :style="{ backgroundColor: getLogColor(log.level), color: 'white' }"
-              >
-                {{ log.level }}
-              </Badge>
-              <span class="text-xs text-muted-foreground">
+              <StatusBadge :status="levelStatus(log.level)" :label="log.level" />
+              <span class="text-xs text-muted-foreground tabular-nums">
                 {{ formatTimestamp(log.timestamp) }}
               </span>
               <Badge v-if="log.correlationId" variant="outline" class="text-[10px]">
                 {{ log.correlationId.substring(0, 8) }}
               </Badge>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-6 w-6"
-              title="Copy log entry"
-              @click="copyLogEntry(log)"
-            >
-              <Copy :size="12" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="size-7"
+                  aria-label="Copy log entry"
+                  @click="copyLogEntry(log)"
+                >
+                  <Copy class="size-3.5" aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Copy log entry</TooltipContent>
+            </Tooltip>
           </div>
 
           <!-- Log Message -->

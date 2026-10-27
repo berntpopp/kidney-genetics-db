@@ -1,0 +1,62 @@
+{
+  "/dashboard": {
+    "hierarchy": 70,
+    "typography": 60,
+    "color": 52,
+    "layout": 62,
+    "consistency": 52,
+    "interaction": 58,
+    "ia": 68,
+    "density": 62,
+    "accessibility": 55,
+    "responsive": 62,
+    "perceivedPerformance": 70,
+    "copy": 60,
+    "overall": 61
+  },
+  "/data-sources": {
+    "hierarchy": 68,
+    "typography": 62,
+    "color": 40,
+    "layout": 55,
+    "consistency": 45,
+    "interaction": 68,
+    "ia": 72,
+    "density": 65,
+    "accessibility": 50,
+    "responsive": 75,
+    "perceivedPerformance": 85,
+    "copy": 55,
+    "overall": 62
+  },
+  "/network-analysis": {
+    "hierarchy": 65,
+    "typography": 62,
+    "color": 48,
+    "layout": 65,
+    "consistency": 50,
+    "interaction": 62,
+    "ia": 62,
+    "density": 62,
+    "accessibility": 50,
+    "responsive": 52,
+    "perceivedPerformance": 72,
+    "copy": 58,
+    "overall": 59
+  },
+  "/curation/associations": {
+    "hierarchy": 62,
+    "typography": 70,
+    "color": 72,
+    "layout": 62,
+    "consistency": 50,
+    "interaction": 58,
+    "ia": 60,
+    "density": 55,
+    "accessibility": 65,
+    "responsive": 80,
+    "perceivedPerformance": 75,
+    "copy": 65,
+    "overall": 64
+  }
+}

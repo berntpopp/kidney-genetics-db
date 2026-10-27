@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import Login from '@/views/Login.vue'
+import { expectLinkedError, field, withTooltips } from '@/components/auth/__tests__/formTestUtils'
 
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 import { toast } from 'vue-sonner'
@@ -24,7 +25,7 @@ async function mountAt(path: string, attach = false) {
     ]
   })
   await router.push(path)
-  const wrapper = mount(Login, {
+  const wrapper = mount(withTooltips(Login), {
     global: { plugins: [router, createPinia()] },
     attachTo: attach ? document.body : undefined
   })
@@ -33,8 +34,8 @@ async function mountAt(path: string, attach = false) {
 }
 
 async function submit(wrapper: Awaited<ReturnType<typeof mountAt>>, user = '', pass = '') {
-  await wrapper.find('#page-login-username').setValue(user)
-  await wrapper.find('#page-login-password').setValue(pass)
+  await wrapper.find('input[name="username"]').setValue(user)
+  await wrapper.find('input[name="password"]').setValue(pass)
   await wrapper.find('form').trigger('submit')
   // vee-validate validates asynchronously before calling the submit handler
   await new Promise(resolve => setTimeout(resolve, 10))
@@ -59,13 +60,10 @@ describe('Login', () => {
     const wrapper = await mountAt('/login')
     await submit(wrapper)
 
-    for (const field of ['username', 'password']) {
-      const input = wrapper.find(`#page-login-${field}`)
-      const errorId = `page-login-${field}-error`
-      expect(input.attributes('aria-invalid')).toBe('true')
-      expect(input.attributes('aria-describedby')).toBe(errorId)
-      expect(wrapper.find(`#${errorId}`).text()).not.toBe('')
-    }
+    for (const name of ['username', 'password']) expectLinkedError(wrapper.element, name)
+    // Empty submit shows the schema messages, not vee-validate's generic "Required"
+    expect(wrapper.text()).toContain('Username or email is required')
+    expect(wrapper.text()).toContain('Password is required')
     expect(authApi.login).not.toHaveBeenCalled()
   })
 
@@ -73,11 +71,31 @@ describe('Login', () => {
     const wrapper = await mountAt('/login', true)
     ;(wrapper.find('button[type="submit"]').element as HTMLElement).focus()
     await submit(wrapper)
-    expect(document.activeElement?.id).toBe('page-login-username')
+    expect(document.activeElement?.getAttribute('name')).toBe('username')
 
     await submit(wrapper, 'admin')
-    expect(document.activeElement?.id).toBe('page-login-password')
+    expect(document.activeElement?.getAttribute('name')).toBe('password')
     wrapper.unmount()
+  })
+
+  it('offers no no-op "Remember me" option', async () => {
+    const wrapper = await mountAt('/login')
+    expect(wrapper.text()).not.toContain('Remember me')
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+  })
+
+  it('submits once when Enter is pressed in the password field', async () => {
+    vi.mocked(authApi.login).mockClear()
+    vi.mocked(authApi.login).mockRejectedValueOnce(new Error('Network Error'))
+    const wrapper = await mountAt('/login')
+    await wrapper.find('input[name="username"]').setValue('admin')
+    const pass = wrapper.find('input[name="password"]')
+    await pass.setValue('secret')
+    await pass.trigger('keyup', { key: 'Enter' })
+    await wrapper.find('form').trigger('submit')
+    await new Promise(resolve => setTimeout(resolve, 10))
+    await flushPromises()
+    expect(authApi.login).toHaveBeenCalledTimes(1)
   })
 
   it('announces bad credentials with the API message (#327)', async () => {
@@ -89,7 +107,7 @@ describe('Login', () => {
 
     const alert = wrapper.find('[role="alert"]')
     expect(alert.text()).toBe('Incorrect username/email or password')
-    expect(wrapper.find('#page-login-username').attributes('aria-invalid')).toBe('false')
+    expect(field(wrapper.element, 'username').getAttribute('aria-invalid')).toBe('false')
   })
 
   it('announces an unreachable server distinctly (#327)', async () => {

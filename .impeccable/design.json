@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-27T15:57:47+00:00",
+  "title": "Design System: Kidney-Genetics Database",
+  "extensions": {
+    "colorMeta": {
+      "strength-5": {
+        "role": "strength",
+        "displayName": "Comprehensive",
+        "canonical": "oklch(0.42 0.15 262)"
+      },
+      "strength-4": {
+        "role": "strength",
+        "displayName": "Multi-source",
+        "canonical": "oklch(0.52 0.14 245)"
+      },
+      "strength-3": {
+        "role": "strength",
+        "displayName": "Established",
+        "canonical": "oklch(0.64 0.12 222)"
+      },
+      "strength-2": {
+        "role": "strength",
+        "displayName": "Preliminary",
+        "canonical": "oklch(0.76 0.09 200)"
+      },
+      "strength-1": {
+        "role": "strength",
+        "displayName": "Minimal",
+        "canonical": "oklch(0.82 0.015 260)"
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Ledger Blue",
+        "canonical": "oklch(0.5 0.15 237.323)"
+      }
+    },
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [],
+  "narrative": {
+    "northStar": "The Evidence Ledger",
+    "overview": "A quiet, precise, accountable interface: every gene an entry, every source a column, every score auditable back to its line items. Colour is spent only on evidence strength.",
+    "keyCharacteristics": [
+      "One colour meaning: evidence strength",
+      "Identifiers never bare",
+      "One evidence-card anatomy",
+      "Stable layout",
+      "WCAG 2.2 AA in both themes"
+    ],
+    "rules": [
+      {
+        "name": "The One Meaning Rule",
+        "body": "Colour means evidence strength; everything else is neutral, a status token, or a chart series.",
+        "section": "colors"
+      },
+      {
+        "name": "The Token-Only Rule",
+        "body": "No raw palette classes or hex/rgb literals in components; enforced by designTokens.spec.ts.",
+        "section": "colors"
+      },
+      {
+        "name": "The Full-Value Rule",
+        "body": "Truncate only with the full value on hover/focus.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Do render identifiers through OntologyTerm",
+      "Do use DataState for loading/empty/error"
+    ],
+    "donts": [
+      "Don't colour sources beyond charts and the marker dot",
+      "Don't let a failed load look like no data"
+    ]
+  }
+}

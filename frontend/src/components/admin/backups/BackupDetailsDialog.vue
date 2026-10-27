@@ -2,10 +2,7 @@
   <Dialog :open="modelValue" @update:open="$emit('update:modelValue', $event)">
     <DialogContent class="max-w-[700px]">
       <DialogHeader>
-        <DialogTitle class="flex items-center gap-2">
-          <Info class="size-5 text-blue-500" />
-          Backup Details
-        </DialogTitle>
+        <DialogTitle class="flex items-center gap-2"> Backup Details </DialogTitle>
         <DialogDescription> Detailed information about the selected backup. </DialogDescription>
       </DialogHeader>
 
@@ -16,13 +13,11 @@
 
           <span class="font-medium text-muted-foreground">Status</span>
           <span>
-            <Badge :variant="getStatusVariant(backup.status)">
-              {{ backup.status }}
-            </Badge>
+            <StatusBadge :status="backup.status" />
           </span>
 
           <span class="font-medium text-muted-foreground">File Size</span>
-          <span>{{ formatSize(backup.file_size_mb) }}</span>
+          <span class="tabular-nums">{{ formatSize(backup.file_size_mb) }}</span>
 
           <span class="font-medium text-muted-foreground">Created</span>
           <span>{{ formatDate(backup.created_at) }}</span>
@@ -39,7 +34,7 @@
 
           <span class="font-medium text-muted-foreground">Trigger Source</span>
           <span>
-            <Badge variant="outline">{{ backup.trigger_source }}</Badge>
+            <Chip kind="neutral" :label="backup.trigger_source" />
           </span>
 
           <template v-if="backup.description">
@@ -66,10 +61,10 @@
             </template>
 
             <span class="font-medium text-muted-foreground">Include Logs</span>
-            <span><component :is="backup.include_logs ? Check : X" class="size-4" /></span>
+            <span>{{ backup.include_logs ? 'Yes' : 'No' }}</span>
 
             <span class="font-medium text-muted-foreground">Include Cache</span>
-            <span><component :is="backup.include_cache ? Check : X" class="size-4" /></span>
+            <span>{{ backup.include_cache ? 'Yes' : 'No' }}</span>
           </div>
         </div>
       </div>
@@ -85,7 +80,6 @@
 
 <script setup>
 import { useBackupFormatters } from '@/composables/useBackupFormatters'
-import { Info, Check, X } from 'lucide-vue-next'
 import {
   Dialog,
   DialogContent,
@@ -95,19 +89,9 @@ import {
   DialogFooter
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Chip, StatusBadge } from '@/components/shared'
 
 const { formatSize, formatDate, formatDuration } = useBackupFormatters()
-
-const getStatusVariant = status => {
-  const variants = {
-    completed: 'default',
-    running: 'secondary',
-    failed: 'destructive',
-    pending: 'outline'
-  }
-  return variants[status] || 'secondary'
-}
 
 defineProps({
   modelValue: {

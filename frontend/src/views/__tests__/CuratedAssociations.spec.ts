@@ -106,7 +106,9 @@ describe('CuratedAssociations', () => {
     const row = (await mountAs('curator')).find('[data-testid="wf-3"]')
     expect(row.text()).toContain('Definitive')
     expect(row.text()).toContain('Three families')
-    expect(row.find('a').attributes('href')).toBe('https://pubmed.ncbi.nlm.nih.gov/7/')
+    expect(row.find('a[href*="pubmed"]').attributes('href')).toBe(
+      'https://pubmed.ncbi.nlm.nih.gov/7/'
+    )
   })
 
   it('reloads the current version and keeps the error when a decision is refused', async () => {

@@ -1,53 +1,43 @@
 <template>
-  <div class="container mx-auto px-4 py-6">
-    <AdminHeader
-      title="System Logs"
-      subtitle="View and analyze system logs"
-      :icon="FileText"
-      icon-color="orange"
-      :breadcrumbs="ADMIN_BREADCRUMBS.logs"
-    >
+  <div :class="PAGE_CONTAINER">
+    <AdminHeader title="System Logs" subtitle="View and analyze system logs">
       <template #actions>
         <Button
           variant="outline"
-          class="border-yellow-500 text-yellow-600"
+          class="text-danger hover:text-danger"
           @click="showCleanupDialog = true"
         >
-          <Trash2 class="size-4 mr-2" />
+          <Trash2 class="size-4" aria-hidden="true" />
           Clean Up Old Logs
         </Button>
       </template>
     </AdminHeader>
 
     <!-- Stats Overview -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
       <AdminStatsCard
         title="Total Logs"
         :value="stats.totalLogs"
         :loading="statsLoading"
         :icon="Files"
-        color="info"
       />
       <AdminStatsCard
         title="Errors (24h)"
         :value="stats.errorCount"
         :loading="statsLoading"
         :icon="CircleAlert"
-        color="error"
       />
       <AdminStatsCard
         title="Warnings (24h)"
         :value="stats.warningCount"
         :loading="statsLoading"
         :icon="AlertTriangle"
-        color="warning"
       />
       <AdminStatsCard
         title="Storage Used"
         :value="stats.storageSize"
         :loading="statsLoading"
         :icon="Database"
-        color="purple"
       />
     </div>
 
@@ -74,7 +64,9 @@
             <div class="flex items-center gap-2">
               <Input v-model="filters.source" placeholder="Filter by source..." class="flex-1" />
               <button
-                class="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm"
+                type="button"
+                :aria-pressed="filters.source === 'frontend'"
+                class="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm whitespace-nowrap focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 :class="
                   filters.source === 'frontend'
                     ? 'border-primary bg-primary/10 text-primary'
@@ -82,20 +74,7 @@
                 "
                 @click="toggleFrontendFilter"
               >
-                <svg
-                  class="h-4 w-4"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width="1.5"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a9 9 0 01-9 9m9-15a9 9 0 00-9-9"
-                  />
-                </svg>
+                <Monitor class="size-4" aria-hidden="true" />
                 Frontend Errors
               </button>
             </div>
@@ -145,7 +124,7 @@
               <FilterX class="size-4 mr-1" />
               Clear
             </Button>
-            <Button variant="secondary" size="sm" :disabled="exporting" @click="exportLogs">
+            <Button variant="outline" size="sm" :disabled="exporting" @click="exportLogs">
               <Download class="size-4 mr-1" />
               Export
             </Button>
@@ -161,7 +140,7 @@
         <div class="flex flex-wrap justify-between items-center gap-x-4 gap-y-2">
           <div class="flex items-center gap-4">
             <div class="text-sm">
-              <span class="font-bold">{{ totalLogs }}</span>
+              <span class="font-semibold tabular-nums">{{ totalLogs.toLocaleString() }}</span>
               <span class="text-muted-foreground"> Log Entries</span>
             </div>
             <Separator orientation="vertical" class="h-4" />
@@ -196,7 +175,9 @@
               >
                 <ChevronLeft class="size-4" />
               </Button>
-              <span class="text-sm px-2">{{ currentPage }} / {{ pageCount || 1 }}</span>
+              <span class="text-sm px-2 tabular-nums"
+                >{{ currentPage }} / {{ pageCount || 1 }}</span
+              >
               <Button
                 aria-label="Next page"
                 variant="outline"
@@ -213,92 +194,106 @@
       </div>
 
       <CardContent class="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead class="w-[150px]">Timestamp</TableHead>
-              <TableHead class="w-[80px]">Level</TableHead>
-              <TableHead class="w-[80px]">Method</TableHead>
-              <TableHead class="w-[200px]">Path</TableHead>
-              <TableHead class="w-[80px]">Status</TableHead>
-              <TableHead class="w-[100px]">Duration</TableHead>
-              <TableHead>Message</TableHead>
-              <TableHead class="w-[100px] text-center">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-if="loading">
-              <TableCell colspan="8" class="text-center py-8 text-muted-foreground">
-                Loading...
-              </TableCell>
-            </TableRow>
-            <TableRow v-else-if="logs.length === 0">
-              <TableCell colspan="8" class="text-center py-8 text-muted-foreground">
-                No logs found
-              </TableCell>
-            </TableRow>
-            <TableRow v-for="item in logs" :key="item.id" class="hover:bg-muted/50">
-              <TableCell>
-                <span class="text-xs">{{ formatTimestamp(item.timestamp) }}</span>
-              </TableCell>
-              <TableCell>
-                <Badge :variant="getLevelVariant(item.level)" class="text-xs">
-                  {{ item.level }}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Badge v-if="item.method" variant="outline" class="text-xs">
-                  {{ item.method }}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <code class="text-xs truncate block max-w-[200px]" :title="item.path">
-                  {{ item.path || '-' }}
-                </code>
-              </TableCell>
-              <TableCell>
-                <Badge
-                  v-if="item.status_code"
-                  :variant="getStatusVariant(item.status_code)"
-                  class="text-xs"
-                >
-                  {{ item.status_code }}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <span v-if="item.duration_ms" class="text-xs">
-                  {{ formatDuration(item.duration_ms) }}
-                </span>
-              </TableCell>
-              <TableCell>
-                <div class="truncate max-w-[400px]" :title="item.message">
-                  {{ item.message }}
-                </div>
-              </TableCell>
-              <TableCell class="text-center">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="h-7 w-7"
-                  title="View details"
-                  @click="showLogDetails(item)"
-                >
-                  <Eye class="size-4" />
-                </Button>
-                <Button
-                  v-if="item.request_id"
-                  variant="ghost"
-                  size="icon"
-                  class="h-7 w-7"
-                  title="Filter by request ID"
-                  @click="filterByRequestId(item.request_id)"
-                >
-                  <Filter class="size-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+        <DataState
+          :loading="loading && !logs.length"
+          :error="loadError"
+          error-title="Could not load logs"
+          :empty="!logs.length"
+          empty-message="No log entries match these filters."
+          class="m-4"
+          @retry="loadLogs"
+        >
+          <template #loading>
+            <div class="space-y-3 p-4" aria-hidden="true">
+              <div
+                v-for="i in 8"
+                :key="i"
+                class="h-8 rounded-md bg-muted motion-safe:animate-pulse"
+              />
+            </div>
+          </template>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead class="w-[170px]">Timestamp</TableHead>
+                <TableHead class="w-[100px]">Level</TableHead>
+                <TableHead class="hidden w-[80px] xl:table-cell">Method</TableHead>
+                <TableHead class="hidden w-[200px] xl:table-cell">Path</TableHead>
+                <TableHead class="hidden w-[80px] xl:table-cell">Status</TableHead>
+                <TableHead class="hidden w-[90px] text-right xl:table-cell">Duration</TableHead>
+                <TableHead>Message</TableHead>
+                <TableHead class="w-[88px]"><span class="sr-only">Actions</span></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="item in logs" :key="item.id">
+                <TableCell>
+                  <span class="text-xs tabular-nums whitespace-nowrap">{{
+                    formatTimestamp(item.timestamp)
+                  }}</span>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge :status="item.level" />
+                </TableCell>
+                <TableCell class="hidden xl:table-cell">
+                  <Chip v-if="item.method" kind="neutral" :label="item.method" class="font-mono" />
+                </TableCell>
+                <TableCell class="hidden xl:table-cell">
+                  <code
+                    v-if="item.path"
+                    class="text-xs truncate block max-w-[200px]"
+                    :title="item.path"
+                  >
+                    {{ item.path }}
+                  </code>
+                </TableCell>
+                <TableCell class="hidden xl:table-cell">
+                  <StatusBadge v-if="item.status_code" :status="item.status_code" />
+                </TableCell>
+                <TableCell class="hidden text-right xl:table-cell">
+                  <span v-if="item.duration_ms" class="text-xs tabular-nums">
+                    {{ formatDuration(item.duration_ms) }}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <div class="truncate max-w-[480px]" :title="item.message">
+                    {{ item.message }}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div class="flex justify-end gap-1">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="View log details"
+                          @click="showLogDetails(item)"
+                        >
+                          <Eye class="size-4" aria-hidden="true" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>View log details</TooltipContent>
+                    </Tooltip>
+                    <Tooltip v-if="item.request_id">
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Show all logs of this request"
+                          @click="filterByRequestId(item.request_id)"
+                        >
+                          <Filter class="size-4" aria-hidden="true" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Show all logs of this request</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </DataState>
       </CardContent>
     </Card>
 
@@ -307,11 +302,8 @@
       <DialogContent class="max-w-[800px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle class="flex items-center gap-2">
-            <Eye class="size-5" />
-            Request Details
-            <Badge v-if="selectedLog" :variant="getLevelVariant(selectedLog.level)" class="ml-1">
-              {{ selectedLog.level }}
-            </Badge>
+            Log details
+            <StatusBadge v-if="selectedLog" :status="selectedLog.level" class="ml-1" />
           </DialogTitle>
         </DialogHeader>
 
@@ -367,12 +359,10 @@
                         Status Code
                       </div>
                       <div class="text-sm">
-                        <Badge
+                        <StatusBadge
                           v-if="selectedLog.status_code"
-                          :variant="getStatusVariant(selectedLog.status_code)"
-                        >
-                          {{ selectedLog.status_code }}
-                        </Badge>
+                          :status="selectedLog.status_code"
+                        />
                         <span v-else>N/A</span>
                       </div>
                     </div>
@@ -430,9 +420,12 @@
                       Method & Path
                     </div>
                     <div class="flex items-center gap-2">
-                      <Badge v-if="selectedLog.method" variant="outline">{{
-                        selectedLog.method
-                      }}</Badge>
+                      <Chip
+                        v-if="selectedLog.method"
+                        kind="neutral"
+                        :label="selectedLog.method"
+                        class="font-mono"
+                      />
                       <code class="text-sm">{{ selectedLog.path || 'N/A' }}</code>
                     </div>
                   </div>
@@ -485,12 +478,10 @@
                       Status
                     </div>
                     <div class="text-sm">
-                      <Badge
+                      <StatusBadge
                         v-if="selectedLog.status_code"
-                        :variant="getStatusVariant(selectedLog.status_code)"
-                      >
-                        {{ selectedLog.status_code }}
-                      </Badge>
+                        :status="selectedLog.status_code"
+                      />
                       <span v-else>N/A</span>
                     </div>
                   </div>
@@ -514,7 +505,7 @@
                     <div class="text-xs text-muted-foreground uppercase tracking-wide font-medium">
                       Error Type
                     </div>
-                    <Badge variant="destructive">{{ selectedLog.error_type }}</Badge>
+                    <StatusBadge status="error" :label="selectedLog.error_type" />
                   </div>
                   <div v-if="selectedLog.error_message" class="border-b pb-2">
                     <div class="text-xs text-muted-foreground uppercase tracking-wide font-medium">
@@ -529,7 +520,7 @@
                       Stack Trace
                     </div>
                     <pre
-                      class="text-xs bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 p-3 rounded overflow-x-auto"
+                      class="text-xs bg-danger-subtle text-foreground p-3 rounded overflow-x-auto"
                       >{{ selectedLog.stack_trace }}</pre>
                   </div>
                 </div>
@@ -559,35 +550,29 @@
       </DialogContent>
     </Dialog>
 
-    <!-- Cleanup Dialog -->
-    <Dialog v-model:open="showCleanupDialog">
-      <DialogContent class="max-w-[400px]">
-        <DialogHeader>
-          <DialogTitle>Clean Up Old Logs</DialogTitle>
-        </DialogHeader>
-        <div class="space-y-4">
-          <div class="space-y-2">
-            <Label>Delete logs older than (days)</Label>
-            <Input v-model.number="cleanupDays" type="number" min="1" max="365" />
-          </div>
-          <Alert variant="destructive">
-            <AlertDescription>
-              This will permanently delete all logs older than {{ cleanupDays }} days.
-            </AlertDescription>
-          </Alert>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="showCleanupDialog = false">Cancel</Button>
-          <Button variant="destructive" :disabled="cleaning" @click="executeCleanup">
-            {{ cleaning ? 'Deleting...' : 'Delete Logs' }}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <!-- Cleanup confirmation -->
+    <ConfirmAction
+      v-model:open="showCleanupDialog"
+      title="Delete old logs?"
+      confirm-label="Delete logs"
+      danger
+      :disabled="!(cleanupDays >= 1)"
+      @confirm="executeCleanup"
+    >
+      <p>
+        Permanently deletes every log entry older than the number of days below. This cannot be
+        undone.
+      </p>
+      <div class="space-y-2 pt-2">
+        <Label for="cleanup-days" class="text-foreground">Delete logs older than (days)</Label>
+        <Input id="cleanup-days" v-model.number="cleanupDays" type="number" min="1" max="365" />
+      </div>
+    </ConfirmAction>
   </div>
 </template>
 
 <script setup>
+import { formatDateTime } from '@/utils/formatDate'
 /**
  * System Log Viewer
  * Complete log management interface with filtering, search, and export
@@ -595,13 +580,14 @@
 
 import { ref, computed, onMounted, watch } from 'vue'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
+import { Chip, DataState, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
+import ConfirmAction from '@/components/admin/ConfirmAction.vue'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as logsApi from '@/api/admin/logs'
-import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import { toast } from 'vue-sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -611,7 +597,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import {
   Dialog,
@@ -638,18 +623,18 @@ import {
   Database,
   Download,
   Eye,
-  FileText,
   Files,
   Filter,
   FilterX,
+  Monitor,
   Trash2
 } from 'lucide-vue-next'
 
 // State
 const logs = ref([])
 const loading = ref(false)
+const loadError = ref(null)
 const exporting = ref(false)
-const cleaning = ref(false)
 const statsLoading = ref(false)
 const showDetailsDialog = ref(false)
 const showCleanupDialog = ref(false)
@@ -788,34 +773,10 @@ const queryParams = computed(() => {
   return params
 })
 
-// Level/status variant helpers
-const getLevelVariant = level => {
-  switch (level) {
-    case 'ERROR':
-    case 'CRITICAL':
-      return 'destructive'
-    case 'WARNING':
-      return 'outline'
-    case 'INFO':
-      return 'default'
-    case 'DEBUG':
-      return 'secondary'
-    default:
-      return 'outline'
-  }
-}
-
-const getStatusVariant = status => {
-  if (status >= 200 && status < 300) return 'default'
-  if (status >= 300 && status < 400) return 'secondary'
-  if (status >= 400 && status < 500) return 'outline'
-  if (status >= 500) return 'destructive'
-  return 'outline'
-}
-
 // Methods
 const loadLogs = async () => {
   loading.value = true
+  loadError.value = null
   try {
     const response = await logsApi.queryLogs(queryParams.value)
     const data = response.data || response
@@ -824,7 +785,7 @@ const loadLogs = async () => {
     totalLogs.value = data.pagination?.total || 0
   } catch (error) {
     window.logService.error('Failed to load logs:', error)
-    toast.error('Failed to load logs', { duration: Infinity })
+    loadError.value = error.message || 'Request failed'
   } finally {
     loading.value = false
   }
@@ -923,7 +884,6 @@ const exportLogs = async () => {
 }
 
 const executeCleanup = async () => {
-  cleaning.value = true
   try {
     const response = await logsApi.cleanupLogs(cleanupDays.value)
     const data = response.data || response
@@ -936,13 +896,11 @@ const executeCleanup = async () => {
   } catch (error) {
     window.logService.error('Failed to cleanup logs:', error)
     toast.error('Failed to cleanup logs', { duration: Infinity })
-  } finally {
-    cleaning.value = false
   }
 }
 
 // Exact time per row; relative labels collapsed every recent log to "Just now"
-const formatTimestamp = timestamp => (timestamp ? new Date(timestamp).toLocaleString() : 'N/A')
+const formatTimestamp = timestamp => formatDateTime(timestamp) || 'N/A'
 
 const formatDuration = ms => {
   if (ms < 1000) return `${ms}ms`

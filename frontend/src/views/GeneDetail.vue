@@ -1,200 +1,222 @@
 <template>
-  <div>
-    <!-- Loading State -->
-    <div v-if="loading" class="text-center py-12">
-      <div
-        class="mx-auto h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"
-      />
-      <p class="text-lg mt-4 text-muted-foreground">Loading gene information...</p>
-    </div>
-
-    <!-- Main Content -->
-    <div v-else-if="gene">
-      <!-- Breadcrumb Navigation -->
-      <div class="py-2 bg-muted">
-        <Breadcrumb class="container mx-auto px-4">
-          <BreadcrumbList>
-            <template v-for="(crumb, index) in breadcrumbs" :key="index">
-              <BreadcrumbItem>
-                <BreadcrumbLink v-if="crumb.to" :href="crumb.to">
-                  <Home v-if="index === 0" class="size-4 mr-1 inline-block" />
-                  {{ crumb.title }}
-                </BreadcrumbLink>
-                <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
-            </template>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </div>
-
-      <div class="container mx-auto px-4 py-6">
-        <!-- Gene Header -->
-        <div class="flex items-start justify-between gap-2 mb-6">
-          <div class="flex items-center min-w-0">
-            <Button variant="ghost" size="icon" class="mr-2 shrink-0" as-child>
-              <RouterLink to="/genes" aria-label="Back to gene browser">
-                <ArrowLeft :size="16" />
-              </RouterLink>
-            </Button>
-            <div class="min-w-0">
-              <div class="flex items-center gap-1">
-                <h1 class="text-2xl sm:text-3xl font-bold truncate">
-                  {{ gene.approved_symbol }}
-                </h1>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="shrink-0 size-7"
-                  aria-label="Copy gene symbol"
-                  @click="copyGeneSymbol"
-                >
-                  <Copy :size="14" class="text-muted-foreground" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Action Buttons -->
-          <div class="flex gap-1 sm:gap-2 shrink-0">
-            <!-- Curator/Admin Edit Button -->
-            <Button
-              v-if="authStore.isCurator"
-              variant="secondary"
-              size="sm"
-              aria-label="Edit gene"
-              @click="editGene"
-            >
-              <Pencil :size="16" />
-              <span class="hidden sm:inline">Edit</span>
-            </Button>
-
-            <!-- Share: copies URL -->
-            <Button variant="outline" size="sm" aria-label="Share link to gene" @click="shareGene">
-              <Share2 :size="16" />
-              <span class="hidden sm:inline">Share</span>
-            </Button>
-
-            <!-- Export dropdown with JSON/CSV -->
-            <DropdownMenu>
-              <DropdownMenuTrigger as-child>
-                <Button variant="outline" size="sm" aria-label="Export gene data">
-                  <Download :size="16" />
-                  <span class="hidden sm:inline">Export</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem @click="exportJson">
-                  <FileJson :size="16" class="mr-2" />
-                  Export as JSON
-                </DropdownMenuItem>
-                <DropdownMenuItem @click="exportCsv">
-                  <FileSpreadsheet :size="16" class="mr-2" />
-                  Export as CSV
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-
-        <!-- Overview Cards -->
-        <div class="grid grid-cols-12 gap-6 mb-6 items-stretch">
-          <!-- Evidence Score Visualization with Breakdown (shown first on mobile) -->
-          <div class="col-span-12 md:col-span-4 flex order-first md:order-last">
-            <ScoreBreakdown
-              :score="gene.evidence_score"
-              :tier="gene.evidence_tier"
-              :breakdown="gene.score_breakdown"
-              variant="card"
-              class="flex-1"
-            />
-          </div>
-
-          <!-- Gene Information Card -->
-          <div class="col-span-12 md:col-span-8 flex">
-            <GeneInformationCard
-              :gene="gene"
-              :annotations="annotations"
-              :loading-annotations="loadingAnnotations"
-              class="flex-1"
-            />
-          </div>
-        </div>
-
-        <MondoDiseases :annotations="annotations" class="mb-6" />
-
-        <GeneCuratedAssociations :gene-symbol="gene.approved_symbol" class="mb-6" />
-
-        <!-- Evidence Details Section -->
-        <div class="mb-6">
-          <h2 class="text-2xl font-medium mb-4">Evidence Details</h2>
-
-          <!-- Evidence Cards -->
-          <Accordion v-if="sortedEvidence.length > 0" type="multiple" class="space-y-2">
-            <EvidenceCard
-              v-for="item in sortedEvidence"
-              :key="`${item.source}_${item.source_id}`"
-              :evidence="item"
-            />
-          </Accordion>
-          <ComponentError v-else-if="evidenceError" :error="evidenceError" @retry="fetchEvidence" />
-          <div v-else-if="loadingEvidence" class="text-center py-8">
-            <div
-              class="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
-            />
-            <p class="text-sm mt-2 text-muted-foreground">Loading evidence...</p>
-          </div>
-          <div v-else class="text-center py-8">
-            <Info class="mx-auto size-12 text-muted-foreground" />
-            <p class="text-base mt-2 text-muted-foreground">No evidence records available</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <ComponentError
-      v-else-if="loadError"
-      :error="loadError"
-      class="container mx-auto my-12 max-w-xl"
-      @retry="fetchGeneDetails"
-    />
-
+  <div :class="PAGE_CONTAINER">
     <!-- Not Found State (HTTP 404 only) -->
-    <div v-else class="text-center py-12">
-      <CircleAlert class="mx-auto size-16 text-destructive mb-4" />
-      <h1 class="text-2xl mb-2">Gene Not Found</h1>
-      <p class="text-base text-muted-foreground mb-4">
+    <div v-if="notFound" class="py-12 text-center">
+      <CircleAlert class="mx-auto mb-4 size-16 text-danger" aria-hidden="true" />
+      <h1 class="mb-2 text-2xl font-semibold">Gene Not Found</h1>
+      <p class="mb-4 text-base text-muted-foreground">
         The gene "{{ $route.params.symbol }}" could not be found in our database.
       </p>
       <Button as-child>
         <RouterLink to="/genes">
-          <ArrowLeft :size="16" />
+          <ArrowLeft :size="16" aria-hidden="true" />
           Back to Gene Browser
         </RouterLink>
       </Button>
     </div>
+
+    <template v-else>
+      <PageHeader :title="symbol">
+        <template #breadcrumb>
+          <Breadcrumb>
+            <BreadcrumbList>
+              <template v-for="(crumb, index) in breadcrumbs" :key="crumb.title">
+                <BreadcrumbItem>
+                  <BreadcrumbPage v-if="index === breadcrumbs.length - 1">{{
+                    crumb.title
+                  }}</BreadcrumbPage>
+                  <BreadcrumbLink v-else as-child>
+                    <RouterLink :to="crumb.to" class="inline-flex items-center gap-1">
+                      <Home v-if="index === 0" class="size-4" aria-hidden="true" />
+                      {{ crumb.title }}
+                    </RouterLink>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
+              </template>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </template>
+
+        <template #description>
+          <span class="flex flex-wrap items-center gap-x-2 gap-y-1" data-testid="gene-identity">
+            <span
+              v-if="!approvedName && (loading || loadingAnnotations)"
+              class="inline-block h-5 w-48 rounded-md bg-muted motion-safe:animate-pulse"
+              aria-hidden="true"
+            />
+            <template v-for="(id, i) in identifiers" :key="id.id">
+              <span v-if="i > 0" class="text-border" aria-hidden="true">·</span>
+              <OntologyTerm :id="id.id" :href="id.href" :name="id.name" />
+            </template>
+            <template v-if="hgnc?.location">
+              <span class="text-border" aria-hidden="true">·</span>
+              <span class="text-sm" title="Cytogenetic location">{{ hgnc.location }}</span>
+            </template>
+          </span>
+        </template>
+
+        <template v-if="gene" #actions>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                :aria-label="copied === 'symbol' ? 'Symbol copied' : 'Copy gene symbol'"
+                @click="copy(gene.approved_symbol, 'symbol', 'Gene symbol copied')"
+              >
+                <Check v-if="copied === 'symbol'" aria-hidden="true" />
+                <Copy v-else aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{{
+              copied === 'symbol' ? 'Copied' : 'Copy gene symbol'
+            }}</TooltipContent>
+          </Tooltip>
+
+          <Button
+            variant="outline"
+            size="sm"
+            :aria-label="copied === 'link' ? 'Link copied' : 'Copy link to this gene'"
+            @click="copy(shareUrl, 'link', 'Link copied')"
+          >
+            <Check v-if="copied === 'link'" aria-hidden="true" />
+            <Share2 v-else aria-hidden="true" />
+            <span class="hidden sm:inline">{{ copied === 'link' ? 'Copied' : 'Share' }}</span>
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button variant="outline" size="sm" aria-label="Export gene data">
+                <Download aria-hidden="true" />
+                <span class="hidden sm:inline">Export</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem @click="exportJson">
+                <FileJson aria-hidden="true" />
+                Export as JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem @click="exportCsv">
+                <FileSpreadsheet aria-hidden="true" />
+                Export as CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button variant="outline" size="sm" as-child>
+            <RouterLink :to="`/genes/${gene.approved_symbol}/structure`">
+              <Dna aria-hidden="true" />
+              Structure
+            </RouterLink>
+          </Button>
+        </template>
+      </PageHeader>
+
+      <DataState
+        :loading="loading"
+        :error="loadError"
+        error-title="Could not load gene"
+        @retry="fetchGeneDetails"
+      >
+        <template #loading>
+          <div class="grid grid-cols-12 gap-6" aria-hidden="true">
+            <div class="col-span-12 h-80 rounded-xl border bg-card md:order-last md:col-span-4" />
+            <div class="col-span-12 h-80 rounded-xl border bg-card md:col-span-8" />
+          </div>
+        </template>
+
+        <div v-if="gene" class="space-y-6">
+          <div class="grid grid-cols-12 items-stretch gap-6">
+            <!-- Evidence score first on mobile -->
+            <div class="order-first col-span-12 flex md:order-last md:col-span-4">
+              <ScoreBreakdown
+                :score="gene.evidence_score"
+                :tier="gene.evidence_tier"
+                :breakdown="gene.score_breakdown"
+                class="flex-1"
+              />
+            </div>
+            <div class="col-span-12 flex md:col-span-8">
+              <GeneInformationCard
+                :gene="gene"
+                :annotations="annotations"
+                :loading="loadingAnnotations"
+                :error="annotationsError"
+                class="flex-1"
+                @retry="fetchAnnotations"
+              />
+            </div>
+          </div>
+
+          <MondoDiseases
+            :annotations="annotations"
+            :loading="loadingAnnotations"
+            :error="annotationsError"
+            @retry="fetchAnnotations"
+          />
+
+          <GeneCuratedAssociations :gene-symbol="gene.approved_symbol" />
+
+          <section aria-labelledby="evidence-heading" class="space-y-3">
+            <h2 id="evidence-heading" class="text-xl font-semibold">Evidence by source</h2>
+            <DataState
+              :loading="loadingEvidence"
+              :error="evidenceError"
+              :empty="!sortedEvidence.length"
+              error-title="Could not load evidence"
+              empty-message="No evidence records available for this gene."
+              @retry="fetchEvidence"
+            >
+              <template #loading>
+                <div class="space-y-3" aria-hidden="true">
+                  <div
+                    v-for="n in 4"
+                    :key="n"
+                    class="h-[6.5rem] rounded-xl border bg-card px-4 py-3"
+                  >
+                    <div class="h-5 w-32 rounded-md bg-muted motion-safe:animate-pulse" />
+                    <div class="mt-2 h-4 w-2/3 rounded-md bg-muted motion-safe:animate-pulse" />
+                    <div class="mt-2 h-4 w-40 rounded-md bg-muted motion-safe:animate-pulse" />
+                  </div>
+                </div>
+              </template>
+              <div class="space-y-3">
+                <EvidenceCard
+                  v-for="item in sortedEvidence"
+                  :key="`${item.source_name}_${item.id}`"
+                  :evidence="item"
+                  :gene="gene"
+                  :context="evidenceContext"
+                />
+              </div>
+            </DataState>
+          </section>
+        </div>
+      </DataState>
+    </template>
   </div>
 </template>
 
 <script setup>
 import {
-  Home,
-  ChevronRight,
-  Info,
-  CircleAlert,
   ArrowLeft,
-  Download,
-  Share2,
-  Pencil,
+  Check,
+  CircleAlert,
   Copy,
+  Dna,
+  Download,
   FileJson,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Home,
+  Share2
 } from 'lucide-vue-next'
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { toast } from 'vue-sonner'
 import { geneApi } from '../api/genes'
-import { useAuthStore } from '../stores/auth'
 import { getGeneDetailBreadcrumbs } from '@/utils/publicBreadcrumbs'
+import { sourceDisplayName } from '@/utils/sources'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getGeneSchema, getBreadcrumbSchema } from '@/composables/useJsonLd'
 import ScoreBreakdown from '../components/ScoreBreakdown.vue'
@@ -202,10 +224,9 @@ import EvidenceCard from '../components/evidence/EvidenceCard.vue'
 import GeneInformationCard from '../components/gene/GeneInformationCard.vue'
 import MondoDiseases from '../components/gene/MondoDiseases.vue'
 import GeneCuratedAssociations from '../components/gene/GeneCuratedAssociations.vue'
-import ComponentError from '@/components/ui/ComponentError.vue'
-
+import { DataState, OntologyTerm, PageHeader, PAGE_CONTAINER } from '@/components/shared'
 import { Button } from '@/components/ui/button'
-import { Accordion } from '@/components/ui/accordion'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -221,27 +242,54 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 
-// Suppress unused import warning for icons used only in template
-void ChevronRight
-
 const route = useRoute()
-const authStore = useAuthStore()
 
-// Data
+// Data: the gene call gates the page; evidence and annotations load progressively
 const gene = ref(null)
 const evidence = ref([])
 const annotations = ref(null)
 const loading = ref(true)
 const loadingEvidence = ref(false)
 const loadingAnnotations = ref(false)
+const notFound = ref(false)
 const loadError = ref(null)
 const evidenceError = ref(null)
+const annotationsError = ref(null)
+const copied = ref(null)
+
+const symbol = computed(() => gene.value?.approved_symbol ?? String(route.params.symbol ?? ''))
+const firstAnnotation = source => annotations.value?.annotations?.[source]?.[0]?.data ?? null
+const hgnc = computed(() => firstAnnotation('hgnc'))
+const approvedName = computed(() => hgnc.value?.name ?? gene.value?.approved_name ?? null)
+
+const identifiers = computed(() => {
+  const ids = []
+  const hgncId = gene.value?.hgnc_id ?? hgnc.value?.hgnc_id
+  // The approved name is the HGNC record's name; shown first, ID muted
+  if (hgncId) ids.push({ id: hgncId, name: approvedName.value })
+  const mane = hgnc.value?.mane_select?.refseq_transcript_id
+  if (mane)
+    ids.push({
+      id: mane,
+      name: 'MANE Select',
+      href: `https://www.ncbi.nlm.nih.gov/nuccore/${mane}`
+    })
+  return ids
+})
+
+const evidenceContext = computed(() => {
+  const hpo = firstAnnotation('hpo')
+  return {
+    hpoNames: Object.fromEntries((hpo?.phenotypes ?? []).map(p => [p.id, p.name])),
+    ncbiGeneId: hgnc.value?.ncbi_gene_id ?? hpo?.ncbi_gene_id ?? null
+  }
+})
 
 // SEO meta tags (reactive — updates when gene data loads)
 useSeoMeta({
   title: computed(() => {
     if (!gene.value) return 'Gene Detail'
-    const name = gene.value.approved_name || ''
+    const name = approvedName.value || ''
     return name
       ? `${gene.value.approved_symbol} (${name}) — Kidney Disease Gene Evidence`
       : `${gene.value.approved_symbol} — Kidney Disease Gene Evidence`
@@ -250,7 +298,7 @@ useSeoMeta({
     if (!gene.value) return 'Detailed gene information with evidence scores and annotations.'
     const g = gene.value
     const parts = [`${g.approved_symbol} kidney disease gene`]
-    if (g.approved_name) parts.push(g.approved_name)
+    if (approvedName.value) parts.push(approvedName.value)
     if (g.hgnc_id) parts.push(g.hgnc_id)
     if (g.evidence_score != null)
       parts.push(`evidence score ${Math.round(g.evidence_score * 10) / 10}`)
@@ -259,10 +307,7 @@ useSeoMeta({
   canonicalPath: computed(() => `/genes/${route.params.symbol}`)
 })
 
-// Computed - Using utility function for consistency
-const breadcrumbs = computed(() =>
-  getGeneDetailBreadcrumbs(gene.value?.approved_symbol || 'Loading...')
-)
+const breadcrumbs = computed(() => getGeneDetailBreadcrumbs(symbol.value))
 
 // Gene JSON-LD (reactive — updates when gene data loads)
 useJsonLd(
@@ -275,32 +320,33 @@ useJsonLd(
 // Breadcrumb JSON-LD
 useJsonLd(computed(() => getBreadcrumbSchema(breadcrumbs.value)))
 
-const sortedEvidence = computed(() => {
-  return [...evidence.value].sort((a, b) => (b.score || 0) - (a.score || 0))
-})
+const sortedEvidence = computed(() =>
+  [...evidence.value].sort((a, b) => (b.normalized_score ?? 0) - (a.normalized_score ?? 0))
+)
 
 const fetchGeneDetails = async () => {
   loading.value = true
   loadError.value = null
+  notFound.value = false
   try {
-    const response = await geneApi.getGene(route.params.symbol)
-    gene.value = response
-    await Promise.all([fetchEvidence(), fetchAnnotations()])
+    gene.value = await geneApi.getGene(route.params.symbol)
   } catch (error) {
     window.logService.error('Failed to fetch gene details:', error)
     gene.value = null
     // Only a 404 means "not in the database"; anything else is a failed request
-    if (error?.response?.status !== 404) {
-      loadError.value = new Error("Couldn't load gene data from the server.")
-    }
+    if (error?.response?.status === 404) notFound.value = true
+    else loadError.value = new Error("Couldn't load gene data from the server.")
+    return
   } finally {
     loading.value = false
   }
+  // Not awaited: each section renders as soon as its own call returns
+  fetchEvidence()
+  fetchAnnotations()
 }
 
 const fetchEvidence = async () => {
   if (!gene.value) return
-
   loadingEvidence.value = true
   evidenceError.value = null
   try {
@@ -317,67 +363,86 @@ const fetchEvidence = async () => {
 
 const fetchAnnotations = async () => {
   if (!gene.value) return
-
   loadingAnnotations.value = true
+  annotationsError.value = null
   try {
-    const response = await geneApi.getGeneAnnotations(gene.value.id)
-    annotations.value = response
+    annotations.value = await geneApi.getGeneAnnotations(gene.value.id)
   } catch (error) {
     window.logService.error('Failed to fetch annotations:', error)
     annotations.value = null
+    annotationsError.value = new Error("Couldn't load annotations from the server.")
   } finally {
     loadingAnnotations.value = false
   }
 }
 
-const copyGeneSymbol = () => {
-  if (gene.value?.approved_symbol) {
-    navigator.clipboard.writeText(gene.value.approved_symbol)
+const shareUrl = computed(() =>
+  typeof window === 'undefined' ? '' : `${window.location.origin}/genes/${symbol.value}`
+)
+
+let copiedTimer
+const copy = async (text, key, message) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    copied.value = key
+    clearTimeout(copiedTimer)
+    copiedTimer = setTimeout(() => (copied.value = null), 2000)
+    toast.success(message)
+  } catch (error) {
+    window.logService.warn('Clipboard write failed:', error)
+    toast.error('Could not copy to the clipboard')
   }
 }
 
-const editGene = () => {
-  // TODO: Implement gene editing functionality
-  window.logService.info('Edit gene:', gene.value?.approved_symbol)
-}
-
-const shareGene = () => {
-  navigator.clipboard.writeText(window.location.href)
+const download = (content, type, filename) => {
+  const url = URL.createObjectURL(new Blob([content], { type }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 const exportJson = () => {
   if (!gene.value) return
-  const data = JSON.stringify(gene.value, null, 2)
-  const blob = new Blob([data], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${gene.value.approved_symbol}.json`
-  a.click()
-  URL.revokeObjectURL(url)
+  download(
+    JSON.stringify(gene.value, null, 2),
+    'application/json',
+    `${gene.value.approved_symbol}.json`
+  )
+}
+
+const csvCell = value => {
+  const s = String(value ?? '')
+  return /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s
 }
 
 const exportCsv = () => {
   if (!gene.value) return
-  const headers = ['Symbol', 'HGNC ID', 'Evidence Score', 'Evidence Tier']
-  const row = [
-    gene.value.approved_symbol,
-    gene.value.hgnc_id || '',
-    gene.value.evidence_score ?? '',
-    gene.value.evidence_tier || ''
+  const g = gene.value
+  const sources = Object.entries(g.score_breakdown ?? {}).filter(([, v]) => Number.isFinite(v))
+  const headers = [
+    'Symbol',
+    'Approved name',
+    'HGNC ID',
+    'Evidence score',
+    'Evidence tier',
+    ...sources.map(([s]) => `${sourceDisplayName(s)} score`)
   ]
-  const csv = [headers.join(','), row.join(',')].join('\n')
-  const blob = new Blob([csv], { type: 'text/csv' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${gene.value.approved_symbol}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  const row = [
+    g.approved_symbol,
+    approvedName.value,
+    g.hgnc_id,
+    g.evidence_score,
+    g.evidence_tier,
+    ...sources.map(([, v]) => v)
+  ]
+  download(
+    [headers, row].map(r => r.map(csvCell).join(',')).join('\n'),
+    'text/csv',
+    `${g.approved_symbol}.csv`
+  )
 }
 
-// Lifecycle
-onMounted(() => {
-  fetchGeneDetails()
-})
+onMounted(fetchGeneDetails)
 </script>

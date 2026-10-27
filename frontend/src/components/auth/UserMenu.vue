@@ -20,17 +20,6 @@ const router = useRouter()
 
 const userInitials = computed(() => authStore.user?.username?.charAt(0).toUpperCase() ?? 'U')
 
-const roleBadgeVariant = computed<'destructive' | 'secondary' | 'default'>(() => {
-  switch (authStore.userRole) {
-    case 'admin':
-      return 'destructive'
-    case 'curator':
-      return 'secondary'
-    default:
-      return 'default'
-  }
-})
-
 const goToProfile = () => {
   router.push('/profile')
 }
@@ -67,7 +56,8 @@ const handleLogout = async () => {
         </div>
       </DropdownMenuLabel>
       <div class="px-2 py-1">
-        <Badge :variant="roleBadgeVariant" class="text-xs">{{ authStore.userRole }}</Badge>
+        <!-- Roles carry no status meaning: neutral chip (DESIGN.md One Meaning Rule) -->
+        <Badge variant="secondary" class="text-xs">{{ authStore.userRole }}</Badge>
       </div>
       <DropdownMenuSeparator />
       <DropdownMenuItem @click="goToProfile">

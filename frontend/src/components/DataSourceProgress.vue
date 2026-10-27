@@ -1,220 +1,211 @@
 <template>
-  <Card>
-    <Collapsible v-model:open="expanded">
-      <CardHeader class="flex flex-row items-center justify-between p-4">
-        <div class="flex items-center gap-2">
-          <RefreshCw :size="18" class="text-primary" />
-          <CardTitle class="text-base">Data Source Updates</CardTitle>
-          <Badge v-if="summary.running > 0" variant="default" class="pulse text-xs">
-            <Circle :size="8" class="mr-1" />
-            Live
-          </Badge>
-        </div>
-        <div class="flex items-center gap-1">
-          <span v-if="lastUpdate" class="mr-2 text-xs text-muted-foreground">
-            Updated {{ getRelativeTime(lastUpdate) }}
-          </span>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  aria-label="Auto-refresh"
-                  :aria-pressed="autoRefresh"
-                  variant="ghost"
-                  size="icon"
-                  class="h-8 w-8"
-                  @click="toggleAutoRefresh"
+  <!-- Provider for the StatusBadge tooltips (also when rendered outside App) -->
+  <TooltipProvider>
+    <Card>
+      <Collapsible v-model:open="expanded">
+        <CardHeader class="flex flex-row items-center justify-between p-4">
+          <div class="flex items-center gap-2">
+            <RefreshCw :size="18" class="text-primary" />
+            <CardTitle class="text-base">Data Source Updates</CardTitle>
+            <Badge v-if="summary.running > 0" variant="default" class="pulse text-xs">
+              <Circle :size="8" class="mr-1" />
+              Live
+            </Badge>
+          </div>
+          <div class="flex items-center gap-1">
+            <span v-if="lastUpdate" class="mr-2 text-xs text-muted-foreground">
+              Updated {{ getRelativeTime(lastUpdate) }}
+            </span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    aria-label="Auto-refresh"
+                    :aria-pressed="autoRefresh"
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8"
+                    @click="toggleAutoRefresh"
+                  >
+                    <component
+                      :is="autoRefresh ? RefreshCcw : RefreshCw"
+                      :size="14"
+                      :class="autoRefresh ? 'text-primary' : 'text-muted-foreground'"
+                    />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Auto-refresh</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <CollapsibleTrigger as-child>
+              <Button
+                aria-label="Toggle data source details"
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+              >
+                <ChevronDown
+                  :size="14"
+                  :class="{ 'rotate-180': expanded }"
+                  class="transition-transform"
+                />
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent class="pt-0">
+            <!-- Summary Stats -->
+            <div class="mb-4 flex flex-wrap gap-2">
+              <StatusBadge status="completed" :label="`${summary.completed} Completed`" />
+              <StatusBadge status="running" :label="`${summary.running} Running`" />
+              <StatusBadge status="failed" :label="`${summary.failed} Failed`" />
+              <StatusBadge status="idle" :label="`${summary.idle} Idle`" />
+            </div>
+
+            <!-- Data Sources -->
+            <div v-if="dataSources.length > 0" class="mb-4">
+              <p class="mb-2 text-sm font-medium text-muted-foreground">Data Sources</p>
+              <div class="space-y-3">
+                <div
+                  v-for="source in dataSources"
+                  :key="source.source_name"
+                  class="rounded-md border p-3"
                 >
-                  <component
-                    :is="autoRefresh ? RefreshCcw : RefreshCw"
-                    :size="14"
-                    :class="autoRefresh ? 'text-primary' : 'text-muted-foreground'"
-                  />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Auto-refresh</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <CollapsibleTrigger as-child>
-            <Button
-              aria-label="Toggle data source details"
-              variant="ghost"
-              size="icon"
-              class="h-8 w-8"
-            >
-              <ChevronDown
-                :size="14"
-                :class="{ 'rotate-180': expanded }"
-                class="transition-transform"
-              />
-            </Button>
-          </CollapsibleTrigger>
-        </div>
-      </CardHeader>
-      <CollapsibleContent>
-        <CardContent class="pt-0">
-          <!-- Summary Stats -->
-          <div class="mb-4 grid grid-cols-4 gap-2">
-            <div class="text-center">
-              <Badge variant="default" class="bg-green-500 text-xs hover:bg-green-500">
-                {{ summary.completed }} Completed
-              </Badge>
-            </div>
-            <div class="text-center">
-              <Badge variant="default" class="text-xs"> {{ summary.running }} Running </Badge>
-            </div>
-            <div class="text-center">
-              <Badge variant="destructive" class="text-xs"> {{ summary.failed }} Failed </Badge>
-            </div>
-            <div class="text-center">
-              <Badge variant="secondary" class="text-xs"> {{ summary.idle }} Idle </Badge>
-            </div>
-          </div>
-
-          <!-- Data Sources -->
-          <div v-if="dataSources.length > 0" class="mb-4">
-            <p class="mb-2 text-sm font-medium text-muted-foreground">Data Sources</p>
-            <div class="space-y-3">
-              <div
-                v-for="source in dataSources"
-                :key="source.source_name"
-                class="rounded-md border p-3"
-              >
-                <div class="mb-2 flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <div class="h-2 w-2 rounded-full" :class="getStatusDotClass(source.status)" />
-                    <span class="text-sm font-medium">{{ source.source_name }}</span>
-                    <Badge variant="outline" class="text-xs">{{ source.status }}</Badge>
-                    <span v-if="source.current_operation" class="text-xs text-muted-foreground">
-                      {{ source.current_operation }}
+                  <div class="mb-2 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm font-medium">{{
+                        sourceDisplayName(source.source_name)
+                      }}</span>
+                      <StatusBadge :status="source.status" />
+                      <span v-if="source.current_operation" class="text-xs text-muted-foreground">
+                        {{ source.current_operation }}
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <Button
+                        v-if="source.status === 'idle' || source.status === 'failed'"
+                        :aria-label="`Start ${source.source_name}`"
+                        variant="ghost"
+                        size="icon"
+                        class="h-6 w-6"
+                        :disabled="triggering[source.source_name]"
+                        @click="triggerUpdate(source.source_name)"
+                      >
+                        <Play :size="12" />
+                      </Button>
+                      <Button
+                        v-else-if="source.status === 'running'"
+                        :aria-label="`Pause ${source.source_name}`"
+                        variant="ghost"
+                        size="icon"
+                        class="h-6 w-6"
+                        @click="pauseSource(source.source_name)"
+                      >
+                        <Pause :size="12" />
+                      </Button>
+                      <Button
+                        v-else-if="source.status === 'paused'"
+                        :aria-label="`Resume ${source.source_name}`"
+                        variant="ghost"
+                        size="icon"
+                        class="h-6 w-6"
+                        @click="resumeSource(source.source_name)"
+                      >
+                        <Play :size="12" />
+                      </Button>
+                    </div>
+                  </div>
+                  <Progress :model-value="source.progress_percentage || 0" class="h-2" />
+                  <div class="mt-2 flex items-center gap-3 text-xs">
+                    <span v-if="source.items_added > 0" class="text-success">
+                      <Plus :size="10" class="mr-0.5 inline" />{{ source.items_added }}
+                    </span>
+                    <span v-if="source.items_updated > 0" class="text-muted-foreground">
+                      <RefreshCw :size="10" class="mr-0.5 inline" />{{ source.items_updated }}
+                    </span>
+                    <span v-if="source.items_failed > 0" class="text-danger">
+                      <AlertTriangle :size="10" class="mr-0.5 inline" />{{ source.items_failed }}
                     </span>
                   </div>
-                  <div class="flex items-center gap-1">
-                    <Button
-                      v-if="source.status === 'idle' || source.status === 'failed'"
-                      :aria-label="`Start ${source.source_name}`"
-                      variant="ghost"
-                      size="icon"
-                      class="h-6 w-6"
-                      :disabled="triggering[source.source_name]"
-                      @click="triggerUpdate(source.source_name)"
-                    >
-                      <Play :size="12" />
-                    </Button>
-                    <Button
-                      v-else-if="source.status === 'running'"
-                      :aria-label="`Pause ${source.source_name}`"
-                      variant="ghost"
-                      size="icon"
-                      class="h-6 w-6"
-                      @click="pauseSource(source.source_name)"
-                    >
-                      <Pause :size="12" />
-                    </Button>
-                    <Button
-                      v-else-if="source.status === 'paused'"
-                      :aria-label="`Resume ${source.source_name}`"
-                      variant="ghost"
-                      size="icon"
-                      class="h-6 w-6"
-                      @click="resumeSource(source.source_name)"
-                    >
-                      <Play :size="12" />
-                    </Button>
+                  <div v-if="source.last_error" class="mt-1 text-xs text-destructive">
+                    Error: {{ source.last_error }}
                   </div>
-                </div>
-                <Progress :model-value="source.progress_percentage || 0" class="h-2" />
-                <div class="mt-2 flex items-center gap-3 text-xs">
-                  <span v-if="source.items_added > 0" class="text-green-500">
-                    <Plus :size="10" class="mr-0.5 inline" />{{ source.items_added }}
-                  </span>
-                  <span v-if="source.items_updated > 0" class="text-blue-500">
-                    <RefreshCw :size="10" class="mr-0.5 inline" />{{ source.items_updated }}
-                  </span>
-                  <span v-if="source.items_failed > 0" class="text-red-500">
-                    <AlertTriangle :size="10" class="mr-0.5 inline" />{{ source.items_failed }}
-                  </span>
-                </div>
-                <div v-if="source.last_error" class="mt-1 text-xs text-destructive">
-                  Error: {{ source.last_error }}
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Internal Processes -->
-          <div v-if="internalProcesses.length > 0">
-            <p class="mb-2 text-sm font-medium text-muted-foreground">Internal Processes</p>
-            <div class="space-y-3">
-              <div
-                v-for="source in internalProcesses"
-                :key="source.source_name"
-                class="rounded-md border p-3"
-              >
-                <div class="mb-2 flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <div class="h-2 w-2 rounded-full" :class="getStatusDotClass(source.status)" />
-                    <span class="text-sm font-medium">{{
-                      source.source_name.replace('_', ' ')
-                    }}</span>
-                    <Badge variant="outline" class="text-xs">{{ source.status }}</Badge>
-                    <span v-if="source.current_operation" class="text-xs text-muted-foreground">
-                      {{ source.current_operation }}
+            <!-- Internal Processes -->
+            <div v-if="internalProcesses.length > 0">
+              <p class="mb-2 text-sm font-medium text-muted-foreground">Internal Processes</p>
+              <div class="space-y-3">
+                <div
+                  v-for="source in internalProcesses"
+                  :key="source.source_name"
+                  class="rounded-md border p-3"
+                >
+                  <div class="mb-2 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm font-medium">{{
+                        source.source_name.replace('_', ' ')
+                      }}</span>
+                      <StatusBadge :status="source.status" />
+                      <span v-if="source.current_operation" class="text-xs text-muted-foreground">
+                        {{ source.current_operation }}
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <!-- No Start here: pipeline-wide runs go through the confirmed AdminAnnotations form (issue 317) -->
+                      <Button
+                        v-if="
+                          source.source_name === 'annotation_pipeline' &&
+                          source.status === 'running'
+                        "
+                        :aria-label="`Pause ${source.source_name}`"
+                        variant="ghost"
+                        size="icon"
+                        class="h-6 w-6"
+                        @click="pauseSource(source.source_name)"
+                      >
+                        <Pause :size="12" />
+                      </Button>
+                      <Button
+                        v-else-if="
+                          source.source_name === 'annotation_pipeline' && source.status === 'paused'
+                        "
+                        :aria-label="`Resume ${source.source_name}`"
+                        variant="ghost"
+                        size="icon"
+                        class="h-6 w-6"
+                        @click="resumeSource(source.source_name)"
+                      >
+                        <Play :size="12" />
+                      </Button>
+                      <StatusBadge
+                        v-else-if="source.status === 'completed'"
+                        status="completed"
+                        label="Complete"
+                      />
+                    </div>
+                  </div>
+                  <Progress :model-value="source.progress_percentage || 0" class="h-2" />
+                  <div class="mt-2 flex items-center gap-3 text-xs">
+                    <span v-if="source.items_processed > 0" class="text-muted-foreground">
+                      <Cog :size="10" class="mr-0.5 inline" />{{ source.items_processed }}
+                      processed
                     </span>
                   </div>
-                  <div class="flex items-center gap-1">
-                    <!-- No Start here: pipeline-wide runs go through the confirmed AdminAnnotations form (#317) -->
-                    <Button
-                      v-if="
-                        source.source_name === 'annotation_pipeline' && source.status === 'running'
-                      "
-                      :aria-label="`Pause ${source.source_name}`"
-                      variant="ghost"
-                      size="icon"
-                      class="h-6 w-6"
-                      @click="pauseSource(source.source_name)"
-                    >
-                      <Pause :size="12" />
-                    </Button>
-                    <Button
-                      v-else-if="
-                        source.source_name === 'annotation_pipeline' && source.status === 'paused'
-                      "
-                      :aria-label="`Resume ${source.source_name}`"
-                      variant="ghost"
-                      size="icon"
-                      class="h-6 w-6"
-                      @click="resumeSource(source.source_name)"
-                    >
-                      <Play :size="12" />
-                    </Button>
-                    <Badge
-                      v-else-if="source.status === 'completed'"
-                      variant="default"
-                      class="bg-green-500 text-xs hover:bg-green-500"
-                    >
-                      <Check :size="10" class="mr-1" />
-                      Complete
-                    </Badge>
+                  <div v-if="source.last_error" class="mt-1 text-xs text-destructive">
+                    Error: {{ source.last_error }}
                   </div>
-                </div>
-                <Progress :model-value="source.progress_percentage || 0" class="h-2" />
-                <div class="mt-2 flex items-center gap-3 text-xs">
-                  <span v-if="source.items_processed > 0" class="text-blue-500">
-                    <Cog :size="10" class="mr-0.5 inline" />{{ source.items_processed }}
-                    processed
-                  </span>
-                </div>
-                <div v-if="source.last_error" class="mt-1 text-xs text-destructive">
-                  Error: {{ source.last_error }}
                 </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </CollapsibleContent>
-    </Collapsible>
-  </Card>
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
+  </TooltipProvider>
 </template>
 
 <script setup>
@@ -230,8 +221,7 @@ import {
   AlertTriangle,
   Play,
   Pause,
-  Cog,
-  Check
+  Cog
 } from 'lucide-vue-next'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -239,6 +229,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { StatusBadge } from '@/components/shared'
+import { sourceDisplayName } from '@/utils/sources'
 
 // State
 const expanded = ref(false)
@@ -286,17 +278,6 @@ const summary = computed(() => {
 })
 
 // Methods
-const getStatusDotClass = status => {
-  const classes = {
-    running: 'bg-primary',
-    completed: 'bg-green-500',
-    failed: 'bg-red-500',
-    idle: 'bg-muted-foreground',
-    paused: 'bg-yellow-500'
-  }
-  return classes[status] || 'bg-muted-foreground'
-}
-
 const getRelativeTime = date => {
   const seconds = Math.floor((new Date() - date) / 1000)
 

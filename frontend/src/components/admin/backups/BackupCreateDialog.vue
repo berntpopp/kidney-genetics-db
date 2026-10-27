@@ -2,22 +2,12 @@
   <Dialog :open="modelValue" @update:open="$emit('update:modelValue', $event)">
     <DialogContent class="max-w-[600px]">
       <DialogHeader>
-        <DialogTitle class="flex items-center gap-2">
-          <DatabaseZap class="size-5 text-primary" />
-          Create Database Backup
-        </DialogTitle>
+        <DialogTitle class="flex items-center gap-2"> Create Database Backup </DialogTitle>
         <DialogDescription>
           Create a complete backup of the database. The process may take several minutes depending
           on database size.
         </DialogDescription>
       </DialogHeader>
-
-      <Alert>
-        <AlertDescription>
-          This will create a complete backup of the database. The process may take several minutes
-          depending on database size.
-        </AlertDescription>
-      </Alert>
 
       <div class="space-y-4">
         <div class="space-y-2">
@@ -104,7 +94,6 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import { DatabaseZap } from 'lucide-vue-next'
 import {
   Dialog,
   DialogContent,
@@ -124,7 +113,6 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const props = defineProps({
   modelValue: {

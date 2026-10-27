@@ -1,288 +1,107 @@
 <template>
   <div>
-    <!-- Compact inline display for tables -->
-    <div v-if="variant === 'inline'" class="inline-flex items-center">
-      <HoverPopover content-class="max-w-xs p-3">
-        <Badge
-          as="span"
-          :class="[chipSizeClasses, 'cursor-pointer font-medium tabular-nums']"
-          :style="tintedChipStyle(scoreHexColor)"
-          variant="outline"
-        >
-          <component :is="scoreIcon" :size="12" class="mr-1" />
-          {{ formattedScore }}
-        </Badge>
-        <template #content>
-          <p class="text-xs text-foreground">
-            {{ getScoreExplanation(score, Object.keys(breakdown || {}).length, tier) }}
-          </p>
-          <div v-if="sortedBreakdownEntries.length" class="mt-2 space-y-1">
-            <div
-              v-for="[source, sourceScore] in topSourceEntries"
-              :key="source"
-              class="flex justify-between text-xs"
-            >
-              <span class="text-foreground">{{ sourceAbbreviation(source) }}</span>
-              <span class="font-mono ml-3 text-foreground"
-                >{{ (sourceScore * 100).toFixed(1) }}%</span
-              >
-            </div>
-            <p v-if="remainingSourceCount > 0" class="text-xs text-foreground/60">
-              +{{ remainingSourceCount }} more
-            </p>
-          </div>
-        </template>
-      </HoverPopover>
-    </div>
-
     <!-- Detailed card display for gene detail pages -->
-    <Card v-else-if="variant === 'card'" class="h-full">
-      <CardHeader class="flex flex-row items-center gap-3 pb-2">
-        <div
-          class="flex h-10 w-10 items-center justify-center rounded-full"
-          :style="{ backgroundColor: scoreHexColor + '20' }"
-        >
-          <component :is="scoreIcon" :size="20" :style="{ color: scoreHexColor }" />
-        </div>
-        <CardTitle tag="h2" class="text-base">Evidence Score</CardTitle>
+    <Card class="h-full gap-4">
+      <CardHeader>
+        <CardTitle tag="h2" class="text-base">Evidence score</CardTitle>
       </CardHeader>
       <CardContent>
-        <!-- Donut Chart Visualization -->
-        <div v-if="score" class="text-center">
+        <div v-if="score != null" class="flex flex-col items-center gap-3 text-center">
           <div class="relative inline-flex items-center justify-center">
-            <svg :width="80" :height="80" class="-rotate-90">
+            <svg width="96" height="96" class="-rotate-90" aria-hidden="true">
               <circle
-                :cx="40"
-                :cy="40"
+                cx="48"
+                cy="48"
                 :r="donutRadius"
                 fill="none"
-                stroke="currentColor"
-                class="text-muted/20"
-                :stroke-width="8"
+                stroke="var(--muted)"
+                stroke-width="8"
               />
               <circle
-                :cx="40"
-                :cy="40"
+                cx="48"
+                cy="48"
                 :r="donutRadius"
                 fill="none"
-                :stroke="scoreHexColor"
-                :stroke-width="8"
+                :stroke="tierConfig.color"
+                stroke-width="8"
                 :stroke-dasharray="circumference"
-                :stroke-dashoffset="circumference - (circumference * (score ?? 0)) / 100"
+                :stroke-dashoffset="circumference - (circumference * Math.min(score, 100)) / 100"
                 stroke-linecap="round"
               />
             </svg>
-            <span
-              class="absolute text-lg font-bold"
-              :style="{ color: tintedChipStyle(scoreHexColor).color }"
-            >
-              {{ formattedScore }}
+            <span class="absolute text-xl font-semibold tabular-nums text-foreground">
+              {{ formattedScore }}<span class="text-sm text-muted-foreground">%</span>
             </span>
           </div>
-          <div class="mt-3">
-            <Badge :style="tintedChipStyle(scoreHexColor)" variant="outline">
-              {{ classification }}
-            </Badge>
-          </div>
+          <Chip :tier="tier" />
 
-          <!-- Compact Breakdown Below -->
-          <Separator class="my-3" />
-          <div>
-            <div class="text-xs text-muted-foreground mb-2">Score Breakdown</div>
-            <div class="flex flex-wrap justify-center gap-1">
-              <HoverPopover
+          <Separator class="my-1" />
+          <div class="w-full">
+            <h3 class="mb-2 text-xs font-medium text-muted-foreground">Score by source</h3>
+            <div v-if="sortedBreakdownEntries.length" class="flex flex-wrap justify-center gap-1.5">
+              <Chip
                 v-for="[source, sourceScore] in sortedBreakdownEntries"
                 :key="source"
-                content-class="w-auto p-3"
-              >
-                <Badge
-                  as="span"
-                  class="cursor-pointer text-[10px]"
-                  :style="tintedChipStyle(getSubScoreHexColor(sourceScore))"
-                  variant="outline"
-                >
-                  {{ sourceName(source) }}: {{ (sourceScore * 100).toFixed(0) }}
-                </Badge>
-                <template #content>
-                  <p class="font-medium text-xs text-foreground">{{ sourceName(source) }}</p>
-                  <p class="text-xs text-foreground/70">
-                    {{ getSourceDescription(source, sourceScore) }}
-                  </p>
-                </template>
-              </HoverPopover>
+                kind="neutral"
+                class="tabular-nums"
+                :label="`${sourceDisplayName(source)} ${formatPercent(sourceScore)}`"
+                :tooltip="getSourceDescription(source, sourceScore)"
+              />
             </div>
+            <p v-else class="text-sm text-muted-foreground">No per-source scores.</p>
           </div>
         </div>
-        <div v-else class="text-center py-4">
-          <CircleHelp class="mx-auto mb-2 text-muted-foreground" :size="24" />
+        <div v-else class="py-4 text-center">
+          <CircleHelp class="mx-auto mb-2 text-muted-foreground" :size="24" aria-hidden="true" />
           <p class="text-sm text-muted-foreground">No evidence score available</p>
         </div>
       </CardContent>
     </Card>
-
-    <!-- Compact display for lists -->
-    <div v-else-if="variant === 'compact'" class="inline-block">
-      <div class="flex items-center justify-between gap-2">
-        <Badge
-          :class="[chipSizeClasses, 'font-medium tabular-nums']"
-          :style="tintedChipStyle(scoreHexColor)"
-          variant="outline"
-        >
-          {{ formattedScore }}
-        </Badge>
-        <div class="flex gap-1">
-          <HoverPopover v-for="[source, sourceScore] in topSourceEntries" :key="source">
-            <Badge
-              as="span"
-              class="cursor-pointer text-[10px]"
-              :style="tintedChipStyle(getSubScoreHexColor(sourceScore))"
-              variant="outline"
-            >
-              {{ sourceAbbreviation(source) }}
-            </Badge>
-            <template #content>
-              <span class="text-xs text-foreground"
-                >{{ source }}: {{ (sourceScore * 100).toFixed(1) }}%</span
-              >
-            </template>
-          </HoverPopover>
-          <Badge v-if="remainingSourceCount > 0" variant="outline" class="text-[10px]">
-            +{{ remainingSourceCount }}
-          </Badge>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import HoverPopover from '@/components/ui/HoverPopover.vue'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { getScoreExplanation, getTierConfig, tintedChipStyle } from '@/utils/evidenceTiers'
+import { Chip } from '@/components/shared'
+import { getTierConfig } from '@/utils/evidenceTiers'
+import { sourceDisplayName } from '@/utils/sources'
 import { CircleHelp } from 'lucide-vue-next'
 
 const props = defineProps({
-  score: {
-    type: Number,
-    default: null
-  },
-  // Backend evidence_tier; the only source of the label (#314)
-  tier: {
-    type: String,
-    default: null
-  },
-  breakdown: {
-    type: Object,
-    default: () => ({})
-  },
-  variant: {
-    type: String,
-    default: 'inline',
-    validator: value => ['inline', 'card', 'compact'].includes(value)
-  },
-  size: {
-    type: String,
-    default: 'small',
-    validator: value => ['x-small', 'small', 'default'].includes(value)
-  },
-  maxSources: {
-    type: Number,
-    default: 3
-  }
+  score: { type: Number, default: null },
+  // Backend evidence_tier; the only source of the label (issue 314)
+  tier: { type: String, default: null },
+  breakdown: { type: Object, default: () => ({}) }
 })
 
-// Computed properties
-const formattedScore = computed(() => {
-  if (props.score === null || props.score === undefined) return 'N/A'
-  return props.score.toFixed(1)
-})
+const formattedScore = computed(() => (props.score == null ? 'N/A' : props.score.toFixed(1)))
 
-/** Per-source sub-score colors (0-1 scale, not the aggregate score) */
-const colorMap = {
-  success: '#22c55e',
-  info: '#3b82f6',
-  warning: '#f59e0b',
-  orange: '#f97316',
-  error: '#ef4444'
-}
+/** One format for per-source scores everywhere (evidence cards use the same) */
+const formatPercent = value => `${(value * 100).toFixed(1)}%`
 
-// Label, color and icon come only from the backend evidence_tier (#314)
+// Label, color and icon come only from the backend evidence_tier (issue 314)
 const tierConfig = computed(() => getTierConfig(props.tier))
 
-const scoreHexColor = computed(() => tierConfig.value.color)
-
-const scoreIcon = computed(() => tierConfig.value.icon)
-
-const classification = computed(() => tierConfig.value.label)
-
-const chipSizeClasses = computed(() => {
-  switch (props.size) {
-    case 'x-small':
-      return 'text-[10px] px-1.5 py-0'
-    case 'small':
-      return 'text-xs px-2 py-0.5'
-    default:
-      return 'text-sm px-2.5 py-1'
-  }
-})
-
-const sortedBreakdownEntries = computed(() => {
-  if (!props.breakdown) return []
+const sortedBreakdownEntries = computed(() =>
   // Only real numeric contributions may be shown as percentages
-  return Object.entries(props.breakdown)
+  Object.entries(props.breakdown ?? {})
     .filter(([, value]) => Number.isFinite(value))
     .sort(([, a], [, b]) => b - a)
-})
+)
 
-const topSourceEntries = computed(() => {
-  return sortedBreakdownEntries.value.slice(0, props.maxSources)
-})
-
-const remainingSourceCount = computed(() => {
-  return Math.max(0, sortedBreakdownEntries.value.length - props.maxSources)
-})
-
-// SVG donut
-const donutRadius = 36 // (80 - 8) / 2
+const donutRadius = 40 // (96 - 8) / 2 - 4
 const circumference = 2 * Math.PI * donutRadius
 
-// Methods
-const getSubScoreHexColor = score => {
-  const pct = score * 100
-  if (pct >= 90) return colorMap.success
-  if (pct >= 70) return colorMap.info
-  if (pct >= 50) return colorMap.warning
-  if (pct >= 30) return colorMap.orange
-  return colorMap.error
-}
-
-const sourceAbbreviation = source => {
-  const abbreviations = {
-    PanelApp: 'PA',
-    HPO: 'HPO',
-    PubTator: 'PT',
-    Literature: 'LIT',
-    ClinGen: 'CG',
-    GenCC: 'GC'
-  }
-  return abbreviations[source] || source.substring(0, 2).toUpperCase()
-}
-
-// Breakdown keys are backend source names; only these differ from display_name in backend/config/datasources.yaml
-const sourceName = source =>
-  ({ DiagnosticPanels: 'Diagnostic Panels', PubTator: 'PubTator3' })[source] || source
-
 const getSourceDescription = (source, score) => {
-  const percentage = (score * 100).toFixed(1)
+  const percentage = formatPercent(score)
   const descriptions = {
-    PanelApp: `Panel confidence score: ${percentage}%`,
-    HPO: `Phenotype association strength: ${percentage}%`,
-    PubTator: `Literature evidence score: ${percentage}%`,
-    Literature: `Publication support: ${percentage}%`
+    PanelApp: `Panel confidence score: ${percentage}`,
+    HPO: `Phenotype association strength: ${percentage}`,
+    PubTator: `Literature evidence score: ${percentage}`,
+    Literature: `Publication support: ${percentage}`
   }
-  return descriptions[source] || `Evidence score: ${percentage}%`
+  return `${sourceDisplayName(source)}. ${descriptions[source] || `Evidence score: ${percentage}`}. Normalized source score (0–100%).`
 }
 </script>

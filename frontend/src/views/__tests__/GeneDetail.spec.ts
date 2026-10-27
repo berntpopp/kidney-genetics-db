@@ -8,6 +8,7 @@ import type { VueWrapper } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import { createPinia } from 'pinia'
 import { createRouter, createMemoryHistory, RouterView } from 'vue-router'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import GeneDetail from '@/views/GeneDetail.vue'
 
 vi.mock('@unhead/vue', () => ({ useHead: vi.fn() }))
@@ -36,14 +37,14 @@ async function mountGene(symbol = 'PKD1') {
   })
   await router.push(`/genes/${symbol}`)
   await router.isReady()
-  wrapper = mount(defineComponent({ render: () => h(RouterView) }), {
+  wrapper = mount(defineComponent({ render: () => h(TooltipProvider, () => h(RouterView)) }), {
     global: { plugins: [router, createPinia()], stubs: { GeneInformationCard: true } }
   })
   await flushPromises()
   return wrapper
 }
 
-const retryButton = (w: VueWrapper) => w.findAll('button').find(b => b.text() === 'Try again')
+const retryButton = (w: VueWrapper) => w.findAll('button').find(b => b.text() === 'Retry')
 
 describe('GeneDetail load states (#316)', () => {
   beforeEach(() => {
@@ -74,9 +75,9 @@ describe('GeneDetail load states (#316)', () => {
     await flushPromises()
     expect(geneApi.getGene).toHaveBeenCalledTimes(2)
     expect(w.find('h1').text()).toBe('PKD1')
-    const back = w.get('a[aria-label="Back to gene browser"]')
-    expect(back.attributes('href')).toBe('/genes')
-    expect(back.find('button').exists()).toBe(false)
+    // Breadcrumbs are router links, not full page loads
+    const crumb = w.get('nav a[href="/genes"]')
+    expect(crumb.text()).toBe('Genes')
   })
 
   it('shows not-found copy only for HTTP 404', async () => {
@@ -104,5 +105,28 @@ describe('GeneDetail load states (#316)', () => {
     await flushPromises()
     expect(geneApi.getGeneEvidence).toHaveBeenCalledTimes(2)
     expect(w.text()).toContain('No evidence records available')
+  })
+
+  it('renders the gene before the slow annotation call returns', async () => {
+    vi.mocked(geneApi.getGene).mockResolvedValue({
+      id: 1,
+      approved_symbol: 'HNF1B',
+      hgnc_id: 'HGNC:11630'
+    } as never)
+    let resolveAnnotations: (_v: unknown) => void = () => {}
+    vi.mocked(geneApi.getGeneAnnotations).mockReturnValue(
+      new Promise(r => (resolveAnnotations = r)) as never
+    )
+    const w = await mountGene('HNF1B')
+
+    expect(w.find('h1').text()).toBe('HNF1B')
+    expect(w.text()).toContain('No evidence records available')
+    expect(w.findAll('[data-state="loading"]').length).toBeGreaterThan(0)
+
+    resolveAnnotations({
+      annotations: { hgnc: [{ data: { name: 'HNF1 homeobox B', hgnc_id: 'HGNC:11630' } }] }
+    })
+    await flushPromises()
+    expect(w.get('[data-testid="gene-identity"]').text()).toContain('HNF1 homeobox B')
   })
 })

@@ -5,40 +5,30 @@
  */
 
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useWebSocket } from '@/services/websocket'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
+import { Chip, DataState, PAGE_CONTAINER, SourceLabel, StatusBadge } from '@/components/shared'
+import { sourceDisplayName } from '@/utils/sources'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import * as pipelineApi from '@/api/admin/pipeline'
-import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import { toast } from 'vue-sonner'
 import {
   AlertTriangle,
-  BookOpen,
-  BriefcaseMedical,
   CircleAlert,
   CircleCheck,
   CirclePlay,
   Cog,
   Database,
-  Dna,
-  FileText,
-  Hash,
-  Hospital,
   Info,
-  LayoutList,
   Loader2,
-  Minus,
   Pause,
   Play,
-  Plus,
   RefreshCw,
-  Users,
-  Wifi,
-  WifiOff
+  Upload
 } from 'lucide-vue-next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
@@ -65,6 +55,7 @@ const { connected: wsConnected, connect, disconnect, subscribe } = useWebSocket(
 // State
 const sources = ref([])
 const loading = ref(false)
+const loadError = ref(null)
 const triggering = ref({})
 const pausing = ref({})
 const resuming = ref({})
@@ -107,6 +98,7 @@ const failedSources = computed(() => dataSources.value.filter(s => s.status === 
 // Methods
 const loadSources = async () => {
   loading.value = true
+  loadError.value = null
   try {
     const response = await pipelineApi.getAllStatus()
     // API returns { data: [...], meta: {...} } structure
@@ -114,7 +106,7 @@ const loadSources = async () => {
     now.value = Date.now()
   } catch (error) {
     window.logService.error('Failed to load sources:', error)
-    toast.error('Failed to load pipeline status', { duration: Infinity })
+    loadError.value = error.message || 'Request failed'
   } finally {
     loading.value = false
   }
@@ -124,10 +116,10 @@ const triggerSource = async sourceName => {
   triggering.value[sourceName] = true
   try {
     await pipelineApi.triggerUpdate(sourceName)
-    toast.success(`Started ${sourceName}`, { duration: 5000 })
+    toast.success(`Started ${sourceDisplayName(sourceName)}`, { duration: 5000 })
   } catch (error) {
     window.logService.error(`Failed to trigger ${sourceName}:`, error)
-    toast.error(`Failed to start ${sourceName}`, { duration: Infinity })
+    toast.error(`Failed to start ${sourceDisplayName(sourceName)}`, { duration: Infinity })
   } finally {
     triggering.value[sourceName] = false
   }
@@ -137,10 +129,10 @@ const pauseSource = async sourceName => {
   pausing.value[sourceName] = true
   try {
     await pipelineApi.pauseSource(sourceName)
-    toast.success(`Paused ${sourceName}`, { duration: 5000 })
+    toast.success(`Paused ${sourceDisplayName(sourceName)}`, { duration: 5000 })
   } catch (error) {
     window.logService.error(`Failed to pause ${sourceName}:`, error)
-    toast.error(`Failed to pause ${sourceName}`, { duration: Infinity })
+    toast.error(`Failed to pause ${sourceDisplayName(sourceName)}`, { duration: Infinity })
   } finally {
     pausing.value[sourceName] = false
   }
@@ -150,10 +142,10 @@ const resumeSource = async sourceName => {
   resuming.value[sourceName] = true
   try {
     await pipelineApi.resumeSource(sourceName)
-    toast.success(`Resumed ${sourceName}`, { duration: 5000 })
+    toast.success(`Resumed ${sourceDisplayName(sourceName)}`, { duration: 5000 })
   } catch (error) {
     window.logService.error(`Failed to resume ${sourceName}:`, error)
-    toast.error(`Failed to resume ${sourceName}`, { duration: Infinity })
+    toast.error(`Failed to resume ${sourceDisplayName(sourceName)}`, { duration: Infinity })
   } finally {
     resuming.value[sourceName] = false
   }
@@ -182,42 +174,6 @@ const triggerAll = async () => {
 const pauseAll = async () => {
   const runningSrcs = sources.value.filter(s => s.status === 'running')
   await Promise.all(runningSrcs.map(source => pauseSource(source.source_name)))
-}
-
-const getSourceIcon = source => {
-  switch (source.source_name) {
-    case 'PanelApp':
-      return LayoutList
-    case 'HPO':
-      return Dna
-    case 'ClinGen':
-      return Hospital
-    case 'GenCC':
-      return Users
-    case 'PubTator':
-      return FileText
-    case 'DiagnosticPanels':
-      return BriefcaseMedical
-    case 'Literature':
-      return BookOpen
-    default:
-      return Database
-  }
-}
-
-const getStatusVariant = status => {
-  switch (status) {
-    case 'running':
-      return 'default'
-    case 'completed':
-      return 'outline'
-    case 'failed':
-      return 'destructive'
-    case 'paused':
-      return 'outline'
-    default:
-      return 'secondary'
-  }
 }
 
 const STALLED_AFTER_MS = 10 * 60 * 1000
@@ -340,37 +296,26 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-6">
-    <AdminHeader
-      title="Data Pipeline Control"
-      subtitle="Monitor and control data ingestion pipelines"
-      :icon="Minus"
-      icon-color="green"
-      :breadcrumbs="ADMIN_BREADCRUMBS.pipeline"
-    >
+  <div :class="PAGE_CONTAINER">
+    <AdminHeader title="Data Pipeline" subtitle="Monitor and control data ingestion pipelines">
       <template #actions>
-        <Badge :variant="wsConnected ? 'default' : 'destructive'" class="flex items-center gap-1">
-          <component :is="wsConnected ? Wifi : WifiOff" class="size-3" />
-          {{ wsConnected ? 'Live' : 'Offline' }}
-        </Badge>
+        <StatusBadge
+          :status="wsConnected ? 'ok' : 'warning'"
+          :label="wsConnected ? 'Live updates' : 'Polling every 30 s'"
+          :tooltip="
+            wsConnected
+              ? 'Status updates arrive in real time'
+              : 'The live connection is down; status refreshes every 30 seconds'
+          "
+        />
       </template>
     </AdminHeader>
 
     <!-- Summary Stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      <AdminStatsCard
-        title="Data Sources"
-        :value="dataSources.length"
-        :icon="Database"
-        color="info"
-      />
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <AdminStatsCard title="Data Sources" :value="dataSources.length" :icon="Database" />
       <AdminStatsCard title="Running" :value="runningSources" :icon="CirclePlay" color="success" />
-      <AdminStatsCard
-        title="Completed"
-        :value="completedSources"
-        :icon="CircleCheck"
-        color="primary"
-      />
+      <AdminStatsCard title="Completed" :value="completedSources" :icon="CircleCheck" />
       <AdminStatsCard title="Failed" :value="failedSources" :icon="CircleAlert" color="error" />
     </div>
 
@@ -401,168 +346,176 @@ onUnmounted(() => {
     </Card>
 
     <!-- Data Sources Grid -->
-    <h3 class="text-lg font-semibold mb-4">Data Sources</h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <Card
-        v-for="source in dataSources"
-        :key="source.source_name"
-        data-testid="source-card"
-        class="flex flex-col"
-      >
-        <CardHeader class="pb-2">
-          <div class="flex items-center justify-between">
-            <CardTitle class="text-sm flex items-center gap-2">
-              <component :is="getSourceIcon(source)" class="size-5" />
-              {{ source.source_name }}
-            </CardTitle>
-            <Badge
-              v-if="isStalled(source)"
-              variant="destructive"
-              :title="`Stalled: last progress update ${formatTime(source.last_update_at)}`"
-            >
-              stalled
-            </Badge>
-            <Badge v-else :variant="getStatusVariant(source.status)">
-              {{ source.status }}
-            </Badge>
-          </div>
-        </CardHeader>
-
-        <CardContent class="flex-1">
-          <!-- Progress Bar -->
-          <div v-if="source.status === 'running'" class="mb-3">
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-xs text-muted-foreground">
-                {{ source.current_operation || 'Processing...' }}
-              </span>
-              <span class="text-xs font-medium">
-                {{ Math.round(source.progress_percentage || 0) }}%
-              </span>
-            </div>
-            <Progress :model-value="source.progress_percentage || 0" class="h-2" />
-            <p v-if="isStalled(source)" class="text-xs text-destructive mt-1">
-              Stalled: last progress update {{ formatTime(source.last_update_at) }}
-            </p>
-          </div>
-
-          <!-- Statistics -->
-          <div class="space-y-2 text-sm">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2 text-muted-foreground">
-                <Hash class="size-4" />
-                <span>Items Processed</span>
-              </div>
-              <span class="font-medium">{{ source.items_processed || 0 }}</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2 text-green-600 dark:text-green-400">
-                <Plus class="size-4" />
-                <span>Added</span>
-              </div>
-              <span class="font-medium text-green-600 dark:text-green-400">
-                {{ source.items_added || 0 }}
-              </span>
-            </div>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                <RefreshCw class="size-4" />
-                <span>Updated</span>
-              </div>
-              <span class="font-medium text-blue-600 dark:text-blue-400">
-                {{ source.items_updated || 0 }}
-              </span>
-            </div>
-            <div v-if="source.items_failed > 0" class="flex items-center justify-between">
-              <div class="flex items-center gap-2 text-destructive">
-                <AlertTriangle class="size-4" />
-                <span>Failed</span>
-              </div>
-              <span class="font-medium text-destructive">
-                {{ source.items_failed || 0 }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Timing Info -->
-          <div v-if="source.started_at" class="mt-3 text-xs text-muted-foreground">
-            <div v-if="source.status === 'running'">
-              Started: {{ formatTime(source.started_at) }}
-            </div>
-            <div v-else-if="source.completed_at">
-              Completed: {{ formatTime(source.completed_at) }}
-            </div>
-            <div v-if="source.estimated_completion && source.status === 'running'">
-              {{ formatRemaining(source.estimated_completion) }}
-            </div>
-          </div>
-
-          <!-- Error Message -->
-          <Alert v-if="source.last_error" variant="destructive" class="mt-3">
-            <AlertTriangle class="size-4" />
-            <AlertDescription class="text-xs">{{ source.last_error }}</AlertDescription>
-          </Alert>
-        </CardContent>
-
-        <!-- Actions -->
-        <div class="flex items-center justify-between px-6 pb-4">
-          <div>
-            <Button
-              v-if="
-                source.status === 'idle' ||
-                source.status === 'failed' ||
-                source.status === 'completed'
-              "
-              size="sm"
-              variant="outline"
-              :disabled="triggering[source.source_name]"
-              @click="triggerSource(source.source_name)"
-            >
-              <Loader2 v-if="triggering[source.source_name]" class="size-4 mr-1 animate-spin" />
-              <Play v-else class="size-4 mr-1" />
-              Run
-            </Button>
-
-            <Button
-              v-else-if="source.status === 'running'"
-              size="sm"
-              variant="outline"
-              :disabled="pausing[source.source_name]"
-              @click="pauseSource(source.source_name)"
-            >
-              <Loader2 v-if="pausing[source.source_name]" class="size-4 mr-1 animate-spin" />
-              <Pause v-else class="size-4 mr-1" />
-              Pause
-            </Button>
-
-            <Button
-              v-else-if="source.status === 'paused'"
-              size="sm"
-              variant="outline"
-              :disabled="resuming[source.source_name]"
-              @click="resumeSource(source.source_name)"
-            >
-              <Loader2 v-if="resuming[source.source_name]" class="size-4 mr-1 animate-spin" />
-              <Play v-else class="size-4 mr-1" />
-              Resume
-            </Button>
-          </div>
-
-          <Button
-            :aria-label="`Details for ${source.source_name}`"
-            variant="ghost"
-            size="icon"
-            class="h-8 w-8"
-            @click="showSourceDetails(source)"
-          >
-            <Info class="size-4" />
-          </Button>
+    <h2 class="text-lg font-semibold mb-4">Data Sources</h2>
+    <DataState
+      :loading="loading && !sources.length"
+      :error="loadError"
+      error-title="Could not load pipeline status"
+      :empty="!dataSources.length"
+      empty-message="No data sources are registered."
+      class="mb-4"
+      @retry="loadSources"
+    >
+      <template #loading>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" aria-hidden="true">
+          <div
+            v-for="i in 6"
+            :key="i"
+            class="h-56 rounded-xl border bg-muted/50 motion-safe:animate-pulse"
+          />
         </div>
-      </Card>
-    </div>
+      </template>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card
+          v-for="source in dataSources"
+          :key="source.source_name"
+          data-testid="source-card"
+          class="flex flex-col"
+        >
+          <CardHeader class="pb-2">
+            <div class="flex items-center justify-between">
+              <CardTitle class="text-sm">
+                <SourceLabel :source="source.source_name" />
+              </CardTitle>
+              <StatusBadge
+                v-if="isStalled(source)"
+                status="stale"
+                label="Stalled"
+                :tooltip="`Stalled: last progress update ${formatTime(source.last_update_at)}`"
+              />
+              <StatusBadge v-else :status="source.status" />
+            </div>
+          </CardHeader>
+
+          <CardContent class="flex-1">
+            <!-- Progress Bar -->
+            <div v-if="source.status === 'running'" class="mb-3">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs text-muted-foreground">
+                  {{ source.current_operation || 'Processing...' }}
+                </span>
+                <span class="text-xs font-medium tabular-nums">
+                  {{ Math.round(source.progress_percentage || 0) }}%
+                </span>
+              </div>
+              <Progress :model-value="source.progress_percentage || 0" class="h-2" />
+              <p v-if="isStalled(source)" class="text-xs text-danger mt-1">
+                Stalled: last progress update {{ formatTime(source.last_update_at) }}
+              </p>
+            </div>
+
+            <!-- Statistics -->
+            <dl class="space-y-1.5 text-sm">
+              <div class="flex items-center justify-between">
+                <dt class="text-muted-foreground">Items processed</dt>
+                <dd class="font-medium tabular-nums">
+                  {{ (source.items_processed || 0).toLocaleString() }}
+                </dd>
+              </div>
+              <div class="flex items-center justify-between">
+                <dt class="text-muted-foreground">Added</dt>
+                <dd class="font-medium tabular-nums">
+                  {{ (source.items_added || 0).toLocaleString() }}
+                </dd>
+              </div>
+              <div class="flex items-center justify-between">
+                <dt class="text-muted-foreground">Updated</dt>
+                <dd class="font-medium tabular-nums">
+                  {{ (source.items_updated || 0).toLocaleString() }}
+                </dd>
+              </div>
+              <div v-if="source.items_failed > 0" class="flex items-center justify-between">
+                <dt class="flex items-center gap-1.5 text-danger">
+                  <AlertTriangle class="size-4" aria-hidden="true" />
+                  Failed
+                </dt>
+                <dd class="font-medium tabular-nums text-danger">
+                  {{ source.items_failed.toLocaleString() }}
+                </dd>
+              </div>
+            </dl>
+
+            <!-- Timing Info -->
+            <div v-if="source.started_at" class="mt-3 text-xs text-muted-foreground">
+              <div v-if="source.status === 'running'">
+                Started: {{ formatTime(source.started_at) }}
+              </div>
+              <div v-else-if="source.completed_at">
+                Completed: {{ formatTime(source.completed_at) }}
+              </div>
+              <div v-if="source.estimated_completion && source.status === 'running'">
+                {{ formatRemaining(source.estimated_completion) }}
+              </div>
+            </div>
+
+            <!-- Error Message -->
+            <Alert v-if="source.last_error" variant="destructive" class="mt-3">
+              <AlertTriangle class="size-4" />
+              <AlertDescription class="text-xs">{{ source.last_error }}</AlertDescription>
+            </Alert>
+          </CardContent>
+
+          <!-- Actions -->
+          <div class="flex items-center justify-between px-6 pb-4">
+            <div>
+              <Button
+                v-if="
+                  source.status === 'idle' ||
+                  source.status === 'failed' ||
+                  source.status === 'completed'
+                "
+                size="sm"
+                variant="outline"
+                :disabled="triggering[source.source_name]"
+                @click="triggerSource(source.source_name)"
+              >
+                <Loader2 v-if="triggering[source.source_name]" class="size-4 mr-1 animate-spin" />
+                <Play v-else class="size-4 mr-1" />
+                Run
+              </Button>
+
+              <Button
+                v-else-if="source.status === 'running'"
+                size="sm"
+                variant="outline"
+                :disabled="pausing[source.source_name]"
+                @click="pauseSource(source.source_name)"
+              >
+                <Loader2 v-if="pausing[source.source_name]" class="size-4 mr-1 animate-spin" />
+                <Pause v-else class="size-4 mr-1" />
+                Pause
+              </Button>
+
+              <Button
+                v-else-if="source.status === 'paused'"
+                size="sm"
+                variant="outline"
+                :disabled="resuming[source.source_name]"
+                @click="resumeSource(source.source_name)"
+              >
+                <Loader2 v-if="resuming[source.source_name]" class="size-4 mr-1 animate-spin" />
+                <Play v-else class="size-4 mr-1" />
+                Resume
+              </Button>
+            </div>
+
+            <Button
+              :aria-label="`Details for ${source.source_name}`"
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8"
+              @click="showSourceDetails(source)"
+            >
+              <Info class="size-4" aria-hidden="true" />
+            </Button>
+          </div>
+        </Card>
+      </div>
+    </DataState>
 
     <!-- Hybrid Sources Section (manual upload sources like DiagnosticPanels, Literature) -->
     <div v-if="hybridSources.length > 0" class="mt-8">
-      <h3 class="text-lg font-semibold mb-4">Upload Sources</h3>
+      <h2 class="text-lg font-semibold mb-4">Upload Sources</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card
           v-for="source in hybridSources"
@@ -571,16 +524,25 @@ onUnmounted(() => {
         >
           <CardHeader class="pb-2">
             <div class="flex items-center justify-between">
-              <CardTitle class="text-sm flex items-center gap-2">
-                <component :is="getSourceIcon(source)" class="size-5" />
-                {{ source.source_name }}
+              <CardTitle class="text-sm">
+                <SourceLabel :source="source.source_name" />
               </CardTitle>
-              <Badge variant="secondary">manual upload</Badge>
+              <Chip
+                kind="neutral"
+                label="Manual upload"
+                :icon="Upload"
+                tooltip="Data arrives by file upload (Hybrid Sources), not from the automated pipeline"
+              />
             </div>
           </CardHeader>
           <CardContent class="flex-1 pt-2">
             <p class="text-xs text-muted-foreground">
-              Upload via API or Admin panel. Not part of the automated pipeline.
+              Upload files in
+              <RouterLink
+                to="/admin/hybrid-sources"
+                class="text-primary underline-offset-4 hover:underline"
+                >Hybrid Sources</RouterLink
+              >. Not part of the automated pipeline.
             </p>
           </CardContent>
         </Card>
@@ -589,7 +551,7 @@ onUnmounted(() => {
 
     <!-- Internal Processes Section -->
     <div v-if="internalProcesses.length > 0" class="mt-8">
-      <h3 class="text-lg font-semibold mb-4">Internal Processes</h3>
+      <h2 class="text-lg font-semibold mb-4">Internal Processes</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card
           v-for="process in internalProcesses"
@@ -599,12 +561,10 @@ onUnmounted(() => {
           <CardHeader class="pb-2">
             <div class="flex items-center justify-between">
               <CardTitle class="text-sm flex items-center gap-2">
-                <Cog class="size-5" />
+                <Cog class="size-4 text-muted-foreground" aria-hidden="true" />
                 {{ process.display_name || process.source_name }}
               </CardTitle>
-              <Badge :variant="getStatusVariant(process.status)">
-                {{ process.status }}
-              </Badge>
+              <StatusBadge :status="process.status" />
             </div>
           </CardHeader>
 
@@ -619,7 +579,7 @@ onUnmounted(() => {
                 <span class="text-xs text-muted-foreground">
                   {{ process.current_operation || 'Processing...' }}
                 </span>
-                <span class="text-xs font-medium">
+                <span class="text-xs font-medium tabular-nums">
                   {{ Math.round(process.progress_percentage || 0) }}%
                 </span>
               </div>
@@ -632,7 +592,7 @@ onUnmounted(() => {
               <span v-if="process.total_items" class="sr-only" role="status">
                 {{ process.current_item }} of {{ process.total_items }} sources done
               </span>
-              <p v-if="isStalled(process)" class="text-xs text-destructive mt-1">
+              <p v-if="isStalled(process)" class="text-xs text-danger mt-1">
                 Stalled: last progress update {{ formatTime(process.last_update_at) }}
               </p>
             </div>
@@ -667,7 +627,7 @@ onUnmounted(() => {
               class="h-8 w-8"
               @click="showSourceDetails(process)"
             >
-              <Info class="size-4" />
+              <Info class="size-4" aria-hidden="true" />
             </Button>
           </div>
         </Card>
@@ -684,8 +644,8 @@ onUnmounted(() => {
           </AlertDialogTitle>
           <AlertDialogDescription>
             This starts an update run for each of these sources:
-            {{ triggerableSources.map(s => s.source_name).join(', ') }}. Runs continue in the
-            background until they finish or are paused.
+            {{ triggerableSources.map(s => sourceDisplayName(s.source_name)).join(', ') }}. Runs
+            continue in the background until they finish or are paused.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -699,7 +659,7 @@ onUnmounted(() => {
     <Dialog v-model:open="showDetailsDialog">
       <DialogContent class="max-w-[700px]">
         <DialogHeader>
-          <DialogTitle>{{ selectedSource?.source_name }} Details</DialogTitle>
+          <DialogTitle>{{ sourceDisplayName(selectedSource?.source_name) }} details</DialogTitle>
           <DialogDescription>Raw data for the selected source</DialogDescription>
         </DialogHeader>
         <div v-if="selectedSource" class="max-h-[400px] overflow-auto">

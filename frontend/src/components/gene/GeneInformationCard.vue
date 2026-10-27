@@ -1,102 +1,56 @@
 <template>
-  <Card class="h-full">
-    <CardHeader class="flex flex-row items-center gap-3 pb-2">
-      <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-        <Dna :size="20" class="text-primary" />
-      </div>
-      <div class="flex-1">
-        <CardTitle tag="h2" class="flex items-center flex-wrap text-base">
-          <span>Gene Information</span>
-          <span class="ml-3 text-sm font-normal text-muted-foreground">
-            {{ gene.approved_symbol }} &bull;
-            <a
-              v-if="gene.hgnc_id"
-              :href="`https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/${gene.hgnc_id}`"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-primary underline underline-offset-2"
-              >{{ gene.hgnc_id }}</a
-            >
-            <span v-else>{{ gene.hgnc_id }}</span>
-            <template v-if="hgncData?.mane_select?.refseq_transcript_id">
-              &bull; {{ hgncData.mane_select.refseq_transcript_id }}
-            </template>
-          </span>
-        </CardTitle>
-      </div>
-      <Button variant="outline" size="sm" as="a" :href="`/genes/${gene.approved_symbol}/structure`">
-        <Database :size="14" class="mr-1" />
-        Structure
-      </Button>
+  <Card class="h-full gap-4">
+    <CardHeader>
+      <CardTitle tag="h2" class="text-base">Gene annotations</CardTitle>
     </CardHeader>
 
-    <CardContent class="pt-2 pb-2">
-      <!-- If no annotations at all, show centered message -->
-      <div
-        v-if="
-          !gnomadData &&
-          !clinvarData &&
-          !gtexData &&
-          !descartesData &&
-          !hpoData &&
-          !mouseData &&
-          !stringPpiData
-        "
-        class="flex items-center justify-center"
-        style="min-height: 200px"
+    <CardContent>
+      <DataState
+        :loading="loading"
+        :error="error"
+        :empty="!hasAnnotations"
+        error-title="Could not load annotations"
+        empty-message="No annotations for this gene yet."
+        @retry="$emit('retry')"
       >
-        <div class="text-center">
-          <Database :size="56" class="mx-auto text-muted-foreground mb-3" />
-          <div class="text-base font-medium">No Additional Annotations</div>
-          <div class="text-xs text-muted-foreground mt-1">
-            Additional annotations will appear here when available
+        <template #loading>
+          <div class="grid grid-cols-1 gap-6 md:grid-cols-2" aria-hidden="true">
+            <div v-for="col in 2" :key="col" class="space-y-5">
+              <div v-for="row in 3" :key="row" class="space-y-2">
+                <div class="h-3 w-32 rounded-md bg-muted motion-safe:animate-pulse" />
+                <div class="flex gap-1.5">
+                  <div
+                    v-for="chip in 3"
+                    :key="chip"
+                    class="h-6 w-20 rounded-md bg-muted motion-safe:animate-pulse"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <div class="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
+          <div class="space-y-5">
+            <GeneConstraints v-if="gnomadData" :gnomad-data="gnomadData" />
+            <ClinVarVariants
+              v-if="clinvarData"
+              :clinvar-data="clinvarData"
+              :gene-symbol="gene.approved_symbol"
+            />
+            <GeneExpression
+              v-if="gtexData || descartesData"
+              :gtex-data="gtexData"
+              :descartes-data="descartesData"
+            />
+          </div>
+          <div class="space-y-5">
+            <GenePhenotypes v-if="hpoData" :hpo-data="hpoData" />
+            <MousePhenotypes v-if="mouseData" :mouse-data="mouseData" />
+            <ProteinInteractions v-if="stringPpiData" :string-ppi-data="stringPpiData" />
           </div>
         </div>
-      </div>
-
-      <!-- Otherwise show normal two-column layout -->
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Left Column: Gene Identity & Clinical Data -->
-        <div class="space-y-4">
-          <GeneConstraints
-            v-if="gnomadData || gnomadNoData"
-            :gnomad-data="gnomadData || gnomadNoData"
-          />
-
-          <template v-if="clinvarData">
-            <Separator />
-            <ClinVarVariants :clinvar-data="clinvarData" :gene-symbol="gene.approved_symbol" />
-          </template>
-
-          <template v-if="gtexData || descartesData">
-            <Separator />
-            <GeneExpression :gtex-data="gtexData" :descartes-data="descartesData" />
-          </template>
-        </div>
-
-        <!-- Right Column: Phenotypes & Molecular Interactions -->
-        <div class="space-y-4">
-          <GenePhenotypes v-if="hpoData" :hpo-data="hpoData" />
-
-          <template v-if="mouseData">
-            <Separator v-if="hpoData" />
-            <MousePhenotypes :mouse-data="mouseData" />
-          </template>
-
-          <template v-if="stringPpiData">
-            <Separator v-if="hpoData || mouseData" />
-            <ProteinInteractions :string-ppi-data="stringPpiData" />
-          </template>
-        </div>
-      </div>
-
-      <!-- Loading indicator for annotations -->
-      <div v-if="loadingAnnotations && !hasAnnotations" class="text-center py-4">
-        <div
-          class="h-8 w-8 mx-auto animate-spin rounded-full border-2 border-primary border-t-transparent"
-        />
-        <div class="text-xs text-muted-foreground mt-2">Loading annotations...</div>
-      </div>
+      </DataState>
     </CardContent>
   </Card>
 </template>
@@ -104,9 +58,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import { Dna, Database } from 'lucide-vue-next'
+import { DataState } from '@/components/shared'
 import GeneConstraints from './GeneConstraints.vue'
 import GeneExpression from './GeneExpression.vue'
 import ClinVarVariants from './ClinVarVariants.vue'
@@ -115,80 +67,34 @@ import MousePhenotypes from './MousePhenotypes.vue'
 import ProteinInteractions from './ProteinInteractions.vue'
 
 const props = defineProps({
-  gene: {
-    type: Object,
-    required: true
-  },
-  annotations: {
-    type: Object,
-    default: null
-  },
-  loadingAnnotations: {
-    type: Boolean,
-    default: false
-  }
+  gene: { type: Object, required: true },
+  annotations: { type: Object, default: null },
+  loading: { type: Boolean, default: false },
+  error: { type: [String, Object, Boolean], default: null }
 })
 
-// Extract annotation data
-const hgncData = computed(() => {
-  if (!props.annotations?.annotations?.hgnc?.[0]) return null
-  return props.annotations.annotations.hgnc[0].data
-})
+defineEmits(['retry'])
 
-const gnomadData = computed(() => {
-  if (!props.annotations?.annotations?.gnomad?.[0]) return null
-  const data = props.annotations.annotations.gnomad[0].data
-  if (data?.constraint_not_available) return null
-  return data
-})
+const first = source => props.annotations?.annotations?.[source]?.[0]?.data ?? null
 
-const gnomadNoData = computed(() => {
-  if (!props.annotations?.annotations?.gnomad?.[0]) return null
-  const data = props.annotations.annotations.gnomad[0].data
-  if (data?.constraint_not_available) return data
-  return null
-})
+const gnomadData = computed(() => first('gnomad'))
+const gtexData = computed(() => first('gtex'))
+const descartesData = computed(() => first('descartes'))
+const clinvarData = computed(() => first('clinvar'))
+const hpoData = computed(() => first('hpo'))
+const mouseData = computed(() => first('mpo_mgi'))
+const stringPpiData = computed(() => first('string_ppi'))
 
-const gtexData = computed(() => {
-  if (!props.annotations?.annotations?.gtex?.[0]) return null
-  return props.annotations.annotations.gtex[0].data
-})
-
-const descartesData = computed(() => {
-  if (!props.annotations?.annotations?.descartes?.[0]) return null
-  return props.annotations.annotations.descartes[0].data
-})
-
-const clinvarData = computed(() => {
-  if (!props.annotations?.annotations?.clinvar?.[0]) return null
-  return props.annotations.annotations.clinvar[0].data
-})
-
-const hpoData = computed(() => {
-  if (!props.annotations?.annotations?.hpo?.[0]) return null
-  return props.annotations.annotations.hpo[0].data
-})
-
-const mouseData = computed(() => {
-  if (!props.annotations?.annotations?.mpo_mgi?.[0]) return null
-  return props.annotations.annotations.mpo_mgi[0].data
-})
-
-const stringPpiData = computed(() => {
-  if (!props.annotations?.annotations?.string_ppi?.[0]) return null
-  return props.annotations.annotations.string_ppi[0].data
-})
-
-const hasAnnotations = computed(() => {
-  return !!(
-    hgncData.value ||
-    gnomadData.value ||
-    gtexData.value ||
-    descartesData.value ||
-    clinvarData.value ||
-    hpoData.value ||
-    mouseData.value ||
-    stringPpiData.value
-  )
-})
+const hasAnnotations = computed(
+  () =>
+    !!(
+      gnomadData.value ||
+      gtexData.value ||
+      descartesData.value ||
+      clinvarData.value ||
+      hpoData.value ||
+      mouseData.value ||
+      stringPpiData.value
+    )
+)
 </script>

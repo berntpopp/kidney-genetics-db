@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, useTemplateRef, watch } from 'vue'
 import { z } from 'zod/v3'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
@@ -14,9 +14,10 @@ import {
   DialogFooter
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { KeyRound } from 'lucide-vue-next'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import FormAlert from './FormAlert.vue'
+import { focusFirstInvalid } from './focusFirstInvalid'
 
 const props = defineProps<{
   open: boolean
@@ -31,18 +32,16 @@ const authStore = useAuthStore()
 // Static Zod schema
 const forgotPasswordSchema = toTypedSchema(
   z.object({
-    email: z.string().min(1, 'Email is required').email('Invalid email address')
+    email: z.string().min(1, 'Email is required').email('Enter a valid email address')
   })
 )
 
-const { handleSubmit, defineField, errors, resetForm } = useForm({
-  validationSchema: forgotPasswordSchema
+const { handleSubmit, resetForm } = useForm({
+  validationSchema: forgotPasswordSchema,
+  initialValues: { email: '' }
 })
 
-const [email, emailAttrs] = defineField('email', {
-  validateOnBlur: true,
-  validateOnInput: true
-})
+const formRef = useTemplateRef('form')
 
 const submitted = ref(false)
 
@@ -63,8 +62,7 @@ const onSubmit = handleSubmit(
       }, 3000)
     }
   },
-  // Move focus to the invalid field so screen readers announce its error (#327)
-  () => document.getElementById('forgot-email')?.focus()
+  () => focusFirstInvalid(formRef.value)
 )
 
 const closeDialog = () => {
@@ -88,66 +86,46 @@ watch(
   <Dialog :open="open" @update:open="emit('update:open', $event)">
     <DialogContent class="sm:max-w-[400px]">
       <DialogHeader>
-        <div class="flex items-center gap-2">
-          <KeyRound class="size-5 text-primary" />
-          <DialogTitle>Reset Password</DialogTitle>
-        </div>
+        <DialogTitle>Forgot your password?</DialogTitle>
         <DialogDescription>
-          Enter your email address and we'll send you instructions to reset your password.
+          Enter your account email. Where reset by email is available, we send you a link; otherwise
+          an administrator can reset your password.
         </DialogDescription>
       </DialogHeader>
 
-      <form class="space-y-4" @submit.prevent="onSubmit">
-        <div class="space-y-2">
-          <Label for="forgot-email">Email Address</Label>
-          <Input
-            id="forgot-email"
-            v-model="email"
-            v-bind="emailAttrs"
-            type="email"
-            placeholder="Enter your email"
-            :disabled="authStore.isLoading || submitted"
-            :class="{ 'border-destructive': errors.email }"
-            :aria-invalid="!!errors.email"
-            :aria-describedby="errors.email ? 'forgot-email-error' : undefined"
-          />
-          <p v-if="errors.email" id="forgot-email-error" class="text-sm text-destructive">
-            {{ errors.email }}
-          </p>
-        </div>
+      <form ref="form" class="space-y-4" novalidate @submit.prevent="onSubmit">
+        <FormField v-slot="{ componentField }" name="email">
+          <FormItem>
+            <FormLabel>Email</FormLabel>
+            <FormControl>
+              <Input
+                v-bind="componentField"
+                type="email"
+                autocomplete="email"
+                :disabled="authStore.isLoading || submitted"
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        </FormField>
 
-        <div
-          v-if="submitted"
-          class="rounded-md border border-green-500/50 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400"
-        >
+        <FormAlert v-if="submitted" tone="success">
           If an account uses this address, a reset link is on its way. It is valid for one hour.
-        </div>
+        </FormAlert>
 
-        <div
-          v-if="authStore.error"
-          role="alert"
-          class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
-        >
-          {{ authStore.error }}
-        </div>
+        <FormAlert v-if="authStore.error">{{ authStore.error }}</FormAlert>
 
-        <DialogFooter class="gap-2 sm:gap-0">
+        <DialogFooter class="gap-2 sm:gap-2">
           <Button
             type="button"
             variant="outline"
             :disabled="authStore.isLoading"
             @click="closeDialog"
           >
-            Cancel
+            {{ submitted ? 'Close' : 'Cancel' }}
           </Button>
           <Button type="submit" :disabled="authStore.isLoading || submitted">
-            <span v-if="authStore.isLoading" class="flex items-center gap-2">
-              <span
-                class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-              />
-              Sending...
-            </span>
-            <span v-else>Send Reset Email</span>
+            {{ authStore.isLoading ? 'Sending…' : 'Send reset link' }}
           </Button>
         </DialogFooter>
       </form>

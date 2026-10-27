@@ -7,6 +7,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import ResetPassword from '@/views/ResetPassword.vue'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 vi.mock('@/api/auth', () => ({ resetPassword: vi.fn() }))
 import * as authApi from '@/api/auth'
@@ -28,14 +29,20 @@ async function open(url: string) {
     routes: [{ path: '/:rest(.*)', component: ResetPassword }]
   })
   await router.push(url)
-  wrapper = mount({ template: '<RouterView />' }, { global: { plugins: [router, createPinia()] } })
+  wrapper = mount(
+    {
+      components: { TooltipProvider },
+      template: '<TooltipProvider><RouterView /></TooltipProvider>'
+    },
+    { global: { plugins: [router, createPinia()] } }
+  )
   await flushPromises()
   return wrapper
 }
 
 async function submit(password: string, confirm: string) {
-  await wrapper!.find('#reset-password').setValue(password)
-  await wrapper!.find('#reset-confirm').setValue(confirm)
+  await wrapper!.find('input[name="password"]').setValue(password)
+  await wrapper!.find('input[name="confirm"]').setValue(confirm)
   await wrapper!.find('form').trigger('submit')
   await new Promise(resolve => setTimeout(resolve, 10))
   await flushPromises()
@@ -64,6 +71,7 @@ describe('ResetPassword', () => {
 
     expect(wrapper!.find('form').exists()).toBe(false)
     expect(wrapper!.find('[role="alert"]').text()).toContain('no reset token')
+    expect(wrapper!.text()).not.toContain('valid for one hour')
   })
 
   it('shows an expired or used token error from the API', async () => {
@@ -73,6 +81,8 @@ describe('ResetPassword', () => {
     await open('/reset-password?token=old')
     await submit('New-Password-1', 'New-Password-1')
 
-    expect(wrapper!.find('[role="alert"]').text()).toContain('Invalid or expired reset token')
+    const alert = wrapper!.find('[role="alert"]')
+    expect(alert.text()).toContain('Invalid or expired reset token')
+    expect(alert.find('a').text()).toBe('Request a new link')
   })
 })

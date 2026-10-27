@@ -3,7 +3,7 @@
     <DialogContent class="max-w-[600px]">
       <DialogHeader>
         <DialogTitle class="flex items-center gap-2">
-          <AlertTriangle class="size-5 text-yellow-600 dark:text-yellow-400" />
+          <AlertTriangle class="size-5 text-warning" aria-hidden="true" />
           Restore Database Backup
         </DialogTitle>
         <DialogDescription>

@@ -1,13 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 
-// Light-mode tokens only (first :root block); cwd = frontend/.
-const light = readFileSync('src/assets/main.css', 'utf8').split('.dark {')[0] ?? ''
+// cwd = frontend/; the first block is :root (light), the second .dark
+const [light = '', dark = ''] = readFileSync('src/assets/main.css', 'utf8').split('.dark {')
 
-function token(name: string): number[] {
-  const m = light.match(new RegExp(`--${name}: oklch\\(([\\d.]+) ([\\d.]+) ([\\d.]+)\\)`))
+// Resolves var(--x) aliases; .dark inherits tokens it does not redefine from :root
+function token(css: string, name: string): number[] {
+  const m =
+    css.match(new RegExp(`--${name}: ([^;]+);`)) ?? light.match(new RegExp(`--${name}: ([^;]+);`))
   if (!m) throw new Error(`--${name} not found`)
-  return m.slice(1).map(Number)
+  const alias = m[1]!.match(/^var\(--([\w-]+)\)$/)
+  if (alias) return token(css, alias[1]!)
+  const v = m[1]!.match(/^oklch\(([\d.]+) ([\d.]+) ([\d.]+)\)$/)
+  if (!v) throw new Error(`--${name} is not OKLCH: ${m[1]}`)
+  return v.slice(1).map(Number)
 }
 
 // OKLCH -> linear sRGB (Björn Ottosson's matrices) -> WCAG relative luminance
@@ -25,13 +31,35 @@ function luminance([L = 0, C = 0, h = 0]: number[]): number {
   return 0.2126 * (rgb[0] ?? 0) + 0.7152 * (rgb[1] ?? 0) + 0.0722 * (rgb[2] ?? 0)
 }
 
-function contrast(x: string, y: string): number {
-  const [hi = 0, lo = 0] = [luminance(token(x)), luminance(token(y))].sort((p, q) => q - p)
+function contrast(css: string, x: string, y: string): number {
+  const [hi = 0, lo = 0] = [luminance(token(css, x)), luminance(token(css, y))].sort(
+    (p, q) => q - p
+  )
   return (hi + 0.05) / (lo + 0.05)
 }
 
-describe('light-mode button tokens meet WCAG AA (4.5:1)', () => {
-  it.each(['primary', 'secondary'])('%s vs its -foreground token', name => {
-    expect(contrast(name, `${name}-foreground`)).toBeGreaterThanOrEqual(4.5)
+const themes = [
+  ['light', light],
+  ['dark', dark]
+] as const
+const statuses = ['success', 'warning', 'danger', 'info']
+
+describe.each(themes)('%s theme tokens meet WCAG AA (4.5:1)', (_name, css) => {
+  it.each(['primary', 'secondary', 'destructive', ...statuses])(
+    '%s vs its -foreground token',
+    name => {
+      expect(contrast(css, name, `${name}-foreground`)).toBeGreaterThanOrEqual(4.5)
+    }
+  )
+
+  it.each(statuses.flatMap(s => ['background', 'card', `${s}-subtle`].map(bg => [s, bg])))(
+    '%s as text on --%s',
+    (name, bg) => {
+      expect(contrast(css, name, bg)).toBeGreaterThanOrEqual(4.5)
+    }
+  )
+
+  it('secondary is neutral (the same as muted)', () => {
+    expect(token(css, 'secondary')).toEqual(token(css, 'muted'))
   })
 })

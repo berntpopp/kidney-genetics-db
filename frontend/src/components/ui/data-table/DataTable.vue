@@ -15,9 +15,15 @@ interface Props {
   table: Table<DataTableFeatures, TData>
   loading?: boolean
   loadingText?: string
+  /** Skeleton rows shown while the first page loads, so the table keeps its final height */
+  skeletonRows?: number
 }
 
-withDefaults(defineProps<Props>(), { loading: false, loadingText: 'Loading...' })
+withDefaults(defineProps<Props>(), { loading: false, loadingText: 'Loading...', skeletonRows: 0 })
+
+/** Per-column classes from `columnDef.meta.class`, e.g. 'text-right' for numeric columns */
+const metaClass = (column: { columnDef: { meta?: unknown } }) =>
+  (column.columnDef.meta as { class?: string } | undefined)?.class
 </script>
 
 <template>
@@ -28,6 +34,7 @@ withDefaults(defineProps<Props>(), { loading: false, loadingText: 'Loading...' }
           <TableHead
             v-for="header in headerGroup.headers"
             :key="header.id"
+            :class="metaClass(header.column)"
             :style="{ width: header.getSize() !== 150 ? `${header.getSize()}px` : undefined }"
           >
             <FlexRender
@@ -45,8 +52,20 @@ withDefaults(defineProps<Props>(), { loading: false, loadingText: 'Loading...' }
             :key="row.id"
             :data-state="row.getIsSelected() ? 'selected' : undefined"
           >
-            <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
+            <TableCell
+              v-for="cell in row.getVisibleCells()"
+              :key="cell.id"
+              :class="metaClass(cell.column)"
+            >
               <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+            </TableCell>
+          </TableRow>
+        </template>
+        <template v-else-if="loading && skeletonRows > 0">
+          <TableRow v-for="n in skeletonRows" :key="n">
+            <TableCell v-for="(column, i) in table.getVisibleLeafColumns()" :key="column.id">
+              <span v-if="n === 1 && i === 0" class="sr-only" role="status">{{ loadingText }}</span>
+              <div class="h-6 rounded-md bg-muted motion-safe:animate-pulse" aria-hidden="true" />
             </TableCell>
           </TableRow>
         </template>

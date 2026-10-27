@@ -1,21 +1,25 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted, useTemplateRef } from 'vue'
 import { z } from 'zod/v3'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import KidneyGeneticsLogo from '@/components/KidneyGeneticsLogo.vue'
+import FormAlert from '@/components/auth/FormAlert.vue'
+import PasswordInput from '@/components/auth/PasswordInput.vue'
+import { focusFirstInvalid } from '@/components/auth/focusFirstInvalid'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { Eye, EyeOff, ArrowLeft } from 'lucide-vue-next'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { ArrowLeft } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 
 const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+const formRef = useTemplateRef('form')
 
 // Same Zod schema as LoginModal
 const loginSchema = toTypedSchema(
@@ -25,21 +29,11 @@ const loginSchema = toTypedSchema(
   })
 )
 
-const { handleSubmit, defineField, errors } = useForm({
-  validationSchema: loginSchema
+// Empty initial values so an empty submit shows the schema messages, not "Required"
+const { handleSubmit } = useForm({
+  validationSchema: loginSchema,
+  initialValues: { username: '', password: '' }
 })
-
-const [username, usernameAttrs] = defineField('username', {
-  validateOnBlur: true,
-  validateOnInput: true
-})
-const [password, passwordAttrs] = defineField('password', {
-  validateOnBlur: true,
-  validateOnInput: true
-})
-
-const showPassword = ref(false)
-const rememberMe = ref(false)
 
 const onSubmit = handleSubmit(
   async values => {
@@ -50,11 +44,7 @@ const onSubmit = handleSubmit(
       router.push(redirectTo)
     }
   },
-  ({ errors: invalid }) => {
-    // Move focus to the first invalid field so screen readers announce its error (#327)
-    const first = (['username', 'password'] as const).find(field => invalid[field])
-    if (first) document.getElementById(`page-login-${first}`)?.focus()
-  }
+  () => focusFirstInvalid(formRef.value)
 )
 
 // If already authenticated, redirect home
@@ -69,130 +59,80 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4">
+  <div class="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-8">
     <div class="w-full max-w-sm">
       <Card>
-        <!-- Logo and Title -->
-        <CardContent class="pt-8 pb-4 text-center">
+        <CardContent class="pt-2 text-center">
           <div class="mb-4 flex items-center justify-center">
             <KidneyGeneticsLogo :size="64" variant="kidneys" :animated="false" />
           </div>
-          <h1 class="mb-2 text-2xl font-medium">Welcome Back</h1>
-          <p class="text-sm text-muted-foreground">Sign in to access curator and admin features</p>
+          <h1 class="mb-2 text-2xl font-semibold tracking-tight">Sign in</h1>
+          <p class="text-sm text-muted-foreground">
+            Sign in to curate genes or manage the database
+          </p>
         </CardContent>
 
-        <!-- Login Form -->
-        <CardContent class="px-6 pb-2">
-          <form class="space-y-4" @submit.prevent="onSubmit">
-            <div class="space-y-2">
-              <Label for="page-login-username">Username or Email</Label>
-              <Input
-                id="page-login-username"
-                v-model="username"
-                v-bind="usernameAttrs"
-                type="text"
-                autocomplete="username"
-                placeholder="Enter username or email"
-                :disabled="authStore.isLoading"
-                autofocus
-                :aria-invalid="!!errors.username"
-                :aria-describedby="errors.username ? 'page-login-username-error' : undefined"
-                :class="{ 'border-destructive': errors.username }"
-              />
-              <p
-                v-if="errors.username"
-                id="page-login-username-error"
-                class="text-sm text-destructive"
-              >
-                {{ errors.username }}
-              </p>
-            </div>
+        <CardContent>
+          <form ref="form" class="space-y-4" novalidate @submit.prevent="onSubmit">
+            <FormField v-slot="{ componentField }" name="username">
+              <FormItem>
+                <FormLabel>Username or email</FormLabel>
+                <FormControl>
+                  <Input
+                    v-bind="componentField"
+                    type="text"
+                    autocomplete="username"
+                    :disabled="authStore.isLoading"
+                    autofocus
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            </FormField>
 
-            <div class="space-y-2">
-              <Label for="page-login-password">Password</Label>
-              <div class="relative">
-                <Input
-                  id="page-login-password"
-                  v-model="password"
-                  v-bind="passwordAttrs"
-                  :type="showPassword ? 'text' : 'password'"
-                  placeholder="Enter password"
-                  autocomplete="current-password"
-                  :disabled="authStore.isLoading"
-                  class="pr-10"
-                  :aria-invalid="!!errors.password"
-                  :aria-describedby="errors.password ? 'page-login-password-error' : undefined"
-                  :class="{ 'border-destructive': errors.password }"
-                  @keyup.enter="onSubmit"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  :aria-label="showPassword ? 'Hide password' : 'Show password'"
-                  class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                  :disabled="authStore.isLoading"
-                  @click="showPassword = !showPassword"
-                >
-                  <EyeOff v-if="showPassword" class="size-4 text-muted-foreground" />
-                  <Eye v-else class="size-4 text-muted-foreground" />
-                </Button>
-              </div>
-              <p
-                v-if="errors.password"
-                id="page-login-password-error"
-                class="text-sm text-destructive"
-              >
-                {{ errors.password }}
-              </p>
-            </div>
+            <FormField v-slot="{ componentField }" name="password">
+              <FormItem>
+                <div class="flex items-center justify-between">
+                  <FormLabel>Password</FormLabel>
+                  <RouterLink
+                    to="/forgot-password"
+                    class="text-sm text-primary underline-offset-4 hover:underline"
+                  >
+                    Forgot password?
+                  </RouterLink>
+                </div>
+                <FormControl>
+                  <PasswordInput
+                    v-bind="componentField"
+                    autocomplete="current-password"
+                    :disabled="authStore.isLoading"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            </FormField>
 
-            <div class="flex items-center justify-between">
-              <label class="flex items-center gap-2 text-sm">
-                <input v-model="rememberMe" type="checkbox" class="size-4 rounded border-input" />
-                Remember me
-              </label>
-              <RouterLink to="/forgot-password" class="text-sm text-primary hover:underline">
-                Forgot Password?
-              </RouterLink>
-            </div>
-
-            <div
-              v-if="authStore.error"
-              role="alert"
-              class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
-            >
-              {{ authStore.error }}
-            </div>
+            <FormAlert v-if="authStore.error">{{ authStore.error }}</FormAlert>
 
             <Button type="submit" class="w-full" size="lg" :disabled="authStore.isLoading">
-              <span v-if="authStore.isLoading" class="flex items-center gap-2">
-                <span
-                  class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                />
-                Signing in...
-              </span>
-              <span v-else>Sign In</span>
+              {{ authStore.isLoading ? 'Signing in…' : 'Sign in' }}
             </Button>
           </form>
         </CardContent>
 
-        <!-- Footer -->
-        <CardFooter class="justify-center pb-6 pt-0">
+        <CardFooter class="justify-center">
           <RouterLink
             to="/"
             class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft class="size-4" />
-            Back to Home
+            <ArrowLeft class="size-4" aria-hidden="true" />
+            Back to home
           </RouterLink>
         </CardFooter>
       </Card>
 
-      <!-- Info text -->
-      <p class="mt-6 text-center text-xs text-muted-foreground">
-        This is a public database. Authentication is only required for data curation and
-        administration.
+      <p class="mt-6 text-center text-sm text-muted-foreground">
+        The database is public. You only need an account to curate data or administer the site.
       </p>
     </div>
   </div>

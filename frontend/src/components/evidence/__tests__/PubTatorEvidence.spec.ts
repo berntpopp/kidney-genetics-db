@@ -5,28 +5,35 @@
 
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import PubTatorEvidence from '@/components/evidence/PubTatorEvidence.vue'
+import { h } from 'vue'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import EvidenceCard from '@/components/evidence/EvidenceCard.vue'
 
-describe('PubTatorEvidence statistics', () => {
+describe('PubTator evidence statistics', () => {
   it('shows unique publications and labels the retained mention sample', () => {
     const mentions = Array.from({ length: 20 }, (_, i) => ({ pmid: String(i), score: 1 }))
-    const wrapper = mount(PubTatorEvidence, {
-      props: {
-        evidenceData: {
-          pmids: Array.from({ length: 207 }, (_, i) => String(i)),
-          publication_count: 207,
-          total_mentions: 21,
-          mentions,
-          evidence_score: 1
-        }
+    const evidence = {
+      source_name: 'PubTator',
+      evidence_data: {
+        pmids: Array.from({ length: 207 }, (_, i) => String(i)),
+        publication_count: 207,
+        total_mentions: 21,
+        mentions,
+        evidence_score: 1
       }
+    }
+    const wrapper = mount({
+      render: () =>
+        h(TooltipProvider, () => h(EvidenceCard, { evidence, gene: { approved_symbol: 'PKD1' } }))
     })
-    const text = wrapper.text()
+    const stats = wrapper.get('[data-testid="evidence-stats"]')
 
-    expect(text).toContain('207')
-    expect(text).toContain('Publications')
-    expect(text).toContain('20Sampled mentions')
-    expect(text).not.toContain('21')
-    expect(text).not.toMatch(/\d+\s*Mentions/)
+    expect(stats.findAll('li').map(li => li.text())).toEqual([
+      '207 publications',
+      '20 sampled mentions'
+    ])
+    expect(stats.findAll('li')[1]!.attributes('title')).toContain('not a total mention count')
+    expect(wrapper.text()).not.toContain('21')
+    expect(wrapper.text()).not.toMatch(/\d+\s*Mentions/)
   })
 })
