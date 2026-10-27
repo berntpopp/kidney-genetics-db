@@ -75,3 +75,53 @@ async def test_seeded_and_merged_providers_keep_real_identities(db_session, tmp_
     new = _evidence(db_session, NEWGENE).evidence_data
     assert new["providers"] == ["New Lab"]
     assert new["provider_count"] == 1
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_legacy_seed_label_is_repaired_by_upload_then_identifier_delete(db_session):
+    """Rows seeded before #280 list the pseudo-provider "Seeded from 9 files".
+
+    The documented API repair: re-upload each provider file (merge), then
+    DELETE /api/ingestion/DiagnosticPanels/identifiers/Seeded from 9 files.
+    """
+    from app.services.hybrid_source_manager import get_source_manager
+
+    legacy, orphan = "KGTLEGACY", "KGTORPHAN"
+    for i, symbol in enumerate((legacy, orphan)):
+        gene = Gene(approved_symbol=symbol, hgnc_id=f"HGNC:9938{i}")
+        db_session.add(gene)
+        db_session.flush()
+        db_session.add(
+            GeneEvidence(
+                gene_id=gene.id,
+                source_name="DiagnosticPanels",
+                source_detail="Seeded from 9 files",
+                evidence_data={
+                    "panels": ["Kidney Panel"],
+                    "providers": ["Seeded from 9 files"],
+                    "panel_count": 1,
+                    "provider_count": 1,
+                },
+            )
+        )
+    db_session.flush()
+
+    source = DiagnosticPanelsSource(db_session=db_session)
+    df = await source.parse_uploaded_file(
+        json.dumps({"genes": [{"symbol": legacy, "panels": ["Kidney Panel"]}]}).encode(),
+        "json",
+        "CeGaT",
+    )
+    await source.store_evidence(db_session, await source.process_data(df), "CeGaT")
+    db_session.flush()
+
+    stats = await get_source_manager("DiagnosticPanels", db_session).delete_by_identifier(
+        "Seeded from 9 files", "test"
+    )
+    assert stats["evidence_updated"] == 1
+    assert stats["evidence_deleted"] == 1  # no real provider lists the orphan: no provenance
+
+    repaired = _evidence(db_session, legacy).evidence_data
+    assert repaired["providers"] == ["CeGaT"]
+    assert repaired["provider_count"] == 1

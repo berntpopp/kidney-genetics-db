@@ -6,7 +6,7 @@ Handles source-specific operations for DiagnosticPanels and Literature
 import asyncio
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -17,6 +17,7 @@ from app.core.cache_service import get_cache_service
 from app.core.logging import get_logger
 from app.models.gene import GeneEvidence
 from app.models.static_sources import StaticSource, StaticSourceAudit
+from app.models.user import User
 
 logger = get_logger(__name__)
 
@@ -39,9 +40,7 @@ class HybridSourceManager(ABC):
         """Delete all evidence for given identifier (provider or PMID)"""
         pass
 
-    async def _create_audit_log(
-        self, action: str, details: dict, user: str, upload_id: int | None = None
-    ) -> None:
+    async def _create_audit_log(self, action: str, details: dict, user: str) -> None:
         """Create audit trail entry"""
         source = (
             self.db.query(StaticSource).filter(StaticSource.source_name == self.source_name).first()
@@ -51,13 +50,13 @@ class HybridSourceManager(ABC):
             await logger.warning("StaticSource not found for audit", source_name=self.source_name)
             return
 
+        # Field names as on the model; they had drifted and made every delete raise
         audit = StaticSourceAudit(
             source_id=source.id,
-            upload_id=upload_id,
             action=action,
-            details=details,
-            performed_by=user,
-            performed_at=datetime.utcnow(),
+            changes=details,
+            user_id=self.db.query(User.id).filter(User.username == user).scalar(),
+            performed_at=datetime.now(timezone.utc),
         )
         self.db.add(audit)
 
