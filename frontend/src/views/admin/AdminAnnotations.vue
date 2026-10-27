@@ -76,11 +76,8 @@
           <div>
             <div class="mb-4">
               <span class="font-semibold">Pipeline Status:</span>
-              <Badge
-                :variant="pipelineStatus.pipeline_ready ? 'default' : 'destructive'"
-                class="ml-2"
-              >
-                {{ pipelineStatus.pipeline_ready ? 'All Sources Ready' : 'Issues Detected' }}
+              <Badge :variant="pipelineStatusBadge.variant" class="ml-2">
+                {{ pipelineStatusBadge.label }}
               </Badge>
             </div>
 
@@ -704,6 +701,15 @@ const pipelineStatus = reactive({
   sources: [],
   pipeline_ready: false,
   updates_due: []
+})
+
+// One status from both fields, so "ready" never sits next to a list of due sources
+const pipelineStatusBadge = computed(() => {
+  if (!pipelineStatus.pipeline_ready) return { variant: 'destructive', label: 'Issues Detected' }
+  const due = pipelineStatus.updates_due?.length ?? 0
+  if (due > 0)
+    return { variant: 'secondary', label: `${due} ${due === 1 ? 'Source' : 'Sources'} Due` }
+  return { variant: 'default', label: 'All Sources Up to Date' }
 })
 
 const schedulerInfo = reactive({
