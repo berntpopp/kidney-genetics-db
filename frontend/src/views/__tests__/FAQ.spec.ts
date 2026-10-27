@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { toValue } from 'vue'
-import { flushPromises, mount } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import { TIER_CONFIG } from '@/utils/evidenceTiers'
 import { useJsonLd } from '@/composables/useJsonLd'
 import FAQ from '@/views/FAQ.vue'
@@ -59,12 +59,10 @@ describe('FAQ clinical groups (#338)', () => {
 })
 
 describe('FAQ counts', () => {
-  it('states gene and source counts from the API, none before it answers', async () => {
-    const wrapper = mount(FAQ, { global: { stubs: { RouterLink: true } } })
-    expect(wrapper.text()).toContain('KGDB contains genes with evidence for kidney disease')
-    await flushPromises()
-    expect(wrapper.text()).toContain('KGDB contains 2,045 genes')
-    expect(wrapper.text()).toContain('curated from 7 sources')
-    expect(wrapper.text()).not.toContain('5,000')
+  it('states no hard-coded gene or source count and points to Data Sources for live counts', () => {
+    const text = mount(FAQ, { global: { stubs: { RouterLink: true } } }).text()
+    expect(text).toContain('KGDB contains genes associated with kidney diseases')
+    expect(text).toContain('page lists each source with its current gene count')
+    expect(text).not.toMatch(/\b5,000\b|\b7 (authoritative )?sources\b/)
   })
 })

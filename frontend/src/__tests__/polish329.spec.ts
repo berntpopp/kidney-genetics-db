@@ -187,9 +187,40 @@ describe('Main navigation', () => {
     const router = routerWith('/', { render: () => null })
     await router.push('/')
     await router.isReady()
-    wrapper = mount(AppHeader, { global: { plugins: [router, createPinia()] } })
+    const { h } = await import('vue')
+    const { TooltipProvider } = await import('@/components/ui/tooltip')
+    wrapper = mount(
+      { render: () => h(TooltipProvider, () => h(AppHeader)) },
+      { global: { plugins: [router, createPinia()] } }
+    )
 
     const link = wrapper.get('nav a[href="/faq"]')
     expect(link.text()).toBe('FAQ')
+    expect(link.attributes('aria-current')).toBeUndefined()
+    // Icon-only theme toggle has an accessible name, not just a title
+    expect(wrapper.find('button[aria-label="Switch to dark mode"]').exists()).toBe(true)
+  })
+
+  it('marks the gene browser active on gene detail routes', async () => {
+    vi.stubGlobal('matchMedia', () => ({
+      matches: false,
+      addEventListener() {},
+      removeEventListener() {}
+    }))
+    const { h } = await import('vue')
+    const { createPinia } = await import('pinia')
+    const { TooltipProvider } = await import('@/components/ui/tooltip')
+    const AppHeader = (await import('@/layouts/AppHeader.vue')).default
+    const router = routerWith('/genes/:symbol', { render: () => null })
+    await router.push('/genes/PKD1')
+    await router.isReady()
+    wrapper = mount(
+      { render: () => h(TooltipProvider, () => h(AppHeader)) },
+      { global: { plugins: [router, createPinia()] } }
+    )
+
+    const link = wrapper.get('nav a[href="/genes"]')
+    expect(link.attributes('aria-current')).toBe('page')
+    expect(link.classes()).toContain('border-primary')
   })
 })

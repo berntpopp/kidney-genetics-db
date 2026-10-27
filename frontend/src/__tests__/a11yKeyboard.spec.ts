@@ -119,7 +119,7 @@ describe('Home statistics', () => {
     expect(genes.text()).toContain('5,080')
     const sources = w
       .findAll('a[href="/data-sources"]')
-      .find(a => a.text().includes('active sources'))!
+      .find(a => a.text().includes('sources active'))!
     expect(sources.text()).toContain('7')
     // Unambiguous date format, not the US locale default
     expect(w.text()).toContain('1 Oct 2026')
