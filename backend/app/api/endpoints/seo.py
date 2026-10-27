@@ -47,7 +47,6 @@ def _build_sitemap_xml(
         ("/data-sources", "0.7", "weekly"),
         ("/network-analysis", "0.7", "weekly"),
         ("/about", "0.5", "monthly"),
-        ("/faq", "0.5", "monthly"),
     ]
     for path, priority, changefreq in static_paths:
         url_el = SubElement(urlset, "url")
