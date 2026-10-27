@@ -1,291 +1,202 @@
 <template>
-  <div class="container mx-auto px-4 py-6">
-    <!-- Breadcrumb -->
-    <Breadcrumb class="mb-2">
-      <BreadcrumbList>
-        <BreadcrumbItem v-for="(crumb, index) in breadcrumbs" :key="index">
-          <BreadcrumbLink v-if="!crumb.disabled && crumb.to" as-child>
-            <RouterLink :to="crumb.to">{{ crumb.title }}</RouterLink>
-          </BreadcrumbLink>
-          <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
-          <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
+  <div :class="PAGE_CONTAINER">
+    <PageHeader
+      title="About the Kidney-Genetics Database"
+      description="How genes are scored and tiered, which sources contribute, and how to cite the database."
+    >
+      <template #breadcrumb>
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem v-for="(crumb, index) in breadcrumbs" :key="index">
+              <BreadcrumbLink v-if="!crumb.disabled && crumb.to" as-child>
+                <RouterLink :to="crumb.to">{{ crumb.title }}</RouterLink>
+              </BreadcrumbLink>
+              <BreadcrumbPage v-else>{{ crumb.title }}</BreadcrumbPage>
+              <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </template>
+    </PageHeader>
 
-    <!-- Page Header -->
-    <div class="flex items-center gap-3 mb-6">
-      <Info class="size-6 text-primary" />
-      <div>
-        <h1 class="text-2xl font-bold">About This Database</h1>
-        <p class="text-sm text-muted-foreground">
-          Learn how to use the database, understand core concepts, and see how evidence is scored
+    <div class="max-w-[70ch] space-y-12 leading-relaxed">
+      <section aria-labelledby="about-what" class="space-y-3">
+        <h2 id="about-what" class="text-xl font-semibold tracking-tight">What it is</h2>
+        <!-- Gene and source counts change with every data release; bind live statistics here, never hard-code them -->
+        <p>
+          The Kidney-Genetics Database brings together evidence that a gene is linked to kidney
+          disease from expert curations, diagnostic panels, phenotype annotations and the
+          literature. Each gene gets one reproducible evidence score and an evidence tier, and every
+          score can be traced back to the sources behind it.
         </p>
-      </div>
-    </div>
+        <p>
+          It is the successor of the published
+          <a :href="R_PIPELINE_URL" target="_blank" rel="noopener noreferrer" :class="LINK"
+            >kidney-genetics R pipeline</a
+          >. Browse the results in the
+          <RouterLink to="/genes" :class="LINK">gene browser</RouterLink>, or see the overall
+          picture on the <RouterLink to="/dashboard" :class="LINK">dashboard</RouterLink>.
+        </p>
+      </section>
 
-    <!-- How to Use Section -->
-    <div class="mb-8">
-      <div class="flex items-center gap-2 mb-4">
-        <Compass class="size-4 text-primary" />
-        <h2 class="text-2xl font-medium">How to Use This Database</h2>
-      </div>
+      <section id="scoring" aria-labelledby="about-scoring" class="scroll-mt-20 space-y-4">
+        <h2 id="about-scoring" class="text-xl font-semibold tracking-tight">
+          How the evidence score works
+        </h2>
+        <ol class="list-decimal space-y-3 pl-5 marker:text-muted-foreground">
+          <li>
+            <strong class="font-semibold">Each source scores the gene from 0 to 1.</strong>
+            ClinGen and GenCC score by their gene-disease validity classification, with Definitive
+            highest. The other sources score by how much evidence they hold for the gene (panels,
+            phenotype terms and diseases, or publications), as a percentile rank among all genes in
+            that source.
+          </li>
+          <li>
+            <strong class="font-semibold">The source scores are combined into 0 to 100.</strong>
+            The gene's source scores are added up, divided by the number of scoring sources and
+            multiplied by 100. A source that has no evidence for a gene counts as no support, so a
+            gene supported by many independent sources ranks above one with strong support from a
+            single source.
+          </li>
+          <li>
+            <strong class="font-semibold">The score and the number of sources set the tier.</strong>
+            A gene gets the highest tier whose score and source count it meets.
+          </li>
+        </ol>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Gene Search Card -->
-        <Card class="h-full">
-          <CardHeader class="flex flex-row items-center gap-3 pb-2">
-            <div
-              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary"
-            >
-              <Search class="size-4 text-primary-foreground" />
-            </div>
-            <CardTitle class="text-base">Search & Browse Genes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p class="text-sm text-muted-foreground mb-3">
-              Navigate to the
-              <RouterLink
-                to="/genes"
-                class="text-primary underline underline-offset-4 hover:text-primary/80"
-                >Gene Browser</RouterLink
-              >
-              to search curated kidney disease genes by symbol, HGNC ID, or disease association.
-            </p>
-            <div class="flex flex-wrap gap-2">
-              <Badge variant="secondary">
-                <Filter class="size-3 mr-1" />
-                Filter by evidence score
-              </Badge>
-              <Badge variant="secondary">
-                <ArrowUpDown class="size-3 mr-1" />
-                Sort by any column
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        <!-- Evidence Scores Card -->
-        <Card class="h-full">
-          <CardHeader class="flex flex-row items-center gap-3 pb-2">
-            <div
-              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-600"
-            >
-              <ChartLine class="size-4 text-white" />
-            </div>
-            <CardTitle class="text-base">Understanding Evidence Scores</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p class="text-sm text-muted-foreground mb-3">
-              Evidence scores reflect confidence in gene-disease associations based on multiple
-              authoritative sources. Higher scores indicate stronger evidence from multiple
-              independent sources.
-            </p>
-            <div class="space-y-1 text-sm">
-              <div
-                v-for="tier in TIER_CONFIG"
-                :key="tier.label"
-                class="flex items-center gap-2"
-                data-testid="tier-row"
-              >
-                <Badge variant="outline" class="shrink-0" :style="tintedChipStyle(tier.color)">
-                  <span>{{ tier.label }}</span>
-                </Badge>
-                <span class="text-muted-foreground">{{ tier.description }}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <!-- Annotations Card -->
-        <Card class="h-full">
-          <CardHeader class="flex flex-row items-center gap-3 pb-2">
-            <div
-              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-              style="background-color: #8b5cf6"
-            >
-              <Database class="size-4 text-white" />
-            </div>
-            <CardTitle class="text-base">Exploring Annotations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p class="text-sm text-muted-foreground mb-3">
-              Each gene includes rich annotations from multiple sources: HGNC (nomenclature), gnomAD
-              (constraint), ClinVar (variants), HPO (phenotypes), GTEx (expression), Descartes
-              (single-cell), MPO/MGI (mouse models), STRING (interactions), and PubTator
-              (literature).
-            </p>
-            <Badge variant="secondary">
-              <CircleCheck class="size-3 mr-1" />
-              Multi-source annotations
-            </Badge>
-          </CardContent>
-        </Card>
-
-        <!-- API Access Card -->
-        <Card class="h-full">
-          <CardHeader class="flex flex-row items-center gap-3 pb-2">
-            <div
-              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600"
-            >
-              <Code class="size-4 text-white" />
-            </div>
-            <CardTitle class="text-base">API Access & Export</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p class="text-sm text-muted-foreground mb-3">
-              Access data programmatically via our JSON:API compliant REST API. Visit
-              <a
-                href="/docs"
-                target="_blank"
-                class="text-primary underline underline-offset-4 hover:text-primary/80"
-                >/docs</a
-              >
-              for interactive API documentation.
-            </p>
-            <div class="flex flex-wrap gap-2">
-              <Badge variant="secondary">
-                <FileJson class="size-3 mr-1" />
-                JSON export
-              </Badge>
-              <Badge variant="secondary">
-                <FileSpreadsheet class="size-3 mr-1" />
-                CSV export
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-
-    <!-- Core Concepts Section -->
-    <div class="mb-8">
-      <div class="flex items-center gap-2 mb-4">
-        <Lightbulb class="size-4 text-primary" />
-        <h2 class="text-2xl font-medium">Core Concepts</h2>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card
-          v-for="concept in coreConcepts"
-          :key="concept.title"
-          class="concept-card h-full overflow-hidden"
-        >
-          <div class="p-4" :style="{ background: concept.gradient }">
-            <component :is="concept.icon" class="size-6 text-white mb-2" />
-            <h3 class="text-lg font-bold text-white">{{ concept.title }}</h3>
+        <dl class="divide-y rounded-lg border bg-card text-sm">
+          <div
+            v-for="rule in tierRules"
+            :key="rule.tier"
+            class="grid gap-1 px-4 py-3 sm:grid-cols-[13rem_1fr] sm:items-center sm:gap-4"
+            data-testid="tier-row"
+          >
+            <dt><Chip :tier="rule.tier" :tooltip="rule.text" /></dt>
+            <dd class="text-muted-foreground">{{ rule.text }}</dd>
           </div>
-          <CardContent class="p-4">
-            <p class="text-sm text-muted-foreground mb-3">{{ concept.description }}</p>
-            <div class="text-xs space-y-1">
-              <div v-for="bullet in concept.bullets" :key="bullet" class="flex items-start gap-1">
-                <component
-                  :is="concept.bulletIcon"
-                  class="size-3 shrink-0 mt-0.5"
-                  :class="concept.bulletClass"
-                />
-                <span>{{ bullet }}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+        </dl>
+        <p class="text-sm text-muted-foreground">
+          A gene with a score of 0 has no tier and is shown as "No Classification".
+          <RouterLink to="/faq" :class="LINK">FAQ</RouterLink> answers more questions about scoring,
+          clinical groups and syndromic genes.
+        </p>
+      </section>
 
-    <!-- Open Source & Documentation -->
-    <div class="mb-8">
-      <div class="flex items-center gap-2 mb-4">
-        <Code class="size-4 text-primary" />
-        <h2 class="text-2xl font-medium">Open Source & Documentation</h2>
-      </div>
+      <section aria-labelledby="about-sources" class="space-y-4">
+        <h2 id="about-sources" class="text-xl font-semibold tracking-tight">Evidence sources</h2>
+        <p>These sources contribute to the evidence score:</p>
+        <dl class="space-y-3 text-sm">
+          <div v-for="name in SOURCE_NAMES" :key="name">
+            <dt class="font-medium">{{ sourceDisplayName(name) }}</dt>
+            <dd class="text-muted-foreground">{{ getSourceConfig(name).description }}</dd>
+          </div>
+        </dl>
+        <p>
+          Gene pages add annotations that give context but do not change the score: HGNC
+          (nomenclature), gnomAD (constraint), ClinVar (variants), GTEx (expression), Descartes
+          (single-cell expression), MPO/MGI (mouse models), STRING (interactions), Ensembl and
+          UniProt. The <RouterLink to="/data-sources" :class="LINK">Data Sources</RouterLink> page
+          shows the status and last update of each source.
+        </p>
+      </section>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- GitHub Card -->
-        <Card class="h-full">
-          <CardHeader class="flex flex-row items-center gap-3 pb-2">
-            <div
-              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary"
-            >
-              <Github class="size-4 text-primary-foreground" />
-            </div>
-            <CardTitle class="text-base">Source Code & Issues</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p class="text-sm text-muted-foreground mb-4">
-              This project is open source (MIT License). View source code, report issues, or
-              contribute on GitHub.
-            </p>
-            <Button
-              as="a"
-              href="https://github.com/bernt-popp/kidney-genetics-db"
+      <section aria-labelledby="about-releases" class="space-y-3">
+        <h2 id="about-releases" class="text-xl font-semibold tracking-tight">
+          Releases and versions
+        </h2>
+        <p>The database has two independent version streams:</p>
+        <ul class="list-disc space-y-1 pl-5 marker:text-muted-foreground">
+          <li>
+            <strong class="font-semibold">Data releases</strong> use calendar versions (<span
+              class="font-mono text-sm"
+              >YYYY.MM</span
+            >) and get their own dataset DOI.
+          </li>
+          <li>
+            <strong class="font-semibold">Software releases</strong> use semantic versions and are
+            archived on Zenodo with a software DOI. See the
+            <a
+              :href="`${GITHUB_URL}/releases`"
               target="_blank"
-              size="sm"
-            >
-              <Github class="size-4 mr-2" />
-              View on GitHub
-            </Button>
-          </CardContent>
-        </Card>
+              rel="noopener noreferrer"
+              :class="LINK"
+              >release notes</a
+            >.
+          </li>
+        </ul>
+      </section>
 
-        <!-- Docs Card -->
-        <Card class="h-full">
-          <CardHeader class="flex flex-row items-center gap-3 pb-2">
-            <div
-              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600"
-            >
-              <BookOpen class="size-4 text-white" />
-            </div>
-            <CardTitle class="text-base">Technical Documentation</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p class="text-sm text-muted-foreground mb-4">
-              Comprehensive technical documentation covering architecture, API reference,
-              development guides, and troubleshooting.
-            </p>
-            <Button
-              as="a"
-              href="https://github.com/bernt-popp/kidney-genetics-db/tree/main/docs"
+      <section aria-labelledby="about-cite" class="space-y-3">
+        <h2 id="about-cite" class="text-xl font-semibold tracking-tight">How to cite</h2>
+        <p>Please cite the publication and the software archive:</p>
+        <ul class="space-y-3 text-sm">
+          <li class="rounded-lg border bg-card p-4">
+            Popp B, Rank N, Wolff A, Halbritter J. Kidney-Genetics: An evidence-based database for
+            kidney disease associated genes. <i>Nephrol Dial Transplant.</i>
+            2024;39(Supplement_1):gfae069-0787-2170.
+          </li>
+          <li class="rounded-lg border bg-card p-4">
+            Popp B. Kidney-Genetics Database. Zenodo.
+            <a
+              :href="`https://doi.org/${ZENODO_DOI}`"
               target="_blank"
-              size="sm"
-              variant="secondary"
+              rel="noopener noreferrer"
+              :class="LINK"
+              >doi:{{ ZENODO_DOI }}</a
             >
-              <BookOpen class="size-4 mr-2" />
-              View Documentation
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+            <span class="mt-1 block text-muted-foreground">
+              This DOI always resolves to the latest version; cite the version and data release you
+              used.
+            </span>
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="about-access" class="space-y-3">
+        <h2 id="about-access" class="text-xl font-semibold tracking-tight">
+          Programmatic access and source code
+        </h2>
+        <p>
+          All public data is available through a REST API; the
+          <a :href="apiDocsUrl" target="_blank" rel="noopener noreferrer" :class="LINK"
+            >API documentation</a
+          >
+          is interactive. AI agents can use the read-only
+          <RouterLink to="/mcp" :class="LINK">MCP server</RouterLink>.
+        </p>
+        <p>The code is open source under the MIT License. Report issues or contribute on GitHub.</p>
+        <div class="flex flex-wrap gap-2 pt-1">
+          <Button as="a" :href="GITHUB_URL" target="_blank" rel="noopener noreferrer" size="sm">
+            <Github class="size-4" aria-hidden="true" />
+            View on GitHub
+          </Button>
+          <Button
+            as="a"
+            :href="`${GITHUB_URL}#readme`"
+            target="_blank"
+            rel="noopener noreferrer"
+            size="sm"
+            variant="outline"
+          >
+            <BookOpen class="size-4" aria-hidden="true" />
+            Read the documentation
+          </Button>
+        </div>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+import { BookOpen, Github } from 'lucide-vue-next'
+import { config } from '@/config'
 import { PUBLIC_BREADCRUMBS } from '@/utils/publicBreadcrumbs'
-import { TIER_CONFIG, tintedChipStyle } from '@/utils/evidenceTiers'
+import type { TierName } from '@/utils/evidenceTiers'
+import { SOURCE_NAMES, getSourceConfig, sourceDisplayName } from '@/utils/sources'
 import { useSeoMeta } from '@/composables/useSeoMeta'
 import { useJsonLd, getBreadcrumbSchema } from '@/composables/useJsonLd'
-import {
-  ArrowLeftRight,
-  ArrowRight,
-  ArrowUpDown,
-  BookOpen,
-  ChartBar,
-  Check,
-  ChartLine,
-  CircleCheck,
-  Code,
-  Compass,
-  Database,
-  FileJson,
-  FileSpreadsheet,
-  Filter,
-  Github,
-  Info,
-  Lightbulb,
-  RefreshCw,
-  Search
-} from 'lucide-vue-next'
+import { Chip, PageHeader, PAGE_CONTAINER } from '@/components/shared'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -294,8 +205,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
 const breadcrumbs = PUBLIC_BREADCRUMBS.about
@@ -305,66 +214,24 @@ useJsonLd(getBreadcrumbSchema(breadcrumbs))
 useSeoMeta({
   title: 'About — Kidney Genetics Database Methodology',
   description:
-    'Learn how the Kidney Genetics Database curates kidney disease genes. Evidence scoring methodology, multi-source integration, and kidney gene curation workflow.',
+    'How the Kidney Genetics Database scores kidney disease genes: evidence sources, the 0–100 evidence score, evidence tiers, releases and how to cite.',
   canonicalPath: '/about'
 })
 
-const coreConcepts = [
-  {
-    title: 'Gene Staging System',
-    icon: ArrowLeftRight,
-    gradient: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
-    description:
-      'Two-stage data ingestion ensures quality: genes first enter a staging area for normalization and validation, then move to curated status after passing quality checks.',
-    bullets: [
-      'Staging: Raw data ingestion + HGNC normalization',
-      'Curated: Validated genes with complete annotations'
-    ],
-    bulletIcon: ArrowRight,
-    bulletClass: ''
-  },
-  {
-    title: 'Multi-Source Integration',
-    icon: RefreshCw,
-    gradient: 'linear-gradient(135deg, #10b981, #059669)',
-    description:
-      'Aggregates evidence from multiple authoritative sources with automatic retry logic and cache validation. Each source contributes unique annotations: nomenclature, constraint scores, variants, phenotypes, expression, interactions, and literature.',
-    bullets: [
-      'Comprehensive annotation coverage',
-      'Exponential backoff retry with circuit breaker'
-    ],
-    bulletIcon: Check,
-    bulletClass: 'text-green-600 dark:text-green-400'
-  },
-  {
-    title: 'Evidence Scoring',
-    icon: ChartBar,
-    gradient: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-    description:
-      'Weighted scoring algorithm aggregates evidence from multiple sources to produce a confidence score (0-100). Scores are dynamic and update automatically as new evidence becomes available from our data sources.',
-    bullets: ['Configurable source weights', 'Transparent calculation methodology'],
-    bulletIcon: ArrowRight,
-    bulletClass: ''
-  }
+const LINK = 'text-primary underline underline-offset-4 hover:text-primary/80'
+const GITHUB_URL = 'https://github.com/berntpopp/kidney-genetics-db'
+const R_PIPELINE_URL = 'https://github.com/halbritter-lab/kidney-genetics'
+// Zenodo concept DOI (CITATION.cff): resolves to the latest archived version
+const ZENODO_DOI = '10.5281/zenodo.19316248'
+// Swagger UI lives at the backend root /docs (same rule as AppFooter)
+const apiDocsUrl = `${config.apiBaseUrl}/docs`
+
+// Tier rules of the gene_scores view (backend/app/db/views.py), on the 0–100 score scale
+const tierRules: { tier: TierName; text: string }[] = [
+  { tier: 'comprehensive_support', text: 'Score ≥ 50 with evidence from at least 4 sources' },
+  { tier: 'multi_source_support', text: 'Score ≥ 35 with evidence from at least 3 sources' },
+  { tier: 'established_support', text: 'Score ≥ 20 with evidence from at least 2 sources' },
+  { tier: 'preliminary_evidence', text: 'Score ≥ 10' },
+  { tier: 'minimal_evidence', text: 'Score above 0 and below 10' }
 ]
 </script>
-
-<style scoped>
-.concept-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.concept-card:hover {
-  transform: translateY(-2px);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .concept-card {
-    transition-duration: 0.01ms !important;
-  }
-
-  .concept-card:hover {
-    transform: none;
-  }
-}
-</style>
