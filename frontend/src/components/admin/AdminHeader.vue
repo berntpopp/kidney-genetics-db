@@ -1,98 +1,49 @@
 <script setup lang="ts">
 /**
- * Unified admin header component
- *
- * Features:
- * - Breadcrumb navigation with shadcn-vue Breadcrumb
- * - Icon + Title alignment (horizontal)
- * - Consistent spacing (mb-6)
- * - Tailwind typography
- * - Action slot for primary actions
- *
- * Usage:
- * <AdminHeader
- *   title="User Management"
- *   subtitle="Manage user accounts and permissions"
- *   :icon="Users"  (a lucide-vue-next component)
- *   icon-color="primary"
- *   :breadcrumbs="[
- *     { title: 'Admin', to: '/admin' },
- *     { title: 'User Management', disabled: true }
- *   ]"
- * />
+ * Admin view header: PageHeader with the "Admin > {title}" breadcrumb, so the crumb, the
+ * H1 and the dashboard card share one section name. The dashboard passes `root`.
  */
-import type { Component } from 'vue'
 import { RouterLink } from 'vue-router'
+import { PageHeader } from '@/components/shared'
 import {
   Breadcrumb,
-  BreadcrumbList,
   BreadcrumbItem,
   BreadcrumbLink,
+  BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
-import { Separator } from '@/components/ui/separator'
 
-interface BreadcrumbItemType {
+defineProps<{
   title: string
-  to?: string
-  disabled?: boolean
-}
-
-withDefaults(
-  defineProps<{
-    title: string
-    subtitle?: string
-    icon?: Component
-    iconColor?: string
-    showDivider?: boolean
-    breadcrumbs?: BreadcrumbItemType[]
-  }>(),
-  {
-    subtitle: '',
-    icon: undefined,
-    iconColor: 'primary',
-    showDivider: false,
-    breadcrumbs: () => []
-  }
-)
+  subtitle?: string
+  /** The admin dashboard itself: breadcrumb is just "Admin" */
+  root?: boolean
+}>()
 </script>
 
 <template>
-  <div class="mb-6">
-    <!-- Breadcrumbs navigation (if provided) -->
-    <Breadcrumb v-if="breadcrumbs && breadcrumbs.length > 0" class="mb-2">
-      <BreadcrumbList>
-        <template v-for="(item, index) in breadcrumbs" :key="item.title">
+  <PageHeader :title="title" :description="subtitle">
+    <template #breadcrumb>
+      <Breadcrumb>
+        <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink v-if="!item.disabled && item.to" as-child>
-              <RouterLink :to="item.to">{{ item.title }}</RouterLink>
+            <BreadcrumbPage v-if="root">Admin</BreadcrumbPage>
+            <BreadcrumbLink v-else as-child>
+              <RouterLink to="/admin">Admin</RouterLink>
             </BreadcrumbLink>
-            <BreadcrumbPage v-else>{{ item.title }}</BreadcrumbPage>
           </BreadcrumbItem>
-          <BreadcrumbSeparator v-if="index < breadcrumbs.length - 1" />
-        </template>
-      </BreadcrumbList>
-    </Breadcrumb>
-
-    <div class="flex items-center">
-      <component :is="icon" v-if="icon" class="size-6 mr-3" />
-
-      <!-- Title and subtitle -->
-      <div class="flex-1">
-        <h1 class="text-2xl font-bold">{{ title }}</h1>
-        <p class="text-sm text-muted-foreground m-0">
-          {{ subtitle }}
-        </p>
-      </div>
-
-      <!-- Optional action slot -->
-      <div v-if="$slots.actions" class="ml-4">
-        <slot name="actions" />
-      </div>
-    </div>
-
-    <!-- Optional divider -->
-    <Separator v-if="showDivider" class="mt-4" />
-  </div>
+          <template v-if="!root">
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{{ title }}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </template>
+        </BreadcrumbList>
+      </Breadcrumb>
+    </template>
+    <template v-if="$slots.actions" #actions>
+      <slot name="actions" />
+    </template>
+  </PageHeader>
 </template>

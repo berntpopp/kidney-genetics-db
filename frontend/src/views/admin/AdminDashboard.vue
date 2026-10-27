@@ -1,341 +1,245 @@
 <template>
-  <div class="container mx-auto px-4 py-6">
-    <!-- Admin Header -->
-    <AdminHeader
-      title="Admin Dashboard"
-      subtitle="System administration and management"
-      :icon="LayoutDashboard"
-      icon-color="primary"
-      :breadcrumbs="ADMIN_BREADCRUMBS.dashboard"
-    />
+  <div :class="PAGE_CONTAINER">
+    <AdminHeader title="Admin" subtitle="Live system status and entry points to each area" root />
 
-    <!-- Stats Overview -->
-    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+    <!-- Live KPIs, each a link to the view that acts on it -->
+    <div class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
       <AdminStatsCard
-        title="Active Users"
-        :value="stats.activeUsers"
+        title="Pending staging"
+        :value="stats.pendingStaging"
         :loading="statsLoading"
-        :icon="UserCheck"
-        color="success"
+        :icon="ADMIN_ICONS.staging"
+        to="/admin/staging"
       />
       <AdminStatsCard
-        title="Cache Hit Rate"
+        title="Running pipeline jobs"
+        :value="stats.pipelineJobs"
+        :loading="statsLoading"
+        :icon="ADMIN_ICONS.pipeline"
+        to="/admin/pipeline"
+      />
+      <AdminStatsCard
+        title="Errors (24 h)"
+        :value="stats.errors24h"
+        :loading="statsLoading"
+        :icon="ADMIN_ICONS.logs"
+        to="/admin/logs"
+      />
+      <AdminStatsCard
+        title="Cache hit rate"
         :value="stats.cacheHitRate"
         :loading="statsLoading"
         format="percent"
-        :icon="Gauge"
-        color="info"
+        :icon="ADMIN_ICONS.cache"
+        to="/admin/cache"
       />
       <AdminStatsCard
-        title="Pipeline Jobs"
-        :value="stats.pipelineJobs"
-        :loading="statsLoading"
-        :icon="Minus"
-        color="warning"
-      />
-      <AdminStatsCard
-        title="Pending Staging"
-        :value="stats.pendingStaging"
-        :loading="statsLoading"
-        :icon="ClockAlert"
-        color="error"
-      />
-      <AdminStatsCard
-        title="Data Releases"
+        title="Data releases"
         :value="stats.totalReleases"
         :loading="statsLoading"
-        :icon="Package"
-        color="indigo"
+        :icon="ADMIN_ICONS.releases"
+        to="/admin/releases"
+      />
+      <AdminStatsCard
+        title="Active users"
+        :value="stats.activeUsers"
+        :loading="statsLoading"
+        :icon="ADMIN_ICONS.users"
+        to="/admin/users"
       />
     </div>
 
-    <!-- Admin Function Cards -->
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-      <Card
-        v-for="section in adminSections"
-        :key="section.id"
-        class="cursor-pointer transition-shadow hover:shadow-md"
-        @click="navigateTo(section.route)"
-      >
-        <CardHeader class="flex flex-row items-center gap-3 pb-2">
-          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            <component :is="section.icon" :size="20" class="text-primary" />
-          </div>
-          <div>
-            <CardTitle class="text-base">{{ section.title }}</CardTitle>
-            <CardDescription class="text-xs">{{ section.description }}</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ul class="space-y-1 text-xs text-muted-foreground">
-            <li v-for="feature in section.features" :key="feature" class="flex items-center gap-2">
-              <CircleCheck :size="14" class="text-green-600 dark:text-green-400" />
-              <span>{{ feature }}</span>
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
+    <!-- Sections: real links, each with its live status where one exists -->
+    <nav aria-label="Admin sections">
+      <ul class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <li v-for="section in sections" :key="section.id">
+          <RouterLink
+            :to="section.route"
+            data-testid="admin-section"
+            class="group flex h-full items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            <component
+              :is="section.icon"
+              class="mt-0.5 size-5 shrink-0 text-muted-foreground group-hover:text-primary"
+              aria-hidden="true"
+            />
+            <div class="min-w-0 flex-1 space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-semibold">{{ section.title }}</span>
+                <ChevronRight
+                  class="size-4 shrink-0 text-muted-foreground group-hover:text-primary"
+                  aria-hidden="true"
+                />
+              </div>
+              <p class="text-sm text-muted-foreground">{{ section.description }}</p>
+              <div v-if="section.status" class="min-h-6">
+                <div
+                  v-if="statsLoading"
+                  class="h-5 w-28 rounded-md bg-muted motion-safe:animate-pulse"
+                  aria-hidden="true"
+                />
+                <StatusBadge v-else :status="section.status.status" :label="section.status.label" />
+              </div>
+            </div>
+          </RouterLink>
+        </li>
+      </ul>
+    </nav>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { RouterLink } from 'vue-router'
+import { ChevronRight } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { getCacheStats } from '@/api/admin/cache'
 import { getDashboardData } from '@/api/admin/pipeline'
 import { getStagingStats } from '@/api/admin/staging'
+import { getLogStatistics } from '@/api/admin/logs'
 import { listReleases } from '@/api/admin/releases'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
-import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  CircleCheck,
-  ClockAlert,
-  Cog,
-  DatabaseBackup,
-  DatabaseZap,
-  Dna,
-  FileText,
-  Gauge,
-  LayoutDashboard,
-  MemoryStick,
-  Minus,
-  Package,
-  Tags,
-  UserCheck,
-  Users
-} from 'lucide-vue-next'
+import { PAGE_CONTAINER, StatusBadge } from '@/components/shared'
+import { ADMIN_ICONS } from '@/utils/adminIcons'
 
-const router = useRouter()
 const authStore = useAuthStore()
 
-// State
+// null = could not load (rendered as "—" / "unavailable", never as 0)
 const stats = ref({
-  activeUsers: 0,
-  cacheHitRate: 0,
-  pipelineJobs: 0,
-  pendingStaging: 0,
-  totalReleases: 0
+  activeUsers: null,
+  cacheHitRate: null,
+  pipelineJobs: null,
+  pendingStaging: null,
+  totalReleases: null,
+  errors24h: null
 })
-
 const statsLoading = ref(true)
 
-// Admin sections configuration
-const adminSections = [
-  {
-    id: 'users',
-    title: 'User Management',
-    description: 'Manage user accounts and permissions',
-    icon: Users,
-    route: '/admin/users',
-    features: [
-      'Create and manage users',
-      'Assign roles and permissions',
-      'View user activity',
-      'Bulk operations'
-    ]
-  },
-  {
-    id: 'cache',
-    title: 'Cache Management',
-    description: 'Monitor and control cache performance',
-    icon: MemoryStick,
-    route: '/admin/cache',
-    features: [
-      'View cache statistics',
-      'Clear cache namespaces',
-      'Monitor hit rates',
-      'Warm cache preemptively'
-    ]
-  },
-  {
-    id: 'logs',
-    title: 'System Logs',
-    description: 'View and analyze system logs',
-    icon: FileText,
-    route: '/admin/logs',
-    features: ['Filter by severity', 'Search log entries', 'Export log data', 'View error trends']
-  },
-  {
-    id: 'pipeline',
-    title: 'Data Pipeline',
-    description: 'Control data ingestion pipelines',
-    icon: Minus,
-    route: '/admin/pipeline',
-    features: [
-      'Monitor pipeline status',
-      'Trigger manual updates',
-      'View progress in real-time',
-      'Schedule automated runs'
-    ]
-  },
-  {
-    id: 'staging',
-    title: 'Gene Staging',
-    description: 'Review gene normalization attempts',
-    icon: Dna,
-    route: '/admin/staging',
-    features: [
-      'Review pending genes',
-      'Approve normalizations',
-      'View statistics',
-      'Bulk operations'
-    ]
-  },
-  {
-    id: 'annotations',
-    title: 'Annotations',
-    description: 'Manage gene annotation sources',
-    icon: Tags,
-    route: '/admin/annotations',
-    features: ['Configure sources', 'Update annotations', 'View statistics', 'Schedule updates']
-  },
-  {
-    id: 'releases',
-    title: 'Data Releases',
-    description: 'Create and manage CalVer data releases',
-    icon: Package,
-    route: '/admin/releases',
-    features: [
-      'Create versioned releases',
-      'Publish snapshots',
-      'Download exports',
-      'Track release history'
-    ]
-  },
-  {
-    id: 'backups',
-    title: 'Database Backups',
-    description: 'Create and manage database backups',
-    icon: DatabaseBackup,
-    route: '/admin/backups',
-    features: [
-      'Create on-demand backups',
-      'Restore from backup',
-      'Download backup files',
-      'Automatic retention policy'
-    ]
-  },
-  {
-    id: 'settings',
-    title: 'System Settings',
-    description: 'Manage application configuration',
-    icon: Cog,
-    route: '/admin/settings',
-    features: [
-      'Configure cache settings',
-      'Manage security options',
-      'Update pipeline parameters',
-      'View change history'
-    ]
-  },
-  {
-    id: 'hybrid-sources',
-    title: 'Hybrid Sources',
-    description: 'Upload DiagnosticPanels and Literature data',
-    icon: DatabaseZap,
-    route: '/admin/hybrid-sources',
-    features: [
-      'Upload diagnostic panel files',
-      'Upload literature evidence',
-      'View upload statistics',
-      'Manage provider data'
-    ]
-  }
+const UNAVAILABLE = { status: 'unknown', label: 'Status unavailable' }
+const count = (n, one, many) => `${n.toLocaleString()} ${n === 1 ? one : many}`
+
+/** A live status line for sections with a metric; status maps to StatusBadge tones */
+const liveStatus = {
+  staging: s =>
+    s.pendingStaging === null
+      ? UNAVAILABLE
+      : s.pendingStaging > 0
+        ? { status: 'pending', label: count(s.pendingStaging, 'item to review', 'items to review') }
+        : { status: 'completed', label: 'Nothing to review' },
+  pipeline: s =>
+    s.pipelineJobs === null
+      ? UNAVAILABLE
+      : s.pipelineJobs > 0
+        ? { status: 'running', label: count(s.pipelineJobs, 'job running', 'jobs running') }
+        : { status: 'idle', label: 'No job running' },
+  logs: s =>
+    s.errors24h === null
+      ? UNAVAILABLE
+      : s.errors24h > 0
+        ? { status: 'error', label: count(s.errors24h, 'error in 24 h', 'errors in 24 h') }
+        : { status: 'ok', label: 'No errors in 24 h' },
+  releases: s =>
+    s.totalReleases === null
+      ? UNAVAILABLE
+      : s.totalReleases > 0
+        ? { status: 'info', label: count(s.totalReleases, 'release', 'releases') }
+        : { status: 'draft', label: 'No release yet' },
+  users: s =>
+    s.activeUsers === null
+      ? UNAVAILABLE
+      : { status: 'active', label: count(s.activeUsers, 'active user', 'active users') }
+}
+
+const SECTIONS = [
+  [
+    'staging',
+    'Gene Staging',
+    'Review gene texts that could not be matched to an HGNC symbol',
+    '/admin/staging'
+  ],
+  ['pipeline', 'Data Pipeline', 'Run and monitor evidence source ingestion', '/admin/pipeline'],
+  [
+    'annotations',
+    'Annotation Sources',
+    'Update gene annotations and their schedule',
+    '/admin/annotations'
+  ],
+  [
+    'hybridSources',
+    'Hybrid Sources',
+    'Upload diagnostic panel and literature evidence',
+    '/admin/hybrid-sources'
+  ],
+  [
+    'releases',
+    'Data Releases',
+    'Create, publish and export CalVer data releases',
+    '/admin/releases'
+  ],
+  [
+    'backups',
+    'Database Backups',
+    'Create, restore and download database backups',
+    '/admin/backups'
+  ],
+  ['logs', 'System Logs', 'Search and filter application logs', '/admin/logs'],
+  ['cache', 'Cache Management', 'Inspect, warm and clear cache namespaces', '/admin/cache'],
+  ['users', 'User Management', 'Manage accounts, roles and access', '/admin/users'],
+  ['settings', 'System Settings', 'Review and change application settings', '/admin/settings']
 ]
 
-// Methods
-const navigateTo = route => {
-  router.push(route)
+const sections = computed(() =>
+  SECTIONS.map(([id, title, description, route]) => ({
+    id,
+    title,
+    description,
+    route,
+    icon: ADMIN_ICONS[id],
+    status: liveStatus[id]?.(stats.value) ?? null
+  }))
+)
+
+const settle = async (fn, pick) => {
+  try {
+    return pick(await fn())
+  } catch (error) {
+    window.logService.error('Failed to load dashboard metric:', error)
+    return null
+  }
 }
 
 const loadStats = async () => {
-  statsLoading.value = true
-  try {
-    const [users, cache, pipeline, staging, releases] = await Promise.all([
-      fetchUserStats(),
-      fetchCacheStats(),
-      fetchPipelineStats(),
-      fetchStagingStats(),
-      fetchReleasesStats()
+  const [activeUsers, cacheHitRate, pipelineJobs, pendingStaging, totalReleases, errors24h] =
+    await Promise.all([
+      settle(
+        () => authStore.getAllUsers(),
+        users => users.filter(u => u.is_active).length
+      ),
+      settle(getCacheStats, r => Math.round(((r.data.data || r.data).hit_rate || 0) * 100)),
+      settle(getDashboardData, r => r.data.data?.summary?.running ?? 0),
+      settle(getStagingStats, r => (r.data.data || r.data).total_pending ?? 0),
+      settle(listReleases, r => r.data.meta?.total ?? 0),
+      settle(
+        () => getLogStatistics(24),
+        r => (r.data.data || r.data).level_distribution?.find(l => l.level === 'ERROR')?.count ?? 0
+      )
     ])
-
-    stats.value = {
-      activeUsers: users?.activeCount || 0,
-      cacheHitRate: Math.round((cache?.hit_rate || 0) * 100),
-      pipelineJobs: pipeline?.running || 0,
-      pendingStaging: staging?.total_pending || 0,
-      totalReleases: releases?.total || 0
-    }
-  } catch (error) {
-    window.logService.error('Failed to load dashboard stats:', error)
-  } finally {
-    statsLoading.value = false
+  stats.value = {
+    activeUsers,
+    cacheHitRate,
+    pipelineJobs,
+    pendingStaging,
+    totalReleases,
+    errors24h
   }
+  statsLoading.value = false
 }
 
-const fetchUserStats = async () => {
-  try {
-    const users = await authStore.getAllUsers()
-    return {
-      total: users.length,
-      activeCount: users.filter(u => u.is_active).length
-    }
-  } catch (error) {
-    window.logService.error('Failed to fetch user stats:', error)
-    return null
-  }
-}
-
-const fetchCacheStats = async () => {
-  try {
-    const data = (await getCacheStats()).data
-    return data.data || data
-  } catch (error) {
-    window.logService.error('Failed to fetch cache stats:', error)
-    return null
-  }
-}
-
-const fetchPipelineStats = async () => {
-  try {
-    const data = (await getDashboardData()).data
-    return data.data?.summary || null
-  } catch (error) {
-    window.logService.error('Failed to fetch pipeline stats:', error)
-    return null
-  }
-}
-
-const fetchStagingStats = async () => {
-  try {
-    const data = (await getStagingStats()).data
-    return data.data || data
-  } catch (error) {
-    window.logService.error('Failed to fetch staging stats:', error)
-    return null
-  }
-}
-
-const fetchReleasesStats = async () => {
-  try {
-    const data = (await listReleases()).data
-    return {
-      total: data.meta?.total || 0,
-      published: data.data?.filter(r => r.status === 'published').length || 0
-    }
-  } catch (error) {
-    window.logService.error('Failed to fetch releases stats:', error)
-    return null
-  }
-}
-
-// Lifecycle
+let timer
 onMounted(() => {
   loadStats()
-  setInterval(loadStats, 30000)
+  timer = setInterval(loadStats, 30000)
 })
+onUnmounted(() => clearInterval(timer))
 </script>
