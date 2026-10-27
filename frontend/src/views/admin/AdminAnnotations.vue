@@ -1,11 +1,8 @@
 <template>
-  <div class="container mx-auto px-4 py-6">
+  <div :class="PAGE_CONTAINER">
     <AdminHeader
-      title="Annotations Management"
+      title="Annotation Sources"
       subtitle="Control gene annotation pipeline and manage enrichment data sources"
-      :icon="Tags"
-      icon-color="teal"
-      :breadcrumbs="ADMIN_BREADCRUMBS.annotations"
     >
       <template #actions>
         <Button :disabled="loading" @click="loadData">
@@ -19,52 +16,46 @@
     <Alert class="mb-6">
       <Info class="size-4" />
       <AlertDescription>
-        <strong>Annotation System:</strong> This pipeline enriches our curated genes with additional
-        data from external sources like gnomAD (constraint scores), GTEx (tissue expression), HGNC
-        (official symbols), ClinVar (clinical variants), and others. This data helps researchers
-        understand gene function and disease relevance.
+        <p>
+          <strong class="font-medium text-foreground">Annotations</strong> enrich curated genes with
+          data from external sources such as gnomAD (constraint), GTEx (tissue expression), HGNC
+          (official symbols) and ClinVar (clinical variants).
+        </p>
       </AlertDescription>
     </Alert>
 
     <!-- Statistics Overview -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
       <AdminStatsCard
         title="Annotated Genes"
         :value="statistics.total_genes_with_annotations"
         :loading="statsLoading"
         :icon="Dna"
-        color="primary"
       />
       <AdminStatsCard
         title="Data Sources"
         :value="annotationSources.length"
         :loading="statsLoading"
         :icon="Database"
-        color="info"
       />
       <AdminStatsCard
         title="Scheduled Jobs"
         :value="activeJobs"
         :loading="statsLoading"
         :icon="Clock4"
-        color="warning"
       />
       <AdminStatsCard
         title="Full Coverage"
         :value="statistics.genes_with_both_sources"
         :loading="statsLoading"
         :icon="CheckCheck"
-        color="success"
       />
     </div>
 
     <!-- Pipeline Management -->
     <Card class="mb-6">
       <CardHeader>
-        <CardTitle class="flex items-center">
-          <Workflow class="size-5 mr-2" />
-          Annotation Pipeline Control
-        </CardTitle>
+        <CardTitle class="flex items-center"> Annotation Pipeline Control </CardTitle>
       </CardHeader>
       <CardContent>
         <p class="text-sm text-muted-foreground mb-4">
@@ -76,12 +67,11 @@
           <div>
             <div class="mb-4">
               <span class="font-semibold">Pipeline Status:</span>
-              <Badge
-                :variant="pipelineStatus.pipeline_ready ? 'default' : 'destructive'"
+              <StatusBadge
+                :status="pipelineStatus.pipeline_ready ? 'ok' : 'warning'"
+                :label="pipelineStatus.pipeline_ready ? 'All Sources Ready' : 'Issues Detected'"
                 class="ml-2"
-              >
-                {{ pipelineStatus.pipeline_ready ? 'All Sources Ready' : 'Issues Detected' }}
-              </Badge>
+              />
             </div>
 
             <div
@@ -90,19 +80,18 @@
             >
               <span class="font-semibold">Sources Needing Updates:</span>
               <div class="flex flex-wrap gap-1 mt-1">
-                <Badge
+                <StatusBadge
                   v-for="source in pipelineStatus.updates_due"
                   :key="source"
-                  variant="outline"
-                  class="bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300"
-                >
-                  {{ source }}
-                </Badge>
+                  status="stale"
+                  :label="source"
+                  tooltip="Update due"
+                />
               </div>
             </div>
 
             <div v-else class="mb-4">
-              <CircleCheck class="size-4 text-green-600 dark:text-green-400 mr-1 inline-block" />
+              <CircleCheck class="size-4 text-success mr-1 inline-block" aria-hidden="true" />
               <span class="text-sm text-muted-foreground">All sources are up to date</span>
             </div>
           </div>
@@ -129,11 +118,8 @@
               </p>
             </div>
             <div class="flex items-center gap-2">
-              <Switch
-                :model-value="pipelineForm.force"
-                @update:model-value="pipelineForm.force = $event"
-              />
-              <Label>Force update (ignore cache TTL)</Label>
+              <Switch id="force-update" v-model="pipelineForm.force" />
+              <Label for="force-update">Force update (ignore cache TTL)</Label>
             </div>
             <p class="text-xs text-muted-foreground">
               Bypass cache timeouts - use for urgent updates
@@ -148,7 +134,6 @@
               <CardContent class="pt-4">
                 <div class="flex items-center justify-between mb-3">
                   <div class="flex items-center">
-                    <DatabaseZap class="size-4 text-primary mr-2 inline-block" />
                     <span class="text-sm font-medium">Select Sources to Update</span>
                   </div>
                   <div class="flex gap-1">
@@ -165,25 +150,23 @@
                   </div>
                 </div>
                 <div class="flex flex-wrap gap-2 p-3 rounded-md border">
-                  <Badge
+                  <Chip
                     v-for="source in sourceFilterOptions"
                     :key="source.value"
-                    :variant="pipelineForm.sources.includes(source.value) ? 'default' : 'outline'"
-                    class="cursor-pointer"
+                    kind="neutral"
+                    :label="source.title"
+                    :icon="pipelineForm.sources.includes(source.value) ? CircleCheck : undefined"
+                    :aria-pressed="pipelineForm.sources.includes(source.value)"
+                    :class="
+                      pipelineForm.sources.includes(source.value)
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'bg-transparent text-muted-foreground'
+                    "
                     @click="toggleSource(source.value)"
-                  >
-                    <CircleCheck
-                      v-if="pipelineForm.sources.includes(source.value)"
-                      class="size-3 mr-1"
-                    />
-                    {{ source.title }}
-                  </Badge>
+                  />
                 </div>
-                <div
-                  v-if="pipelineForm.sources.length === 0"
-                  class="text-yellow-600 dark:text-yellow-400 text-xs mt-2"
-                >
-                  <AlertTriangle class="size-3 mr-1 inline-block" />
+                <div v-if="pipelineForm.sources.length === 0" class="text-warning text-xs mt-2">
+                  <AlertTriangle class="size-3 mr-1 inline-block" aria-hidden="true" />
                   Please select at least one source to update
                 </div>
               </CardContent>
@@ -207,7 +190,6 @@
           <Button
             v-else-if="pipelineStatus?.status === 'running'"
             variant="outline"
-            class="border-yellow-500 text-yellow-600"
             :disabled="pauseLoading"
             @click="pauseUpdate"
           >
@@ -218,7 +200,6 @@
           <Button
             v-if="pipelineStatus?.status === 'paused'"
             variant="outline"
-            class="border-green-500 text-green-600"
             :disabled="resumeLoading"
             @click="resumeUpdate"
           >
@@ -226,11 +207,11 @@
             {{ resumeLoading ? 'Resuming...' : 'Resume Pipeline' }}
           </Button>
 
-          <Button variant="secondary" :disabled="pipelineLoading" @click="validateAnnotations">
+          <Button variant="outline" :disabled="pipelineLoading" @click="validateAnnotations">
             <BadgeCheck class="size-4 mr-2" />
             Validate Data
           </Button>
-          <Button variant="secondary" :disabled="pipelineLoading" @click="refreshMaterializedView">
+          <Button variant="outline" :disabled="pipelineLoading" @click="askConfirm('refreshViews')">
             <RefreshCw class="size-4 mr-2" />
             Refresh Cache
           </Button>
@@ -241,9 +222,8 @@
           <Button
             variant="outline"
             size="sm"
-            class="border-red-300 text-red-600 dark:border-red-700 dark:text-red-400"
             :disabled="failedLoading || pipelineStatus?.status === 'running'"
-            @click="updateFailed"
+            @click="askConfirm('retryFailed')"
           >
             <CircleAlert class="size-4 mr-2" />
             {{ failedLoading ? 'Retrying...' : 'Retry Failed' }}
@@ -265,10 +245,7 @@
     <!-- Gene Annotation Lookup -->
     <Card class="mb-6">
       <CardHeader>
-        <CardTitle class="flex items-center">
-          <FileSearch class="size-5 mr-2" />
-          Test Gene Annotation Lookup
-        </CardTitle>
+        <CardTitle class="flex items-center"> Test Gene Annotation Lookup </CardTitle>
       </CardHeader>
       <CardContent>
         <p class="text-sm text-muted-foreground mb-4">
@@ -278,9 +255,17 @@
 
         <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
           <div class="md:col-span-6 space-y-2">
-            <Label>Gene Database ID</Label>
-            <Input v-model="lookupGeneId" type="number" placeholder="e.g., 1, 123, 456" />
-            <p class="text-xs text-muted-foreground">Enter the internal database ID for a gene</p>
+            <Label for="lookup-gene">Gene symbol</Label>
+            <Input
+              id="lookup-gene"
+              v-model="lookupGeneId"
+              placeholder="e.g. PKD1"
+              autocomplete="off"
+              @keyup.enter="lookupGeneAnnotations"
+            />
+            <p class="text-xs text-muted-foreground">
+              An HGNC gene symbol (or the internal gene ID)
+            </p>
           </div>
           <div class="md:col-span-4 space-y-2">
             <Label>Filter by Source (optional)</Label>
@@ -312,14 +297,12 @@
         <Alert v-if="lookupResult" class="mt-4">
           <AlertDescription>
             <div class="mb-3">
-              <Dna class="size-4 text-green-600 dark:text-green-400 mr-1 inline-block" />
               <strong>Gene:</strong> {{ lookupResult.gene?.symbol }} ({{
                 lookupResult.gene?.hgnc_id
               }})
             </div>
 
             <div class="mb-3">
-              <Database class="size-4 text-blue-600 dark:text-blue-400 mr-1 inline-block" />
               <strong>Annotation Coverage:</strong>
               {{ Object.keys(lookupResult.annotations || {}).length }} data sources
             </div>
@@ -327,21 +310,17 @@
             <div v-if="Object.keys(lookupResult.annotations || {}).length > 0">
               <strong>Available Annotations:</strong>
               <div class="flex flex-wrap gap-1 mt-2">
-                <Badge
+                <Chip
                   v-for="source in Object.keys(lookupResult.annotations || {})"
                   :key="source"
-                  variant="secondary"
-                >
-                  <Check class="size-3 mr-1 inline-block" />
-                  {{ source.toUpperCase() }} ({{ lookupResult.annotations[source].length }} records)
-                </Badge>
+                  kind="neutral"
+                  :label="`${source.toUpperCase()} (${lookupResult.annotations[source].length} records)`"
+                />
               </div>
             </div>
 
             <div v-else class="mt-2">
-              <AlertTriangle
-                class="size-4 text-yellow-600 dark:text-yellow-400 mr-1 inline-block"
-              />
+              <AlertTriangle class="size-4 text-warning mr-1 inline-block" aria-hidden="true" />
               <span class="text-sm">No annotations found for this gene</span>
             </div>
           </AlertDescription>
@@ -353,92 +332,104 @@
     <Card class="mb-6">
       <CardHeader>
         <CardTitle class="flex items-center">
-          <RefreshCw class="size-5 mr-2" />
           Annotation Sources ({{ annotationSources.length }})
         </CardTitle>
       </CardHeader>
       <CardContent class="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead class="w-[200px]">Source</TableHead>
-              <TableHead class="w-[300px]">Description</TableHead>
-              <TableHead class="w-[150px]">Last Update</TableHead>
-              <TableHead class="w-[150px]">Next Update</TableHead>
-              <TableHead class="w-[120px]">Frequency</TableHead>
-              <TableHead class="w-[100px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-if="loading">
-              <TableCell colspan="6" class="text-center py-8 text-muted-foreground">
-                Loading...
-              </TableCell>
-            </TableRow>
-            <TableRow v-else-if="annotationSources.length === 0">
-              <TableCell colspan="6" class="text-center py-8 text-muted-foreground">
-                No annotation sources found
-              </TableCell>
-            </TableRow>
-            <TableRow v-for="item in annotationSources" :key="item.source_name">
-              <TableCell>
-                <div class="flex items-center">
-                  <component
-                    :is="item.is_active ? CircleCheck : CircleX"
-                    class="size-4 mr-2"
-                    :class="
-                      item.is_active ? 'text-green-600 dark:text-green-400' : 'text-destructive'
-                    "
+        <DataState
+          :loading="loading && !annotationSources.length"
+          :error="sourcesError"
+          error-title="Could not load annotation sources"
+          :empty="!annotationSources.length"
+          empty-message="No annotation sources are configured."
+          class="m-4"
+          @retry="loadAnnotationSources"
+        >
+          <template #loading>
+            <div class="space-y-3 p-4" aria-hidden="true">
+              <div
+                v-for="i in 6"
+                :key="i"
+                class="h-8 rounded-md bg-muted motion-safe:animate-pulse"
+              />
+            </div>
+          </template>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead class="w-[200px]">Source</TableHead>
+                <TableHead class="w-[300px]">Description</TableHead>
+                <TableHead class="w-[150px]">Last Update</TableHead>
+                <TableHead class="w-[150px]">Next Update</TableHead>
+                <TableHead class="w-[120px]">Frequency</TableHead>
+                <TableHead class="w-[100px]"><span class="sr-only">Actions</span></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="item in annotationSources" :key="item.source_name">
+                <TableCell>
+                  <div class="flex items-center gap-2">
+                    <strong>{{ item.display_name || item.source_name }}</strong>
+                    <StatusBadge v-if="!item.is_active" status="inactive" />
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span class="text-xs text-muted-foreground">{{
+                    item.description || 'No description'
+                  }}</span>
+                </TableCell>
+                <TableCell>
+                  <span class="text-xs tabular-nums">
+                    {{ item.last_update ? formatDate(item.last_update) : 'Never' }}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <span class="text-xs tabular-nums">
+                    {{ item.next_update ? formatDate(item.next_update) : 'Not scheduled' }}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    kind="neutral"
+                    :label="item.update_frequency || 'Manual'"
+                    tooltip="How often this source is refreshed"
                   />
-                  <strong>{{ item.display_name || item.source_name }}</strong>
-                </div>
-              </TableCell>
-              <TableCell>
-                <span class="text-xs text-muted-foreground">{{
-                  item.description || 'No description'
-                }}</span>
-              </TableCell>
-              <TableCell>
-                <span class="text-xs">
-                  {{ item.last_update ? formatDate(item.last_update) : 'Never' }}
-                </span>
-              </TableCell>
-              <TableCell>
-                <span class="text-xs">
-                  {{ item.next_update ? formatDate(item.next_update) : 'Not scheduled' }}
-                </span>
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline">
-                  {{ item.update_frequency || 'Manual' }}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <div class="flex gap-1">
-                  <Button
-                    :aria-label="`Update ${item.source_name}`"
-                    variant="ghost"
-                    size="icon"
-                    class="h-8 w-8"
-                    :disabled="sourceUpdateLoading[item.source_name]"
-                    @click="updateSource(item.source_name)"
-                  >
-                    <Play class="size-4" />
-                  </Button>
-                  <Button
-                    :aria-label="`Details for ${item.source_name}`"
-                    variant="ghost"
-                    size="icon"
-                    class="h-8 w-8"
-                    @click="showSourceDetails(item)"
-                  >
-                    <Info class="size-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+                </TableCell>
+                <TableCell>
+                  <div class="flex justify-end gap-1">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          :aria-label="`Annotate genes missing ${item.display_name || item.source_name}`"
+                          variant="ghost"
+                          size="icon-sm"
+                          :disabled="sourceUpdateLoading[item.source_name]"
+                          @click="updateSource(item.source_name)"
+                        >
+                          <Play class="size-4" aria-hidden="true" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Annotate genes missing this source</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          :aria-label="`Details for ${item.display_name || item.source_name}`"
+                          variant="ghost"
+                          size="icon-sm"
+                          @click="showSourceDetails(item)"
+                        >
+                          <Info class="size-4" aria-hidden="true" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Source details</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </DataState>
       </CardContent>
     </Card>
 
@@ -449,14 +440,12 @@
     <Card class="mb-6">
       <CardHeader class="flex flex-row items-center justify-between">
         <CardTitle class="flex items-center">
-          <Clock class="size-5 mr-2" />
           Scheduled Jobs
-          <Badge
-            :variant="schedulerInfo.scheduler_running ? 'default' : 'destructive'"
+          <StatusBadge
+            :status="schedulerInfo.scheduler_running ? 'running' : 'idle'"
+            :label="schedulerInfo.scheduler_running ? 'Scheduler running' : 'Scheduler stopped'"
             class="ml-2"
-          >
-            {{ schedulerInfo.scheduler_running ? 'Running' : 'Stopped' }}
-          </Badge>
+          />
         </CardTitle>
         <Button variant="outline" size="sm" :disabled="jobsLoading" @click="loadScheduledJobs">
           <RefreshCw class="size-4 mr-2" :class="{ 'animate-spin': jobsLoading }" />
@@ -464,57 +453,71 @@
         </Button>
       </CardHeader>
       <CardContent class="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead class="w-[200px]">Job ID</TableHead>
-              <TableHead class="w-[200px]">Name</TableHead>
-              <TableHead class="w-[150px]">Next Run</TableHead>
-              <TableHead class="w-[150px]">Trigger</TableHead>
-              <TableHead class="w-[100px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-if="jobsLoading">
-              <TableCell colspan="5" class="text-center py-8 text-muted-foreground">
-                Loading...
-              </TableCell>
-            </TableRow>
-            <TableRow v-else-if="scheduledJobs.length === 0">
-              <TableCell colspan="5" class="text-center py-8 text-muted-foreground">
-                No scheduled jobs
-              </TableCell>
-            </TableRow>
-            <TableRow v-for="item in scheduledJobs" :key="item.id">
-              <TableCell>
-                <code class="text-xs">{{ item.id }}</code>
-              </TableCell>
-              <TableCell>{{ item.name }}</TableCell>
-              <TableCell>
-                <span class="text-xs">
-                  {{ item.next_run ? formatDate(item.next_run) : 'Not scheduled' }}
-                </span>
-              </TableCell>
-              <TableCell>
-                <span class="text-xs">{{ item.trigger || 'Unknown' }}</span>
-              </TableCell>
-              <TableCell>
-                <Button
-                  :aria-label="`Run ${item.name} now`"
-                  variant="ghost"
-                  size="icon"
-                  class="h-8 w-8"
-                  :disabled="jobTriggerLoading[item.id]"
-                  @click="triggerJob(item.id)"
-                >
-                  <Play class="size-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+        <DataState
+          :loading="jobsLoading && !scheduledJobs.length"
+          :error="jobsError"
+          error-title="Could not load scheduled jobs"
+          :empty="!scheduledJobs.length"
+          empty-message="No jobs are scheduled."
+          class="m-4"
+          @retry="loadScheduledJobs"
+        >
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead class="w-[200px]">Job ID</TableHead>
+                <TableHead class="w-[200px]">Name</TableHead>
+                <TableHead class="w-[150px]">Next Run</TableHead>
+                <TableHead class="w-[150px]">Trigger</TableHead>
+                <TableHead class="w-[100px]"><span class="sr-only">Actions</span></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="item in scheduledJobs" :key="item.id">
+                <TableCell>
+                  <code class="text-xs">{{ item.id }}</code>
+                </TableCell>
+                <TableCell>{{ item.name }}</TableCell>
+                <TableCell>
+                  <span class="text-xs tabular-nums">
+                    {{ item.next_run ? formatDate(item.next_run) : 'Not scheduled' }}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <span class="text-xs">{{ item.trigger || 'Unknown' }}</span>
+                </TableCell>
+                <TableCell>
+                  <div class="flex justify-end">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          :aria-label="`Run ${item.name} now`"
+                          variant="ghost"
+                          size="icon-sm"
+                          :disabled="jobTriggerLoading[item.id]"
+                          @click="triggerJob(item.id)"
+                        >
+                          <Play class="size-4" aria-hidden="true" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Run now</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </DataState>
       </CardContent>
     </Card>
+
+    <ConfirmAction
+      v-model:open="confirmOpen"
+      :title="CONFIRMS[confirmKind].title"
+      :description="CONFIRMS[confirmKind].description"
+      :confirm-label="CONFIRMS[confirmKind].confirm"
+      @confirm="CONFIRMS[confirmKind].run()"
+    />
 
     <AlertDialog v-model:open="showUpdateDialog">
       <AlertDialogContent>
@@ -557,9 +560,10 @@
               <div><strong>Display Name:</strong> {{ selectedSource.display_name || 'N/A' }}</div>
               <div>
                 <strong>Active:</strong>
-                <Badge :variant="selectedSource.is_active ? 'default' : 'destructive'" class="ml-1">
-                  {{ selectedSource.is_active ? 'Yes' : 'No' }}
-                </Badge>
+                <StatusBadge
+                  :status="selectedSource.is_active ? 'active' : 'inactive'"
+                  class="ml-1"
+                />
               </div>
               <div>
                 <strong>Update Frequency:</strong> {{ selectedSource.update_frequency || 'Manual' }}
@@ -608,14 +612,16 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import AdminHeader from '@/components/admin/AdminHeader.vue'
+import { Chip, DataState, PAGE_CONTAINER, StatusBadge } from '@/components/shared'
+import ConfirmAction from '@/components/admin/ConfirmAction.vue'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { geneApi } from '@/api/genes'
 import AdminStatsCard from '@/components/admin/AdminStatsCard.vue'
 import DataSourceProgress from '@/components/DataSourceProgress.vue'
 import * as annotationsApi from '@/api/admin/annotations'
-import { ADMIN_BREADCRUMBS } from '@/utils/adminBreadcrumbs'
 import { toast } from 'vue-sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -657,26 +663,19 @@ import {
 import {
   AlertTriangle,
   BadgeCheck,
-  Check,
   CheckCheck,
   CircleAlert,
   CircleCheck,
-  CircleX,
-  Clock,
   Clock4,
   Database,
-  DatabaseZap,
   Dna,
-  FileSearch,
   Info,
   Pause,
   Play,
   RefreshCw,
   Rocket,
   Search,
-  SquarePlus,
-  Tags,
-  Workflow
+  SquarePlus
 } from 'lucide-vue-next'
 
 // Reactive data
@@ -691,6 +690,8 @@ const pauseLoading = ref(false)
 const resumeLoading = ref(false)
 const failedLoading = ref(false)
 const newLoading = ref(false)
+const sourcesError = ref(null)
+const jobsError = ref(null)
 
 // Data
 const statistics = reactive({
@@ -770,6 +771,30 @@ const toggleSource = sourceValue => {
   }
 }
 
+// Heavy or bulk operations ask first (one ConfirmAction for each kind)
+const confirmOpen = ref(false)
+const confirmKind = ref('refreshViews')
+const CONFIRMS = {
+  refreshViews: {
+    title: 'Refresh annotation views?',
+    description:
+      'Rebuilds the materialized annotation views from the database. Queries may be slower until it finishes.',
+    confirm: 'Refresh views',
+    run: () => refreshMaterializedView()
+  },
+  retryFailed: {
+    title: 'Retry failed annotations?',
+    description:
+      'Starts a background update for every gene whose last annotation attempt failed, across all sources.',
+    confirm: 'Retry failed',
+    run: () => updateFailed()
+  }
+}
+const askConfirm = kind => {
+  confirmKind.value = kind
+  confirmOpen.value = true
+}
+
 // Methods
 const loadStatistics = async () => {
   statsLoading.value = true
@@ -785,12 +810,13 @@ const loadStatistics = async () => {
 }
 
 const loadAnnotationSources = async () => {
+  sourcesError.value = null
   try {
     const response = await annotationsApi.getAnnotationSources()
     annotationSources.value = response.data
   } catch (error) {
     window.logService.error('Failed to load annotation sources:', error)
-    toast.error('Failed to load annotation sources', { duration: Infinity })
+    sourcesError.value = error.message || 'Request failed'
   }
 }
 
@@ -806,13 +832,14 @@ const loadPipelineStatus = async () => {
 
 const loadScheduledJobs = async () => {
   jobsLoading.value = true
+  jobsError.value = null
   try {
     const response = await annotationsApi.getScheduledJobs()
     Object.assign(schedulerInfo, response.data)
     scheduledJobs.value = response.data.jobs || []
   } catch (error) {
     window.logService.error('Failed to load scheduled jobs:', error)
-    toast.error('Failed to load scheduled jobs', { duration: Infinity })
+    jobsError.value = error.message || 'Request failed'
   } finally {
     jobsLoading.value = false
   }
@@ -889,8 +916,11 @@ const lookupGeneAnnotations = async () => {
   lookupResult.value = null
 
   try {
+    const input = String(lookupGeneId.value).trim()
+    // Digits are an internal gene ID; anything else is resolved as a gene symbol
+    const geneId = /^\d+$/.test(input) ? Number(input) : (await geneApi.getGene(input)).id
     const response = await annotationsApi.getGeneAnnotations(
-      parseInt(lookupGeneId.value),
+      Number(geneId),
       lookupSource.value === 'all' ? null : lookupSource.value
     )
     lookupResult.value = response.data
