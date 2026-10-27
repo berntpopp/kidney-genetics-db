@@ -24,3 +24,8 @@ keywords:
     - nephrotic
     - proteinuria
     - hematuria
+
+  # Terms blanked out of disease/panel text before kidney keyword matching (#369):
+  # "renal" is a substring of "adrenal" (congenital adrenal hyperplasia, CYP21A2).
+  kidney_exclude:
+    - adrenal

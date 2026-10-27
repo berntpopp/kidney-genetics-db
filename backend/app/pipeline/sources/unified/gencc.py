@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
-from app.core.datasource_config import get_source_parameter
+from app.core.datasource_config import get_source_parameter, matches_kidney_keyword
 from app.core.logging import get_logger
 from app.pipeline.sources.unified.base import UnifiedDataSource
 
@@ -275,7 +275,7 @@ class GenCCUnifiedSource(UnifiedDataSource):
         combined_text = " ".join(text_fields)
 
         # Check for kidney-related keywords
-        return any(keyword in combined_text for keyword in self.kidney_keywords)
+        return matches_kidney_keyword(combined_text, self.kidney_keywords)
 
     def _extract_gene_info(self, row: pd.Series) -> dict[str, Any] | None:
         """

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.cache_service import CacheService
 from app.core.cached_http_client import CachedHttpClient
-from app.core.datasource_config import get_source_parameter
+from app.core.datasource_config import get_source_parameter, matches_kidney_keyword
 from app.core.logging import get_logger
 from app.pipeline.sources.unified.base import UnifiedDataSource
 
@@ -302,11 +302,9 @@ class PanelAppUnifiedSource(UnifiedDataSource):
 
         # Simple check: does it contain any core kidney terms?
         # If we found it via kidney keyword search, it's likely relevant
-        for keyword in ["kidney", "renal", "nephro", "cakut", "tubulopathy", "glomerul"]:
-            if keyword in combined_text:
-                return True
-
-        return False
+        return matches_kidney_keyword(
+            combined_text, ["kidney", "renal", "nephro", "cakut", "tubulopathy", "glomerul"]
+        )
 
     def _get_source_detail(self, evidence_data: dict[str, Any]) -> str:
         """
