@@ -135,15 +135,19 @@ class HPOPipeline:
                 gene_evidence[gene_symbol]["hpo_terms"].add(hpo_id)
 
         # Step 4: Attach term names from the ontology (#421) and convert sets to lists
-        term_ids = sorted({t for g in gene_evidence.values() for t in g["hpo_terms"]})
-        names: dict[str, str | None] = {}
-        for i in range(0, len(term_ids), self.batch_size):
-            batch = term_ids[i : i + self.batch_size]
+        # The descendants response already holds the names; look up only the rest (e.g. the root)
+        names: dict[str, str | None] = dict(await self.terms.get_descendant_names(self.root_term))
+        missing = sorted({t for g in gene_evidence.values() for t in g["hpo_terms"]} - names.keys())
+        for i in range(0, len(missing), self.batch_size):
+            batch = missing[i : i + self.batch_size]
             terms = await asyncio.gather(*(self.terms.get_term(t) for t in batch))
             names.update(
                 (t, term.name if term and term.name else None)
                 for t, term in zip(batch, terms, strict=True)
             )
+        unnamed = [t for t in missing if not names.get(t)]
+        if unnamed:
+            logger.sync_warning("HPO terms stored without a name", count=len(unnamed))
         for gene_data in gene_evidence.values():
             gene_data["hpo_terms"] = [
                 {"id": t, "name": names.get(t)} for t in sorted(gene_data["hpo_terms"])

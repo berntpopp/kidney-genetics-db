@@ -17,15 +17,20 @@ from app.pipeline.sources.unified.hpo import HPOUnifiedSource
 @pytest.mark.asyncio
 async def test_pipeline_stores_term_names():
     pipeline = HPOPipeline()
-    pipeline.terms.get_descendants = AsyncMock(return_value={"HP:0000003", "HP:9999999"})
+    ids = ("HP:0000003", "HP:0010935", "HP:9999999")
+    pipeline.terms.get_descendants = AsyncMock(return_value=set(ids))
     gene = SimpleNamespace(name="HNF1B", entrez_id=6928)
     pipeline.annotations.batch_get_annotations = AsyncMock(
-        return_value={t: SimpleNamespace(genes=[gene]) for t in ("HP:0000003", "HP:9999999")}
+        return_value={t: SimpleNamespace(genes=[gene]) for t in ids}
+    )
+    # Names come from the descendants response; only the rest are looked up one by one
+    pipeline.terms.get_descendant_names = AsyncMock(
+        return_value={"HP:0000003": "Multicystic kidney dysplasia"}
     )
     # HP:9999999 is not in the ontology (e.g. obsolete): stored with name None
     pipeline.terms.get_term = AsyncMock(
         side_effect=lambda t: (
-            HPOTerm(id=t, name="Multicystic kidney dysplasia") if t == "HP:0000003" else None
+            HPOTerm(id=t, name="Abnormality of upper urinary tract") if t == "HP:0010935" else None
         )
     )
 
@@ -33,8 +38,11 @@ async def test_pipeline_stores_term_names():
 
     assert evidence["HNF1B"]["hpo_terms"] == [
         {"id": "HP:0000003", "name": "Multicystic kidney dysplasia"},
+        {"id": "HP:0010935", "name": "Abnormality of upper urinary tract"},
         {"id": "HP:9999999", "name": None},
     ]
+    looked_up = sorted(c.args[0] for c in pipeline.terms.get_term.call_args_list)
+    assert looked_up == ["HP:0010935", "HP:9999999"]
 
 
 def _insert_hpo(db_session, symbol: str, terms: list) -> int:
