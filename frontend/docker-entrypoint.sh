@@ -33,4 +33,15 @@ find /usr/share/nginx/html -name 'index.html' -type f | while read -r html; do
 done
 echo "Added env-config.js script tag to all prerendered pages"
 
+# Trusted edge proxies for X-Forwarded-Proto (#250): space-separated IPs/CIDRs, nginx geo syntax.
+# Anything but address characters is rejected so the variable cannot inject nginx config.
+: > /etc/nginx/conf.d/edge-trust.inc
+for proxy in ${EDGE_TRUSTED_PROXIES:-}; do
+    case "$proxy" in
+        *[!0-9a-fA-F.:/]*) echo "Invalid EDGE_TRUSTED_PROXIES entry: $proxy" >&2; exit 1 ;;
+    esac
+    echo "$proxy 1;" >> /etc/nginx/conf.d/edge-trust.inc
+done
+echo "Trusted edge proxies: ${EDGE_TRUSTED_PROXIES:-none}"
+
 echo "Runtime environment injection complete"

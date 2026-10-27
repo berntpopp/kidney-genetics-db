@@ -198,6 +198,9 @@ services:
       # Empty: the frontend prefixes every request with /api itself (src/config.ts);
       # "/api" here doubles it to /api/api/... and every API call 404s.
       API_BASE_URL: ""
+      # Edge proxy IPs/CIDRs whose X-Forwarded-Proto is passed to the backend (#250); empty
+      # trusts nobody. The backend must also trust this frontend via FORWARDED_ALLOW_IPS.
+      EDGE_TRUSTED_PROXIES: ${EDGE_TRUSTED_PROXIES:-}
       WS_URL: /ws
       # Public MCP endpoint shown on /mcp; override per deployment.
       MCP_BASE_URL: ${KGDB_MCP_PUBLIC_URL:-https://mcp.kidney-genetics.org}

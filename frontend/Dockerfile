@@ -29,6 +29,8 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration
 COPY nginx.prod.conf /etc/nginx/conf.d/default.conf
+# Empty trust list (nobody); docker-entrypoint.sh rewrites it from EDGE_TRUSTED_PROXIES (#250)
+COPY --chown=101:101 edge-trust.inc /etc/nginx/conf.d/edge-trust.inc
 
 # SECURITY: Configure nginx for non-root operation
 RUN rm -f /etc/nginx/conf.d/default.conf.template && \
