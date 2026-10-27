@@ -11,7 +11,9 @@ import {
   CircleAlert,
   Info,
   Star,
-  CircleHelp
+  CircleHelp,
+  CircleX,
+  TriangleAlert
 } from 'lucide-vue-next'
 
 /** Union of all valid tier name strings */
@@ -196,8 +198,12 @@ export interface ClassificationConfig {
   strength: 1 | 2 | 3 | 4 | 5 | null
   tone: 'strength' | 'warning' | 'danger' | 'neutral'
   color: string
+  /** Non-colour cue: the icon of the tier with the same strength step */
+  icon: Component
   description: string
 }
+
+const STRENGTH_ICONS = [Info, CircleAlert, Check, CircleCheckBig, CircleCheck]
 
 const classification = (
   label: string,
@@ -209,6 +215,7 @@ const classification = (
   strength,
   tone,
   color: strength ? `var(--strength-${strength})` : `var(--${tone})`,
+  icon: strength ? STRENGTH_ICONS[strength - 1]! : tone === 'danger' ? CircleX : TriangleAlert,
   description
 })
 
@@ -279,6 +286,7 @@ export function getClassificationConfig(label: string | null | undefined): Class
       strength: null,
       tone: 'neutral',
       color: 'var(--muted-foreground)',
+      icon: CircleHelp,
       description: 'No classification assigned'
     }
   )
