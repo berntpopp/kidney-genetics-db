@@ -4,19 +4,12 @@
 # Based on uv best practices: https://docs.astral.sh/uv/guides/integration/docker/
 
 # ============================================================================
-# ARGUMENTS
-# ============================================================================
-ARG PYTHON_VERSION=3.13
-ARG DEBIAN_VERSION=bookworm
-ARG UV_VERSION=0.5.10
-
-# ============================================================================
 # STAGE 1: Build dependencies
 # ============================================================================
-FROM python:${PYTHON_VERSION}-slim-${DEBIAN_VERSION} AS builder
+FROM python:3.13-slim-bookworm@sha256:93498f36dc7e24ef233bfdf6cc17d4b8bd32d94ee737143e906460d5f5a914c5 AS builder
 
-# Install uv - PIN TO SPECIFIC VERSION for reproducible builds
-COPY --from=ghcr.io/astral-sh/uv:0.5.10 /uv /uvx /bin/
+# Install uv - pinned by version and digest for reproducible builds (Dependabot bumps both)
+COPY --from=ghcr.io/astral-sh/uv:0.11.28@sha256:0f36cb9361a3346885ca3677e3767016687b5a170c1a6b88465ec14aefec90aa /uv /uvx /bin/
 
 WORKDIR /app
 
@@ -38,14 +31,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ============================================================================
 # STAGE 2: Production runtime
 # ============================================================================
-FROM python:${PYTHON_VERSION}-slim-${DEBIAN_VERSION} AS production
+FROM python:3.13-slim-bookworm@sha256:93498f36dc7e24ef233bfdf6cc17d4b8bd32d94ee737143e906460d5f5a914c5 AS production
 
 # OCI standard labels
 LABEL org.opencontainers.image.title="Kidney-Genetics-DB MCP Server" \
       org.opencontainers.image.description="Read-only MCP server exposing Kidney-Genetics-DB public data to LLMs" \
       org.opencontainers.image.vendor="Kidney-Genetics Database" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.source="https://github.com/bernt-popp/kidney-genetics-db"
+      org.opencontainers.image.source="https://github.com/berntpopp/kidney-genetics-db"
 
 # Install runtime dependencies and apply security updates
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -59,8 +52,11 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     # Security: Remove setuid/setgid bits
     && find /usr -perm /6000 -type f -exec chmod a-s {} \; 2>/dev/null || true
 
-# Security: Create non-root user (UID 10001 to avoid host conflicts)
-RUN groupadd -r -g 10001 kgdbmcp && \
+# Security: remove the base image's pip (unused at runtime; its vendored urllib3/msgpack/setuptools
+# carry CVEs) as backend/Dockerfile does, then create the non-root user (UID 10001 avoids host conflicts)
+RUN pip uninstall -y pip setuptools 2>/dev/null || true && \
+    rm -rf /usr/local/lib/python3*/ensurepip && \
+    groupadd -r -g 10001 kgdbmcp && \
     useradd -r -u 10001 -g kgdbmcp -d /app -s /sbin/nologin kgdbmcp
 
 WORKDIR /app

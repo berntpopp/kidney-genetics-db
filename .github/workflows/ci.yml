@@ -27,6 +27,9 @@ on:
       - '.github/workflows/security.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 # Cancel in-progress runs for the same workflow and ref
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -37,6 +40,7 @@ jobs:
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read
@@ -45,9 +49,11 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       mcp: ${{ steps.filter.outputs.mcp }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: dorny/paths-filter@v4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
           filters: |
@@ -71,6 +77,7 @@ jobs:
     needs: changes
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -89,26 +96,21 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          python-version: '3.13'
           enable-cache: true
           cache-dependency-glob: "backend/uv.lock"
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: '3.13'
-
+      # --locked fails if uv.lock is out of date with pyproject.toml
       - name: Install dependencies
         working-directory: backend
         run: uv sync --locked --group dev
-
-      - name: Verify lockfile
-        working-directory: backend
-        run: uv lock --check
 
       # Quality checks - matches `make check-backend`
       - name: Run linting (ruff check)
@@ -118,6 +120,15 @@ jobs:
       - name: Run format check (ruff format)
         working-directory: backend
         run: uv run ruff format --check app/
+
+      # Security gates reuse the synced environment; the weekly security.yml run catches new advisories.
+      - name: Audit Python dependencies (pip-audit)
+        working-directory: backend
+        run: uv run pip-audit --vulnerability-service pypi --progress-spinner off
+
+      - name: Python SAST (Bandit)
+        working-directory: backend
+        run: uv run bandit -q -r app/ --severity-level medium --confidence-level medium
 
       # Database setup
       - name: Run database migrations
@@ -144,7 +155,7 @@ jobs:
         run: uv run pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing --timeout=300
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: ./backend/coverage.xml
           flags: backend
@@ -160,13 +171,16 @@ jobs:
     needs: changes
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22.22.x'
           cache: 'npm'
@@ -175,6 +189,11 @@ jobs:
       - name: Install dependencies
         working-directory: frontend
         run: npm ci
+
+      # Only shipped (production) dependencies gate the PR; dev-only advisories show in the weekly run.
+      - name: Audit production dependencies (npm audit)
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
 
       # Quality checks - matches npm run lint:check
       - name: Run ESLint
@@ -213,21 +232,20 @@ jobs:
     needs: changes
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.mcp == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          enable-cache: true
-          cache-dependency-glob: "mcp/uv.lock"
+          persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: '3.13'
+          enable-cache: true
+          cache-dependency-glob: "mcp/uv.lock"
 
       - name: Install dependencies
         working-directory: mcp
@@ -236,40 +254,39 @@ jobs:
       - name: Run MCP checks
         run: make check-mcp
 
+      # pip-audit is not an MCP dev dependency; audit the exported runtime lock with the backend's pinned version.
+      - name: Audit runtime dependencies (pip-audit)
+        working-directory: mcp
+        run: |
+          uv export --frozen --no-dev --no-emit-project --format requirements-txt -o "$RUNNER_TEMP/mcp-requirements.txt"
+          uvx pip-audit==2.10.1 -r "$RUNNER_TEMP/mcp-requirements.txt" --disable-pip --require-hashes --progress-spinner off
+
   # =============================================================================
-  # CI Summary - aggregates all results
+  # CI Summary - aggregates all results (skipped jobs are fine)
   # =============================================================================
   ci-summary:
     name: CI Summary
     needs: [changes, backend-ci, frontend-ci, mcp-ci]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     steps:
       - name: Check CI results
+        env:
+          FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+          BACKEND: ${{ needs.backend-ci.result }}
+          FRONTEND: ${{ needs.frontend-ci.result }}
+          MCP: ${{ needs.mcp-ci.result }}
         run: |
-          echo "## CI Results Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Job | Result |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend CI | ${{ needs.backend-ci.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend CI | ${{ needs.frontend-ci.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| MCP CI | ${{ needs.mcp-ci.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Fail if any required job failed (skip doesn't count as failure)
-          if [[ "${{ needs.backend-ci.result }}" == "failure" ]]; then
-            echo "::error::Backend CI failed"
+          {
+            echo "## CI Results Summary"
+            echo "| Job | Result |"
+            echo "|-----|--------|"
+            echo "| Backend CI | $BACKEND |"
+            echo "| Frontend CI | $FRONTEND |"
+            echo "| MCP CI | $MCP |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$FAILED" == "true" ]]; then
+            echo "::error::A CI job failed or was cancelled"
             exit 1
           fi
-
-          if [[ "${{ needs.frontend-ci.result }}" == "failure" ]]; then
-            echo "::error::Frontend CI failed"
-            exit 1
-          fi
-
-          if [[ "${{ needs.mcp-ci.result }}" == "failure" ]]; then
-            echo "::error::MCP CI failed"
-            exit 1
-          fi
-
-          echo "::notice::All CI checks passed or skipped appropriately"

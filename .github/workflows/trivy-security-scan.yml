@@ -1,59 +1,88 @@
 name: Trivy Security Scan
 
+# Image builds are the most expensive CI step, so PRs/pushes scan only when an image input changes.
+# The weekly run catches new CVEs in unchanged base images; secrets are covered by gitleaks.yml.
 on:
   push:
     branches:
       - main
-      - dev/**
+    paths: &image-inputs
+      - 'backend/Dockerfile'
+      - 'backend/docker-entrypoint.sh'
+      - 'backend/pyproject.toml'
+      - 'backend/uv.lock'
+      - 'frontend/Dockerfile'
+      - 'frontend/docker-entrypoint.sh'
+      - 'frontend/nginx*.conf'
+      - 'frontend/package-lock.json'
+      - 'mcp/Dockerfile.prod'
+      - 'mcp/pyproject.toml'
+      - 'mcp/uv.lock'
+      - 'postgres/**'
+      - '**/.dockerignore'
+      - '.trivyignore'
+      - 'docker-compose*.yml'
+      - '.github/workflows/trivy-security-scan.yml'
   pull_request:
     branches:
       - main
+    paths: *image-inputs
   schedule:
-    # Run daily at 2 AM UTC
-    - cron: '0 2 * * *'
+    # Weekly Monday 2 AM UTC
+    - cron: '0 2 * * 1'
   workflow_dispatch:
 
 permissions:
-  actions: read       # Required for private repos
   contents: read
-  security-events: write
+
+concurrency:
+  group: trivy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   trivy-scan:
-    name: Trivy Security Scan
+    name: Trivy Image Scan (${{ matrix.target.name }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
 
     strategy:
       fail-fast: false
       matrix:
         target:
-          - name: backend
-            dockerfile: ./backend/Dockerfile
-            context: ./backend
-          - name: frontend
-            dockerfile: ./frontend/Dockerfile
-            context: ./frontend
+          - { name: backend, context: ./backend, dockerfile: ./backend/Dockerfile, skip_files: '' }
+          - { name: frontend, context: ./frontend, dockerfile: ./frontend/Dockerfile, skip_files: '' }
+          - { name: mcp, context: ./mcp, dockerfile: ./mcp/Dockerfile.prod, skip_files: '' }
+          # gosu (Go binary) only drops root->postgres once at container startup; its Go-stdlib CVEs
+          # are not reachable in that usage and the upstream image ships a prebuilt binary we cannot
+          # patch. Skip it by path; OS packages are still scanned.
+          - { name: postgres, context: ./postgres, dockerfile: ./postgres/Dockerfile, skip_files: 'usr/local/bin/gosu' }
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
+      # Cache scope per image, shared with cd.yml, so main-branch scans warm release builds.
       - name: Build Docker image for ${{ matrix.target.name }}
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ${{ matrix.target.context }}
           file: ${{ matrix.target.dockerfile }}
           push: false
           load: true
           tags: kidney-genetics-${{ matrix.target.name }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.target.name }}
+          cache-to: type=gha,scope=${{ matrix.target.name }},mode=max
 
       - name: Run Trivy vulnerability scanner (Table Output)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: kidney-genetics-${{ matrix.target.name }}:${{ github.sha }}
           format: 'table'
@@ -62,9 +91,10 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
           trivyignores: '.trivyignore'
+          skip-files: ${{ matrix.target.skip_files }}
 
       - name: Run Trivy vulnerability scanner (SARIF Output)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: kidney-genetics-${{ matrix.target.name }}:${{ github.sha }}
           format: 'sarif'
@@ -74,9 +104,11 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
           trivyignores: '.trivyignore'
+          skip-files: ${{ matrix.target.skip_files }}
+          skip-setup-trivy: true
 
       - name: Upload Trivy scan results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         # Skip upload for pull requests from forks (lack permissions)
         if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         continue-on-error: true
@@ -87,13 +119,16 @@ jobs:
   trivy-config-scan:
     name: Trivy Config Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Run Trivy misconfiguration scanner
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'config'
           scan-ref: '.'
@@ -101,74 +136,3 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
           skip-dirs: 'node_modules,venv,.venv,dist,build'
-
-      - name: Run Trivy secret scanner
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'table'
-          exit-code: '0'
-          scanners: 'secret'
-          severity: 'CRITICAL,HIGH'
-          skip-dirs: 'node_modules,venv,.venv,dist,build'
-
-  trivy-postgres-scan:
-    name: Trivy PostgreSQL Image Scan
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Build patched PostgreSQL image
-        uses: docker/build-push-action@v7
-        with:
-          context: ./postgres
-          push: false
-          load: true
-          tags: kidney_genetics_postgres:17.11-zlib1.3.2-r1
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Run Trivy on PostgreSQL image
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: 'kidney_genetics_postgres:17.11-zlib1.3.2-r1'
-          format: 'table'
-          exit-code: '0'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-          trivyignores: '.trivyignore'
-          # gosu (Go binary) only drops root->postgres once at container startup;
-          # its Go-stdlib CVEs are not reachable in that usage and the upstream
-          # postgres image ships a prebuilt binary we cannot patch. Skip it by path
-          # (robust against the evolving Go CVE set); OS packages are still scanned.
-          skip-files: 'usr/local/bin/gosu'
-
-      - name: Run Trivy on PostgreSQL image (SARIF)
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: 'kidney_genetics_postgres:17.11-zlib1.3.2-r1'
-          format: 'sarif'
-          output: 'trivy-results-postgres.sarif'
-          exit-code: '0'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-          trivyignores: '.trivyignore'
-          # See note above: skip the unpatchable gosu Go binary by path.
-          skip-files: 'usr/local/bin/gosu'
-
-      - name: Upload Trivy PostgreSQL scan results
-        uses: github/codeql-action/upload-sarif@v4
-        # Skip upload for pull requests from forks (lack permissions)
-        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        continue-on-error: true
-        with:
-          sarif_file: 'trivy-results-postgres.sarif'
-          category: trivy-postgres
