@@ -1,0 +1,242 @@
+{
+  "src/components/AppFooter.vue": {
+    "palette": 4
+  },
+  "src/components/DataSourceProgress.vue": {
+    "palette": 11,
+    "hex": 1
+  },
+  "src/components/HelloWorld.vue": {
+    "hex": 1
+  },
+  "src/components/ScoreBreakdown.vue": {
+    "hex": 7
+  },
+  "src/components/admin/AdminStatsCard.vue": {
+    "palette": 4
+  },
+  "src/components/admin/LogViewer.vue": {
+    "hex": 6
+  },
+  "src/components/admin/backups/BackupDetailsDialog.vue": {
+    "palette": 1
+  },
+  "src/components/admin/backups/BackupRestoreDialog.vue": {
+    "palette": 2
+  },
+  "src/components/auth/ForgotPasswordModal.vue": {
+    "palette": 4,
+    "hex": 1
+  },
+  "src/components/auth/LoginModal.vue": {
+    "hex": 1
+  },
+  "src/components/branding/KGDBLogo.vue": {
+    "hex": 1,
+    "colorFn": 2,
+    "hslVar": 1
+  },
+  "src/components/evidence/ClinGenEvidence.vue": {
+    "palette": 6,
+    "hex": 9
+  },
+  "src/components/evidence/DiagnosticPanelsEvidence.vue": {
+    "hex": 2
+  },
+  "src/components/evidence/EvidenceCard.vue": {
+    "hex": 11
+  },
+  "src/components/evidence/GenCCEvidence.vue": {
+    "palette": 2,
+    "hex": 9
+  },
+  "src/components/evidence/HPOEvidence.vue": {
+    "hex": 2
+  },
+  "src/components/evidence/LiteratureEvidence.vue": {
+    "hex": 9
+  },
+  "src/components/evidence/PanelAppEvidence.vue": {
+    "palette": 2,
+    "hex": 15
+  },
+  "src/components/evidence/PubTatorEvidence.vue": {
+    "palette": 2,
+    "hex": 6
+  },
+  "src/components/gene/ClinVarVariants.vue": {
+    "palette": 2,
+    "hex": 6,
+    "colorFn": 1
+  },
+  "src/components/gene/GeneConstraints.vue": {
+    "hex": 10
+  },
+  "src/components/gene/GeneCuratedAssociations.vue": {
+    "hex": 1
+  },
+  "src/components/gene/GeneExpression.vue": {
+    "hex": 11
+  },
+  "src/components/gene/GenePhenotypes.vue": {
+    "hex": 15
+  },
+  "src/components/gene/MousePhenotypes.vue": {
+    "hex": 10
+  },
+  "src/components/gene/ProteinInteractions.vue": {
+    "palette": 2,
+    "hex": 4
+  },
+  "src/components/network/ClusterDetailsDialog.vue": {
+    "hex": 7
+  },
+  "src/components/network/EnrichmentTable.vue": {
+    "colorFn": 12,
+    "hslVar": 12
+  },
+  "src/components/network/NetworkGraph.vue": {
+    "palette": 1,
+    "hex": 31,
+    "colorFn": 10,
+    "hslVar": 1
+  },
+  "src/components/network/NetworkSearchOverlay.vue": {
+    "palette": 1,
+    "colorFn": 2,
+    "hslVar": 1
+  },
+  "src/components/network/hpoClusterStats.ts": {
+    "hex": 1
+  },
+  "src/components/visualizations/D3BarChart.vue": {
+    "hex": 1,
+    "colorFn": 1
+  },
+  "src/components/visualizations/D3DonutChart.vue": {
+    "colorFn": 1
+  },
+  "src/components/visualizations/EvidenceCompositionChart.vue": {
+    "hex": 9,
+    "colorFn": 2,
+    "hslVar": 2
+  },
+  "src/components/visualizations/GeneStructureVisualization.vue": {
+    "hex": 30,
+    "colorFn": 1,
+    "hslVar": 1
+  },
+  "src/components/visualizations/ProteinDomainVisualization.vue": {
+    "hex": 34,
+    "colorFn": 1,
+    "hslVar": 1
+  },
+  "src/components/visualizations/SourceDistributionsChart.vue": {
+    "hex": 9,
+    "colorFn": 2,
+    "hslVar": 2
+  },
+  "src/components/visualizations/UpSetChart.vue": {
+    "hex": 1,
+    "colorFn": 1,
+    "hslVar": 1
+  },
+  "src/components/visualizations/upsetData.ts": {
+    "hex": 1
+  },
+  "src/composables/useD3Tooltip.ts": {
+    "hex": 7,
+    "colorFn": 1
+  },
+  "src/config/networkAnalysis.ts": {
+    "hex": 28
+  },
+  "src/layouts/AppFooter.vue": {
+    "palette": 10
+  },
+  "src/router/index.ts": {
+    "hex": 1
+  },
+  "src/types/evidence.ts": {
+    "hex": 1
+  },
+  "src/utils/adminIcons.ts": {
+    "palette": 18
+  },
+  "src/views/About.vue": {
+    "palette": 5,
+    "hex": 7
+  },
+  "src/views/CuratedAssociations.vue": {
+    "hex": 1
+  },
+  "src/views/DataSources.vue": {
+    "palette": 11,
+    "hex": 13,
+    "colorFn": 2
+  },
+  "src/views/ForgotPassword.vue": {
+    "palette": 4,
+    "hex": 1
+  },
+  "src/views/GeneStructure.vue": {
+    "palette": 4
+  },
+  "src/views/Home.vue": {
+    "palette": 1,
+    "hex": 12,
+    "colorFn": 2
+  },
+  "src/views/Login.vue": {
+    "hex": 1
+  },
+  "src/views/MCP.vue": {
+    "palette": 4
+  },
+  "src/views/NetworkAnalysis.vue": {
+    "palette": 1
+  },
+  "src/views/Profile.vue": {
+    "palette": 7,
+    "hex": 2
+  },
+  "src/views/ResetPassword.vue": {
+    "palette": 4,
+    "hex": 1
+  },
+  "src/views/admin/AdminAnnotations.vue": {
+    "palette": 24
+  },
+  "src/views/admin/AdminBackups.vue": {
+    "palette": 2
+  },
+  "src/views/admin/AdminCacheManagement.vue": {
+    "palette": 6
+  },
+  "src/views/admin/AdminDashboard.vue": {
+    "palette": 2
+  },
+  "src/views/admin/AdminGeneStaging.vue": {
+    "palette": 6,
+    "hex": 1
+  },
+  "src/views/admin/AdminHybridSources.vue": {
+    "palette": 5
+  },
+  "src/views/admin/AdminLogViewer.vue": {
+    "palette": 6
+  },
+  "src/views/admin/AdminPipeline.vue": {
+    "palette": 8,
+    "hex": 1
+  },
+  "src/views/admin/AdminReleases.vue": {
+    "palette": 7
+  },
+  "src/views/admin/AdminSettings.vue": {
+    "palette": 3
+  },
+  "src/views/admin/AdminUserManagement.vue": {
+    "palette": 2
+  }
+}
