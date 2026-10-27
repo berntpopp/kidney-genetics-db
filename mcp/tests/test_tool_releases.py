@@ -59,9 +59,9 @@ async def test_registers_with_readonly_hints() -> None:
     register(mcp, None)
     tools = await mcp.list_tools()
     tool = next(t for t in tools if t.name == "kgdb_get_release_citation")
-    assert tool.annotations.readOnlyHint is True
-    assert tool.annotations.idempotentHint is True
-    assert tool.annotations.openWorldHint is False
+    assert tool.annotations.read_only_hint is True
+    assert tool.annotations.idempotent_hint is True
+    assert tool.annotations.open_world_hint is False
 
 
 @respx.mock

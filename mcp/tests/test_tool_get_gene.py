@@ -47,9 +47,9 @@ async def test_get_gene_tool_registered_readonly() -> None:
     mcp = FastMCP("test")
     register(mcp, None)
     tool = await _get_tool(mcp, "kgdb_get_gene")
-    assert tool.annotations.readOnlyHint is True
-    assert tool.annotations.idempotentHint is True
-    assert tool.annotations.openWorldHint is False
+    assert tool.annotations.read_only_hint is True
+    assert tool.annotations.idempotent_hint is True
+    assert tool.annotations.open_world_hint is False
     assert tool.annotations.title
 
 

@@ -51,9 +51,9 @@ async def test_registers_with_readonly_hints() -> None:
     register(mcp, None)
     tools = await mcp.list_tools()
     t = next(t for t in tools if t.name == "kgdb_get_constraint_summary")
-    assert t.annotations.readOnlyHint is True
-    assert t.annotations.idempotentHint is True
-    assert t.annotations.openWorldHint is False
+    assert t.annotations.read_only_hint is True
+    assert t.annotations.idempotent_hint is True
+    assert t.annotations.open_world_hint is False
     assert t.annotations.title == "Get Gene Constraint Summary"
 
 
