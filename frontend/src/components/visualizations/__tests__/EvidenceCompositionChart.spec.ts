@@ -19,8 +19,7 @@ vi.mock('@/api/statistics', () => ({
           {
             tier: 'comprehensive_support',
             tier_label: 'Comprehensive Support',
-            gene_count: 1,
-            color: '#4CAF50'
+            gene_count: 1
           }
         ]
       }
@@ -29,7 +28,7 @@ vi.mock('@/api/statistics', () => ({
 }))
 
 describe('EvidenceCompositionChart tiers (#325)', () => {
-  it('colors tiers from TIER_CONFIG, not the backend palette', async () => {
+  it('colors tiers from TIER_CONFIG (the API sends no colours)', async () => {
     const wrapper = mount(EvidenceCompositionChart)
     await flushPromises()
     const swatch = wrapper.find('[data-testid="donut-legend"] li span')

@@ -267,7 +267,7 @@ const renderChart = () => {
         .style('font-size', '36px')
         .style('font-weight', 'bold')
         .style('fill', textColor)
-        .text(computedTotal.value)
+        .text(computedTotal.value.toLocaleString())
 
       centerGroup
         .append('text')
@@ -294,7 +294,7 @@ const renderChart = () => {
         .style('font-size', '42px')
         .style('font-weight', 'bold')
         .style('fill', textColor)
-        .text(props.isPercentage ? `${computedTotal.value}%` : computedTotal.value)
+        .text(props.isPercentage ? `${computedTotal.value}%` : computedTotal.value.toLocaleString())
 
       centerGroup
         .append('text')

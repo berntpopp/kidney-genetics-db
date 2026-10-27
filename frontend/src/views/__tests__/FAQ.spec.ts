@@ -1,9 +1,15 @@
 import { describe, it, expect, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { toValue } from 'vue'
+import { flushPromises, mount } from '@vue/test-utils'
 import { TIER_CONFIG } from '@/utils/evidenceTiers'
 import { useJsonLd } from '@/composables/useJsonLd'
 import FAQ from '@/views/FAQ.vue'
 
+vi.mock('@/api/datasources', () => ({
+  datasourceApi: {
+    getDataSources: vi.fn(async () => ({ total_unique_genes: 2045, total_sources: 7 }))
+  }
+}))
 vi.mock('@/composables/useSeoMeta', () => ({ useSeoMeta: vi.fn() }))
 vi.mock('@/composables/useJsonLd', () => ({
   useJsonLd: vi.fn(),
@@ -15,8 +21,8 @@ describe('FAQ evidence tiers (#314)', () => {
     mount(FAQ, { global: { stubs: { RouterLink: true } } })
     const faqPage = vi
       .mocked(useJsonLd)
-      .mock.calls.map(([schema]) => schema as { '@type'?: string; mainEntity?: unknown[] })
-      .find(schema => schema['@type'] === 'FAQPage')
+      .mock.calls.map(([schema]) => toValue(schema) as { '@type'?: string; mainEntity?: unknown[] })
+      .find(schema => schema?.['@type'] === 'FAQPage')
     const text = JSON.stringify(faqPage)
     for (const tier of Object.values(TIER_CONFIG)) expect(text).toContain(`\\"${tier.label}\\"`)
     expect(text).not.toContain('Exceptional')
@@ -49,5 +55,16 @@ describe('FAQ clinical groups (#338)', () => {
     expect(text).toContain('information content')
     expect(text).toContain("at least half of the primary group's evidence")
     expect(text).toContain('2026-09-01')
+  })
+})
+
+describe('FAQ counts', () => {
+  it('states gene and source counts from the API, none before it answers', async () => {
+    const wrapper = mount(FAQ, { global: { stubs: { RouterLink: true } } })
+    expect(wrapper.text()).toContain('KGDB contains genes with evidence for kidney disease')
+    await flushPromises()
+    expect(wrapper.text()).toContain('KGDB contains 2,045 genes')
+    expect(wrapper.text()).toContain('curated from 7 sources')
+    expect(wrapper.text()).not.toContain('5,000')
   })
 })

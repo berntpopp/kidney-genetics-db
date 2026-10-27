@@ -93,7 +93,7 @@
       <!-- Data Sources Strip -->
       <div class="mt-8 py-6 bg-muted/50 -mx-4 px-4 rounded-lg">
         <p class="text-sm text-muted-foreground text-center mb-4">
-          Integrated from 7 authoritative genomic sources
+          Integrated from {{ sourceCount }} authoritative genomic sources
         </p>
         <div class="flex flex-wrap items-center justify-center gap-4 md:gap-8">
           <RouterLink
@@ -297,21 +297,18 @@ const stats = ref([
   }
 ])
 
-// Reactive gene count for SEO
+// Reactive gene count for SEO; prerendered pages state no number rather than a guessed one
 const geneCountLabel = computed(() => {
   const raw = stats.value[0].value
-  if (typeof raw === 'string') {
-    const n = parseInt(raw.replace(/,/g, ''), 10)
-    return n > 0 ? raw : '5,000+'
-  }
-  return (raw as number) > 0 ? (raw as number).toLocaleString() : '5,000+'
+  const n = typeof raw === 'string' ? parseInt(raw.replace(/,/g, ''), 10) : raw
+  return n > 0 ? `${n.toLocaleString()} ` : ''
 })
 
 useSeoMeta({
   title: 'Kidney Genetics Database — Renal & Nephrology Gene Evidence Scores',
   description: computed(
     () =>
-      `Kidney Genetics Database (KGDB) — the definitive nephrology gene panel and renal genetics resource. Evidence-based curation of ${geneCountLabel.value} kidney disease genes from ClinGen, PanelApp, GenCC, and more.`
+      `Kidney Genetics Database (KGDB) — the definitive nephrology gene panel and renal genetics resource. Evidence-based curation of ${geneCountLabel.value}kidney disease genes from ClinGen, PanelApp, GenCC, and more.`
   ),
   canonicalPath: '/'
 })
@@ -337,7 +334,10 @@ const dataSources = [
   { name: 'Diagnostic Panels', icon: AlarmClockCheck }
 ]
 
-const keyBenefits = [
+// Configured sources (the chips above) until the API reports its own count
+const sourceCount = ref(dataSources.length)
+
+const keyBenefits = computed(() => [
   {
     title: 'Evidence-Based',
     description: 'Weighted multi-source scoring from 0-100 with tier classification',
@@ -345,7 +345,7 @@ const keyBenefits = [
   },
   {
     title: 'Multi-Source',
-    description: 'Aggregated from 7 clinical and research databases',
+    description: `Aggregated from ${sourceCount.value} clinical and research databases`,
     icon: RefreshCw
   },
   {
@@ -358,7 +358,7 @@ const keyBenefits = [
     description: 'Free under CC BY 4.0 — no registration required for browsing',
     icon: Unlock
   }
-]
+])
 
 const pipelineSteps = [
   {
@@ -439,7 +439,9 @@ onMounted(async () => {
     const sourceResponse = await datasourceApi.getDataSources()
 
     stats.value[0].value = (sourceResponse.total_unique_genes || 0).toLocaleString()
-    stats.value[1].value = sourceResponse.total_active
+    // Active = sources with evidence for at least one listed gene, out of all configured
+    stats.value[1].value = `${sourceResponse.total_active} of ${sourceResponse.total_sources}`
+    sourceCount.value = sourceResponse.total_sources || sourceCount.value
 
     if (sourceResponse.last_data_update) {
       stats.value[2].value = formatDate(sourceResponse.last_data_update)

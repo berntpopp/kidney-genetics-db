@@ -73,9 +73,9 @@
             </div>
             <div>
               <div class="text-lg font-semibold text-primary">
-                {{ data.overlap_statistics.single_source_combinations }}
+                {{ data.overlap_statistics.single_source_genes.toLocaleString() }}
               </div>
-              <div class="text-xs text-muted-foreground">Single Source Only</div>
+              <div class="text-xs text-muted-foreground">Genes in One Source Only</div>
             </div>
           </div>
         </div>

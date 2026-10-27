@@ -94,3 +94,39 @@ describe('DataSources loading layout (#324)', () => {
     expect(header.findAll('div')).toHaveLength(1)
   })
 })
+
+describe('DataSources counts', () => {
+  afterEach(() => wrapper?.unmount())
+
+  it('shows API counts with their denominators and literature publications', async () => {
+    getDataSources.mockReset()
+    getDataSources.mockResolvedValue({
+      total_active: 6,
+      total_sources: 7,
+      source_coverage: 35,
+      total_unique_genes: 2045,
+      sources: [
+        {
+          name: 'Literature',
+          status: 'active',
+          stats: { gene_count: 814, metadata: { publications: 12 } }
+        },
+        {
+          name: 'DiagnosticPanels',
+          status: 'active',
+          stats: { gene_count: 965, metadata: { providers: 1, panels: 32 } }
+        },
+        { name: 'PubTator', status: 'inactive', stats: null }
+      ]
+    } as never)
+    const w = mountView()
+    await flushPromises()
+
+    expect(w.text()).toContain('6 of 7')
+    expect(w.text()).toMatch(/35%\s*of Genes with 2\+ Sources/)
+    expect(w.text()).toContain('12Publications')
+    expect(w.text()).toContain('1Provider')
+    expect(w.text()).not.toContain('Providers')
+    expect(w.text()).toContain('Inactive')
+  })
+})
