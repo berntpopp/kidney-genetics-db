@@ -138,6 +138,9 @@ services:
     # NO PORTS EXPOSED - NPM connects via container name
     env_file:
       - .env.production
+    environment:
+      # Never fall back to the dev default: it drops Secure from the refresh cookie (#434)
+      ENVIRONMENT: production
     depends_on:
       postgres:
         condition: service_healthy
