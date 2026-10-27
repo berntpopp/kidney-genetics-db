@@ -1,9 +1,39 @@
-# ClinGen/GenCC circularity benchmark (#282) — DEV SNAPSHOT, NOT PRODUCTION
+# ClinGen/GenCC circularity benchmark (#282)
 
-**All numbers here come from a development database snapshot, not production.**
-Production numbers are still pending.
+## Production run (2026-10-27)
 
-## Dataset
+Run read-only (`PGOPTIONS=-c default_transaction_read_only=on`) inside the
+production backend container against the live database: release v0.13.0,
+Alembic head `0011`, 5,195 scored genes, global divisor 7. Evidence last
+updated 2026-10-26 for ClinGen (212 genes), GenCC (394), HPO, PanelApp and
+PubTator; 2026-03-29 for DiagnosticPanels and Literature (curated uploads).
+Self-check: the `full`/`global` run reproduces live `gene_scores` for every
+gene (the script exits 1 otherwise).
+
+High-evidence genes: 321 (high_both 132, high_clingen_only 35,
+high_gencc_only 154). `global` divisor (production):
+
+| scenario | genes tier down | genes tier up | high-ev tier down | high-ev below established_support | median rank shift (high-ev) |
+|---|---|---|---|---|---|
+| full | 0 | 0 | 0 | 18 | +0 |
+| no_clingen | 31 | 924 | 29 | 21 | +0 |
+| no_gencc | 117 | 877 | 81 | 40 | +33 |
+| no_clingen_gencc | 98 | 1246 | 70 | 38 | +59 |
+
+Reading: with both sources removed, 283/321 high-evidence genes stay at
+`established_support` or above; 38 fall below, 15 of them to `no_evidence`
+(no other source). GenCC removal moves high-evidence genes more than ClinGen
+removal, as on the dev snapshot. 167 of 394 GenCC gene records list ClinGen as
+a submitter and 241 a PanelApp submitter, so the sources are not independent
+(limits below apply unchanged). Full tables: `production_2026-10-27_summary.md`;
+per-gene and discrepant-gene CSVs carry the same label.
+
+The sections below document the method and the earlier development-snapshot
+run (2026-10-26), whose files carry the `dev_snapshot` label.
+
+## Development snapshot run (2026-10-26)
+
+### Dataset
 
 - Snapshot: local dev database dump, extracted 2026-10-26; all source evidence
   last updated 2026-03-15. Migrated to Alembic head `0005` (#337 cume_dist),
@@ -56,7 +86,7 @@ Self-check: the `full`/`global` run must equal the live
 live `evidence_tier` exactly, for every gene; otherwise the script exits 1.
 Result on this snapshot: **5183/5183 genes reproduce**.
 
-## Results (high-evidence = 285 genes in the three `high_*` strata)
+### Results, dev snapshot (high-evidence = 285 genes in the three `high_*` strata)
 
 A positive median rank shift means high-evidence genes moved DOWN the ranking
 (rank 1 = highest score). The CSVs are plain (header on line 1); their file
@@ -97,7 +127,8 @@ classification). Full tier tables per stratum: `dev_snapshot_2026-10-26_summary.
   positive and absence is not a negative. They are not an independent reference.
 - Classification strata use gene-level unions of disease-level
   classifications; disease-specificity is lost.
-- Dev snapshot only; production coverage and scores may differ.
+- Kidney filtering at ingest changes with #369 (adrenal-only and non-kidney
+  ClinGen matches leave after the next GenCC/ClinGen run), so later runs differ.
 
 ## Files
 
