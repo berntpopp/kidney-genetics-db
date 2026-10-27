@@ -101,18 +101,23 @@ function acknowledgeDisclaimer() {
 </script>
 
 <template>
-  <footer
-    class="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]"
-  >
-    <div class="container mx-auto flex items-center justify-between px-4 h-8">
+  <footer class="border-t bg-background pb-[env(safe-area-inset-bottom)]">
+    <div
+      class="mx-auto flex h-11 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8"
+    >
       <!-- Left: Version + Online status -->
       <div class="flex items-center gap-1.5">
         <TooltipProvider :delay-duration="300">
           <!-- Version popover -->
           <Popover>
             <PopoverTrigger as-child>
-              <Button variant="ghost" size="sm" class="h-6 text-[11px] text-muted-foreground px-1">
-                <Info class="size-3 mr-1" />
+              <Button
+                variant="ghost"
+                size="sm"
+                class="h-8 px-2 text-xs text-muted-foreground tabular-nums"
+                aria-label="Version information"
+              >
+                <Info class="size-3.5" aria-hidden="true" />
                 v{{ frontendVersion }}
               </Button>
             </PopoverTrigger>
@@ -120,15 +125,16 @@ function acknowledgeDisclaimer() {
               <div class="space-y-2">
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-medium">Frontend</span>
-                  <Badge variant="secondary" class="text-[10px]">v{{ frontendVersion }}</Badge>
+                  <Badge variant="secondary" class="text-xs">v{{ frontendVersion }}</Badge>
                 </div>
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-medium">Backend</span>
                   <Badge
-                    :variant="backendReachable ? 'secondary' : 'destructive'"
-                    class="text-[10px]"
+                    variant="secondary"
+                    class="text-xs"
+                    :class="!backendReachable && 'text-danger'"
                   >
-                    <Server class="size-2.5 mr-1" />
+                    <Server class="size-3 mr-1" aria-hidden="true" />
                     {{ backendReachable ? `v${backendVersion}` : 'unreachable' }}
                   </Badge>
                 </div>
@@ -141,10 +147,14 @@ function acknowledgeDisclaimer() {
             <!-- Online indicator -->
             <Tooltip>
               <TooltipTrigger as-child>
-                <div class="flex items-center">
-                  <Wifi v-if="isOnline" class="size-3 text-green-500" />
-                  <WifiOff v-else class="size-3 text-destructive" />
-                </div>
+                <span
+                  class="flex size-6 items-center justify-center rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  tabindex="0"
+                  :aria-label="isOnline ? 'Online' : 'Offline'"
+                >
+                  <Wifi v-if="isOnline" class="size-3.5 text-success" aria-hidden="true" />
+                  <WifiOff v-else class="size-3.5 text-danger" aria-hidden="true" />
+                </span>
               </TooltipTrigger>
               <TooltipContent side="top">
                 <p>{{ isOnline ? 'Online' : 'Offline — some features unavailable' }}</p>
@@ -154,12 +164,17 @@ function acknowledgeDisclaimer() {
             <!-- Backend status -->
             <Tooltip>
               <TooltipTrigger as-child>
-                <div class="flex items-center">
+                <span
+                  class="flex size-6 items-center justify-center rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  tabindex="0"
+                  :aria-label="backendReachable ? 'Backend reachable' : 'Backend unreachable'"
+                >
                   <Server
-                    class="size-3"
-                    :class="backendReachable ? 'text-green-500' : 'text-destructive'"
+                    class="size-3.5"
+                    :class="backendReachable ? 'text-success' : 'text-danger'"
+                    aria-hidden="true"
                   />
-                </div>
+                </span>
               </TooltipTrigger>
               <TooltipContent side="top">
                 <p>Backend: {{ backendReachable ? `v${backendVersion}` : 'unreachable' }}</p>
@@ -175,14 +190,14 @@ function acknowledgeDisclaimer() {
           <!-- GitHub -->
           <Tooltip>
             <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon" class="size-6" as-child>
+              <Button variant="ghost" size="icon" class="size-8" as-child>
                 <a
                   :href="GITHUB_URL"
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="GitHub Repository"
                 >
-                  <Github class="size-3.5" />
+                  <Github class="size-4" aria-hidden="true" />
                 </a>
               </Button>
             </TooltipTrigger>
@@ -192,14 +207,14 @@ function acknowledgeDisclaimer() {
           <!-- API / OpenAPI docs -->
           <Tooltip>
             <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon" class="size-6" as-child>
+              <Button variant="ghost" size="icon" class="size-8" as-child>
                 <a
                   :href="apiDocsUrl"
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="API Documentation (OpenAPI)"
                 >
-                  <Braces class="size-3.5" />
+                  <Braces class="size-4" aria-hidden="true" />
                 </a>
               </Button>
             </TooltipTrigger>
@@ -209,9 +224,9 @@ function acknowledgeDisclaimer() {
           <!-- MCP server (connect an AI agent) -->
           <Tooltip>
             <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon" class="size-6" as-child>
+              <Button variant="ghost" size="icon" class="size-8" as-child>
                 <RouterLink to="/mcp" aria-label="MCP Server (connect an AI agent)">
-                  <Plug class="size-3.5" />
+                  <Plug class="size-4" aria-hidden="true" />
                 </RouterLink>
               </Button>
             </TooltipTrigger>
@@ -221,9 +236,9 @@ function acknowledgeDisclaimer() {
           <!-- FAQ -->
           <Tooltip>
             <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon" class="size-6" as-child>
+              <Button variant="ghost" size="icon" class="size-8" as-child>
                 <RouterLink to="/faq" aria-label="FAQ">
-                  <HelpCircle class="size-3.5" />
+                  <HelpCircle class="size-4" aria-hidden="true" />
                 </RouterLink>
               </Button>
             </TooltipTrigger>
@@ -235,14 +250,14 @@ function acknowledgeDisclaimer() {
             <!-- Docs -->
             <Tooltip>
               <TooltipTrigger as-child>
-                <Button variant="ghost" size="icon" class="size-6" as-child>
+                <Button variant="ghost" size="icon" class="size-8" as-child>
                   <a
                     :href="`${GITHUB_URL}#readme`"
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Documentation"
                   >
-                    <BookOpen class="size-3.5" />
+                    <BookOpen class="size-4" aria-hidden="true" />
                   </a>
                 </Button>
               </TooltipTrigger>
@@ -252,14 +267,14 @@ function acknowledgeDisclaimer() {
             <!-- License -->
             <Tooltip>
               <TooltipTrigger as-child>
-                <Button variant="ghost" size="icon" class="size-6" as-child>
+                <Button variant="ghost" size="icon" class="size-8" as-child>
                   <a
                     :href="`${GITHUB_URL}/blob/main/LICENSE`"
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="License"
                   >
-                    <Scale class="size-3.5" />
+                    <Scale class="size-4" aria-hidden="true" />
                   </a>
                 </Button>
               </TooltipTrigger>
@@ -269,14 +284,14 @@ function acknowledgeDisclaimer() {
             <!-- Issues -->
             <Tooltip>
               <TooltipTrigger as-child>
-                <Button variant="ghost" size="icon" class="size-6" as-child>
+                <Button variant="ghost" size="icon" class="size-8" as-child>
                   <a
                     :href="`${GITHUB_URL}/issues`"
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Issues"
                   >
-                    <CircleAlert class="size-3.5" />
+                    <CircleAlert class="size-4" aria-hidden="true" />
                   </a>
                 </Button>
               </TooltipTrigger>
@@ -291,15 +306,15 @@ function acknowledgeDisclaimer() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  class="size-6"
-                  :class="disclaimerAcknowledged ? 'text-green-600' : 'text-amber-500'"
+                  class="size-8"
+                  :class="disclaimerAcknowledged ? 'text-muted-foreground' : 'text-warning'"
                   :aria-label="
                     disclaimerAcknowledged ? 'Disclaimer acknowledged' : 'View disclaimer'
                   "
                   @click="disclaimerOpen = true"
                 >
-                  <ShieldCheck v-if="disclaimerAcknowledged" class="size-3.5" />
-                  <ShieldAlert v-else class="size-3.5" />
+                  <ShieldCheck v-if="disclaimerAcknowledged" class="size-4" aria-hidden="true" />
+                  <ShieldAlert v-else class="size-4" aria-hidden="true" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="top">
@@ -313,21 +328,22 @@ function acknowledgeDisclaimer() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  class="size-6 relative"
-                  aria-label="Log Viewer"
+                  class="size-8 relative"
+                  :aria-label="errorCount > 0 ? `Log Viewer (${errorCount} errors)` : 'Log Viewer'"
                   @click="logStore.showViewer"
                 >
-                  <Terminal class="size-3.5" />
+                  <Terminal class="size-4" aria-hidden="true" />
                   <span
                     v-if="errorCount > 0"
-                    class="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-destructive"
+                    class="absolute top-0.5 right-0.5 size-2 rounded-full bg-danger"
+                    aria-hidden="true"
                   />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="top">
                 <p>
                   Log Viewer
-                  <kbd class="ml-1 text-[10px] opacity-60">Ctrl+Shift+L</kbd>
+                  <kbd class="ml-1 font-mono text-xs opacity-70">Ctrl+Shift+L</kbd>
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -341,7 +357,7 @@ function acknowledgeDisclaimer() {
       <DialogContent class="max-w-lg">
         <DialogHeader>
           <DialogTitle class="flex items-center gap-2">
-            <CircleAlert class="size-5 text-amber-500" />
+            <CircleAlert class="size-5 text-warning" aria-hidden="true" />
             Research Use Disclaimer
           </DialogTitle>
           <DialogDescription>
@@ -350,12 +366,12 @@ function acknowledgeDisclaimer() {
         </DialogHeader>
         <div class="space-y-3 text-sm">
           <p>
-            The <strong>Kidney Genetics Database (KGDB)</strong> aggregates gene-disease association
+            The <strong>Kidney-Genetics Database (KGDB)</strong> aggregates gene-disease association
             data from multiple public sources including ClinGen, GenCC, PanelApp, HPO, ClinVar,
             gnomAD, and PubMed.
           </p>
-          <div class="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-3">
-            <p class="text-amber-800 dark:text-amber-200 text-xs">
+          <div class="rounded-md border border-warning/30 bg-warning-subtle p-3">
+            <p class="text-xs text-foreground">
               The information on this website is not intended for direct diagnostic use or medical
               decision-making without review by a genetics professional. Individuals should not
               change their health behavior solely on the basis of information contained on this
@@ -373,7 +389,7 @@ function acknowledgeDisclaimer() {
               class="underline"
             >
               MIT License
-              <ExternalLink class="size-2.5 inline" />
+              <ExternalLink class="size-3 inline" aria-hidden="true" />
             </a>
             .
           </p>

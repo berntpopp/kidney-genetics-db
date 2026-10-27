@@ -8,6 +8,7 @@ import type { VueWrapper } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import { createRouter, createMemoryHistory, RouterView } from 'vue-router'
 import GeneTable from '@/components/GeneTable.vue'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 vi.mock('@/api/genes', () => ({ geneApi: { getGenes: vi.fn() } }))
 import { geneApi } from '@/api/genes'
@@ -46,7 +47,7 @@ async function mountAt(path = '/genes') {
   })
   await router.push(path)
   await router.isReady()
-  wrapper = mount(defineComponent({ render: () => h(RouterView) }), {
+  wrapper = mount(defineComponent({ render: () => h(TooltipProvider, () => h(RouterView)) }), {
     global: { plugins: [router] },
     attachTo: document.body
   })
@@ -92,7 +93,7 @@ describe('GeneTable', () => {
       return listResult([gene(String(params?.search))])
     })
 
-    const input = wrapper!.find('input[placeholder^="PKD1"]')
+    const input = wrapper!.find('input[aria-label^="Search genes"]')
     await input.setValue('PKD1')
     await new Promise(r => setTimeout(r, 350)) // debounce -> PKD1 request in flight
     await input.setValue('PKD2')
@@ -121,12 +122,39 @@ describe('GeneTable', () => {
       ])
     )
     await mountAt()
-    const scoreBadge = wrapper!.findAll('[data-slot="badge"]').find(b => b.text() === '50.0')!
-    await scoreBadge.trigger('click')
-    await flushPromises()
-
-    expect(document.body.textContent).toContain('Score: 50.0%')
+    const chips = wrapper!.findAll('[data-slot="chip"]')
+    const score = chips.find(c => c.text() === '50.0')!
+    // Strength-tinted score pill with tabular numerals, in the >= 50 band
+    expect(score.classes()).toContain('tabular-nums')
+    expect(score.attributes('style')).toContain('--strength-5')
     expect(document.body.textContent).not.toMatch(/100\.0%/)
+  })
+
+  it('renders tier, source display names, overflow and HGNC link as shared primitives', async () => {
+    getGenes.mockResolvedValue(
+      listResult([
+        {
+          id: 1,
+          approved_symbol: 'HNF1B',
+          hgnc_id: 'HGNC:11630',
+          evidence_tier: 'comprehensive_support',
+          evidence_score: 92.4,
+          evidence_count: 5,
+          sources: ['ClinGen', 'DiagnosticPanels', 'GenCC', 'HPO', 'PanelApp']
+        }
+      ])
+    )
+    await mountAt()
+    const chipTexts = wrapper!.findAll('[data-slot="chip"]').map(c => c.text())
+    expect(chipTexts).toContain('Comprehensive Support')
+    expect(chipTexts).toContain('Diagnostic panels')
+    expect(wrapper!.text()).not.toContain('DiagnosticPanels')
+    const more = wrapper!.findAll('[data-slot="chip"]').find(c => c.text() === '+2')!
+    expect(more.attributes('aria-label')).toBe('2 more sources: HPO, PanelApp')
+    expect(wrapper!.get('a[href*="genenames.org"]').text()).toBe('HGNC:11630')
+    // One result count, no "row(s)" developer copy
+    expect(wrapper!.text()).toContain('1 gene')
+    expect(wrapper!.text()).not.toMatch(/row\(s\)|\d+\/\d+ genes/)
   })
 })
 
@@ -152,7 +180,7 @@ describe('GeneTable load states (#316)', () => {
     getGenes.mockResolvedValue(listResult([{ id: 1, approved_symbol: 'PKD1', hgnc_id: 'x' }]))
     await wrapper!
       .findAll('button')
-      .find(b => b.text() === 'Try again')!
+      .find(b => b.text() === 'Retry')!
       .trigger('click')
     await flushPromises()
     expect(getGenes).toHaveBeenCalledTimes(2)
@@ -182,7 +210,7 @@ describe('GeneTable footer and loading state (#323)', () => {
     } as never)
     await mountAt()
 
-    expect(wrapper!.text()).toContain('3,245 row(s) total')
+    expect(wrapper!.text()).toContain('3,245 genes')
     expect(wrapper!.text()).toContain('Page 1 of 325')
   })
 

@@ -14,17 +14,20 @@ import {
 interface Props {
   table: Table<DataTableFeatures, TData>
   pageSizeOptions?: number[]
+  /** What a row is, singular ("gene"); the total reads "2,045 genes" */
+  noun?: string
 }
 
 withDefaults(defineProps<Props>(), {
-  pageSizeOptions: () => [10, 20, 30, 50, 100]
+  pageSizeOptions: () => [10, 20, 30, 50, 100],
+  noun: 'row'
 })
 </script>
 
 <template>
   <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2">
-    <div class="flex-1 text-sm text-muted-foreground whitespace-nowrap">
-      {{ table.getRowCount().toLocaleString() }} row(s) total
+    <div class="flex-1 text-sm text-muted-foreground tabular-nums whitespace-nowrap">
+      {{ `${table.getRowCount().toLocaleString()} ${noun}${table.getRowCount() === 1 ? '' : 's'}` }}
     </div>
     <div class="flex flex-wrap items-center gap-x-6 gap-y-2 lg:gap-x-8">
       <div class="flex items-center space-x-2">
@@ -43,7 +46,7 @@ withDefaults(defineProps<Props>(), {
           </SelectContent>
         </Select>
       </div>
-      <div class="flex w-[100px] items-center justify-center text-sm font-medium">
+      <div class="flex min-w-[100px] items-center justify-center text-sm font-medium tabular-nums">
         Page {{ table.atoms.pagination.get().pageIndex + 1 }} of {{ table.getPageCount() }}
       </div>
       <div class="flex items-center space-x-2">
