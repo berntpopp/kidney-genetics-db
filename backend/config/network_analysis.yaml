@@ -72,8 +72,7 @@ enrichment:
     default_fdr_threshold: 0.05  # Benjamini-Hochberg FDR
     max_cluster_size: 2000  # Max genes per cluster (= network.max_nodes; timed in #208)
     max_communities: 200  # Maximum communities per batch request (engineering limit)
-    min_term_genes: 2  # Minimum genes per term to test
-    max_p_value: 0.05  # Pre-FDR p-value filter
+    min_term_genes: 2  # Terms with fewer annotated genes in the tested universe are not tested
 
   # GO/KEGG enrichment (GSEApy with Enrichr)
   go:
