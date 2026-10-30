@@ -2,7 +2,7 @@
 
 import json
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy import text
@@ -86,6 +86,10 @@ async def test_readers_accept_named_and_legacy_terms(db_session):
     assert len(scores) == 2 and scores[legacy] == scores[named]
 
     # Distinct-term count sees the same two IDs in both shapes
-    result = await get_datasources(db=db_session)
+    # The test genes are not in the gene_scores matview, so skip its score filter
+    with patch(
+        "app.api.endpoints.datasources.get_gene_evidence_filter_join", return_value=("", "1=1")
+    ):
+        result = await get_datasources(db=db_session)
     hpo = next(s for s in result["data"]["sources"] if s.name == "HPO")
     assert hpo.stats.metadata["phenotype_terms"] == 2
