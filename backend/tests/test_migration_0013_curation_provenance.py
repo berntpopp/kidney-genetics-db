@@ -1,0 +1,180 @@
+"""Migration 0013: relationship type, MOI, provenance and diagnostics columns (#437)."""
+
+import subprocess
+
+import pytest
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
+
+from tests.test_audit_migration_views import (
+    _add_gene,
+    _alembic,
+    baseline_db,  # noqa: F401 - fixture
+)
+from tests.test_migration_gene_disease_associations import INSERT, _user
+
+NEW = text(
+    "INSERT INTO gene_disease_associations (gene_id, disease_id, disease_name,"
+    " evidence_strength, citations, curator_id, relationship_type, moi, source, external_id,"
+    " external_url, scores) VALUES (:g, :d, 'x', :st, '[\"PMID:1\"]', :u, :rt, :moi, :src,"
+    " :xid, :xurl, CAST(:sc AS jsonb))"
+)
+
+
+def _row(**kw):
+    return {
+        "d": "MONDO:0005300",
+        "st": "Strong",
+        "rt": "mendelian",
+        "moi": None,
+        "src": "kgdb",
+        "xid": None,
+        "xurl": None,
+        "sc": None,
+        **kw,
+    }
+
+
+@pytest.fixture
+def db_0013(baseline_db):  # noqa: F811
+    engine, url = baseline_db
+    _alembic(url, "upgrade", "0013")
+    with engine.begin() as conn:
+        gene, user = _add_gene(conn, "PRV13"), _user(conn, "c13")
+    return engine, url, gene, user
+
+
+@pytest.mark.integration
+def test_0013_keeps_existing_rows(baseline_db):  # noqa: F811
+    engine, url = baseline_db
+    _alembic(url, "upgrade", "0012")
+    with engine.begin() as conn:
+        gene, curator, reviewer = _add_gene(conn, "KEEP13"), _user(conn, "k13"), _user(conn, "r13")
+        conn.execute(
+            INSERT,
+            {
+                "g": gene,
+                "d": "MONDO:0005300",
+                "c": '["PMID:1"]',
+                "u": curator,
+                "s": "published",
+                "r": reviewer,
+                "p": "2026-10-01",
+            },
+        )
+    _alembic(url, "upgrade", "0013")
+    with engine.connect() as conn:
+        row = conn.execute(
+            text(
+                "SELECT status, reviewer_id, relationship_type, source, moi, methodology,"
+                " external_id, scores, diagnostics, evidence_strength"
+                " FROM gene_disease_associations WHERE gene_id = :g"
+            ),
+            {"g": gene},
+        ).one()
+    assert tuple(row) == (
+        "published",
+        reviewer,
+        "mendelian",
+        "kgdb",
+        None,
+        None,
+        None,
+        None,
+        None,
+        "Strong",
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"rt": "susceptibility", "st": "Strong"},
+        {"st": "Likely association"},
+        {"rt": "polygenic"},
+        {"moi": "HP:6"},
+        {"src": "gene_curator"},
+        {"src": "gene_curator", "xid": "GC-1", "xurl": "javascript:alert(1)"},
+        {"xurl": "javascript:alert(1)"},
+        {"src": "elsewhere"},
+        {"sc": "[1]"},
+    ],
+)
+def test_0013_rejects_invalid_rows(db_0013, bad):
+    engine, _, gene, user = db_0013
+    with pytest.raises(IntegrityError), engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row(**bad)})
+
+
+@pytest.mark.integration
+def test_0013_accepts_new_vocabulary_and_moi_split(db_0013):
+    engine, _, gene, user = db_0013
+    with engine.begin() as conn:
+        for row in (
+            _row(moi="HP:0000006"),
+            _row(moi="HP:0000007"),
+            _row(d="MONDO:0000001", st="No Known Disease Relationship"),
+            _row(d="MONDO:0000002", rt="susceptibility", st="Likely association"),
+            _row(
+                d="MONDO:0000003",
+                src="gene_curator",
+                xid="GC-1",
+                xurl="https://example.org/c/1",
+                sc='{"total": 12}',
+            ),
+        ):
+            conn.execute(NEW, {"g": gene, "u": user, **row})
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("moi", [None, "HP:0000006"])
+def test_0013_unique_per_gene_disease_moi(db_0013, moi):
+    engine, _, gene, user = db_0013
+    with engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row(moi=moi)})
+    with pytest.raises(IntegrityError), engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row(moi=moi)})
+
+
+@pytest.mark.integration
+def test_0013_external_id_unique_per_source(db_0013):
+    engine, _, gene, user = db_0013
+    gc = {"src": "gene_curator", "xid": "GC-9", "xurl": "https://example.org/c/9"}
+    with engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row(**gc)})
+    with pytest.raises(IntegrityError), engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row(d="MONDO:0000009", **gc)})
+
+
+@pytest.mark.integration
+def test_0013_downgrade_restores_gene_disease_key(db_0013):
+    engine, url, gene, user = db_0013
+    with engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row()})
+    _alembic(url, "downgrade", "0012")
+    with pytest.raises(IntegrityError), engine.begin() as conn:
+        conn.execute(
+            INSERT,
+            {
+                "g": gene,
+                "d": "MONDO:0005300",
+                "c": '["PMID:2"]',
+                "u": user,
+                "s": "draft",
+                "r": None,
+                "p": None,
+            },
+        )
+
+
+@pytest.mark.integration
+def test_0013_downgrade_refuses_to_drop_susceptibility(db_0013):
+    engine, url, gene, user = db_0013
+    with engine.begin() as conn:
+        conn.execute(
+            NEW, {"g": gene, "u": user, **_row(rt="susceptibility", st="Likely association")}
+        )
+    with pytest.raises(subprocess.CalledProcessError) as err:
+        _alembic(url, "downgrade", "0012")
+    assert b"susceptibility" in err.value.stderr
