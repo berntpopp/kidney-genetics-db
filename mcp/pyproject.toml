@@ -1,6 +1,6 @@
 [project]
 name = "kidney-genetics-mcp"
-version = "0.1.6"
+version = "0.1.7"
 description = "Read-only MCP server exposing Kidney-Genetics-DB public data to LLMs"
 requires-python = ">=3.11"
 dependencies = [
