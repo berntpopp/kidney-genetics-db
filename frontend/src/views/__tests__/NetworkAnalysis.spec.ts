@@ -836,6 +836,10 @@ describe('NetworkAnalysis.vue', () => {
       expect(pickClusterLabel([cyst, strong], 0, 1500)?.term_name).toBe('Strong')
       // without a universe there is no size cap
       expect(pickClusterLabel([broad, cyst])).toBe(broad)
+      // a term already naming a larger cluster is skipped
+      expect(pickClusterLabel([strong, cyst], 0, 1500, new Set(['HP:1']))?.term_name).toBe(
+        'Renal cyst'
+      )
     })
 
     it('requires FDR < 0.05, enough cluster genes and a resolved name', () => {

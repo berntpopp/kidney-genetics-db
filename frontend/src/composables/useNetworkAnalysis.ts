@@ -108,12 +108,14 @@ export const LABEL_MAX_TERM_SHARE = 0.1
  * morphology" and the ciliopathy cluster "Nephronophthisis" instead of "Foamy urine" and
  * "Urethrovaginal fistula" under a most-specific (gene_count / background_count) rule.
  * `universe` is the largest term's background count (the root kidney term), 0 = no cap.
- * Terms without a resolved name are skipped: ids are never bare.
+ * Terms without a resolved name are skipped: ids are never bare. `taken` holds term ids already
+ * naming a larger cluster, so two clusters never share a label.
  */
 export function pickClusterLabel(
   terms: EnrichmentTerm[],
   clusterSize = 0,
-  universe = 0
+  universe = 0,
+  taken: ReadonlySet<string> = new Set()
 ): EnrichmentTerm | null {
   const minGenes = Math.max(LABEL_MIN_GENES, Math.ceil(LABEL_MIN_COVERAGE * clusterSize))
   const maxTermSize = universe > 0 ? LABEL_MAX_TERM_SHARE * universe : Infinity
@@ -121,7 +123,7 @@ export function pickClusterLabel(
   for (const t of terms) {
     if (t.fdr >= LABEL_MAX_FDR || t.gene_count < minGenes) continue
     if ((t.background_count ?? Infinity) > maxTermSize) continue
-    if (!t.term_name || t.term_name === t.term_id) continue
+    if (!t.term_name || t.term_name === t.term_id || taken.has(t.term_id)) continue
     if (!best || t.p_value < best.p_value) best = t
   }
   return best
@@ -464,9 +466,14 @@ export function useNetworkAnalysis() {
       if (controller.signal.aborted) return
       const labels = new Map<number, EnrichmentTerm>()
       const universe = Math.max(0, ...response.results.flat().map(t => t.background_count ?? 0))
+      // Largest clusters choose first (clusters are ordered by size)
+      const taken = new Set<string>()
       clusters.forEach((c, i) => {
-        const term = pickClusterLabel(response.results[i] ?? [], c.size, universe)
-        if (term) labels.set(c.backendId, term)
+        const term = pickClusterLabel(response.results[i] ?? [], c.size, universe, taken)
+        if (term) {
+          labels.set(c.backendId, term)
+          taken.add(term.term_id)
+        }
       })
       clusterLabelTerms.value = labels
     } catch (error) {
