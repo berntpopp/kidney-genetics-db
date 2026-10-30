@@ -1,7 +1,7 @@
 """Simple data structures without Pydantic dependency."""
 
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 @dataclass
@@ -53,7 +53,13 @@ class ProviderData:
     sub_panels: Optional[List[SubPanel]] = None
     metadata: Optional[Dict[str, Any]] = None
     errors: Optional[List[str]] = None
-    scraped_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    scraped_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+    def __post_init__(self):
+        """Give single-panel providers one sub_panel so the panel itself can be linked."""
+        if self.sub_panels is None and self.provider_type == "single_panel":
+            name = (self.metadata or {}).get("panel_name", self.provider_name)
+            self.sub_panels = [SubPanel(name, self.main_url, self.total_unique_genes)]
 
     def model_dump(self) -> dict:
         """Convert to dictionary with proper serialization."""

@@ -1,7 +1,8 @@
 """
-MGZ München scraper - Molecular genetics kidney diseases panel.
+MGZ München scraper - every test in the Nephrologie specialty area.
 """
 
+import json
 import logging
 import os
 import re
@@ -13,103 +14,73 @@ from bs4 import BeautifulSoup
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from base_scraper import BaseDiagnosticScraper
-from schemas import GeneEntry, ProviderData
-from utils import clean_gene_symbol
+from schemas import GeneEntry, ProviderData, SubPanel
 
 logger = logging.getLogger(__name__)
 
 class MGZMuenchenScraper(BaseDiagnosticScraper):
-    """Scraper for MGZ München - Kidney diseases panel"""
+    """Scraper for MGZ München - Nephrologie und Elektrolytstörungen area"""
 
     def __init__(self, config: Optional[Dict] = None):
         super().__init__(config, provider_id="mgz_muenchen")
         self.provider_name = "MGZ München"
-        self.provider_type = "single_panel"
+        self.provider_type = "multi_panel"
 
-    def extract_genes(self, content: str) -> List[str]:
-        """Extract genes from MGZ München page"""
+    def extract_panels(self, content: str) -> List[Dict[str, str]]:
+        """Return {name, url, endpoint} for each test in the configured specialty area."""
         soup = BeautifulSoup(content, 'html.parser')
-        genes = []
-
-        # German site - look for gene lists in various formats
-        # MGZ typically lists genes in tables or lists
-        selectors = [
-            'table.gene-panel',
-            'div.gene-list',
-            'div.panel-content',
-            'table tbody tr',
-            'ul.genes li',
-            'div[class*="gen"]'
-        ]
-
-        for selector in selectors:
-            elements = soup.select(selector)
-            if elements:
-                for elem in elements:
-                    text = elem.get_text()
-                    # Look for gene symbols
-                    potential_genes = re.findall(r'\b[A-Z][A-Z0-9]{1,}[0-9]*[A-Z]*\b', text)
-                    for gene in potential_genes:
-                        if 2 <= len(gene) <= 15:
-                            cleaned = clean_gene_symbol(gene)
-                            if cleaned:
-                                genes.append(cleaned)
-
-        # Look for genes in table cells specifically
-        for td in soup.find_all('td'):
-            text = td.get_text().strip()
-            # German sites might have gene names in specific formats
-            if re.match(r'^[A-Z][A-Z0-9]{1,}[0-9]*[A-Z]*$', text):
-                cleaned = clean_gene_symbol(text)
-                if cleaned and 2 <= len(cleaned) <= 15:
-                    genes.append(cleaned)
-
-        # Fallback: search in paragraphs and divs
-        if not genes:
-            for element in soup.find_all(['p', 'div', 'li']):
-                text = element.get_text()
-                # Look for gene symbols, avoiding German words
-                if any(char.isdigit() for char in text) or ',' in text:
-                    potential_genes = re.findall(r'\b[A-Z][A-Z0-9]{1,}[0-9]*[A-Z]*\b', text)
-                    for gene in potential_genes:
-                        # Filter out common German abbreviations
-                        if (2 <= len(gene) <= 15 and
-                            not gene.startswith(('HTTP', 'DNA', 'RNA', 'NGS', 'PDF', 'FAQ'))):
-                            cleaned = clean_gene_symbol(gene)
-                            if cleaned:
-                                genes.append(cleaned)
-
-        return list(set(genes))
+        area = soup.select_one(f'[data-area-panel="{self.scraper_config.get("area", "")}"]')
+        panels = []
+        for link in area.select('a.mgz-service-spectrum__details') if area else []:
+            actions = link.find_parent(class_='mgz-service-spectrum__actions')
+            toggle = actions.select_one('[data-endpoint]') if actions else None
+            if toggle:
+                name = re.sub(r'^Details zu ', '', link.get('aria-label', ''))
+                panels.append(
+                    {'name': name, 'url': link['href'], 'endpoint': toggle['data-endpoint']}
+                )
+        return panels
 
     def run(self) -> ProviderData:
-        """Run MGZ München scraper"""
+        """Run MGZ München scraper: the area listing, then each test's gene endpoint."""
         logger.info("Starting MGZ München scraper")
 
         errors = []
-        gene_entries = []
+        sub_panels: List[SubPanel] = []
+        all_genes: Dict[str, List[str]] = {}
 
         try:
-            # Fetch content
-            content = self.fetch_content(self.url)
-
-            # Extract genes
-            genes = self.extract_genes(content)
-
-            if not genes:
-                logger.warning("No genes found for MGZ München kidney panel")
-
-            # Create filtered gene entries
-            gene_entries = self.create_filtered_gene_entries(
-                gene_symbols=genes,
-                panel_names=["Nierenerkrankungen Panel"]
-            )
-
-            # Normalize genes
-            gene_entries = self.normalize_genes(gene_entries)
-
+            panels = self.extract_panels(self.fetch_content(self.url))
         except Exception as e:
             logger.error(f"Error scraping MGZ München: {e}")
-            errors.append(str(e))
+            panels, errors = [], [str(e)]
+        if not panels and not errors:
+            errors.append("no panels found in the configured area")
+
+        for panel in panels:
+            self.sleep()
+            try:
+                genes = self.filter_genes(
+                    json.loads(self.fetch_content(panel['endpoint'])).get('genes', [])
+                )
+            except Exception as e:
+                logger.error(f"Error scraping {panel['name']}: {e}")
+                errors.append(f"{panel['name']}: {e}")
+                continue
+            if not genes:
+                errors.append(f"{panel['name']}: no genes found")
+                continue
+            genes = list(dict.fromkeys(genes))
+            sub_panels.append(SubPanel(name=panel['name'], url=panel['url'], gene_count=len(genes)))
+            for gene in genes:
+                all_genes.setdefault(gene, []).append(panel['name'])
+
+        gene_entries = self.normalize_genes(
+            [
+                GeneEntry(symbol=symbol, panels=names, occurrence_count=len(names))
+                for symbol, names in all_genes.items()
+            ]
+        )
 
         # Create provider data
         provider_data = ProviderData(
@@ -118,14 +89,14 @@ class MGZMuenchenScraper(BaseDiagnosticScraper):
             provider_name=self.provider_name,
             provider_type=self.provider_type,
             main_url=self.url,
-            total_panels=1,
-            sub_panels=None,
+            total_panels=len(sub_panels),
+            sub_panels=sub_panels,
             total_unique_genes=len(gene_entries),
             genes=gene_entries,
             metadata={
-                'panel_name': 'Molekulargenetik Nierenerkrankungen',
+                'panel_name': 'Nephrologie und Elektrolytstörungen',
                 'language': 'de',
-                'scraper_version': '1.0.0'
+                'scraper_version': '2.0.0'
             },
             errors=errors if errors else None
         )

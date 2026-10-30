@@ -2,19 +2,17 @@
 PreventionGenetics scraper - Comprehensive Kidney Disease Panel.
 """
 
+import json
 import logging
 import os
 import re
 import sys
 from typing import Dict, List, Optional
 
-from bs4 import BeautifulSoup
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from base_scraper import BaseDiagnosticScraper
-from schemas import GeneEntry, ProviderData
-from utils import clean_gene_symbol
+from schemas import ProviderData
 
 logger = logging.getLogger(__name__)
 
@@ -25,131 +23,24 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
         super().__init__(config, provider_id="prevention_genetics")
         self.provider_name = "PreventionGenetics"
         self.provider_type = "single_panel"
-        self.use_browser = False  # Try without browser first
+        self.use_browser = False  # gene list is embedded in the server-rendered page
+        self.display_name = self.scraper_config.get("display_name", "")
         self.logger.debug(f"Initialized PreventionGenetics scraper with URL: {self.url}")
 
-    def fetch_with_custom_browser(self):
-        """Custom browser fetch that waits for gene table to load."""
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
-
-            # Navigate to the page
-            page.goto(self.url, wait_until='networkidle', timeout=60000)
-
-            # Wait for the gene table to appear
-            # PreventionGenetics loads content dynamically
-            page.wait_for_timeout(5000)  # Wait 5 seconds for JavaScript
-
-            # Try clicking on "Show Genes" or similar button if it exists
-            try:
-                # Look for expandable sections
-                page.click('button:has-text("Gene")', timeout=2000)
-                page.wait_for_timeout(2000)
-            except:
-                pass
-
-            # Try to wait for gene table - using the exact selector user provided
-            try:
-                page.wait_for_selector('td.italic.geneSymbol', timeout=5000)
-            except:
-                # Try alternative selectors
-                try:
-                    page.wait_for_selector('table', timeout=5000)
-                except:
-                    pass
-
-            content = page.content()
-            browser.close()
-
-            # Save raw HTML for debugging
-            self._save_raw_data(content, self.url, "prevention_genetics_page")
-            self.logger.debug(f"Saved raw HTML, {len(content)} characters")
-
-            return content
-
     def extract_genes(self, content: str) -> List[str]:
-        """Extract genes from PreventionGenetics page"""
-        soup = BeautifulSoup(content, 'html.parser')
-        genes = []
+        """Return officialGeneSymbol of the geneList in the testHeaderBlock named display_name.
 
-        # PreventionGenetics lists genes in a table with class="italic geneSymbol"
-        # Look specifically for these table cells
-        gene_cells = soup.find_all('td', class_='italic geneSymbol')
-        if gene_cells:
-            for cell in gene_cells:
-                gene = cell.get_text().strip()
-                if gene and 2 <= len(gene) <= 15:
-                    cleaned = clean_gene_symbol(gene)
-                    if cleaned:
-                        genes.append(cleaned)
-            return list(set(genes))  # Return if we found genes this way
-
-        # Fallback: look for other gene formats
-        selectors = [
-            'td.geneSymbol',  # Gene symbol table cells
-            'td.italic',      # Italic cells that might have genes
-            'table.gene-list',
-            'div.panel-genes',
-            'table tbody tr td:first-child',  # First column often has genes
-            'div[class*="gene"]',
-            'ul.genes li',
-            'div.test-details'
-        ]
-
-        for selector in selectors:
-            elements = soup.select(selector)
-            if elements:
-                for elem in elements:
-                    text = elem.get_text()
-                    # Look for gene symbols
-                    potential_genes = re.findall(r'\b[A-Z][A-Z0-9]{1,}[0-9]*[A-Z]*\b', text)
-                    for gene in potential_genes:
-                        if 2 <= len(gene) <= 15:
-                            cleaned = clean_gene_symbol(gene)
-                            if cleaned:
-                                genes.append(cleaned)
-
-        # Look for genes in links (often genes are linked)
-        for link in soup.find_all('a'):
-            text = link.get_text().strip()
-            # Check if link text looks like a gene
-            if re.match(r'^[A-Z][A-Z0-9]{1,}[0-9]*[A-Z]*$', text):
-                cleaned = clean_gene_symbol(text)
-                if cleaned and 2 <= len(cleaned) <= 15:
-                    genes.append(cleaned)
-
-        # Check for genes in specific containers
-        for container in soup.find_all(['div', 'section', 'article']):
-            # Look for containers that might have gene lists
-            if container.get('class'):
-                class_str = ' '.join(container.get('class', []))
-                if any(keyword in class_str.lower() for keyword in ['gene', 'panel', 'test']):
-                    text = container.get_text()
-                    potential_genes = re.findall(r'\b[A-Z][A-Z0-9]{1,}[0-9]*[A-Z]*\b', text)
-                    for gene in potential_genes:
-                        if (2 <= len(gene) <= 15 and
-                            not gene.startswith(('HTTP', 'DNA', 'RNA', 'TEST'))):
-                            cleaned = clean_gene_symbol(gene)
-                            if cleaned:
-                                genes.append(cleaned)
-
-        # Fallback: general search
-        if not genes:
-            for element in soup.find_all(['p', 'div', 'span', 'li']):
-                text = element.get_text()
-                if 'kidney' in text.lower() or 'renal' in text.lower():
-                    potential_genes = re.findall(r'\b[A-Z][A-Z0-9]{1,}[0-9]*[A-Z]*\b', text)
-                    for gene in potential_genes:
-                        if (2 <= len(gene) <= 15 and
-                            not gene.startswith(('HTTP', 'DNA', 'RNA', 'NGS', 'PDF'))):
-                            cleaned = clean_gene_symbol(gene)
-                            if cleaned:
-                                genes.append(cleaned)
-
-        return list(set(genes))
+        The page embeds this test and its related tests as escaped Next.js flight data; each
+        test carries a testHeaderBlock with displayName and geneList.
+        """
+        data = content.replace('\\"', '"')
+        for block in re.finditer(r'"testHeaderBlock":\{', data):
+            start = data.index('"geneList":', block.end())
+            name = re.search(r'"displayName":"([^"]*)"', data[block.end():start])
+            if name and name.group(1) == self.display_name:
+                gene_list, _ = json.JSONDecoder().raw_decode(data, start + len('"geneList":'))
+                return list(dict.fromkeys(g["officialGeneSymbol"] for g in gene_list))
+        return []
 
     def run(self) -> ProviderData:
         """Run PreventionGenetics scraper"""
@@ -159,14 +50,13 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
         gene_entries = []
 
         try:
-            # Use custom browser fetch for PreventionGenetics
-            content = self.fetch_with_custom_browser()
+            content = self.fetch_content(self.url)
 
             # Extract genes
             genes = self.extract_genes(content)
 
             if not genes:
-                logger.warning("No genes found for PreventionGenetics kidney panel")
+                errors.append(f"no geneList found for test '{self.display_name}'")
 
             # Create filtered gene entries
             gene_entries = self.create_filtered_gene_entries(
@@ -194,7 +84,7 @@ class PreventionGeneticsScraper(BaseDiagnosticScraper):
             genes=gene_entries,
             metadata={
                 'panel_name': 'Comprehensive Kidney Disease Panel',
-                'scraper_version': '1.0.0'
+                'scraper_version': '2.0.0'
             },
             errors=errors if errors else None
         )

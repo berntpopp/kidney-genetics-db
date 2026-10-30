@@ -21,7 +21,8 @@ def test_normalize_genes_writes_outage_and_ambiguous_status(monkeypatch, tmp_pat
     def fake_urlopen(req, timeout=None):
         if "/PKD1" in req.full_url:
             raise urllib.error.URLError("down")
-        docs = [{"hgnc_id": "HGNC:1"}, {"hgnc_id": "HGNC:2"}] if "alias" in req.full_url else []
+        docs = [{"hgnc_id": f"HGNC:{i}", "status": "Approved"} for i in (1, 2)]
+        docs = docs if "alias" in req.full_url else []
         return io.BytesIO(json.dumps({"response": {"numFound": len(docs), "docs": docs}}).encode())
 
     monkeypatch.setattr(utils.urllib.request, "urlopen", fake_urlopen)

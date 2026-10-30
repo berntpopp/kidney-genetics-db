@@ -23,7 +23,7 @@ class MVZMedicoverScraper(BaseDiagnosticScraper):
         super().__init__(config, provider_id="mvz_medicover")
         self.provider_name = "MVZ Medicover"
         self.provider_type = "single_panel"
-        self.use_browser = True  # Page may use JavaScript
+        self.use_browser = False  # headless Chromium gets a bot-block page; plain HTTP has the data
 
     def extract_genes(self, content: str) -> List[str]:
         """Extract genes from MVZ Medicover page"""
@@ -46,7 +46,8 @@ class MVZMedicoverScraper(BaseDiagnosticScraper):
                 # Skip common non-gene words
                 if gene not in ['DISEASES', 'GENES', 'PANELS', 'INFO', 'TYPE',
                                'NAME', 'URI', 'SLUG', 'NODE', 'PAGE', 'DATA'] and \
-                   not gene.endswith('SYNDROM') and gene != 'MORBUSFABRY':  # Skip disease names
+                   not gene.endswith('SYNDROM') and gene != 'MORBUSFABRY' and \
+                   not re.match(r'PANEL\d+$', gene):  # Skip disease names and panel codes
                     cleaned = clean_gene_symbol(gene)
                     if cleaned:
                         genes.append(cleaned)
@@ -186,7 +187,7 @@ class MVZMedicoverScraper(BaseDiagnosticScraper):
             genes=gene_entries,
             metadata={
                 'panel_name': 'Kidney Diseases Panel',
-                'scraper_version': '1.0.0'
+                'scraper_version': '1.1.0'
             },
             errors=errors if errors else None
         )

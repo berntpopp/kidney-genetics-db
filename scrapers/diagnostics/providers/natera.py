@@ -55,6 +55,14 @@ class NateraScraper(BaseDiagnosticScraper):
             "x-requested-with": "XMLHttpRequest",
         }
 
+        # The WordPress nonce rotates; read it from the page's hidden _genescreening input.
+        nonce_input = BeautifulSoup(self.fetch_content(self.url), "html.parser").find(
+            id="_genescreening"
+        )
+        nonce = nonce_input.get("value", "") if nonce_input else ""
+        if not nonce:
+            raise RuntimeError("Natera: _genescreening nonce not found on gene list page")
+
         while page <= max_pages:
             # Prepare data for POST request
             data = {
@@ -63,7 +71,7 @@ class NateraScraper(BaseDiagnosticScraper):
                 "page": str(page),
                 "text": "",
                 "letter": "",
-                "nonce": "e362e71779",  # This might change, but we'll try with this
+                "nonce": nonce,
             }
 
             try:
@@ -243,7 +251,7 @@ class NateraScraper(BaseDiagnosticScraper):
             metadata={
                 "panel_name": "Renasight",
                 "description": "Comprehensive kidney gene panel",
-                "scraper_version": "1.0.0",
+                "scraper_version": "1.1.0",
             },
             errors=errors if errors else None,
         )
