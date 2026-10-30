@@ -61,6 +61,8 @@ async def list_curated_associations(
     Returns:
         ``{"associations": [...], "total": int}``.
     """
+    # ponytail: one page of 1000 (the API maximum); page through meta.total if published
+    # curations ever exceed that
     params: dict[str, Any] = {"limit": 1000}
     if gene_symbol:
         params["gene_symbol"] = gene_symbol

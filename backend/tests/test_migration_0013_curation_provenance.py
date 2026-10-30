@@ -178,3 +178,21 @@ def test_0013_downgrade_refuses_to_drop_susceptibility(db_0013):
     with pytest.raises(subprocess.CalledProcessError) as err:
         _alembic(url, "downgrade", "0012")
     assert b"susceptibility" in err.value.stderr
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "row",
+    [
+        {"moi": "HP:0000006"},
+        {"src": "gene_curator", "xid": "GC-2", "xurl": "https://example.org/c/2"},
+        {"sc": '{"total": 12}'},
+    ],
+)
+def test_0013_downgrade_refuses_to_drop_moi_provenance_or_points(db_0013, row):
+    engine, url, gene, user = db_0013
+    with engine.begin() as conn:
+        conn.execute(NEW, {"g": gene, "u": user, **_row(**row)})
+    with pytest.raises(subprocess.CalledProcessError) as err:
+        _alembic(url, "downgrade", "0012")
+    assert b"provenance" in err.value.stderr

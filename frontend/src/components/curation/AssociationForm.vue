@@ -267,6 +267,9 @@ function buildDiagnostics(): Diagnostics | null | false {
   resources.value.forEach((r, i) => {
     if (!r.name.trim() || !isHttpUrl(r.url.trim()) || !r.date)
       errs[`res-${i}`] = 'Name, an http(s) link and the verification date are required'
+    // A changed link was not checked on the old date: never carry that claim over
+    else if (r.raw && r.url.trim() !== r.raw.url && r.date === r.raw.verified.date)
+      errs[`res-${i}`] = 'The link changed: enter a new verification date'
   })
   rowErrors.value = errs
   if (Object.keys(errs).length) return false

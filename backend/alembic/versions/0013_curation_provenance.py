@@ -90,16 +90,19 @@ def downgrade() -> None:
             sa.text(
                 f"SELECT count(*) FILTER (WHERE relationship_type = 'susceptibility'),"
                 f" count(*) FILTER (WHERE evidence_strength NOT IN ({OLD_STRENGTHS})),"
-                f" count(*) - count(DISTINCT (gene_id, disease_id)) FROM {T}"
+                f" count(*) - count(DISTINCT (gene_id, disease_id)),"
+                " count(*) FILTER (WHERE source <> 'kgdb' OR num_nonnulls(moi, methodology,"
+                " methodology_version, external_id, external_url, external_curator,"
+                f" external_reviewer, scores, diagnostics) > 0) FROM {T}"
             )
         )
         .one()
     )
     if any(blockers):
         raise RuntimeError(
-            "cannot downgrade 0013: susceptibility rows, new strengths or per-MOI duplicates "
-            f"exist (susceptibility={blockers[0]}, strengths={blockers[1]}, "
-            f"duplicates={blockers[2]})"
+            "cannot downgrade 0013: rows use what 0012 cannot hold "
+            f"(susceptibility={blockers[0]}, strengths={blockers[1]}, "
+            f"duplicates={blockers[2]}, MOI/provenance/points/diagnostics={blockers[3]})"
         )
     op.drop_index("uq_gda_source_external_id", table_name=T)
     op.drop_constraint("uq_gda_gene_disease_moi", T, type_="unique")

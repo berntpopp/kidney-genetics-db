@@ -152,6 +152,52 @@ describe('AssociationForm', () => {
     expect(wrapper.emitted('save')).toBeUndefined()
   })
 
+  it('asks for a new verification date when a verified link is changed', async () => {
+    const record = {
+      id: 1,
+      gene_symbol: 'MUC1',
+      disease_id: 'MONDO:0005300',
+      disease_name: 'ADTKD',
+      relationship_type: 'mendelian',
+      evidence_strength: 'Definitive',
+      citations: ['PMID:1'],
+      evidence_summary: null,
+      source: 'kgdb',
+      diagnostics: {
+        recommended_transcript: null,
+        detectability: [],
+        resources: [
+          {
+            type: 'patient_organisation',
+            name: 'Group',
+            url: 'https://example.org/old',
+            language: null,
+            audiences: [],
+            maintainer: null,
+            conflict_of_interest: null,
+            verified: { method: 'fetched', date: '2026-09-01' }
+          }
+        ]
+      }
+    }
+    wrapper = mount(AssociationForm, {
+      props: { record: record as never },
+      attachTo: document.body
+    })
+    await flushPromises()
+    await wrapper.find('#gda-res-0-url').setValue('https://example.org/new')
+    await wrapper.find('form').trigger('submit')
+    await new Promise(resolve => setTimeout(resolve, 10))
+    await flushPromises()
+    expect(wrapper.find('#gda-res-0-error').text()).toContain('new verification date')
+    expect(wrapper.emitted('save')).toBeUndefined()
+    await wrapper.find('#gda-res-0-date').setValue('2026-10-30')
+    await wrapper.find('form').trigger('submit')
+    await new Promise(resolve => setTimeout(resolve, 10))
+    await flushPromises()
+    expect(wrapper.emitted('save')).toHaveLength(1)
+  })
+
   it('pre-fills diagnostics rows when editing and labels every input', async () => {
     const record = {
       id: 1,

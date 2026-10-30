@@ -15,36 +15,15 @@ from pydantic import (
 
 from app.models.gene_disease_association import (
     MENDELIAN_STRENGTHS,
+    MOI_TERMS,
     SUSCEPTIBILITY_STRENGTHS,
 )
 
-EvidenceStrength = Literal[
-    "Definitive",
-    "Strong",
-    "Moderate",
-    "Limited",
-    "Disputed",
-    "Refuted",
-    "No Known Disease Relationship",
-    "Established association",
-    "Likely association",
-    "Uncertain association",
-]
+EvidenceStrength = Literal[MENDELIAN_STRENGTHS + SUSCEPTIBILITY_STRENGTHS]  # type: ignore[valid-type]
 AssociationStatus = Literal["draft", "in_review", "published"]
 RelationshipType = Literal["mendelian", "susceptibility"]
 Source = Literal["kgdb", "gene_curator"]
-Moi = Literal[
-    "HP:0000006",
-    "HP:0000007",
-    "HP:0001417",
-    "HP:0001419",
-    "HP:0001423",
-    "HP:0032113",
-    "HP:0001427",
-    "HP:0001450",
-    "HP:0010984",
-    "HP:0001426",
-]
+Moi = Literal[tuple(MOI_TERMS)]  # type: ignore[valid-type]
 
 _DISEASE_ID = re.compile(r"^(MONDO:\d{7}|OMIM:\d{6})$")
 _PMID = re.compile(r"^(?:PMID:)?0*([1-9]\d{0,8})$")  # no PMID 0, no zero-padded duplicates
